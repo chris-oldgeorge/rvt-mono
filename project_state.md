@@ -41,9 +41,10 @@
   source import are design `1327b84`, plan `0abf895`, guard `ae65789`, and
   source import `31d168f`.
 - Task 3 guard: `tests/verify-mono-solution.test.sh` runs
-  `scripts/verify-mono-solution.sh`. It compares all module `*.csproj` files
-  with `dotnet sln Rvt.Mono.slnx list`, requires matching project counts, and
-  requires at least one listed project from every module root.
+  `scripts/verify-mono-solution.sh`. It compares normalized, sorted module
+  `*.csproj` paths with the normalized, sorted `dotnet sln Rvt.Mono.slnx list`
+  paths, requires matching project counts, and requires at least one listed
+  project from every module root.
 - Verification results:
   - `tests/verify-mono-solution.test.sh` and
     `tests/verify-mono-layout.test.sh` pass.

@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>480605b8-66fd-4218-8c6f-9c9c0e343c21</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Riok.Mapperly" PrivateAssets="all" OutputItemType="Analyzer" />
+    <PackageReference Include="Rvt.Monitor.Common" />
+    <PackageReference Include="Rvt.Monitor.Common.Infrastructure" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="api\http\" />
+    <None Remove="api\db\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="api\http\" />
+    <Folder Include="api\db\" />
+    <Folder Include="api\blobStorage\" />
+  </ItemGroup>
+
+</Project>

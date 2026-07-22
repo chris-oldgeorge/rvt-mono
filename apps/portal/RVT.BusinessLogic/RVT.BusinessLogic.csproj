@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- File summary: Builds the legacy RVT service layer used by the SPA backend and migration-era workflows. -->
+  <!-- Major updates: 2026-06-29 current - Added logging abstractions for MessageService email diagnostics. -->
+  <!-- Major updates: 2026-06-25 current - Removed NoWarn baseline so known legacy service-layer warnings are surfaced again. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.25.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RVT.Entities\RVT.Entities.csproj" />
+    <ProjectReference Include="..\RVT.Utilities\RVT.Utilities.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+﻿{
+  "category": "sensor_measurement_stopped_clipping",
+  "level": "error",
+  "created_at": null,
+  "data": {
+    "sensor": "WOHEPU",
+    "datetime": 1701798511.988
+  },
+  "created_for": null,
+  "text": "Your measuring point WOHEPU-82022 (WOHEPU) stopped measuring on Dec. 5, 2023, 5:48:31 p.m. GMT.\nCause: unrealistic measured value detected. Measurement is restarted.",
+  "measuring_point_id": 23423
+}

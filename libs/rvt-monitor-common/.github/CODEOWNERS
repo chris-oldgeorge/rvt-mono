@@ -1,0 +1,8 @@
+# Bootstrap ownership. Replace these entries with the corresponding RVT Group
+# maintainer teams once those teams are available to this repository.
+* @chris-oldgeorge
+
+/src/Rvt.Monitor.Common/Data/ @chris-oldgeorge
+/src/Rvt.Monitor.Common/Hosting/ @chris-oldgeorge
+/src/Rvt.Monitor.Common.Infrastructure/ @chris-oldgeorge
+/database/ @chris-oldgeorge

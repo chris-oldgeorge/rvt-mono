@@ -1,0 +1,44 @@
+[
+	{
+		"instrumentID": "Device1",
+		"name": "TestName",
+		"type": "E",
+		"location": "209732|R12823V|SE18 1DQ",
+		"city": "Kent",
+		"country": "United Kingdom",
+		"latitude": "51.2500",
+		"longitude": "0.75000",
+		"ip": "10.219.229.197",
+		"port": 991,
+		"timeZone": "Europe/London",
+		"status": "Active"
+	},
+	{
+		"instrumentID": "Device2",
+		"name": "TestName",
+		"type": "E",
+		"location": "209732|R12823V|SE18 2DQ",
+		"city": "Kent",
+		"country": "United Kingdom",
+		"latitude": "51.2500",
+		"longitude": "0.75000",
+		"ip": "10.219.229.198",
+		"port": 992,
+		"timeZone": "Europe/London",
+		"status": "Active"
+	},
+	{
+		"instrumentID": "Device3",
+		"name": "TestName",
+		"type": "E",
+		"location": "209732|R12823V|SE18 3DQ",
+		"city": "Kent",
+		"country": "United Kingdom",
+		"latitude": "51.2500",
+		"longitude": "0.75000",
+		"ip": "10.219.229.199",
+		"port": 993,
+		"timeZone": "Europe/London",
+		"status": "Active"
+	}
+]

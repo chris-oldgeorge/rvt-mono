@@ -1,0 +1,22 @@
+<Project>
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(IsTestProject)' == 'true' And Exists('$(MSBuildThisFileDirectory)testing/Rvt.Monitor.IntegrationTesting/appsettings.Development.json')">
+    <None Include="$(MSBuildThisFileDirectory)testing/Rvt.Monitor.IntegrationTesting/appsettings.Development.json">
+      <Link>rvt-integration.appsettings.Development.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <Target Name="PinCommonDependencyVersionForInfrastructurePackage"
+          AfterTargets="_GetProjectReferenceVersions"
+          BeforeTargets="GenerateNuspec"
+          Condition="'$(PackageId)' == 'Rvt.Monitor.Common.Infrastructure'">
+    <ItemGroup>
+      <_ProjectReferencesWithVersions Update="@(_ProjectReferencesWithVersions)"
+          Condition="'%(_ProjectReferencesWithVersions.Filename)' == 'Rvt.Monitor.Common'">
+        <ProjectVersion>[$(PackageVersion)]</ProjectVersion>
+      </_ProjectReferencesWithVersions>
+    </ItemGroup>
+  </Target>
+</Project>

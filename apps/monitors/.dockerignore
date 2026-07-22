@@ -1,0 +1,11 @@
+.git/
+.vs/
+.codegraph/
+**/bin/
+**/obj/
+**/TestResults/
+**/._*
+._*
+**/appsettings.Development.json
+**/appsettings.development.json
+docs/superpowers/

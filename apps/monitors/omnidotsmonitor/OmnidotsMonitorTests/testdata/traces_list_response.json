@@ -1,0 +1,13 @@
+{
+    "ok": true,
+    "traces": [
+        {
+            "start_time": 1234567890,
+            "end_time": 987654321
+        },
+        {
+            "start_time": 88888888,
+            "end_time": 999999999
+        }
+    ]
+}

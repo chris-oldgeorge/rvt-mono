@@ -1,0 +1,50 @@
+[
+	{
+	"serialNumber": "11111",
+	"model": "Model 1",
+	"displayName": "DisplayName 1",
+	"sharedPublicly": false,
+	"includeInMonitoring": false,
+	"currentLocation": {
+		"id": 1,
+		"deviceSerialNumber": "11111",
+		"customerId": 888,
+		"latitude": 12.345678,
+		"longitude": 87.654321,
+		"address": "1 The Street Anytown AB1 2DC",
+		"timeZone": "Europe/London",
+		"effectiveSince": "2023-09-06T12:19:44.682+00:00",
+		"effectiveTill": "2123-09-06T12:19:44.682+00:00",
+		"current": true
+	},
+	"currentCustomerAssignment": {
+		"customerDisplayName": "RVT-Test1",
+		"customerId": 888,
+		"effectiveSince": "2023-09-06T12:19:30.496431+00:00"
+	}
+},
+{
+	"serialNumber": "22222",
+	"model": "Model 2",
+	"displayName": "DisplayName 2",
+	"sharedPublicly": true,
+	"includeInMonitoring": true,
+	"currentLocation": {
+		"id": 1,
+		"deviceSerialNumber": "11111",
+		"customerId": 999,
+		"latitude": 87.654321,
+		"longitude": 12.345678,
+		"address": "2 The Street Anytown AB1 2DC",
+		"timeZone": "Europe/Amsterdam",
+		"effectiveSince": "2023-09-06T12:19:44.682+00:00",
+		"effectiveTill": null,
+		"current": false
+	},
+	"currentCustomerAssignment": {
+		"customerDisplayName": "RVT-Test2",
+		"customerId": 999,
+		"effectiveSince": "2023-09-06T12:19:30.496431+00:00"
+	}
+}
+]

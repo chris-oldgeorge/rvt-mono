@@ -1,0 +1,550 @@
+#This editorConfig file is from the Dotnet Roslyn repository: https://github.com/dotnet/roslyn/blob/main/.editorconfig
+
+# top-most EditorConfig file
+root = true
+ 
+# Don't use tabs for indentation.
+[*]
+indent_style = space
+# (Please don't specify an indent_size here; that has too many unintended consequences.)
+
+# Code files
+ 
+# Ignore generated files
+[**/Generated/**/*.cs]
+exclude = true
+generated_code = true
+
+# Nothing can be done, so ignore warning
+dotnet_diagnostic.CS8073.severity = none
+dotnet_diagnostic.IDE0005.severity = none
+
+[*.{cs,csx,vb,vbx}]
+indent_size = 4
+insert_final_newline = true
+charset = utf-8
+
+# XML project files
+[*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
+indent_size = 2
+
+# XML config files
+[*.{props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
+indent_size = 2
+
+# Dotnet code style settings:
+[*.{cs,vb}]
+
+# IDE1006: Naming rule violation
+dotnet_diagnostic.IDE1006.severity = error
+
+# IDE0055: Fix formatting
+dotnet_diagnostic.IDE0055.severity = error
+
+# Sort using and Import directives with System.* appearing first
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# Avoid "this." and "Me." if not necessary
+dotnet_style_qualification_for_field = false:refactoring
+dotnet_style_qualification_for_property = false:refactoring
+dotnet_style_qualification_for_method = false:refactoring
+dotnet_style_qualification_for_event = false:refactoring
+
+# Use language keywords instead of framework type names for type references
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+dotnet_style_predefined_type_for_member_access = true:suggestion
+
+# Suggest more modern language features when available
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_explicit_tuple_names = true:suggestion
+
+# Non-private static fields are PascalCase
+dotnet_naming_symbols.non_private_static_fields.applicable_kinds = field
+dotnet_naming_symbols.non_private_static_fields.applicable_accessibilities = public, protected, internal, protected_internal, private_protected
+dotnet_naming_symbols.non_private_static_fields.required_modifiers = static
+
+dotnet_naming_rule.non_private_static_fields_should_be_pascal_case.severity = error
+dotnet_naming_rule.non_private_static_fields_should_be_pascal_case.symbols = non_private_static_fields
+dotnet_naming_rule.non_private_static_fields_should_be_pascal_case.style = non_private_static_field_style
+
+dotnet_naming_style.non_private_static_field_style.capitalization = pascal_case
+
+# Non-private readonly fields are PascalCase
+
+dotnet_naming_symbols.non_private_readonly_fields.applicable_kinds = field
+dotnet_naming_symbols.non_private_readonly_fields.applicable_accessibilities = public, internal
+dotnet_naming_symbols.non_private_readonly_fields.required_modifiers = readonly
+
+dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.severity = error
+dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.symbols = non_private_readonly_fields
+dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.style = non_private_readonly_field_style
+
+dotnet_naming_style.non_private_readonly_field_style.capitalization = pascal_case
+
+# Constants are PascalCase
+dotnet_naming_symbols.constants.applicable_kinds = field
+dotnet_naming_symbols.constants.required_modifiers = const
+dotnet_naming_symbols.constants.applicable_accessibilities = *
+
+dotnet_naming_style.constants_style.capitalization = pascal_case
+
+dotnet_naming_rule.constants_should_be_pascal_case.symbols = constants
+dotnet_naming_rule.constants_should_be_pascal_case.style = constants_style
+dotnet_naming_rule.constants_should_be_pascal_case.severity = error
+
+# Static fields are camelCase 
+dotnet_naming_symbols.static_fields.applicable_kinds = field
+dotnet_naming_symbols.static_fields.required_modifiers = static
+
+dotnet_naming_rule.static_fields_should_be_camel_case.severity = error
+dotnet_naming_rule.static_fields_should_be_camel_case.symbols = static_fields
+dotnet_naming_rule.static_fields_should_be_camel_case.style = static_field_style
+
+dotnet_naming_style.static_field_style.capitalization = camel_case
+
+# Instance fields are camelCase and start with _
+dotnet_naming_symbols.instance_fields.applicable_kinds = field
+dotnet_naming_symbols.instance_fields.applicable_accessibilities = internal, private, protected, protected_internal, private_protected
+
+dotnet_naming_rule.instance_fields_should_be_camel_case.severity = error
+dotnet_naming_rule.instance_fields_should_be_camel_case.symbols = instance_fields
+dotnet_naming_rule.instance_fields_should_be_camel_case.style = instance_fields_style
+
+dotnet_naming_style.instance_fields_style.capitalization = camel_case
+dotnet_naming_style.instance_fields_style.required_prefix = _
+
+
+# Locals and parameters are camelCase
+dotnet_naming_symbols.locals_and_parameters.applicable_kinds = parameter, local
+
+dotnet_naming_rule.locals_should_be_camel_case.severity = error
+dotnet_naming_rule.locals_should_be_camel_case.symbols = locals_and_parameters
+dotnet_naming_rule.locals_should_be_camel_case.style = camel_case_style
+
+dotnet_naming_style.camel_case_style.capitalization = camel_case
+
+# Local functions are PascalCase
+dotnet_naming_symbols.local_functions.applicable_kinds = local_function
+
+dotnet_naming_rule.local_functions_should_be_pascal_case.severity = error
+dotnet_naming_rule.local_functions_should_be_pascal_case.symbols = local_functions
+dotnet_naming_rule.local_functions_should_be_pascal_case.style = local_function_style
+
+dotnet_naming_style.local_function_style.capitalization = pascal_case
+
+# By default, name items with PascalCase
+dotnet_naming_rule.members_should_be_pascal_case.severity = error
+dotnet_naming_rule.members_should_be_pascal_case.symbols = all_members
+dotnet_naming_rule.members_should_be_pascal_case.style = pascal_case_style
+
+dotnet_naming_symbols.all_members.applicable_kinds = *
+
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+
+# CSharp code style settings:
+[*.cs]
+
+# Newline settings
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+
+csharp_wrap_object_and_collection_initializer_style = chop_if_long ;
+csharp_max_array_initializer_elements_on_line = 10000 ;
+
+# Indentation preferences
+csharp_indent_block_contents = true
+csharp_indent_braces = false
+csharp_indent_case_contents = true
+csharp_indent_case_contents_when_block = true
+csharp_indent_switch_labels = true
+csharp_indent_labels = flush_left
+
+# Whitespace options
+csharp_style_allow_embedded_statements_on_same_line_experimental = false
+csharp_style_allow_blank_lines_between_consecutive_braces_experimental = false
+csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental = false
+
+# var usage
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = false:suggestion
+
+# Prefer method-like constructs to have a block body
+csharp_style_expression_bodied_methods = false:none
+csharp_style_expression_bodied_constructors = false:none
+csharp_style_expression_bodied_operators = false:none
+
+# Prefer property-like constructs to have an expression-body
+csharp_style_expression_bodied_properties = true:none
+csharp_style_expression_bodied_indexers = true:none
+csharp_style_expression_bodied_accessors = true:none
+
+# Suggest more modern language features when available
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_inlined_variable_declaration = true:suggestion
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+
+# Favour file scoped namespaces
+csharp_style_namespace_declarations = file_scoped:error
+
+# Space preferences
+csharp_space_after_cast = false
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_after_comma = true
+csharp_space_after_dot = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_after_semicolon_in_for_statement = true
+csharp_space_around_binary_operators = before_and_after
+csharp_space_around_declaration_statements = do_not_ignore
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_before_comma = false
+csharp_space_before_dot = false
+csharp_space_before_open_square_brackets = false
+csharp_space_before_semicolon_in_for_statement = false
+csharp_space_between_empty_square_brackets = false
+csharp_space_between_method_call_empty_parameter_list_parentheses = false
+csharp_space_between_method_call_name_and_opening_parenthesis = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_empty_parameter_list_parentheses = false
+csharp_space_between_method_declaration_name_and_open_parenthesis = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_parentheses = false
+csharp_space_between_square_brackets = false
+
+# Blocks are allowed
+csharp_prefer_braces = true:silent
+csharp_preserve_single_line_blocks = true
+csharp_preserve_single_line_statements = true
+
+# Currently only enabled for C# due to crash in VB analyzer.  VB can be enabled once
+# https://github.com/dotnet/roslyn/pull/54259 has been published.
+dotnet_style_allow_statement_immediately_after_block_experimental = false
+
+[src/CodeStyle/**.{cs,vb}]
+# warning RS0005: Do not use generic CodeAction.Create to create CodeAction
+dotnet_diagnostic.RS0005.severity = error
+
+[src/{Analyzers,CodeStyle,Features,Workspaces,EditorFeatures,VisualStudio}/**/*.{cs,vb}]
+
+# IDE0011: Add braces
+csharp_prefer_braces = when_multiline:warning
+csharp_style_var_for_built_in_types = true:warning
+csharp_style_var_when_type_is_apparent = true:warning
+csharp_style_var_elsewhere = true:warning
+
+[*.cs]
+# Analyzer diagnostics surface as warnings, not errors.
+#
+# This file came from the Roslyn repository, where every analyzer diagnostic is a build error. That bar is not
+# one this codebase currently meets: switching it on fails the build outright on long-standing code - CA1304 /
+# CA1311 / CA1862 (culture-sensitive string comparisons) across the application services, among others. Failing
+# the build on all of it would either block every change or force a large, unrelated cleanup.
+#
+# Warning keeps the rules visible and actionable so they can be paid down and ratcheted back to error - either
+# wholesale, or per-rule as each category is cleaned up. The rules this repo does enforce as errors
+# (IDE1006 naming, IDE0055 formatting) are set explicitly below.
+dotnet_analyzer_diagnostic.severity = warning
+
+# IDE0008: var preferences
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0007-ide0008
+# Reason: We want explicit types on the left hand side
+dotnet_diagnostic.IDE0008.severity = none
+
+# IDE0046: var preferences
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0046
+# Reason: We want explicit types on the left hand side
+dotnet_diagnostic.IDE0046.severity = none
+
+# IDE0058: Remove unnecessary expression value
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0058
+# Reason: There might be some logic within the boilerplate that isn't used, but we want to provide
+dotnet_diagnostic.IDE0058.severity = none
+
+# IDE0063: Use simple 'using' statement
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0063
+# Reason: Can make the scoping unreadable
+dotnet_diagnostic.IDE0063.severity = none
+
+# IDE0290: Use primary constructors
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0290
+# Reason: Can cause readability issues when multiple constructors are present
+dotnet_diagnostic.IDE0290.severity = none
+
+# IDE0270: Null check can be simplified.
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0270
+# Reason: Can cause unreadable alternatives
+dotnet_diagnostic.IDE0270.severity = none
+
+# IDE0300: Collection initialization can be simplified.
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0300
+# Reason: Seems to clash with other rules and not auto-fixing
+dotnet_diagnostic.IDE0300.severity = none
+
+# IDE0028: Collection initialization can be simplified.
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0028
+# Reason: Seems to clash with other rules and not auto-fixing
+dotnet_diagnostic.IDE0028.severity = none
+
+# CS8603: Missing XML comment for publicly visible type or member 'Type_or_Member'
+# https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-messages/cs1591
+# Reason: Shouldn't be required, as might not be public facing.
+dotnet_diagnostic.CS1591.severity = none
+
+# CA1000: Do not declare static members on generic types
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1000
+# Disabled deliberately. The application layer models outcomes with ApplicationResult<T>, whose static factories
+# (Success / NotFound / Validation / ...) are the whole point of the type - the same shape as Task<T>.FromResult
+# or a Result<T>. Callers writing ApplicationResult<SiteDetailModel>.Success(x) is intended, not accidental.
+dotnet_diagnostic.CA1000.severity = none
+dotnet_code_quality.CA1000.api_surface = all
+
+dotnet_code_quality.CA1003.api_surface = private, internal
+
+# CA1008: Enums should have zero value
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1008
+dotnet_code_quality.CA1008.api_surface = public
+
+# CA1010: Generic interface should also be implemented
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1010
+dotnet_code_quality.CA1010.api_surface = public
+
+# CA1012: Abstract types should not have public constructors
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1012
+dotnet_code_quality.CA1012.api_surface = all
+
+# CA1024: Use properties where appropriate
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1024
+dotnet_code_quality.CA1024.api_surface = public
+
+# CA1027: Mark enums with FlagsAttribute
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1027
+dotnet_code_quality.CA1027.api_surface = public
+
+# CA1028: Enum Storage should be Int32
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1028
+dotnet_code_quality.CA1028.api_surface = public
+
+# CA1030: Use events where appropriate
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1030
+dotnet_code_quality.CA1030.api_surface = public
+
+# CA1036: Override methods on comparable types
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1036
+dotnet_code_quality.CA1036.api_surface = public
+
+# CA1040: Avoid empty interfaces
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1040
+dotnet_diagnostic.CA1040.severity = none
+
+# CA1041: Provide ObsoleteAttribute message
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1041
+dotnet_code_quality.CA1041.api_surface = public
+
+# CA1043: Use Integral Or String Argument For Indexers
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1043
+dotnet_code_quality.CA1043.api_surface = all
+
+# CA1044: Properties should not be write only
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1044
+dotnet_code_quality.CA1044.api_surface = public
+
+# CA1051: Do not declare visible instance fields
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1051
+dotnet_code_quality.CA1051.api_surface = public
+
+# CA1052: Static holder types should be Static or NotInheritable
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1052
+dotnet_code_quality.CA1052.api_surface = all
+
+# CA1054: URI-like parameters should not be strings
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1054
+dotnet_code_quality.CA1054.api_surface = public
+
+# CA1055: URI-like return values should not be strings
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1055
+dotnet_code_quality.CA1055.api_surface = public
+
+# CA1056: URI-like properties should not be strings
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1056
+dotnet_code_quality.CA1056.api_surface = public
+
+# CA1058: Types should not extend certain base types
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1058
+dotnet_code_quality.CA1058.api_surface = public
+
+# CA1062: Validate arguments of public methods
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1062
+# Disabled as clashes with nullable property
+dotnet_diagnostic.CA1062.severity = none
+
+# CA1063: Implement IDisposable Correctly
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1063
+dotnet_code_quality.CA1063.api_surface = public
+
+# CA1708: Identifiers should differ by more than case
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1708
+dotnet_code_quality.CA1708.api_surface = public
+
+# CA1710: Identifiers should have correct suffix
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1710
+dotnet_code_quality.CA1710.api_surface = public
+
+# CA1711: Identifiers should not have incorrect suffix
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1711
+dotnet_code_quality.CA1711.api_surface = public
+
+# CA1715: Identifiers should have correct prefix
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1715
+dotnet_code_quality.CA1715.api_surface = public
+
+# CA1716: Identifiers should not match keywords
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1716
+dotnet_code_quality.CA1716.api_surface = public
+
+# CA1720: Identifier contains type name
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1720
+dotnet_code_quality.CA1720.api_surface = public
+
+# CA1721: Property names should not match get methods
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1721
+dotnet_code_quality.CA1721.api_surface = public
+
+# CA1725: Parameter names should match base declaration
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1725
+dotnet_code_quality.CA1725.api_surface = public
+
+# CA1801: Review unused parameters
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1801
+dotnet_diagnostic.CA1801.severity = error
+dotnet_code_quality.CA1801.api_surface = all
+
+# CA1802: Use literals where appropriate
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1802
+dotnet_code_quality.CA1802.api_surface = public
+
+
+# CA1815: Override equals and operator equals on value types
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1815
+dotnet_code_quality.CA1815.api_surface = public
+
+# CA1819: Properties should not return arrays
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1819
+dotnet_code_quality.CA1819.api_surface = public
+
+# CA1822: Mark members as static
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1822
+dotnet_code_quality.CA1822.api_surface = private
+
+# CA1848: Use the LoggerMessage delegates
+# https://learn.microsoft.com/en-gb/dotnet/fundamentals/code-analysis/quality-rules/ca1848
+dotnet_diagnostic.CA1848.severity = none
+
+# CA2007: Consider calling ConfigureAwait on the awaited task
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2007
+dotnet_diagnostic.CA2007.severity = none
+
+# CA2208: Instantiate argument exceptions correctly
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2208
+dotnet_diagnostic.CA2208.severity = none
+dotnet_code_quality.CA2208.api_surface = all
+
+# CA2217: Do not mark enums with FlagsAttribute
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2217
+dotnet_code_quality.CA2217.api_surface = public
+
+# CA2225: Operator overloads have named alternates
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2225
+dotnet_code_quality.CA2225.api_surface = public
+
+# CA2226: Operators should have symmetrical overloads
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2226
+dotnet_code_quality.CA2226.api_surface = public
+
+# CA2231: Overload operator equals on overriding value type Equals
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2231
+dotnet_code_quality.CA2231.api_surface = public
+
+# CA2234: Pass system uri objects instead of strings
+# https://docs.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2234
+dotnet_code_quality.CA2234.api_surface = public
+
+# CA2254: Template should be a static expression
+# https://learn.microsoft.com/en-gb/dotnet/fundamentals/code-analysis/quality-rules/ca2254
+dotnet_diagnostic.CA2254.severity = none
+
+# Mapperly
+dotnet_diagnostic.RMG012.severity = error # Unmapped target property
+dotnet_diagnostic.RMG020.severity = error # Unmapped source property
+
+[*MapperExtensions.cs] # https://github.com/dotnet/roslyn/issues/75700
+dotnet_diagnostic.IDE0060.severity = none
+
+
+# ADDED RULES - All these are downgraded to warning to allow the code to compile, the intended rules above mark them as errors
+[*.cs]
+dotnet_diagnostic.CA1305.severity = warning
+dotnet_diagnostic.CA1805.severity = warning
+dotnet_diagnostic.CA1725.severity = warning
+dotnet_diagnostic.CA2263.severity = warning # FIX
+dotnet_diagnostic.CA1861.severity = warning # FIX
+dotnet_diagnostic.CA1826.severity = warning # FIX
+dotnet_diagnostic.CA1865.severity = warning # FIX
+dotnet_diagnostic.CA1822.severity = warning # FIX
+dotnet_diagnostic.CA2249.severity = warning # FIX
+dotnet_diagnostic.CA1852.severity = warning # FIX
+dotnet_diagnostic.CA1001.severity = warning # BAD
+
+# Turned off (not just downgraded) after a review on 2026-07-15 - each conflicts with a deliberate choice in this
+# codebase rather than flagging a defect:
+#   CA1711 - every enum carries an explicit "…Enum" suffix as a house convention (AlertTypeEnum, MessageEnum, …);
+#            renaming them all would be a broad breaking change for a stylistic rule.
+#   CA1707 - the remaining hits are public enum members that encode a domain value (…Enum._15_min,
+#            MessageEnum.Password_Set) and a few SCREAMING_CASE constants; the underscores carry meaning and the
+#            names are referenced/serialized by consumers. (xUnit method names are handled by the test project's
+#            EnableNETAnalyzers=false, not here.)
+#   CA1716 - guards cross-language keyword clashes ("date"/"Date", the "Interface" namespace); this is a
+#            single-language C# solution, so the clash cannot occur, and one hit is a breaking namespace rename.
+#   CA1859 - every hit is an internal helper taking a read-only collection interface to signal it does not mutate
+#            the argument; using the concrete type would spread mutable types across ~20 signatures for a single
+#            interface dispatch on small collections.
+#   CA1863 - CompositeFormat pre-parses a format string for hot-path reuse; the only hits format a monitor's
+#            display name once per request, so the caching ceremony buys nothing.
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1711.severity = none
+dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.CA1859.severity = none
+dotnet_diagnostic.CA1863.severity = none
+# CA1051 / CA1861 stay enabled for hand-written code; they are turned off only for the vendored and generated
+# folders below, where the flagged code is not ours to change.
+dotnet_diagnostic.CA1051.severity = warning
+dotnet_diagnostic.CA1861.severity = warning
+
+
+# TESTS ONLY - test code is excluded from the CA analyzer ruleset via EnableNETAnalyzers=false in
+# RvtPortal.Spa.Tests.csproj, NOT here. A "dotnet_analyzer_diagnostic.severity = none" section cannot do it:
+# it does not override rules set explicitly above (e.g. CA1707 at "dotnet_diagnostic.CA1707.severity"), which
+# is what was tripping ~440 warnings on xUnit method names. An earlier "[**/Tests/**/*.cs]" rule here also
+# never matched anything - the project directory is "RvtPortal.Spa.Tests" (one segment), not a "Tests/" folder.
+
+# GENERATED CODE - EF Core migrations are scaffolded by the tooling and are not hand-maintained, so the CA
+# analyzers (e.g. CA1861 constant-array-argument) do not apply. The explicit CA1861 line is needed because an
+# explicit per-rule severity above beats a bulk "dotnet_analyzer_diagnostic.severity" no matter the order.
+[**/Migrations/**.cs]
+dotnet_analyzer_diagnostic.severity = none
+dotnet_diagnostic.CA1861.severity = none
+
+# VENDORED CODE - AForge.NET math is third-party source vendored into RVT.BusinessLogic; its public fields
+# (CA1051) and other style choices are not ours to change.
+[**/AForge/**.cs]
+dotnet_analyzer_diagnostic.severity = none
+dotnet_diagnostic.CA1051.severity = none

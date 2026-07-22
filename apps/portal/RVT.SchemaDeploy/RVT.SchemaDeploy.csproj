@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>RVT.SchemaDeploy</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The SQL is copied next to the executable so a published build is self-contained: the tool has to work on a
+      deployment host that does not have the repository checked out. The glob is deliberate - a new post-load
+      script is picked up by adding the file, with nothing to remember to register here, and
+      SchemaDeployTests.DeployTool_ShipsEveryPostLoadScript fails if that ever stops being true.
+    -->
+    <Content Include="..\database\postgres\create_unmapped_schema.sql"
+             Link="sql\create_unmapped_schema.sql"
+             CopyToOutputDirectory="PreserveNewest" />
+    <!--
+      The Exclude keeps macOS AppleDouble sidecars (._foo.sql) from being copied as source files. It is not
+      sufficient on its own: when the output directory is on an SMB share, the filesystem recreates a sidecar
+      next to every file it writes, so they reappear in bin/ regardless. They match *.sql and their contents are
+      binary, so ScriptRunner filters them at read time - that is the check that actually protects the run.
+    -->
+    <Content Include="..\database\postgres\post-load\*.sql"
+             Exclude="..\database\postgres\post-load\._*.sql"
+             Link="sql\post-load\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

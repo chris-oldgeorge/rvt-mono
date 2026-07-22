@@ -1,0 +1,18 @@
+[{
+	"lastUpdated": "2023-09-12T12:32:14.000+00:00",
+	"calibrationDate": "2020-03-23T15:48:00.000+00:00",
+	"filterChangeDate": "2020-12-14T14:10:00.000+00:00",
+	"massCollectedOnFilter": "0.08 mg",
+	"filterUsage": "90.0 hours",
+	"photometerGain": "1550",
+	"pumpHours": "6263.0 hours",
+	"laser": "32.0 mA",
+	"light": "0 mV",
+	"flowIndex": "148",
+	"setPoint": "45",
+	"batteryVoltage": "7.06 volts",
+	"caseTemperature": "18.0 Celsius",
+	"memoryUsage": "768 words",
+	"inletHeating": "On",
+	"instrumentID": "TNT0000"
+}]

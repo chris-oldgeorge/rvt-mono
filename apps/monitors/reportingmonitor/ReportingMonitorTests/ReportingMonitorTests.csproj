@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Rvt.Monitor.Common" />
+    <PackageReference Include="Rvt.Monitor.IntegrationTesting" PrivateAssets="all" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ReportingMonitor\ReportingMonitor.csproj" />
+    <ProjectReference Include="..\Rvt.Reporting.Core\Rvt.Reporting.Core.csproj" />
+    <ProjectReference Include="..\Rvt.Reporting.Pdf\Rvt.Reporting.Pdf.csproj" />
+    <ProjectReference Include="..\Rvt.Reporting.Storage\Rvt.Reporting.Storage.csproj" />
+    <ProjectReference Include="..\Rvt.Reporting.Messaging\Rvt.Reporting.Messaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="testdata/create.postgres.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="testdata/reset.postgres.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

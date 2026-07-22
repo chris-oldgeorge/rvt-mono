@@ -1,0 +1,64 @@
+name: package-consumer-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, release-candidate]
+
+permissions:
+  contents: read
+
+jobs:
+  untrusted-policy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with: { dotnet-version: 10.0.x }
+      - run: scripts/verify-private-package-builds.sh
+
+  trusted-package-gate:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rvt_monitor_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rvt_monitor_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RVT__POSTGRES_INTEGRATION_CONNECTION: Host=127.0.0.1;Port=5432;Database=rvt_monitor_ci;Username=postgres;Password=postgres
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with: { dotnet-version: 10.0.x }
+      - name: Restore private packages
+        run: dotnet restore rvt-monitors.sln --locked-mode
+        env:
+          NuGetPackageSourceCredentials_rvt: Username=${{ secrets.RVT_PACKAGES_READ_USER }};Password=${{ secrets.RVT_PACKAGES_READ_TOKEN }};ValidAuthenticationTypes=Basic
+      - run: dotnet format rvt-monitors.sln --verify-no-changes --no-restore
+      - run: dotnet build rvt-monitors.sln --no-restore --nologo
+      - run: dotnet test rvt-monitors.sln --no-build --nologo
+      - run: scripts/verify-private-package-builds.sh
+      - run: docker compose config --quiet
+      - name: Build package-consuming images
+        run: docker compose build
+        env:
+          NuGetPackageSourceCredentials_rvt: Username=${{ secrets.RVT_PACKAGES_READ_USER }};Password=${{ secrets.RVT_PACKAGES_READ_TOKEN }};ValidAuthenticationTypes=Basic
+      - run: scripts/report-rvt-package-inventory.sh
+      - run: scripts/export-client-release.sh /tmp/rvt-monitors-client-release
+      - run: test ! -d /tmp/rvt-monitors-client-release/rvt-monitor-common

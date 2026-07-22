@@ -1,0 +1,39 @@
+# Client release export exclusions.
+# Patterns are evaluated against repository-relative paths using forward slashes.
+# Directory patterns end with / and match the directory plus everything below it.
+
+# Internal AI/process guidance and plans
+AGENTS.md
+.github/copilot-instructions.md
+docs/superpowers/
+docs/release/client-release-exclusions.txt
+docs/release/export-client-release.ps1
+
+# Internal design, planning, and refactor documents (not client deliverables)
+docs/architecture/
+docs/database/
+docs/development/
+docs/testing/
+docs/onboarding/
+docs/sonar/SQL_SCRIPT_ANALYSIS_POLICY.md
+docs/release/*-rc-review-response.md
+
+# Internal dev-team tooling (not part of the client deliverable)
+docs/deploy/share-dev-database.sh
+
+# Local worktree and code-intelligence state
+.codegraph/
+.worktrees/
+
+# macOS and Office sidecar files
+**/._*
+**/.DS_Store
+**/~$*
+
+# Dependency and build outputs
+RvtPortal.Client/node_modules/
+**/bin/
+**/obj/
+
+# Generated SPA publish output. Frontend source assets stay in RvtPortal.Client.
+RvtPortal.Spa/wwwroot/

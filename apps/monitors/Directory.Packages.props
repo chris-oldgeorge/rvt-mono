@@ -1,0 +1,35 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <RvtCommonVersion>0.2.0-rc.1</RvtCommonVersion>
+    <RvtCommonInfrastructureVersion>0.2.0-rc.1</RvtCommonInfrastructureVersion>
+    <RvtIntegrationTestingVersion>0.2.0-rc.1</RvtIntegrationTestingVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="BouncyCastle.Cryptography" Version="2.6.2" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" Condition="'$(MSBuildProjectName)' == 'ReportingMonitorTests'" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.2" Condition="'$(MSBuildProjectName)' != 'ReportingMonitorTests'" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.4" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.4" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.4" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.4" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.9" Condition="'$(MSBuildProjectName)' == 'Rvt.Reporting.Messaging'" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" Condition="'$(MSBuildProjectName)' == 'ReportingMonitorTests'" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" Condition="'$(MSBuildProjectName)' != 'ReportingMonitorTests'" />
+    <PackageVersion Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.37.3" />
+    <PackageVersion Include="Moq" Version="4.20.69" />
+    <PackageVersion Include="MSTest.TestAdapter" Version="4.0.2" />
+    <PackageVersion Include="MSTest.TestFramework" Version="4.0.2" />
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <PackageVersion Include="QuestPDF" Version="2026.6.0" />
+    <PackageVersion Include="Riok.Mapperly" Version="4.3.1" />
+    <PackageVersion Include="Rvt.Monitor.Common" Version="[$(RvtCommonVersion)]" />
+    <PackageVersion Include="Rvt.Monitor.Common.Infrastructure" Version="[$(RvtCommonInfrastructureVersion)]" />
+    <PackageVersion Include="Rvt.Monitor.IntegrationTesting" Version="[$(RvtIntegrationTestingVersion)]" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+</Project>

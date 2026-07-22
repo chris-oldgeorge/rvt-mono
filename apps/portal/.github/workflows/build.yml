@@ -1,0 +1,146 @@
+name: Verify
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: RvtPortal.Client/package-lock.json
+
+      - name: Verify backend
+        # Restoring Rvt.Monitor.Common.Infrastructure needs read access to the RVT-Group-LTD package feed.
+        # NuGet.config reads these from the environment; no credential is stored in the repository.
+        env:
+          RVT_PACKAGES_USER: ${{ github.actor }}
+          RVT_PACKAGES_TOKEN: ${{ secrets.RVT_PACKAGES_TOKEN }}
+        run: ./scripts/verify-backend.sh
+
+      - name: Verify frontend
+        run: ./scripts/verify-frontend.sh
+
+      - name: Build and smoke frontend image
+        run: ./scripts/verify-frontend-container.sh rvt-cloud-refactor-web:ci
+
+  analyze:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect Sonar token
+        id: sonar-token
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [[ -n "${SONAR_TOKEN}" ]]; then
+            echo "available=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "available=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Check out repository
+        if: steps.sonar-token.outputs.available == 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        if: steps.sonar-token.outputs.available == 'true'
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9
+        with:
+          java-version: 17
+          distribution: zulu
+
+      - name: Set up .NET 10
+        if: steps.sonar-token.outputs.available == 'true'
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Node.js 24
+        if: steps.sonar-token.outputs.available == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: RvtPortal.Client/package-lock.json
+
+      - name: Install Sonar scanner
+        if: steps.sonar-token.outputs.available == 'true'
+        run: dotnet tool install dotnet-sonarscanner --tool-path .sonar --version 11.2.1
+
+      - name: Begin Sonar analysis
+        if: steps.sonar-token.outputs.available == 'true'
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          set -euo pipefail
+          sonar_begin=(
+            '/k:aileron-forward_rvtportal-spa-alpha'
+            '/o:aileron-forward'
+            "/d:sonar.token=${SONAR_TOKEN}"
+            '/d:sonar.host.url=https://sonarcloud.io'
+            '/d:sonar.cs.opencover.reportsPaths=artifacts/coverage/**/coverage.opencover.xml'
+            '/d:sonar.javascript.lcov.reportPaths=RvtPortal.Client/coverage/lcov.info'
+            '/d:sonar.cpd.exclusions=database/**,RVT.DataAccess/Migrations/**,RVT.DataAccess/EntityModels/Models/**,RvtPortal.Client/dist/**,RvtPortal.Client/coverage/**,RvtPortal.Client/src/api/schema.d.ts'
+            '/d:sonar.coverage.exclusions=database/**,RVT.DataAccess/Migrations/**,RVT.DataAccess/EntityModels/Models/**,RvtPortal.Client/dist/**,RvtPortal.Client/coverage/**,RvtPortal.Client/src/api/schema.d.ts'
+          )
+          ./.sonar/dotnet-sonarscanner begin "${sonar_begin[@]}"
+
+      - name: Restore and build backend
+        if: steps.sonar-token.outputs.available == 'true'
+        env:
+          RVT_PACKAGES_USER: ${{ github.actor }}
+          RVT_PACKAGES_TOKEN: ${{ secrets.RVT_PACKAGES_TOKEN }}
+        run: |
+          dotnet restore RvtPortal.Spa.sln --nologo
+          dotnet build RvtPortal.Spa.sln --configuration Release --no-restore --nologo
+
+      - name: Collect backend coverage
+        if: steps.sonar-token.outputs.available == 'true'
+        run: >-
+          dotnet test RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj
+          --configuration Release
+          --no-build
+          --collect:"XPlat Code Coverage"
+          --results-directory artifacts/coverage
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+
+      - name: Install frontend dependencies
+        if: steps.sonar-token.outputs.available == 'true'
+        working-directory: RvtPortal.Client
+        run: npm ci
+
+      - name: Collect frontend coverage
+        if: steps.sonar-token.outputs.available == 'true'
+        working-directory: RvtPortal.Client
+        run: npm run test:coverage
+
+      - name: End Sonar analysis
+        if: steps.sonar-token.outputs.available == 'true'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./.sonar/dotnet-sonarscanner end /d:sonar.token="${SONAR_TOKEN}"

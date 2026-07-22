@@ -1,0 +1,4252 @@
+﻿[
+  {
+    "timestamp": "2023-10-04T16:00:00+00:00",
+    "avrg": 3600,
+    "count": 2,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.94112,
+      "max": 2.145823,
+      "avg": 2.0434715
+    },
+    "pm2_5": {
+      "min": 3.790286,
+      "max": 4.952103,
+      "avg": 4.3711945
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 8.067607,
+      "max": 10.04355,
+      "avg": 9.0555785
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 9.435073,
+      "max": 11.28965,
+      "avg": 10.362361499999999
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.61589,
+      "max": 21.6402,
+      "avg": 21.628045
+    },
+    "weather_p": {
+      "min": 1025.5,
+      "max": 1025.5,
+      "avg": 1025.5
+    },
+    "weather_rh": {
+      "min": 51.26082,
+      "max": 51.30471,
+      "avg": 51.282765
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T15:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.705407,
+      "max": 2.351005,
+      "avg": 2.0556246333333337
+    },
+    "pm2_5": {
+      "min": 2.908492,
+      "max": 6.256985,
+      "avg": 4.4040281
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 4.293446,
+      "max": 24.98868,
+      "avg": 10.718750116666667
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 4.537994,
+      "max": 76.87256,
+      "avg": 16.246066799999998
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.39531,
+      "max": 21.68274,
+      "avg": 21.53810283333333
+    },
+    "weather_p": {
+      "min": 1025.5,
+      "max": 1025.937,
+      "avg": 1025.6969333333332
+    },
+    "weather_rh": {
+      "min": 51.02953,
+      "max": 51.90006,
+      "avg": 51.43388383333334
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T14:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.718938,
+      "max": 2.404787,
+      "avg": 2.0094763833333333
+    },
+    "pm2_5": {
+      "min": 2.464998,
+      "max": 6.903639,
+      "avg": 4.3707557
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 3.111029,
+      "max": 21.90916,
+      "avg": 10.346736483333332
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 3.219951,
+      "max": 51.14914,
+      "avg": 13.428936533333331
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.37279,
+      "max": 21.61053,
+      "avg": 21.484677333333323
+    },
+    "weather_p": {
+      "min": 1025.9,
+      "max": 1026.27,
+      "avg": 1026.082266666666
+    },
+    "weather_rh": {
+      "min": 51.16997,
+      "max": 52.07088,
+      "avg": 51.65910833333334
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T13:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.622191,
+      "max": 2.343632,
+      "avg": 2.0081270499999997
+    },
+    "pm2_5": {
+      "min": 2.673623,
+      "max": 6.793273,
+      "avg": 4.274174749999999
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 3.52997,
+      "max": 20.40796,
+      "avg": 9.9295769
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 3.715263,
+      "max": 39.92836,
+      "avg": 13.386516666666664
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.15864,
+      "max": 21.39996,
+      "avg": 21.294371499999993
+    },
+    "weather_p": {
+      "min": 1026.277,
+      "max": 1026.667,
+      "avg": 1026.4549000000004
+    },
+    "weather_rh": {
+      "min": 51.88881,
+      "max": 52.53064,
+      "avg": 52.18683183333334
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T12:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.814495,
+      "max": 2.558133,
+      "avg": 2.2007541833333346
+    },
+    "pm2_5": {
+      "min": 3.468032,
+      "max": 7.571414,
+      "avg": 4.985383883333333
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 4.945781,
+      "max": 28.20536,
+      "avg": 11.85060371666667
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 5.230151,
+      "max": 44.48921,
+      "avg": 16.153590933333337
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.12361,
+      "max": 21.40604,
+      "avg": 21.28877983333333
+    },
+    "weather_p": {
+      "min": 1026.61,
+      "max": 1027.21,
+      "avg": 1027.0070999999996
+    },
+    "weather_rh": {
+      "min": 52.44352,
+      "max": 53.55411,
+      "avg": 52.79052216666667
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T11:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.912461,
+      "max": 2.72869,
+      "avg": 2.228355333333333
+    },
+    "pm2_5": {
+      "min": 3.653915,
+      "max": 6.66166,
+      "avg": 5.306260350000002
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 5.689663,
+      "max": 24.0404,
+      "avg": 12.642715033333333
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 6.205249,
+      "max": 56.07491,
+      "avg": 17.870354483333333
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.92233,
+      "max": 21.24516,
+      "avg": 21.084508500000002
+    },
+    "weather_p": {
+      "min": 1027.2,
+      "max": 1027.4,
+      "avg": 1027.2942166666671
+    },
+    "weather_rh": {
+      "min": 52.867,
+      "max": 53.64094,
+      "avg": 53.302378666666684
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T10:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.015794,
+      "max": 2.689455,
+      "avg": 2.3543880000000006
+    },
+    "pm2_5": {
+      "min": 3.925498,
+      "max": 7.795748,
+      "avg": 5.100151466666668
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 5.331587,
+      "max": 34.92505,
+      "avg": 11.508820266666671
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 5.560798,
+      "max": 86.19601,
+      "avg": 18.705215366666668
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.7922,
+      "max": 20.98222,
+      "avg": 20.882650500000004
+    },
+    "weather_p": {
+      "min": 1027.3,
+      "max": 1027.647,
+      "avg": 1027.4714333333336
+    },
+    "weather_rh": {
+      "min": 53.09384,
+      "max": 53.89238,
+      "avg": 53.481763166666674
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T09:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.143637,
+      "max": 3.272391,
+      "avg": 2.6234539333333333
+    },
+    "pm2_5": {
+      "min": 3.847674,
+      "max": 9.508065,
+      "avg": 5.744560400000001
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 5.49097,
+      "max": 25.54961,
+      "avg": 11.661507233333337
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 5.708444,
+      "max": 35.25773,
+      "avg": 13.724690700000005
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.63097,
+      "max": 20.92787,
+      "avg": 20.80506016666667
+    },
+    "weather_p": {
+      "min": 1027.3,
+      "max": 1027.5,
+      "avg": 1027.3980666666675
+    },
+    "weather_rh": {
+      "min": 52.51642,
+      "max": 57.14455,
+      "avg": 54.295408
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T08:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.071859,
+      "max": 3.186225,
+      "avg": 2.4770268333333343
+    },
+    "pm2_5": {
+      "min": 3.937228,
+      "max": 9.107205,
+      "avg": 5.785709499999999
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 5.815718,
+      "max": 37.30293,
+      "avg": 14.589453916666663
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 6.178057,
+      "max": 55.07443,
+      "avg": 19.848542000000002
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.56644,
+      "max": 20.77147,
+      "avg": 20.658329333333334
+    },
+    "weather_p": {
+      "min": 1027.2,
+      "max": 1027.5,
+      "avg": 1027.4119000000005
+    },
+    "weather_rh": {
+      "min": 52.08257,
+      "max": 53.63364,
+      "avg": 52.74838766666667
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T07:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.915492,
+      "max": 2.870932,
+      "avg": 2.326525549999999
+    },
+    "pm2_5": {
+      "min": 3.401572,
+      "max": 7.171261,
+      "avg": 4.743889016666666
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 3.76172,
+      "max": 24.87154,
+      "avg": 11.047374150000003
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 3.812049,
+      "max": 43.23247,
+      "avg": 15.275742400000006
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.47081,
+      "max": 20.70479,
+      "avg": 20.602206833333334
+    },
+    "weather_p": {
+      "min": 1026.9,
+      "max": 1027.2,
+      "avg": 1026.9798166666667
+    },
+    "weather_rh": {
+      "min": 52.82233,
+      "max": 53.57268,
+      "avg": 53.15320199999998
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T06:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.818988,
+      "max": 2.621703,
+      "avg": 2.1910531499999997
+    },
+    "pm2_5": {
+      "min": 2.181932,
+      "max": 9.02423,
+      "avg": 4.214585949999999
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 2.151406,
+      "max": 41.03709,
+      "avg": 9.82669001666667
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 2.159393,
+      "max": 112.2866,
+      "avg": 14.36305395
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.47188,
+      "max": 20.67208,
+      "avg": 20.608386166666662
+    },
+    "weather_p": {
+      "min": 1026.793,
+      "max": 1026.997,
+      "avg": 1026.8659000000005
+    },
+    "weather_rh": {
+      "min": 52.70047,
+      "max": 53.5034,
+      "avg": 52.96036633333334
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T05:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.963296,
+      "max": 2.818167,
+      "avg": 2.355878
+    },
+    "pm2_5": {
+      "min": 2.563383,
+      "max": 3.718967,
+      "avg": 3.1418094333333335
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 2.501234,
+      "max": 4.762058,
+      "avg": 3.3820688999999993
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 2.503155,
+      "max": 5.002042,
+      "avg": 3.441123633333332
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.6669,
+      "max": 20.72034,
+      "avg": 20.694234500000007
+    },
+    "weather_p": {
+      "min": 1026.703,
+      "max": 1027.003,
+      "avg": 1026.8786833333338
+    },
+    "weather_rh": {
+      "min": 52.67564,
+      "max": 52.76613,
+      "avg": 52.73191316666667
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T04:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.192205,
+      "max": 3.045901,
+      "avg": 2.66028525
+    },
+    "pm2_5": {
+      "min": 2.491349,
+      "max": 4.138488,
+      "avg": 3.4207832666666667
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 2.388853,
+      "max": 5.17224,
+      "avg": 3.5980349500000006
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 2.390973,
+      "max": 5.430212,
+      "avg": 3.6471987333333336
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.71891,
+      "max": 20.78291,
+      "avg": 20.75385083333333
+    },
+    "weather_p": {
+      "min": 1026.8,
+      "max": 1027,
+      "avg": 1026.8998166666668
+    },
+    "weather_rh": {
+      "min": 52.57895,
+      "max": 52.74956,
+      "avg": 52.68621950000001
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T03:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.559386,
+      "max": 3.335493,
+      "avg": 2.9313799
+    },
+    "pm2_5": {
+      "min": 3.061681,
+      "max": 4.449008,
+      "avg": 3.7093816833333317
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 3.051679,
+      "max": 6.044649,
+      "avg": 3.88323705
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 3.064947,
+      "max": 6.69232,
+      "avg": 3.9370940333333326
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.77325,
+      "max": 20.84833,
+      "avg": 20.81827233333333
+    },
+    "weather_p": {
+      "min": 1026.7,
+      "max": 1027.1,
+      "avg": 1026.887766666667
+    },
+    "weather_rh": {
+      "min": 52.50666,
+      "max": 52.66498,
+      "avg": 52.5779955
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T02:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.896905,
+      "max": 3.613969,
+      "avg": 3.2531173999999994
+    },
+    "pm2_5": {
+      "min": 3.300173,
+      "max": 4.657618,
+      "avg": 4.056582583333333
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 3.366606,
+      "max": 5.72409,
+      "avg": 4.210160383333333
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 3.374786,
+      "max": 6.419899,
+      "avg": 4.265212033333333
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.84172,
+      "max": 20.90267,
+      "avg": 20.865213499999996
+    },
+    "weather_p": {
+      "min": 1027,
+      "max": 1027.3,
+      "avg": 1027.1524
+    },
+    "weather_rh": {
+      "min": 52.44924,
+      "max": 52.58596,
+      "avg": 52.525737333333346
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T01:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.442435,
+      "max": 3.660022,
+      "avg": 2.877544433333332
+    },
+    "pm2_5": {
+      "min": 3.085625,
+      "max": 4.898348,
+      "avg": 3.6720237999999994
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 3.102166,
+      "max": 8.066248,
+      "avg": 3.9826257833333325
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 3.114612,
+      "max": 9.195902,
+      "avg": 4.081916016666666
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.89802,
+      "max": 20.97971,
+      "avg": 20.941144166666668
+    },
+    "weather_p": {
+      "min": 1027,
+      "max": 1027.317,
+      "avg": 1027.1925833333337
+    },
+    "weather_rh": {
+      "min": 52.30275,
+      "max": 52.4971,
+      "avg": 52.40990250000001
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-04T00:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.315321,
+      "max": 3.040895,
+      "avg": 2.651344366666666
+    },
+    "pm2_5": {
+      "min": 2.729144,
+      "max": 4.233219,
+      "avg": 3.409333033333333
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 2.582098,
+      "max": 5.538881,
+      "avg": 3.640116900000001
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 2.582098,
+      "max": 6.660436,
+      "avg": 3.7105546666666664
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 20.9697,
+      "max": 21.02744,
+      "avg": 20.998540166666665
+    },
+    "weather_p": {
+      "min": 1026.7,
+      "max": 1027.103,
+      "avg": 1026.9391333333333
+    },
+    "weather_rh": {
+      "min": 52.15283,
+      "max": 52.34462,
+      "avg": 52.27802900000001
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T23:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.311581,
+      "max": 2.924589,
+      "avg": 2.5648026666666666
+    },
+    "pm2_5": {
+      "min": 2.754569,
+      "max": 4.108879,
+      "avg": 3.259454116666667
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 2.679026,
+      "max": 6.72044,
+      "avg": 3.517560433333332
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 2.679026,
+      "max": 8.726667,
+      "avg": 3.6138412000000004
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.01993,
+      "max": 21.08392,
+      "avg": 21.052664
+    },
+    "weather_p": {
+      "min": 1026.5,
+      "max": 1026.9,
+      "avg": 1026.75785
+    },
+    "weather_rh": {
+      "min": 51.97764,
+      "max": 52.20197,
+      "avg": 52.08911366666667
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T22:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.34383,
+      "max": 2.94208,
+      "avg": 2.5799900666666673
+    },
+    "pm2_5": {
+      "min": 2.777004,
+      "max": 4.092864,
+      "avg": 3.2981693666666674
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 2.743097,
+      "max": 7.490342,
+      "avg": 3.6281350333333333
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 2.754249,
+      "max": 11.2667,
+      "avg": 3.7596883333333326
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.06247,
+      "max": 21.12754,
+      "avg": 21.10067066666665
+    },
+    "weather_p": {
+      "min": 1026.318,
+      "max": 1026.51,
+      "avg": 1026.4561000000003
+    },
+    "weather_rh": {
+      "min": 51.7492,
+      "max": 52.05213,
+      "avg": 51.87387583333336
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T21:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.840601,
+      "max": 3.139963,
+      "avg": 2.2800127499999996
+    },
+    "pm2_5": {
+      "min": 2.314534,
+      "max": 3.814231,
+      "avg": 2.9561028833333336
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 2.277719,
+      "max": 5.651276,
+      "avg": 3.301070299999999
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 2.280433,
+      "max": 6.349847,
+      "avg": 3.403692616666667
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.13469,
+      "max": 21.21334,
+      "avg": 21.174507333333338
+    },
+    "weather_p": {
+      "min": 1025.982,
+      "max": 1026.498,
+      "avg": 1026.1994333333332
+    },
+    "weather_rh": {
+      "min": 51.40091,
+      "max": 51.74521,
+      "avg": 51.57477866666668
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T20:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.727202,
+      "max": 2.407451,
+      "avg": 2.0559296
+    },
+    "pm2_5": {
+      "min": 1.9741,
+      "max": 3.78599,
+      "avg": 2.6686656833333333
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 1.910409,
+      "max": 6.258282,
+      "avg": 3.1764219666666667
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 1.913129,
+      "max": 17.75855,
+      "avg": 3.5485477833333334
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.1935,
+      "max": 21.27322,
+      "avg": 21.231939333333333
+    },
+    "weather_p": {
+      "min": 1025.197,
+      "max": 1026,
+      "avg": 1025.5996666666665
+    },
+    "weather_rh": {
+      "min": 51.13984,
+      "max": 51.48406,
+      "avg": 51.30765233333333
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T19:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.717611,
+      "max": 2.201341,
+      "avg": 1.927215583333333
+    },
+    "pm2_5": {
+      "min": 1.80202,
+      "max": 3.591827,
+      "avg": 2.5726236333333334
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 1.698295,
+      "max": 6.620381,
+      "avg": 3.2570909666666665
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 1.698295,
+      "max": 8.144975,
+      "avg": 3.4863483166666662
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.27018,
+      "max": 21.36599,
+      "avg": 21.316673333333327
+    },
+    "weather_p": {
+      "min": 1024.3,
+      "max": 1025.197,
+      "avg": 1024.7504499999995
+    },
+    "weather_rh": {
+      "min": 49.67852,
+      "max": 51.23332,
+      "avg": 50.47409633333332
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T18:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.509684,
+      "max": 2.044898,
+      "avg": 1.7705527666666676
+    },
+    "pm2_5": {
+      "min": 1.787279,
+      "max": 3.461105,
+      "avg": 2.5484961166666666
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 1.740684,
+      "max": 8.073039,
+      "avg": 3.4522844166666666
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 1.745683,
+      "max": 11.14792,
+      "avg": 3.7284559666666666
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.36313,
+      "max": 21.65128,
+      "avg": 21.48231083333333
+    },
+    "weather_p": {
+      "min": 1023.407,
+      "max": 1024.3,
+      "avg": 1023.9167000000001
+    },
+    "weather_rh": {
+      "min": 49.95014,
+      "max": 51.00346,
+      "avg": 50.45850283333333
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T17:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.593801,
+      "max": 2.499676,
+      "avg": 1.9992256
+    },
+    "pm2_5": {
+      "min": 2.185996,
+      "max": 6.589024,
+      "avg": 4.235700483333332
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 2.323761,
+      "max": 20.95263,
+      "avg": 9.661946216666669
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 2.348575,
+      "max": 46.84275,
+      "avg": 12.662121833333329
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.61446,
+      "max": 21.87383,
+      "avg": 21.72056433333334
+    },
+    "weather_p": {
+      "min": 1022.6,
+      "max": 1023.423,
+      "avg": 1023.0318
+    },
+    "weather_rh": {
+      "min": 51.03837,
+      "max": 52.11828,
+      "avg": 51.61680016666667
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T16:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.003602,
+      "max": 2.781529,
+      "avg": 2.3731040666666674
+    },
+    "pm2_5": {
+      "min": 3.79194,
+      "max": 8.091076,
+      "avg": 6.146189016666669
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 6.624975,
+      "max": 34.5984,
+      "avg": 19.062815999999998
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 7.387619,
+      "max": 91.44832,
+      "avg": 29.318511000000004
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.57049,
+      "max": 21.92692,
+      "avg": 21.77529716666667
+    },
+    "weather_p": {
+      "min": 1021.82,
+      "max": 1022.542,
+      "avg": 1022.1839333333332
+    },
+    "weather_rh": {
+      "min": 51.9343,
+      "max": 52.92989,
+      "avg": 52.44101433333332
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T15:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.223208,
+      "max": 2.82589,
+      "avg": 2.584638683333333
+    },
+    "pm2_5": {
+      "min": 4.290718,
+      "max": 8.460561,
+      "avg": 6.270914350000001
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 7.562386,
+      "max": 30.61518,
+      "avg": 17.990695949999996
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 8.292845,
+      "max": 76.33054,
+      "avg": 26.988891599999995
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.70509,
+      "max": 21.97125,
+      "avg": 21.834654666666655
+    },
+    "weather_p": {
+      "min": 1021.4,
+      "max": 1021.798,
+      "avg": 1021.5605333333335
+    },
+    "weather_rh": {
+      "min": 52.57287,
+      "max": 53.40589,
+      "avg": 53.004278499999984
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T14:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.141309,
+      "max": 2.983321,
+      "avg": 2.5439926166666664
+    },
+    "pm2_5": {
+      "min": 4.134422,
+      "max": 15.13439,
+      "avg": 7.618447849999999
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 6.981412,
+      "max": 79.22695,
+      "avg": 26.37360545
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 7.654613,
+      "max": 124.614,
+      "avg": 44.02023038333333
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.85434,
+      "max": 22.09995,
+      "avg": 21.963871500000003
+    },
+    "weather_p": {
+      "min": 1020.462,
+      "max": 1021.493,
+      "avg": 1020.8664500000001
+    },
+    "weather_rh": {
+      "min": 52.69708,
+      "max": 53.41238,
+      "avg": 53.067597
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T13:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.169744,
+      "max": 2.819265,
+      "avg": 2.4624640333333336
+    },
+    "pm2_5": {
+      "min": 3.461699,
+      "max": 8.828705,
+      "avg": 5.158670233333335
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 4.510399,
+      "max": 49.40776,
+      "avg": 13.660400433333335
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 4.628393,
+      "max": 91.56936,
+      "avg": 20.315714533333328
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.82324,
+      "max": 22.03059,
+      "avg": 21.959057166666657
+    },
+    "weather_p": {
+      "min": 1020.2,
+      "max": 1020.468,
+      "avg": 1020.3094000000006
+    },
+    "weather_rh": {
+      "min": 52.65045,
+      "max": 53.85692,
+      "avg": 53.12324049999999
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T12:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.416605,
+      "max": 3.135469,
+      "avg": 2.7836161500000003
+    },
+    "pm2_5": {
+      "min": 3.678721,
+      "max": 8.507051,
+      "avg": 5.946287883333332
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 5.479581,
+      "max": 31.5581,
+      "avg": 15.976126383333336
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 5.787431,
+      "max": 61.37423,
+      "avg": 24.089501349999992
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.6638,
+      "max": 21.95266,
+      "avg": 21.815660166666678
+    },
+    "weather_p": {
+      "min": 1019.8,
+      "max": 1020.26,
+      "avg": 1020.0984833333334
+    },
+    "weather_rh": {
+      "min": 53.72959,
+      "max": 54.84148,
+      "avg": 54.159530999999994
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T11:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.460041,
+      "max": 3.112042,
+      "avg": 2.749924550000001
+    },
+    "pm2_5": {
+      "min": 3.193094,
+      "max": 6.039369,
+      "avg": 4.6817383333333344
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 3.249904,
+      "max": 14.97106,
+      "avg": 9.257572783333334
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 3.269775,
+      "max": 51.337,
+      "avg": 12.102200300000003
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.70902,
+      "max": 21.93085,
+      "avg": 21.8282225
+    },
+    "weather_p": {
+      "min": 1019.4,
+      "max": 1019.8,
+      "avg": 1019.6095999999994
+    },
+    "weather_rh": {
+      "min": 54.09587,
+      "max": 55.24762,
+      "avg": 54.593290499999995
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T10:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.473341,
+      "max": 3.251242,
+      "avg": 2.880693016666667
+    },
+    "pm2_5": {
+      "min": 3.566048,
+      "max": 6.705918,
+      "avg": 5.036854983333332
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 4.066745,
+      "max": 22.18713,
+      "avg": 11.054886949999998
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 4.113821,
+      "max": 40.73057,
+      "avg": 16.619964783333334
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.54725,
+      "max": 21.80429,
+      "avg": 21.69673283333333
+    },
+    "weather_p": {
+      "min": 1018.4,
+      "max": 1019.4,
+      "avg": 1018.8993499999999
+    },
+    "weather_rh": {
+      "min": 55.05149,
+      "max": 56.1348,
+      "avg": 55.56257999999999
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T09:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.337734,
+      "max": 3.523797,
+      "avg": 2.756329333333333
+    },
+    "pm2_5": {
+      "min": 3.975504,
+      "max": 7.422789,
+      "avg": 5.486480966666665
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 5.466389,
+      "max": 24.86818,
+      "avg": 13.379489199999997
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 5.75445,
+      "max": 58.32195,
+      "avg": 22.238729083333332
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.48969,
+      "max": 21.81395,
+      "avg": 21.710938166666672
+    },
+    "weather_p": {
+      "min": 1017.26,
+      "max": 1018.418,
+      "avg": 1017.9445999999996
+    },
+    "weather_rh": {
+      "min": 55.54998,
+      "max": 57.05716,
+      "avg": 56.09522316666668
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T08:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.084771,
+      "max": 3.10722,
+      "avg": 2.519382566666667
+    },
+    "pm2_5": {
+      "min": 3.091641,
+      "max": 10.8005,
+      "avg": 5.000896933333334
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 4.004534,
+      "max": 63.11943,
+      "avg": 13.193275283333334
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 4.179014,
+      "max": 110.0489,
+      "avg": 20.65616661666667
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.35241,
+      "max": 21.60731,
+      "avg": 21.487141166666667
+    },
+    "weather_p": {
+      "min": 1016.423,
+      "max": 1017.2,
+      "avg": 1016.7505166666668
+    },
+    "weather_rh": {
+      "min": 56.38857,
+      "max": 57.28854,
+      "avg": 56.86985683333334
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T07:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.521826,
+      "max": 2.514797,
+      "avg": 2.0208463500000007
+    },
+    "pm2_5": {
+      "min": 1.712897,
+      "max": 5.608661,
+      "avg": 2.9638989333333328
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 1.714331,
+      "max": 21.89466,
+      "avg": 6.50619575
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 1.714331,
+      "max": 43.02918,
+      "avg": 9.640403166666667
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.2507,
+      "max": 21.50077,
+      "avg": 21.36407050000001
+    },
+    "weather_p": {
+      "min": 1015.307,
+      "max": 1016.397,
+      "avg": 1015.8962166666672
+    },
+    "weather_rh": {
+      "min": 56.48623,
+      "max": 57.76564,
+      "avg": 57.21861200000001
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T06:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.408409,
+      "max": 2.040757,
+      "avg": 1.6806374166666669
+    },
+    "pm2_5": {
+      "min": 1.418962,
+      "max": 2.368874,
+      "avg": 1.8488677500000001
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 1.337286,
+      "max": 10.0841,
+      "avg": 2.1886449666666663
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 1.337286,
+      "max": 16.73658,
+      "avg": 2.4491064333333337
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.31219,
+      "max": 21.49148,
+      "avg": 21.447577000000003
+    },
+    "weather_p": {
+      "min": 1014.2,
+      "max": 1015.3,
+      "avg": 1014.6610499999994
+    },
+    "weather_rh": {
+      "min": 56.60526,
+      "max": 57.62878,
+      "avg": 56.971025499999996
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T05:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 1.614581,
+      "max": 2.460622,
+      "avg": 1.9632399000000005
+    },
+    "pm2_5": {
+      "min": 1.722554,
+      "max": 2.841349,
+      "avg": 2.1205605999999997
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 1.639557,
+      "max": 4.699197,
+      "avg": 2.1797346999999996
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 1.639705,
+      "max": 5.740843,
+      "avg": 2.2264151833333323
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.46574,
+      "max": 21.53813,
+      "avg": 21.503454666666663
+    },
+    "weather_p": {
+      "min": 1013.187,
+      "max": 1014.2,
+      "avg": 1013.6497333333333
+    },
+    "weather_rh": {
+      "min": 57.04465,
+      "max": 57.38794,
+      "avg": 57.221606333333376
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T04:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.136277,
+      "max": 3.305542,
+      "avg": 2.6612594499999997
+    },
+    "pm2_5": {
+      "min": 2.350108,
+      "max": 3.570825,
+      "avg": 2.8451071333333333
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 2.214835,
+      "max": 4.68479,
+      "avg": 2.8057866333333332
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 2.214835,
+      "max": 5.140437,
+      "avg": 2.8298415166666677
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.53474,
+      "max": 21.58729,
+      "avg": 21.56096516666667
+    },
+    "weather_p": {
+      "min": 1012.2,
+      "max": 1013.127,
+      "avg": 1012.6470833333335
+    },
+    "weather_rh": {
+      "min": 57.26131,
+      "max": 57.70059,
+      "avg": 57.44561316666668
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T03:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 2.975401,
+      "max": 4.814762,
+      "avg": 3.7953506500000023
+    },
+    "pm2_5": {
+      "min": 3.108171,
+      "max": 5.234904,
+      "avg": 4.06508585
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 2.948698,
+      "max": 10.48392,
+      "avg": 4.159041833333334
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 2.949731,
+      "max": 16.35237,
+      "avg": 4.319418250000001
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.57764,
+      "max": 21.66308,
+      "avg": 21.618144500000003
+    },
+    "weather_p": {
+      "min": 1011.4,
+      "max": 1012.22,
+      "avg": 1011.6532166666669
+    },
+    "weather_rh": {
+      "min": 57.66922,
+      "max": 58.2097,
+      "avg": 57.9032415
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T02:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 4.514471,
+      "max": 6.686665,
+      "avg": 5.551079583333333
+    },
+    "pm2_5": {
+      "min": 4.717808,
+      "max": 7.535927,
+      "avg": 5.920488316666667
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 4.452308,
+      "max": 8.328624,
+      "avg": 5.738945983333333
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 4.452308,
+      "max": 8.824302,
+      "avg": 5.764710566666667
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.66344,
+      "max": 21.73208,
+      "avg": 21.695321666666658
+    },
+    "weather_p": {
+      "min": 1010.065,
+      "max": 1011.5,
+      "avg": 1010.8543000000004
+    },
+    "weather_rh": {
+      "min": 58.23697,
+      "max": 58.84936,
+      "avg": 58.60544466666665
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T01:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 6.400871,
+      "max": 9.078316,
+      "avg": 7.516705383333333
+    },
+    "pm2_5": {
+      "min": 6.640383,
+      "max": 9.829966,
+      "avg": 8.029082683333334
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 6.264208,
+      "max": 11.0036,
+      "avg": 7.8298630666666655
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 6.264208,
+      "max": 11.95075,
+      "avg": 7.8791278166666645
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.70509,
+      "max": 21.76032,
+      "avg": 21.734514166666656
+    },
+    "weather_p": {
+      "min": 1009.5,
+      "max": 1010.067,
+      "avg": 1009.7569
+    },
+    "weather_rh": {
+      "min": 58.85214,
+      "max": 59.3908,
+      "avg": 59.060934833333334
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-03T00:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 8.31449,
+      "max": 10.28619,
+      "avg": 9.332430933333335
+    },
+    "pm2_5": {
+      "min": 8.832095,
+      "max": 11.34176,
+      "avg": 10.07497598333333
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 8.393188,
+      "max": 13.24342,
+      "avg": 10.023387516666668
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 8.396214,
+      "max": 17.45196,
+      "avg": 10.26712521666667
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.75031,
+      "max": 21.78678,
+      "avg": 21.768102166666665
+    },
+    "weather_p": {
+      "min": 1009.1,
+      "max": 1009.5,
+      "avg": 1009.2818166666665
+    },
+    "weather_rh": {
+      "min": 59.28583,
+      "max": 59.5707,
+      "avg": 59.47254833333333
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-02T23:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 8.756243,
+      "max": 10.0925,
+      "avg": 9.424170766666668
+    },
+    "pm2_5": {
+      "min": 9.166475,
+      "max": 10.83262,
+      "avg": 10.137050016666668
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 8.753191,
+      "max": 15.68081,
+      "avg": 9.964679283333332
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 8.765072,
+      "max": 22.34535,
+      "avg": 10.130596783333335
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.7714,
+      "max": 21.83397,
+      "avg": 21.803527666666664
+    },
+    "weather_p": {
+      "min": 1008.7,
+      "max": 1009.345,
+      "avg": 1009.0322833333331
+    },
+    "weather_rh": {
+      "min": 59.38183,
+      "max": 59.52459,
+      "avg": 59.454498166666674
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-02T22:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 8.663791,
+      "max": 9.79285,
+      "avg": 9.269329349999998
+    },
+    "pm2_5": {
+      "min": 9.398544,
+      "max": 10.82736,
+      "avg": 10.019232216666666
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 8.972137,
+      "max": 13.4451,
+      "avg": 9.835177299999998
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 8.974926,
+      "max": 15.49698,
+      "avg": 9.91881953333333
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.78177,
+      "max": 21.88723,
+      "avg": 21.835446833333332
+    },
+    "weather_p": {
+      "min": 1009.133,
+      "max": 1009.612,
+      "avg": 1009.4300333333338
+    },
+    "weather_rh": {
+      "min": 59.20681,
+      "max": 59.56671,
+      "avg": 59.39990249999999
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-02T21:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 8.158409,
+      "max": 9.622472,
+      "avg": 8.779182833333332
+    },
+    "pm2_5": {
+      "min": 8.589087,
+      "max": 10.48448,
+      "avg": 9.489561133333336
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 8.105982,
+      "max": 11.12307,
+      "avg": 9.334650666666665
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 8.10621,
+      "max": 11.57287,
+      "avg": 9.397795233333333
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.86954,
+      "max": 21.91655,
+      "avg": 21.890268833333337
+    },
+    "weather_p": {
+      "min": 1009.693,
+      "max": 1010.503,
+      "avg": 1010.0497666666669
+    },
+    "weather_rh": {
+      "min": 59.12542,
+      "max": 59.28705,
+      "avg": 59.193723500000004
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-02T20:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 7.727716,
+      "max": 8.803794,
+      "avg": 8.215458233333331
+    },
+    "pm2_5": {
+      "min": 8.261661,
+      "max": 9.788441,
+      "avg": 8.969803600000002
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 7.947917,
+      "max": 11.8512,
+      "avg": 9.062867816666666
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 7.953952,
+      "max": 12.70615,
+      "avg": 9.187133750000003
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.91405,
+      "max": 22.00628,
+      "avg": 21.9616975
+    },
+    "weather_p": {
+      "min": 1010.5,
+      "max": 1011.543,
+      "avg": 1011.023666666667
+    },
+    "weather_rh": {
+      "min": 58.82275,
+      "max": 59.20984,
+      "avg": 58.97228533333334
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-02T19:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 6.86975,
+      "max": 8.248957,
+      "avg": 7.612152433333335
+    },
+    "pm2_5": {
+      "min": 7.704597,
+      "max": 9.434147,
+      "avg": 8.616791416666667
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 7.696434,
+      "max": 15.75406,
+      "avg": 9.3105895
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 7.712367,
+      "max": 22.95909,
+      "avg": 9.695683749999999
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 21.99592,
+      "max": 22.1643,
+      "avg": 22.076181
+    },
+    "weather_p": {
+      "min": 1011.507,
+      "max": 1012.7,
+      "avg": 1012.1208666666665
+    },
+    "weather_rh": {
+      "min": 58.28418,
+      "max": 58.92422,
+      "avg": 58.650555333333315
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-02T18:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 6.35098,
+      "max": 7.747041,
+      "avg": 7.075613416666667
+    },
+    "pm2_5": {
+      "min": 7.038037,
+      "max": 10.92603,
+      "avg": 8.599480116666665
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 7.097847,
+      "max": 17.29963,
+      "avg": 10.718797083333337
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 7.149324,
+      "max": 42.87751,
+      "avg": 12.734595883333329
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 22.16323,
+      "max": 22.35896,
+      "avg": 22.24277733333333
+    },
+    "weather_p": {
+      "min": 1011.71,
+      "max": 1015.2,
+      "avg": 1013.2727833333331
+    },
+    "weather_rh": {
+      "min": 57.77197,
+      "max": 58.33215,
+      "avg": 58.030433333333335
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-02T17:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 6.564442,
+      "max": 8.013923,
+      "avg": 7.232692299999999
+    },
+    "pm2_5": {
+      "min": 8.355053,
+      "max": 14.48318,
+      "avg": 10.28207766666667
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 9.054784,
+      "max": 35.70033,
+      "avg": 16.829337900000002
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 9.19739,
+      "max": 51.12581,
+      "avg": 20.498085166666662
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 22.23008,
+      "max": 22.43064,
+      "avg": 22.37833416666666
+    },
+    "weather_p": {
+      "min": 1012.5,
+      "max": 1015.847,
+      "avg": 1013.5796833333335
+    },
+    "weather_rh": {
+      "min": 57.64721,
+      "max": 58.46234,
+      "avg": 57.84838366666668
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-02T16:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 6.982319,
+      "max": 8.515306,
+      "avg": 7.786425633333334
+    },
+    "pm2_5": {
+      "min": 10.51949,
+      "max": 15.93381,
+      "avg": 13.293812833333332
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 15.58308,
+      "max": 46.30661,
+      "avg": 28.194043833333335
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 16.77885,
+      "max": 91.79013,
+      "avg": 40.86013483333334
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 22.25457,
+      "max": 22.60689,
+      "avg": 22.415827166666663
+    },
+    "weather_p": {
+      "min": 1013.44,
+      "max": 1015.6,
+      "avg": 1014.7021666666668
+    },
+    "weather_rh": {
+      "min": 57.66792,
+      "max": 59.11311,
+      "avg": 58.18900233333334
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  },
+  {
+    "timestamp": "2023-10-02T15:00:00+00:00",
+    "avrg": 3600,
+    "count": 60,
+    "pm0_2": null,
+    "pm0_3": null,
+    "pm0_4": null,
+    "pm0_5": null,
+    "pm1": {
+      "min": 6.714404,
+      "max": 8.040044,
+      "avg": 7.453322216666666
+    },
+    "pm2_5": {
+      "min": 9.401253,
+      "max": 15.25837,
+      "avg": 12.268301333333337
+    },
+    "pm4": null,
+    "pm7": null,
+    "pm10": {
+      "min": 12.24677,
+      "max": 46.73092,
+      "avg": 25.010729666666666
+    },
+    "pm15": null,
+    "pm20": null,
+    "pm_total": {
+      "min": 12.90642,
+      "max": 196.8659,
+      "avg": 35.709108666666665
+    },
+    "pm_reserve_1": null,
+    "pm_reserve_2": null,
+    "pm_reserve_3": null,
+    "pm_reserve_4": null,
+    "pm2_5_ce": null,
+    "pm10_ce": null,
+    "gas_co2": null,
+    "gas_voc": null,
+    "gas_so2": null,
+    "gas_no2": null,
+    "gas_o3": null,
+    "gas_co": null,
+    "gas_nh3": null,
+    "aerosol_cn": null,
+    "aerosol_m1_0": null,
+    "aerosol_m2_0": null,
+    "aerosol_m3_0": null,
+    "aerosol_x10dcn": null,
+    "aerosol_x16dcn": null,
+    "aerosol_x50dcn": null,
+    "aerosol_x84dcn": null,
+    "aerosol_x90dcn": null,
+    "aerosol_ldsa": null,
+    "indexes_aqi": null,
+    "indexes_infection": null,
+    "weather_t": {
+      "min": 22.2753,
+      "max": 22.64049,
+      "avg": 22.442988333333332
+    },
+    "weather_p": {
+      "min": 1015.685,
+      "max": 1016.6,
+      "avg": 1016.2824333333335
+    },
+    "weather_rh": {
+      "min": 56.93067,
+      "max": 58.58591,
+      "avg": 57.614029
+    },
+    "weather_wind_speed": null,
+    "weather_wind_direction": {
+      "min": null,
+      "max": null,
+      "avg": null
+    },
+    "weather_precipitation_intensity": null,
+    "weather_precipitation_type": null,
+    "weather_temperature_dew_point": null,
+    "weather_wind_signal_quality": null,
+    "weather_radiation": null,
+    "weather_lightning_detection": null
+  }
+]

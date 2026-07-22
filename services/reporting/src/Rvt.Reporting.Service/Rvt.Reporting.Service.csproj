@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rvt.Reporting.Core\Rvt.Reporting.Core.csproj" />
+    <ProjectReference Include="..\Rvt.Reporting.Data\Rvt.Reporting.Data.csproj" />
+    <ProjectReference Include="..\Rvt.Reporting.Pdf\Rvt.Reporting.Pdf.csproj" />
+    <ProjectReference Include="..\Rvt.Reporting.Storage\Rvt.Reporting.Storage.csproj" />
+    <ProjectReference Include="..\Rvt.Reporting.Messaging\Rvt.Reporting.Messaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Quartz.Extensions.Hosting" Version="3.18.1" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

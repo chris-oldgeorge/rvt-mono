@@ -1,0 +1,150 @@
+"provider","routine_type","current_schema","current_routine","new_schema","new_routine","change_type","uses_ansi_nulls","uses_quoted_identifier","execute_as_user","notes","definition"
+"sqlserver","procedure","dbo","ErrorInsert","public","error_insert","rename_routine","True","True","","routine_not_lowercase;bracketed_identifier_review","
+
+Create PROCEDURE [dbo].[ErrorInsert] 
+		   @host [nvarchar](100) ,
+		   @source [nvarchar](100),
+		   @message  [nvarchar](max) ,
+		   @level [nvarchar](50) ,
+		   @stacktrace [nvarchar](max),
+		   @variables [ntext]  
+
+AS
+BEGIN
+
+INSERT INTO [dbo].[ErrorLog]
+           ([Host]
+           ,[Source]
+           ,[Message]
+           ,[Level]
+           ,[StackTrace]
+           ,[Variables])
+     VALUES
+           ( @host,
+		   @source,
+		   @message,
+		   @level,
+		   @stacktrace,
+		   @variables )
+
+END"
+"sqlserver","procedure","dbo","MonitorStatusForMonth","public","monitor_status_for_month","rename_routine","True","True","","routine_not_lowercase;bracketed_identifier_review","
+
+
+-- =============================================
+-- Author:      <Author, , Name>
+-- Create Date: <Create Date, , >
+-- Description: Returns a list of cautions and alerts for one monitor and month
+-- =============================================
+CREATE PROCEDURE [dbo].[MonitorStatusForMonth]
+(
+     @MonitorId [uniqueidentifier] , 
+     @Year		[int]  ,
+     @Month		[int]  ,
+	 @StartDate [datetime],
+	 @EndDate   [datetime]
+ )
+AS
+BEGIN
+ 
+SELECT Min([AlertType]) as status, Day([NotificationTime])  as day 
+  FROM  [dbo].[Notifications]
+  where MonitorId = @MonitorId
+  and MONTH([NotificationTime]) = @Month 
+  AND YEAR([NotificationTime]) = @Year
+  AND [NotificationTime] >= @StartDate
+  AND [NotificationTime] <= @EndDate
+  and AlertType <2 --Exclude offline and battery
+  Group by Day([NotificationTime]) 
+END"
+"sqlserver","procedure","dbo","MonitorStatusTimeCheck","public","monitor_status_time_check","rename_routine","True","True","","routine_not_lowercase;sqlserver_dialect_review;bracketed_identifier_review","
+-- =============================================
+-- Author:      <Author, , Name>
+-- Create Date: <Create Date, , >
+-- Description: <Description, , >
+-- =============================================
+CREATE PROCEDURE [dbo].[MonitorStatusTimeCheck]
+(
+     @MonitorId [uniqueidentifier]  
+ )
+AS
+BEGIN
+ 
+SET NOCOUNT ON
+
+Declare @MonitorDate as datetime2(7);
+Declare @LastApiDate as datetime2(7);
+Declare @TypeMonitor as int;
+
+SELECT TOP 1  @MonitorDate = CASE   
+		  WHEN  [LastDataTime1Min] is not null  THEN [LastDataTime1Min]  
+		  WHEN  LastDataTime15Min is not null  THEN LastDataTime15Min  
+		  WHEN  LastDataTime1Hour is not null  THEN LastDataTime1Hour  
+		  ELSE  ISNULL(LastDataTime24Hour ,'1970-01-01')
+		END,
+		@TypeMonitor =[TypeOfMonitor] 
+FROM [dbo].[MonitorsList] WITH (NOLOCK)
+where ID= @MonitorId 
+
+-- This is taking a long time and even times out now and again.. Not used so removing it!!
+--SET @LastApiDate = CASE @TypeMonitor
+--     WHEN 0 THEN (SELECT TOP (1) [SampleTime]  FROM [dbo].[MyAtmDustLevels] order by SampleTime desc)
+--	 WHEN 1 THEN (SELECT TOP (1) [SampleTime]  FROM [dbo].[OmnidotsPeakLevels] order by SampleTime desc)
+--	 ELSE  (SELECT TOP (1) [SampleTime]  FROM [dbo].[AirQNoiseLevels] order by SampleTime desc)
+--END 
+
+Select @MonitorDate as MonitorDate, @MonitorDate as LastApiDate, GETUTCDATE() as UtcDate
+END"
+"sqlserver","procedure","dbo","PeakRecordBreachAndAlerts","public","peak_record_breach_and_alerts","rename_routine","True","True","","routine_not_lowercase;bracketed_identifier_review","
+
+-- =============================================
+-- Author:      <Author, , Name>
+-- Create Date: <Create Date, , >
+-- Description: Returns a list of cautions and alerts for one monitor and month
+-- =============================================
+CREATE PROCEDURE [dbo].[PeakRecordBreachAndAlerts]
+(
+     @Date [datetime]
+ )
+AS
+BEGIN
+ 
+ SELECT [P].[SerialId], [M].[FleetNr], M.[Id] as 'Monitor Id', [P].[SampleTime], [N].[Id]  as 'Notification Id', [N].[NotificationTime], P.XVtop, P.YVtop, P.ZVtop
+  FROM [dbo].[OmnidotsPeakLevels] P
+  INNER JOIN [dbo].[MonitorsList] M ON [M].SerialId = P.SerialId and M.TypeOfMonitor=2
+  LEFT Join [dbo].Notifications N ON [M].[Id] = [N].[MonitorId] AND N.[NotificationTime] = SampleTime and [AlertType] in (0,1)
+  WHERE Cast([SampleTime] as date) = Cast(@Date as date)
+  AND (XVtop > 7  OR [YVtop] > 7 OR ZVtop > 7) 
+
+  order by [P].[SerialId], SampleTime
+END"
+"sqlserver","procedure","dbo","UserActionsHistoryInsert","public","user_actions_history_insert","rename_routine","True","True","","routine_not_lowercase;bracketed_identifier_review","
+
+Create PROCEDURE [dbo].[UserActionsHistoryInsert] 
+ 
+@userName  nvarchar(50),
+@controller varchar(50) = null,
+@controllerAction  varchar(50) = null,
+@parameters varchar(1024) = null,
+@formData nvarchar(max) = null
+
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	-- interfering with SELECT statements.
+	SET NOCOUNT ON;
+
+INSERT INTO  [dbo].[UserActionsHistory] (
+            [UserName]
+           ,[Controller]
+           ,[ControllerAction]
+           ,[Parameters]
+           ,[FormData])
+     VALUES (
+ 
+           @userName,
+           @controller,
+           @controllerAction,
+           @parameters,
+           @formData)
+END"

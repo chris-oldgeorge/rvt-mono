@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- File summary: Builds legacy RVT entity and DTO types shared by the SPA, data-access, and business layers. -->
+  <!-- Major updates: 2026-06-25 current - Removed NoWarn baseline so all legacy entity nullability warnings are surfaced again. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>

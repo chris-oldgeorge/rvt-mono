@@ -1,0 +1,41 @@
+# Git-tracked paths matching these shell-style patterns are excluded from the
+# curated client/audit release package.
+#
+# The exporter treats patterns as repository-relative paths and uses bash glob
+# matching. Keep this list explicit and conservative: source, tests, Docker,
+# observability, and operational docs should remain in the package unless they
+# expose internal planning state, local memory, or release mechanics.
+
+# Agent/session memory and internal instructions
+AGENTS.md
+project_state.md
+.codegraph/**
+
+# Internal planning/specification files
+docs/superpowers/**
+docs/monitor-data-access-migration.md
+
+# Release process files are kept in the source repo, not the client payload
+docs/release/**
+scripts/export-client-release.sh
+scripts/publish-client-release.sh
+
+# Local machine and secret-bearing files
+.DS_Store
+**/.DS_Store
+**/appsettings.Development.json
+**/appsettings.development.json
+**/local.settings.json
+**/.env
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+
+# Build/test/generated output
+**/bin/**
+**/obj/**
+**/TestResults/**
+**/coverage/**
+**/.sonarqube/**
+**/node_modules/**

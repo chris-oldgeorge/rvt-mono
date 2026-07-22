@@ -1,0 +1,112 @@
+x-communications-environment: &communications-environment
+  RVT__EMAIL_ENABLED: ${RVT__EMAIL_ENABLED:-false}
+  RVT__EMAIL_PROVIDER: ${RVT__EMAIL_PROVIDER:-SendGrid}
+  RVT__EMAIL_ALERT_FROM_EMAIL: ${RVT__EMAIL_ALERT_FROM_EMAIL:-NoReply@rvtgroup.co.uk}
+  RVT__EMAIL_ALERT_FROM_NAME: ${RVT__EMAIL_ALERT_FROM_NAME:-RVT Cloud}
+  RVT__SENDGRID_API_KEY: ${RVT__SENDGRID_API_KEY:-}
+  RVT__MICROSOFT_TENANT_ID: ${RVT__MICROSOFT_TENANT_ID:-}
+  RVT__MICROSOFT_CLIENT_ID: ${RVT__MICROSOFT_CLIENT_ID:-}
+  RVT__MICROSOFT_CLIENT_SECRET: ${RVT__MICROSOFT_CLIENT_SECRET:-}
+  RVT__MICROSOFT_SENDER_ADDRESS: ${RVT__MICROSOFT_SENDER_ADDRESS:-}
+  RVT__SMS_ENABLED: ${RVT__SMS_ENABLED:-false}
+  RVT__SMS_API_KEY: ${RVT__SMS_API_KEY:-}
+  RVT__SMS_API_SECRET: ${RVT__SMS_API_SECRET:-}
+  RVT__SMS_SENDER: ${RVT__SMS_SENDER:-KrakenAlert}
+
+services:
+  airqmonitor-api:
+    image: rvt/airqmonitor:local
+    build:
+      context: .
+      dockerfile: airqmonitor/AirQMonitor/Dockerfile
+      secrets:
+        - nuget_credentials
+    environment:
+      <<: *communications-environment
+      ASPNETCORE_URLS: http://+:8080
+      Infrastructure: local
+      MonitorApi__Enabled: "true"
+      MonitorScheduler__Enabled: "false"
+      RVT__DATABASE_PROVIDER: PostgreSql
+  myatmmonitor-api:
+    image: rvt/myatmmonitor:local
+    build:
+      context: .
+      dockerfile: myatmmonitor/MyAtmMonitor/Dockerfile
+      secrets:
+        - nuget_credentials
+    environment:
+      <<: *communications-environment
+      ASPNETCORE_URLS: http://+:8080
+      Infrastructure: local
+      MonitorApi__Enabled: "true"
+      MonitorScheduler__Enabled: "false"
+      RVT__DATABASE_PROVIDER: PostgreSql
+    ports:
+      - "8082:8080"
+
+  omnidotsmonitor-api:
+    image: rvt/omnidotsmonitor:local
+    build:
+      context: .
+      dockerfile: omnidotsmonitor/OmnidotsMonitor/Dockerfile
+      secrets:
+        - nuget_credentials
+    environment:
+      <<: *communications-environment
+      ASPNETCORE_URLS: http://+:8080
+      Infrastructure: local
+      MonitorApi__Enabled: "true"
+      MonitorScheduler__Enabled: "false"
+      RVT__DATABASE_PROVIDER: PostgreSql
+      RVT__OMNIDOTS_MONITORING_ALERT_TO: ${RVT__OMNIDOTS_MONITORING_ALERT_TO:-}
+    ports:
+      - "8083:8080"
+
+  svantekmonitor-api:
+    image: rvt/svantekmonitor:local
+    build:
+      context: .
+      dockerfile: svantekmonitor/SvantekMonitor/Dockerfile
+      secrets:
+        - nuget_credentials
+    environment:
+      <<: *communications-environment
+      ASPNETCORE_URLS: http://+:8080
+      Infrastructure: local
+      MonitorApi__Enabled: "true"
+      MonitorScheduler__Enabled: "false"
+      RVT__DATABASE_PROVIDER: PostgreSql
+    volumes:
+      - svantek-audiofiles:/data/rvt/blobs
+    ports:
+      - "8084:8080"
+
+  reportingmonitor-api:
+    image: rvt/reportingmonitor:local
+    build:
+      context: .
+      dockerfile: reportingmonitor/ReportingMonitor/Dockerfile
+      secrets:
+        - nuget_credentials
+    environment:
+      <<: *communications-environment
+      ASPNETCORE_URLS: http://+:8080
+      Infrastructure: local
+      MonitorApi__Enabled: "true"
+      MonitorScheduler__Enabled: "false"
+      RVT__DATABASE_PROVIDER: PostgreSql
+      RVT__EMAIL_TEST_MODE: ${RVT__EMAIL_TEST_MODE:-false}
+      RVT__EMAIL_TEST_REPORT_TO_EMAIL: ${RVT__EMAIL_TEST_REPORT_TO_EMAIL:-}
+    volumes:
+      - reporting-reportfiles:/data/rvt/blobs
+    ports:
+      - "8085:8080"
+
+secrets:
+  nuget_credentials:
+    environment: NuGetPackageSourceCredentials_rvt
+
+volumes:
+  svantek-audiofiles:
+  reporting-reportfiles:

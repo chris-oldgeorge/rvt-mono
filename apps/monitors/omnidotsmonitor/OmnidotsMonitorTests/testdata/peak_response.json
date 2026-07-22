@@ -1,0 +1,73 @@
+{
+  "samples": [
+    {
+      "x": {
+        "Fdom": 68.5,
+        "Vtop": 1.7012676000595093,
+        "vtopOverflow": 1.7012676000595093
+      },
+      "y": {
+        "Fdom": 70,
+        "Vtop": 2.5168910026550293,
+        "vtopOverflow": 2.5168910026550293
+      },
+      "z": {
+        "Fdom": 70,
+        "Vtop": 3.9614241123199463,
+        "vtopOverflow": 3.9614241123199463
+      },
+      "swarm_type": "vibration",
+      "timezone": "Europe/London",
+      "data_save_level": 1,
+      "measurement_duration": 300,
+      "trace_save_level": 1,
+      "trace_pre_trigger": 3000,
+      "trace_post_trigger": 3000,
+      "guide_line": "BS7385_250Hz",
+      "flat_level": 1,
+      "building_level": "unspecified",
+      "vector_enabled": "Off",
+      "vdv_enabled": "Off",
+      "atop_enabled": "Off",
+      "vtop_enabled": "On",
+      "noise_measurement_duration": 30,
+      "noise_saving_enabled": "On",
+      "timestamp": 1699960799999
+    },
+    {
+      "x": {
+        "Fdom": 1,
+        "Vtop": 0.10525903105735779,
+        "vtopOverflow": 0.10525903105735779
+      },
+      "y": {
+        "Fdom": 2,
+        "Vtop": 0.10240134596824646,
+        "vtopOverflow": 0.10240134596824646
+      },
+      "z": {
+        "Fdom": 33.5,
+        "Vtop": 0.1512162685394287,
+        "vtopOverflow": 0.1512162685394287
+      },
+      "swarm_type": "vibration",
+      "timezone": "Europe/London",
+      "data_save_level": 1,
+      "measurement_duration": 300,
+      "trace_save_level": 1,
+      "trace_pre_trigger": 3000,
+      "trace_post_trigger": 3000,
+      "guide_line": "BS7385_250Hz",
+      "flat_level": 1,
+      "building_level": "unspecified",
+      "vector_enabled": "Off",
+      "vdv_enabled": "Off",
+      "atop_enabled": "Off",
+      "vtop_enabled": "On",
+      "noise_measurement_duration": 30,
+      "noise_saving_enabled": "On",
+      "timestamp": 1699961099999
+    }
+  ],
+  "ok": true
+}

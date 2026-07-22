@@ -1,0 +1,12 @@
+﻿{
+  "category": "sensor_went_online",
+  "level": "success",
+  "created_at": null,
+  "data": {
+    "sensor": "WOHEPU",
+    "datetime": 1701854384.887
+  },
+  "created_for": null,
+  "text": "Your measuring point WOHEPU-82022 (WOHEPU) went online on Dec. 6, 2023, 9:19:44 a.m. GMT.",
+  "measuring_point_id": 23423
+}

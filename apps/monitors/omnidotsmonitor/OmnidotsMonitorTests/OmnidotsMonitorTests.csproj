@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsPackable>false</IsPackable>
+		<IsTestProject>true</IsTestProject>
+	</PropertyGroup>
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+		<PackageReference Include="Microsoft.AspNetCore.TestHost" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+		<PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" />
+		<PackageReference Include="Moq" />
+		<PackageReference Include="MSTest.TestAdapter" />
+		<PackageReference Include="MSTest.TestFramework" />
+		<PackageReference Include="coverlet.collector" />
+		<PackageReference Include="BouncyCastle.Cryptography" />
+		<PackageReference Include="Npgsql" />
+		<PackageReference Include="Rvt.Monitor.IntegrationTesting" PrivateAssets="all" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\OmnidotsMonitor\OmnidotsMonitor.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Include="..\OmnidotsMonitor\appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Include="..\OmnidotsMonitor\postgres\2026-07-14-add-import-cursors-and-trace-order.sql" Link="postgres\2026-07-14-add-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\OmnidotsMonitor\postgres\2026-07-14-rollback-import-cursors-and-trace-order.sql" Link="postgres\2026-07-14-rollback-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-14-add-import-cursors-and-trace-order.sql" Link="sqlserver\2026-07-14-add-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-14-rollback-import-cursors-and-trace-order.sql" Link="sqlserver\2026-07-14-rollback-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\OmnidotsMonitor\postgres\2026-07-15-add-common-durable-alerts.sql" Link="postgres\2026-07-15-add-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\OmnidotsMonitor\postgres\2026-07-15-rollback-common-durable-alerts.sql" Link="postgres\2026-07-15-rollback-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-15-add-common-durable-alerts.sql" Link="sqlserver\2026-07-15-add-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-15-rollback-common-durable-alerts.sql" Link="sqlserver\2026-07-15-rollback-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Remove="manualtest\" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/authenticate.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/bad.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/error.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/measuring_points.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/sensors.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/vdv_response.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/veff_response.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/peak_response.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/traces_list_response.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/traces_response.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/traces.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata/config_dict.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+			<None Update="testdata\create.postgres.sql">
+				<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+			</None>
+		</ItemGroup>
+		<ItemGroup>
+			<None Update="testdata\reset.postgres.sql">
+				<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+			</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata\ok_response.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata\alarm_ignore.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata\alarm_alert.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata\alarm_caution.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata\alarm_noclear.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="testdata\online.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="testdata\stop_clipping.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<Folder Include="manualtest\" />
+	</ItemGroup>
+</Project>

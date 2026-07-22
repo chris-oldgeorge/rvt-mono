@@ -1,0 +1,63 @@
+-- Rollback draft for PostgreSQL/TimescaleDB canonical constraint/index names.
+-- ASP.NET Identity tables are intentionally excluded from this refactor.
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+
+-- Constraint and index renames.
+ALTER TABLE IF EXISTS "public"."user_action_history" RENAME CONSTRAINT "pk_user_action_history" TO "pk_useractionshistory";
+ALTER INDEX IF EXISTS "public"."ix_user_action_history_recorded_at" RENAME TO "UserActionsHistory_Timestamp_idx";
+ALTER INDEX IF EXISTS "public"."ix_svantek_noise_level_sample_time" RENAME TO "SvantekNoiseLevels_SampleTime_idx";
+ALTER INDEX IF EXISTS "public"."ix_svantek_noise_8_hour_average_sample_time" RENAME TO "SvantekNoise8HourAverage_SampleTime_idx";
+ALTER TABLE IF EXISTS "public"."site" RENAME CONSTRAINT "pk_site" TO "PK_Sites";
+ALTER TABLE IF EXISTS "public"."site_user" RENAME CONSTRAINT "pk_site_user" TO "PK_SiteUsers";
+ALTER TABLE IF EXISTS "public"."site_user" RENAME CONSTRAINT "fk_site_user_site_id" TO "FK_SiteUsers_Sites_SiteId";
+ALTER TABLE IF EXISTS "public"."site_operating_hour" RENAME CONSTRAINT "pk_site_operating_hour" TO "PK_SiteOperatingHours";
+ALTER INDEX IF EXISTS "public"."ix_site_operating_hour_site_id_day_of_week" RENAME TO "IX_SiteOperatingHours_SiteId_DayOfWeek";
+ALTER TABLE IF EXISTS "public"."site_operating_hour" RENAME CONSTRAINT "fk_site_operating_hour_site_id" TO "FK_SiteOperatingHours_Sites_SiteId";
+ALTER TABLE IF EXISTS "public"."site_average" RENAME CONSTRAINT "pk_site_average" TO "pk_siteaverages";
+ALTER INDEX IF EXISTS "public"."ix_site_average_collection_time" RENAME TO "SiteAverages_CollectionTime_idx";
+ALTER TABLE IF EXISTS "public"."site_archived" RENAME CONSTRAINT "pk_site_archived" TO "PK_SiteArchived";
+ALTER TABLE IF EXISTS "public"."site_archived" RENAME CONSTRAINT "fk_site_archived_site_id" TO "FK_SiteArchived_Sites_SiteId";
+ALTER TABLE IF EXISTS "public"."rvt_alert_rule" RENAME CONSTRAINT "pk_rvt_alert_rule" TO "PK_RvtAlertRules";
+ALTER TABLE IF EXISTS "public"."rvt_alert_rule" RENAME CONSTRAINT "fk_rvt_alert_rule_monitor_id" TO "FK_RvtAlertRules_MonitorsList_MonitorId";
+ALTER TABLE IF EXISTS "public"."report_sent" RENAME CONSTRAINT "pk_report_sent" TO "PK_ReportsSent";
+ALTER TABLE IF EXISTS "public"."report" RENAME CONSTRAINT "pk_report" TO "PK_Reports";
+ALTER TABLE IF EXISTS "public"."report_user" RENAME CONSTRAINT "pk_report_user" TO "PK_ReportUsers";
+ALTER TABLE IF EXISTS "public"."report_rule" RENAME CONSTRAINT "pk_report_rule" TO "PK_ReportConfig";
+ALTER TABLE IF EXISTS "public"."omnidots_trace_index" RENAME CONSTRAINT "pk_omnidots_trace_index" TO "PK__Omnidots__3214EC071EF1F55E";
+ALTER TABLE IF EXISTS "public"."omnidots_trace" RENAME CONSTRAINT "fk_omnidots_trace_omnidots_trace_index_id" TO "FK__OmnidotsT__Trace__2DE6D218";
+ALTER TABLE IF EXISTS "public"."omnidots_sensor" RENAME CONSTRAINT "pk_omnidots_sensor" TO "PK__Omnidots__3214EC0704E3BD04";
+ALTER INDEX IF EXISTS "public"."ix_omnidots_peak_level_sample_time_serial_id" RENAME TO "_dta_index_OmnidotsPeakLevels_25_1957582012__K2_K1_3_4_5_6_7_8_";
+ALTER INDEX IF EXISTS "public"."ix_omnidots_peak_level_sample_time" RENAME TO "OmnidotsPeakLevels_SampleTime_idx";
+ALTER INDEX IF EXISTS "public"."ix_omnidots_peak_level_serial_id_sample_time" RENAME TO "IX_OmnidotsPeakLevels_SerialId_SampleTimeDesc";
+ALTER TABLE IF EXISTS "public"."omnidots_monitor_status" RENAME CONSTRAINT "pk_omnidots_monitor_status" TO "PK__Omnidots__3214EC0736C6B626";
+ALTER TABLE IF EXISTS "public"."notification_sent" RENAME CONSTRAINT "pk_notification_sent" TO "pk_notificationssent";
+ALTER INDEX IF EXISTS "public"."ix_notification_sent_send_time" RENAME TO "NotificationsSent_SendTime_idx";
+ALTER TABLE IF EXISTS "public"."notification" RENAME CONSTRAINT "pk_notification" TO "PK_Notifications";
+ALTER TABLE IF EXISTS "public"."notification_setting" RENAME CONSTRAINT "pk_notification_setting" TO "PK_NotificationSettings";
+ALTER TABLE IF EXISTS "public"."notification_setting" RENAME CONSTRAINT "fk_notification_setting_site_user_id" TO "FK_NotificationSettings_SiteUsers";
+ALTER INDEX IF EXISTS "public"."ix_my_atm_dust_level_sample_time" RENAME TO "MyAtmDustLevels_SampleTime_idx";
+ALTER TABLE IF EXISTS "public"."monitor" RENAME CONSTRAINT "pk_monitor" TO "PK_MonitorsList";
+ALTER TABLE IF EXISTS "public"."help_section" RENAME CONSTRAINT "pk_help_section" TO "PK_HelpSections";
+ALTER INDEX IF EXISTS "public"."ix_help_section_slug" RENAME TO "IX_HelpSections_Slug";
+ALTER TABLE IF EXISTS "public"."help_asset" RENAME CONSTRAINT "pk_help_asset" TO "PK_HelpAssets";
+ALTER INDEX IF EXISTS "public"."ix_help_asset_help_article_id" RENAME TO "IX_HelpAssets_HelpArticleId";
+ALTER TABLE IF EXISTS "public"."help_asset" RENAME CONSTRAINT "fk_help_asset_help_article_id" TO "FK_HelpAssets_HelpArticles_HelpArticleId";
+ALTER TABLE IF EXISTS "public"."help_article" RENAME CONSTRAINT "pk_help_article" TO "PK_HelpArticles";
+ALTER INDEX IF EXISTS "public"."ix_help_article_slug" RENAME TO "IX_HelpArticles_Slug";
+ALTER INDEX IF EXISTS "public"."ix_help_article_help_section_id" RENAME TO "IX_HelpArticles_SectionId";
+ALTER TABLE IF EXISTS "public"."help_article" RENAME CONSTRAINT "fk_help_article_help_section_id" TO "FK_HelpArticles_HelpSections_SectionId";
+ALTER TABLE IF EXISTS "public"."error_log" RENAME CONSTRAINT "pk_error_log" TO "pk_errorlog";
+ALTER INDEX IF EXISTS "public"."ix_error_log_logged_at" RENAME TO "ErrorLog_Timestamtp_idx";
+ALTER TABLE IF EXISTS "public"."deployment" RENAME CONSTRAINT "pk_deployment" TO "PK2_Deployments";
+ALTER TABLE IF EXISTS "public"."deployment" RENAME CONSTRAINT "fk_deployment_monitor_id" TO "FK_Deployments_MonitorsList_MonitorId";
+ALTER TABLE IF EXISTS "public"."deployment" RENAME CONSTRAINT "fk_deployment_contract_id" TO "FK_Deployments_Contracts_ContractId";
+ALTER TABLE IF EXISTS "public"."contract" RENAME CONSTRAINT "pk_contract" TO "PK_Contracts";
+ALTER TABLE IF EXISTS "public"."contract" RENAME CONSTRAINT "fk_contract_site_id" TO "FK_Contracts_Sites_SiteiD";
+ALTER TABLE IF EXISTS "public"."contract" RENAME CONSTRAINT "fk_contract_company_id" TO "FK_Contracts_Companies_CompanyId";
+ALTER TABLE IF EXISTS "public"."company" RENAME CONSTRAINT "pk_company" TO "PK_Companies";
+ALTER INDEX IF EXISTS "public"."ix_air_q_noise_level_sample_time" RENAME TO "AirQNoiseLevels_SampleTime_idx";
+ALTER INDEX IF EXISTS "public"."ix_air_q_noise_8_hour_average_sample_time" RENAME TO "AirQNoise8HourAverage_SampleTime_idx";
+ALTER TABLE IF EXISTS "public"."air_q_monitor_status" RENAME CONSTRAINT "pk_air_q_monitor_status" TO "PK__AirQMoni__5E5B3EE492A9E513";
+
+COMMIT;

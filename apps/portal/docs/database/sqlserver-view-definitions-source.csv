@@ -1,0 +1,1119 @@
+﻿"schema_name","view_name","definition"
+"dbo","AdminDashboardData","
+
+
+
+
+CREATE VIEW [dbo].[AdminDashboardData] as 
+ 	--  ,CAST(CASE   WHEN ISNULL([LastDataTime1Min] ,'1970-01-01') > DATEADD(hour, -1, GETDATE())  THEN 0  ELSE 1   END AS bit) as OffLine
+SELECT  count(*) as nr,
+		case 
+			when FleetNr is null then 'New' 
+			when (D.ContractId is null and FleetNr is not null) then 'NotUsed'
+			when Offline = 1 AND EndDate IS NULL then 'Offline'
+			when Offline = 0 AND EndDate IS NULL then 'Online'
+			else 'Other' 
+		End as MonitorState 
+  FROM [dbo].[MonitorsList] M
+  left join [dbo].[Deployments] D on D.MonitorId = M.Id and D.EndDate is null
+  Group By
+  		case 
+			when FleetNr is null then 'New' 
+			when (D.ContractId is null and FleetNr is not null)then 'NotUsed'
+			when Offline = 1 AND EndDate IS NULL then 'Offline'
+			when Offline = 0 AND EndDate IS NULL then 'Online'
+			else 'Other' 
+		End"
+"dbo","AirQNoiseLevel1dayAvg","
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE VIEW [dbo].[AirQNoiseLevel1dayAvg] as 
+  SELECT [SerialId]
+      , CAST(SampleTime as date) as SampleTime  
+      ,avg([LAeq]) as [LAeq]
+      ,avg([LAmax]) as  [LAmax]
+      ,avg([LA90]) as [LA90]
+      ,avg([LA10]) as [LA10]  
+      ,avg([LCeq]) as [LCeq]
+      ,avg([LCmax]) as  [LCmax]
+      ,avg([LC90]) as [LC90]
+      ,avg([LC10]) as [LC10]  
+  FROM [dbo].[AirQNoiseLevels]   
+  Group by  [SerialId], CAST(SampleTime as date)"
+"dbo","AirQNoiseLevel1hourAvg","
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE VIEW [dbo].[AirQNoiseLevel1hourAvg] as 
+ SELECT [SerialId]
+      ,IsNull(DATEADD(hh, (FORMAT(SampleTime,'HH')+1), DATEADD(dd, DATEDIFF(dd, 0, SampleTime), 0)),GETUTCDATE()) as SampleTime --Isnull ony to get the imported variable to not nullable
+      ,avg([LAeq]) as [LAeq]
+      ,avg([LAmax]) as  [LAmax]
+      ,avg([LA90]) as [LA90]
+      ,avg([LA10]) as [LA10]  
+      ,avg([LCeq]) as [LCeq]
+      ,avg([LCmax]) as  [LCmax]
+      ,avg([LC90]) as [LC90]
+      ,avg([LC10]) as [LC10]  
+  FROM [dbo].[AirQNoiseLevels]
+  Group by [SerialId], DATEADD(hh, (FORMAT(SampleTime,'HH')+1), DATEADD(dd, DATEDIFF(dd, 0, SampleTime), 0))"
+"dbo","AirQNoiseLevelSiteAvg","
+
+
+CREATE VIEW [dbo].[AirQNoiseLevelSiteAvg] as 
+SELECT
+M.SerialId, 
+    CollectionTime AS SampleTime,
+    LAeq,
+    LAmax,
+    LA90,
+    LA10,
+    LCeq,
+    LCmax,
+    LC90,
+    LC10
+    FROM
+    (
+        SELECT SiteId, MonitorId, CollectionTime, Level, Field
+        FROM [dbo].[SiteAverages]
+    ) A
+    pivot
+    (
+        max(Level)
+        FOR Field IN (LAeq, LAmax, LA90, LA10, LCeq, LCmax, LC90, LC10)
+    ) piv
+  INNER JOIN [dbo].[MonitorsList] M ON M.Id = MonitorId"
+"dbo","CompanySearch","
+
+CREATE VIEW [dbo].[CompanySearch] as 
+                            SELECT   C.[Id]
+                                  ,[CompanyName]
+ 	                              ,ISNULL(U.nrUsers,0) as nrUsers
+	                              ,s.sites
+	                              ,con.contracts
+
+                               FROM [dbo].[Companies] C
+                             left join (Select Count(*) as nrUsers,CompanyId from  [dbo].[AspNetUsers] group by CompanyId) as U     on C.Id = U.CompanyId
+                             left join (SELECT STRING_AGG(SiteName, ', ') as sites, [CompanyId] as [CompanyId]    FROM (SELECT Distinct    [CompanyId]  ,[SiteiD]  ,S.SiteName as SiteName   FROM  [dbo].[Contracts] C  join dbo.Sites S on S.Id =c.SiteiD ) t  Group by [CompanyId] ) s  on s.CompanyId=c.Id
+                             left join ( SELECT STRING_AGG([ContractNumber], ', ') as contracts, [CompanyId] as [CompanyId]   FROM [dbo].[Contracts] Group by [CompanyId])  con  on con.[CompanyId] = c.Id"
+"dbo","ContractSearch","
+
+CREATE VIEW [dbo].[ContractSearch] as 
+                        SELECT   C.[Id]
+                              ,[ContractNumber]
+                              ,[OffHireDate]
+                              ,[OnHireDate]
+	                          ,[CompanyId]
+                              ,[SiteiD]
+	                          ,Comp.CompanyName
+	                          ,[SiteName]
+	                          ,S.[SiteName] +' '+  S.[AddressLine1]+' '+  S.[AddressLine2]+' '+  S.[Postcode]+' '+  S.[City]+' '+  S.[County] as siteAddress
+                          FROM [dbo].[Contracts] C
+                         left join dbo.Companies Comp on comp.Id=C.CompanyId 
+                         left join dbo.Sites S on S.Id=C.SiteiD"
+"dbo","CustomerDashboardMonitorData","
+
+
+
+
+
+CREATE VIEW [dbo].[CustomerDashboardMonitorData] as 
+SELECT  count(*) as nr,
+		case 
+			when FleetNr is null then 'New' 
+			when [ContractNumber] is null then 'NotUsed'
+			when Offline = 1 AND D.EndDate IS NULL then 'Offline'
+			when Offline = 0 AND D.EndDate IS NULL then 'Online'
+			else 'Other' 
+		End as MonitorState,
+        SU.UserId
+  FROM [dbo].[MonitorsList] M
+  left join [dbo].[Deployments] D on D.MonitorId = M.Id and D.EndDate is null
+  left join [dbo].[Contracts] C on C.Id = D.ContractId 
+  left join [dbo].[Sites] S on S.Id = C.SiteiD
+  join  [dbo].[SiteUsers] SU on SU.SiteId = S.Id
+  WHERE FleetNr IS NOT NULL AND C.SiteiD IS NOT NULL
+ Group By
+  		case 
+            when FleetNr is null then 'New' 
+			when [ContractNumber] is null then 'NotUsed'
+			when Offline = 1 AND D.EndDate IS NULL then 'Offline'
+			when Offline = 0 AND D.EndDate IS NULL then 'Online'
+			else 'Other' 
+		End,
+        SU.UserId"
+"dbo","CustomerDashboardNotificationData","
+
+
+
+
+
+
+CREATE VIEW [dbo].[CustomerDashboardNotificationData] as 
+SELECT  count(*) as nr,
+		N.AlertType,
+		case 
+			when ClosedTime IS NULL then 'Open'
+			else 'Closed' 
+		End as AlertState,
+        SU.UserId
+  FROM [dbo].[Notifications] N
+--   left join [dbo].[RvtAlertRules] A on A.Id = N.AlertlevelId
+  left join [dbo].[MonitorsList] M on N.MonitorId = M.Id
+--  left join [dbo].[Deployments] D on D.MonitorId = M.Id and D.EndDate is null -- THIS END DATE PART IS WRONG
+  left join [dbo].[Deployments] D on D.MonitorId = M.Id and N.NotificationTime between D.StartDate and isnull(D.EndDate , Getdate())
+  left join [dbo].[Contracts] C on C.Id = D.ContractId 
+  left join [dbo].[Sites] S on S.Id = C.SiteiD
+  join  [dbo].[SiteUsers] SU on SU.SiteId = S.Id
+  WHERE FleetNr IS NOT NULL AND C.SiteiD IS NOT NULL
+ Group By
+  		N.AlertType,
+		case 
+			when ClosedTime IS NULL then 'Open'
+			else 'Closed' 
+		End,
+        SU.UserId"
+"dbo","MonitorCurrentSearch","
+
+
+
+
+
+CREATE VIEW [dbo].[MonitorCurrentSearch] as 
+SELECT M.[Id]
+      ,D.Id as DeploymentId
+      ,[FleetNr]
+      ,[SerialId]
+      --,[Manufacturer]
+      --,[Model]
+      --,[FirmwareVersion]
+      ,[TypeOfMonitor]
+	  ,M.Offline as OffLine
+	  --,M.BatteryStatus   as Battery2
+	  ,CAST(CASE   WHEN IsNUll(M.BatteryStatus ,0)>0  THEN 1  ELSE 0   END AS bit) as Battery
+	  ,CAST(CASE   WHEN IsNUll(Alerts.nr,0)>0  THEN 1  ELSE 0   END AS bit) as Alerts
+	  ,CAST(CASE   WHEN IsNUll(Cautions.nr,0)>0  THEN 1  ELSE 0   END AS bit) as Cautions
+       ,[LocationId] 
+	  , D.Lat as Latitude
+	  , D.Lng as Longitude 
+ 
+	  ,D.What3words
+	  ,C.Id as ContractId
+	  ,C.ContractNumber
+	  ,SiteiD
+	  ,SiteName
+       --,[LocationAddress]
+      --,[TimeZone]
+      --,[CustomerId]
+      --,[CustomerDisplayName]
+      --,[EffectiveSince]
+      --,[EffectiveTill]
+      --,[ListedAtTime]
+	  ,CASE   
+		  WHEN  [LastDataTime1Min] is not null  THEN [LastDataTime1Min]  
+		  WHEN  LastDataTime15Min is not null  THEN LastDataTime15Min  
+		  WHEN  LastDataTime1Hour is not null  THEN LastDataTime1Hour  
+		  ELSE  LastDataTime24Hour  
+		END as LastDataTime
+	  --,[LastDataTime1Min] as LastDataTime
+      --,[LastDataTime15Min]
+      --,[LastDataTime1Hour]
+      --,[LastDataTime24Hour]
+  FROM [dbo].[MonitorsList] M
+  left join [dbo].[Deployments] D on D.MonitorId = M.Id and D.EndDate is null
+  left join [dbo].[Contracts] C on C.Id = D.ContractId 
+  left join [dbo].[Sites] S on S.Id = C.SiteiD
+  left join  (SELECT count(*) as nr ,MonitorId  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 0 Group by MonitorId) as Alerts on Alerts.MonitorId =M.Id
+  left join  (SELECT count(*) as nr ,MonitorId  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 1 Group by MonitorId) as Cautions on Cautions.MonitorId =M.Id
+  left join  (SELECT Top 1 DATEADD(SECOND, -(AveragingPeriod), GETUTCDATE())  as OfflineTime ,AlertType  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 2  ) as Offlines  on AlertType=2"
+"dbo","MonitorReport","
+
+
+
+
+
+
+CREATE VIEW [dbo].[MonitorReport] as 
+
+SELECT M.[Id]
+	  ,CAST(CASE WHEN D.enddate is null  THEN 1  ELSE 0 END AS bit) as Active
+	  ,D.Id as DeploymentId
+      ,[FleetNr]
+      ,[SerialId]
+      --,[Manufacturer]
+      --,[Model]
+      --,[FirmwareVersion]
+      ,[TypeOfMonitor]
+	  ,CAST(CASE   WHEN ISNULL([LastDataTime1Min] ,'1970-01-01') > OfflineTime or  ISNULL(LastDataTime15Min ,'1970-01-01') > OfflineTime    THEN 0  ELSE 1   END AS bit) as OffLine
+	  ,CAST(CASE   WHEN IsNUll(Alerts.nr,0)>0  THEN 1  ELSE 0   END AS bit) as Alerts
+	  ,CAST(CASE   WHEN IsNUll(Cautions.nr,0)>0  THEN 1  ELSE 0   END AS bit) as Cautions
+       ,[LocationId] 
+	  , D.Lat as Latitude
+	  , D.Lng as Longitude 
+      , D.[Location]
+	  ,D.StartDate
+	  ,D.EndDate
+	  ,D.What3words
+	  ,C.Id as ContractId
+	  ,C.ContractNumber
+	  ,SiteiD
+	  ,SiteName
+      ,M.CalibrationDate
+       --,[LocationAddress]
+      --,[TimeZone]
+      --,[CustomerId]
+      --,[CustomerDisplayName]
+      --,[EffectiveSince]
+      --,[EffectiveTill]
+      --,[ListedAtTime]
+	  ,CASE   
+		  WHEN  [LastDataTime1Min] is not null  THEN [LastDataTime1Min]  
+		  WHEN  LastDataTime15Min is not null  THEN LastDataTime15Min  
+		  WHEN  LastDataTime1Hour is not null  THEN LastDataTime1Hour  
+		  ELSE  LastDataTime24Hour  
+		END as LastDataTime
+	  --,[LastDataTime1Min] as LastDataTime
+      --,[LastDataTime15Min]
+      --,[LastDataTime1Hour]
+      --,[LastDataTime24Hour]
+  FROM [dbo].[MonitorsList] M
+  left join [dbo].[Deployments] D on D.MonitorId = M.Id --and D.EndDate is null
+  left join [dbo].[Contracts] C on C.Id = D.ContractId 
+  left join [dbo].[Sites] S on S.Id = C.SiteiD
+  left join  (SELECT count(*) as nr ,MonitorId  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 0 Group by MonitorId) as Alerts on Alerts.MonitorId =M.Id
+  left join  (SELECT count(*) as nr ,MonitorId  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 1 Group by MonitorId) as Cautions on Cautions.MonitorId =M.Id
+  left join  (SELECT Top 1 DATEADD(SECOND, -(AveragingPeriod), GETUTCDATE())  as OfflineTime ,AlertType  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 2  ) as Offlines  on AlertType=2"
+"dbo","MonitorSearch","
+
+
+
+
+
+CREATE VIEW [dbo].[MonitorSearch] as 
+
+SELECT M.[Id]  
+	  ,CAST(CASE WHEN D.enddate is null  THEN 1  ELSE 0 END AS bit) as Active
+	  ,D.Id as DeploymentId
+      ,[FleetNr]
+      ,M.[SerialId] AS  SerialId
+	  ,(CASE  WHEN [TypeOfMonitor]=2 THEN isNull(OS.Name, M.CustomerDisplayName) ELSE Null END) AS MonitorName
+      --,[Manufacturer]
+      --,[Model]
+      --,[FirmwareVersion]
+      ,[TypeOfMonitor]
+	  ,M.Offline as OffLine
+	  --,M.BatteryStatus   as Battery2
+	  ,CAST(CASE   WHEN IsNUll(M.BatteryStatus ,0)>0  THEN 1  ELSE 0   END AS bit) as Battery
+	  ,CAST(CASE   WHEN IsNUll(Alerts.nr,0)>0  THEN 1  ELSE 0   END AS bit) as Alerts
+	  ,CAST(CASE   WHEN IsNUll(Cautions.nr,0)>0  THEN 1  ELSE 0   END AS bit) as Cautions
+       ,[LocationId] 
+	  , D.Lat as Latitude
+	  , D.Lng as Longitude 
+	  ,D.EndDate
+	  ,D.What3words
+	  ,C.Id as ContractId
+	  ,C.ContractNumber
+	  ,SiteiD
+	  ,SiteName
+       --,[LocationAddress]
+      --,[TimeZone]
+      --,[CustomerId]
+      --,[CustomerDisplayName]
+      --,[EffectiveSince]
+      --,[EffectiveTill]
+      --,[ListedAtTime]
+	  ,CASE   
+		  WHEN  D.EndDate is not null  THEN D.EndDate  
+		  WHEN  [LastDataTime1Min] is not null  THEN [LastDataTime1Min]  
+		  WHEN  LastDataTime15Min is not null  THEN LastDataTime15Min  
+		  WHEN  LastDataTime1Hour is not null  THEN LastDataTime1Hour  
+		  ELSE  LastDataTime24Hour  
+		END as LastDataTime
+	  --,[LastDataTime1Min] as LastDataTime
+      --,[LastDataTime15Min]
+      --,[LastDataTime1Hour]
+      --,[LastDataTime24Hour]
+  FROM [dbo].[MonitorsList] M
+  left join  [dbo].[OmnidotsSensors] OS on OS.SerialId = M.SerialId
+  left join [dbo].[Deployments] D on D.MonitorId = M.Id --and D.EndDate is null
+  left join [dbo].[Contracts] C on C.Id = D.ContractId 
+  left join [dbo].[Sites] S on S.Id = C.SiteiD
+  left join  (SELECT count(*) as nr ,MonitorId  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 0 Group by MonitorId) as Alerts on Alerts.MonitorId =M.Id
+  left join  (SELECT count(*) as nr ,MonitorId  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 1 Group by MonitorId) as Cautions on Cautions.MonitorId =M.Id
+  left join  (SELECT Top 1 DATEADD(SECOND, -(AveragingPeriod), GETUTCDATE())  as OfflineTime ,AlertType  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 2  ) as Offlines  on AlertType=2"
+"dbo","MonitorUserSearch","
+
+
+
+
+
+
+
+CREATE VIEW [dbo].[MonitorUserSearch] as 
+SELECT M.[Id]	
+	  ,CAST(CASE WHEN D.enddate is null  THEN 1  ELSE 0 END AS bit) as Active
+	  ,D.Id as DeploymentId
+      ,[FleetNr]
+      ,[SerialId]
+      --,[Manufacturer]
+      --,[Model]
+      --,[FirmwareVersion]
+      ,[TypeOfMonitor]
+	  ,M.Offline as OffLine
+	  --,M.BatteryStatus   as Battery2
+	  ,CAST(CASE   WHEN IsNUll(M.BatteryStatus ,0)>0  THEN 1  ELSE 0   END AS bit) as Battery
+	  ,CAST(CASE   WHEN IsNUll(Alerts.nr,0)>0  THEN 1  ELSE 0   END AS bit) as Alerts
+	  ,CAST(CASE   WHEN IsNUll(Cautions.nr,0)>0  THEN 1  ELSE 0   END AS bit) as Cautions
+      ,[LocationId] 
+	  , D.Lat as Latitude
+	  , D.Lng as Longitude 
+	  ,D.What3words
+	  ,C.ContractNumber
+	  ,C.SiteiD
+	  ,SiteName
+	  ,SU.UserId
+       --,[LocationAddress]
+      --,[TimeZone]
+      --,[CustomerId]
+      --,[CustomerDisplayName]
+      --,[EffectiveSince]
+      --,[EffectiveTill]
+      --,[ListedAtTime]
+      --,[LastDataTime1Min] as LastDataTime
+	  ,CASE   
+		 WHEN  D.EndDate is not null  THEN D.EndDate  
+		 WHEN  [LastDataTime1Min] is not null  THEN [LastDataTime1Min]  
+		  WHEN  LastDataTime15Min is not null  THEN LastDataTime15Min  
+		  WHEN  LastDataTime1Hour is not null  THEN LastDataTime1Hour  
+		  ELSE  LastDataTime24Hour  
+		END as LastDataTime
+	  --,[LastDataTime15Min]
+      --,[LastDataTime1Hour]
+      --,[LastDataTime24Hour]
+
+  FROM [dbo].[MonitorsList] M
+  left join [dbo].[Deployments] D on D.MonitorId = M.Id --and D.EndDate is null
+  left join [dbo].[Contracts] C on C.Id = D.ContractId 
+  left join [dbo].[Sites] S on S.Id = C.SiteiD
+  join  [dbo].[SiteUsers] SU on SU.SiteId = S.Id
+  left join  (SELECT count(*) as nr ,MonitorId  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 0 Group by MonitorId) as Alerts on Alerts.MonitorId =M.Id
+  left join  (SELECT count(*) as nr ,MonitorId  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 1 Group by MonitorId) as Cautions on Cautions.MonitorId =M.Id
+  left join  (SELECT Top 1 DATEADD(SECOND, -(AveragingPeriod), GETUTCDATE())  as OfflineTime ,AlertType  FROM [dbo].[RvtAlertRules]   where   IsActive =1 and AlertType= 2  ) as Offlines  on AlertType=2"
+"dbo","MyAtmDustLevel1DayAvg","
+Create VIEW [dbo].[MyAtmDustLevel1DayAvg] as 
+
+SELECT D.[SerialId]
+	  ,DE.Id AS DeploymentId
+      ,[Avrg]
+      ,[SampleTime]
+      ,[Pm1]
+      ,[Pm2_5]
+      ,[Pm10]
+      ,[PmTotal]
+  FROM [dbo].[MyAtmDustLevels] D
+ join [dbo].[MonitorsList] m on M.SerialId = D.SerialId
+ join [dbo].[Deployments] De on DE.MonitorId =  m.Id 
+ where Avrg = 86400 and D.SampleTime between  de.StartDate and IsNull(de.EndDate, GetDATE())"
+"dbo","MyAtmDustLevel8hourAvg","
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE VIEW [dbo].[MyAtmDustLevel8hourAvg] as 
+ SELECT [SerialId]
+      ,IsNull(DATEADD(hh, (FORMAT(SampleTime,'HH')/8+1)*8, DATEADD(dd, DATEDIFF(dd, 0, SampleTime), 0)),GETUTCDATE()) as SampleTime --Isnull ony to get the imported variable to not nullable
+      ,avg([Pm1]) as [Pm1]
+      ,avg([Pm2_5]) as  [Pm2_5]
+      ,avg([Pm10]) as [Pm10]
+      ,avg([PmTotal]) as [PmTotal]  
+  FROM [dbo].[MyAtmDustLevels]
+  where Avrg = 60 
+  Group by [SerialId], DATEADD(hh, (FORMAT(SampleTime,'HH')/8+1)*8, DATEADD(dd, DATEDIFF(dd, 0, SampleTime), 0))"
+"dbo","NoiseLevel15minAvg","
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE VIEW [dbo].[NoiseLevel15minAvg] as 
+ 
+	SELECT [SerialId]
+		  ,[SampleTime]
+		  ,[LAeq]
+		  ,[LAmax]
+		  ,[LA90]
+		  ,[LA10]
+		  ,[LCeq]
+		  ,[LCmax]
+		  ,[LC90]
+		  ,[LC10]
+	  FROM [dbo].[AirQNoiseLevels]
+ 
+ UNION all
+
+  SELECT [SerialId]
+      ,DATEADD(minute, (DATEDIFF(minute, 0, SampleTime) / 15) * 15, 0)  as SampleTime --Isnull ony to get the imported variable to not nullable
+      ,avg([LAeq]) as [LAeq]
+      ,max([LAmax]) as  [LAmax]
+      ,avg([LA90]) as [LA90]
+      ,avg([LA10]) as [LA10]  
+      ,avg([LCeq]) as [LCeq]
+      ,max([LCmax]) as  [LCmax]
+      ,avg([LC90]) as [LC90]
+      ,avg([LC10]) as [LC10]  
+  FROM [dbo].[SvantekNoiseLevels]
+  Group by [SerialId], DATEADD(minute, (DATEDIFF(minute, 0, SampleTime) / 15) * 15, 0)"
+"dbo","NoiseLevel1dayAvg","
+
+CREATE VIEW [dbo].[NoiseLevel1dayAvg] as 
+  SELECT [SerialId]
+      , CAST(SampleTime as date) as SampleTime  
+      ,avg([LAeq]) as [LAeq]
+      ,max([LAmax]) as  [LAmax]
+      ,avg([LA90]) as [LA90]
+      ,avg([LA10]) as [LA10]  
+      ,avg([LCeq]) as [LCeq]
+      ,max([LCmax]) as  [LCmax]
+      ,avg([LC90]) as [LC90]
+      ,avg([LC10]) as [LC10]  
+  FROM [dbo].[AirQNoiseLevels]   
+  Group by  [SerialId], CAST(SampleTime as date)
+
+Union all
+
+  SELECT [SerialId]
+      , CAST(SampleTime as date) as SampleTime  
+      ,avg([LAeq]) as [LAeq]
+      ,max([LAmax]) as  [LAmax]
+      ,avg([LA90]) as [LA90]
+      ,avg([LA10]) as [LA10]  
+      ,avg([LCeq]) as [LCeq]
+      ,max([LCmax]) as  [LCmax]
+      ,avg([LC90]) as [LC90]
+      ,avg([LC10]) as [LC10]  
+  FROM [dbo].[SvantekNoiseLevels]   
+  Group by  [SerialId], CAST(SampleTime as date)"
+"dbo","NoiseLevel1hourAvg","
+
+CREATE VIEW [dbo].[NoiseLevel1hourAvg] as 
+ SELECT [SerialId]
+      ,IsNull(DATEADD(hh, (FORMAT(SampleTime,'HH')+1), DATEADD(dd, DATEDIFF(dd, 0, SampleTime), 0)),GETUTCDATE()) as SampleTime --Isnull ony to get the imported variable to not nullable
+      ,avg([LAeq]) as [LAeq]
+      ,max([LAmax]) as  [LAmax]
+      ,avg([LA90]) as [LA90]
+      ,avg([LA10]) as [LA10]  
+      ,avg([LCeq]) as [LCeq]
+      ,max([LCmax]) as  [LCmax]
+      ,avg([LC90]) as [LC90]
+      ,avg([LC10]) as [LC10]   
+  FROM [dbo].[AirQNoiseLevels]
+  Group by [SerialId], DATEADD(hh, (FORMAT(SampleTime,'HH')+1), DATEADD(dd, DATEDIFF(dd, 0, SampleTime), 0))
+ 
+ UNION all
+
+  SELECT [SerialId]
+      ,IsNull(DATEADD(hh, (FORMAT(SampleTime,'HH')+1), DATEADD(dd, DATEDIFF(dd, 0, SampleTime), 0)),GETUTCDATE()) as SampleTime --Isnull ony to get the imported variable to not nullable
+      ,avg([LAeq]) as [LAeq]
+      ,max([LAmax]) as  [LAmax]
+      ,avg([LA90]) as [LA90]
+      ,avg([LA10]) as [LA10]  
+      ,avg([LCeq]) as [LCeq]
+      ,max([LCmax]) as  [LCmax]
+      ,avg([LC90]) as [LC90]
+      ,avg([LC10]) as [LC10] 
+  FROM [dbo].[SvantekNoiseLevels]
+  Group by [SerialId], DATEADD(hh, (FORMAT(SampleTime,'HH')+1), DATEADD(dd, DATEDIFF(dd, 0, SampleTime), 0))"
+"dbo","NoiseLevelSiteAvg","
+
+
+
+
+CREATE VIEW [dbo].[NoiseLevelSiteAvg] as 
+SELECT
+M.SerialId, 
+    CollectionTime AS SampleTime,
+    LAeq,
+    LAmax,
+    LA90,
+    LA10,
+    LCeq,
+    LCmax,
+    LC90,
+    LC10
+    FROM
+    (
+        SELECT SiteId, MonitorId, CollectionTime, Level, Field
+        FROM [dbo].[SiteAverages]
+    ) A
+    pivot
+    (
+        max(Level)
+        FOR Field IN (LAeq, LAmax, LA90, LA10, LCeq, LCmax, LC90, LC10)
+    ) piv
+  INNER JOIN [dbo].[MonitorsList] M ON M.Id = MonitorId"
+"dbo","NotificationSearch","
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE VIEW [dbo].[NotificationSearch] as 
+SELECT N.[Id]
+      ,M.Id AS [MonitorId]
+      ,[FleetNr]
+      ,M.SerialId
+      ,[TypeOfMonitor]
+	  ,N.AlertType as AlertType
+      ,N.ClosedTime as [ClosedDate]
+      ,N.AlertField
+      ,N.LimitOn
+      ,N.[Level]
+      ,N.NotificationTime
+	  ,C.Id as ContractId
+	  ,C.ContractNumber
+	  ,SiteiD
+	  ,SiteName
+	  ,CASE   
+		  WHEN  [LastDataTime1Min] is not null  THEN [LastDataTime1Min]  
+		  WHEN  LastDataTime15Min is not null  THEN LastDataTime15Min  
+		  WHEN  LastDataTime1Hour is not null  THEN LastDataTime1Hour  
+		  ELSE  LastDataTime24Hour  
+		END as LastDataTime
+  FROM [dbo].[Notifications] N
+  left join [dbo].[MonitorsList] M on N.MonitorId = M.Id
+  join [dbo].[Deployments] D on D.MonitorId = M.Id and N.NotificationTime between D.StartDate and isnull(D.EndDate , Getdate())
+  left join [dbo].[Contracts] C on C.Id = D.ContractId 
+  left join [dbo].[Sites] S on S.Id = C.SiteiD"
+"dbo","NotificationUserSearch","
+
+
+
+
+
+
+
+
+
+CREATE VIEW [dbo].[NotificationUserSearch] as 
+SELECT N.[Id]
+      ,[FleetNr]
+      ,M.Id AS [MonitorId]
+      ,M.SerialId
+      ,[TypeOfMonitor]
+	  ,N.AlertType as AlertType
+      ,N.ClosedTime as [ClosedDate]
+      ,N.AlertField
+      ,N.LimitOn
+      ,N.[Level]
+      ,N.NotificationTime
+	  ,C.Id as ContractId
+	  ,C.ContractNumber
+	  ,C.SiteiD
+	  ,SiteName
+	  ,SU.UserId
+	  ,CASE   
+		  WHEN  [LastDataTime1Min] is not null  THEN [LastDataTime1Min]  
+		  WHEN  LastDataTime15Min is not null  THEN LastDataTime15Min  
+		  WHEN  LastDataTime1Hour is not null  THEN LastDataTime1Hour  
+		  ELSE  LastDataTime24Hour  
+		END as LastDataTime
+  FROM [dbo].[Notifications] N
+--   left join [dbo].[RvtAlertRules] A on A.Id = N.AlertlevelId
+  left join [dbo].[MonitorsList] M on N.MonitorId = M.Id
+  left join [dbo].[Deployments] D on D.MonitorId = M.Id and N.NotificationTime between D.StartDate and isnull(D.EndDate , Getdate())
+  left join [dbo].[Contracts] C on C.Id = D.ContractId 
+  left join [dbo].[Sites] S on S.Id = C.SiteiD
+  join  [dbo].[SiteUsers] SU on SU.SiteId = S.Id
+   --UNION
+  --SELECT M.[Id]
+  --    ,[FleetNr]
+  --    ,M.SerialId
+  --    ,[TypeOfMonitor]
+	 -- ,CAST(CASE   WHEN ISNULL([LastDataTime1Min] ,'1970-01-01') > dbo.fnOfflineDateTime() or  ISNULL(LastDataTime15Min ,'1970-01-01') > dbo.fnOfflineDateTime()    THEN 0  ELSE 1   END AS bit) as OffLine
+	 -- ,CAST(0 AS bit) as Alerts
+	 -- ,CAST(0 AS bit) as Cautions
+  --    ,NULL as [ClosedDate]
+  --    ,'' AS AlertField
+  --    ,NULL AS LimitOn
+  --    ,NULL AS Level
+  --    ,CASE   
+		--  WHEN  [LastDataTime1Min] is not null  THEN [LastDataTime1Min]  
+		--  WHEN  LastDataTime15Min is not null  THEN LastDataTime15Min  
+		--  WHEN  LastDataTime1Hour is not null  THEN LastDataTime1Hour  
+		--  ELSE  LastDataTime24Hour  
+		--END as NotificationTime
+	 -- ,C.Id as ContractId
+	 -- ,C.ContractNumber
+	 -- ,C.SiteiD
+	 -- ,SiteName
+	 -- ,SU.UserId
+	 -- ,CASE   
+		--  WHEN  [LastDataTime1Min] is not null  THEN [LastDataTime1Min]  
+		--  WHEN  LastDataTime15Min is not null  THEN LastDataTime15Min  
+		--  WHEN  LastDataTime1Hour is not null  THEN LastDataTime1Hour  
+		--  ELSE  LastDataTime24Hour  
+		--END as LastDataTime
+  --FROM [dbo].[MonitorsList] M
+  --left join [dbo].[Deployments] D on D.MonitorId = M.Id and D.EndDate is null
+  --left join [dbo].[Contracts] C on C.Id = D.ContractId 
+  --left join [dbo].[Sites] S on S.Id = C.SiteiD
+  --join  [dbo].[SiteUsers] SU on SU.SiteId = S.Id
+  --left join  (SELECT count(*) as nr ,MonitorId  FROM [dbo].[RvtAlertRules]   where   AlertType= 0 Group by MonitorId) as Alerts on Alerts.MonitorId =M.Id
+  --left join  (SELECT count(*) as nr ,MonitorId  FROM [dbo].[RvtAlertRules]   where   AlertType= 1 Group by MonitorId) as Cautions on Cautions.MonitorId =M.Id"
+"dbo","OmnidotsPeakLevel15min","
+
+
+CREATE VIEW [dbo].[OmnidotsPeakLevel15min] AS
+
+ SELECT  
+	SerialId,
+	ISNULL(DATEADD(MINUTE, DATEDIFF(MINUTE, 0, [SampleTime]) / 15 * 15, 0),GETDATE()) AS SampleTime,
+    max([XVtop]) AS [XVtop],
+    max([YVtop]) AS [YVtop],
+    max([ZVtop]) AS [ZVtop]
+ FROM 
+	[dbo].[OmnidotsPeakLevels]
+GROUP BY 
+    SerialId, DATEADD(MINUTE, DATEDIFF(MINUTE, 0, [SampleTime]) / 15 * 15, 0);"
+"dbo","OmnidotsPeakLevel1dayPeak","
+
+
+CREATE VIEW [dbo].[OmnidotsPeakLevel1dayPeak] as 
+	SELECT  [SerialId]
+		  , CAST(SampleTime as date) as SampleTime  
+		  --,[SampleTime]
+		  --,[XFdom]
+		  ,MAX([XVtop]) as [XVtop]
+		  --,Max([XVtopOverflow]) as [XVtop]
+		  --,[YFdom]
+		  ,MAX([YVtop]) as [YVtop]
+		  --,MAX([YVtopOverflow]) as [YVtop]
+		  --,[ZFdom]
+		  ,MAX([ZVtop]) as [ZVtop]
+		  --,MAX([ZVtopOverflow])  as [ZVtop]
+	   FROM [dbo].[OmnidotsPeakLevels]
+	   Group by  [SerialId], CAST(SampleTime as date)"
+"dbo","OmnidotsPeakLevel1min","
+CREATE VIEW [dbo].[OmnidotsPeakLevel1min] AS
+
+ SELECT  
+    SerialId,
+    ISNULL(DATEADD(MINUTE, DATEDIFF(MINUTE, 0, [SampleTime]) / 1 * 1, 0),GETDATE()) AS SampleTime,
+    max([XVtop]) AS [XVtop],
+    max([YVtop]) AS [YVtop],
+    max([ZVtop]) AS [ZVtop]
+ FROM 
+	[dbo].[OmnidotsPeakLevels]
+GROUP BY 
+     SerialId, DATEADD(MINUTE, DATEDIFF(MINUTE, 0, [SampleTime]) / 1 * 1, 0);"
+"dbo","OmnidotsPeakLevel20min"," 
+
+
+CREATE VIEW [dbo].[OmnidotsPeakLevel20min] AS
+
+ SELECT  
+	SerialId,
+    ISNULL(DATEADD(MINUTE, DATEDIFF(MINUTE, 0, [SampleTime]) / 20 * 20, 0),GETDATE()) AS SampleTime,
+    max([XVtop]) AS [XVtop],
+    max([YVtop]) AS [YVtop],
+    max([ZVtop]) AS [ZVtop]
+ FROM 
+	[dbo].[OmnidotsPeakLevels]
+GROUP BY 
+    SerialId, DATEADD(MINUTE, DATEDIFF(MINUTE, 0, [SampleTime]) / 20 * 20, 0);"
+"dbo","OmnidotsPeakLevel5min","
+ 
+
+CREATE VIEW [dbo].[OmnidotsPeakLevel5min] AS
+
+ SELECT  
+    SerialId,
+    ISNULL(DATEADD(MINUTE, DATEDIFF(MINUTE, 0, [SampleTime]) / 5 * 5, 0),GETDATE()) AS SampleTime,
+    max([XVtop]) AS [XVtop],
+    max([YVtop]) AS [YVtop],
+    max([ZVtop]) AS [ZVtop]
+ FROM 
+	[dbo].[OmnidotsPeakLevels]
+GROUP BY 
+     SerialId, DATEADD(MINUTE, DATEDIFF(MINUTE, 0, [SampleTime]) / 5 * 5, 0);"
+"dbo","OmnidotsReadStatus","
+
+
+CREATE VIEW [dbo].[OmnidotsReadStatus] as 
+		WITH cte AS
+		(
+			SELECT SerialID,SampleTime,
+			ROW_NUMBER() OVER (PARTITION BY SerialId ORDER BY SampleTime DESC) AS rn
+			FROM [OmnidotsPeakLevels] where SerialId in (
+				SELECT [SerialId]   FROM [dbo].[MonitorsList]  M
+				join [dbo].[Deployments] D on D.MonitorId=M.Id
+				where TypeOfMonitor =2 )
+		)
+		SELECT  M.FleetNr,C.SerialID,C.SampleTime, M.LastDataTime1Min, O.[Lastseen], O.[Online]
+		FROM cte C
+		join [dbo].[MonitorsList]  M on M.SerialId = C.SerialId
+		join [dbo].[OmnidotsSensors]  O on O.SerialId = C.SerialId
+		WHERE rn = 1 --and C.SampleTime != M.LastDataTime1Min and fleetnr='R78522V'
+		--and O.[Online] = 1
+		--order by M.LastDataTime1Min desc,C.serialId"
+"dbo","ReportRuleSearch","
+
+
+
+
+CREATE VIEW [dbo].[ReportRuleSearch] as 
+                      SELECT   R.Id
+	                      ,[SiteName]
+                          ,R.SiteId
+                          ,R.Frequency
+                          ,R.DayOfWeek
+                          ,R.DayOfMonth
+                          ,R.ReportName
+                          ,R.LastGenerated
+                      FROM [dbo].[Sites] S
+  				    left join [dbo].[SiteUsers] SU on  S.Id = SU.SiteId and  Su.siteContact=1
+					left join dbo.AspNetUsers U on U.Id=SU.UserId
+                    left join (
+		                    SELECT STRING_AGG([ContractNumber], ', ') as contracts, [SiteiD] as [SiteiD]  
+		                    FROM [dbo].[Contracts]
+		                     Group by [SiteiD]
+                    )  con  on con.SiteiD = S.Id
+                    left join (SELECT distinct C.Id as CompanyId,CompanyName,  SiteiD   FROM [dbo].[Companies] C  inner join dbo.Contracts con on con.CompanyId =c.Id  inner join dbo.Sites s on s.Id = con.SiteiD) comp  on comp.SiteiD = S.Id
+                    inner join [dbo].[ReportRules] R on R.SiteId = S.Id
+                    WHERE R.Deleted = 0"
+"dbo","ReportRuleUserSearch","
+CREATE VIEW [dbo].[ReportRuleUserSearch] as 
+                      SELECT   R.Id
+	                      ,[SiteName]
+                          ,R.SiteId
+                          ,R.Frequency
+                          ,R.DayOfWeek
+                          ,R.DayOfMonth
+                          ,R.ReportName
+                          ,R.LastGenerated
+						  ,su.UserId
+                      FROM [dbo].[Sites] S
+					 left join (
+		                    SELECT STRING_AGG([ContractNumber], ', ') as contracts, [SiteiD] as [SiteiD]  
+		                    FROM [dbo].[Contracts]
+		                     Group by [SiteiD]
+                    )  con  on con.SiteiD = S.Id
+                    left join (SELECT distinct CompanyName,  SiteiD   FROM [dbo].[Companies] C  inner join dbo.Contracts con on con.CompanyId =c.Id  inner join dbo.Sites s on s.Id = con.SiteiD) comp  on comp.SiteiD = S.Id
+					join  [dbo].[SiteUsers] SU on SU.SiteId = S.Id
+                    left join [dbo].[SiteUsers] SU2 on  S.Id = SU2.SiteId and  Su2.siteContact=1
+					left join dbo.AspNetUsers U on U.Id=SU2.UserId
+                    inner join [dbo].[ReportRules] R on R.SiteId = S.Id
+                    WHERE R.Deleted = 0"
+"dbo","ReportSearch","
+
+
+
+CREATE VIEW [dbo].[ReportSearch] as 
+                      SELECT   R.Id
+	                      ,[SiteName]
+                          ,R.SiteId
+                          ,R.ReportDate
+                          ,R.ReportFrom
+                          ,R.ReportTo
+                          ,R.ReportLink
+                          ,R.ReportRuleId
+                          ,R.Frequency
+                          ,RR.ReportName
+                          ,RR.Deleted
+						  ,Contracts
+                      FROM [dbo].[Sites] S
+					 left join (
+		                    SELECT STRING_AGG([ContractNumber], ', ') as contracts, [SiteiD] as [SiteiD]  
+		                    FROM [dbo].[Contracts]
+		                     Group by [SiteiD]
+                    )  con  on con.SiteiD = S.Id
+                    left join (SELECT distinct CompanyName,  SiteiD   FROM [dbo].[Companies] C  inner join dbo.Contracts con on con.CompanyId =c.Id  inner join dbo.Sites s on s.Id = con.SiteiD) comp  on comp.SiteiD = S.Id
+                    inner join [dbo].[Reports] R on R.SiteId = S.Id
+                    inner join [dbo].[ReportRules] RR on RR.Id = R.ReportRuleId"
+"dbo","ReportSearch2","
+
+
+
+CREATE VIEW [dbo].[ReportSearch2] as 
+                      SELECT   R.Id
+	                      ,[SiteName]
+                          ,R.SiteId
+                          ,R.ReportDate
+                          ,R.ReportFrom
+                          ,R.ReportTo
+                          ,R.ReportLink
+                          ,R.ReportRuleId
+                          ,R.Frequency
+                          ,RR.ReportName
+                          ,RR.Deleted
+						  ,contracts  as Contracts
+                      FROM [dbo].[Sites] S
+					 left join (
+		                    SELECT STRING_AGG([ContractNumber], ', ') as contracts, [SiteiD] as [SiteiD]  
+		                    FROM [dbo].[Contracts] where SiteiD is not null
+		                     Group by [SiteiD]
+                    )  con  on con.SiteiD = S.Id
+                    left join (SELECT distinct CompanyName,  SiteiD   FROM [dbo].[Companies] C  inner join dbo.Contracts con on con.CompanyId =c.Id  inner join dbo.Sites s on s.Id = con.SiteiD) comp  on comp.SiteiD = S.Id
+                    inner join [dbo].[Reports] R on R.SiteId = S.Id
+                    inner join [dbo].[ReportRules] RR on RR.Id = R.ReportRuleId"
+"dbo","ReportSearch4","
+
+CREATE VIEW [dbo].[ReportSearch4] as 
+                      SELECT   R.Id
+	                      ,[SiteName]
+                          ,R.SiteId
+                          ,R.ReportDate
+                          ,R.ReportFrom
+                          ,R.ReportTo
+                          ,R.ReportLink
+                          ,R.ReportRuleId
+                          ,R.Frequency
+                          ,RR.ReportName
+                          ,RR.Deleted
+						  ,'' as Contracts
+                      FROM [dbo].[Sites] S
+					 left join (
+		                    SELECT STRING_AGG([ContractNumber], ', ') as contracts, [SiteiD] as [SiteiD]  
+		                    FROM [dbo].[Contracts]
+		                     Group by [SiteiD]
+                    )  con  on con.SiteiD = S.Id
+                    left join (SELECT distinct CompanyName,  SiteiD   FROM [dbo].[Companies] C  inner join dbo.Contracts con on con.CompanyId =c.Id  inner join dbo.Sites s on s.Id = con.SiteiD) comp  on comp.SiteiD = S.Id
+					join  [dbo].[SiteUsers] SU on SU.SiteId = S.Id
+                    left join [dbo].[SiteUsers] SU2 on  S.Id = SU2.SiteId and  Su2.siteContact=1
+					left join dbo.AspNetUsers U on U.Id=SU2.UserId
+                    inner join [dbo].[Reports] R on R.SiteId = S.Id
+                    inner join [dbo].[ReportRules] RR on RR.Id = R.ReportRuleId"
+"dbo","ReportUserSearch","
+CREATE VIEW [dbo].[ReportUserSearch] as 
+                      SELECT   R.Id
+	                      ,[SiteName]
+                          ,R.SiteId
+                          ,R.ReportDate
+                          ,R.ReportFrom
+                          ,R.ReportTo
+                          ,R.ReportLink
+                          ,R.ReportRuleId
+                          ,R.Frequency
+                          ,RR.ReportName
+                          ,RR.Deleted
+						  ,su.UserId
+                      FROM [dbo].[Sites] S
+					 left join (
+		                    SELECT STRING_AGG([ContractNumber], ', ') as contracts, [SiteiD] as [SiteiD]  
+		                    FROM [dbo].[Contracts]
+		                     Group by [SiteiD]
+                    )  con  on con.SiteiD = S.Id
+                    left join (SELECT distinct CompanyName,  SiteiD   FROM [dbo].[Companies] C  inner join dbo.Contracts con on con.CompanyId =c.Id  inner join dbo.Sites s on s.Id = con.SiteiD) comp  on comp.SiteiD = S.Id
+					join  [dbo].[SiteUsers] SU on SU.SiteId = S.Id
+                    left join [dbo].[SiteUsers] SU2 on  S.Id = SU2.SiteId and  Su2.siteContact=1
+					left join dbo.AspNetUsers U on U.Id=SU2.UserId
+                    inner join [dbo].[Reports] R on R.SiteId = S.Id
+                    inner join [dbo].[ReportRules] RR on RR.Id = R.ReportRuleId"
+"dbo","SiteSearch","
+
+
+
+
+
+CREATE VIEW [dbo].[SiteSearch] as 
+                      SELECT   S.Id
+	                      ,[SiteName]
+						  ,S.Archived
+                          ,[CreateDate]
+                          ,[AddressLine1]
+                          ,[AddressLine2]
+                          ,[Postcode]
+                          ,[City]
+                          ,[County]
+	                      ,ISNULL([AddressLine1], '') +' '+  ISNULL([AddressLine2], '')  +' '+  ISNULL([Postcode], '') +' '+  ISNULL([City], '') +' '+  ISNULL([County], '')   as siteAddress
+	                      ,con.contracts
+	                      ,Comp.CompanyName
+						  ,Comp.CompanyId
+						  ,U.Email as SiteContact
+                      FROM [dbo].[Sites] S
+  				    left join [dbo].[SiteUsers] SU on  S.Id = SU.SiteId and  Su.siteContact=1
+					left join dbo.AspNetUsers U on U.Id=SU.UserId
+                    left join (
+		                    SELECT STRING_AGG([ContractNumber], ', ') as contracts, [SiteiD] as [SiteiD]  
+		                    FROM [dbo].[Contracts]
+		                     Group by [SiteiD]
+                    )  con  on con.SiteiD = S.Id
+                    left join (SELECT distinct C.Id as CompanyId,CompanyName,  SiteiD   FROM [dbo].[Companies] C  inner join dbo.Contracts con on con.CompanyId =c.Id  inner join dbo.Sites s on s.Id = con.SiteiD) comp  on comp.SiteiD = S.Id"
+"dbo","SiteUserSearch","
+
+CREATE VIEW [dbo].[SiteUserSearch] as 
+                      SELECT   S.Id
+	                      ,[SiteName]
+						  ,S.Archived
+                          ,[CreateDate]
+                          ,[AddressLine1]
+                          ,[AddressLine2]
+                          ,[Postcode]
+                          ,[City]
+                          ,[County]
+	                      ,S.[AddressLine1]+' '+  S.[AddressLine2]+' '+  S.[Postcode]+' '+  S.[City]+' '+  S.[County] as siteAddress
+	                      ,con.contracts
+	                      ,Comp.CompanyName
+						  ,U.Email as SiteContact
+						  ,su.UserId
+                      FROM [dbo].[Sites] S
+					 left join (
+		                    SELECT STRING_AGG([ContractNumber], ', ') as contracts, [SiteiD] as [SiteiD]  
+		                    FROM [dbo].[Contracts]
+		                     Group by [SiteiD]
+                    )  con  on con.SiteiD = S.Id
+                    left join (SELECT distinct CompanyName,  SiteiD   FROM [dbo].[Companies] C  inner join dbo.Contracts con on con.CompanyId =c.Id  inner join dbo.Sites s on s.Id = con.SiteiD) comp  on comp.SiteiD = S.Id
+					join  [dbo].[SiteUsers] SU on SU.SiteId = S.Id
+                    left join [dbo].[SiteUsers] SU2 on  S.Id = SU2.SiteId and  Su2.siteContact=1
+					left join dbo.AspNetUsers U on U.Id=SU2.UserId"
+"dbo","UserSearch","
+
+
+CREATE view [dbo].[UserSearch] as 
+                        SELECT  U.[Id]
+                              ,[CompanyId]
+                              ,[IsDisabled]
+                              ,U.[Name]
+                              ,[UserName]
+							  ,CompanyRole
+                              ,[NormalizedUserName]
+                              ,[Email]
+                              ,[EmailConfirmed]
+                              ,U.[ConcurrencyStamp]
+                              ,[PhoneNumber]
+                              ,[PhoneNumberConfirmed]
+                              ,[TwoFactorEnabled]
+                              ,[LockoutEnd]
+                              ,[LockoutEnabled]
+                              ,[AccessFailedCount]
+	                          ,R.Name as Role
+	                          ,C.CompanyName  
+	                          ,ISNULL(SU.NrSites,0) as NrSites
+                          FROM [dbo].[AspNetUsers] U
+                          join [dbo].[AspNetUserRoles] RL on RL.UserId = U.Id
+                          join [dbo].[AspNetRoles] R on R.Id =RL.RoleId
+                          left join [dbo].[Companies] C on C.Id = U.CompanyId
+						  left join (Select Count(*) as NrSites,UserId from  [dbo].[SiteUsers] group by UserId) as SU     on U.Id = SU.UserId"
+"dbo","UsersForReportSearch","
+
+
+
+
+
+CREATE VIEW [dbo].[UsersForReportSearch] as 
+                        SELECT  U.[Id]
+                              ,[CompanyId]
+                              ,[IsDisabled]
+                              ,U.[Name]
+                              ,[UserName]
+							  ,CompanyRole
+                              ,[NormalizedUserName]
+                              ,[Email]
+                              ,[EmailConfirmed]
+                              ,U.[ConcurrencyStamp]
+                              ,[PhoneNumber]
+                              ,[PhoneNumberConfirmed]
+                              ,[TwoFactorEnabled]
+                              ,[LockoutEnd]
+                              ,[LockoutEnabled]
+                              ,[AccessFailedCount]
+	                          ,R.Name as Role
+	                          ,C.CompanyName  
+	                        --   ,ISNULL(SU.NrSites,0) as NrSites
+							--   ,SU2.SiteId
+							--   ,SU2.SiteContact
+                              ,RU.ReportRuleId
+
+                          FROM [dbo].[AspNetUsers] U
+                          join [dbo].[AspNetUserRoles] RL on RL.UserId = U.Id
+                          join [dbo].[AspNetRoles] R on R.Id =RL.RoleId
+                          left join [dbo].[Companies] C on C.Id = U.CompanyId
+						--   left join (Select Count(*) as NrSites,UserId from  [dbo].[SiteUsers] group by UserId) as SU     on U.Id = SU.UserId
+                        --   left join [dbo].[SiteUsers] SU2 on  U.Id = SU2.UserId
+						  left join [dbo].[ReportUsers] RU on  U.Id = RU.UserId
+                          inner join [dbo].[ReportRules] RR on  RU.ReportRuleId = RR.Id"
+"dbo","UsersForSiteSearch","
+
+
+
+
+
+CREATE VIEW [dbo].[UsersForSiteSearch] as 
+                        SELECT  U.[Id]
+                              ,[CompanyId]
+                              ,[IsDisabled]
+                              ,U.[Name]
+                              ,[UserName]
+							  ,CompanyRole
+                              ,[NormalizedUserName]
+                              ,[Email]
+                              ,[EmailConfirmed]
+                              ,U.[ConcurrencyStamp]
+                              ,[PhoneNumber]
+                              ,[PhoneNumberConfirmed]
+                              ,[TwoFactorEnabled]
+                              ,[LockoutEnd]
+                              ,[LockoutEnabled]
+                              ,[AccessFailedCount]
+	                          ,R.Name as Role
+	                          ,C.CompanyName  
+	                          ,ISNULL(SU.NrSites,0) as NrSites
+							  ,SU2.SiteId
+							  ,SU2.SiteContact
+
+                          FROM [dbo].[AspNetUsers] U
+                          join [dbo].[AspNetUserRoles] RL on RL.UserId = U.Id
+                          join [dbo].[AspNetRoles] R on R.Id =RL.RoleId
+                          left join [dbo].[Companies] C on C.Id = U.CompanyId
+						  left join (Select Count(*) as NrSites,UserId from  [dbo].[SiteUsers] group by UserId) as SU     on U.Id = SU.UserId
+						  left join [dbo].[SiteUsers] SU2 on  U.Id = SU2.UserId"

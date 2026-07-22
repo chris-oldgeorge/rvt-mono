@@ -1,0 +1,88 @@
+name: release-common
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: Immutable prerelease version
+        required: true
+        type: string
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-common-${{ github.event_name == 'workflow_dispatch' && inputs.package_version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rvt_common_release
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rvt_common_release"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      CI: true
+      GH_TOKEN: ${{ github.token }}
+      NuGetPackageSourceCredentials_rvt: Username=${{ github.actor }};Password=${{ github.token }};ValidAuthenticationTypes=Basic
+      RVT__POSTGRES_INTEGRATION_CONNECTION: Host=127.0.0.1;Port=5432;Database=rvt_common_release;Username=postgres;Password=postgres
+    steps:
+      - uses: actions/checkout@v6
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Resolve and validate version
+        shell: bash
+        env:
+          REQUESTED_PACKAGE_VERSION: ${{ inputs.package_version }}
+        run: |
+          core='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
+          prerelease_identifier='(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)'
+          stable_regex="^${core}$"
+          prerelease_regex="^${core}-${prerelease_identifier}(\.${prerelease_identifier})*$"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ "$GITHUB_REF_NAME" != "v$version" || ! "$version" =~ $stable_regex ]]; then
+              echo "Stable releases require a vMAJOR.MINOR.PATCH tag" >&2
+              exit 1
+            fi
+          else
+            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+              echo "Manual releases must be dispatched from the main branch" >&2
+              exit 1
+            fi
+            version="$REQUESTED_PACKAGE_VERSION"
+            if [[ ! "$version" =~ $prerelease_regex ]]; then
+              echo "Manual releases require a SemVer prerelease version" >&2
+              exit 1
+            fi
+          fi
+          echo "PACKAGE_VERSION=$version" >>"$GITHUB_ENV"
+      - run: scripts/assert-package-version-available.sh "$PACKAGE_VERSION"
+      - run: scripts/build-release-artifacts.sh "$PACKAGE_VERSION"
+      - run: dotnet nuget push 'artifacts/packages/*.nupkg' --source rvt --api-key "$GITHUB_TOKEN"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-${{ env.PACKAGE_VERSION }}
+          path: artifacts/release/assets/*
+          if-no-files-found: error
+      - name: Create stable GitHub release
+        if: github.ref_type == 'tag'
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          artifacts/release/assets/*
+          --verify-tag --generate-notes

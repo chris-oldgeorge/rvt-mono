@@ -1,0 +1,56 @@
+services:
+  airqmonitor-api:
+    environment:
+      Infrastructure: local
+      OpenTelemetry__Enabled: "true"
+      OpenTelemetry__LogLevel: Debug
+      OpenTelemetry__OtlpEndpoint: http://otel-collector:4317
+      Logging__LogLevel__Default: Debug
+      Logging__LogLevel__Microsoft: Warning
+      Logging__LogLevel__System: Warning
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: airqmonitor
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=rvt-monitors,deployment.environment.name=local
+
+  myatmmonitor-api:
+    environment:
+      Infrastructure: local
+      OpenTelemetry__Enabled: "true"
+      OpenTelemetry__LogLevel: Debug
+      OpenTelemetry__OtlpEndpoint: http://otel-collector:4317
+      Logging__LogLevel__Default: Debug
+      Logging__LogLevel__Microsoft: Warning
+      Logging__LogLevel__System: Warning
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: myatmmonitor
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=rvt-monitors,deployment.environment.name=local
+
+  omnidotsmonitor-api:
+    environment:
+      Infrastructure: local
+      OpenTelemetry__Enabled: "true"
+      OpenTelemetry__LogLevel: Debug
+      OpenTelemetry__OtlpEndpoint: http://otel-collector:4317
+      Logging__LogLevel__Default: Debug
+      Logging__LogLevel__Microsoft: Warning
+      Logging__LogLevel__System: Warning
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: omnidotsmonitor
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=rvt-monitors,deployment.environment.name=local
+
+  svantekmonitor-api:
+    environment:
+      Infrastructure: local
+      OpenTelemetry__Enabled: "true"
+      OpenTelemetry__LogLevel: Debug
+      OpenTelemetry__OtlpEndpoint: http://otel-collector:4317
+      Logging__LogLevel__Default: Debug
+      Logging__LogLevel__Microsoft: Warning
+      Logging__LogLevel__System: Warning
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: svantekmonitor
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=rvt-monitors,deployment.environment.name=local

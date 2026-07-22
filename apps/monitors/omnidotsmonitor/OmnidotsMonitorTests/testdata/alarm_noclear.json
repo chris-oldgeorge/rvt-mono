@@ -1,0 +1,97 @@
+﻿{
+  "category": "sensor_guide_line_alarm",
+  "level": "warning",
+  "created_at": 1702391229.999,
+  "data": {
+    "sensor": "WOHEPU",
+    "measuring_point": "WOHEPU-82022",
+    "alarm_names": {
+      "alarm_level_1": "",
+      "alarm_level_2": "",
+      "alarm_level_3": ""
+    },
+    "created_at": 1702391229.999,
+    "alarms": {
+      "alarm_level_1": 30,
+      "alarm_level_2": 70,
+      "alarm_level_3": 100
+    },
+    "axes": {
+      "x": {
+        "fdom": 16.5,
+        "vtop": {
+          "value": 2.324138641357422,
+          "guide_line_overflow": 23.24138641357422,
+          "guide_line_limit": 10,
+          "alarm_limit_overflows": {
+            "alarm_level_1": 77.4712880452474,
+            "alarm_level_2": 33.20198059082031,
+            "alarm_level_3": 23.24138641357422
+          },
+          "alarm_limits": {
+            "alarm_level_1": 3,
+            "alarm_level_2": 7,
+            "alarm_level_3": 10
+          }
+        }
+      },
+      "y": {
+        "fdom": 16.5,
+        "vtop": {
+          "value": 2.980710983276367,
+          "guide_line_overflow": 29.807109832763672,
+          "guide_line_limit": 10,
+          "alarm_limit_overflows": {
+            "alarm_level_1": 99.3570327758789,
+            "alarm_level_2": 42.58158547537668,
+            "alarm_level_3": 29.807109832763672
+          },
+          "alarm_limits": {
+            "alarm_level_1": 3,
+            "alarm_level_2": 7,
+            "alarm_level_3": 10
+          }
+        }
+      },
+      "z": {
+        "fdom": 18,
+        "vtop": {
+          "value": 0.9091280698776245,
+          "guide_line_overflow": 9.091280698776245,
+          "guide_line_limit": 10,
+          "alarm_limit_overflows": {
+            "alarm_level_1": 30.30426899592082,
+            "alarm_level_2": 12.987543855394637,
+            "alarm_level_3": 9.091280698776245
+          },
+          "alarm_limits": {
+            "alarm_level_1": 3,
+            "alarm_level_2": 7,
+            "alarm_level_3": 10
+          }
+        }
+      }
+    },
+    "category": null,
+    "data_save_level": 0.20000000298023224,
+    "measurement_duration": 2,
+    "trace_save_level": 10,
+    "trace_pre_trigger": 3000,
+    "trace_post_trigger": 3000,
+    "measuring_type": null,
+    "vibration_type": null,
+    "alarm_level": 30,
+    "guide_line": "BS7385_250Hz",
+    "trace_time_limit": 180,
+    "building_level": "unspecified",
+    "vector_enabled": "On",
+    "vdv_enabled": "Off",
+    "atop_enabled": "Off",
+    "vtop_enabled": "On",
+    "noise_saving_enabled": "Off",
+    "datetime": 0
+  },
+  "created_for": null,
+  "text": "Alarm level 1: Your measuring point WOHEPU-82022 (WOHEPU), measured an exceedance.\nAn exceedance has occurred at Dec. 12, 2023, 2:27:09 p.m. GMT.\nThreshold set by you at 30.0%, 70.0% and 100.0% of the guideline, BS7385 250Hz.\n\nX-axis:\nDominant frequency: 16.5 Hz\nVelocity: 2.3 mm/s\nPercentage compared to the guideline: 23.2 %\n\nY-axis:\nDominant frequency: 16.5 Hz\nVelocity: 3.0 mm/s\nPercentage compared to the guideline: 29.8 %\n\nZ-axis:\nDominant frequency: 18.0 Hz\nVelocity: 0.9 mm/s\nPercentage compared to the guideline: 9.1 %\n\nPVS (Peak Vector Sum):\nVelocity: 3.8 mm/s\nDominant frequency: 16.5 Hz\nPercentage compared to the guideline:38.5 %",
+  "measuring_point_id": 23423
+}

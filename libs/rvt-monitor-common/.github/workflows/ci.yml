@@ -1,0 +1,65 @@
+name: common-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build-test-pack:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rvt_common_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rvt_common_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CI: true
+      RVT_PACKAGE_VERSION: 0.2.0-ci.${{ github.run_number }}
+      NuGetPackageSourceCredentials_rvt: Username=${{ github.actor }};Password=${{ github.token }};ValidAuthenticationTypes=Basic
+      RVT__POSTGRES_INTEGRATION_CONNECTION: Host=127.0.0.1;Port=5432;Database=rvt_common_ci;Username=postgres;Password=postgres
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore rvt-common.sln --locked-mode --force-evaluate -p:PackageVersion="$RVT_PACKAGE_VERSION"
+      - name: Reject vulnerable dependencies
+        shell: bash
+        run: |
+          output="$(dotnet list rvt-common.sln package --vulnerable --include-transitive)"
+          printf '%s\n' "$output"
+          ! grep -q 'has the following vulnerable packages' <<<"$output"
+      - run: dotnet format whitespace rvt-common.sln --verify-no-changes --no-restore
+      - run: dotnet build rvt-common.sln -c Release --no-restore --nologo -p:PackageVersion="$RVT_PACKAGE_VERSION"
+      - run: dotnet test tests/Rvt.Monitor.CommonTests/Rvt.Monitor.CommonTests.csproj -c Release --no-build --nologo
+      - run: dotnet test tests/Rvt.Monitor.Common.InfrastructureTests/Rvt.Monitor.Common.InfrastructureTests.csproj -c Release --no-build --nologo
+      - run: dotnet test testing/Rvt.Monitor.IntegrationTesting.Tests/Rvt.Monitor.IntegrationTesting.Tests.csproj -c Release --no-build --nologo
+      - run: dotnet pack src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj -c Release --no-build -p:PackageVersion="$RVT_PACKAGE_VERSION"
+      - run: dotnet pack src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj -c Release --no-build -p:PackageVersion="$RVT_PACKAGE_VERSION"
+      - run: dotnet pack testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj -c Release --no-build -p:PackageVersion="$RVT_PACKAGE_VERSION"
+      - run: dotnet test tests/Rvt.Monitor.PackageValidationTests/Rvt.Monitor.PackageValidationTests.csproj -c Release --no-build --nologo
+      - run: dotnet restore package-validation/RuntimeConsumer/RuntimeConsumer.csproj --configfile package-validation/NuGet.local.config --force-evaluate -p:RestoreLockedMode=false -p:RvtPackageVersion="$RVT_PACKAGE_VERSION"
+      - run: dotnet build package-validation/RuntimeConsumer/RuntimeConsumer.csproj --no-restore --nologo -p:RvtPackageVersion="$RVT_PACKAGE_VERSION"
+      - run: dotnet restore package-validation/TestConsumer/TestConsumer.csproj --configfile package-validation/NuGet.local.config --force-evaluate -p:RestoreLockedMode=false -p:RvtPackageVersion="$RVT_PACKAGE_VERSION"
+      - run: dotnet test package-validation/TestConsumer/TestConsumer.csproj --no-restore --nologo -p:RvtPackageVersion="$RVT_PACKAGE_VERSION"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: rvt-common-packages
+          path: artifacts/packages/*.*nupkg
+          if-no-files-found: error

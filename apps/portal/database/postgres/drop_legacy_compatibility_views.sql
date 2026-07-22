@@ -1,0 +1,29 @@
+-- File summary: Removes the legacy old-name compatibility schema and its views (PostgreSQL).
+-- Major updates:
+-- - 2026-07-14 pending Added to retire the compatibility layer created for the canonical naming cutover.
+--
+-- The compatibility layer was a temporary read-only mirror of the pre-cutover relation and column names, held in
+-- a `legacy` schema so external/reporting consumers could keep querying the old names while they migrated. The
+-- 70 views it created are dropped here, along with the schema itself.
+--
+-- BEFORE RUNNING THIS, confirm no consumer still reads the old names. Nothing in this repository does - a
+-- guardrail test (CutoverReadinessTests.ApplicationCode_DoesNotReferenceLegacyCompatibilitySchema) enforces
+-- that - but the layer existed for consumers OUTSIDE it, and this repository cannot see them. Reporting tools,
+-- BI dashboards, and hand-written queries are the ones to check.
+--
+-- To find out whether anything is still reading it, before you drop it:
+--
+--   SELECT schemaname, relname, seq_scan, idx_scan
+--   FROM pg_stat_all_tables
+--   WHERE schemaname = 'legacy' AND (seq_scan > 0 OR idx_scan > 0);
+--
+-- Rows there mean something has queried a legacy view since the last statistics reset. No rows is evidence of
+-- disuse, not proof of it - a monthly report may simply not have run yet.
+--
+-- To undo: the CREATE script is in git history (database/postgres/legacy_compatibility_views.sql, removed
+-- 2026-07-14); restore it from there and re-run it. The views are derived entirely from the canonical tables,
+-- so nothing is lost by dropping them and nothing is recovered by keeping them.
+--
+-- Idempotent: safe to re-run.
+
+DROP SCHEMA IF EXISTS legacy CASCADE;

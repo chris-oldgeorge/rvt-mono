@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Rvt.Reporting.Core/Rvt.Reporting.Core.csproj" />
+    <Project Path="src/Rvt.Reporting.Data/Rvt.Reporting.Data.csproj" />
+    <Project Path="src/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj" />
+    <Project Path="src/Rvt.Reporting.Pdf/Rvt.Reporting.Pdf.csproj" />
+    <Project Path="src/Rvt.Reporting.Service/Rvt.Reporting.Service.csproj" />
+    <Project Path="src/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Rvt.Reporting.Core.Tests/Rvt.Reporting.Core.Tests.csproj" />
+    <Project Path="tests/Rvt.Reporting.Service.Tests/Rvt.Reporting.Service.Tests.csproj" />
+  </Folder>
+</Solution>

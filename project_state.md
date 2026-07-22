@@ -49,6 +49,12 @@
   enforces exact project placement under `Apps/Monitors`, `Apps/Portal`,
   `Libraries/RVT Monitor Common`, and `Services/Reporting`, with test projects
   in each module's corresponding `Tests` solution folder.
+- Source-reference migration Task 1: `tests/verify-rvt-common-source-boundary.test.sh`
+  invokes `scripts/verify-rvt-common-source-boundary.sh`. The guard declares
+  the three shared source projects, requires the approved app/portal project
+  references, rejects their common-package references, and preserves
+  package-only validation consumers. It intentionally fails with 38 current
+  violations until the later active-consumer conversion tasks are performed.
 - Verification results:
   - `tests/verify-mono-solution.test.sh` and
     `tests/verify-mono-layout.test.sh` pass.

@@ -143,3 +143,30 @@
   and `/Users/oldgeorge/Documents/rvt-mono/rvt-monitors.sln`, which do not exist
   in the aggregate layout. No package versions or test behavior were changed
   to mask these failures.
+
+## Documentation Consolidation Task 1 - 2026-07-22
+
+- Current state: the documentation move guard and exhaustive manifest are
+  defined; no documentation has moved and no links have been rewritten yet.
+- File structure added by this task:
+  - `docs/documentation-move-manifest.md` maps all 122 tracked non-entry module
+    Markdown sources to unique destinations below the root `docs/` hierarchy.
+  - `scripts/verify-documentation-layout.sh` enforces the manifest, retained
+    entry points, destination presence, absence of module documentation, and
+    absence of stale links to moved sources.
+  - `tests/verify-documentation-layout.test.sh` is the strict-mode executable
+    wrapper for the guard.
+- Retained entry points are the root `README.md`, the four module-root
+  `README.md` files, and `apps/monitors/AGENTS.md` plus
+  `apps/portal/AGENTS.md`.
+- Guard variables: `repo_root` is derived from the script location;
+  `manifest_path` is `docs/documentation-move-manifest.md`;
+  `expected_manifest_entries=122`; `failures` counts issue groups; `sources`
+  and `destinations` hold parsed manifest rows; `retained_paths` holds the seven
+  required entry points; and `missing_sources` scopes stale-link checks to
+  documents that have actually moved.
+- Expected verification state: `tests/verify-documentation-layout.test.sh`
+  exits nonzero with exactly two issue groups—122 non-entry Markdown sources
+  remain below module roots and all 122 manifest destinations are absent.
+  Task 2 is responsible for resolving those expected failures with Git-aware
+  moves.

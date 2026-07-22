@@ -18,6 +18,7 @@
 - Approved design: `docs/superpowers/specs/2026-07-22-rvt-common-source-reference-design.md` changes active consumers to source project references, while package-validation remains package-based against locally packed artifacts. This is an explicit decision to review if independent package consumption becomes required again.
 - Implemented plan: `docs/superpowers/plans/2026-07-22-rvt-common-source-reference-migration.md`.
 - Pending approved design: `docs/superpowers/specs/2026-07-22-documentation-consolidation-design.md` consolidates all module Markdown into root `docs/`, retaining root/module README and AGENTS entry points.
+- Pending implementation plan: `docs/superpowers/plans/2026-07-22-documentation-consolidation.md`.
 - Aggregate project count: 38 projects across all four module roots.
 - Important boundary: active application consumers use the in-repository RVT
   source projects; only `libs/rvt-monitor-common/package-validation` consumes

@@ -7,3 +7,4 @@
 **/.env.*
 artifacts/
 .superpowers/sdd/
+.worktrees/

@@ -237,3 +237,38 @@
   shared release-document destination exists; and
   `git diff --check` is clean. The obsolete untracked suffixed C# copy was
   subsequently removed, leaving the tracked boundary test as the sole copy.
+
+## RVT Portal AI Review Analysis - 2026-07-22
+
+- Source review: `/Users/oldgeorge/Desktop/RvTPortal AI Review.docx` was read
+  structurally and rendered as 14 pages. It contains two overlapping technical
+  review passes and eight reviewer comments; there are no tracked insertions or
+  deletions.
+- Action plan:
+  `docs/superpowers/plans/2026-07-22-rvt-portal-review-remediation.md` contains
+  the normalized finding register, comment disposition, five implementation
+  phases, 16 test-driven tasks, and the final release gate.
+- Highest-priority confirmed current defects are: inactive/future site
+  assignments granting access, installer cross-company monitor-picture reads,
+  missing `TimeProvider` DI registration, an unmapped vibration-trace query,
+  request-host-derived password-reset links, unspecified contract dates written
+  to `timestamptz`, omitted existing-database repair SQL, unscoped monitor
+  options, and the absence of an active root GitHub workflow after the monorepo
+  import.
+- The disputed timestamp finding remains a validation-first item: current code
+  passes UTC bounds to PostgreSQL `timestamp without time zone` telemetry and
+  returns values without restoring UTC kind. The plan requires a real-Postgres
+  test to distinguish throwing paths from return-shifted paths before repair.
+- Reviewer-comment disposition: the monitor-picture dismissal confuses
+  admin-only upload with installer-enabled read access; the schema-deploy issue
+  labelled "Hallucination" is confirmed because the repair file is absent from
+  `ScriptRunner` and publish content; What3Words requires a retain-or-remove
+  product decision; Help Admin remains deferred if it is excluded from release;
+  the destructive dev-restore defect is real but lower production priority.
+- Superseded observations: root `project_state.md` exists; the current workspace
+  is not the reviewed SMB checkout; Word/AppleDouble/build debris is absent;
+  SendGrid uses a singleton client factory; and the runtime client container
+  already uses `nginx-unprivileged`.
+- Planned CI variable: `RVT_TEST_POSTGRES_CONNECTION` is the portal-specific
+  real-PostgreSQL test connection. It is distinct from monitor-suite integration
+  variables recorded elsewhere in this file.

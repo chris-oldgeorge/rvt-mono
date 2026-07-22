@@ -1,5 +1,6 @@
 ﻿// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
+// - 2026-07-22 pending Covered shared-site contract isolation in installer monitor options.
 // - 2026-06-26 pending Added moved-monitor monitor list/detail ownership-window regressions.
 // - 2026-06-26 pending Added latest-reading request ownership-window coverage.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -506,6 +507,45 @@ public class MonitorWorkflowTests
         Assert.Equal(ids.SiteId.ToString(), Assert.Single(installerOptions.Sites).Value);
         Assert.Equal(ids.ContractId.ToString(), Assert.Single(companyOptions!.Contracts).Value);
         Assert.Equal(ids.SiteId.ToString(), Assert.Single(companyOptions.Sites).Value);
+    }
+
+    [Fact]
+    // Function summary: Verifies an installer sees only its own company's contract when multiple companies share a site.
+    public async Task InstallerMonitorOptions_DoNotLeakAnotherCompanyContractOnVisibleSite()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var installerCompanyId = Guid.NewGuid();
+        var otherCompanyId = Guid.NewGuid();
+        var sharedSiteId = Guid.NewGuid();
+        var installerContractId = Guid.NewGuid();
+        await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller, companyId: installerCompanyId);
+        await factory.SeedDomainEntitiesAsync(
+            new Company { Id = installerCompanyId, CompanyName = "Installer Company", Contracts = [] },
+            new Company { Id = otherCompanyId, CompanyName = "Other Shared-Site Company", Contracts = [] },
+            new Site { Id = sharedSiteId, SiteName = "Shared Contract Site", CreateDate = DateTime.UtcNow.AddDays(-10), Contracts = [] },
+            new Contract
+            {
+                Id = installerContractId,
+                ContractNumber = "INSTALLER-OWN",
+                CompanyId = installerCompanyId,
+                SiteiD = sharedSiteId,
+                OnHireDate = DateTime.UtcNow.Date
+            },
+            new Contract
+            {
+                Id = Guid.NewGuid(),
+                ContractNumber = "OTHER-LEAK",
+                CompanyId = otherCompanyId,
+                SiteiD = sharedSiteId,
+                OnHireDate = DateTime.UtcNow.Date
+            });
+
+        var client = CreateClient(factory);
+        await LoginAsync(client, InstallerEmail, Password);
+        var options = await client.GetFromJsonAsync<MonitorOptionsResponse>("/api/monitors/options");
+
+        Assert.Equal(installerContractId.ToString(), Assert.Single(options!.Contracts).Value);
+        Assert.Equal(sharedSiteId.ToString(), Assert.Single(options.Sites).Value);
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 // File summary: Provides database-backed dashboard overview, map, and calendar workflows for the portal API.
 // Major updates:
 // - 2026-07-09 pending Moved dashboard summary, map marker, and calendar query logic out of the API controller.
+// - 2026-07-22 pending Enforced inclusive active assignment windows across dashboard visibility.
 
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ using RVT.BusinessLogic.Application;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.Application.Sites;
 using RvtPortal.Spa.Data;
 using MonitorEntity = RVT.Entities.Monitor;
 
@@ -196,15 +198,17 @@ public sealed class DashboardAlertLevelModel
 public sealed class DashboardApplicationService : IDashboardApplicationService
 {
     private readonly RVTDbContext domainContext;
+    private readonly TimeProvider timeProvider;
 
     // Per-request memo for the signed-in user's visible sites; see VisibleSiteIdsAsync.
     private HashSet<Guid>? visibleSiteIdsCache;
     private Guid? visibleSiteIdsCacheUserId;
 
     // Function summary: Initializes this application service with the domain read context.
-    public DashboardApplicationService(RVTDbContext domainContext)
+    public DashboardApplicationService(RVTDbContext domainContext, TimeProvider timeProvider)
     {
         this.domainContext = domainContext;
+        this.timeProvider = timeProvider;
     }
 
     // Function summary: Returns dashboard counts, options, and recent open notifications for the caller's role scope.
@@ -679,7 +683,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
 
         var siteIds = await domainContext.SiteUsers
             .AsNoTracking()
-            .Where(siteUser => siteUser.UserId == actor.UserId.Value && siteUser.EndDate == null)
+            .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
 

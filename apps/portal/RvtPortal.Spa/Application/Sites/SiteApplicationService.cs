@@ -1,12 +1,9 @@
-// File summary: Coordinates site business workflows for the SPA API without depending on HTTP transport types.
-// Major updates:
-// - 2026-07-08 pending Pushed site list filtering, counting, sorting, and paging into EF queries.
-// - 2026-07-05 pending Moved core site query, detail, mutation, archive, and visibility rules out of the controller.
-// - 2026-07-05 pending Added site monitor, open-notification, and notification-setting application workflows.
-
 // File summary: Coordinates site list, detail, mutation, archive, monitoring, and notification-setting workflows.
 // Major updates:
 // - 2026-07-22 pending Enforced inclusive active assignment windows for company-user site visibility.
+// - 2026-07-08 pending Pushed site list filtering, counting, sorting, and paging into EF queries.
+// - 2026-07-05 pending Moved core site query, detail, mutation, archive, and visibility rules out of the controller.
+// - 2026-07-05 pending Added site monitor, open-notification, and notification-setting application workflows.
 
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;

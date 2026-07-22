@@ -232,10 +232,20 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
     public async Task<MonitorOptionsModel> OptionsAsync(PortalUserContext actor, CancellationToken cancellationToken)
     {
         var visibleSiteIds = VisibleSiteIdsQuery(actor);
-        var contracts = await domainContext.Contracts
+        var contractsQuery = domainContext.Contracts
             .AsNoTracking()
+            .Where(contract =>
+                contract.SiteiD != null &&
+                visibleSiteIds.Contains(contract.SiteiD.Value));
+        if (!actor.IsAdmin)
+        {
+            contractsQuery = actor.CompanyId.HasValue && (actor.IsInstaller || IsCompanyUser(actor))
+                ? contractsQuery.Where(contract => contract.CompanyId == actor.CompanyId.Value)
+                : contractsQuery.Where(_ => false);
+        }
+
+        var contracts = await contractsQuery
             .Include(contract => contract.Site)
-            .Where(contract => contract.SiteiD != null && visibleSiteIds.Contains(contract.SiteiD.Value))
             .OrderBy(contract => contract.ContractNumber)
             .Select(contract => new MonitorOptionModel
             {

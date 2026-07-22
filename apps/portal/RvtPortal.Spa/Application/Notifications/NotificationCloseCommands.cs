@@ -2,6 +2,7 @@
 // Major updates:
 // - 2026-06-26 pending Scoped notification close authorization to effective deployment/contract ownership windows.
 // - 2026-06-25 pending Moved notification close and batch-close mutations behind MediatR transactional commands.
+// - 2026-07-22 pending Enforced inclusive active assignment windows before notification reads and mutations.
 
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Common;
 using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.Application.Sites;
 
 namespace RvtPortal.Spa.Application.Notifications;
 
@@ -31,11 +33,13 @@ public sealed class CloseNotificationCommandHandler
     : IRequestHandler<CloseNotificationCommand, CloseNotificationResult>
 {
     private readonly RVTDbContext domainContext;
+    private readonly TimeProvider timeProvider;
 
     // Function summary: Initializes the transactional notification close command handler.
-    public CloseNotificationCommandHandler(RVTDbContext domainContext)
+    public CloseNotificationCommandHandler(RVTDbContext domainContext, TimeProvider timeProvider)
     {
         this.domainContext = domainContext;
+        this.timeProvider = timeProvider;
     }
 
     // Function summary: Validates visibility and closes a single alert notification.
@@ -53,7 +57,11 @@ public sealed class CloseNotificationCommandHandler
 
         var deployment = await NotificationCloseWorkflow.FindDeploymentForNotificationAsync(domainContext, notification, cancellationToken);
         var access = NotificationCloseWorkflow.BuildAccessInfo(notification, deployment);
-        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, request.Actor, cancellationToken);
+        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(
+            domainContext,
+            request.Actor,
+            timeProvider,
+            cancellationToken);
         if (!NotificationCloseWorkflow.CanReadNotification(access, request.Actor, visibleSiteIds))
         {
             result.NotFound = true;
@@ -98,11 +106,13 @@ public sealed class BatchCloseNotificationsCommandHandler
     : IRequestHandler<BatchCloseNotificationsCommand, NotificationBatchCloseResponse>
 {
     private readonly RVTDbContext domainContext;
+    private readonly TimeProvider timeProvider;
 
     // Function summary: Initializes the transactional notification batch-close command handler.
-    public BatchCloseNotificationsCommandHandler(RVTDbContext domainContext)
+    public BatchCloseNotificationsCommandHandler(RVTDbContext domainContext, TimeProvider timeProvider)
     {
         this.domainContext = domainContext;
+        this.timeProvider = timeProvider;
     }
 
     // Function summary: Closes visible alert notifications and reports skipped notification ids.
@@ -123,7 +133,11 @@ public sealed class BatchCloseNotificationsCommandHandler
             .ToListAsync(cancellationToken);
         var byId = notifications.ToDictionary(notification => notification.Id);
         var deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(domainContext, notifications, cancellationToken);
-        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, request.Actor, cancellationToken);
+        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(
+            domainContext,
+            request.Actor,
+            timeProvider,
+            cancellationToken);
         var note = string.IsNullOrWhiteSpace(request.Note) ? "batch close" : request.Note;
 
         foreach (var id in ids)
@@ -213,6 +227,7 @@ internal static class NotificationCloseWorkflow
     public static async Task<HashSet<Guid>> VisibleSiteIdsAsync(
         RVTDbContext domainContext,
         NotificationCloseActor actor,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         if (!actor.IsCompanyUser || !actor.UserId.HasValue)
@@ -222,7 +237,7 @@ internal static class NotificationCloseWorkflow
 
         return await domainContext.SiteUsers
             .AsNoTracking()
-            .Where(siteUser => siteUser.UserId == actor.UserId.Value && siteUser.EndDate == null)
+            .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToHashSetAsync(cancellationToken);
     }

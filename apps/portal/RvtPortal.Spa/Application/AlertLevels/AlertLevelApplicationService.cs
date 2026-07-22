@@ -2,6 +2,7 @@
 // Major updates:
 // - 2026-07-09 pending Moved alert-level write orchestration out of the API controller.
 // - 2026-07-09 pending Moved alert-level read composition and monitor visibility checks out of the API controller.
+// - 2026-07-22 pending Enforced inclusive active assignment windows for company-user monitor visibility.
 
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ using RVT.BusinessLogic.Application;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Application.Sites;
 
 namespace RvtPortal.Spa.Application.AlertLevels;
 
@@ -125,14 +127,17 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
 
     private readonly RVTDbContext domainContext;
     private readonly IMediator mediator;
+    private readonly TimeProvider timeProvider;
 
     // Function summary: Initializes alert-level workflows with domain reads and transactional command dispatch dependencies.
     public AlertLevelApplicationService(
         RVTDbContext domainContext,
-        IMediator mediator)
+        IMediator mediator,
+        TimeProvider timeProvider)
     {
         this.domainContext = domainContext;
         this.mediator = mediator;
+        this.timeProvider = timeProvider;
     }
 
     // Function summary: Returns a paged alert-level list for a visible monitor.
@@ -276,6 +281,8 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         }
 
         var userId = actor.UserId.Value;
+        var activeAssignments = domainContext.SiteUsers
+            .Where(ActiveSiteAssignment.ForUser(userId, timeProvider.GetUtcNow().UtcDateTime));
         return await domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
@@ -283,10 +290,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
                 deployment.MonitorId == monitorId &&
                 deployment.EndDate == null &&
                 deployment.Contract.SiteiD.HasValue &&
-                domainContext.SiteUsers.Any(siteUser =>
-                    siteUser.SiteId == deployment.Contract.SiteiD.Value &&
-                    siteUser.UserId == userId &&
-                    siteUser.EndDate == null),
+                activeAssignments.Any(siteUser => siteUser.SiteId == deployment.Contract.SiteiD.Value),
                 cancellationToken);
     }
 

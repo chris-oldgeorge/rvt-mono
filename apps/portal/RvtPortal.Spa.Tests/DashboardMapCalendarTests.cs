@@ -1,5 +1,6 @@
 ﻿// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
+// - 2026-07-22 pending Covered inactive and exact-boundary dashboard assignment authorization.
 // - 2026-06-26 pending Added moved-monitor dashboard and calendar ownership-window regressions.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
@@ -7,7 +8,10 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
@@ -86,6 +90,42 @@ public class DashboardMapCalendarTests
         AssertApproximately(MarkerLng, visible.Markers[0].Longitude);
         Assert.True(visible.Markers[0].Alert);
         Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
+    }
+
+    [Fact]
+    // Function summary: Verifies dashboard visibility rejects future assignments and accepts the exact inclusive assignment boundary.
+    public async Task DashboardSummary_RequiresActiveAssignmentWindow()
+    {
+        var nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        using var factory = new SpaTestApplicationFactory();
+        var ids = await SeedDashboardScenarioAsync(factory);
+        var futureUser = await factory.SeedUserAsync(
+            "dashboard.future@rvt.test",
+            Password,
+            RoleNames.CompanyUser,
+            companyId: ids.CompanyId);
+        var boundaryUser = await factory.SeedUserAsync(
+            "dashboard.boundary@rvt.test",
+            Password,
+            RoleNames.CompanyUser,
+            companyId: ids.CompanyId);
+        await factory.SeedDomainEntitiesAsync(
+            Assignment(ids.SiteId, futureUser.Id, nowUtc.UtcDateTime.AddTicks(1)),
+            Assignment(ids.SiteId, boundaryUser.Id, nowUtc.UtcDateTime, nowUtc.UtcDateTime));
+
+        using var fixedTimeFactory = WithTimeProvider(factory, nowUtc);
+        var futureClient = CreateClient(fixedTimeFactory);
+        await LoginAsync(futureClient, "dashboard.future@rvt.test", Password);
+        var futureSummary = await futureClient.GetFromJsonAsync<DashboardSummaryResponse>("/api/dashboard/summary");
+
+        var boundaryClient = CreateClient(fixedTimeFactory);
+        await LoginAsync(boundaryClient, "dashboard.boundary@rvt.test", Password);
+        var boundarySummary = await boundaryClient.GetFromJsonAsync<DashboardSummaryResponse>("/api/dashboard/summary");
+
+        Assert.Equal(0, futureSummary!.MonitorCounts.Assigned);
+        Assert.Empty(futureSummary.Sites);
+        Assert.Equal(1, boundarySummary!.MonitorCounts.Assigned);
+        Assert.Equal(ids.SiteId.ToString(), Assert.Single(boundarySummary.Sites).Value);
     }
 
     [Fact]
@@ -362,7 +402,35 @@ public class DashboardMapCalendarTests
     }
 
     // Function summary: Creates client data for the current workflow.
-    private static HttpClient CreateClient(SpaTestApplicationFactory factory)
+    private static WebApplicationFactory<Program> WithTimeProvider(
+        SpaTestApplicationFactory factory,
+        DateTimeOffset nowUtc)
+    {
+        return factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(nowUtc));
+            });
+        });
+    }
+
+    // Function summary: Creates one assignment with caller-controlled inclusive window boundaries.
+    private static SiteUsers Assignment(Guid siteId, string userId, DateTime startDate, DateTime? endDate = null)
+    {
+        return new SiteUsers
+        {
+            Id = Guid.NewGuid(),
+            SiteId = siteId,
+            UserId = Guid.Parse(userId),
+            StartDate = startDate,
+            EndDate = endDate
+        };
+    }
+
+    // Function summary: Creates client data for the current workflow.
+    private static HttpClient CreateClient(WebApplicationFactory<Program> factory)
     {
         return factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -387,6 +455,12 @@ public class DashboardMapCalendarTests
             Password = password,
             RememberMe = true
         });
+    }
+
+    // Function summary: Supplies a deterministic UTC clock for assignment-window authorization tests.
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 
     // Function summary: Handles the dashboard scenario ids workflow for this module.

@@ -2,6 +2,7 @@
 // Major updates:
 // - 2026-07-09 pending Moved notification close and batch-close orchestration out of the API controller.
 // - 2026-07-09 pending Moved notification read/detail composition out of the API controller.
+// - 2026-07-22 pending Enforced inclusive active assignments across notification list and detail visibility.
 
 using System.Globalization;
 using MediatR;
@@ -188,12 +189,14 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
 
     private readonly RVTDbContext domainContext;
     private readonly IMediator mediator;
+    private readonly TimeProvider timeProvider;
 
     // Function summary: Initializes the notification read service with the domain context.
-    public NotificationApplicationService(RVTDbContext domainContext, IMediator mediator)
+    public NotificationApplicationService(RVTDbContext domainContext, IMediator mediator, TimeProvider timeProvider)
     {
         this.domainContext = domainContext;
         this.mediator = mediator;
+        this.timeProvider = timeProvider;
     }
 
     // Function summary: Builds the paged notification list for the caller's role and filters.
@@ -204,7 +207,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
     {
         var actor = BuildCloseActor(user);
         var rows = await BuildNotificationRowsAsync(cancellationToken);
-        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, cancellationToken);
+        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, timeProvider, cancellationToken);
         rows = ApplyRoleVisibility(rows, actor, visibleSiteIds).ToList();
         rows = ApplyState(rows, query.State).ToList();
 
@@ -293,7 +296,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         CancellationToken cancellationToken)
     {
         var actor = BuildCloseActor(user);
-        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, cancellationToken);
+        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, timeProvider, cancellationToken);
         var row = BuildNotificationListModel(notification, deployment);
         if (!CanReadNotification(row, actor, visibleSiteIds))
         {

@@ -1,5 +1,6 @@
 ﻿// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
+// - 2026-07-22 pending Covered inactive and exact-boundary alert-level and notification-close authorization.
 // - 2026-06-26 pending Added moved-monitor contract-window notification isolation regressions.
 // - 2026-06-26 pending Added RC-grade company-user alert close authorization scenario coverage.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -8,8 +9,10 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
@@ -125,6 +128,82 @@ public class NotificationAlertWorkflowTests
         Assert.Equal(HttpStatusCode.OK, otherSiteBatch.StatusCode);
         Assert.Empty(batchResult!.ClosedIds);
         Assert.Contains(ids.OtherAlertNotificationId, batchResult.ForbiddenIds);
+    }
+
+    [Fact]
+    // Function summary: Verifies alert-level reads reject inactive assignments and preserve the exact inclusive boundary.
+    public async Task CompanyUserAlertLevels_RequireActiveAssignmentWindow()
+    {
+        var nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        using var factory = new SpaTestApplicationFactory();
+        var ids = await SeedNotificationAlertScenarioAsync(factory);
+        var futureUser = await SeedCompanyUserAsync(factory, "alerts.future@rvt.test", ids.CompanyId);
+        var expiredUser = await SeedCompanyUserAsync(factory, "alerts.expired@rvt.test", ids.CompanyId);
+        var boundaryUser = await SeedCompanyUserAsync(factory, "alerts.boundary@rvt.test", ids.CompanyId);
+        await factory.SeedDomainEntitiesAsync(
+            Assignment(ids.SiteId, futureUser.Id, nowUtc.UtcDateTime.AddTicks(1)),
+            Assignment(ids.SiteId, expiredUser.Id, nowUtc.UtcDateTime.AddDays(-1), nowUtc.UtcDateTime.AddTicks(-1)),
+            Assignment(ids.SiteId, boundaryUser.Id, nowUtc.UtcDateTime, nowUtc.UtcDateTime));
+
+        using var fixedTimeFactory = WithTimeProvider(factory, nowUtc);
+        var futureClient = CreateClient(fixedTimeFactory);
+        await LoginAsync(futureClient, "alerts.future@rvt.test", Password);
+        var futureResponse = await futureClient.GetAsync($"/api/alert-levels?monitorId={ids.MonitorId}");
+
+        var expiredClient = CreateClient(fixedTimeFactory);
+        await LoginAsync(expiredClient, "alerts.expired@rvt.test", Password);
+        var expiredResponse = await expiredClient.GetAsync($"/api/alert-levels?monitorId={ids.MonitorId}");
+
+        var boundaryClient = CreateClient(fixedTimeFactory);
+        await LoginAsync(boundaryClient, "alerts.boundary@rvt.test", Password);
+        var boundaryResponse = await boundaryClient.GetAsync($"/api/alert-levels?monitorId={ids.MonitorId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, futureResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, expiredResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, boundaryResponse.StatusCode);
+    }
+
+    [Fact]
+    // Function summary: Verifies inactive assignments cannot close notifications while the exact boundary remains authorized.
+    public async Task CompanyUserNotificationClose_RequiresActiveAssignmentWindow()
+    {
+        var nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        using var factory = new SpaTestApplicationFactory();
+        var ids = await SeedNotificationAlertScenarioAsync(factory);
+        var futureNotificationId = ids.AlertNotificationId;
+        var expiredNotificationId = Guid.NewGuid();
+        var boundaryNotificationId = Guid.NewGuid();
+        var futureUser = await SeedCompanyUserAsync(factory, "close.future@rvt.test", ids.CompanyId);
+        var expiredUser = await SeedCompanyUserAsync(factory, "close.expired@rvt.test", ids.CompanyId);
+        var boundaryUser = await SeedCompanyUserAsync(factory, "close.boundary@rvt.test", ids.CompanyId);
+        await factory.SeedDomainEntitiesAsync(
+            Assignment(ids.SiteId, futureUser.Id, nowUtc.UtcDateTime.AddTicks(1)),
+            Assignment(ids.SiteId, expiredUser.Id, nowUtc.UtcDateTime.AddDays(-1), nowUtc.UtcDateTime.AddTicks(-1)),
+            Assignment(ids.SiteId, boundaryUser.Id, nowUtc.UtcDateTime, nowUtc.UtcDateTime),
+            AlertNotification(expiredNotificationId, ids.MonitorId, nowUtc.UtcDateTime.AddMinutes(-20)),
+            AlertNotification(boundaryNotificationId, ids.MonitorId, nowUtc.UtcDateTime.AddMinutes(-10)));
+
+        using var fixedTimeFactory = WithTimeProvider(factory, nowUtc);
+        var futureClient = CreateClient(fixedTimeFactory);
+        await LoginAsync(futureClient, "close.future@rvt.test", Password);
+        var futureClose = await CloseAsync(futureClient, futureNotificationId, "future assignment");
+
+        var expiredClient = CreateClient(fixedTimeFactory);
+        await LoginAsync(expiredClient, "close.expired@rvt.test", Password);
+        var expiredClose = await CloseAsync(expiredClient, expiredNotificationId, "expired assignment");
+
+        var boundaryClient = CreateClient(fixedTimeFactory);
+        await LoginAsync(boundaryClient, "close.boundary@rvt.test", Password);
+        var boundaryClose = await CloseAsync(boundaryClient, boundaryNotificationId, "boundary assignment");
+
+        Assert.Equal(HttpStatusCode.NotFound, futureClose.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, expiredClose.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, boundaryClose.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        Assert.Null(context.Notifications.Single(item => item.Id == futureNotificationId).ClosedTime);
+        Assert.Null(context.Notifications.Single(item => item.Id == expiredNotificationId).ClosedTime);
+        Assert.NotNull(context.Notifications.Single(item => item.Id == boundaryNotificationId).ClosedTime);
     }
 
     [Fact]
@@ -411,7 +490,66 @@ public class NotificationAlertWorkflowTests
     }
 
     // Function summary: Creates client data for the current workflow.
-    private static HttpClient CreateClient(SpaTestApplicationFactory factory)
+    private static Task<ApplicationUser> SeedCompanyUserAsync(
+        SpaTestApplicationFactory factory,
+        string email,
+        Guid companyId)
+    {
+        return factory.SeedUserAsync(email, Password, RoleNames.CompanyUser, companyId: companyId);
+    }
+
+    // Function summary: Creates one assignment with caller-controlled inclusive window boundaries.
+    private static SiteUsers Assignment(Guid siteId, string userId, DateTime startDate, DateTime? endDate = null)
+    {
+        return new SiteUsers
+        {
+            Id = Guid.NewGuid(),
+            SiteId = siteId,
+            UserId = Guid.Parse(userId),
+            StartDate = startDate,
+            EndDate = endDate
+        };
+    }
+
+    // Function summary: Creates an open alert notification for close-authorization coverage.
+    private static Notification AlertNotification(Guid id, Guid monitorId, DateTime notificationTime)
+    {
+        return new Notification
+        {
+            Id = id,
+            MonitorId = monitorId,
+            NotificationTime = notificationTime,
+            AlertType = AlertTypeEnum.Alert,
+            AlertField = "pm10",
+            LimitOn = 45,
+            Level = 50,
+            AveragingPeriod = (int)AveragingPeriodsDustEnum._1_hour
+        };
+    }
+
+    // Function summary: Sends one notification close request through the real API boundary.
+    private static Task<HttpResponseMessage> CloseAsync(HttpClient client, Guid notificationId, string note)
+    {
+        return client.PostAsJsonAsync($"/api/notifications/{notificationId}/close", new NotificationCloseRequest { Note = note });
+    }
+
+    // Function summary: Replaces the system clock for one test host.
+    private static WebApplicationFactory<Program> WithTimeProvider(
+        SpaTestApplicationFactory factory,
+        DateTimeOffset nowUtc)
+    {
+        return factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(nowUtc));
+            });
+        });
+    }
+
+    // Function summary: Creates client data for the current workflow.
+    private static HttpClient CreateClient(WebApplicationFactory<Program> factory)
     {
         return factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -429,6 +567,12 @@ public class NotificationAlertWorkflowTests
             Password = password,
             RememberMe = true
         });
+    }
+
+    // Function summary: Supplies a deterministic UTC clock for assignment-window authorization tests.
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 
     // Function summary: Handles the notification alert ids workflow for this module.

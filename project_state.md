@@ -276,9 +276,24 @@
 - Regression coverage fixes the site-authorization clock at
   `2026-07-22T12:00:00Z` and covers expired, future, exact-boundary active,
   same-company, and cross-company controls. The focused workflow run passes
-  26/26; the portal test project passes 319/322 with three expected opt-in
+  26/26; the initial portal test project run passed 319/322 with three expected opt-in
   PostgreSQL skips. Existing NU1903 advisories for
   `System.Security.Cryptography.Xml` 10.0.7 remain unchanged.
+- Task 3 review follow-up closes the remaining specified consumers:
+  `DashboardApplicationService`, `AlertLevelApplicationService`,
+  `NotificationApplicationService`, and both notification-close handlers now
+  receive the registered `TimeProvider` and reuse `ActiveSiteAssignment.ForUser`.
+  Future and expired assignments cannot expose dashboard/alert data or mutate
+  notification close state; exact `StartDate == nowUtc` / `EndDate == nowUtc`
+  remains authorized. The fixed test instant is `2026-07-22T12:00:00Z`.
+- Monitor option contract scope is now the intersection of visible site ids
+  and the actor's company id for installer/company-user callers. This prevents
+  a second company's contract leaking when both contracts point to one site;
+  admin option behavior remains global.
+- Follow-up verification: the four new exploit/control tests pass 4/4, the
+  four covering workflow classes pass 41/41, and the portal test project
+  passes 323/326 with the same three opt-in PostgreSQL skips. The duplicate
+  `SiteApplicationService` file header was consolidated.
 
 ## RVT Portal AI Review Analysis - 2026-07-22
 

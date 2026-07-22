@@ -20,6 +20,7 @@
 // - 2026-06-25 pending Routed monitor inventory lists through a database-backed paged reader.
 // - 2026-06-26 pending Passed installer company assignment into monitor list authorization.
 // - 2026-06-26 pending Routed residual monitor mutation and default-alert writes through transactional MediatR commands.
+// - 2026-07-22 pending Passed the current actor into tenant-scoped monitor option reads.
 
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
@@ -102,7 +103,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Returns monitor form and filter options.
     public async Task<ActionResult<MonitorOptionsResponse>> Options()
     {
-        var options = await monitorReads.OptionsAsync(HttpContext.RequestAborted);
+        var options = await monitorReads.OptionsAsync(await CreateActorAsync(), HttpContext.RequestAborted);
         return MonitorApiMapper.ToOptionsResponse(options);
     }
 

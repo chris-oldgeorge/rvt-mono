@@ -255,6 +255,31 @@
   PostgreSQL skips. Restore continues to report existing NU1903 advisories for
   `System.Security.Cryptography.Xml` 10.0.7.
 
+## Immediate Blockers Task 3 - 2026-07-22
+
+- Site and monitor company-user authorization now share
+  `Application/Sites/ActiveSiteAssignment.cs`. Its `ForUser(userId, nowUtc)`
+  expression requires `StartDate <= nowUtc` and no `EndDate` or
+  `EndDate >= nowUtc`, so both boundaries are inclusive.
+- `SiteApplicationService` now receives the registered `TimeProvider`; its
+  detail and list paths evaluate the shared assignment predicate at
+  `timeProvider.GetUtcNow().UtcDateTime`. Monitor detail, picture, inventory,
+  and option paths reuse the same assignment expression for company users.
+- Installer monitor reads require an assigned row with non-null actor/row
+  company ids that match. The protected picture endpoint therefore preserves
+  its existing `404` response for missing and unauthorized monitors while
+  same-company pictures remain readable.
+- `IMonitorAdministrationReadService.OptionsAsync` now accepts the
+  `PortalUserContext` actor. Admin option behavior remains global; installers
+  receive contracts/sites for their company; company users receive contracts
+  and non-archived sites reached through currently active assignments.
+- Regression coverage fixes the site-authorization clock at
+  `2026-07-22T12:00:00Z` and covers expired, future, exact-boundary active,
+  same-company, and cross-company controls. The focused workflow run passes
+  26/26; the portal test project passes 319/322 with three expected opt-in
+  PostgreSQL skips. Existing NU1903 advisories for
+  `System.Security.Cryptography.Xml` 10.0.7 remain unchanged.
+
 ## RVT Portal AI Review Analysis - 2026-07-22
 
 - Source review: `/Users/oldgeorge/Desktop/RvTPortal AI Review.docx` was read

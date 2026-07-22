@@ -3,6 +3,7 @@
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-06-09 pending Moved monitor detail visibility checks out of controllers for the CQRS/MediatR slice.
 // - 2026-06-26 pending Scoped installer monitor detail reads to the installer's assigned company.
+// - 2026-07-22 pending Enforced inclusive active site-assignment windows for company-user monitor reads.
 
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
@@ -10,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.Application.Sites;
 
 namespace RvtPortal.Spa.Application.Monitors;
 
@@ -23,12 +25,17 @@ public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationS
 {
     private readonly RVTDbContext domainContext;
     private readonly UserManager<ApplicationUser> userManager;
+    private readonly TimeProvider timeProvider;
 
     // Function summary: Initializes monitor read authorization dependencies.
-    public MonitorReadAuthorizationService(RVTDbContext domainContext, UserManager<ApplicationUser> userManager)
+    public MonitorReadAuthorizationService(
+        RVTDbContext domainContext,
+        UserManager<ApplicationUser> userManager,
+        TimeProvider timeProvider)
     {
         this.domainContext = domainContext;
         this.userManager = userManager;
+        this.timeProvider = timeProvider;
     }
 
     // Function summary: Evaluates whether a user can read a monitor detail response.
@@ -42,7 +49,10 @@ public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationS
         if (user.IsInRole(RoleNames.RVTInstaller))
         {
             var installerCompanyId = await CurrentUserCompanyIdAsync(user);
-            return row.IsAssigned && row.CompanyId.HasValue && installerCompanyId == row.CompanyId.Value;
+            return row.IsAssigned &&
+                row.CompanyId.HasValue &&
+                installerCompanyId.HasValue &&
+                row.CompanyId.Value == installerCompanyId.Value;
         }
 
         if (!IsCompanyUser(user) || !row.SiteId.HasValue)
@@ -64,7 +74,7 @@ public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationS
 
         var siteIds = await domainContext.SiteUsers
             .AsNoTracking()
-            .Where(siteUser => siteUser.UserId == currentUserId.Value && siteUser.EndDate == null)
+            .Where(ActiveSiteAssignment.ForUser(currentUserId.Value, timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
         return siteIds.ToHashSet();

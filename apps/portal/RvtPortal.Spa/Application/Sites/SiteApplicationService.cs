@@ -4,6 +4,10 @@
 // - 2026-07-05 pending Moved core site query, detail, mutation, archive, and visibility rules out of the controller.
 // - 2026-07-05 pending Added site monitor, open-notification, and notification-setting application workflows.
 
+// File summary: Coordinates site list, detail, mutation, archive, monitoring, and notification-setting workflows.
+// Major updates:
+// - 2026-07-22 pending Enforced inclusive active assignment windows for company-user site visibility.
+
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
@@ -88,16 +92,19 @@ public sealed class SiteApplicationService : ISiteApplicationService
     private readonly RVTDbContext domainContext;
     private readonly IPortalUserDirectory userDirectory;
     private readonly ISiteArchiveService archiveService;
+    private readonly TimeProvider timeProvider;
 
     // Function summary: Initializes this type with the data context needed for site workflows.
     public SiteApplicationService(
         RVTDbContext domainContext,
         IPortalUserDirectory userDirectory,
-        ISiteArchiveService archiveService)
+        ISiteArchiveService archiveService,
+        TimeProvider timeProvider)
     {
         this.domainContext = domainContext;
         this.userDirectory = userDirectory;
         this.archiveService = archiveService;
+        this.timeProvider = timeProvider;
     }
 
     // Function summary: Returns paged sites after applying user visibility, filters, sorting, paging, and counters.
@@ -454,8 +461,14 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return await domainContext.Sites.AnyAsync(site => site.Id == id, cancellationToken);
         }
 
-        return user.UserId.HasValue &&
-            await domainContext.SiteUsers.AnyAsync(siteUser => siteUser.SiteId == id && siteUser.UserId == user.UserId.Value, cancellationToken);
+        if (!user.UserId.HasValue)
+        {
+            return false;
+        }
+
+        var activeAssignments = domainContext.SiteUsers
+            .Where(ActiveSiteAssignment.ForUser(user.UserId.Value, timeProvider.GetUtcNow().UtcDateTime));
+        return await activeAssignments.AnyAsync(siteUser => siteUser.SiteId == id, cancellationToken);
     }
 
     // Function summary: Evaluates whether the current user can manage the requested site.
@@ -724,9 +737,14 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return query;
         }
 
-        return user.UserId.HasValue
-            ? query.Where(site => domainContext.SiteUsers.Any(siteUser => siteUser.SiteId == site.Id && siteUser.UserId == user.UserId.Value))
-            : query.Where(_ => false);
+        if (!user.UserId.HasValue)
+        {
+            return query.Where(_ => false);
+        }
+
+        var activeAssignments = domainContext.SiteUsers
+            .Where(ActiveSiteAssignment.ForUser(user.UserId.Value, timeProvider.GetUtcNow().UtcDateTime));
+        return query.Where(site => activeAssignments.Any(siteUser => siteUser.SiteId == site.Id));
     }
 
     // Function summary: Adds active monitor and open alert counts to site list rows.

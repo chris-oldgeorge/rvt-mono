@@ -4,12 +4,14 @@
 // - 2026-06-26 pending Scoped installer monitor inventory reads to the installer's assigned company.
 // - 2026-06-26 pending Split base row projection helpers for Sonar complexity cleanup.
 // - 2026-06-25 pending Moved monitor inventory and unattached list shaping out of controllers and into EF query projections.
+// - 2026-07-22 pending Reused inclusive active site-assignment windows for company-user inventory visibility.
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Application.Sites;
 using MonitorEntity = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Application.Monitors;
@@ -221,7 +223,11 @@ public sealed class MonitorListReader : IMonitorListReader
         if (roleContext.IsInstaller)
         {
             return state == MonitorListStates.Installer
-                ? rows.Where(row => row.DeploymentId != null && row.CompanyId == roleContext.CompanyId)
+                ? rows.Where(row =>
+                    row.DeploymentId != null &&
+                    row.CompanyId != null &&
+                    roleContext.CompanyId != null &&
+                    row.CompanyId == roleContext.CompanyId)
                 : rows.Where(_ => false);
         }
 
@@ -232,7 +238,7 @@ public sealed class MonitorListReader : IMonitorListReader
 
         var visibleSiteIds = await domainContext.SiteUsers
             .AsNoTracking()
-            .Where(siteUser => siteUser.UserId == roleContext.CurrentUserId.Value && siteUser.EndDate == null)
+            .Where(ActiveSiteAssignment.ForUser(roleContext.CurrentUserId.Value, DateTime.UtcNow))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
         return rows.Where(row => row.SiteId != null && visibleSiteIds.Contains(row.SiteId ?? Guid.Empty));

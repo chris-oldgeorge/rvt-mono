@@ -456,6 +456,59 @@ public class MonitorWorkflowTests
     }
 
     [Fact]
+    // Function summary: Verifies protected monitor pictures enforce the same installer-company boundary as installer detail reads.
+    public async Task InstallerMonitorPicture_IsScopedToInstallerCompany()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var ids = await SeedMonitorScenarioAsync(factory);
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller, companyId: ids.CompanyId);
+
+        var adminClient = CreateClient(factory);
+        await LoginAsync(adminClient, AdminEmail, Password);
+        var ownUpload = await UploadPictureAsync(adminClient, ids.OnlineMonitorId);
+        var otherUpload = await UploadPictureAsync(adminClient, ids.OtherMonitorId);
+
+        var installerClient = CreateClient(factory);
+        await LoginAsync(installerClient, InstallerEmail, Password);
+        var ownPicture = await installerClient.GetAsync($"/api/monitors/{ids.OnlineMonitorId}/picture");
+        var otherPicture = await installerClient.GetAsync($"/api/monitors/{ids.OtherMonitorId}/picture");
+
+        Assert.Equal(HttpStatusCode.OK, ownUpload.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, otherUpload.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, ownPicture.StatusCode);
+        Assert.Equal("image/png", ownPicture.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(HttpStatusCode.NotFound, otherPicture.StatusCode);
+    }
+
+    [Fact]
+    // Function summary: Verifies monitor option metadata is restricted to each non-admin actor's authorized tenant graph.
+    public async Task MonitorOptions_AreScopedToInstallerCompanyAndCompanyUserSites()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var ids = await SeedMonitorScenarioAsync(factory);
+        var companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
+        await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller, companyId: ids.CompanyId);
+        await factory.SeedDomainEntitiesAsync(TestData.SiteUser(
+            siteId: ids.SiteId,
+            userId: Guid.Parse(companyUser.Id),
+            startDate: DateTime.UtcNow.AddDays(-1)));
+
+        var installerClient = CreateClient(factory);
+        await LoginAsync(installerClient, InstallerEmail, Password);
+        var installerOptions = await installerClient.GetFromJsonAsync<MonitorOptionsResponse>("/api/monitors/options");
+
+        var companyClient = CreateClient(factory);
+        await LoginAsync(companyClient, CompanyUserEmail, Password);
+        var companyOptions = await companyClient.GetFromJsonAsync<MonitorOptionsResponse>("/api/monitors/options");
+
+        Assert.Equal(ids.ContractId.ToString(), Assert.Single(installerOptions!.Contracts).Value);
+        Assert.Equal(ids.SiteId.ToString(), Assert.Single(installerOptions.Sites).Value);
+        Assert.Equal(ids.ContractId.ToString(), Assert.Single(companyOptions!.Contracts).Value);
+        Assert.Equal(ids.SiteId.ToString(), Assert.Single(companyOptions.Sites).Value);
+    }
+
+    [Fact]
     // Function summary: Verifies the installer what3words endpoint returns a service problem when the API key is not configured.
     public async Task InstallerWhat3WordsConvert_ReturnsServiceUnavailableWhenApiKeyMissing()
     {
@@ -677,6 +730,17 @@ public class MonitorWorkflowTests
             Password = password,
             RememberMe = true
         });
+    }
+
+    // Function summary: Uploads a minimal valid PNG to a monitor's current deployment.
+    private static async Task<HttpResponseMessage> UploadPictureAsync(HttpClient client, Guid monitorId)
+    {
+        using var form = new MultipartFormDataContent();
+        using var image = new ByteArrayContent(Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lwGfVwAAAABJRU5ErkJggg=="));
+        image.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        form.Add(image, "picture", "monitor.png");
+        return await client.PostAsync($"/api/monitors/{monitorId}/picture", form);
     }
 
     // Function summary: Handles the monitor workflow ids workflow for this module.

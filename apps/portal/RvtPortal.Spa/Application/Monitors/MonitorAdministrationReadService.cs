@@ -1,6 +1,7 @@
 // File summary: Provides monitor inventory, options, assignment, detail, picture, and removal-impact read workflows for the portal API.
 // Major updates:
 // - 2026-07-09 pending Moved monitor administration read/query logic out of MonitorsController.
+// - 2026-07-22 pending Scoped protected pictures and option metadata to the actor's authorized tenant graph.
 
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ using RVT.BusinessLogic.Ports.Storage;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Application.Sites;
 using MonitorEntity = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Application.Monitors;
@@ -22,7 +24,7 @@ public interface IMonitorAdministrationReadService
         CancellationToken cancellationToken);
 
     // Function summary: Returns monitor edit and assignment option lists.
-    Task<MonitorOptionsModel> OptionsAsync(CancellationToken cancellationToken);
+    Task<MonitorOptionsModel> OptionsAsync(PortalUserContext actor, CancellationToken cancellationToken);
 
     // Function summary: Returns monitor assignment context for a site and optional selected contract.
     Task<MonitorAssignmentContextResult> GetAssignmentContextAsync(
@@ -161,6 +163,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
     private readonly IMonitorDetailReader detailReader;
     private readonly IMonitorListReader monitorListReader;
     private readonly IMonitorRemovalImpactReader impactReader;
+    private readonly TimeProvider timeProvider;
 
     // Function summary: Initializes the monitor read service with domain readers and storage ports.
     public MonitorAdministrationReadService(
@@ -168,13 +171,15 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
         IMonitorPictureStorage pictureStorage,
         IMonitorDetailReader detailReader,
         IMonitorListReader monitorListReader,
-        IMonitorRemovalImpactReader impactReader)
+        IMonitorRemovalImpactReader impactReader,
+        TimeProvider timeProvider)
     {
         this.domainContext = domainContext;
         this.pictureStorage = pictureStorage;
         this.detailReader = detailReader;
         this.monitorListReader = monitorListReader;
         this.impactReader = impactReader;
+        this.timeProvider = timeProvider;
     }
 
     // Function summary: Returns a role-scoped paged monitor inventory result.
@@ -224,12 +229,13 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
     }
 
     // Function summary: Returns monitor edit and assignment option lists.
-    public async Task<MonitorOptionsModel> OptionsAsync(CancellationToken cancellationToken)
+    public async Task<MonitorOptionsModel> OptionsAsync(PortalUserContext actor, CancellationToken cancellationToken)
     {
+        var visibleSiteIds = VisibleSiteIdsQuery(actor);
         var contracts = await domainContext.Contracts
             .AsNoTracking()
             .Include(contract => contract.Site)
-            .Where(contract => contract.SiteiD != null)
+            .Where(contract => contract.SiteiD != null && visibleSiteIds.Contains(contract.SiteiD.Value))
             .OrderBy(contract => contract.ContractNumber)
             .Select(contract => new MonitorOptionModel
             {
@@ -241,7 +247,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             .ToListAsync(cancellationToken);
         var sites = await domainContext.Sites
             .AsNoTracking()
-            .Where(site => !site.Archived)
+            .Where(site => !site.Archived && visibleSiteIds.Contains(site.Id))
             .OrderBy(site => site.SiteName)
             .Select(site => new MonitorOptionModel { Value = site.Id.ToString(), Label = site.SiteName })
             .ToListAsync(cancellationToken);
@@ -445,7 +451,10 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
 
         if (actor.IsInstaller)
         {
-            return row.IsAssigned;
+            return row.IsAssigned &&
+                row.CompanyId.HasValue &&
+                actor.CompanyId.HasValue &&
+                row.CompanyId.Value == actor.CompanyId.Value;
         }
 
         if (!IsCompanyUser(actor) || !row.SiteId.HasValue)
@@ -502,10 +511,34 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
 
         var siteIds = await domainContext.SiteUsers
             .AsNoTracking()
-            .Where(siteUser => siteUser.UserId == actor.UserId.Value && siteUser.EndDate == null)
+            .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
         return siteIds.ToHashSet();
+    }
+
+    // Function summary: Builds the site-id graph visible to the actor for monitor option metadata.
+    private IQueryable<Guid> VisibleSiteIdsQuery(PortalUserContext actor)
+    {
+        if (actor.IsAdmin)
+        {
+            return domainContext.Sites.Select(site => site.Id);
+        }
+
+        if (actor.IsInstaller)
+        {
+            return actor.CompanyId.HasValue
+                ? domainContext.Contracts
+                    .Where(contract => contract.SiteiD != null && contract.CompanyId == actor.CompanyId.Value)
+                    .Select(contract => contract.SiteiD!.Value)
+                : domainContext.Sites.Where(_ => false).Select(site => site.Id);
+        }
+
+        return IsCompanyUser(actor) && actor.UserId.HasValue
+            ? domainContext.SiteUsers
+                .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, timeProvider.GetUtcNow().UtcDateTime))
+                .Select(siteUser => siteUser.SiteId)
+            : domainContext.Sites.Where(_ => false).Select(site => site.Id);
     }
 
     // Function summary: Selects the requested contract or the only contract when exactly one exists.

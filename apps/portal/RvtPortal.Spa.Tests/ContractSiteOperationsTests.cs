@@ -9,7 +9,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
@@ -386,8 +389,64 @@ public class ContractSiteOperationsTests
         Assert.True(updatedSettings?.Item?.Sms);
         Assert.Equal("09:00", updatedSettings?.Item?.StartTime);
     }
+
+    [Fact]
+    // Function summary: Verifies only currently active site assignments grant company-user list and detail access.
+    public async Task CompanyUserSiteAccess_RequiresActiveAssignmentWindow()
+    {
+        var nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        using var factory = new SpaTestApplicationFactory();
+        var companyId = Guid.NewGuid();
+        var expiredSiteId = Guid.NewGuid();
+        var futureSiteId = Guid.NewGuid();
+        var activeSiteId = Guid.NewGuid();
+        var companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: companyId);
+        var userId = Guid.Parse(companyUser.Id);
+        await factory.SeedDomainEntitiesAsync(
+            new Company { Id = companyId, CompanyName = "Windowed Company", Contracts = [] },
+            new Site { Id = expiredSiteId, SiteName = "Expired Assignment Site", CreateDate = nowUtc.UtcDateTime.AddDays(-30), Contracts = [] },
+            new Site { Id = futureSiteId, SiteName = "Future Assignment Site", CreateDate = nowUtc.UtcDateTime.AddDays(-30), Contracts = [] },
+            new Site { Id = activeSiteId, SiteName = "Active Assignment Site", CreateDate = nowUtc.UtcDateTime.AddDays(-30), Contracts = [] },
+            new SiteUsers
+            {
+                Id = Guid.NewGuid(),
+                SiteId = expiredSiteId,
+                UserId = userId,
+                StartDate = nowUtc.UtcDateTime.AddDays(-10),
+                EndDate = nowUtc.UtcDateTime.AddTicks(-1)
+            },
+            TestData.SiteUser(siteId: futureSiteId, userId: userId, startDate: nowUtc.UtcDateTime.AddTicks(1)),
+            new SiteUsers
+            {
+                Id = Guid.NewGuid(),
+                SiteId = activeSiteId,
+                UserId = userId,
+                StartDate = nowUtc.UtcDateTime,
+                EndDate = nowUtc.UtcDateTime
+            });
+
+        using var fixedTimeFactory = factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(nowUtc));
+            });
+        });
+        var client = CreateClient(fixedTimeFactory);
+        await LoginAsync(client, CompanyUserEmail, Password);
+
+        var expiredDetail = await client.GetAsync($"/api/sites/{expiredSiteId}");
+        var activeDetail = await client.GetAsync($"/api/sites/{activeSiteId}");
+        var list = await client.GetFromJsonAsync<QuerySitesResponse>("/api/sites?includeArchived=true");
+
+        Assert.Equal(HttpStatusCode.NotFound, expiredDetail.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, activeDetail.StatusCode);
+        Assert.Equal(activeSiteId, Assert.Single(list!.Results).Id);
+        Assert.DoesNotContain(list.Results, site => site.Id == futureSiteId);
+    }
     // Function summary: Creates client data for the current workflow.
-    private static HttpClient CreateClient(SpaTestApplicationFactory factory)
+    private static HttpClient CreateClient(WebApplicationFactory<Program> factory)
     {
         return factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -410,5 +469,11 @@ public class ContractSiteOperationsTests
     private static byte[] PngBytes()
     {
         return Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lwGfVwAAAABJRU5ErkJggg==");
+    }
+
+    // Function summary: Supplies a deterministic UTC clock for assignment-window authorization tests.
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 }

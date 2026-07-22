@@ -16,7 +16,7 @@ using RVT.SchemaDeploy;
 // were applied by hand - which is how the monitor_measurement_removal_impact view came to be dropped and never
 // recreated. This tool does only the harmless half: it creates and replaces, and never drops a table or data.
 //
-// See docs/database/ef-migrations.md.
+// See docs/database/portal/ef-migrations.md.
 
 var options = DeployOptions.Parse(args);
 if (options is null)

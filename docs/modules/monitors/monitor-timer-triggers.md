@@ -8,7 +8,7 @@ Azure Functions timer triggers use NCRONTAB format:
 
 This inventory includes only active timer-triggered functions in the four monitor service classes. A function is treated as active only when the method has an uncommented `[Function(...)]` attribute and an uncommented `[TimerTrigger(...)]` parameter.
 
-For container deployments, these schedules are converted into Quartz cron expressions and stored in each monitor app's `appsettings.json`. See `docs/quartz-monitor-scheduling.md`.
+For container deployments, these schedules are converted into Quartz cron expressions and stored in each monitor app's `appsettings.json`. See `docs/modules/monitors/quartz-monitor-scheduling.md`.
 
 ## AirQMonitor
 

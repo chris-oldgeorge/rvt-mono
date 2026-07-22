@@ -20,7 +20,7 @@
 -- SQL Server source is deliberate: it restores the two default constraints the PostgreSQL port dropped (see the
 -- ADD COLUMN section below), without which every EF insert into rvt_alert_rule fails.
 --
--- WHERE IT FITS in a from-scratch build - see docs/database/ef-migrations.md:
+-- WHERE IT FITS in a from-scratch build - see docs/database/portal/ef-migrations.md:
 --   1. dotnet ef database update --context RVTDbContext        (domain tables)
 --   2. dotnet ef database update --context RVTSearchContext    (time-series tables)
 --   3. dotnet ef database update --context ApplicationDbContext (Identity tables)
@@ -447,7 +447,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_svantek_noise_level_serial_id_sample_time O
 -- them, can only insert if the database fills them in. SQL Server does: both columns carry a default constraint
 -- there (df_monitor_battery_status and df_rvt_alert_rule_created). The PostgreSQL port dropped both, which is
 -- what made every EF insert into rvt_alert_rule fail with "23502: null value in column created". The defaults
--- below restore the SQL Server behaviour; see docs/database/ef-migrations.md ("Columns no EF model maps").
+-- below restore the SQL Server behaviour; see docs/database/portal/ef-migrations.md ("Columns no EF model maps").
 
 ALTER TABLE public.monitor
     ADD COLUMN IF NOT EXISTS offline boolean,

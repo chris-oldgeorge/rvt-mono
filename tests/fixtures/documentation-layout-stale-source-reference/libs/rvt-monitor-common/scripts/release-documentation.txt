@@ -1,0 +1,1 @@
+Release documentation: __STALE_MODULE_RELATIVE_DOCUMENT_PATH__

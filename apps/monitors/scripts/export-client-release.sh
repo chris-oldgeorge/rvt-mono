@@ -75,7 +75,7 @@ blocked_output="$(find "$export_dir" -type f \( \
   -name 'project_state.md' -o \
   -path '*/rvt-monitor-common/*' -o \
   -path '*/docs/superpowers/*' -o \
-  -path '*/docs/monitor-data-access-migration.md' -o \
+  -path '*/docs/database/monitors/monitor-data-access-migration.md' -o \
   -path '*/docs/release/*' -o \
   -path '*/.codegraph/*' -o \
   -iname 'appsettings.Development.json' -o \

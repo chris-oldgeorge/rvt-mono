@@ -44,7 +44,7 @@ value bound for a timestamptz column), `UtcTimestampGuardTests`,
   `RVTSearchContext` (time-series) and `ApplicationDbContext` (Identity) map
   disjoint halves and each keeps its **own** migrations-history table. Sharing one
   would make each context read the others' migrations as its own. See
-  `docs/database/ef-migrations.md`.
+  `docs/database/portal/ef-migrations.md`.
 - **The EF migrations do not build the whole database.** Ingestion tables, the
   columns no model maps, and the Timescale views/hypertables live in
   `database/postgres/` and are applied by `RVT.SchemaDeploy`.
@@ -140,7 +140,7 @@ Enforced by: `RvtCommonDependencyBoundaryTests` and
   stay local-only.
 - **A new integration is not done until its keys are wired in.** Add them to
   `docs/deploy/set-dev-secrets.ps1` (behind a `-Configure*` switch, and to
-  `-ConfigureAll`) and describe them in `docs/deploy/dev-secrets-reference.md`.
+  `-ConfigureAll`) and describe them in `docs/operations/portal/dev-secrets-reference.md`.
   Keys added to `appsettings.json` but not to the script are the drift to avoid.
 - Document what a key *does* and whether it is sensitive — never its value.
 

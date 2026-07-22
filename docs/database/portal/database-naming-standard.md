@@ -47,7 +47,7 @@ The current generated compatibility scripts are:
 
 - `database/postgres/legacy_compatibility_views.sql`
 - `database/sqlserver/legacy_compatibility_views.sql`
-- `docs/database/legacy-compatibility-deprecation.md`
+- `docs/database/portal/legacy-compatibility-deprecation.md`
 
 Compatibility views are read-only by default. PostgreSQL revokes insert/update/delete privileges on the `legacy` schema, and SQL Server denies insert/update/delete on `SCHEMA::[legacy]`. If an external consumer needs write compatibility, that exception must be approved explicitly and implemented as a separate tracked change.
 
@@ -76,7 +76,7 @@ This convention is a migration aid, not a runtime default yet. Enable it only in
 
 ## Developer Onboarding
 
-New developers should read `docs/onboarding/DATABASE_NAMING_ONBOARDING.md` before changing migrations, raw SQL, reports, archive SQL, compatibility views, or the SQL Server-to-Postgres migrator. Repo-local `AGENTS.md` also records the required database naming rules for future coding agents.
+New developers should read `docs/development/portal/onboarding/DATABASE_NAMING_ONBOARDING.md` before changing migrations, raw SQL, reports, archive SQL, compatibility views, or the SQL Server-to-Postgres migrator. Repo-local `AGENTS.md` also records the required database naming rules for future coding agents.
 
 ## Constraint And Index Naming
 

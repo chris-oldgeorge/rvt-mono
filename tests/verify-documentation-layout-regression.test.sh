@@ -18,6 +18,12 @@ STALE_DOCUMENT_PATH="$stale_document_path" perl -pi -e \
   's/__STALE_DOCUMENT_PATH__/$ENV{STALE_DOCUMENT_PATH}/g' \
   "$test_root/apps/monitors/myatmmonitor/MyAtmMonitorTests/Architecture/CommonPackageBoundaryTests.cs"
 
+stale_module_relative_path="docs/"
+stale_module_relative_path+="releasing.md"
+STALE_MODULE_RELATIVE_PATH="$stale_module_relative_path" perl -pi -e \
+  's/__STALE_MODULE_RELATIVE_DOCUMENT_PATH__/$ENV{STALE_MODULE_RELATIVE_PATH}/g' \
+  "$test_root/libs/rvt-monitor-common/scripts/release-documentation.txt"
+
 while IFS=$'\t' read -r source destination; do
   [[ -n "$source" && -n "$destination" ]] || continue
   mkdir -p "$(dirname "$test_root/$destination")"
@@ -47,4 +53,7 @@ fi
 grep -Fq \
   "ERROR: stale reference uses old document path: $stale_document_path" \
   "$test_root/output"
-grep -Fq 'ERROR: 1 stale old-document reference(s) remain' "$test_root/output"
+grep -Fq \
+  "ERROR: stale module-relative reference uses old document path: $stale_module_relative_path" \
+  "$test_root/output"
+grep -Fq 'ERROR: 2 stale old-document reference(s) remain' "$test_root/output"

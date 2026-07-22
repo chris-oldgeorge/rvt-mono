@@ -13,7 +13,7 @@ namespace RvtPortal.Spa.Data;
 /// Design-time factory for <see cref="ApplicationDbContext"/>.
 ///
 /// It resolves the provider and connection from RVT_EF_PROVIDER / RVT_EF_CONNECTION, exactly as the two
-/// RVT.DataAccess factories do - see docs/database/ef-migrations.md - and points the context at its own
+/// RVT.DataAccess factories do - see docs/database/portal/ef-migrations.md - and points the context at its own
 /// migrations-history table, because all three contexts migrate disjoint halves of a single database.
 /// </summary>
 public sealed class ApplicationDbContextDesignTimeFactory : IDesignTimeDbContextFactory<ApplicationDbContext>

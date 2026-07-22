@@ -77,7 +77,7 @@ find "$tmp" -type f \( \
   -name AGENTS.md -o \
   -name project_state.md -o \
   -path '*/docs/superpowers/*' -o \
-  -path '*/docs/monitor-data-access-migration.md' -o \
+  -path '*/docs/database/monitors/monitor-data-access-migration.md' -o \
   -path '*/docs/release/*' -o \
   -path '*/.codegraph/*' \
 \) -print

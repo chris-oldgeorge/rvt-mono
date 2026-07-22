@@ -99,15 +99,15 @@ npm run test:e2e
 Current known warning to expect during client build: Vite reports the main JavaScript bundle is larger than 500 kB. It is a release-polish item, not currently a failing gate.
 ## 9. Release Evidence
 Use these files to understand cutover readiness:
-- `docs/release/PARITY_MATRIX.md`: MVC-to-SPA migration ledger.
-- `docs/release/FUNCTIONALITY_READINESS_MATRIX.md`: capability readiness and test evidence.
-- `docs/release/CUTOVER_RUNBOOK.md`: deployment, smoke, rollback, and go/no-go checklist.
-- `docs/onboarding/DATABASE_NAMING_ONBOARDING.md`: canonical database naming rules, DBR registries, and migrator expectations.
+- `docs/release/portal/PARITY_MATRIX.md`: MVC-to-SPA migration ledger.
+- `docs/release/portal/FUNCTIONALITY_READINESS_MATRIX.md`: capability readiness and test evidence.
+- `docs/release/portal/CUTOVER_RUNBOOK.md`: deployment, smoke, rollback, and go/no-go checklist.
+- `docs/development/portal/onboarding/DATABASE_NAMING_ONBOARDING.md`: canonical database naming rules, DBR registries, and migrator expectations.
 ## 10. First Week Checklist
 - Open `RvtPortal.Spa.sln` and confirm the solution builds.
 - Run the API and React client locally.
 - Read `README.md`, this guide, `RvtPortal.Spa/AUTHORIZATION.md`, and the readiness matrix.
-- Read `docs/onboarding/DATABASE_NAMING_ONBOARDING.md` before touching migrations, raw SQL, reports, archive SQL, or the SQL Server-to-Postgres migrator.
+- Read `docs/development/portal/onboarding/DATABASE_NAMING_ONBOARDING.md` before touching migrations, raw SQL, reports, archive SQL, or the SQL Server-to-Postgres migrator.
 - Trace one admin workflow and one company/installer workflow from React panel to API controller.
 - Make a small first change that includes both frontend and backend tests where relevant.
 - Keep local credentials in user secrets, environment variables, or ignored local overrides.
@@ -126,5 +126,5 @@ Use the code layout to narrow questions:
 - "How does this page render?" Start in `RvtPortal.Client/src/App.tsx`.
 - "Where does this API come from?" Search `RvtPortal.Spa/Api`.
 - "Why does this role see this route?" Read `AUTHORIZATION.md`, then `RoleAuthorization.cs` and `App.tsx`.
-- "Is this migrated?" Check `docs/release/PARITY_MATRIX.md`.
-- "Is this ready for release?" Check `docs/release/FUNCTIONALITY_READINESS_MATRIX.md` and `CUTOVER_RUNBOOK.md`.
+- "Is this migrated?" Check `docs/release/portal/PARITY_MATRIX.md`.
+- "Is this ready for release?" Check `docs/release/portal/FUNCTIONALITY_READINESS_MATRIX.md` and `CUTOVER_RUNBOOK.md`.

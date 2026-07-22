@@ -34,7 +34,7 @@ This log records the incremental ports-and-adapters refactor for the RVT Portal 
   - Centralized legacy synchronous lookup repository reads behind one helper and removed stale lookup comment/semicolon noise.
   - Removed console prompts and async-without-await warnings from the legacy blob utility.
 - Transaction-boundary pass:
-  - Added `docs/superpowers/plans/2026-07-08-transaction-boundaries.md`.
+  - Added `docs/history/portal/plans/2026-07-08-transaction-boundaries.md`.
   - Extended `EfCoreUnitOfWork` to coordinate `RVTDbContext`, `RVTSearchContext`, and `ApplicationDbContext`.
   - Registered one scoped provider `DbConnection` for the portal EF contexts so Identity/domain/search writes can share a relational transaction.
   - Added relational SQLite tests that prove normal saves persist all three contexts and immediate Identity/search writes roll back when a later domain save fails.

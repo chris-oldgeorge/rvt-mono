@@ -13,7 +13,7 @@ local email-safe defaults, and storage container names. Optional integrations
 Redis, and data protection) can be added with the Configure* switches or all at
 once with -ConfigureAll.
 
-See docs/deploy/dev-secrets-reference.md for what every key does.
+See docs/operations/portal/dev-secrets-reference.md for what every key does.
 
 .EXAMPLE
 .\docs\deploy\set-dev-secrets.ps1

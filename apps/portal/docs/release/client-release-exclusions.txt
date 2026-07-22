@@ -15,7 +15,7 @@ docs/database/
 docs/development/
 docs/testing/
 docs/onboarding/
-docs/sonar/SQL_SCRIPT_ANALYSIS_POLICY.md
+docs/development/portal/sonar/SQL_SCRIPT_ANALYSIS_POLICY.md
 docs/release/*-rc-review-response.md
 
 # Internal dev-team tooling (not part of the client deliverable)

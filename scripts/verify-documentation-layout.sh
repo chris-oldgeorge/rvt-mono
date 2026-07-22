@@ -162,6 +162,7 @@ fi
 missing_destination_count=0
 duplicate_copy_count=0
 missing_sources=("__missing_source_sentinel__")
+missing_module_relative_sources=("__missing_module_relative_source_sentinel__")
 for index in "${!sources[@]}"; do
   source="${sources[$index]}"
   destination="${destinations[$index]}"
@@ -174,8 +175,21 @@ for index in "${!sources[@]}"; do
   fi
   if [[ ! -f "$repo_root/$source" ]]; then
     missing_sources+=("$source")
+
+    module_relative_source="$source"
+    case "$module_relative_source" in
+      apps/monitors/*) module_relative_source="${module_relative_source#apps/monitors/}" ;;
+      apps/portal/*) module_relative_source="${module_relative_source#apps/portal/}" ;;
+      libs/rvt-monitor-common/*) module_relative_source="${module_relative_source#libs/rvt-monitor-common/}" ;;
+      services/reporting/*) module_relative_source="${module_relative_source#services/reporting/}" ;;
+    esac
+    if [[ "$module_relative_source" == docs/* ]]; then
+      missing_module_relative_sources+=("$module_relative_source")
+    fi
   fi
 done
+
+unset 'missing_module_relative_sources[0]'
 
 if ((missing_destination_count > 0)); then
   report_failure "$missing_destination_count manifest destination(s) are missing below docs/"
@@ -196,6 +210,21 @@ for source in "${missing_sources[@]}"; do
       -- "$source" .
   ); then
     printf 'ERROR: stale reference uses old document path: %s\n' "$source" >&2
+    stale_reference_count=$((stale_reference_count + 1))
+  fi
+done
+
+for module_relative_source in "${missing_module_relative_sources[@]}"; do
+  if (
+    cd "$repo_root"
+    git grep --quiet --fixed-strings -I \
+      -e "$module_relative_source" -- . \
+      ':(exclude).superpowers/sdd/**' \
+      ':(exclude)docs/documentation-move-manifest.md' \
+      ':(exclude)docs/history/**'
+  ); then
+    printf 'ERROR: stale module-relative reference uses old document path: %s\n' \
+      "$module_relative_source" >&2
     stale_reference_count=$((stale_reference_count + 1))
   fi
 done

@@ -68,12 +68,12 @@ This inventory records the first implementation pass for DBR.1, based on the liv
 - `database/sqlserver/canonical_constraint_index_naming.sql`: SQL Server constraint/index rename draft.
 - `database/sqlserver/canonical_constraint_index_naming_rollback.sql`: SQL Server constraint/index rollback draft.
 - `database/postgres/verify_timescale_after_rename.sql`: Timescale pre/post rename verification script.
-- `docs/database/timescale-refactor-rehearsal.md`: rehearsal order and local Timescale baseline.
-- `docs/database/sqlserver-refactor-rehearsal.md`: SQL Server clone rehearsal result, rollback evidence, and view-rewrite follow-up.
-- `docs/database/database-naming-cutover-runbook.md`: Draft production cutover, validation, smoke-test, and rollback runbook for the canonical naming migration.
+- `docs/database/portal/timescale-refactor-rehearsal.md`: rehearsal order and local Timescale baseline.
+- `docs/database/portal/sqlserver-refactor-rehearsal.md`: SQL Server clone rehearsal result, rollback evidence, and view-rewrite follow-up.
+- `docs/database/portal/database-naming-cutover-runbook.md`: Draft production cutover, validation, smoke-test, and rollback runbook for the canonical naming migration.
 - `database/postgres/legacy_compatibility_views.sql`: PostgreSQL read-only `legacy` schema views that expose old relation and column names after canonical cutover.
 - `database/sqlserver/legacy_compatibility_views.sql`: SQL Server read-only `legacy` schema views that expose old relation and column names after canonical cutover.
-- `docs/database/legacy-compatibility-deprecation.md`: Compatibility ownership, rules, removal workflow, and object inventory.
+- `docs/database/portal/legacy-compatibility-deprecation.md`: Compatibility ownership, rules, removal workflow, and object inventory.
 
 ## Review Before Physical Rename
 
@@ -128,7 +128,7 @@ The local development SQL Server `rvt` database was physically migrated on 2026-
 
 ### Cutover Runbook Draft
 
-`docs/database/database-naming-cutover-runbook.md` now defines the pre-cutover backup and restore checks, SQL Server and PostgreSQL/TimescaleDB execution order, deployment freeze sequence for production-like environments, required smoke tests, rollback triggers, and rollback command order. The development Postgres and SQL Server `rvt` databases have now been physically renamed, and the runtime EF context maps both providers to canonical names. The runbook keeps the remaining open gates visible for any later production-scale cutover: registry review, full-volume rehearsal evidence, and final application deployment readiness.
+`docs/database/portal/database-naming-cutover-runbook.md` now defines the pre-cutover backup and restore checks, SQL Server and PostgreSQL/TimescaleDB execution order, deployment freeze sequence for production-like environments, required smoke tests, rollback triggers, and rollback command order. The development Postgres and SQL Server `rvt` databases have now been physically renamed, and the runtime EF context maps both providers to canonical names. The runbook keeps the remaining open gates visible for any later production-scale cutover: registry review, full-volume rehearsal evidence, and final application deployment readiness.
 
 ### Legacy Compatibility Layer
 

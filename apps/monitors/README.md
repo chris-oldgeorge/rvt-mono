@@ -20,7 +20,7 @@ Detailed monitor documentation is centralized in the
 | `docker-compose.yml` | Local PostgreSQL/Timescale and monitor API container composition. |
 | `rvt-monitors.sln` | Root .NET solution containing 14 private-package consumer projects across the monitor applications and tests. |
 
-This release package intentionally excludes agent memory, internal planning notes, and local development state files such as `AGENTS.md`, `project_state.md`, `docs/superpowers/**`, `docs/monitor-data-access-migration.md`, `docs/release/**`, `.codegraph/**`, and release-export tooling.
+This release package intentionally excludes agent memory, internal planning notes, and local development state files such as `AGENTS.md`, `project_state.md`, `docs/superpowers/**`, `docs/database/monitors/monitor-data-access-migration.md`, `docs/release/**`, `.codegraph/**`, and release-export tooling.
 
 Shared runtime, infrastructure, and test support come from the private `Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and `Rvt.Monitor.IntegrationTesting` packages at the exact version `0.2.0-rc.1`. `NuGet.config` maps `Rvt.Monitor.*` exclusively to GitHub Packages, and `Directory.Packages.props` centrally pins the version. Authentication must be supplied only to the running restore or container-build process; never write a package credential into source, NuGet configuration, build arguments, image layers, or committed environment files.
 

@@ -207,3 +207,33 @@
   and the untracked duplicate
   `apps/monitors/myatmmonitor/MyAtmMonitorTests/Architecture/CommonPackageBoundaryTests 2.cs`
   remains present and unstaged.
+
+## Documentation Consolidation Final Review Fix - 2026-07-22
+
+- Manifest-derived stale-reference enforcement now derives each moved
+  module's `docs/**` form from the 122 source paths and scans arbitrary tracked
+  text with `git grep -I`. The scan excludes the move manifest, internal SDD
+  review packages, and `docs/history/**`; historical documents therefore keep
+  their original evidence while current docs, code, scripts, SQL, and
+  configuration remain guarded.
+- Guard variables added by the final fix: `module_relative_source` is the
+  current manifest source with its module-root prefix removed, and
+  `missing_module_relative_sources` contains only `docs/**` forms whose source
+  document has actually moved. `stale_reference_count` includes both exact
+  repository-root source forms and module-relative forms.
+- Repaired references: 50 occurrences in non-Markdown tracked files and 27 in
+  current Markdown now use their manifest destinations. This includes the
+  shared release-automation documentation path, portal EF/database/Sonar and
+  development-secrets references, monitor release-export configuration, SQL
+  comments, and current database/onboarding/release documentation.
+- Regression structure: the tracked non-Markdown fixture
+  `tests/fixtures/documentation-layout-stale-source-reference/libs/rvt-monitor-common/scripts/release-documentation.txt`
+  injects the old shared-library module-relative release path only in its
+  temporary repository.
+  The regression requires the guard to report both that form and the existing
+  exact old source path.
+- Verification: both documentation guards pass; the explicit manifest-derived
+  scan reports zero current stale alias groups; Bash syntax checks pass; the
+  shared release-document destination exists; and
+  `git diff --check` is clean. The user's untracked duplicate C# file remains
+  present and unstaged.

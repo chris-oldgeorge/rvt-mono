@@ -97,7 +97,7 @@ The refactor deliberately hunted for latent errors rather than only moving code.
 
 The structural answer: recommendations are now **converted into executable guardrails** instead of relying on developer memory. `RvtPortal.Spa.Tests/CqrsArchitectureTests.cs` carries a dated changelog of every recommendation adopted (30+ entries, 2026-06-09 → 2026-07-09), each one backed by a reflection or pipeline test that fails the build on regression. A recommendation that is a failing test cannot be "not incorporated" silently.
 
-Supporting paper trail: `docs/architecture/hexagonal-edges-change-log.md`, `docs/architecture/ports-and-adapters-catalog.md`, the Sonar remediation plans under `docs/superpowers/plans/`, and `docs/database/transaction-failure-paths-remediation.md`.
+Supporting paper trail: `docs/architecture/portal/hexagonal-edges-change-log.md`, `docs/architecture/portal/ports-and-adapters-catalog.md`, the Sonar remediation plans under `docs/superpowers/plans/`, and `docs/database/portal/transaction-failure-paths-remediation.md`.
 
 ### 7. "There is no .editorconfig file to enforce consistent code quality rules"
 
@@ -124,7 +124,7 @@ Supporting paper trail: `docs/architecture/hexagonal-edges-change-log.md`, `docs
 - **Hardening since the RC:**
   - Connection resiliency and unit-of-work hardening (PR #10).
   - The self-committing write path — repositories quietly saving mid-command — was retired, and site creation made atomic (PR #13).
-  - Transaction **failure-path integrity** — three fixes ensuring a failed command cannot leave partial state (PR #29, with a written remediation plan in `docs/database/transaction-failure-paths-remediation.md`).
+  - Transaction **failure-path integrity** — three fixes ensuring a failed command cannot leave partial state (PR #29, with a written remediation plan in `docs/database/portal/transaction-failure-paths-remediation.md`).
 
 Transaction management is therefore not missing; it is a deliberate cross-cutting concern with build-failing enforcement, and the failure paths flagged as "fundamental before release" were fixed in PR #29.
 
@@ -259,7 +259,7 @@ Queries (no `ITransactionalRequest`) bypass the unit of work entirely — verifi
 - 31 application-service interfaces across 18 feature areas (`Application/{AlertLevels, Auth, Companies, Contracts, Dashboard, Data, Help, Installers, Lookups, Monitors, Notifications, ReportContent, ReportRules, Reports, Sites, Users, Common, …}`).
 - All port→adapter wiring happens in one composition root: `RvtPortal.Spa/ServiceCollectionExtensions.cs` (~55 registrations, including the vendor gateway, email delivery, and account messenger added by PRs #32/#33).
 
-*(This supersedes the earlier `docs/architecture/ports-and-adapters-catalog.md` where the two disagree — that file predates the PR #1/#6 dependency flip.)*
+*(This supersedes the earlier `docs/architecture/portal/ports-and-adapters-catalog.md` where the two disagree — that file predates the PR #1/#6 dependency flip.)*
 
 ---
 

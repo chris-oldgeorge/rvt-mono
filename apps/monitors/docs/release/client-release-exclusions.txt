@@ -13,7 +13,7 @@ project_state.md
 
 # Internal planning/specification files
 docs/superpowers/**
-docs/monitor-data-access-migration.md
+docs/database/monitors/monitor-data-access-migration.md
 
 # Release process files are kept in the source repo, not the client payload
 docs/release/**

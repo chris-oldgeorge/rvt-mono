@@ -12,7 +12,7 @@ This guide explains the database naming rules developers must follow while the R
 - Avoid reserved words and data-type-like column names such as `user`, `lock`, `table`, `text`, `timestamp`, and `uuid`.
 - Keep C# types PascalCase and API/TypeScript-facing names camelCase; EF Core maps those names to physical database names.
 
-The full standard is in `docs/database/database-naming-standard.md`.
+The full standard is in `docs/database/portal/database-naming-standard.md`.
 
 ## What Not To Rename
 
@@ -35,7 +35,7 @@ The migrator depends on `database-name-equivalents-for-migrator-sqlserver.csv` t
 - SQL Server scripts may use `[dbo]`, but object names inside them should still be lowercase snake_case for application-owned objects.
 - PostgreSQL scripts should avoid quoted mixed-case identifiers for RVT-owned objects.
 - Rollback scripts must be kept alongside forward scripts.
-- Rehearsal evidence belongs in `docs/database/database-refactor-inventory.md` and the relevant rehearsal document.
+- Rehearsal evidence belongs in `docs/database/portal/database-refactor-inventory.md` and the relevant rehearsal document.
 
 ## EF Migration Baseline
 
@@ -48,7 +48,7 @@ Use `RVTDbContextDesignTimeFactory` for design-time scaffolding. Do not reintrod
 The `legacy` schema is temporary and exists only to protect old external/reporting consumers during cutover. It is not a development target.
 
 - Compatibility SQL lives under `database/postgres/legacy_compatibility_views.sql` and `database/sqlserver/legacy_compatibility_views.sql`.
-- Ownership and removal status lives in `docs/database/legacy-compatibility-deprecation.md`.
+- Ownership and removal status lives in `docs/database/portal/legacy-compatibility-deprecation.md`.
 - New application, migrator, and monitor code must not query the `legacy` schema.
 
 ## Developer Checklist

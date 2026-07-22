@@ -2,6 +2,9 @@
 
 RVT Monitors contains the container-ready monitor services used to import environmental monitoring data into the RVT PostgreSQL/Timescale database and generate customer reports. The codebase includes four vendor monitor applications, a reporting monitor, shared monitor infrastructure, local Docker orchestration, and an OpenTelemetry/Grafana observability stack.
 
+Detailed monitor documentation is centralized in the
+[repository documentation index](../../docs/index.md#monitors).
+
 ## Contents
 
 | Path | Contents |
@@ -12,7 +15,7 @@ RVT Monitors contains the container-ready monitor services used to import enviro
 | `svantekmonitor/` | Svantek noise monitor application, tests, Dockerfile, PostgreSQL scripts, and CI pipeline definitions. |
 | `reportingmonitor/` | Reporting monitor host, reporting domain/adapters, PostgreSQL prerequisite script, and tests. |
 | `observability/` | Local OpenTelemetry Collector, Grafana, Prometheus, Tempo, and Loki configuration plus provisioned RVT dashboards. |
-| `docs/` | Operational documentation for container builds, scheduling, monitor trigger inventory, and SonarQube/SonarCloud analysis. |
+| [`../../docs/index.md#monitors`](../../docs/index.md#monitors) | Central monitor architecture, development, operations, release, database, module, and history documentation. |
 | `scripts/` | Operational scripts for local testlocal monitor runs and SonarQube/SonarCloud analysis. |
 | `docker-compose.yml` | Local PostgreSQL/Timescale and monitor API container composition. |
 | `rvt-monitors.sln` | Root .NET solution containing 14 private-package consumer projects across the monitor applications and tests. |
@@ -65,7 +68,7 @@ Common runtime configuration is supplied through environment variables or app se
 | `testlocal` | Enables local demo filters where implemented so only known test monitors are processed. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry collector endpoint. |
 
-ReportingMonitor additionally uses `RVT__INTERNAL_API_KEY` for its protected `/internal/reports` routes and the shared blob-storage settings (`RVT__BLOB_PROVIDER`, `RVT__BLOB_CONTAINER`, `RVT__BLOB_PREFIX`, and the selected provider's settings). Its defaults are container `pdfreports`, prefix `rvtreports`, and the Local provider. The legacy `RVT__BLOB_REPORT_CONTAINER_NAME` setting remains a fallback when `RVT__BLOB_CONTAINER` is absent. Email, SendGrid, SPA, AI-summary, and complete storage settings are documented in [reportingmonitor/README.md](reportingmonitor/README.md). It uses the standard `ConnectionStrings__DefaultConnection` setting and PostgreSQL provider.
+ReportingMonitor additionally uses `RVT__INTERNAL_API_KEY` for its protected `/internal/reports` routes and the shared blob-storage settings (`RVT__BLOB_PROVIDER`, `RVT__BLOB_CONTAINER`, `RVT__BLOB_PREFIX`, and the selected provider's settings). Its defaults are container `pdfreports`, prefix `rvtreports`, and the Local provider. The legacy `RVT__BLOB_REPORT_CONTAINER_NAME` setting remains a fallback when `RVT__BLOB_CONTAINER` is absent. Email, SendGrid, SPA, AI-summary, and complete storage settings are documented in the [ReportingMonitor guide](../../docs/modules/monitors/reportingmonitor/README.md). It uses the standard `ConnectionStrings__DefaultConnection` setting and PostgreSQL provider.
 
 ### Shared email and SMS delivery
 

@@ -185,7 +185,7 @@ public sealed class CommonPackageBoundaryTests
     public void MigrationDocumentation_UsesDurableExactSourceCommitRetrieval()
     {
         var readme = File.ReadAllText(
-            Path.Combine(MonoRepositoryRoot(), "apps/monitors/myatmmonitor/README.md"));
+            Path.Combine(MonoRepositoryRoot(), "docs/modules/monitors/myatmmonitor/README.md"));
 
         Assert.DoesNotContain("gh run download", readme);
         Assert.Contains("f00d5b8a320945ed08e248da8641ca0c3f7e3b82", readme);

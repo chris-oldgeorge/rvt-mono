@@ -8,8 +8,15 @@ trap 'rm -rf "$test_root"' EXIT
 
 mkdir -p "$test_root/docs" "$test_root/scripts"
 cp "$repo_root/docs/documentation-move-manifest.md" "$test_root/docs/"
+cp "$repo_root/docs/index.md" "$test_root/docs/"
 cp "$repo_root/scripts/verify-documentation-layout.sh" "$test_root/scripts/"
 cp -R "$fixture_root/." "$test_root/"
+
+stale_document_path="apps/monitors/myatmmonitor/"
+stale_document_path+="README.md"
+STALE_DOCUMENT_PATH="$stale_document_path" perl -pi -e \
+  's/__STALE_DOCUMENT_PATH__/$ENV{STALE_DOCUMENT_PATH}/g' \
+  "$test_root/apps/monitors/myatmmonitor/MyAtmMonitorTests/Architecture/CommonPackageBoundaryTests.cs"
 
 while IFS=$'\t' read -r source destination; do
   [[ -n "$source" && -n "$destination" ]] || continue
@@ -38,6 +45,6 @@ if "$test_root/scripts/verify-documentation-layout.sh" >"$test_root/output" 2>&1
 fi
 
 grep -Fq \
-  'ERROR: stale reference uses old document path: apps/monitors/myatmmonitor/README.md' \
+  "ERROR: stale reference uses old document path: $stale_document_path" \
   "$test_root/output"
 grep -Fq 'ERROR: 1 stale old-document reference(s) remain' "$test_root/output"

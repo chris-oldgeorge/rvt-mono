@@ -1,7 +1,7 @@
 # Development secrets reference
 
 This document explains every configuration key that
-[`set-dev-secrets.ps1`](set-dev-secrets.ps1) writes, what each one does, and
+[`set-dev-secrets.ps1`](../../../apps/portal/docs/deploy/set-dev-secrets.ps1) writes, what each one does, and
 which are sensitive. It is a reference, not a store of values — **no real
 credentials belong in this file or in any tracked file.**
 
@@ -16,13 +16,13 @@ credentials belong in this file or in any tracked file.**
 Run the core set:
 
 ```powershell
-.\docs\deploy\set-dev-secrets.ps1
+.\apps\portal\docs\deploy\set-dev-secrets.ps1
 ```
 
 Add optional integrations with the `-Configure*` switches, or all at once:
 
 ```powershell
-.\docs\deploy\set-dev-secrets.ps1 -ConfigureAll
+.\apps\portal\docs\deploy\set-dev-secrets.ps1 -ConfigureAll
 ```
 
 List the configured keys without exposing values:

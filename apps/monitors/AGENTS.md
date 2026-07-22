@@ -1,6 +1,6 @@
 # Project Agent Instructions
 
-- Start each new session by reading `project_state.md` to get up to speed.
+- Start each new session by reading `../../project_state.md` to get up to speed.
 - Use the native macOS clone as the active working directory:
   - `/Users/oldgeorge/Documents/rvt-monitors/rvt-monitors`
 - Do not remount or edit the Parallels Windows C: share for normal project work. The old `/Volumes/[C] Windows 11/...` and `/private/tmp/win11c/...` workspaces are retired fallbacks only.

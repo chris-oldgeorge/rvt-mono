@@ -100,6 +100,28 @@ retained_paths=(
   "services/reporting/README.md"
 )
 
+documentation_index="docs/index.md"
+index_targets=(
+  "architecture/reporting/architecture.md"
+  "development/portal/development-guidelines.md"
+  "operations/monitors/container-builds.md"
+  "release/monitors/client-release-runbook.md"
+  "database/monitors/monitor-data-access-migration.md"
+  "modules/monitors/monitor-timer-triggers.md"
+  "history/monitors/project_state.md"
+  "imports/source-manifest.md"
+)
+
+if [[ ! -f "$repo_root/$documentation_index" ]]; then
+  report_failure "missing documentation index: $documentation_index"
+else
+  for index_target in "${index_targets[@]}"; do
+    if ! rg --quiet --fixed-strings -- "]($index_target)" "$repo_root/$documentation_index"; then
+      report_failure "documentation index is missing link: $index_target"
+    fi
+  done
+fi
+
 for retained_path in "${retained_paths[@]}"; do
   if [[ ! -f "$repo_root/$retained_path" ]]; then
     report_failure "missing retained entry point: $retained_path"

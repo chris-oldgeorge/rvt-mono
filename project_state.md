@@ -3,10 +3,13 @@
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
 - Workspace: `/Users/oldgeorge/Documents/rvt-mono`
-- Status: RVT common source-reference migration final review fixes implemented.
-  Active monitor and portal consumers are source-referenced, their 12 tracked
-  locks reflect the source graph, and the two package-validation consumers
-  restore locally packed artifacts through artifact-scoped validation locks.
+- Status: Documentation consolidation is complete. All 122 non-entry module
+  Markdown documents are centralized under root `docs/`, with a guarded root
+  index and valid retained repository/module entry points. The completed RVT
+  common source-reference migration remains in effect: active monitor and
+  portal consumers are source-referenced, their 12 tracked locks reflect the
+  source graph, and the two package-validation consumers restore locally
+  packed artifacts through artifact-scoped validation locks.
 - Design: `docs/superpowers/specs/2026-07-22-rvt-mono-repository-design.md`
 - Plan: `docs/superpowers/plans/2026-07-22-rvt-mono-repository-bootstrap.md`
 - Requested outcome: fresh unified Git history and a shared root solution for
@@ -17,8 +20,8 @@
 - Root solution: `Rvt.Mono.slnx`.
 - Approved design: `docs/superpowers/specs/2026-07-22-rvt-common-source-reference-design.md` changes active consumers to source project references, while package-validation remains package-based against locally packed artifacts. This is an explicit decision to review if independent package consumption becomes required again.
 - Implemented plan: `docs/superpowers/plans/2026-07-22-rvt-common-source-reference-migration.md`.
-- Pending approved design: `docs/superpowers/specs/2026-07-22-documentation-consolidation-design.md` consolidates all module Markdown into root `docs/`, retaining root/module README and AGENTS entry points.
-- Pending implementation plan: `docs/superpowers/plans/2026-07-22-documentation-consolidation.md`.
+- Implemented design: `docs/superpowers/specs/2026-07-22-documentation-consolidation-design.md` consolidates all module Markdown into root `docs/`, retaining root/module README and AGENTS entry points.
+- Implemented plan: `docs/superpowers/plans/2026-07-22-documentation-consolidation.md`.
 - Aggregate project count: 38 projects across all four module roots.
 - Important boundary: active application consumers use the in-repository RVT
   source projects; only `libs/rvt-monitor-common/package-validation` consumes
@@ -176,3 +179,31 @@
   `tests/verify-documentation-layout-regression.test.sh` fixture moves all 122
   manifest documents and proves a source-code reference in the MyAtm monitor
   architecture-test path is reported as the sole stale reference.
+
+## Documentation Consolidation Task 3 - 2026-07-22
+
+- Current state: all 122 manifest documents are present exactly once below the
+  root documentation hierarchy, and the seven retained root/module README and
+  AGENTS entry points remain beside their code.
+- Root navigation: `docs/index.md` is the central documentation hub, grouped
+  into architecture, development, operations, release, database, modules,
+  history, and imports. Root and module READMEs link into that hub or directly
+  to their current module documentation.
+- Repaired references: the portal development-guideline references, the
+  monitor ReportingMonitor README link, the MyAtm architecture-test document
+  path, portal/monitor AGENTS state paths, and the portal development-secrets
+  script link now resolve from their current locations.
+- Guard variables added to `scripts/verify-documentation-layout.sh`:
+  `documentation_index` names `docs/index.md`; `index_targets` holds one
+  required link for each guarded documentation category. The regression
+  fixture uses `stale_document_path` and the `STALE_DOCUMENT_PATH` environment
+  variable to inject its intentional old path only into the temporary test
+  repository, preserving the repository-wide production scan.
+- Verification: `tests/verify-documentation-layout.test.sh` passes with 122
+  moves and seven retained entry points;
+  `tests/verify-documentation-layout-regression.test.sh` passes while proving
+  source-code stale references are rejected. The final stale-link scan and
+  whitespace check are clean; the status check contains no unexpected changes,
+  and the untracked duplicate
+  `apps/monitors/myatmmonitor/MyAtmMonitorTests/Architecture/CommonPackageBoundaryTests 2.cs`
+  remains present and unstaged.

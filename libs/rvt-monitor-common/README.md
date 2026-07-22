@@ -1,5 +1,8 @@
 # RVT shared monitor packages
 
+Detailed shared-library documentation is centralized in the
+[repository documentation index](../../docs/index.md#rvt-monitor-common).
+
 This repository builds the shared .NET 10 package train used by RVT monitor applications:
 
 - `Rvt.Monitor.Common` contains shared monitor contracts, data helpers, storage, hosting, scheduling, observability, and the compatibility runtime.

@@ -79,7 +79,7 @@ Run `tests/verify-mono-solution.test.sh && tests/verify-mono-layout.test.sh`; bo
 
 - [ ] **Step 4: Write onboarding documentation and commit**
 
-Create `README.md` titled `RVT Mono-Repository`, list the four module paths and the two test commands, then show `dotnet restore Rvt.Mono.slnx` and `dotnet build Rvt.Mono.slnx --no-restore --nologo`. State that the nearest imported `AGENTS.md` governs work and that portal work requires reading `apps/portal/docs/development/development-guidelines.md` first. Update `project_state.md` with project count, source/import commits, and non-secret verification results. Run `git diff --check`, both test scripts, `git status --short`, then commit with `git add Rvt.Mono.slnx README.md scripts/verify-mono-solution.sh tests/verify-mono-solution.test.sh project_state.md && git commit -m "build: add RVT aggregate solution"`.
+Create `README.md` titled `RVT Mono-Repository`, list the four module paths and the two test commands, then show `dotnet restore Rvt.Mono.slnx` and `dotnet build Rvt.Mono.slnx --no-restore --nologo`. State that the nearest imported `AGENTS.md` governs work and that portal work requires reading `docs/development/portal/development-guidelines.md` first. Update `project_state.md` with project count, source/import commits, and non-secret verification results. Run `git diff --check`, both test scripts, `git status --short`, then commit with `git add Rvt.Mono.slnx README.md scripts/verify-mono-solution.sh tests/verify-mono-solution.test.sh project_state.md && git commit -m "build: add RVT aggregate solution"`.
 
 - [ ] **Step 5: Final evidence**
 

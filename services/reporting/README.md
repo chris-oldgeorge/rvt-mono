@@ -1,5 +1,8 @@
 # RVT Reporting New
 
+Detailed reporting documentation is centralized in the
+[repository documentation index](../../docs/index.md#reporting).
+
 `rvt-reporting-new` is the containerized replacement for the legacy RVT reporting Azure Function. It targets .NET 10 and runs as a long-lived ACS-compatible service with Quartz.NET scheduling.
 
 ## What This Port Changes

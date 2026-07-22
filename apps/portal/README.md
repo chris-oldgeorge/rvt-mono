@@ -1,5 +1,8 @@
 # RVT Portal SPA
 
+Detailed portal documentation is centralized in the
+[repository documentation index](../../docs/index.md#portal).
+
 ## Overview
 
 RVT Portal SPA is the clean single-page application repository for the RVT monitoring portal. The active artifact is `RvtPortal.Spa`, an ASP.NET Core host that owns Identity, API endpoints, Swagger, static SPA serving, and the publish boundary.
@@ -22,9 +25,9 @@ Architecture boundaries:
 - `RVT.DataAccess` - Data access layer and persistence integration.
 - `RVT.Entities` - Shared entity and model definitions.
 - `RVT.Utilities` - Shared utility code used across the portal solution.
-- `docs/release/PARITY_MATRIX.md` - MVC action/view migration ledger used as release evidence.
-- `docs/release/CUTOVER_RUNBOOK.md` - Deployment, smoke, rollback, and go/no-go checklist for the SPA cutover.
-- `docs/onboarding/REACT_PORT_ONBOARDING.md` - Short onboarding guide for developers joining the React port.
+- [`../../docs/release/portal/PARITY_MATRIX.md`](../../docs/release/portal/PARITY_MATRIX.md) - MVC action/view migration ledger used as release evidence.
+- [`../../docs/release/portal/CUTOVER_RUNBOOK.md`](../../docs/release/portal/CUTOVER_RUNBOOK.md) - Deployment, smoke, rollback, and go/no-go checklist for the SPA cutover.
+- [`../../docs/development/portal/onboarding/REACT_PORT_ONBOARDING.md`](../../docs/development/portal/onboarding/REACT_PORT_ONBOARDING.md) - Short onboarding guide for developers joining the React port.
 
 ## Local Development
 
@@ -97,7 +100,7 @@ This clean repository is prepared for the RVT Portal SPA migration stream. The a
 
 Release evidence lives in:
 
-- `docs/release/PARITY_MATRIX.md` - documents migrated, replaced, retired, and deferred MVC actions/views, including legacy demo-only exclusions.
-- `docs/release/CUTOVER_RUNBOOK.md` - documents deployment commands, role journey sign-off, data compatibility, rollback, and go/no-go checks.
+- [`../../docs/release/portal/PARITY_MATRIX.md`](../../docs/release/portal/PARITY_MATRIX.md) - documents migrated, replaced, retired, and deferred MVC actions/views, including legacy demo-only exclusions.
+- [`../../docs/release/portal/CUTOVER_RUNBOOK.md`](../../docs/release/portal/CUTOVER_RUNBOOK.md) - documents deployment commands, role journey sign-off, data compatibility, rollback, and go/no-go checks.
 
 Legacy exclusions are intentional: `RvtDemo`, `ShardUi`, retired MVC controllers/views, demo/debug routes, and migration-control tooling are not part of the active build or release artifact. Do not reintroduce them without an approved migration exception.

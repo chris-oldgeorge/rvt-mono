@@ -7,6 +7,9 @@ This repository contains four imported RVT modules:
 - `libs/rvt-monitor-common`
 - `services/reporting`
 
+Start with the [documentation index](docs/index.md) for architecture,
+development, operations, release, database, module, and historical guidance.
+
 Run the repository guards from the root:
 
 ```bash
@@ -30,4 +33,5 @@ does not require GitHub Packages credentials.
 
 The nearest imported `AGENTS.md` governs work within a module. Before working
 in `apps/portal`, read
-`apps/portal/docs/development/development-guidelines.md` first.
+[`docs/development/portal/development-guidelines.md`](docs/development/portal/development-guidelines.md)
+first.

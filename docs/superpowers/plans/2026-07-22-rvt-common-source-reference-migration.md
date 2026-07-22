@@ -76,9 +76,9 @@ Replace each active RVT `PackageReference` with the matching relative `ProjectRe
 
 Remove only the three RVT `PackageVersion` entries and obsolete RVT version properties from `apps/monitors/Directory.Packages.props`. Remove the private RVT source/mapping from `apps/monitors/NuGet.config`; remove the RVT source, credentials, and matching mapping from `apps/portal/NuGet.config`. Preserve `nuget.org`, all unrelated package versions, and all existing package references.
 
-- [ ] **Step 3: Verify GREEN and build dependency graph**
+- [ ] **Step 3: Verify GREEN and the active dependency graphs**
 
-Run `tests/verify-rvt-common-source-boundary.test.sh`, `tests/verify-mono-layout.test.sh`, `tests/verify-mono-solution.test.sh`, and `dotnet sln Rvt.Mono.slnx list`; all must pass. Run `dotnet msbuild Rvt.Mono.slnx -graphBuild -t:Restore -p:RestoreIgnoreFailedSources=true` and verify that the active application graph reaches the shared source projects without contacting GitHub Packages.
+Run `tests/verify-rvt-common-source-boundary.test.sh`, `tests/verify-mono-layout.test.sh`, `tests/verify-mono-solution.test.sh`, and `dotnet sln Rvt.Mono.slnx list`; all must pass. Run `dotnet restore apps/monitors/rvt-monitors.sln -p:RestoreIgnoreFailedSources=true` and `dotnet restore apps/portal/RvtPortal.Spa.sln -p:RestoreIgnoreFailedSources=true`; verify that their active application graphs reach the shared source projects without contacting GitHub Packages. Do not restore the aggregate solution until Task 3 has packed and configured the local package-validation feed.
 
 - [ ] **Step 4: Commit**
 

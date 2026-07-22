@@ -3,8 +3,8 @@
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
 - Workspace: `/Users/oldgeorge/Documents/rvt-mono`
-- Status: Task 2 source-only snapshot import complete; Task 3 root solution has
-  not started.
+- Status: Task 3 aggregate solution, solution-membership guard, and root
+  onboarding documentation complete.
 - Design: `docs/superpowers/specs/2026-07-22-rvt-mono-repository-design.md`
 - Plan: `docs/superpowers/plans/2026-07-22-rvt-mono-repository-bootstrap.md`
 - Requested outcome: fresh unified Git history and a shared root solution for
@@ -13,6 +13,7 @@
 - Intended modules: `apps/monitors`, `apps/portal`,
   `libs/rvt-monitor-common`, and `services/reporting`.
 - Root solution: `Rvt.Mono.slnx`.
+- Aggregate project count: 38 projects across all four module roots.
 - Important boundary: retain module-local build/NuGet configuration and the
   private RVT shared-package boundary during the initial import. Do not merge
   reporting implementations or database schemas.
@@ -26,7 +27,7 @@
   - `services/reporting` from `chris-oldgeorge/rvt-reporting-new` at
     `e602e8317e35bd94a1eb4dd017759b91713ea111`.
 - Import staging directory: `/private/tmp/rvt-mono-import.2w115l` (retained
-  through Task 2 final verification).
+  through Task 3 final verification).
 - Import verification: all staged repositories were checked out detached at
   their exact manifest revisions; imported trees checksum-match the staged
   content with `.git` excluded; no nested `.git` directory exists below the
@@ -36,6 +37,20 @@
   record credentials in this repository.
 - Task 1 guard: `.gitignore` excludes generated files, environment files, and
   `.superpowers/sdd/` controller state. `docs/imports/source-manifest.md` pins
-  the four approved source snapshots. `tests/verify-mono-layout.test.sh` runs
-  `scripts/verify-mono-layout.sh`, which now reaches the expected Task 2
-  intermediate failure because Task 3 has not created `Rvt.Mono.slnx`.
+  the four approved source snapshots. Repository bootstrap commits through the
+  source import are design `1327b84`, plan `0abf895`, guard `ae65789`, and
+  source import `31d168f`.
+- Task 3 guard: `tests/verify-mono-solution.test.sh` runs
+  `scripts/verify-mono-solution.sh`. It compares all module `*.csproj` files
+  with `dotnet sln Rvt.Mono.slnx list`, requires matching project counts, and
+  requires at least one listed project from every module root.
+- Verification results:
+  - `tests/verify-mono-solution.test.sh` and
+    `tests/verify-mono-layout.test.sh` pass.
+  - `dotnet sln Rvt.Mono.slnx list` reports all 38 module projects.
+  - `dotnet restore Rvt.Mono.slnx` is blocked by private package access:
+    GitHub Packages returns HTTP 401 for the RVT organization feed. Cached RVT
+    `0.2.0-rc.1` packages also produce NU1403 content-hash validation errors.
+  - `dotnet build Rvt.Mono.slnx --no-restore --nologo` exits with 16 errors
+    from the same NU1301/NU1403 package state; unaffected projects do compile.
+  - Package feeds and dependency declarations were not changed.

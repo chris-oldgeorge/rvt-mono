@@ -1,0 +1,70 @@
+<Solution>
+  <Folder Name="/apps/" />
+  <Folder Name="/apps/monitors/" />
+  <Folder Name="/apps/monitors/airqmonitor/">
+    <Project Path="apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj" />
+    <Project Path="apps/monitors/airqmonitor/AirQMonitorTests/AirQMonitorTests.csproj" />
+  </Folder>
+  <Folder Name="/apps/monitors/myatmmonitor/">
+    <Project Path="apps/monitors/myatmmonitor/MyAtmMonitor/MyAtmMonitor.csproj" />
+    <Project Path="apps/monitors/myatmmonitor/MyAtmMonitorTests/MyAtmMonitorTests.csproj" />
+  </Folder>
+  <Folder Name="/apps/monitors/omnidotsmonitor/">
+    <Project Path="apps/monitors/omnidotsmonitor/OmnidotsMonitor/OmnidotsMonitor.csproj" />
+    <Project Path="apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/OmnidotsMonitorTests.csproj" />
+  </Folder>
+  <Folder Name="/apps/monitors/reportingmonitor/">
+    <Project Path="apps/monitors/reportingmonitor/ReportingMonitor/ReportingMonitor.csproj" />
+    <Project Path="apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj" />
+    <Project Path="apps/monitors/reportingmonitor/Rvt.Reporting.Core/Rvt.Reporting.Core.csproj" />
+    <Project Path="apps/monitors/reportingmonitor/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj" />
+    <Project Path="apps/monitors/reportingmonitor/Rvt.Reporting.Pdf/Rvt.Reporting.Pdf.csproj" />
+    <Project Path="apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj" />
+  </Folder>
+  <Folder Name="/apps/monitors/svantekmonitor/">
+    <Project Path="apps/monitors/svantekmonitor/SvantekMonitor/SvantekMonitor.csproj" />
+    <Project Path="apps/monitors/svantekmonitor/SvantekMonitorTests/SvantekMonitorTests.csproj" />
+  </Folder>
+  <Folder Name="/apps/portal/">
+    <Project Path="apps/portal/RVT.BusinessLogic/RVT.BusinessLogic.csproj" />
+    <Project Path="apps/portal/RVT.DataAccess/RVT.DataAccess.csproj" />
+    <Project Path="apps/portal/RVT.Entities/RVT.Entities.csproj" />
+    <Project Path="apps/portal/RVT.SchemaDeploy/RVT.SchemaDeploy.csproj" />
+    <Project Path="apps/portal/RVT.Utilities/RVT.Utilities.csproj" />
+    <Project Path="apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj" />
+    <Project Path="apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj" />
+  </Folder>
+  <Folder Name="/libs/" />
+  <Folder Name="/libs/rvt-monitor-common/" />
+  <Folder Name="/libs/rvt-monitor-common/package-validation/">
+    <Project Path="libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj" />
+    <Project Path="libs/rvt-monitor-common/package-validation/TestConsumer/TestConsumer.csproj" />
+  </Folder>
+  <Folder Name="/libs/rvt-monitor-common/src/">
+    <Project Path="libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj" />
+    <Project Path="libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj" />
+  </Folder>
+  <Folder Name="/libs/rvt-monitor-common/testing/">
+    <Project Path="libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting.Tests/Rvt.Monitor.IntegrationTesting.Tests.csproj" />
+    <Project Path="libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj" />
+  </Folder>
+  <Folder Name="/libs/rvt-monitor-common/tests/">
+    <Project Path="libs/rvt-monitor-common/tests/Rvt.Monitor.Common.InfrastructureTests/Rvt.Monitor.Common.InfrastructureTests.csproj" />
+    <Project Path="libs/rvt-monitor-common/tests/Rvt.Monitor.CommonTests/Rvt.Monitor.CommonTests.csproj" />
+    <Project Path="libs/rvt-monitor-common/tests/Rvt.Monitor.PackageValidationTests/Rvt.Monitor.PackageValidationTests.csproj" />
+  </Folder>
+  <Folder Name="/services/" />
+  <Folder Name="/services/reporting/" />
+  <Folder Name="/services/reporting/src/">
+    <Project Path="services/reporting/src/Rvt.Reporting.Core/Rvt.Reporting.Core.csproj" />
+    <Project Path="services/reporting/src/Rvt.Reporting.Data/Rvt.Reporting.Data.csproj" />
+    <Project Path="services/reporting/src/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj" />
+    <Project Path="services/reporting/src/Rvt.Reporting.Pdf/Rvt.Reporting.Pdf.csproj" />
+    <Project Path="services/reporting/src/Rvt.Reporting.Service/Rvt.Reporting.Service.csproj" />
+    <Project Path="services/reporting/src/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj" />
+  </Folder>
+  <Folder Name="/services/reporting/tests/">
+    <Project Path="services/reporting/tests/Rvt.Reporting.Core.Tests/Rvt.Reporting.Core.Tests.csproj" />
+    <Project Path="services/reporting/tests/Rvt.Reporting.Service.Tests/Rvt.Reporting.Service.Tests.csproj" />
+  </Folder>
+</Solution>

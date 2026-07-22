@@ -203,10 +203,10 @@
   moves and seven retained entry points;
   `tests/verify-documentation-layout-regression.test.sh` passes while proving
   source-code stale references are rejected. The final stale-link scan and
-  whitespace check are clean; the status check contains no unexpected changes,
-  and the untracked duplicate
+  whitespace check are clean. The obsolete untracked suffixed copy
   `apps/monitors/myatmmonitor/MyAtmMonitorTests/Architecture/CommonPackageBoundaryTests 2.cs`
-  remains present and unstaged.
+  was removed after the final repository push; the tracked mono-repository
+  boundary test remains authoritative.
 
 ## Documentation Consolidation Final Review Fix - 2026-07-22
 
@@ -235,5 +235,5 @@
 - Verification: both documentation guards pass; the explicit manifest-derived
   scan reports zero current stale alias groups; Bash syntax checks pass; the
   shared release-document destination exists; and
-  `git diff --check` is clean. The user's untracked duplicate C# file remains
-  present and unstaged.
+  `git diff --check` is clean. The obsolete untracked suffixed C# copy was
+  subsequently removed, leaving the tracked boundary test as the sole copy.

@@ -39,58 +39,6 @@
         "resolved": "4.3.1",
         "contentHash": "oSE+OVLHyiojrws0QVbQaAT2YKsYbyHqJXPdV7EhGseR/dYgeWS2x1T5qY5I4E+RJkJqMSG+FyZOq4SljWgJWQ=="
       },
-      "Rvt.Monitor.Common": {
-        "type": "Direct",
-        "requested": "[0.2.0-rc.1, 0.2.0-rc.1]",
-        "resolved": "0.2.0-rc.1",
-        "contentHash": "+JAnUTKwFD07+rTwl1eHePz3HVltf5FNvHMN/bJc0uZYxfVBox1taYwF1uANaVYKG8agZjnhzDmgEDoj/vQTTw==",
-        "dependencies": {
-          "AWSSDK.S3": "4.0.100.3",
-          "Azure.Identity": "1.15.0",
-          "Azure.Storage.Blobs": "12.25.0",
-          "MQTTnet": "4.3.7.1207",
-          "MQTTnet.Extensions.ManagedClient": "4.3.7.1207",
-          "Microsoft.Data.SqlClient": "7.0.1",
-          "Microsoft.EntityFrameworkCore": "10.0.4",
-          "Microsoft.EntityFrameworkCore.Relational": "10.0.4",
-          "Microsoft.EntityFrameworkCore.SqlServer": "10.0.4",
-          "Npgsql": "10.0.3",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.2",
-          "OpenTelemetry.Exporter.OpenTelemetryProtocol": "1.16.0",
-          "OpenTelemetry.Extensions.Hosting": "1.16.0",
-          "OpenTelemetry.Instrumentation.AspNetCore": "1.16.0",
-          "OpenTelemetry.Instrumentation.Http": "1.16.0",
-          "OpenTelemetry.Instrumentation.Runtime": "1.15.1",
-          "Quartz.Extensions.Hosting": "3.18.1"
-        }
-      },
-      "Rvt.Monitor.Common.Infrastructure": {
-        "type": "Direct",
-        "requested": "[0.2.0-rc.1, 0.2.0-rc.1]",
-        "resolved": "0.2.0-rc.1",
-        "contentHash": "PscR8XS7pIXoiGUlCJWmyYPhkWZa/jwH1Xv6489Wbv4uy6R5V4deguTJihmZRnoy5HFJU+RUVuv0ftCUAFUPPQ==",
-        "dependencies": {
-          "AWSSDK.S3": "4.0.100.3",
-          "Azure.Identity": "1.15.0",
-          "Azure.Storage.Blobs": "12.25.0",
-          "MQTTnet": "4.3.7.1207",
-          "MQTTnet.Extensions.ManagedClient": "4.3.7.1207",
-          "Microsoft.Data.SqlClient": "7.0.1",
-          "Microsoft.EntityFrameworkCore": "10.0.4",
-          "Microsoft.EntityFrameworkCore.Relational": "10.0.4",
-          "Microsoft.EntityFrameworkCore.SqlServer": "10.0.4",
-          "Npgsql": "10.0.3",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.2",
-          "OpenTelemetry.Exporter.OpenTelemetryProtocol": "1.16.0",
-          "OpenTelemetry.Extensions.Hosting": "1.16.0",
-          "OpenTelemetry.Instrumentation.AspNetCore": "1.16.0",
-          "OpenTelemetry.Instrumentation.Http": "1.16.0",
-          "OpenTelemetry.Instrumentation.Runtime": "1.15.1",
-          "Quartz.Extensions.Hosting": "3.18.1",
-          "Rvt.Monitor.Common": "[0.2.0-rc.1]",
-          "SendGrid": "9.29.3"
-        }
-      },
       "AWSSDK.Core": {
         "type": "Transitive",
         "resolved": "4.0.100.3",
@@ -429,6 +377,36 @@
         "type": "Transitive",
         "resolved": "9.0.13",
         "contentHash": "t8S9IDpjJKsLpLkeBdW8cWtcPyYqrGu93Dej1RO6WwuL/lkFSqWlan3rMJfortqz1mRIh+sys2AFsSA6jWJ3Jg=="
+      },
+      "rvt.monitor.common": {
+        "type": "Project",
+        "dependencies": {
+          "AWSSDK.S3": "[4.0.100.3, )",
+          "Azure.Identity": "[1.15.0, )",
+          "Azure.Storage.Blobs": "[12.25.0, )",
+          "MQTTnet": "[4.3.7.1207, )",
+          "MQTTnet.Extensions.ManagedClient": "[4.3.7.1207, )",
+          "Microsoft.Data.SqlClient": "[7.0.1, )",
+          "Microsoft.EntityFrameworkCore": "[10.0.4, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.4, )",
+          "Microsoft.EntityFrameworkCore.SqlServer": "[10.0.4, )",
+          "Npgsql": "[10.0.3, )",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.2, )",
+          "OpenTelemetry.Exporter.OpenTelemetryProtocol": "[1.16.0, )",
+          "OpenTelemetry.Extensions.Hosting": "[1.16.0, )",
+          "OpenTelemetry.Instrumentation.AspNetCore": "[1.16.0, )",
+          "OpenTelemetry.Instrumentation.Http": "[1.16.0, )",
+          "OpenTelemetry.Instrumentation.Runtime": "[1.15.1, )",
+          "Quartz.Extensions.Hosting": "[3.18.1, )"
+        }
+      },
+      "rvt.monitor.common.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Azure.Identity": "[1.15.0, )",
+          "Rvt.Monitor.Common": "[0.2.0-rc.1, )",
+          "SendGrid": "[9.29.3, )"
+        }
       },
       "Npgsql": {
         "type": "CentralTransitive",

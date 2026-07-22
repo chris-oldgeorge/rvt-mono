@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <RestoreLockedMode Condition="Exists('$(MSBuildProjectDirectory)/packages.lock.json')">true</RestoreLockedMode>
+    <NuGetLockFilePath Condition="'$(RvtUseArtifactValidationLocks)' == 'true'">$(MSBuildThisFileDirectory)../../../../artifacts/validation-locks/RuntimeConsumer.packages.lock.json</NuGetLockFilePath>
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <RvtPackageVersion Condition="'$(RvtPackageVersion)' == ''">0.2.0-rc.1</RvtPackageVersion>
   </PropertyGroup>

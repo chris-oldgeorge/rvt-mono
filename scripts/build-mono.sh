@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 package_feed="${RVT_PACKAGE_FEED_DIR:-${repo_root}/artifacts/packages}"
 nuget_packages="${repo_root}/artifacts/nuget-packages"
+validation_locks="${repo_root}/artifacts/validation-locks"
 package_version="0.2.0-rc.1"
 
 common_project="${repo_root}/libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj"
@@ -13,7 +14,7 @@ runtime_consumer_project="${repo_root}/libs/rvt-monitor-common/package-validatio
 test_consumer_project="${repo_root}/libs/rvt-monitor-common/package-validation/TestConsumer/TestConsumer.csproj"
 solution="${repo_root}/Rvt.Mono.slnx"
 
-mkdir -p "${package_feed}" "${nuget_packages}"
+mkdir -p "${package_feed}" "${nuget_packages}" "${validation_locks}"
 
 dotnet restore "${common_project}" --packages "${nuget_packages}"
 dotnet restore "${infrastructure_project}" --packages "${nuget_packages}"
@@ -47,8 +48,8 @@ for package_id in \
   rm -rf "${nuget_packages:?}/${package_id}/${package_version}"
 done
 
-dotnet restore "${runtime_consumer_project}" --packages "${nuget_packages}" --force-evaluate -p:RestoreLockedMode=false
-dotnet restore "${test_consumer_project}" --packages "${nuget_packages}" --force-evaluate -p:RestoreLockedMode=false
-dotnet restore "${solution}" --packages "${nuget_packages}" --force-evaluate
+dotnet restore "${runtime_consumer_project}" --packages "${nuget_packages}" --force-evaluate -p:RestoreLockedMode=false -p:RvtUseArtifactValidationLocks=true
+dotnet restore "${test_consumer_project}" --packages "${nuget_packages}" --force-evaluate -p:RestoreLockedMode=false -p:RvtUseArtifactValidationLocks=true
+dotnet restore "${solution}" --packages "${nuget_packages}" --force-evaluate -p:RvtUseArtifactValidationLocks=true
 dotnet build "${solution}" --no-restore --nologo
 dotnet test "${solution}" --no-build --nologo

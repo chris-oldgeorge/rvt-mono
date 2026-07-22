@@ -1,5 +1,6 @@
-// File summary: Confines the RVT common package to the host adapter layer and keeps feed credentials out of the repo.
+// File summary: Confines the RVT common source reference to the host adapter layer and keeps private feeds out of the repo.
 // Major updates:
+// - 2026-07-22 pending Migrated the host boundary from a private package to the mono-repository Infrastructure source project.
 // - 2026-07-17 pending Adopted Rvt.Monitor.Common.Infrastructure for email: replaced the zero-package rule with a
 //   host-only boundary (the business core still must not reference it) plus a credential-hygiene check on NuGet.config.
 // - 2026-07-17 pending Added the zero-package boundary scanner and regression fixtures.
@@ -44,7 +45,7 @@ public sealed class RvtCommonDependencyBoundaryTests
     }
 
     [Fact]
-    // The shared RVT common package is an adapter-side dependency: only the host (RvtPortal.Spa) may reference it.
+    // RVT common is an adapter-side dependency: only the host (RvtPortal.Spa) may reference its source project.
     // The business core reaches email through its own IEmailDelivery port, so the hexagonal boundary still holds.
     public void RvtCommon_IsConfinedToTheHostAdapterProject()
     {
@@ -58,7 +59,7 @@ public sealed class RvtCommonDependencyBoundaryTests
     }
 
     [Fact]
-    // Strongest form of the same boundary: the compiled business core must not reference the shared package at all.
+    // Strongest form of the same boundary: the compiled business core must not reference RVT common at all.
     public void BusinessLogicCore_DoesNotReferenceRvtCommon()
     {
         var referenced = typeof(RVT.BusinessLogic.IRvtDateTimeProvider).Assembly
@@ -70,12 +71,35 @@ public sealed class RvtCommonDependencyBoundaryTests
     }
 
     [Fact]
-    // The private feed is allowed, but it must authenticate from the environment - never a committed token.
-    public void NuGetConfig_TakesPrivateFeedCredentialsFromTheEnvironment()
+    public void HostAdapter_UsesInfrastructureSourceWithoutRvtPackageReferences()
+    {
+        var projectPath = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa", "RvtPortal.Spa.csproj");
+        var project = System.Xml.Linq.XDocument.Load(projectPath);
+        var packageReferences = project.Descendants()
+            .Where(element => element.Name.LocalName == "PackageReference")
+            .Select(element => (string?)element.Attribute("Include"))
+            .Where(package => package?.StartsWith("Rvt.Monitor.", StringComparison.OrdinalIgnoreCase) == true)
+            .ToArray();
+        var sourceReferences = project.Descendants()
+            .Where(element => element.Name.LocalName == "ProjectReference")
+            .Select(element => (string?)element.Attribute("Include"))
+            .Where(reference => reference?.Replace('\\', '/').EndsWith(
+                "libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj",
+                StringComparison.Ordinal) == true)
+            .ToArray();
+
+        Assert.Empty(packageReferences);
+        Assert.Single(sourceReferences);
+    }
+
+    [Fact]
+    public void NuGetConfig_UsesNuGetOrgWithoutPrivateFeedOrCredentials()
     {
         var nugetConfig = File.ReadAllText(Path.Combine(RepositoryLayout.Root, "NuGet.config"));
 
-        Assert.Contains("%RVT_PACKAGES_TOKEN%", nugetConfig, StringComparison.Ordinal);
+        Assert.Contains("nuget.org", nugetConfig, StringComparison.Ordinal);
+        Assert.DoesNotContain("github.com", nugetConfig, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("packageSourceCredentials", nugetConfig, StringComparison.OrdinalIgnoreCase);
         foreach (var literalTokenMarker in new[] { "ghp_", "github_pat_", "ghs_" })
         {
             Assert.DoesNotContain(literalTokenMarker, nugetConfig, StringComparison.OrdinalIgnoreCase);

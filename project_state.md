@@ -3,9 +3,10 @@
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
 - Workspace: `/Users/oldgeorge/Documents/rvt-mono`
-- Status: Task 3 of the RVT common source-reference migration implemented.
-  Active monitor and portal consumers remain source-referenced, while the two
-  package-validation consumers restore locally packed artifacts.
+- Status: RVT common source-reference migration final review fixes implemented.
+  Active monitor and portal consumers are source-referenced, their 12 tracked
+  locks reflect the source graph, and the two package-validation consumers
+  restore locally packed artifacts through artifact-scoped validation locks.
 - Design: `docs/superpowers/specs/2026-07-22-rvt-mono-repository-design.md`
 - Plan: `docs/superpowers/plans/2026-07-22-rvt-mono-repository-bootstrap.md`
 - Requested outcome: fresh unified Git history and a shared root solution for
@@ -14,12 +15,12 @@
 - Intended modules: `apps/monitors`, `apps/portal`,
   `libs/rvt-monitor-common`, and `services/reporting`.
 - Root solution: `Rvt.Mono.slnx`.
-- Pending approved design: `docs/superpowers/specs/2026-07-22-rvt-common-source-reference-design.md` changes active consumers to source project references, while package-validation remains package-based against locally packed artifacts. This is an explicit decision to review if independent package consumption becomes required again.
-- Pending implementation plan: `docs/superpowers/plans/2026-07-22-rvt-common-source-reference-migration.md`.
+- Approved design: `docs/superpowers/specs/2026-07-22-rvt-common-source-reference-design.md` changes active consumers to source project references, while package-validation remains package-based against locally packed artifacts. This is an explicit decision to review if independent package consumption becomes required again.
+- Implemented plan: `docs/superpowers/plans/2026-07-22-rvt-common-source-reference-migration.md`.
 - Aggregate project count: 38 projects across all four module roots.
-- Important boundary: retain module-local build/NuGet configuration and the
-  private RVT shared-package boundary during the initial import. Do not merge
-  reporting implementations or database schemas.
+- Important boundary: active application consumers use the in-repository RVT
+  source projects; only `libs/rvt-monitor-common/package-validation` consumes
+  RVT packages. Do not merge reporting implementations or database schemas.
 - Imported source snapshots:
   - `apps/monitors` from `chris-oldgeorge/rvt-monitors` at
     `5935f40614073afa6c4ef954db1308a72a5f8f2b`.
@@ -67,17 +68,20 @@
 - Monitor central package variables `RvtCommonVersion`,
   `RvtCommonInfrastructureVersion`, and `RvtIntegrationTestingVersion`, plus
   their three `PackageVersion` entries, were removed. Active monitor and portal
-  NuGet configs now retain only nuget.org; the shared library NuGet config is
-  intentionally unchanged for package-validation work in Task 3.
+  NuGet configs now retain only nuget.org; the shared library NuGet config maps
+  `Rvt.*` to the root `artifacts/packages` feed for package validation.
 - Package-validation remains intentionally package-based at `0.2.0-rc.1`.
   `scripts/build-mono.sh` packs exactly `Rvt.Monitor.Common`,
   `Rvt.Monitor.Common.Infrastructure`, and
-  `Rvt.Monitor.IntegrationTesting` to `artifacts/packages`, regenerates the two
-  validation lock files from an isolated `artifacts/nuget-packages` cache,
-  restores `Rvt.Mono.slnx`, builds with `--no-restore`, and tests with
-  `--no-build`. The shared library NuGet configuration maps `Rvt.*` only to the
-  root local feed and retains nuget.org for third-party packages; GitHub
-  Packages and credentials are not used.
+  `Rvt.Monitor.IntegrationTesting` to `artifacts/packages`, validates the two
+  package consumers from an isolated `artifacts/nuget-packages` cache, restores
+  `Rvt.Mono.slnx`, builds with `--no-restore`, and tests with `--no-build`.
+  Normal builds opt those two consumers into per-project locks under
+  `artifacts/validation-locks`; freshly emitted NuGet archives have different
+  content hashes, so this keeps their committed `0.2.0-rc.1` package-policy
+  locks and all other tracked locks unchanged. The shared library NuGet
+  configuration maps `Rvt.*` only to the root local feed and retains nuget.org
+  for third-party packages; GitHub Packages and credentials are not used.
 - Verification results:
   - `tests/verify-mono-solution.test.sh` and
     `tests/verify-mono-layout.test.sh` pass.
@@ -100,17 +104,30 @@
 ## RVT Common Local Package Validation - 2026-07-22
 
 - The missing-artifact regression check records the expected pre-restore
-  failure and names `Rvt.Monitor.Common.0.2.0-rc.1.nupkg`; its GREEN run proves
-  aggregate restore is not attempted before all three packages exist.
+  failure and names `Rvt.Monitor.Common.0.2.0-rc.1.nupkg`; its mutation RED run
+  catches `RuntimeConsumer` restore before artifact verification. Its GREEN run
+  proves neither package-validation consumer nor aggregate restore can occur
+  before all three packages exist.
 - The local package sequence restores and packs the three shared projects,
   restores all 38 aggregate projects from nuget.org plus
   `artifacts/packages`, and builds the aggregate solution with 0 errors. The
   existing four NU1903 advisories for `System.Security.Cryptography.Xml`
   10.0.7 remain outside this task.
-- The package artifact suite passes 8/8. The RuntimeConsumer and TestConsumer
-  lock files remain pinned to `0.2.0-rc.1`; their RVT content hashes were
-  checked against the SHA-512 hashes of the packages produced by the local
-  sequence.
+- The package artifact suite passes 8/8. RuntimeConsumer and TestConsumer stay
+  package-based at `0.2.0-rc.1`; build-time artifact locks are generated under
+  `artifacts/validation-locks`. The 12 active monitor consumer locks were
+  regenerated from their source-reference graphs: none retain a direct RVT
+  package, and normalized comparison proves all non-RVT dependency data is
+  unchanged.
+- Focused source-boundary architecture verification passes 12/12 for monitors
+  and 7/7 for the portal. The monitor suite now enforces the approved source
+  matrix, source-consumer lock shape, local validation boundary, version, and
+  feed policy. The portal suite now requires the Infrastructure source project
+  and a nuget.org-only credential-free configuration.
+- A full build-sequence diff fingerprint is identical before and after restore,
+  pack, package validation, aggregate restore/build, and the nonzero aggregate
+  test stage. A normal successful run therefore introduces no tracked lockfile
+  changes.
 - The aggregate test stage remains nonzero for imported test assumptions that
   are outside this migration. Database-backed tests report exactly:
   `System.InvalidOperationException: Set RVT__POSTGRES_INTEGRATION_CONNECTION

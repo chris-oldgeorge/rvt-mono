@@ -3,8 +3,8 @@
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
 - Workspace: `/Users/oldgeorge/Documents/rvt-mono`
-- Status: Task 3 aggregate solution, solution-membership guard, and root
-  onboarding documentation complete.
+- Status: Task 3 aggregate solution, approved logical solution-folder
+  organization, solution guard, and root onboarding documentation complete.
 - Design: `docs/superpowers/specs/2026-07-22-rvt-mono-repository-design.md`
 - Plan: `docs/superpowers/plans/2026-07-22-rvt-mono-repository-bootstrap.md`
 - Requested outcome: fresh unified Git history and a shared root solution for
@@ -43,8 +43,10 @@
 - Task 3 guard: `tests/verify-mono-solution.test.sh` runs
   `scripts/verify-mono-solution.sh`. It compares normalized, sorted module
   `*.csproj` paths with the normalized, sorted `dotnet sln Rvt.Mono.slnx list`
-  paths, requires matching project counts, and requires at least one listed
-  project from every module root.
+  paths, requires matching project counts and per-module representation, and
+  enforces exact project placement under `Apps/Monitors`, `Apps/Portal`,
+  `Libraries/RVT Monitor Common`, and `Services/Reporting`, with test projects
+  in each module's corresponding `Tests` solution folder.
 - Verification results:
   - `tests/verify-mono-solution.test.sh` and
     `tests/verify-mono-layout.test.sh` pass.

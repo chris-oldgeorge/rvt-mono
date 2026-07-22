@@ -7,6 +7,8 @@
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using RvtPortal.Spa.Adapters.Reporting;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -48,5 +50,16 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("serverTimeUtc", body);
+    }
+
+    [Fact]
+    // Function summary: Verifies report generation dependencies can be resolved from an API request scope.
+    public void ReportGenerationClient_ResolvesFromScope()
+    {
+        using var scope = factory.Services.CreateScope();
+
+        var client = scope.ServiceProvider.GetRequiredService<IReportGenerationClient>();
+
+        Assert.IsType<ReportingServiceReportGenerationClient>(client);
     }
 }

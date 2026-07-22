@@ -1,5 +1,6 @@
 ﻿// File summary: Supports RVT business-layer coordination and shared workflow helpers.
 // Major updates:
+// - 2026-07-22 Represented vibration traces with the mapped OmnidotsTrace entity.
 // - 2026-07-09 pending Routed local/UTC conversion through the injected date-time provider.
 // - 2026-06-26 pending Removed unused legacy deployment data path and split monitor data helpers for Sonar cleanup.
 // - 2026-06-25 pending Initialized non-nullable Fourier/filter properties and guarded nullable deployment reads.
@@ -73,7 +74,7 @@ namespace RvtPortal.Spa.Application.Monitors
         public SearchQueryResult<NoiseLevel15minAvg>? NoiseLevels { get; set; }
         public SearchQueryResult<OmnidotsPeakLevel>? VibrationLevels { get; set; }
         public List<OmnidotsFrequencyMagnitudes>? VibrationFrequencyMagnitudes { get; set; }
-        public SearchQueryResult<OmnidotsTraces>? VibrationTraces { get; set; }
+        public SearchQueryResult<OmnidotsTrace>? VibrationTraces { get; set; }
 
         // Function summary: Retrieves monitor name data for callers.
         private static string GetMonitorName(string? fleetNr, string? serialId, MonitorTypeEnum? typeOfMonitor, bool traces = false)

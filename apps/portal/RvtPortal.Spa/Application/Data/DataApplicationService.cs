@@ -1,5 +1,6 @@
 // File summary: Provides role-scoped monitor data grid, graph, trace, and CSV workflows for the portal API.
 // Major updates:
+// - 2026-07-22 Built vibration trace datasets from the mapped OmnidotsTrace entity.
 // - 2026-07-09 pending Moved data view workflow logic out of the API controller.
 
 using System.Globalization;
@@ -790,7 +791,7 @@ public sealed class DataApplicationService : IDataApplicationService
     }
 
     // Function summary: Builds vibration trace graph datasets.
-    private static List<MonitorGraphDataset> BuildTraceDatasets(IReadOnlyList<OmnidotsTraces> traces)
+    private static List<MonitorGraphDataset> BuildTraceDatasets(IReadOnlyList<OmnidotsTrace> traces)
     {
         return
         [

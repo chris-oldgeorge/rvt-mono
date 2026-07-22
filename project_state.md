@@ -238,6 +238,23 @@
   `git diff --check` is clean. The obsolete untracked suffixed C# copy was
   subsequently removed, leaving the tracked boundary test as the sole copy.
 
+## Immediate Blockers Task 2 - 2026-07-22
+
+- Portal startup now explicitly registers `TimeProvider.System`, satisfying
+  report-generation client and report-rule dependency resolution without a
+  framework-service assumption.
+- Vibration traces use the mapped `OmnidotsTrace` entity from
+  `RVTSearchContext.OmnidotsTraces` end-to-end. `IMonitorService`,
+  `MonitorData`, graph dataset mapping, and the data-view test fake all carry
+  `SearchQueryResult<OmnidotsTrace>`; the unmapped `OmnidotsTraces` DTO is no
+  longer on the execution path.
+- Regression coverage: a host scope resolves `IReportGenerationClient`; a
+  SQLite-backed test inserts a mapped `omnidots_trace` row and verifies
+  `MonitorService.GetVibrationTraces` reads it. The focused run passes 9/9;
+  the portal test project passes 316/319 with three intentional opt-in
+  PostgreSQL skips. Restore continues to report existing NU1903 advisories for
+  `System.Security.Cryptography.Xml` 10.0.7.
+
 ## RVT Portal AI Review Analysis - 2026-07-22
 
 - Source review: `/Users/oldgeorge/Desktop/RvTPortal AI Review.docx` was read

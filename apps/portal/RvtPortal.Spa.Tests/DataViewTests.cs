@@ -11,9 +11,12 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RVT.BusinessLogic;
+using RVT.DataAccess.Context;
 using RvtPortal.Spa.Application.Monitors;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
@@ -184,6 +187,39 @@ public class DataViewTests
         Assert.Equal(HttpStatusCode.NotFound, oldDetail.StatusCode);
     }
 
+    [Fact]
+    // Function summary: Verifies vibration trace reads use the mapped EF trace entity rather than the unmapped legacy DTO.
+    public async Task GetVibrationTraces_ReadsMappedTraceRows()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var searchContext = new RVTSearchContext(options);
+        await searchContext.Database.EnsureCreatedAsync();
+        var traceId = Guid.NewGuid();
+        searchContext.OmnidotsTracesIndices.Add(new OmnidotsTracesIndex
+        {
+            Id = traceId,
+            SerialId = "TRACE-MAPPED",
+            StartTime = DateTime.UnixEpoch,
+            EndTime = DateTime.UnixEpoch.AddMinutes(1)
+        });
+        await searchContext.SaveChangesAsync();
+        await searchContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO omnidots_trace (omnidots_trace_index_id, x, y, z)
+            VALUES ({traceId}, {0.1}, {0.2}, {0.3})
+            """);
+        var service = new MonitorService(null!, null!, null!, null!, searchContext, null!, null!, null!);
+
+        var result = await service.GetVibrationTraces(traceId);
+
+        var trace = Assert.Single(result.Value);
+        Assert.Equal(traceId, trace.TraceId);
+        Assert.Equal(0.2, trace.Y);
+    }
+
     // Function summary: Creates client factory data for the current workflow.
     private static WebApplicationFactory<Program> CreateClientFactory(SpaTestApplicationFactory factory, FakeMonitorDataSource dataSource)
     {
@@ -333,7 +369,7 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
 
     private readonly Dictionary<Guid, Func<int?, MonitorData>> dataByDeployment = [];
     // Function summary: Handles the guid workflow for this module.
-    private readonly Dictionary<Guid, (RVT.Entities.Monitor Monitor, OmnidotsTracesIndex Index, List<OmnidotsTraces> Samples)> traces = [];
+    private readonly Dictionary<Guid, (RVT.Entities.Monitor Monitor, OmnidotsTracesIndex Index, List<OmnidotsTrace> Samples)> traces = [];
 
     public string? LastGridSort { get; private set; }
     public OrderByDirectionEnum? LastGridSortDirection { get; private set; }
@@ -357,7 +393,7 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
                 FromDate = trace.Index.StartTime,
                 ToDate = trace.Index.EndTime,
                 FilterOptions = [],
-                VibrationTraces = new SearchQueryResult<OmnidotsTraces>(true, "", trace.Samples, trace.Samples.Count, "")
+                VibrationTraces = new SearchQueryResult<OmnidotsTrace>(true, "", trace.Samples, trace.Samples.Count, "")
             });
         }
 
@@ -444,9 +480,9 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
             monitor,
             new OmnidotsTracesIndex { Id = traceId, SerialId = monitor.SerialId, StartTime = startTime, EndTime = startTime.AddMinutes(1) },
             [
-                new OmnidotsTraces { TraceId = traceId, X = 0.1, Y = 0.1, Z = 0.1 },
-                new OmnidotsTraces { TraceId = traceId, X = 0.2, Y = SecondTraceY, Z = 0.3 },
-                new OmnidotsTraces { TraceId = traceId, X = 0.3, Y = 0.4, Z = 0.5 }
+                new OmnidotsTrace { TraceId = traceId, X = 0.1, Y = 0.1, Z = 0.1 },
+                new OmnidotsTrace { TraceId = traceId, X = 0.2, Y = SecondTraceY, Z = 0.3 },
+                new OmnidotsTrace { TraceId = traceId, X = 0.3, Y = 0.4, Z = 0.5 }
             ]);
     }
 }

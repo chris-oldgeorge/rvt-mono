@@ -1,5 +1,6 @@
 ﻿// File summary: Supports the ASP.NET Core host that serves the RVT React portal and backend API.
 // Major updates:
+// - 2026-07-22 Registered the framework time provider required by report-generation clients.
 // - 2026-07-09 pending Bound TimeZones configuration to the injectable business date-time provider.
 // - 2026-07-08 pending Registered hexagonal edge ports, adapters, and report-rule application services.
 // - 2026-06-24 pending Wired SPA report generation requests to the containerized reporting service.
@@ -154,6 +155,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IReportRuleRecipientReader, ReportRuleRecipientReader>();
         services.AddOptions<ReportGenerationServiceOptions>().BindConfiguration("ReportGenerationService");
         services.AddHttpClient<IReportGenerationClient, ReportingServiceReportGenerationClient>();
+        services.AddSingleton(TimeProvider.System);
         services.Configure<RvtTimeZoneOptions>(configuration.GetSection("TimeZones"));
 
         // Business-layer + data-access service registrations (formerly InitBusinessLogic).

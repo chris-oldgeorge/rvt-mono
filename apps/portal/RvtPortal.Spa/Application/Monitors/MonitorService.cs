@@ -1,5 +1,6 @@
 ﻿// File summary: Coordinates business-layer operations for monitor service workflows.
 // Major updates:
+// - 2026-07-22 Read vibration traces through the mapped OmnidotsTrace EF entity.
 // - 2026-07-09 pending Routed daily-average date conversion through the injected date-time provider.
 // - 2026-06-26 pending Aligned service implementation defaults and parameter names for Sonar cleanup.
 // - 2026-06-25 pending Narrowed local order-by builders to concrete lists for CA1859 cleanup.
@@ -77,7 +78,7 @@ namespace RvtPortal.Spa.Application.Monitors
         Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string SerialId);
         Task<SearchQueryResult<OmnidotsPeakLevel1dayPeak>> GetOmnidotsPeakLevel1dayPeak(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
         Task<BatteryLevel?> GetBatteryLevelOmnidotsAsync(string SerialId);
-        Task<SearchQueryResult<OmnidotsTraces>> GetVibrationTraces(Guid TraceId, CancellationToken cancellationToken = default);
+        Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid TraceId, CancellationToken cancellationToken = default);
         Task<OmnidotsTracesIndex?> GetVibrationTracesIndex(string SerialId, DateTime Date);
         Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid Id);
 
@@ -525,16 +526,16 @@ namespace RvtPortal.Spa.Application.Monitors
         }
 
         // Function summary: Retrieves vibration traces data for callers.
-        public async Task<SearchQueryResult<OmnidotsTraces>> GetVibrationTraces(Guid TraceId, CancellationToken cancellationToken = default)
+        public async Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid TraceId, CancellationToken cancellationToken = default)
         {
             // TODO: What do we order traces by?
-            List<OmnidotsTraces> records = await searchContext.Set<OmnidotsTraces>()
+            List<OmnidotsTrace> records = await searchContext.OmnidotsTraces
                 .AsNoTracking()
                 .Where(trace => trace.TraceId == TraceId)
                 .Take(1000000)
                 .ToListAsync(cancellationToken);
 
-            return new SearchQueryResult<OmnidotsTraces>(true, string.Empty, records, records.Count, string.Empty);
+            return new SearchQueryResult<OmnidotsTrace>(true, string.Empty, records, records.Count, string.Empty);
         }
 
         // Function summary: Retrieves vibration traces index data for callers.

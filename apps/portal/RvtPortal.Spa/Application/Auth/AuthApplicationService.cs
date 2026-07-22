@@ -2,12 +2,13 @@
 // Major updates:
 // - 2026-07-09 pending Moved AuthController Identity, profile, reset-link, and email orchestration into an application service.
 // - 2026-07-22 pending Removed request-host link generation, made reset failures uniform, and added confirmed profile email changes.
-// - 2026-07-22 pending Made email-and-username confirmation atomic through verified rollback on username failure.
+// - 2026-07-22 pending Made confirmed email-and-username changes atomic in an Identity database transaction.
 
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using RVT.BusinessLogic;
@@ -125,6 +126,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
 {
     private readonly SignInManager<ApplicationUser> signInManager;
     private readonly UserManager<ApplicationUser> userManager;
+    private readonly ApplicationDbContext applicationContext;
     private readonly ICompanyService companyService;
     private readonly IConfiguration configuration;
     private readonly SpaOptions spaOptions;
@@ -135,6 +137,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     public AuthApplicationService(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
+        ApplicationDbContext applicationContext,
         ICompanyService companyService,
         IConfiguration configuration,
         IOptions<SpaOptions> spaOptions,
@@ -143,6 +146,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     {
         this.signInManager = signInManager;
         this.userManager = userManager;
+        this.applicationContext = applicationContext;
         this.companyService = companyService;
         this.configuration = configuration;
         this.spaOptions = spaOptions.Value;
@@ -308,20 +312,101 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MissingConfirmationValues);
         }
 
-        var user = await userManager.FindByIdAsync(userId);
-        if (user == null || !TryDecodeConfirmationCode(code, out var decodedCode))
+        if (!TryDecodeConfirmationCode(code, out var decodedCode))
         {
-            return AuthWorkflowResult<ConfirmEmailResponse>.Failure(
-                user == null ? AuthWorkflowStatus.ConfirmationFailed : AuthWorkflowStatus.MalformedConfirmationCode);
+            return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MalformedConfirmationCode);
         }
 
+        var newEmail = email.Trim();
+        if (applicationContext.Database.IsRelational())
+        {
+            return await ConfirmEmailChangeInTransactionAsync(userId, newEmail, decodedCode);
+        }
+
+        var user = await userManager.FindByIdAsync(userId);
+        return user == null
+            ? AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed)
+            : await ConfirmEmailChangeWithoutTransactionAsync(user, newEmail, decodedCode);
+    }
+
+    // Function summary: Applies confirmed email and username together in the Identity database transaction.
+    private async Task<AuthWorkflowResult<ConfirmEmailResponse>> ConfirmEmailChangeInTransactionAsync(
+        string userId,
+        string newEmail,
+        string decodedCode)
+    {
+        var strategy = applicationContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            applicationContext.ChangeTracker.Clear();
+            await using var transaction = await applicationContext.Database.BeginTransactionAsync();
+            try
+            {
+                var user = await userManager.FindByIdAsync(userId);
+                if (user == null)
+                {
+                    await transaction.RollbackAsync();
+                    applicationContext.ChangeTracker.Clear();
+                    return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
+                }
+
+                var transition = await ApplyConfirmedEmailTransitionAsync(user, newEmail, decodedCode);
+                if (transition.Status == AuthWorkflowStatus.Success)
+                {
+                    await transaction.CommitAsync();
+                }
+                else
+                {
+                    await transaction.RollbackAsync();
+                    applicationContext.ChangeTracker.Clear();
+                }
+
+                return transition;
+            }
+            catch
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                applicationContext.ChangeTracker.Clear();
+                throw;
+            }
+        });
+    }
+
+    // Function summary: Preserves rollback semantics only for the non-relational test provider, which has no transaction support.
+    private async Task<AuthWorkflowResult<ConfirmEmailResponse>> ConfirmEmailChangeWithoutTransactionAsync(
+        ApplicationUser user,
+        string newEmail,
+        string decodedCode)
+    {
         var originalEmail = user.Email;
         var originalUserName = user.UserName;
         var originalEmailConfirmed = user.EmailConfirmed;
         var originalSecurityStamp = user.SecurityStamp;
-        var newEmail = email.Trim();
-        var result = await userManager.ChangeEmailAsync(user, newEmail, decodedCode);
-        if (!result.Succeeded)
+        try
+        {
+            var transition = await ApplyConfirmedEmailTransitionAsync(user, newEmail, decodedCode);
+            if (transition.Status != AuthWorkflowStatus.Success)
+            {
+                await RestoreConfirmedEmailStateAsync(user, originalEmail, originalUserName, originalEmailConfirmed, originalSecurityStamp);
+            }
+
+            return transition;
+        }
+        catch
+        {
+            await RestoreConfirmedEmailStateAsync(user, originalEmail, originalUserName, originalEmailConfirmed, originalSecurityStamp);
+            throw;
+        }
+    }
+
+    // Function summary: Runs the two Identity writes that form one confirmed email transition.
+    private async Task<AuthWorkflowResult<ConfirmEmailResponse>> ApplyConfirmedEmailTransitionAsync(
+        ApplicationUser user,
+        string newEmail,
+        string decodedCode)
+    {
+        var emailResult = await userManager.ChangeEmailAsync(user, newEmail, decodedCode);
+        if (!emailResult.Succeeded)
         {
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
         }
@@ -329,20 +414,6 @@ public sealed class AuthApplicationService : IAuthApplicationService
         var userNameResult = await userManager.SetUserNameAsync(user, newEmail);
         if (!userNameResult.Succeeded)
         {
-            user.Email = originalEmail;
-            user.UserName = originalUserName;
-            user.EmailConfirmed = originalEmailConfirmed;
-            user.SecurityStamp = originalSecurityStamp;
-            var rollbackResult = await userManager.UpdateAsync(user);
-            if (!rollbackResult.Succeeded ||
-                !string.Equals(user.Email, originalEmail, StringComparison.Ordinal) ||
-                !string.Equals(user.UserName, originalUserName, StringComparison.Ordinal) ||
-                user.EmailConfirmed != originalEmailConfirmed ||
-                !string.Equals(user.SecurityStamp, originalSecurityStamp, StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException("Unable to restore the user's confirmed email state after a username update failure.");
-            }
-
             return IdentityErrorResult<ConfirmEmailResponse>(AuthWorkflowStatus.ValidationFailed, userNameResult.Errors);
         }
 
@@ -351,6 +422,25 @@ public sealed class AuthApplicationService : IAuthApplicationService
             UserId = user.Id,
             Email = user.Email ?? ""
         });
+    }
+
+    // Function summary: Compensates only when the configured EF provider cannot offer database transactions.
+    private async Task RestoreConfirmedEmailStateAsync(
+        ApplicationUser user,
+        string? originalEmail,
+        string? originalUserName,
+        bool originalEmailConfirmed,
+        string? originalSecurityStamp)
+    {
+        user.Email = originalEmail;
+        user.UserName = originalUserName;
+        user.EmailConfirmed = originalEmailConfirmed;
+        user.SecurityStamp = originalSecurityStamp;
+        var rollbackResult = await userManager.UpdateAsync(user);
+        if (!rollbackResult.Succeeded)
+        {
+            throw new InvalidOperationException("Unable to restore the user's confirmed email state with the non-relational provider.");
+        }
     }
 
     // Function summary: Sets the initial password after email confirmation and signs in the user.

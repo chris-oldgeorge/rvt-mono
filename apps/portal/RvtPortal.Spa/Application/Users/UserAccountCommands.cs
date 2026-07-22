@@ -3,6 +3,7 @@
 // - 2026-06-26 pending Preserved company assignment for installer accounts used by installer object authorization.
 // - 2026-06-26 pending Moved admin user account lifecycle writes behind MediatR transactional commands.
 // - 2026-07-22 pending Kept admin-requested email changes out of direct account mutation until confirmation.
+// - 2026-07-22 pending Restarted onboarding when an admin replaces an unconfirmed invitation address.
 
 using MediatR;
 using Microsoft.AspNetCore.Identity;
@@ -17,7 +18,11 @@ namespace RvtPortal.Spa.Application.Users;
 public sealed record CreateUserCommand(UserMutationRequest Request)
     : IRequest<UserAccountCommandResult>, ITransactionalRequest;
 
-public sealed record UpdateUserCommand(string UserId, UserMutationRequest Request, string CurrentRole)
+public sealed record UpdateUserCommand(
+    string UserId,
+    UserMutationRequest Request,
+    string CurrentRole,
+    bool ReplaceUnconfirmedEmail)
     : IRequest<UserAccountCommandResult>, ITransactionalRequest;
 
 public sealed record DisableUserCommand(string UserId)
@@ -129,11 +134,28 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
         }
 
         UserAccountCommandWorkflow.ApplyUserMutation(user, request.Request);
+        if (request.ReplaceUnconfirmedEmail)
+        {
+            user.Email = request.Request.Email.Trim();
+            user.UserName = request.Request.Email.Trim();
+            user.EmailConfirmed = false;
+        }
+
         var updateResult = await userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, updateResult.Errors);
             return result;
+        }
+
+        if (request.ReplaceUnconfirmedEmail)
+        {
+            var stampResult = await userManager.UpdateSecurityStampAsync(user);
+            if (!stampResult.Succeeded)
+            {
+                UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, stampResult.Errors);
+                return result;
+            }
         }
 
         result.Email = user.Email;

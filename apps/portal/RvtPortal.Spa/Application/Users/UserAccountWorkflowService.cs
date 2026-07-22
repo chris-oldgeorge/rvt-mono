@@ -3,6 +3,7 @@
 // - 2026-07-09 pending Moved user validation, role authorization, account links, cache clearing, and write orchestration out of UsersController.
 // - 2026-07-22 pending Removed request-origin fallback from admin-managed account notification links.
 // - 2026-07-22 pending Routed admin-requested email edits through the confirmed change-email workflow.
+// - 2026-07-22 pending Split confirmed pending changes from unconfirmed invitation replacement and resend.
 
 using System.Text;
 using MediatR;
@@ -33,6 +34,7 @@ public interface IUserAccountWorkflowService
         string userId,
         UserMutationRequest request,
         UserListActor actor,
+        UserAccountRequestOrigin origin,
         CancellationToken cancellationToken);
 
     // Function summary: Sends a fresh confirmation/password-set link to an existing user.
@@ -202,6 +204,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         string userId,
         UserMutationRequest request,
         UserListActor actor,
+        UserAccountRequestOrigin origin,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(userId);
@@ -222,7 +225,12 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
             return UserAccountWorkflowResultWithErrors(validationErrors, userId);
         }
 
-        var result = await mediator.Send(new UpdateUserCommand(userId, request, currentRole), cancellationToken);
+        var requestedEmail = request.Email.Trim();
+        var emailChanged = !string.Equals(user.Email, requestedEmail, StringComparison.OrdinalIgnoreCase);
+        var wasEmailConfirmed = user.EmailConfirmed;
+        var result = await mediator.Send(
+            new UpdateUserCommand(userId, request, currentRole, emailChanged && !wasEmailConfirmed),
+            cancellationToken);
         if (result.NotFound)
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
@@ -232,8 +240,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
             return UserAccountWorkflowResultWithErrors(result.Errors, userId);
         }
 
-        var requestedEmail = request.Email.Trim();
-        if (!string.Equals(user.Email, requestedEmail, StringComparison.OrdinalIgnoreCase))
+        if (emailChanged)
         {
             var updatedUser = await userManager.FindByIdAsync(userId);
             if (updatedUser == null)
@@ -241,7 +248,14 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
                 return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
             }
 
-            await notifications.SendEmailChangeAsync(updatedUser, requestedEmail);
+            if (wasEmailConfirmed)
+            {
+                await notifications.SendEmailChangeAsync(updatedUser, requestedEmail);
+            }
+            else
+            {
+                await notifications.SendPasswordSetAsync(updatedUser, origin);
+            }
         }
 
         return new UserAccountWorkflowResult

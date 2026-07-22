@@ -6,6 +6,7 @@
 // - 2026-06-24 pending Documented shared-key report-content APIs as intentional ASP.NET anonymous routes.
 // - 2026-07-22 pending Covered configured auth origins, confirmed email changes, uniform reset failures, and explicit proxy trust.
 // - 2026-07-22 pending Covered admin pending-email changes and rollback-safe confirmation retries.
+// - 2026-07-22 pending Proved relational rollback on result/exception and unconfirmed invitation replacement onboarding.
 
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
@@ -13,7 +14,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -23,6 +26,10 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -462,11 +469,18 @@ public class SecurityHardeningTests
     {
         const string requestedEmail = "reserved.username@rvt.test";
         var messenger = new RecordingAccountMessenger();
+        await using var identityConnection = new SqliteConnection("Data Source=:memory:");
+        await identityConnection.OpenAsync();
         using var factory = new SpaTestApplicationFactory();
-        var target = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var blocker = await factory.SeedUserAsync("blocker.email@rvt.test", Password, RoleNames.RVTAdmin);
-        await SetUserNameAsync(factory, blocker.Id, requestedEmail);
-        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        using var app = ConfigureAuthDelivery(
+            factory,
+            messenger,
+            "https://portal.example.test",
+            identityConnection: identityConnection);
+        await EnsureIdentityDatabaseAsync(app);
+        var target = await SeedUserAsync(app, AdminEmail, Password, RoleNames.RVTAdmin);
+        var blocker = await SeedUserAsync(app, "blocker.email@rvt.test", Password, RoleNames.RVTAdmin);
+        await SetUserNameAsync(app, blocker.Id, requestedEmail);
         var client = CreateClient(app);
         await LoginAsync(client);
         using var update = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
@@ -494,6 +508,143 @@ public class SecurityHardeningTests
         Assert.Equal(requestedEmail, confirmedUser.Email);
         Assert.Equal(requestedEmail, confirmedUser.UserName);
         Assert.True(confirmedUser.EmailConfirmed);
+    }
+
+    [Fact]
+    // Function summary: Verifies an exception after email persistence rolls back the relational transaction and preserves token retryability.
+    public async Task EmailChangeConfirmation_WhenUserNameUpdateThrows_RollsBackTransactionAndTokenCanRetry()
+    {
+        const string requestedEmail = "exception.retry@rvt.test";
+        var messenger = new RecordingAccountMessenger();
+        var throwingValidator = new ThrowWhenEmailAndUserNameAlignValidator(requestedEmail);
+        await using var identityConnection = new SqliteConnection("Data Source=:memory:");
+        await identityConnection.OpenAsync();
+        using var factory = new SpaTestApplicationFactory();
+        using var app = ConfigureAuthDelivery(
+            factory,
+            messenger,
+            "https://portal.example.test",
+            identityConnection: identityConnection,
+            userValidator: throwingValidator);
+        await EnsureIdentityDatabaseAsync(app);
+        using (var validatorScope = app.Services.CreateScope())
+        {
+            Assert.Contains(
+                validatorScope.ServiceProvider.GetServices<IUserValidator<ApplicationUser>>(),
+                validator => ReferenceEquals(validator, throwingValidator));
+        }
+        var target = await SeedUserAsync(app, AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(app);
+        await LoginAsync(client);
+        using var update = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
+        {
+            Email = requestedEmail,
+            Name = "Exception Safe Admin",
+            MobilePhone = "07333333333",
+            CompanyRole = "Operations"
+        });
+        var confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
+
+        using var failedConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        var rolledBackUser = await FindUserByIdAsync(app, target.Id);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, failedConfirmation.StatusCode);
+        Assert.Equal(AdminEmail, rolledBackUser.Email);
+        Assert.Equal(AdminEmail, rolledBackUser.UserName);
+        Assert.True(rolledBackUser.EmailConfirmed);
+
+        throwingValidator.ThrowEnabled = false;
+        using var retryConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        var confirmedUser = await FindUserByIdAsync(app, target.Id);
+
+        Assert.Equal(HttpStatusCode.OK, retryConfirmation.StatusCode);
+        Assert.Equal(requestedEmail, confirmedUser.Email);
+        Assert.Equal(requestedEmail, confirmedUser.UserName);
+        Assert.True(confirmedUser.EmailConfirmed);
+    }
+
+    [Fact]
+    // Function summary: Verifies changing an invited user's destination restarts normal confirmation and initial-password onboarding.
+    public async Task AdminEmailChange_ForUnconfirmedInvite_ReissuesOnboardingToReplacementAddress()
+    {
+        const string originalEmail = "invited.original@rvt.test";
+        const string requestedEmail = "invited.replacement@rvt.test";
+        const string initialPassword = "N3wInvitedPass!";
+        var messenger = new RecordingAccountMessenger();
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTMasterAdmin);
+        var target = await factory.SeedUserAsync(originalEmail, null, RoleNames.RVTAdmin, emailConfirmed: false);
+        var oldToken = await factory.GenerateEmailConfirmationTokenAsync(originalEmail);
+        var oldResetToken = await factory.GeneratePasswordResetTokenAsync(originalEmail);
+        var oldEncodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(oldToken));
+        var oldConfirmationPath = $"/api/auth/confirm-email?userId={Uri.EscapeDataString(target.Id)}&code={Uri.EscapeDataString(oldEncodedToken)}";
+        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        var adminClient = CreateClient(app);
+        var invitedClient = CreateClient(app);
+        await LoginAsync(adminClient);
+
+        using var update = await adminClient.PutAsJsonAsync($"/api/users/{target.Id}", new UserMutationRequest
+        {
+            Email = requestedEmail,
+            Name = "Replacement Invite",
+            MobilePhone = "07444444444",
+            Role = RoleNames.RVTAdmin
+        });
+        var pendingUser = await FindUserByIdAsync(app, target.Id);
+        using var resetBeforeConfirmation = await invitedClient.PostAsJsonAsync("/api/auth/reset-password", new ResetPasswordRequest
+        {
+            Email = requestedEmail,
+            Code = oldResetToken,
+            Password = initialPassword,
+            ConfirmPassword = initialPassword
+        });
+        using var loginBeforeConfirmation = await invitedClient.PostAsJsonAsync("/api/auth/login", new LoginRequest
+        {
+            Email = requestedEmail,
+            Password = initialPassword,
+            RememberMe = false
+        });
+        using var forgotBeforeConfirmation = await invitedClient.PostAsJsonAsync(
+            "/api/auth/forgot-password",
+            new ForgotPasswordRequest { Email = requestedEmail });
+        using var oldConfirmation = await invitedClient.GetAsync(oldConfirmationPath);
+
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.Equal(requestedEmail, pendingUser.Email);
+        Assert.Equal(requestedEmail, pendingUser.UserName);
+        Assert.False(pendingUser.EmailConfirmed);
+        Assert.Equal("Replacement Invite", pendingUser.Name);
+        Assert.Equal("07444444444", pendingUser.PhoneNumber);
+        Assert.Equal(requestedEmail, messenger.PasswordSetRecipient);
+        Assert.NotNull(messenger.PasswordSetCallbackUrl);
+        Assert.Equal(HttpStatusCode.OK, resetBeforeConfirmation.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, loginBeforeConfirmation.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, forgotBeforeConfirmation.StatusCode);
+        Assert.Null(messenger.PasswordResetRecipient);
+        Assert.Equal(HttpStatusCode.NotFound, oldConfirmation.StatusCode);
+
+        var newConfirmationUri = new Uri(messenger.PasswordSetCallbackUrl!);
+        var newConfirmationQuery = QueryHelpers.ParseQuery(newConfirmationUri.Query);
+        var newConfirmationCode = newConfirmationQuery["code"].ToString();
+        var newConfirmationPath = $"/api/auth/confirm-email?userId={Uri.EscapeDataString(target.Id)}&code={Uri.EscapeDataString(newConfirmationCode)}";
+        using var newConfirmation = await invitedClient.GetAsync(newConfirmationPath);
+        using var setInitialPassword = await invitedClient.PostAsJsonAsync("/api/auth/confirm-email", new SetInitialPasswordRequest
+        {
+            UserId = target.Id,
+            Code = newConfirmationCode,
+            NewPassword = initialPassword,
+            ConfirmPassword = initialPassword
+        });
+        var authState = await invitedClient.GetFromJsonAsync<AuthStateResponse>("/api/auth/me");
+        var onboardedUser = await FindUserByIdAsync(app, target.Id);
+
+        Assert.Equal(HttpStatusCode.OK, newConfirmation.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, setInitialPassword.StatusCode);
+        Assert.True(authState?.IsAuthenticated);
+        Assert.Equal(requestedEmail, authState?.User?.Email);
+        Assert.True(onboardedUser.EmailConfirmed);
+        Assert.Equal(requestedEmail, onboardedUser.Email);
+        Assert.Equal(requestedEmail, onboardedUser.UserName);
     }
 
     [Fact]
@@ -681,7 +832,9 @@ public class SecurityHardeningTests
         SpaTestApplicationFactory factory,
         IAccountMessenger messenger,
         string publicBaseUrl,
-        ILoggerProvider? loggerProvider = null)
+        ILoggerProvider? loggerProvider = null,
+        SqliteConnection? identityConnection = null,
+        IUserValidator<ApplicationUser>? userValidator = null)
     {
         return factory.WithWebHostBuilder(builder =>
         {
@@ -697,6 +850,16 @@ public class SecurityHardeningTests
             {
                 services.RemoveAll<IAccountMessenger>();
                 services.AddSingleton(messenger);
+                if (identityConnection is not null)
+                {
+                    services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
+                    services.RemoveAll<IDbContextOptionsConfiguration<ApplicationDbContext>>();
+                    services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(identityConnection));
+                }
+                if (userValidator is not null)
+                {
+                    services.AddSingleton<IUserValidator<ApplicationUser>>(userValidator);
+                }
             });
             if (loggerProvider is not null)
             {
@@ -707,6 +870,50 @@ public class SecurityHardeningTests
                 });
             }
         });
+    }
+
+    // Function summary: Creates the relational Identity schema used to prove real transaction rollback behavior.
+    private static async Task EnsureIdentityDatabaseAsync(WebApplicationFactory<Program> factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await context.Database.EnsureCreatedAsync();
+        Assert.True(context.Database.IsRelational());
+    }
+
+    // Function summary: Seeds a user and role through an arbitrary application factory, including relational Identity controls.
+    private static async Task<ApplicationUser> SeedUserAsync(
+        WebApplicationFactory<Program> factory,
+        string email,
+        string? password,
+        string roleName)
+    {
+        using var scope = factory.Services.CreateScope();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        foreach (var role in new[] { RoleNames.RVTMasterAdmin, RoleNames.RVTAdmin, RoleNames.RVTInstaller, RoleNames.CompanyUser })
+        {
+            if (!await roleManager.RoleExistsAsync(role))
+            {
+                var roleResult = await roleManager.CreateAsync(new IdentityRole(role));
+                Assert.True(roleResult.Succeeded, string.Join("; ", roleResult.Errors.Select(error => error.Description)));
+            }
+        }
+
+        var user = new ApplicationUser
+        {
+            Email = email,
+            UserName = email,
+            EmailConfirmed = true,
+            Name = email.Split('@')[0]
+        };
+        var createResult = password is null
+            ? await userManager.CreateAsync(user)
+            : await userManager.CreateAsync(user, password);
+        Assert.True(createResult.Succeeded, string.Join("; ", createResult.Errors.Select(error => error.Description)));
+        var addRoleResult = await userManager.AddToRoleAsync(user, roleName);
+        Assert.True(addRoleResult.Succeeded, string.Join("; ", addRoleResult.Errors.Select(error => error.Description)));
+        return user;
     }
 
     // Function summary: Loads one Identity user from the application under test for persistence assertions.
@@ -741,13 +948,15 @@ public class SecurityHardeningTests
 
         public string? PasswordResetCallbackUrl { get; private set; }
         public string? PasswordResetRecipient { get; private set; }
+        public string? PasswordSetRecipient { get; private set; }
+        public string? PasswordSetCallbackUrl { get; private set; }
         public string? EmailChangeRecipient { get; private set; }
         public string? EmailChangeCallbackUrl { get; private set; }
 
         public Task<EmailDeliveryResult> SendPasswordSetAsync(string email, string callbackUrl, CancellationToken cancellationToken)
         {
-            EmailChangeRecipient = email;
-            EmailChangeCallbackUrl = callbackUrl;
+            PasswordSetRecipient = email;
+            PasswordSetCallbackUrl = callbackUrl;
             return Task.FromResult(delivery);
         }
 
@@ -763,6 +972,30 @@ public class SecurityHardeningTests
             EmailChangeRecipient = email;
             EmailChangeCallbackUrl = callbackUrl;
             return Task.FromResult(delivery);
+        }
+    }
+
+    private sealed class ThrowWhenEmailAndUserNameAlignValidator : IUserValidator<ApplicationUser>
+    {
+        private readonly string email;
+
+        public ThrowWhenEmailAndUserNameAlignValidator(string email)
+        {
+            this.email = email;
+        }
+
+        public bool ThrowEnabled { get; set; } = true;
+
+        public Task<IdentityResult> ValidateAsync(UserManager<ApplicationUser> manager, ApplicationUser user)
+        {
+            if (ThrowEnabled &&
+                string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(user.UserName, email, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Forced username persistence exception.");
+            }
+
+            return Task.FromResult(IdentityResult.Success);
         }
     }
 

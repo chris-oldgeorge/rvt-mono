@@ -13,6 +13,7 @@
 // - 2026-06-26 pending Routed user site-contact and site-removal writes through transactional MediatR commands.
 // - 2026-06-26 pending Routed user site-assignment writes through transactional MediatR commands.
 // - 2026-06-26 pending Used configured SPA public base URL for admin-sent account links and company-scoped installer accounts.
+// - 2026-07-22 pending Passed safe link context for unconfirmed invitation replacement onboarding.
 
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
@@ -130,7 +131,12 @@ public class UsersController : ControllerBase
     // Function summary: Updates an admin-managed user through the user account workflow service.
     public async Task<ActionResult<EntityResponse<UserDetailResponse>>> Update(string id, UserMutationRequest request)
     {
-        var result = await userAccounts.UpdateAsync(id, request, BuildUserListActor(), HttpContext.RequestAborted);
+        var result = await userAccounts.UpdateAsync(
+            id,
+            request,
+            BuildUserListActor(),
+            BuildRequestOrigin(),
+            HttpContext.RequestAborted);
         return UserDetailResult(result, id);
     }
 

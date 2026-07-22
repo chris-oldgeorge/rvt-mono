@@ -382,3 +382,61 @@
   They prove non-email admin edits still apply, reset delivery stays on the
   confirmed address, confirmation reaches the requested address, failed
   username alignment leaves no partial Identity state, and the token can retry.
+
+### Task 4 second review follow-up
+
+- Confirmed-account `GET /api/auth/change-email` transitions now run inside an
+  execution-strategy-aware `ApplicationDbContext` transaction. Both
+  `ChangeEmailAsync` and `SetUserNameAsync` commit together; an Identity failure
+  result or exception rolls back the database transaction and clears the stale
+  change tracker. Compensation remains only for the non-relational EF InMemory
+  test provider, which cannot begin a transaction; it is not the production
+  atomicity guarantee.
+- Admin edits now branch on the account's pre-update confirmation state.
+  Confirmed users retain the pending change-email workflow. For an unconfirmed
+  invited user, the transactional update command replaces email and username,
+  explicitly keeps `EmailConfirmed` false, rotates the security stamp so the old
+  invitation token fails, and sends the normal password-set confirmation link
+  to the replacement address. Independent name/phone/role/company edits remain.
+- Relational SQLite controls force both a duplicate-username Identity failure
+  and a validator exception after email persistence. Both observe the original
+  database state afterward and successfully retry the same change-email token.
+  The unconfirmed-invite control proves the replacement address cannot log in
+  or receive reset mail before confirmation, the old token is invalid, and the
+  new recipient completes confirmation plus initial-password sign-in.
+
+## Immediate Blockers Resume Checkpoint - 2026-07-22
+
+- Resume instruction: start the next session with `Read project_state.md to get
+  up to speed`, then work in
+  `/Users/oldgeorge/Documents/rvt-mono/.worktrees/immediate-blockers` on branch
+  `codex/immediate-blockers`. Do not resume in the root checkout on `main`.
+- Base/planning commit: `5048052`. Task 2 is complete at `4173f8a` and passed an
+  independent review. Task 3 is complete through `4bc2ac9` and passed an
+  independent re-review after both tenant-authorization gaps were fixed.
+- Task 4 initial auth hardening is committed at `1f3bcc4`; its first review
+  follow-up is committed at `b9b6c46`. The second review then required real
+  atomicity for confirmed email/username transitions and a separate onboarding
+  path for unconfirmed admin-managed email edits.
+- Those second-review fixes are implemented in the checkpoint after `b9b6c46`:
+  an execution-strategy-aware `ApplicationDbContext` transaction protects the
+  confirmed transition, relational SQLite tests cover result and exception
+  rollback plus token retry, and unconfirmed replacements stay unconfirmed,
+  invalidate the old invite, and use the normal initial-password onboarding
+  link.
+- Latest implementer evidence before the pause: 3/3 critical relational tests,
+  64/64 owning-slice tests, and 337 portal tests passed; three opt-in PostgreSQL
+  tests remained skipped. This evidence has not yet received the final Task 4
+  independent re-review, so Task 4 remains in progress rather than complete.
+- Resume Task 4 by inspecting `git status`, reading
+  `.superpowers/sdd/task-4-report.md`, running the focused/full verification and
+  build/diff checks, generating a review package from `4bc2ac9` to the current
+  head, and re-dispatching the Task 4 reviewer. Address any Important findings
+  before updating `.superpowers/sdd/progress.md` to complete.
+- Tasks 5 and 6 remain untouched: establish the explicit UTC/search timestamp
+  contract, then complete schema deployment and failure reporting. Both require
+  TDD and independent task review. Real PostgreSQL verification still requires
+  `RVT_TEST_POSTGRES_CONNECTION`.
+- Known non-task state: `apps/.nuget-packages/` is an untracked generated cache;
+  do not commit it. Existing `System.Security.Cryptography.Xml` 10.0.7 NU1903
+  advisories remain outside this repair tranche.

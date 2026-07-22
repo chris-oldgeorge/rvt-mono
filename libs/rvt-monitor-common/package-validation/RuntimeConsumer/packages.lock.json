@@ -6,7 +6,7 @@
         "type": "Direct",
         "requested": "[0.2.0-rc.1, 0.2.0-rc.1]",
         "resolved": "0.2.0-rc.1",
-        "contentHash": "ACC2KxbDuJIVOb1Zm/t5a5b6YOieFreB56AIcAC9SuN3/fKoEbSeuDQhbxq3pno3EesT8VMQ7oUZIlarHSYObA==",
+        "contentHash": "KgG66k5T9wzfiDGFIM2fjH515Txd0Bwpto7a9IXOrdKCRhMFDCbqX9JvhZavaKwxrofdWZ6rqv6zYQFX9o7q6A==",
         "dependencies": {
           "AWSSDK.S3": "4.0.100.3",
           "Azure.Identity": "1.15.0",
@@ -31,7 +31,7 @@
         "type": "Direct",
         "requested": "[0.2.0-rc.1, 0.2.0-rc.1]",
         "resolved": "0.2.0-rc.1",
-        "contentHash": "A006s9OrWoua5pcCEUvHHVFlbTLmeZuMKAHDQQQcBGBjm9eiW0O53smZB8FWtwZHO6792u/ilit+Bq9T+P+AiQ==",
+        "contentHash": "9rOdRfhYrSeh9yCooLrNvBI5mYRURRO+mScPmf2XcsUyPXGt2E4SuS8fWxU2ovQt01fHnwBsHuAbhbsEdWgt4A==",
         "dependencies": {
           "AWSSDK.S3": "4.0.100.3",
           "Azure.Identity": "1.15.0",

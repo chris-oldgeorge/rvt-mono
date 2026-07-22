@@ -3,9 +3,9 @@
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
 - Workspace: `/Users/oldgeorge/Documents/rvt-mono`
-- Status: Task 2 of the RVT common source-reference migration complete for
-  active monitor and portal consumers; aggregate restore remains deferred
-  until the local package-validation feed is added in migration Task 3.
+- Status: Task 3 of the RVT common source-reference migration implemented.
+  Active monitor and portal consumers remain source-referenced, while the two
+  package-validation consumers restore locally packed artifacts.
 - Design: `docs/superpowers/specs/2026-07-22-rvt-mono-repository-design.md`
 - Plan: `docs/superpowers/plans/2026-07-22-rvt-mono-repository-bootstrap.md`
 - Requested outcome: fresh unified Git history and a shared root solution for
@@ -69,8 +69,15 @@
   their three `PackageVersion` entries, were removed. Active monitor and portal
   NuGet configs now retain only nuget.org; the shared library NuGet config is
   intentionally unchanged for package-validation work in Task 3.
-- Package-validation projects, shared library NuGet configuration, build
-  scripts, and package lock files remain unchanged by migration Task 2.
+- Package-validation remains intentionally package-based at `0.2.0-rc.1`.
+  `scripts/build-mono.sh` packs exactly `Rvt.Monitor.Common`,
+  `Rvt.Monitor.Common.Infrastructure`, and
+  `Rvt.Monitor.IntegrationTesting` to `artifacts/packages`, regenerates the two
+  validation lock files from an isolated `artifacts/nuget-packages` cache,
+  restores `Rvt.Mono.slnx`, builds with `--no-restore`, and tests with
+  `--no-build`. The shared library NuGet configuration maps `Rvt.*` only to the
+  root local feed and retains nuget.org for third-party packages; GitHub
+  Packages and credentials are not used.
 - Verification results:
   - `tests/verify-mono-solution.test.sh` and
     `tests/verify-mono-layout.test.sh` pass.
@@ -82,9 +89,34 @@
     configured-feed summary.
   - Portal restore reports four existing NU1903 high-severity advisories for
     `System.Security.Cryptography.Xml` 10.0.7; remediation is outside Task 2.
-  - `dotnet restore Rvt.Mono.slnx` is blocked by private package access:
+  - During Task 2, `dotnet restore Rvt.Mono.slnx` was blocked by private package access:
     GitHub Packages returns HTTP 401 for the RVT organization feed. Cached RVT
     `0.2.0-rc.1` packages also produce NU1403 content-hash validation errors.
-  - `dotnet build Rvt.Mono.slnx --no-restore --nologo` exits with 16 errors
-    from the same NU1301/NU1403 package state; unaffected projects do compile.
-  - Package feeds and dependency declarations were not changed.
+  - During Task 2, `dotnet build Rvt.Mono.slnx --no-restore --nologo` exited
+    with 16 errors from the same NU1301/NU1403 package state; unaffected
+    projects compiled.
+  - Package feeds and dependency declarations were not changed in Task 2.
+
+## RVT Common Local Package Validation - 2026-07-22
+
+- The missing-artifact regression check records the expected pre-restore
+  failure and names `Rvt.Monitor.Common.0.2.0-rc.1.nupkg`; its GREEN run proves
+  aggregate restore is not attempted before all three packages exist.
+- The local package sequence restores and packs the three shared projects,
+  restores all 38 aggregate projects from nuget.org plus
+  `artifacts/packages`, and builds the aggregate solution with 0 errors. The
+  existing four NU1903 advisories for `System.Security.Cryptography.Xml`
+  10.0.7 remain outside this task.
+- The package artifact suite passes 8/8. The RuntimeConsumer and TestConsumer
+  lock files remain pinned to `0.2.0-rc.1`; their RVT content hashes were
+  checked against the SHA-512 hashes of the packages produced by the local
+  sequence.
+- The aggregate test stage remains nonzero for imported test assumptions that
+  are outside this migration. Database-backed tests report exactly:
+  `System.InvalidOperationException: Set RVT__POSTGRES_INTEGRATION_CONNECTION
+  to run PostgreSQL integration tests.` Other imported architecture tests still
+  resolve pre-mono paths, including
+  `/Users/oldgeorge/Documents/rvt-mono/reportingmonitor/ReportingMonitor/api`
+  and `/Users/oldgeorge/Documents/rvt-mono/rvt-monitors.sln`, which do not exist
+  in the aggregate layout. No package versions or test behavior were changed
+  to mask these failures.

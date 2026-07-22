@@ -36,7 +36,7 @@
         "type": "Direct",
         "requested": "[0.2.0-rc.1, 0.2.0-rc.1]",
         "resolved": "0.2.0-rc.1",
-        "contentHash": "d0BhISjBRNBXYQGLA8IF93x2ZiEakmK4RHkoNVUcCcuTWVK402W1La+3y2h5j2bjU6YDe+7m1ZtAKVVxWH7d1w==",
+        "contentHash": "k8I+T5tLdHjZwnMMpVzPaNSV/1D659M5Tw+0UBklvzgKoQWhhJDJbmPuwAvohc5sxhRC8wojhCA8Vs4GE39I7A==",
         "dependencies": {
           "Npgsql": "10.0.3"
         }

@@ -2,9 +2,6 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
-    <RvtCommonVersion>0.2.0-rc.1</RvtCommonVersion>
-    <RvtCommonInfrastructureVersion>0.2.0-rc.1</RvtCommonInfrastructureVersion>
-    <RvtIntegrationTestingVersion>0.2.0-rc.1</RvtIntegrationTestingVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.6.2" />
@@ -26,9 +23,6 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
     <PackageVersion Include="QuestPDF" Version="2026.6.0" />
     <PackageVersion Include="Riok.Mapperly" Version="4.3.1" />
-    <PackageVersion Include="Rvt.Monitor.Common" Version="[$(RvtCommonVersion)]" />
-    <PackageVersion Include="Rvt.Monitor.Common.Infrastructure" Version="[$(RvtCommonInfrastructureVersion)]" />
-    <PackageVersion Include="Rvt.Monitor.IntegrationTesting" Version="[$(RvtIntegrationTestingVersion)]" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>

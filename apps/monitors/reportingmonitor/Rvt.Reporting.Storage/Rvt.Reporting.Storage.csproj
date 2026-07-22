@@ -1,11 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj" />
     <ProjectReference Include="..\Rvt.Reporting.Core\Rvt.Reporting.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Rvt.Monitor.Common" />
   </ItemGroup>
 
   <PropertyGroup>

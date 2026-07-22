@@ -19,11 +19,11 @@
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="BouncyCastle.Cryptography" />
     <PackageReference Include="Npgsql" />
-    <PackageReference Include="Rvt.Monitor.IntegrationTesting" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SvantekMonitor\SvantekMonitor.csproj" />
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj" />
   </ItemGroup>
 
   <!--

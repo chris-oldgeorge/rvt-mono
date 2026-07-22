@@ -3,8 +3,9 @@
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
 - Workspace: `/Users/oldgeorge/Documents/rvt-mono`
-- Status: Task 3 aggregate solution, approved logical solution-folder
-  organization, solution guard, and root onboarding documentation complete.
+- Status: Task 2 of the RVT common source-reference migration complete for
+  active monitor and portal consumers; aggregate restore remains deferred
+  until the local package-validation feed is added in migration Task 3.
 - Design: `docs/superpowers/specs/2026-07-22-rvt-mono-repository-design.md`
 - Plan: `docs/superpowers/plans/2026-07-22-rvt-mono-repository-bootstrap.md`
 - Requested outcome: fresh unified Git history and a shared root solution for
@@ -55,12 +56,32 @@
   references, rejects their common-package references, and preserves
   package-only validation consumers. Each package-validation project rejects
   source references to all three shared projects while retaining its required
-  package references. It intentionally fails with 38 current violations until
-  the later active-consumer conversion tasks are performed.
+  package references.
+- Source-reference migration Task 2: the five monitor hosts now directly
+  reference `Rvt.Monitor.Common` and `Rvt.Monitor.Common.Infrastructure`; the
+  five current monitor test consumers reference `Rvt.Monitor.IntegrationTesting`
+  (with `ReportingMonitorTests` retaining its direct Common edge); the reporting
+  messaging/storage projects directly reference Common; and the portal host
+  directly references Infrastructure. MSBuild now supplies build ordering for
+  these active graphs.
+- Monitor central package variables `RvtCommonVersion`,
+  `RvtCommonInfrastructureVersion`, and `RvtIntegrationTestingVersion`, plus
+  their three `PackageVersion` entries, were removed. Active monitor and portal
+  NuGet configs now retain only nuget.org; the shared library NuGet config is
+  intentionally unchanged for package-validation work in Task 3.
+- Package-validation projects, shared library NuGet configuration, build
+  scripts, and package lock files remain unchanged by migration Task 2.
 - Verification results:
   - `tests/verify-mono-solution.test.sh` and
     `tests/verify-mono-layout.test.sh` pass.
   - `dotnet sln Rvt.Mono.slnx list` reports all 38 module projects.
+  - The source-boundary guard passes after the active-consumer conversion.
+  - Both active module solutions restore successfully and their restore graphs
+    reach the shared source projects. Verbose network traces contacted only
+    nuget.org; the preserved shared-library config still appears in NuGet's
+    configured-feed summary.
+  - Portal restore reports four existing NU1903 high-severity advisories for
+    `System.Security.Cryptography.Xml` 10.0.7; remediation is outside Task 2.
   - `dotnet restore Rvt.Mono.slnx` is blocked by private package access:
     GitHub Packages returns HTTP 401 for the RVT organization feed. Cached RVT
     `0.2.0-rc.1` packages also produce NU1403 content-hash validation errors.

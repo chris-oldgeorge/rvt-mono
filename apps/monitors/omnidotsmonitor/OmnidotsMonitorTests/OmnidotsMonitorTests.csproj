@@ -19,10 +19,10 @@
 		<PackageReference Include="coverlet.collector" />
 		<PackageReference Include="BouncyCastle.Cryptography" />
 		<PackageReference Include="Npgsql" />
-		<PackageReference Include="Rvt.Monitor.IntegrationTesting" PrivateAssets="all" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\OmnidotsMonitor\OmnidotsMonitor.csproj" />
+		<ProjectReference Include="../../../../libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj" />
 	</ItemGroup>
 	<ItemGroup>
 		<None Include="..\OmnidotsMonitor\appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" />

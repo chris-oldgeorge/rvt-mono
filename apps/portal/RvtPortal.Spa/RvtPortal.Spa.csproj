@@ -28,13 +28,13 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.7" />
     <PackageReference Include="Microsoft.OpenApi" Version="2.9.0" />
-    <!-- Shared RVT common email/notification adapters. Host-only: the business core depends on its own
-         IEmailDelivery port, never on this package (enforced by RvtCommonDependencyBoundaryTests). -->
-    <PackageReference Include="Rvt.Monitor.Common.Infrastructure" Version="0.2.0-rc.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.4" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Shared RVT common email/notification adapters. Host-only: the business core depends on its own
+         IEmailDelivery port, never on this project (enforced by RvtCommonDependencyBoundaryTests). -->
+    <ProjectReference Include="../../../libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj" />
     <ProjectReference Include="..\RVT.BusinessLogic\RVT.BusinessLogic.csproj" />
     <ProjectReference Include="..\RVT.DataAccess\RVT.DataAccess.csproj" />
     <ProjectReference Include="..\RVT.Entities\RVT.Entities.csproj" />

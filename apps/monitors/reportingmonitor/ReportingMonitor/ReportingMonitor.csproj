@@ -11,11 +11,11 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Riok.Mapperly" PrivateAssets="all" OutputItemType="Analyzer" />
-    <PackageReference Include="Rvt.Monitor.Common" />
-    <PackageReference Include="Rvt.Monitor.Common.Infrastructure" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj" />
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj" />
     <ProjectReference Include="..\Rvt.Reporting.Core\Rvt.Reporting.Core.csproj" />
     <ProjectReference Include="..\Rvt.Reporting.Pdf\Rvt.Reporting.Pdf.csproj" />
     <ProjectReference Include="..\Rvt.Reporting.Storage\Rvt.Reporting.Storage.csproj" />

@@ -3,8 +3,9 @@
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
 - Workspace: `/Users/oldgeorge/Documents/rvt-mono`
-- Status: approved design; implementation has not yet started.
+- Status: approved design and implementation plan; implementation has not yet started.
 - Design: `docs/superpowers/specs/2026-07-22-rvt-mono-repository-design.md`
+- Plan: `docs/superpowers/plans/2026-07-22-rvt-mono-repository-bootstrap.md`
 - Requested outcome: fresh unified Git history and a shared root solution for
   `rvt-monitors`, `rvtportal-spa-alpha`, `rvt-reporting`, and
   `rvt-reporting-new`.

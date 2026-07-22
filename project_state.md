@@ -53,8 +53,10 @@
   invokes `scripts/verify-rvt-common-source-boundary.sh`. The guard declares
   the three shared source projects, requires the approved app/portal project
   references, rejects their common-package references, and preserves
-  package-only validation consumers. It intentionally fails with 38 current
-  violations until the later active-consumer conversion tasks are performed.
+  package-only validation consumers. Each package-validation project rejects
+  source references to all three shared projects while retaining its required
+  package references. It intentionally fails with 38 current violations until
+  the later active-consumer conversion tasks are performed.
 - Verification results:
   - `tests/verify-mono-solution.test.sh` and
     `tests/verify-mono-layout.test.sh` pass.

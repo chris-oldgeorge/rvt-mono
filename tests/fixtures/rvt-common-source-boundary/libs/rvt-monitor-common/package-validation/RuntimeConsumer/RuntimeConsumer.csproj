@@ -1,0 +1,7 @@
+<Project>
+  <ItemGroup>
+    <PackageReference Include="Rvt.Monitor.Common" />
+    <PackageReference Include="Rvt.Monitor.Common.Infrastructure" />
+    <ProjectReference Include="../../testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj" />
+  </ItemGroup>
+</Project>

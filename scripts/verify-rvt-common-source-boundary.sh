@@ -119,9 +119,11 @@ require_package_reference "${runtime_consumer}" Rvt.Monitor.Common
 require_package_reference "${runtime_consumer}" Rvt.Monitor.Common.Infrastructure
 require_package_reference "${test_consumer}" Rvt.Monitor.IntegrationTesting
 
-reject_package_validation_source_references "${runtime_consumer}" "${common_project}"
-reject_package_validation_source_references "${runtime_consumer}" "${infrastructure_project}"
-reject_package_validation_source_references "${test_consumer}" "${integration_testing_project}"
+for project in "${runtime_consumer}" "${test_consumer}"; do
+  for target in "${common_project}" "${infrastructure_project}" "${integration_testing_project}"; do
+    reject_package_validation_source_references "${project}" "${target}"
+  done
+done
 
 if (( failures > 0 )); then
   printf '%d source-boundary violation(s) found.\n' "${failures}" >&2

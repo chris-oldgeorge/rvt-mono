@@ -6,12 +6,29 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 "${repo_root}/scripts/verify-rvt-common-source-boundary.sh"
 
 temp_dir="$(mktemp -d)"
-trap 'rm -rf "${temp_dir}"' EXIT
 
 fake_bin="${temp_dir}/bin"
 empty_feed="${temp_dir}/packages"
+replacement_feed="${temp_dir}/replacement-packages"
 dotnet_call_log="${temp_dir}/dotnet-calls.log"
+validation_package_feed="${repo_root}/libs/rvt-monitor-common/artifacts/packages"
+validation_package_feed_backup="${temp_dir}/compatibility-feed-backup"
+had_validation_package_feed=0
 mkdir -p "${fake_bin}" "${empty_feed}"
+
+if [[ -e "${validation_package_feed}" || -L "${validation_package_feed}" ]]; then
+  mv "${validation_package_feed}" "${validation_package_feed_backup}"
+  had_validation_package_feed=1
+fi
+
+cleanup() {
+  rm -rf "${validation_package_feed}"
+  if (( had_validation_package_feed )); then
+    mv "${validation_package_feed_backup}" "${validation_package_feed}"
+  fi
+  rm -rf "${temp_dir}"
+}
+trap cleanup EXIT
 
 cat > "${fake_bin}/dotnet" <<'EOF'
 #!/usr/bin/env bash
@@ -71,6 +88,25 @@ FAKE_DOTNET_CREATE_PACKAGES=1 \
   DOTNET_CALL_LOG="${dotnet_call_log}" \
   RVT_PACKAGE_FEED_DIR="${empty_feed}" \
   "${repo_root}/scripts/build-mono.sh"
+
+if [[ ! -L "${validation_package_feed}" ]] || \
+  [[ "$(readlink "${validation_package_feed}")" != "${empty_feed}" ]]; then
+  printf 'FAIL: build-mono.sh must create the compatibility feed link for the temporary test feed.\n' >&2
+  exit 1
+fi
+
+rm -rf "${empty_feed}"
+FAKE_DOTNET_CREATE_PACKAGES=1 \
+  PATH="${fake_bin}:${PATH}" \
+  DOTNET_CALL_LOG="${dotnet_call_log}" \
+  RVT_PACKAGE_FEED_DIR="${replacement_feed}" \
+  "${repo_root}/scripts/build-mono.sh"
+
+if [[ ! -L "${validation_package_feed}" ]] || \
+  [[ "$(readlink "${validation_package_feed}")" != "${replacement_feed}" ]]; then
+  printf 'FAIL: build-mono.sh must replace a stale compatibility feed link.\n' >&2
+  exit 1
+fi
 
 for validation_restore in \
   'package-validation/RuntimeConsumer/RuntimeConsumer.csproj' \

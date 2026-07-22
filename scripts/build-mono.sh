@@ -37,9 +37,8 @@ done
 
 validation_package_feed="${repo_root}/libs/rvt-monitor-common/artifacts/packages"
 mkdir -p "$(dirname "${validation_package_feed}")"
-if [[ ! -e "${validation_package_feed}" ]]; then
-  ln -s "${package_feed}" "${validation_package_feed}"
-fi
+rm -rf "${validation_package_feed}"
+ln -s "${package_feed}" "${validation_package_feed}"
 
 for package_id in \
   rvt.monitor.common \

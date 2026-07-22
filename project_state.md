@@ -76,6 +76,9 @@
   `Rvt.Monitor.IntegrationTesting` to `artifacts/packages`, validates the two
   package consumers from an isolated `artifacts/nuget-packages` cache, restores
   `Rvt.Mono.slnx`, builds with `--no-restore`, and tests with `--no-build`.
+  Its legacy package-validation compatibility path is deterministically replaced
+  on each run, so a stale directory or symlink from a temporary test feed cannot
+  block the next build.
   Normal builds opt those two consumers into per-project locks under
   `artifacts/validation-locks`; freshly emitted NuGet archives have different
   content hashes, so this keeps their committed `0.2.0-rc.1` package-policy
@@ -131,7 +134,8 @@
 - The aggregate test stage remains nonzero for imported test assumptions that
   are outside this migration. Database-backed tests report exactly:
   `System.InvalidOperationException: Set RVT__POSTGRES_INTEGRATION_CONNECTION
-  to run PostgreSQL integration tests.` Other imported architecture tests still
+  to run PostgreSQL integration tests.` Other imported architecture and
+  migration-contract test assumptions still
   resolve pre-mono paths, including
   `/Users/oldgeorge/Documents/rvt-mono/reportingmonitor/ReportingMonitor/api`
   and `/Users/oldgeorge/Documents/rvt-mono/rvt-monitors.sln`, which do not exist

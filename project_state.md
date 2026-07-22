@@ -13,6 +13,7 @@
 - Intended modules: `apps/monitors`, `apps/portal`,
   `libs/rvt-monitor-common`, and `services/reporting`.
 - Root solution: `Rvt.Mono.slnx`.
+- Pending approved design: `docs/superpowers/specs/2026-07-22-rvt-common-source-reference-design.md` changes active consumers to source project references, while package-validation remains package-based against locally packed artifacts. This is an explicit decision to review if independent package consumption becomes required again.
 - Aggregate project count: 38 projects across all four module roots.
 - Important boundary: retain module-local build/NuGet configuration and the
   private RVT shared-package boundary during the initial import. Do not merge

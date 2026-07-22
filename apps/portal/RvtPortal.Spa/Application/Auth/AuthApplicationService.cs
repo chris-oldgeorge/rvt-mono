@@ -2,6 +2,7 @@
 // Major updates:
 // - 2026-07-09 pending Moved AuthController Identity, profile, reset-link, and email orchestration into an application service.
 // - 2026-07-22 pending Removed request-host link generation, made reset failures uniform, and added confirmed profile email changes.
+// - 2026-07-22 pending Made email-and-username confirmation atomic through verified rollback on username failure.
 
 using System.Security.Claims;
 using System.Text;
@@ -314,15 +315,34 @@ public sealed class AuthApplicationService : IAuthApplicationService
                 user == null ? AuthWorkflowStatus.ConfirmationFailed : AuthWorkflowStatus.MalformedConfirmationCode);
         }
 
-        var result = await userManager.ChangeEmailAsync(user, email.Trim(), decodedCode);
+        var originalEmail = user.Email;
+        var originalUserName = user.UserName;
+        var originalEmailConfirmed = user.EmailConfirmed;
+        var originalSecurityStamp = user.SecurityStamp;
+        var newEmail = email.Trim();
+        var result = await userManager.ChangeEmailAsync(user, newEmail, decodedCode);
         if (!result.Succeeded)
         {
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
         }
 
-        var userNameResult = await userManager.SetUserNameAsync(user, email.Trim());
+        var userNameResult = await userManager.SetUserNameAsync(user, newEmail);
         if (!userNameResult.Succeeded)
         {
+            user.Email = originalEmail;
+            user.UserName = originalUserName;
+            user.EmailConfirmed = originalEmailConfirmed;
+            user.SecurityStamp = originalSecurityStamp;
+            var rollbackResult = await userManager.UpdateAsync(user);
+            if (!rollbackResult.Succeeded ||
+                !string.Equals(user.Email, originalEmail, StringComparison.Ordinal) ||
+                !string.Equals(user.UserName, originalUserName, StringComparison.Ordinal) ||
+                user.EmailConfirmed != originalEmailConfirmed ||
+                !string.Equals(user.SecurityStamp, originalSecurityStamp, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Unable to restore the user's confirmed email state after a username update failure.");
+            }
+
             return IdentityErrorResult<ConfirmEmailResponse>(AuthWorkflowStatus.ValidationFailed, userNameResult.Errors);
         }
 

@@ -2,6 +2,7 @@
 // Major updates:
 // - 2026-06-26 pending Preserved company assignment for installer accounts used by installer object authorization.
 // - 2026-06-26 pending Moved admin user account lifecycle writes behind MediatR transactional commands.
+// - 2026-07-22 pending Kept admin-requested email changes out of direct account mutation until confirmation.
 
 using MediatR;
 using Microsoft.AspNetCore.Identity;
@@ -260,11 +261,9 @@ public sealed class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand
 
 internal static class UserAccountCommandWorkflow
 {
-    // Function summary: Applies mutable user profile fields from an admin mutation request.
+    // Function summary: Applies non-email user profile fields while email changes remain pending confirmation.
     public static void ApplyUserMutation(ApplicationUser user, UserMutationRequest request)
     {
-        user.Email = request.Email.Trim();
-        user.UserName = request.Email.Trim();
         user.Name = request.Name?.Trim();
         user.PhoneNumber = request.MobilePhone?.Trim();
         user.CompanyRole = request.Role == RoleNames.CompanyUser ? request.CompanyRole?.Trim() : null;

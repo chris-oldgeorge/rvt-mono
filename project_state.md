@@ -362,3 +362,23 @@
   pending-to-confirmed email change, provider-failure uniformity, production
   startup validation, configured proxy/network trust, untrusted peers, cleared
   defaults, and disabled forwarded-host processing.
+
+### Task 4 review follow-up
+
+- Admin `PUT /api/users/{id}` email edits now follow the same pending-confirmation
+  contract as self-service profile edits. The update command applies name,
+  phone, role, company role, and company assignment without replacing the
+  confirmed `Email` or `UserName`; the workflow sends an Identity change-email
+  token to the requested address using the configured public SPA base URL.
+- `GET /api/auth/change-email` now treats email, username, confirmation state,
+  and the token's security stamp as one logical transition. If username update
+  fails after Identity accepts the email token, the original values are restored
+  and persisted before a validation response is returned. Restoring the security
+  stamp keeps that same confirmation link valid for a safe retry after the
+  conflicting username is resolved.
+- Regression controls are
+  `AdminEmailChange_RemainsPendingAndResetUsesConfirmedAddress` and
+  `EmailChangeConfirmation_WhenUserNameUpdateFails_RollsBackAndTokenCanRetry`.
+  They prove non-email admin edits still apply, reset delivery stays on the
+  confirmed address, confirmation reaches the requested address, failed
+  username alignment leaves no partial Identity state, and the token can retry.

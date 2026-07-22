@@ -147,6 +147,12 @@ Enforced by: `RvtCommonDependencyBoundaryTests` and
   `Spa:PublicBaseUrl` as an absolute HTTPS URI in every deployed environment and
   keep `AllowedHosts` non-wildcard with that exact host. The checked-in
   `AllowedHosts` values are local-only; deployment must override both settings.
+- **Every existing-account email edit is pending until the requested address
+  confirms it.** Self-service and admin-managed edits must leave the current
+  `Email`, `UserName`, and `EmailConfirmed` values unchanged while applying
+  independent profile fields. Confirmation must update email and username as
+  one logical transition; if username persistence fails, restore the original
+  email fields and security stamp so the same confirmation token can be retried.
 - **Forwarded headers require an explicit immediate-peer allowlist.** Populate
   `ForwardedHeaders:KnownProxies` and/or `ForwardedHeaders:KnownNetworks` for the
   deployed proxy topology. The host clears framework defaults, accepts only
@@ -155,7 +161,8 @@ Enforced by: `RvtCommonDependencyBoundaryTests` and
   for account-link generation.
 
 Enforced by: `SpaHostSmokeTests.ProductionHost_WithoutPublicBaseUrl_FailsConfigurationValidation`
-and the public-origin/forwarded-header cases in `SecurityHardeningTests`.
+and the public-origin, pending-email, rollback-retry, and forwarded-header cases
+in `SecurityHardeningTests`.
 
 ## Documentation and client releases
 

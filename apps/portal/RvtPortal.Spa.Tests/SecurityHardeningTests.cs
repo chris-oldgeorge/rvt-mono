@@ -5,6 +5,7 @@
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 // - 2026-06-24 pending Documented shared-key report-content APIs as intentional ASP.NET anonymous routes.
 // - 2026-07-22 pending Covered configured auth origins, confirmed email changes, uniform reset failures, and explicit proxy trust.
+// - 2026-07-22 pending Covered admin pending-email changes and rollback-safe confirmation retries.
 
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
@@ -411,6 +412,91 @@ public class SecurityHardeningTests
     }
 
     [Fact]
+    // Function summary: Verifies an admin email edit stays pending while non-email edits apply and reset delivery uses the confirmed address.
+    public async Task AdminEmailChange_RemainsPendingAndResetUsesConfirmedAddress()
+    {
+        const string originalEmail = "admin.target@rvt.test";
+        const string requestedEmail = "admin.requested@rvt.test";
+        var messenger = new RecordingAccountMessenger();
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTMasterAdmin);
+        var target = await factory.SeedUserAsync(originalEmail, Password, RoleNames.RVTAdmin);
+        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        var client = CreateClient(app);
+        await LoginAsync(client);
+
+        using var update = await client.PutAsJsonAsync($"/api/users/{target.Id}", new UserMutationRequest
+        {
+            Email = requestedEmail,
+            Name = "Pending Admin Target",
+            MobilePhone = "07111111111",
+            Role = RoleNames.RVTAdmin
+        });
+        var pendingUser = await FindUserByIdAsync(app, target.Id);
+        using var reset = await client.PostAsync($"/api/users/{target.Id}/reset-password-link", null);
+
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.Equal(originalEmail, pendingUser.Email);
+        Assert.Equal(originalEmail, pendingUser.UserName);
+        Assert.True(pendingUser.EmailConfirmed);
+        Assert.Equal("Pending Admin Target", pendingUser.Name);
+        Assert.Equal("07111111111", pendingUser.PhoneNumber);
+        Assert.Equal(requestedEmail, messenger.EmailChangeRecipient);
+        Assert.NotNull(messenger.EmailChangeCallbackUrl);
+        Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
+        Assert.Equal(originalEmail, messenger.PasswordResetRecipient);
+
+        var confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
+        using var confirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        var confirmedUser = await FindUserByIdAsync(app, target.Id);
+
+        Assert.Equal(HttpStatusCode.OK, confirmation.StatusCode);
+        Assert.Equal(requestedEmail, confirmedUser.Email);
+        Assert.Equal(requestedEmail, confirmedUser.UserName);
+        Assert.True(confirmedUser.EmailConfirmed);
+    }
+
+    [Fact]
+    // Function summary: Verifies username failure restores every Identity email field and leaves the same token safe to retry.
+    public async Task EmailChangeConfirmation_WhenUserNameUpdateFails_RollsBackAndTokenCanRetry()
+    {
+        const string requestedEmail = "reserved.username@rvt.test";
+        var messenger = new RecordingAccountMessenger();
+        using var factory = new SpaTestApplicationFactory();
+        var target = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var blocker = await factory.SeedUserAsync("blocker.email@rvt.test", Password, RoleNames.RVTAdmin);
+        await SetUserNameAsync(factory, blocker.Id, requestedEmail);
+        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        var client = CreateClient(app);
+        await LoginAsync(client);
+        using var update = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
+        {
+            Email = requestedEmail,
+            Name = "Retry Safe Admin",
+            MobilePhone = "07222222222",
+            CompanyRole = "Operations"
+        });
+        var confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
+
+        using var firstConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        var rolledBackUser = await FindUserByIdAsync(app, target.Id);
+
+        Assert.Equal(HttpStatusCode.BadRequest, firstConfirmation.StatusCode);
+        Assert.Equal(AdminEmail, rolledBackUser.Email);
+        Assert.Equal(AdminEmail, rolledBackUser.UserName);
+        Assert.True(rolledBackUser.EmailConfirmed);
+
+        await SetUserNameAsync(app, blocker.Id, "released.username@rvt.test");
+        using var retryConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        var confirmedUser = await FindUserByIdAsync(app, target.Id);
+
+        Assert.Equal(HttpStatusCode.OK, retryConfirmation.StatusCode);
+        Assert.Equal(requestedEmail, confirmedUser.Email);
+        Assert.Equal(requestedEmail, confirmedUser.UserName);
+        Assert.True(confirmedUser.EmailConfirmed);
+    }
+
+    [Fact]
     // Function summary: Verifies email-provider failures are indistinguishable from unknown accounts to anonymous callers.
     public async Task ForgotPassword_EmailProviderFailure_MatchesUnknownAccountResponse()
     {
@@ -631,6 +717,19 @@ public class SecurityHardeningTests
         return await userManager.FindByIdAsync(userId) ?? throw new InvalidOperationException($"User {userId} was not found.");
     }
 
+    // Function summary: Sets one test user's username through Identity to create or release deterministic collision state.
+    private static async Task SetUserNameAsync(WebApplicationFactory<Program> factory, string userId, string userName)
+    {
+        using var scope = factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
+        var user = await userManager.FindByIdAsync(userId) ?? throw new InvalidOperationException($"User {userId} was not found.");
+        var result = await userManager.SetUserNameAsync(user, userName);
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(string.Join("; ", result.Errors.Select(error => error.Description)));
+        }
+    }
+
     private sealed class RecordingAccountMessenger : IAccountMessenger
     {
         private readonly EmailDeliveryResult delivery;
@@ -641,6 +740,7 @@ public class SecurityHardeningTests
         }
 
         public string? PasswordResetCallbackUrl { get; private set; }
+        public string? PasswordResetRecipient { get; private set; }
         public string? EmailChangeRecipient { get; private set; }
         public string? EmailChangeCallbackUrl { get; private set; }
 
@@ -653,6 +753,7 @@ public class SecurityHardeningTests
 
         public Task<EmailDeliveryResult> SendPasswordResetAsync(string email, string callbackUrl, CancellationToken cancellationToken)
         {
+            PasswordResetRecipient = email;
             PasswordResetCallbackUrl = callbackUrl;
             return Task.FromResult(delivery);
         }

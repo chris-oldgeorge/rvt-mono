@@ -2,6 +2,7 @@
 // Major updates:
 // - 2026-07-09 pending Moved user validation, role authorization, account links, cache clearing, and write orchestration out of UsersController.
 // - 2026-07-22 pending Removed request-origin fallback from admin-managed account notification links.
+// - 2026-07-22 pending Routed admin-requested email edits through the confirmed change-email workflow.
 
 using System.Text;
 using MediatR;
@@ -127,6 +128,9 @@ public interface IUserAccountNotificationService
 
     // Function summary: Sends the password-reset email for an existing account.
     Task SendPasswordResetAsync(ApplicationUser user, UserAccountRequestOrigin origin);
+
+    // Function summary: Sends a confirmation link for an admin-requested pending email change.
+    Task SendEmailChangeAsync(ApplicationUser user, string newEmail);
 }
 
 public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
@@ -226,6 +230,18 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         if (result.Errors.Count > 0)
         {
             return UserAccountWorkflowResultWithErrors(result.Errors, userId);
+        }
+
+        var requestedEmail = request.Email.Trim();
+        if (!string.Equals(user.Email, requestedEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            var updatedUser = await userManager.FindByIdAsync(userId);
+            if (updatedUser == null)
+            {
+                return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
+            }
+
+            await notifications.SendEmailChangeAsync(updatedUser, requestedEmail);
         }
 
         return new UserAccountWorkflowResult
@@ -612,6 +628,29 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
             ["code"] = code
         });
         var delivery = await accountMessenger.SendPasswordResetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
+        if (!delivery.Succeeded)
+        {
+            throw new InvalidOperationException($"Email failed to send ({delivery.ProviderResponse})");
+        }
+    }
+
+    // Function summary: Sends a confirmation link without replacing the account's current confirmed email.
+    public async Task SendEmailChangeAsync(ApplicationUser user, string newEmail)
+    {
+        if (configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
+        {
+            return;
+        }
+
+        var code = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        var callbackUrl = BuildClientUrl("/api/auth/change-email", new Dictionary<string, string?>
+        {
+            ["userId"] = user.Id,
+            ["email"] = newEmail,
+            ["code"] = code
+        });
+        var delivery = await accountMessenger.SendEmailChangeAsync(newEmail, callbackUrl, CancellationToken.None);
         if (!delivery.Succeeded)
         {
             throw new InvalidOperationException($"Email failed to send ({delivery.ProviderResponse})");

@@ -170,3 +170,9 @@
   remain below module roots and all 122 manifest destinations are absent.
   Task 2 is responsible for resolving those expected failures with Git-aware
   moves.
+- Review follow-up: the exact old-path stale-reference scan is repository-wide
+  text scanning, with `.git`, `.superpowers/sdd`, and the move manifest
+  excluded. The Markdown link resolver remains scoped to Markdown. The
+  `tests/verify-documentation-layout-regression.test.sh` fixture moves all 122
+  manifest documents and proves a source-code reference in the MyAtm monitor
+  architecture-test path is reported as the sole stale reference.

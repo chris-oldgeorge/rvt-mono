@@ -165,12 +165,14 @@ fi
 stale_reference_count=0
 for source in "${missing_sources[@]}"; do
   [[ "$source" == "__missing_source_sentinel__" ]] && continue
-  if rg --hidden --quiet --fixed-strings \
-    --glob '*.md' --glob '*.MD' \
-    --glob '!.git/**' \
-    --glob '!.superpowers/sdd/**' \
-    --glob '!docs/documentation-move-manifest.md' \
-    -- "$source" "$repo_root"; then
+  if (
+    cd "$repo_root"
+    rg --hidden --quiet --fixed-strings \
+      --glob '!.git/**' \
+      --glob '!.superpowers/sdd/**' \
+      --glob '!docs/documentation-move-manifest.md' \
+      -- "$source" .
+  ); then
     printf 'ERROR: stale reference uses old document path: %s\n' "$source" >&2
     stale_reference_count=$((stale_reference_count + 1))
   fi

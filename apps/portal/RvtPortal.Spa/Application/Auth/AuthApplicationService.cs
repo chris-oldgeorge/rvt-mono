@@ -1,12 +1,14 @@
 // File summary: Coordinates authentication, password, email-confirmation, and profile workflows for the auth API.
 // Major updates:
 // - 2026-07-09 pending Moved AuthController Identity, profile, reset-link, and email orchestration into an application service.
+// - 2026-07-22 pending Removed request-host link generation, made reset failures uniform, and added confirmed profile email changes.
 
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using RVT.BusinessLogic;
 using RVT.BusinessLogic.Notifications;
 using RvtPortal.Spa.Application.Companies;
@@ -35,6 +37,9 @@ public interface IAuthApplicationService
     // Function summary: Confirms an email from a supplied confirmation link.
     Task<AuthWorkflowResult<ConfirmEmailResponse>> ConfirmEmailAsync(string? userId, string? code);
 
+    // Function summary: Confirms a pending profile email change through Identity's change-email token.
+    Task<AuthWorkflowResult<ConfirmEmailResponse>> ConfirmEmailChangeAsync(string? userId, string? email, string? code);
+
     // Function summary: Sets the initial password after email confirmation and signs in the user.
     Task<AuthWorkflowResult<AuthStateResponse>> SetInitialPasswordAsync(SetInitialPasswordRequest request);
 
@@ -48,7 +53,34 @@ public interface IAuthApplicationService
     Task<AuthWorkflowResult<ProfileResponse>> UpdateProfileAsync(ClaimsPrincipal principal, UpdateProfileRequest request);
 }
 
-public sealed record AuthRequestOrigin(string Scheme, string Host, string PathBase);
+public sealed record AuthRequestOrigin(string Scheme, string Host, string PathBase, string? CorrelationId = null);
+
+public sealed class SpaOptions
+{
+    public const string SectionName = "Spa";
+    public string PublicBaseUrl { get; set; } = "";
+}
+
+public static class SpaPublicLinkBuilder
+{
+    // Function summary: Builds an account-action URL exclusively from the configured public SPA base URI.
+    public static string Build(SpaOptions options, string path, IDictionary<string, string?> query)
+    {
+        if (!Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out var baseUri) ||
+            !string.Equals(baseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(baseUri.Host) ||
+            !string.IsNullOrEmpty(baseUri.UserInfo) ||
+            !string.IsNullOrEmpty(baseUri.Query) ||
+            !string.IsNullOrEmpty(baseUri.Fragment))
+        {
+            throw new InvalidOperationException(
+                "Spa:PublicBaseUrl must be configured as an absolute HTTPS base URI without credentials, query, or fragment before account links can be sent.");
+        }
+
+        var baseUrl = options.PublicBaseUrl.TrimEnd('/');
+        return QueryHelpers.AddQueryString($"{baseUrl}/{path.TrimStart('/')}", query);
+    }
+}
 
 public enum AuthWorkflowStatus
 {
@@ -94,7 +126,9 @@ public sealed class AuthApplicationService : IAuthApplicationService
     private readonly UserManager<ApplicationUser> userManager;
     private readonly ICompanyService companyService;
     private readonly IConfiguration configuration;
+    private readonly SpaOptions spaOptions;
     private readonly IAccountMessenger accountMessenger;
+    private readonly ILogger<AuthApplicationService> logger;
 
     // Function summary: Initializes auth workflows with Identity, company profile, configuration, and email dependencies.
     public AuthApplicationService(
@@ -102,13 +136,17 @@ public sealed class AuthApplicationService : IAuthApplicationService
         UserManager<ApplicationUser> userManager,
         ICompanyService companyService,
         IConfiguration configuration,
-        IAccountMessenger accountMessenger)
+        IOptions<SpaOptions> spaOptions,
+        IAccountMessenger accountMessenger,
+        ILogger<AuthApplicationService> logger)
     {
         this.signInManager = signInManager;
         this.userManager = userManager;
         this.companyService = companyService;
         this.configuration = configuration;
+        this.spaOptions = spaOptions.Value;
         this.accountMessenger = accountMessenger;
+        this.logger = logger;
     }
 
     // Function summary: Builds the current authentication state for the supplied principal.
@@ -178,20 +216,36 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<MessageResponse>.Success(PasswordResetMessage());
         }
 
-        var code = await userManager.GeneratePasswordResetTokenAsync(user);
-        var callbackUrl = BuildClientUrl("/reset-password", new Dictionary<string, string?>
-        {
-            ["code"] = code
-        }, origin);
         if (configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
         {
             return AuthWorkflowResult<MessageResponse>.Success(PasswordResetMessage());
         }
 
-        var delivery = await accountMessenger.SendPasswordResetAsync(user.Email ?? request.Email, callbackUrl, CancellationToken.None);
-        return delivery.Succeeded
-            ? AuthWorkflowResult<MessageResponse>.Success(PasswordResetMessage())
-            : AuthWorkflowResult<MessageResponse>.Failure(AuthWorkflowStatus.EmailFailed, delivery.ProviderResponse);
+        try
+        {
+            var code = await userManager.GeneratePasswordResetTokenAsync(user);
+            var callbackUrl = BuildClientUrl("/reset-password", new Dictionary<string, string?>
+            {
+                ["code"] = code
+            });
+            var delivery = await accountMessenger.SendPasswordResetAsync(user.Email ?? request.Email, callbackUrl, CancellationToken.None);
+            if (!delivery.Succeeded)
+            {
+                logger.LogWarning(
+                    "Password-reset email delivery failed. CorrelationId: {CorrelationId}; ProviderResponse: {ProviderResponse}",
+                    origin.CorrelationId ?? "unavailable",
+                    delivery.ProviderResponse);
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Password-reset email workflow failed. CorrelationId: {CorrelationId}",
+                origin.CorrelationId ?? "unavailable");
+        }
+
+        return AuthWorkflowResult<MessageResponse>.Success(PasswordResetMessage());
     }
 
     // Function summary: Resets a password from a supplied reset token.
@@ -243,6 +297,40 @@ public sealed class AuthApplicationService : IAuthApplicationService
                 Email = user.Email ?? ""
             })
             : AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
+    }
+
+    // Function summary: Applies a pending profile email only after Identity validates the change-email token.
+    public async Task<AuthWorkflowResult<ConfirmEmailResponse>> ConfirmEmailChangeAsync(string? userId, string? email, string? code)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(code))
+        {
+            return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MissingConfirmationValues);
+        }
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null || !TryDecodeConfirmationCode(code, out var decodedCode))
+        {
+            return AuthWorkflowResult<ConfirmEmailResponse>.Failure(
+                user == null ? AuthWorkflowStatus.ConfirmationFailed : AuthWorkflowStatus.MalformedConfirmationCode);
+        }
+
+        var result = await userManager.ChangeEmailAsync(user, email.Trim(), decodedCode);
+        if (!result.Succeeded)
+        {
+            return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
+        }
+
+        var userNameResult = await userManager.SetUserNameAsync(user, email.Trim());
+        if (!userNameResult.Succeeded)
+        {
+            return IdentityErrorResult<ConfirmEmailResponse>(AuthWorkflowStatus.ValidationFailed, userNameResult.Errors);
+        }
+
+        return AuthWorkflowResult<ConfirmEmailResponse>.Success(new ConfirmEmailResponse
+        {
+            UserId = user.Id,
+            Email = user.Email ?? ""
+        });
     }
 
     // Function summary: Sets the initial password after email confirmation and signs in the user.
@@ -323,8 +411,6 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<ProfileResponse>.Failure(AuthWorkflowStatus.Unauthorized);
         }
 
-        user.Email = request.Email;
-        user.UserName = request.Email;
         user.Name = request.Name;
         user.PhoneNumber = request.MobilePhone;
         user.CompanyRole = request.CompanyRole;
@@ -332,6 +418,25 @@ public sealed class AuthApplicationService : IAuthApplicationService
         if (!result.Succeeded)
         {
             return IdentityErrorResult<ProfileResponse>(AuthWorkflowStatus.ValidationFailed, result.Errors);
+        }
+
+        if (!string.Equals(user.Email, request.Email.Trim(), StringComparison.OrdinalIgnoreCase) &&
+            !configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
+        {
+            var newEmail = request.Email.Trim();
+            var code = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+            code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+            var callbackUrl = BuildClientUrl("/api/auth/change-email", new Dictionary<string, string?>
+            {
+                ["userId"] = user.Id,
+                ["email"] = newEmail,
+                ["code"] = code
+            });
+            var delivery = await accountMessenger.SendEmailChangeAsync(newEmail, callbackUrl, CancellationToken.None);
+            if (!delivery.Succeeded)
+            {
+                logger.LogWarning("Profile email-change confirmation delivery failed. ProviderResponse: {ProviderResponse}", delivery.ProviderResponse);
+            }
         }
 
         await signInManager.RefreshSignInAsync(user);
@@ -392,14 +497,10 @@ public sealed class AuthApplicationService : IAuthApplicationService
         };
     }
 
-    // Function summary: Builds an SPA client URL using configured public base URL with request-origin fallback.
-    private string BuildClientUrl(string path, IDictionary<string, string?> query, AuthRequestOrigin origin)
+    // Function summary: Builds an SPA client URL only from the configured public base URL.
+    private string BuildClientUrl(string path, IDictionary<string, string?> query)
     {
-        var configuredBaseUrl = configuration["Spa:PublicBaseUrl"];
-        var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
-            ? $"{origin.Scheme}://{origin.Host}{origin.PathBase}"
-            : configuredBaseUrl.TrimEnd('/');
-        return QueryHelpers.AddQueryString($"{baseUrl}{path}", query);
+        return SpaPublicLinkBuilder.Build(spaOptions, path, query);
     }
 
     // Function summary: Attempts to decode a base64-url email-confirmation code.

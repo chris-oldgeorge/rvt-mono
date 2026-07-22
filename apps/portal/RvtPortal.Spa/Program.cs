@@ -9,15 +9,18 @@
 // - 2026-06-25 pending Hardened auth cookie (HttpOnly/Secure outside dev) and fail-fast data-protection key persistence.
 // - 2026-06-25 pending Raised password length (configurable, default 12) and shortened reset/confirmation token lifespan.
 // - 2026-07-08 pending Shared one scoped relational connection across portal EF contexts for coordinated Unit of Work transactions.
+// - 2026-07-22 pending Validated the configured public SPA origin/AllowedHosts and restricted forwarded headers to explicit proxy trust.
 
 using System.Data.Common;
 using System.Globalization;
+using System.Net;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Azure.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +29,7 @@ using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
 using RvtPortal.Spa;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Application.Auth;
 using RvtPortal.Spa.Data;
 var builder = WebApplication.CreateBuilder(args);
 ConfigureServices(builder);
@@ -37,6 +41,8 @@ await app.RunAsync();
 // Function summary: Configures services during application startup.
 static void ConfigureServices(WebApplicationBuilder builder)
 {
+    ConfigurePublicHosting(builder);
+    ConfigureForwardedHeaders(builder);
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddHttpClient();
     builder.Services.AddMemoryCache();
@@ -56,6 +62,80 @@ static void ConfigureServices(WebApplicationBuilder builder)
     ConfigureApplicationCookie(builder.Services, builder.Environment);
     ConfigureRateLimiting(builder);
     builder.Services.AddRvtPortalBusinessServices(builder.Configuration);
+}
+
+// Function summary: Binds the public SPA origin and rejects unsafe production host configuration before startup.
+static void ConfigurePublicHosting(WebApplicationBuilder builder)
+{
+    builder.Services.AddOptions<SpaOptions>()
+        .Bind(builder.Configuration.GetSection(SpaOptions.SectionName));
+    if (!IsProductionStyleEnvironment(builder.Environment))
+    {
+        return;
+    }
+
+    var publicBaseUrl = builder.Configuration[$"{SpaOptions.SectionName}:{nameof(SpaOptions.PublicBaseUrl)}"];
+    if (!Uri.TryCreate(publicBaseUrl, UriKind.Absolute, out var publicBaseUri) ||
+        !string.Equals(publicBaseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+        string.IsNullOrWhiteSpace(publicBaseUri.Host) ||
+        !string.IsNullOrEmpty(publicBaseUri.UserInfo) ||
+        !string.IsNullOrEmpty(publicBaseUri.Query) ||
+        !string.IsNullOrEmpty(publicBaseUri.Fragment))
+    {
+        throw new InvalidOperationException(
+            "Spa:PublicBaseUrl must be configured as an absolute HTTPS base URI without credentials, query, or fragment outside Development/Testing.");
+    }
+
+    var allowedHosts = (builder.Configuration["AllowedHosts"] ?? "")
+        .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    if (allowedHosts.Length == 0 ||
+        allowedHosts.Any(host => host.Contains('*', StringComparison.Ordinal)) ||
+        !allowedHosts.Contains(publicBaseUri.Host, StringComparer.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            $"AllowedHosts must contain the exact Spa:PublicBaseUrl host '{publicBaseUri.Host}' and must not contain wildcards outside Development/Testing.");
+    }
+}
+
+// Function summary: Enables forwarded scheme/client metadata only for explicitly configured immediate proxies or networks.
+static void ConfigureForwardedHeaders(WebApplicationBuilder builder)
+{
+    var knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
+    var parsedProxies = knownProxies.Select(ParseKnownProxy).ToArray();
+    var knownNetworks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [];
+    var parsedNetworks = knownNetworks.Select(ParseKnownNetwork).ToArray();
+
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
+        options.KnownProxies.Clear();
+        options.KnownIPNetworks.Clear();
+        foreach (var proxy in parsedProxies)
+        {
+            options.KnownProxies.Add(proxy);
+        }
+        foreach (var network in parsedNetworks)
+        {
+            options.KnownIPNetworks.Add(network);
+        }
+    });
+}
+
+// Function summary: Parses one explicitly trusted proxy address or fails configuration deterministically.
+static IPAddress ParseKnownProxy(string value)
+{
+    return IPAddress.TryParse(value, out var address)
+        ? address
+        : throw new InvalidOperationException($"ForwardedHeaders:KnownProxies contains invalid IP address '{value}'.");
+}
+
+// Function summary: Parses one explicitly trusted proxy network or fails configuration deterministically.
+static System.Net.IPNetwork ParseKnownNetwork(string value)
+{
+    return System.Net.IPNetwork.TryParse(value, out var network)
+        ? network
+        : throw new InvalidOperationException($"ForwardedHeaders:KnownNetworks contains invalid CIDR network '{value}'.");
 }
 
 // Function summary: Configures rate limiting during application startup.
@@ -340,6 +420,7 @@ static async Task InitializeSeedDataAsync(WebApplication app)
 // Function summary: Configures pipeline during application startup.
 static void ConfigurePipeline(WebApplication app)
 {
+    app.UseForwardedHeaders();
     ConfigureEnvironmentPipeline(app);
     app.UseMiddleware<SecurityHeadersMiddleware>();
     app.UseWhen(ShouldApplyHttpsRedirection, branch => branch.UseHttpsRedirection());

@@ -1,14 +1,17 @@
 // File summary: Coordinates admin-managed user account lifecycle and site-assignment workflows.
 // Major updates:
 // - 2026-07-09 pending Moved user validation, role authorization, account links, cache clearing, and write orchestration out of UsersController.
+// - 2026-07-22 pending Removed request-origin fallback from admin-managed account notification links.
 
 using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using RVT.BusinessLogic;
 using RVT.BusinessLogic.Notifications;
+using RvtPortal.Spa.Application.Auth;
 using RvtPortal.Spa.Application.Companies;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
@@ -557,34 +560,37 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
 {
     private readonly UserManager<ApplicationUser> userManager;
     private readonly IConfiguration configuration;
+    private readonly SpaOptions spaOptions;
     private readonly IAccountMessenger accountMessenger;
 
     // Function summary: Initializes account notification sending with Identity token generation and message delivery dependencies.
     public UserAccountNotificationService(
         UserManager<ApplicationUser> userManager,
         IConfiguration configuration,
+        IOptions<SpaOptions> spaOptions,
         IAccountMessenger accountMessenger)
     {
         this.userManager = userManager;
         this.configuration = configuration;
+        this.spaOptions = spaOptions.Value;
         this.accountMessenger = accountMessenger;
     }
 
     // Function summary: Sends the password-set email for a newly created or unconfirmed account.
     public async Task SendPasswordSetAsync(ApplicationUser user, UserAccountRequestOrigin origin)
     {
+        if (configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
+        {
+            return;
+        }
+
         var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
         var callbackUrl = BuildClientUrl("/confirm-email", new Dictionary<string, string?>
         {
             ["userId"] = user.Id,
             ["code"] = code
-        }, origin);
-        if (configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
-        {
-            return;
-        }
-
+        });
         var delivery = await accountMessenger.SendPasswordSetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
         if (!delivery.Succeeded)
         {
@@ -595,16 +601,16 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
     // Function summary: Sends the password-reset email for an existing account.
     public async Task SendPasswordResetAsync(ApplicationUser user, UserAccountRequestOrigin origin)
     {
-        var code = await userManager.GeneratePasswordResetTokenAsync(user);
-        var callbackUrl = BuildClientUrl("/reset-password", new Dictionary<string, string?>
-        {
-            ["code"] = code
-        }, origin);
         if (configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
         {
             return;
         }
 
+        var code = await userManager.GeneratePasswordResetTokenAsync(user);
+        var callbackUrl = BuildClientUrl("/reset-password", new Dictionary<string, string?>
+        {
+            ["code"] = code
+        });
         var delivery = await accountMessenger.SendPasswordResetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
         if (!delivery.Succeeded)
         {
@@ -612,13 +618,9 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
         }
     }
 
-    // Function summary: Builds an SPA client URL using configured public base URL with request-origin fallback.
-    private string BuildClientUrl(string path, IDictionary<string, string?> query, UserAccountRequestOrigin origin)
+    // Function summary: Builds an SPA client URL only from the configured public base URL.
+    private string BuildClientUrl(string path, IDictionary<string, string?> query)
     {
-        var configuredBaseUrl = configuration["Spa:PublicBaseUrl"];
-        var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
-            ? $"{origin.Scheme}://{origin.Host}{origin.PathBase}"
-            : configuredBaseUrl.TrimEnd('/');
-        return QueryHelpers.AddQueryString($"{baseUrl}{path}", query);
+        return SpaPublicLinkBuilder.Build(spaOptions, path, query);
     }
 }

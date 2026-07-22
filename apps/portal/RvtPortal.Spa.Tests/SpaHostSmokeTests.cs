@@ -3,6 +3,7 @@
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
+// - 2026-07-22 pending Covered fail-fast production validation for the public SPA origin.
 
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
@@ -61,5 +62,22 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
         var client = scope.ServiceProvider.GetRequiredService<IReportGenerationClient>();
 
         Assert.IsType<ReportingServiceReportGenerationClient>(client);
+    }
+
+    [Fact]
+    // Function summary: Verifies production startup rejects a missing configured public SPA origin before serving requests.
+    public void ProductionHost_WithoutPublicBaseUrl_FailsConfigurationValidation()
+    {
+        using var productionFactory = new SpaTestApplicationFactory("Production");
+        using var invalidHost = productionFactory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Spa:PublicBaseUrl", "");
+            builder.UseSetting("AllowedHosts", "localhost;127.0.0.1");
+            builder.UseSetting("RvtProduction:DataProtectionBlobUri", "https://storage.example.test/keys/key.xml");
+        });
+
+        var exception = Assert.ThrowsAny<Exception>(() => invalidHost.CreateClient());
+
+        Assert.Contains("Spa:PublicBaseUrl", exception.ToString(), StringComparison.Ordinal);
     }
 }

@@ -3,13 +3,15 @@
 // - 2026-07-15 pending Extracted the password-set/reset templates from the retired MessageService into a pure,
 //   infrastructure-free catalog. The former monitor alert/caution/SMS templates were not carried over: the
 //   portal never sent them (no caller), and monitor-alert notification is the monitor-worker domain's concern.
+// - 2026-07-22 pending Added the pending profile email-change confirmation template.
 
 namespace RVT.BusinessLogic.Notifications;
 
 public enum AccountMessageKind
 {
     PasswordSet,
-    PasswordReset
+    PasswordReset,
+    EmailChange
 }
 
 // Function summary: An account email's subject and HTML body, with a {callbackUrl} placeholder for the action link.
@@ -41,6 +43,11 @@ public static class AccountMessageCatalog
         "Please <a href='{callbackUrl}'>click here</a> to reset the password. <br/><br/>" +
         "Many thanks From the RVT Group";
 
+    private const string EmailChangeContent =
+        "You have requested to change the email address for your RVT Cloud account.<br/><br/>" +
+        "Please <a href='{callbackUrl}'>click here</a> to confirm the new email address. <br/><br/>" +
+        "Many thanks From the RVT Group";
+
     // Function summary: Returns the subject and HTML body for an account message kind.
     public static AccountMessage For(AccountMessageKind kind) => kind switch
     {
@@ -50,6 +57,9 @@ public static class AccountMessageCatalog
         AccountMessageKind.PasswordReset => new AccountMessage(
             "Password reset",
             Template.Replace("{Content}", PasswordResetContent, StringComparison.Ordinal)),
+        AccountMessageKind.EmailChange => new AccountMessage(
+            "Confirm your new email address",
+            Template.Replace("{Content}", EmailChangeContent, StringComparison.Ordinal)),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown account message kind.")
     };
 }

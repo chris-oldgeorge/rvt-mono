@@ -9,6 +9,7 @@
 // - 2026-06-25 pending Rate limited anonymous login, forgot-password, and reset-password endpoints.
 // - 2026-06-25 pending Built reset/confirmation links from the configured public base URL to resist host-header injection.
 // - 2026-06-25 pending Removed user-enumeration oracles from reset-password and confirm-email responses.
+// - 2026-07-22 pending Added profile email-change confirmation and made forgot-password delivery failures publicly indistinguishable.
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -101,17 +102,11 @@ public class AuthController : ControllerBase
     [EnableRateLimiting(RateLimitingPolicies.AuthEndpoints)]
     [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     // Function summary: Starts the forgot-password workflow using a generic public response.
     public async Task<ActionResult<MessageResponse>> ForgotPassword(ForgotPasswordRequest request)
     {
         var result = await auth.ForgotPasswordAsync(request, BuildRequestOrigin());
-        return result.Status == AuthWorkflowStatus.EmailFailed
-            ? Problem(
-                title: "Email failed to send",
-                detail: result.Detail,
-                statusCode: StatusCodes.Status500InternalServerError)
-            : result.Value!;
+        return result.Value!;
     }
 
     [HttpPost("reset-password")]
@@ -153,6 +148,38 @@ public class AuthController : ControllerBase
                 Detail = "The confirmation code is malformed.",
                 Status = StatusCodes.Status400BadRequest
             }),
+            _ => ConfirmationFailed()
+        };
+    }
+
+    [HttpGet("change-email")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ConfirmEmailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    // Function summary: Confirms a pending profile email change through Identity.
+    public async Task<ActionResult<ConfirmEmailResponse>> ConfirmEmailChange(
+        [FromQuery] string? userId,
+        [FromQuery] string? email,
+        [FromQuery] string? code)
+    {
+        var result = await auth.ConfirmEmailChangeAsync(userId, email, code);
+        return result.Status switch
+        {
+            AuthWorkflowStatus.Success => result.Value!,
+            AuthWorkflowStatus.MissingConfirmationValues => BadRequest(new ProblemDetails
+            {
+                Title = InvalidConfirmationLinkTitle,
+                Detail = "A user, email, and confirmation code must be supplied.",
+                Status = StatusCodes.Status400BadRequest
+            }),
+            AuthWorkflowStatus.MalformedConfirmationCode => BadRequest(new ProblemDetails
+            {
+                Title = InvalidConfirmationLinkTitle,
+                Detail = "The confirmation code is malformed.",
+                Status = StatusCodes.Status400BadRequest
+            }),
+            AuthWorkflowStatus.ValidationFailed => IdentityErrors("Email change failed", result.Errors),
             _ => ConfirmationFailed()
         };
     }
@@ -250,7 +277,8 @@ public class AuthController : ControllerBase
         return new AuthRequestOrigin(
             Request.Scheme,
             Request.Host.ToString(),
-            Request.PathBase.ToString());
+            Request.PathBase.ToString(),
+            HttpContext.GetCorrelationId());
     }
 
     // Function summary: Builds the public response for expired, reused, or unknown confirmation links.

@@ -143,6 +143,19 @@ Enforced by: `RvtCommonDependencyBoundaryTests` and
   `-ConfigureAll`) and describe them in `docs/operations/portal/dev-secrets-reference.md`.
   Keys added to `appsettings.json` but not to the script are the drift to avoid.
 - Document what a key *does* and whether it is sensitive — never its value.
+- **Account-action links never derive their origin from the request.** Configure
+  `Spa:PublicBaseUrl` as an absolute HTTPS URI in every deployed environment and
+  keep `AllowedHosts` non-wildcard with that exact host. The checked-in
+  `AllowedHosts` values are local-only; deployment must override both settings.
+- **Forwarded headers require an explicit immediate-peer allowlist.** Populate
+  `ForwardedHeaders:KnownProxies` and/or `ForwardedHeaders:KnownNetworks` for the
+  deployed proxy topology. The host clears framework defaults, accepts only
+  forwarded client IP and scheme, and processes them before redirects, rate
+  limiting, authentication, and CSRF checks. Never enable forwarded-host trust
+  for account-link generation.
+
+Enforced by: `SpaHostSmokeTests.ProductionHost_WithoutPublicBaseUrl_FailsConfigurationValidation`
+and the public-origin/forwarded-header cases in `SecurityHardeningTests`.
 
 ## Documentation and client releases
 

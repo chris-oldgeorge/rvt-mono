@@ -4,6 +4,7 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 // - 2026-06-24 pending Documented shared-key report-content APIs as intentional ASP.NET anonymous routes.
+// - 2026-07-22 pending Covered configured auth origins, confirmed email changes, uniform reset failures, and explicit proxy trust.
 
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
@@ -13,14 +14,23 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using RVT.BusinessLogic.Notifications;
+using RVT.BusinessLogic.Ports.Notifications;
 using RVT.Entities;
+using RvtPortal.Spa.Application.Users;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
 
@@ -299,6 +309,193 @@ public class SecurityHardeningTests
     }
 
     [Fact]
+    // Function summary: Verifies an attacker-controlled Host cannot become a password-reset email link when public origin configuration is absent.
+    public async Task ForgotPassword_WithoutPublicBaseUrl_DoesNotSendHostDerivedLink()
+    {
+        var messenger = new RecordingAccountMessenger();
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        using var app = ConfigureAuthDelivery(factory, messenger, publicBaseUrl: "");
+        var client = CreateClient(app);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+        {
+            Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
+        };
+        request.Headers.Host = "attacker.example";
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(messenger.PasswordResetCallbackUrl);
+    }
+
+    [Fact]
+    // Function summary: Verifies configured public origin controls password-reset links even when Host is malicious.
+    public async Task ForgotPassword_WithPublicBaseUrl_SendsConfiguredHostLink()
+    {
+        var messenger = new RecordingAccountMessenger();
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        var client = CreateClient(app);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+        {
+            Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
+        };
+        request.Headers.Host = "attacker.example";
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.StartsWith("https://portal.example.test/reset-password?", messenger.PasswordResetCallbackUrl, StringComparison.Ordinal);
+        Assert.DoesNotContain("attacker.example", messenger.PasswordResetCallbackUrl, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    // Function summary: Verifies the sibling admin notification workflow cannot fall back to an attacker-controlled request origin.
+    public async Task AdminAccountNotification_WithoutPublicBaseUrl_DoesNotSendHostDerivedLink()
+    {
+        var messenger = new RecordingAccountMessenger();
+        using var factory = new SpaTestApplicationFactory();
+        var user = await factory.SeedUserAsync("admin-created.user@rvt.test", null, RoleNames.CompanyUser, emailConfirmed: false);
+        using var app = ConfigureAuthDelivery(factory, messenger, publicBaseUrl: "");
+        using var scope = app.Services.CreateScope();
+        var notifications = scope.ServiceProvider.GetRequiredService<IUserAccountNotificationService>();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => notifications.SendPasswordSetAsync(
+            user,
+            new UserAccountRequestOrigin("https", "attacker.example", "")));
+
+        Assert.Null(messenger.EmailChangeCallbackUrl);
+    }
+
+    [Fact]
+    // Function summary: Verifies profile email changes remain pending until the Identity change-email token is confirmed.
+    public async Task ProfileEmailChange_RemainsPendingUntilConfirmation()
+    {
+        const string newEmail = "security.changed@rvt.test";
+        var messenger = new RecordingAccountMessenger();
+        using var factory = new SpaTestApplicationFactory();
+        var seededUser = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        var client = CreateClient(app);
+        await LoginAsync(client);
+
+        using var update = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
+        {
+            Email = newEmail,
+            Name = "Pending Email Admin",
+            MobilePhone = "07123456789",
+            CompanyRole = "Operations"
+        });
+        var pendingProfile = await update.Content.ReadFromJsonAsync<ProfileResponse>();
+        var pendingUser = await FindUserByIdAsync(app, seededUser.Id);
+
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.Equal(AdminEmail, pendingProfile?.Email);
+        Assert.Equal(AdminEmail, pendingUser.Email);
+        Assert.Equal(AdminEmail, pendingUser.UserName);
+        Assert.True(pendingUser.EmailConfirmed);
+        Assert.Equal("Pending Email Admin", pendingUser.Name);
+        Assert.Equal(newEmail, messenger.EmailChangeRecipient);
+        Assert.NotNull(messenger.EmailChangeCallbackUrl);
+
+        var confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
+        using var confirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        var confirmedUser = await FindUserByIdAsync(app, seededUser.Id);
+
+        Assert.Equal(HttpStatusCode.OK, confirmation.StatusCode);
+        Assert.Equal(newEmail, confirmedUser.Email);
+        Assert.Equal(newEmail, confirmedUser.UserName);
+        Assert.True(confirmedUser.EmailConfirmed);
+    }
+
+    [Fact]
+    // Function summary: Verifies email-provider failures are indistinguishable from unknown accounts to anonymous callers.
+    public async Task ForgotPassword_EmailProviderFailure_MatchesUnknownAccountResponse()
+    {
+        const string providerDetail = "sendgrid-private-diagnostic";
+        var logs = new ListLoggerProvider();
+        var messenger = new RecordingAccountMessenger(EmailDeliveryResult.Failure(providerDetail));
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        await factory.SeedUserAsync("unconfirmed@rvt.test", Password, RoleNames.RVTAdmin, emailConfirmed: false);
+        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test", logs);
+        var client = CreateClient(app);
+
+        using var known = await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest { Email = AdminEmail });
+        using var unknown = await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest { Email = "missing@rvt.test" });
+        using var unconfirmed = await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest { Email = "unconfirmed@rvt.test" });
+        var knownBody = await known.Content.ReadAsStringAsync();
+        var unknownBody = await unknown.Content.ReadAsStringAsync();
+        var unconfirmedBody = await unconfirmed.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, known.StatusCode);
+        Assert.Equal(unknown.StatusCode, known.StatusCode);
+        Assert.Equal(unconfirmed.StatusCode, known.StatusCode);
+        Assert.Equal(unknownBody, knownBody);
+        Assert.Equal(unconfirmedBody, knownBody);
+        Assert.DoesNotContain(providerDetail, knownBody, StringComparison.Ordinal);
+        Assert.Contains(logs.Messages, message =>
+            message.Contains(providerDetail, StringComparison.Ordinal) &&
+            message.Contains("CorrelationId", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("ForwardedHeaders:KnownProxies:0", "127.0.0.1")]
+    [InlineData("ForwardedHeaders:KnownNetworks:0", "127.0.0.0/8")]
+    // Function summary: Verifies explicitly trusted proxy addresses and networks can supply the original HTTPS scheme.
+    public async Task ForwardedProto_FromConfiguredProxyOrNetwork_IsHonored(string settingKey, string settingValue)
+    {
+        using var factory = new SpaTestApplicationFactory();
+        using var app = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting(settingKey, settingValue);
+        });
+
+        var context = await app.Server.SendAsync(request => ConfigureForwardedRequest(request, IPAddress.Loopback));
+
+        Assert.Equal("https", context.Request.Scheme);
+        Assert.Equal(IPAddress.Parse("203.0.113.25"), context.Connection.RemoteIpAddress);
+    }
+
+    [Fact]
+    // Function summary: Verifies forwarded headers are ignored when the immediate proxy is not explicitly trusted.
+    public async Task ForwardedProto_FromUntrustedProxy_IsIgnored()
+    {
+        using var factory = new SpaTestApplicationFactory(authRatePermitLimit: 1);
+        using var app = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("ForwardedHeaders:KnownProxies:0", "198.51.100.10");
+        });
+
+        var context = await app.Server.SendAsync(request => ConfigureForwardedRequest(request, IPAddress.Loopback));
+
+        Assert.Equal("http", context.Request.Scheme);
+        Assert.Equal(IPAddress.Loopback, context.Connection.RemoteIpAddress);
+    }
+
+    [Fact]
+    // Function summary: Verifies forwarded-host trust remains disabled and framework loopback defaults are cleared.
+    public void ForwardedHeaders_TrustOnlyConfiguredSources_AndNeverForwardedHost()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        using var app = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("ForwardedHeaders:KnownProxies:0", "198.51.100.10");
+        });
+        _ = app.CreateClient();
+
+        var options = app.Services.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;
+
+        Assert.Equal(ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto, options.ForwardedHeaders);
+        Assert.False(options.ForwardedHeaders.HasFlag(ForwardedHeaders.XForwardedHost));
+        Assert.Single(options.KnownProxies);
+        Assert.Equal(IPAddress.Parse("198.51.100.10"), options.KnownProxies.Single());
+        Assert.Empty(options.KnownIPNetworks);
+    }
+
+    [Fact]
     // Function summary: Handles the supplied correlation id with unsafe characters is not reflected workflow for this module.
     public async Task SuppliedCorrelationId_WithUnsafeCharacters_IsNotReflected()
     {
@@ -379,6 +576,93 @@ public class SecurityHardeningTests
             Password = Password,
             RememberMe = true
         });
+    }
+
+    // Function summary: Configures one test-server request with an explicit immediate peer and forwarded metadata.
+    private static void ConfigureForwardedRequest(HttpContext context, IPAddress immediatePeer)
+    {
+        context.Connection.RemoteIpAddress = immediatePeer;
+        context.Request.Method = HttpMethods.Get;
+        context.Request.Scheme = "http";
+        context.Request.Host = new HostString("localhost");
+        context.Request.Path = "/api/health";
+        context.Request.Headers["X-Forwarded-For"] = "203.0.113.25";
+        context.Request.Headers["X-Forwarded-Proto"] = "https";
+    }
+
+    // Function summary: Configures real auth workflows with a deterministic outbound-account-message boundary.
+    private static WebApplicationFactory<Program> ConfigureAuthDelivery(
+        SpaTestApplicationFactory factory,
+        IAccountMessenger messenger,
+        string publicBaseUrl,
+        ILoggerProvider? loggerProvider = null)
+    {
+        return factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, configuration) =>
+            {
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Auth:SkipPasswordResetEmail"] = "false",
+                    ["Spa:PublicBaseUrl"] = publicBaseUrl
+                });
+            });
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IAccountMessenger>();
+                services.AddSingleton(messenger);
+            });
+            if (loggerProvider is not null)
+            {
+                builder.ConfigureLogging(logging =>
+                {
+                    logging.AddProvider(loggerProvider);
+                    logging.SetMinimumLevel(LogLevel.Information);
+                });
+            }
+        });
+    }
+
+    // Function summary: Loads one Identity user from the application under test for persistence assertions.
+    private static async Task<ApplicationUser> FindUserByIdAsync(WebApplicationFactory<Program> factory, string userId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
+        return await userManager.FindByIdAsync(userId) ?? throw new InvalidOperationException($"User {userId} was not found.");
+    }
+
+    private sealed class RecordingAccountMessenger : IAccountMessenger
+    {
+        private readonly EmailDeliveryResult delivery;
+
+        public RecordingAccountMessenger(EmailDeliveryResult? delivery = null)
+        {
+            this.delivery = delivery ?? EmailDeliveryResult.Success();
+        }
+
+        public string? PasswordResetCallbackUrl { get; private set; }
+        public string? EmailChangeRecipient { get; private set; }
+        public string? EmailChangeCallbackUrl { get; private set; }
+
+        public Task<EmailDeliveryResult> SendPasswordSetAsync(string email, string callbackUrl, CancellationToken cancellationToken)
+        {
+            EmailChangeRecipient = email;
+            EmailChangeCallbackUrl = callbackUrl;
+            return Task.FromResult(delivery);
+        }
+
+        public Task<EmailDeliveryResult> SendPasswordResetAsync(string email, string callbackUrl, CancellationToken cancellationToken)
+        {
+            PasswordResetCallbackUrl = callbackUrl;
+            return Task.FromResult(delivery);
+        }
+
+        public Task<EmailDeliveryResult> SendEmailChangeAsync(string email, string callbackUrl, CancellationToken cancellationToken)
+        {
+            EmailChangeRecipient = email;
+            EmailChangeCallbackUrl = callbackUrl;
+            return Task.FromResult(delivery);
+        }
     }
 
     private sealed class ListLoggerProvider : ILoggerProvider

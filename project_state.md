@@ -329,3 +329,36 @@
 - Planned CI variable: `RVT_TEST_POSTGRES_CONNECTION` is the portal-specific
   real-PostgreSQL test connection. It is distinct from monitor-suite integration
   variables recorded elsewhere in this file.
+
+## Immediate Blockers Task 4 - 2026-07-22
+
+- Public account-action links now use only the bound `SpaOptions.PublicBaseUrl`
+  through `SpaPublicLinkBuilder`; neither `AuthApplicationService` nor the
+  sibling `UserAccountNotificationService` can fall back to request scheme,
+  host, or path base. The existing request-origin records remain at controller
+  boundaries for API compatibility, with auth also carrying the internal
+  correlation id used for safe provider-failure logging.
+- Outside Development/Testing, `Program.cs` requires `Spa:PublicBaseUrl` to be
+  an absolute HTTPS base URI without credentials/query/fragment. `AllowedHosts`
+  must be nonempty, contain no wildcard, and contain that URI's exact host.
+  Checked-in `appsettings.json` leaves the public base blank and limits local
+  hosts to `localhost;127.0.0.1`; deployments must override both settings.
+- Forwarded-header variables are `ForwardedHeaders:KnownProxies` (individual IP
+  addresses) and `ForwardedHeaders:KnownNetworks` (CIDR ranges). Framework trust
+  defaults are cleared, `ForwardLimit` is one, only `X-Forwarded-For` and
+  `X-Forwarded-Proto` are enabled, and `UseForwardedHeaders` runs before HTTPS
+  redirect, correlation/observability, CSRF, rate limiting, and authentication.
+- Profile email edits update name, phone, and company role independently while
+  leaving `ApplicationUser.Email`, `UserName`, and `EmailConfirmed` unchanged.
+  A `GenerateChangeEmailTokenAsync` token is delivered to the requested address;
+  `GET /api/auth/change-email` applies it with `ChangeEmailAsync` and then aligns
+  the username. `AccountMessageKind.EmailChange` supplies the dedicated message.
+- Anonymous forgot-password paths return the same generic 200 response for
+  unknown, unconfirmed, missing-origin, delivery-failure, and provider-exception
+  cases. Provider diagnostics stay in structured internal logs with the API
+  correlation id.
+- Regression files are `SecurityHardeningTests.cs` and `SpaHostSmokeTests.cs`;
+  they cover malicious/configured host controls, the sibling notification path,
+  pending-to-confirmed email change, provider-failure uniformity, production
+  startup validation, configured proxy/network trust, untrusted peers, cleared
+  defaults, and disabled forwarded-host processing.

@@ -24,9 +24,11 @@
     <Project Path="apps/portal/RVT.Entities/RVT.Entities.csproj" />
     <Project Path="apps/portal/RVT.SchemaDeploy/RVT.SchemaDeploy.csproj" />
     <Project Path="apps/portal/RVT.Utilities/RVT.Utilities.csproj" />
+    <Project Path="apps/portal/RvtPortal.Application/RvtPortal.Application.csproj" />
     <Project Path="apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj" />
   </Folder>
   <Folder Name="/Apps/Portal/Tests/">
+    <Project Path="apps/portal/RvtPortal.Application.Tests/RvtPortal.Application.Tests.csproj" />
     <Project Path="apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj" />
   </Folder>
   <Folder Name="/Libraries/" />

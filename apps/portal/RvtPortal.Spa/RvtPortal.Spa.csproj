@@ -32,6 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RvtPortal.Application\RvtPortal.Application.csproj" />
     <!-- Shared RVT common email/notification adapters. Host-only: the business core depends on its own
          IEmailDelivery port, never on this project (enforced by RvtCommonDependencyBoundaryTests). -->
     <ProjectReference Include="../../../libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj" />

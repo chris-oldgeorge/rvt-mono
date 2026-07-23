@@ -57,6 +57,11 @@ internal class FakeSiteReadPort : ISiteReadPort
         CancellationToken token) =>
         Task.FromResult<SiteDetailModel?>(null);
 
+    public virtual Task<SiteArchiveState?> GetArchiveStateAsync(
+        Guid siteId,
+        CancellationToken token) =>
+        Task.FromResult<SiteArchiveState?>(null);
+
     public virtual Task<PagedResult<SiteMonitorModel>> QueryMonitorsAsync(
         Guid siteId,
         PageRequest page,
@@ -124,6 +129,14 @@ internal sealed class NoOpSiteWritePort : ISiteWritePort
         CancellationToken cancellationToken) =>
         Task.FromResult(true);
 
+    public Task MarkArchivedAsync(
+        Guid siteId,
+        string createdBy,
+        string archiveUrl,
+        DateTime archivedUtc,
+        CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+
     public Task UpsertNotificationSettingAsync(
         Guid siteUserId,
         SiteNotificationSettingMutation request,
@@ -131,4 +144,38 @@ internal sealed class NoOpSiteWritePort : ISiteWritePort
         TimeSpan? endTime,
         CancellationToken cancellationToken) =>
         Task.CompletedTask;
+}
+
+internal sealed class NoOpSiteArchivePort : ISiteArchivePort
+{
+    public Task<SiteArchiveExportResult> ExportAsync(
+        Guid siteId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(
+            SiteArchiveExportResult.Success("https://archive.example/site.zip"));
+}
+
+internal sealed class NoOpSiteLogoPort : ISiteLogoPort
+{
+    public Task<bool> ExistsAsync(
+        Guid siteId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(false);
+
+    public Task<SiteLogoSaveResult> SaveAsync(
+        Guid siteId,
+        SiteLogoUpload upload,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(
+            new SiteLogoSaveResult(SiteLogoSaveOutcome.Saved, null));
+
+    public Task DeleteAsync(
+        Guid siteId,
+        CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+
+    public Task<SiteLogoFile?> OpenReadAsync(
+        Guid siteId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<SiteLogoFile?>(null);
 }

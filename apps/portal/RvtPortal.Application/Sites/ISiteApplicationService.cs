@@ -1,5 +1,6 @@
 using RvtPortal.Application.Common;
 using RvtPortal.Application.Identity;
+using RvtPortal.Application.Sites.Ports;
 
 namespace RvtPortal.Application.Sites;
 
@@ -55,6 +56,28 @@ public interface ISiteApplicationService
         PortalUserContext user,
         Guid id,
         SiteMutation request,
+        CancellationToken cancellationToken);
+
+    Task<UseCaseResult<SiteDetailModel>> ArchiveAsync(
+        PortalUserContext user,
+        Guid id,
+        string createdBy,
+        CancellationToken cancellationToken);
+
+    Task<UseCaseResult<SiteDetailModel>> SaveCustomerLogoAsync(
+        PortalUserContext user,
+        Guid id,
+        SiteLogoUpload upload,
+        CancellationToken cancellationToken);
+
+    Task<UseCaseResult<SiteDetailModel>> DeleteCustomerLogoAsync(
+        PortalUserContext user,
+        Guid id,
+        CancellationToken cancellationToken);
+
+    Task<UseCaseResult<SiteLogoFile>> OpenCustomerLogoAsync(
+        PortalUserContext user,
+        Guid id,
         CancellationToken cancellationToken);
 
     Task<UseCaseResult<SiteNotificationSettingModel>> UpdateNotificationSettingAsync(

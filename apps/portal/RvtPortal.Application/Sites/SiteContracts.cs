@@ -144,7 +144,7 @@ public sealed class SiteDetailModel : SiteListModel
     public List<SiteOptionModel> Companies { get; init; } = [];
     public List<SiteOptionModel> AvailableContracts { get; init; } = [];
     public bool CanManage { get; set; }
-    public bool HasCustomerLogo { get; init; }
+    public bool HasCustomerLogo { get; set; }
 }
 
 public sealed class SiteOptionsModel

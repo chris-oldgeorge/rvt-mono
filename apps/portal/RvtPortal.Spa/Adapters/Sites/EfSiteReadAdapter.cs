@@ -78,6 +78,17 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             : await BuildSiteDetailAsync(site, cancellationToken);
     }
 
+    public Task<SiteArchiveState?> GetArchiveStateAsync(
+        Guid siteId,
+        CancellationToken cancellationToken)
+    {
+        return domainContext.Sites
+            .AsNoTracking()
+            .Where(site => site.Id == siteId)
+            .Select(site => new SiteArchiveState(site.Id, site.Archived))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     [SuppressMessage("Globalization", "CA1304:Specify CultureInfo", Justification = "EF query predicate; ToLower() is the only case-insensitive form that translates on Npgsql and runs on the InMemory test provider. See docs/development/portal/sonar/globalization-suppressions.md")]
     [SuppressMessage("Globalization", "CA1311:Specify a culture or use an invariant version", Justification = "EF query predicate; see docs/development/portal/sonar/globalization-suppressions.md")]
     [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]

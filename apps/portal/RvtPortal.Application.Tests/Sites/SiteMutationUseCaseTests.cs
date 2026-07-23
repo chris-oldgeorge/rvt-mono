@@ -478,6 +478,8 @@ public sealed class SiteMutationUseCaseTests
                 writes,
                 unitOfWork,
                 users,
+                new NoOpSiteArchivePort(),
+                new NoOpSiteLogoPort(),
                 new FixedTimeProvider(now));
             return new SiteMutationFixture(
                 service,
@@ -583,6 +585,14 @@ public sealed class SiteMutationUseCaseTests
             UpdateCount++;
             return Task.FromResult(UpdateResult);
         }
+
+        public Task MarkArchivedAsync(
+            Guid siteId,
+            string createdBy,
+            string archiveUrl,
+            DateTime archivedUtc,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
 
         public Task UpsertNotificationSettingAsync(
             Guid siteUserId,

@@ -909,3 +909,54 @@
 - Generated untracked `.codegraph/` and `apps/.nuget-packages/` remain
   untouched and excluded from the task commit. Task 3 Sites read extraction
   has not started.
+
+## Sites Application Boundary Task 5 - 2026-07-23
+
+- Active branch: `codex/sites-application-boundary`; Task 5 started from the
+  accepted Task 4 commit `1e8a261753440162d2b9d02c1b6f1e992898b9be`.
+- `RvtPortal.Application.Sites.Ports` now owns `ISiteArchivePort`,
+  `SiteArchiveExportResult`, `ISiteLogoPort`, `SiteLogoUpload`,
+  `SiteLogoFile`, `SiteLogoSaveOutcome`, `SiteLogoSaveResult`, and
+  `SiteArchiveState`. The logo upload/download records intentionally use only
+  BCL `Stream` payloads; the application project still has no package or
+  project references and no host, HTTP, EF, configuration, or vendor SDK
+  types.
+- `ISiteApplicationService` and `SiteApplicationService` now cover archive,
+  logo save/delete, and protected logo reads. Archive export completes before
+  `IApplicationUnitOfWork.ExecuteInTransactionAsync`; an export failure opens
+  no transaction and writes no archive state. Successful archive metadata uses
+  `timeProvider.GetUtcNow().UtcDateTime`.
+- Logo save/delete call storage only after `CanManageSiteAsync`; protected
+  reads call storage only after `CanReadSiteAsync`. Inaccessible sites remain
+  masked as not found, and storage validation messages are returned as the
+  `logo` validation error.
+- All successful detail reads now pass through `ReadDetailAsync`, which sets
+  `SiteDetailModel.CanManage` and obtains `HasCustomerLogo` from
+  `ISiteLogoPort.ExistsAsync`. `HasCustomerLogo` is mutable only so the
+  application orchestration can enrich materialized EF projections.
+- Host adapter structure added under
+  `apps/portal/RvtPortal.Spa/Adapters/Sites`: `SiteArchiveAdapter` wraps
+  `ISiteArchiveService`, maps non-cancellation failures to the compatible
+  archive error, and rethrows cancellation; `SiteLogoAdapter` wraps
+  `ICustomerLogoStorage` and maps BCL streams through an `IUploadedContent`
+  implementation without disposing the caller-owned upload stream.
+- `EfSiteReadAdapter.GetArchiveStateAsync` materializes only site id/archive
+  state. `EfSiteWriteAdapter.MarkArchivedAsync` marks the tracked site and
+  stages UTC `SiteArchived` metadata. DI now registers the four
+  application-facing read, write, archive, and logo ports; controller cutover
+  remains Task 6.
+- Recording-test variables include `Events` (`export`, `transaction`,
+  `archive`), `TransactionCount`, `ArchiveCount`, `ExportCount`, `SaveCount`,
+  `DeleteCount`, `OpenReadCount`, `ArchiveUrl`, `ArchivedUtc`, and logo
+  `Exists`/`SaveResult`. The fixed application clock is
+  `2026-07-23T12:00:00Z`.
+- TDD evidence: the first RED failed on the absent archive/logo contracts; the
+  second RED failed on the absent use cases and seven-argument service
+  constructor. The adapter/EF RED failed because the host did not implement
+  `GetArchiveStateAsync` or `MarkArchivedAsync`. GREEN verification passes
+  7/7 focused application workflow tests, 8/8 prescribed archive/storage
+  tests, 4/4 focused adapter/EF additions, all 31 application tests, and 16/16
+  application-boundary/read/write/unit-of-work regressions.
+- The existing `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories
+  remain outside Task 5. Generated `.codegraph/` and
+  `apps/.nuget-packages/` remain untracked and must not be staged.

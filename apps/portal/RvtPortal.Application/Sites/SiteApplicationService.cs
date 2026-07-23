@@ -36,6 +36,8 @@ public sealed class SiteApplicationService : ISiteApplicationService
     private readonly ISiteWritePort writes;
     private readonly IApplicationUnitOfWork unitOfWork;
     private readonly IPortalUserDirectory userDirectory;
+    private readonly ISiteArchivePort archive;
+    private readonly ISiteLogoPort logos;
     private readonly TimeProvider timeProvider;
 
     public SiteApplicationService(
@@ -43,12 +45,16 @@ public sealed class SiteApplicationService : ISiteApplicationService
         ISiteWritePort writes,
         IApplicationUnitOfWork unitOfWork,
         IPortalUserDirectory userDirectory,
+        ISiteArchivePort archive,
+        ISiteLogoPort logos,
         TimeProvider timeProvider)
     {
         this.reads = reads;
         this.writes = writes;
         this.unitOfWork = unitOfWork;
         this.userDirectory = userDirectory;
+        this.archive = archive;
+        this.logos = logos;
         this.timeProvider = timeProvider;
     }
 
@@ -85,13 +91,12 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return SiteNotFound<SiteDetailModel>(id);
         }
 
-        var site = await reads.GetAsync(id, cancellationToken);
+        var site = await ReadDetailAsync(user, id, cancellationToken);
         if (site == null)
         {
             return SiteNotFound<SiteDetailModel>(id);
         }
 
-        site.CanManage = SiteAuthorizationPolicy.CanManage(user);
         return UseCaseResult<SiteDetailModel>.Success(site);
     }
 
@@ -229,10 +234,9 @@ public sealed class SiteApplicationService : ISiteApplicationService
                         throw new ContractClaimFailedException();
                     }
 
-                    var detail = await reads.GetAsync(siteId, token)
+                    var detail = await ReadDetailAsync(user, siteId, token)
                         ?? throw new InvalidOperationException(
                             $"Site '{siteId}' was not readable after a successful create.");
-                    detail.CanManage = SiteAuthorizationPolicy.CanManage(user);
                     return UseCaseResult<SiteDetailModel>.Success(detail);
                 },
                 cancellationToken);
@@ -296,13 +300,114 @@ public sealed class SiteApplicationService : ISiteApplicationService
                 }
 
                 await unitOfWork.SaveChangesAsync(token);
-                var detail = await reads.GetAsync(id, token)
+                var detail = await ReadDetailAsync(user, id, token)
                     ?? throw new InvalidOperationException(
                         $"Site '{id}' was not readable after a successful update.");
-                detail.CanManage = SiteAuthorizationPolicy.CanManage(user);
                 return UseCaseResult<SiteDetailModel>.Success(detail);
             },
             cancellationToken);
+    }
+
+    public async Task<UseCaseResult<SiteDetailModel>> ArchiveAsync(
+        PortalUserContext user,
+        Guid id,
+        string createdBy,
+        CancellationToken cancellationToken)
+    {
+        var state = await reads.GetArchiveStateAsync(id, cancellationToken);
+        if (state is null)
+        {
+            return SiteNotFound<SiteDetailModel>(id);
+        }
+
+        if (!state.Archived)
+        {
+            var export = await archive.ExportAsync(id, cancellationToken);
+            if (!export.Succeeded || string.IsNullOrWhiteSpace(export.ArchiveUrl))
+            {
+                return UseCaseResult<SiteDetailModel>.ExternalServiceUnavailable(
+                    export.ErrorMessage
+                        ?? "The site archive could not be created, so the site was not archived. Please try again.");
+            }
+
+            await unitOfWork.ExecuteInTransactionAsync(
+                async token =>
+                {
+                    await writes.MarkArchivedAsync(
+                        id,
+                        createdBy,
+                        export.ArchiveUrl,
+                        timeProvider.GetUtcNow().UtcDateTime,
+                        token);
+                    await unitOfWork.SaveChangesAsync(token);
+                    return true;
+                },
+                cancellationToken);
+        }
+
+        var detail = await ReadDetailAsync(user, id, cancellationToken);
+        return detail is null
+            ? SiteNotFound<SiteDetailModel>(id)
+            : UseCaseResult<SiteDetailModel>.Success(detail);
+    }
+
+    public async Task<UseCaseResult<SiteDetailModel>> SaveCustomerLogoAsync(
+        PortalUserContext user,
+        Guid id,
+        SiteLogoUpload upload,
+        CancellationToken cancellationToken)
+    {
+        if (!await CanManageSiteAsync(user, id, cancellationToken))
+        {
+            return SiteNotFound<SiteDetailModel>(id);
+        }
+
+        var save = await logos.SaveAsync(id, upload, cancellationToken);
+        if (save.Outcome == SiteLogoSaveOutcome.Invalid)
+        {
+            return UseCaseResult<SiteDetailModel>.Validation(
+                new UseCaseError(
+                    "logo",
+                    save.Message ?? "The customer logo is invalid."));
+        }
+
+        var detail = await ReadDetailAsync(user, id, cancellationToken);
+        return detail is null
+            ? SiteNotFound<SiteDetailModel>(id)
+            : UseCaseResult<SiteDetailModel>.Success(detail);
+    }
+
+    public async Task<UseCaseResult<SiteDetailModel>> DeleteCustomerLogoAsync(
+        PortalUserContext user,
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (!await CanManageSiteAsync(user, id, cancellationToken))
+        {
+            return SiteNotFound<SiteDetailModel>(id);
+        }
+
+        await logos.DeleteAsync(id, cancellationToken);
+        var detail = await ReadDetailAsync(user, id, cancellationToken);
+        return detail is null
+            ? SiteNotFound<SiteDetailModel>(id)
+            : UseCaseResult<SiteDetailModel>.Success(detail);
+    }
+
+    public async Task<UseCaseResult<SiteLogoFile>> OpenCustomerLogoAsync(
+        PortalUserContext user,
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (!await CanReadSiteAsync(user, id, cancellationToken))
+        {
+            return SiteNotFound<SiteLogoFile>(id);
+        }
+
+        var logo = await logos.OpenReadAsync(id, cancellationToken);
+        return logo is null
+            ? SiteNotFound<SiteLogoFile>(id)
+            : UseCaseResult<SiteLogoFile>.Success(logo);
     }
 
     public Task<UseCaseResult<SiteNotificationSettingModel>> UpdateNotificationSettingAsync(
@@ -405,6 +510,24 @@ public sealed class SiteApplicationService : ISiteApplicationService
                     assignment.EndTime);
             }).ToList()
         };
+    }
+
+    private async Task<SiteDetailModel?> ReadDetailAsync(
+        PortalUserContext user,
+        Guid siteId,
+        CancellationToken cancellationToken)
+    {
+        var detail = await reads.GetAsync(siteId, cancellationToken);
+        if (detail is null)
+        {
+            return null;
+        }
+
+        detail.CanManage = SiteAuthorizationPolicy.CanManage(user);
+        detail.HasCustomerLogo = await logos.ExistsAsync(
+            detail.Id,
+            cancellationToken);
+        return detail;
     }
 
     private static UseCaseResult<T> SiteNotFound<T>(Guid siteId) =>

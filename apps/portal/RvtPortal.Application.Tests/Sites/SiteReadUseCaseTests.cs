@@ -69,5 +69,7 @@ public sealed class SiteReadUseCaseTests
             new NoOpSiteWritePort(),
             new InlineUnitOfWork(),
             new EmptyPortalUserDirectory(),
+            new NoOpSiteArchivePort(),
+            new NoOpSiteLogoPort(),
             new FixedTimeProvider(Now));
 }

@@ -8,7 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using System.Data.Common;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
+using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Adapters.Archive;
+using RvtPortal.Spa.Adapters.Sites;
 using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
 
@@ -16,6 +18,30 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class SiteArchiveServiceSecurityTests
 {
+    [Fact]
+    public async Task SiteArchiveAdapter_MapsExportFailureWithoutSwallowingCancellation()
+    {
+        var failureAdapter = new SiteArchiveAdapter(
+            new ThrowingSiteArchiveService(new IOException("upload failed")));
+
+        var failure = await failureAdapter.ExportAsync(
+            Guid.NewGuid(),
+            CancellationToken.None);
+
+        Assert.False(failure.Succeeded);
+        Assert.Null(failure.ArchiveUrl);
+        Assert.Equal(
+            "The site archive could not be created, so the site was not archived. Please try again.",
+            failure.ErrorMessage);
+
+        var cancellationAdapter = new SiteArchiveAdapter(
+            new ThrowingSiteArchiveService(new OperationCanceledException()));
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => cancellationAdapter.ExportAsync(
+                Guid.NewGuid(),
+                CancellationToken.None));
+    }
+
     [Fact]
     // Function summary: Verifies the archive orchestrator delegates SQL, temp-workspace, and streamed CSV concerns to dedicated components.
     public void SiteArchiveService_DoesNotOwnSqlTranslationFixedWorkspaceOrCsvMaterialization()
@@ -175,5 +201,14 @@ public sealed class SiteArchiveServiceSecurityTests
             ?? throw new MissingMethodException(target.GetType().FullName, methodName);
 
         return (T)(method.Invoke(target, args) ?? throw new InvalidOperationException($"{methodName} returned null."));
+    }
+
+    private sealed class ThrowingSiteArchiveService(Exception exception)
+        : ISiteArchiveService
+    {
+        public Task<string> Process(
+            Guid siteId,
+            CancellationToken cancellationToken) =>
+            Task.FromException<string>(exception);
     }
 }

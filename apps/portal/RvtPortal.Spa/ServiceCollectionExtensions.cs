@@ -129,6 +129,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISiteApplicationService, SiteApplicationService>();
         services.AddScoped<ISiteReadPort, EfSiteReadAdapter>();
         services.AddScoped<ISiteWritePort, EfSiteWriteAdapter>();
+        services.AddScoped<ISiteArchivePort, SiteArchiveAdapter>();
+        services.AddScoped<ISiteLogoPort, SiteLogoAdapter>();
         services.AddScoped<IReportRuleApplicationService, ReportRuleApplicationService>();
         services.AddScoped<IUserAdministrationReadService, UserAdministrationReadService>();
         services.AddScoped<IUserListApplicationService, UserListApplicationService>();

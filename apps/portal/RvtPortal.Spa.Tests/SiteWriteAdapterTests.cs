@@ -14,6 +14,54 @@ namespace RvtPortal.Spa.Tests;
 public sealed class SiteWriteAdapterTests
 {
     [Fact]
+    public async Task MarkArchivedAsync_PersistsUtcArchiveMetadata()
+    {
+        await using var fixture = await SiteWriteAdapterFixture.CreateAsync();
+        var siteId = Guid.NewGuid();
+        fixture.DomainContext.Sites.Add(new Site
+        {
+            Id = siteId,
+            SiteName = "Archive Site",
+            CreateDate = DateTime.UtcNow,
+            Contracts = []
+        });
+        await fixture.DomainContext.SaveChangesAsync();
+        var archivedUtc = new DateTime(
+            2026,
+            7,
+            23,
+            12,
+            0,
+            0,
+            DateTimeKind.Utc);
+
+        await fixture.UnitOfWork.ExecuteInTransactionAsync(
+            async token =>
+            {
+                await fixture.Adapter.MarkArchivedAsync(
+                    siteId,
+                    "admin",
+                    "https://archive.example/site.zip",
+                    archivedUtc,
+                    token);
+                await fixture.UnitOfWork.SaveChangesAsync(token);
+                return true;
+            },
+            CancellationToken.None);
+
+        await using var context = fixture.CreateDomainContext();
+        Assert.True(await context.Sites
+            .Where(site => site.Id == siteId)
+            .Select(site => site.Archived)
+            .SingleAsync());
+        var archive = await context.SiteArchived
+            .SingleAsync(entry => entry.SiteId == siteId);
+        Assert.Equal("admin", archive.CreatedBy);
+        Assert.Equal("https://archive.example/site.zip", archive.PictureLink);
+        Assert.Equal(archivedUtc, archive.CreateDate);
+    }
+
+    [Fact]
     public async Task CreateAsync_CommitsSiteContractLinkAndSevenOperatingHourRows()
     {
         await using var fixture = await SiteWriteAdapterFixture.CreateAsync();

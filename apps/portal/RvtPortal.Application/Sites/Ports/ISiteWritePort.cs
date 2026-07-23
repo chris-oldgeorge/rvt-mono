@@ -18,6 +18,13 @@ public interface ISiteWritePort
         ValidatedSiteMutation mutation,
         CancellationToken cancellationToken);
 
+    Task MarkArchivedAsync(
+        Guid siteId,
+        string createdBy,
+        string archiveUrl,
+        DateTime archivedUtc,
+        CancellationToken cancellationToken);
+
     Task UpsertNotificationSettingAsync(
         Guid siteUserId,
         SiteNotificationSettingMutation request,

@@ -106,6 +106,25 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         return true;
     }
 
+    public async Task MarkArchivedAsync(
+        Guid siteId,
+        string createdBy,
+        string archiveUrl,
+        DateTime archivedUtc,
+        CancellationToken cancellationToken)
+    {
+        var site = await domainContext.Sites
+            .SingleAsync(item => item.Id == siteId, cancellationToken);
+        site.Archived = true;
+        domainContext.SiteArchived.Add(new SiteArchived
+        {
+            SiteId = siteId,
+            CreatedBy = createdBy,
+            PictureLink = archiveUrl,
+            CreateDate = DateTime.SpecifyKind(archivedUtc, DateTimeKind.Utc)
+        });
+    }
+
     public async Task UpsertNotificationSettingAsync(
         Guid siteUserId,
         SiteNotificationSettingMutation request,

@@ -15,6 +15,29 @@ public sealed class SiteReadAdapterTests
         new(2026, 7, 23, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task GetArchiveStateAsync_ReturnsMaterializedArchiveState()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var siteId = Guid.NewGuid();
+        await factory.SeedDomainEntitiesAsync(new Site
+        {
+            Id = siteId,
+            SiteName = "Archived Site",
+            Archived = true,
+            CreateDate = Now.UtcDateTime,
+            Contracts = []
+        });
+        using var scope = factory.Services.CreateScope();
+        var reads = scope.ServiceProvider.GetRequiredService<ISiteReadPort>();
+
+        var state = await reads.GetArchiveStateAsync(
+            siteId,
+            CancellationToken.None);
+
+        Assert.Equal(new SiteArchiveState(siteId, true), state);
+    }
+
+    [Fact]
     public async Task AssignedScope_UsesActiveWindowForExistenceAndPagedQuery()
     {
         using var factory = new SpaTestApplicationFactory();

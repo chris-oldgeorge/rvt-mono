@@ -22,6 +22,10 @@ public interface ISiteReadPort
         Guid siteId,
         CancellationToken cancellationToken);
 
+    Task<SiteArchiveState?> GetArchiveStateAsync(
+        Guid siteId,
+        CancellationToken cancellationToken);
+
     Task<PagedResult<SiteMonitorModel>> QueryMonitorsAsync(
         Guid siteId,
         PageRequest page,
@@ -46,3 +50,5 @@ public interface ISiteReadPort
         Guid siteUserId,
         CancellationToken cancellationToken);
 }
+
+public sealed record SiteArchiveState(Guid SiteId, bool Archived);

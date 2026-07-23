@@ -246,16 +246,20 @@ Each provider extraction is a compile-green slice. A vendor implementation is ne
 duplicated across old and new assemblies; its source, tests, registrations, and package
 dependency move atomically to prevent ambiguous type identity.
 
-## Out of Scope
+## Future Pending Work
 
-- dynamic plugin discovery or runtime assembly loading;
-- retaining the old infrastructure package as a facade;
-- changing notification business rules or message content;
-- changing public HTTP APIs or persisted monitor/report records;
-- unifying Portal blob storage during the provider extraction;
-- removing the legacy synchronous `IMessageService` behavior;
-- redesigning database, MQTT, scheduling, or observability boundaries in
-  `Rvt.Monitor.Common`.
+The following work is explicitly recorded for later design and prioritization. None of
+it is silently included in the provider-project extraction:
+
+| Pending item | Trigger or constraint |
+| --- | --- |
+| Dynamic plugin discovery or runtime assembly loading | Consider only if deployments require providers to be installed without rebuilding a host. |
+| Compatibility tooling for external consumers | The approved major release has no infrastructure facade. Revisit only if an external consumer cannot coordinate its migration. |
+| Notification business-rule or message-content changes | Require a separate product specification and regression suite. |
+| Public HTTP API or persisted monitor/report record changes | Require an explicit compatibility and data-migration design. |
+| Portal blob-client/service unification | Begin after the provider split under the dedicated `IObjectStorageClientFactory` follow-up described above. |
+| Legacy synchronous `IMessageService` removal | Migrate its remaining caller under a separate compatibility plan. |
+| Database, MQTT, scheduling, and observability project boundaries | Evaluate as later dependency-isolation initiatives after communications and storage are complete. |
 
 ## Acceptance Criteria
 

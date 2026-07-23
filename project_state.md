@@ -74,6 +74,11 @@
   references, persisted archive URLs, and report/archive container boundaries.
   Treat customer logos and the reporting service adapter as later explicit
   decisions.
+- Future pending work is now explicit in the design: dynamic provider plugins;
+  external-consumer compatibility tooling if coordinated major migration proves
+  impossible; notification content/business changes; public API or persisted
+  record changes; legacy synchronous `IMessageService` removal; and later
+  database, MQTT, scheduling, and observability dependency-boundary reviews.
 
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 

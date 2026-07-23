@@ -255,11 +255,6 @@ public sealed class SiteApplicationService : ISiteApplicationService
         CancellationToken cancellationToken)
     {
         var shape = SiteMutationValidator.ValidateShape(request);
-        if (!shape.IsValid)
-        {
-            return Task.FromResult(
-                UseCaseResult<SiteDetailModel>.Validation([.. shape.Errors]));
-        }
 
         return unitOfWork.ExecuteInTransactionAsync(
             async token =>
@@ -275,6 +270,12 @@ public sealed class SiteApplicationService : ISiteApplicationService
                 if (!await reads.ExistsAsync(id, scope, token))
                 {
                     return SiteNotFound<SiteDetailModel>(id);
+                }
+
+                if (!shape.IsValid)
+                {
+                    return UseCaseResult<SiteDetailModel>.Validation(
+                        [.. shape.Errors]);
                 }
 
                 var data = await reads.GetMutationValidationDataAsync(
@@ -425,13 +426,8 @@ public sealed class SiteApplicationService : ISiteApplicationService
         var timePair = SiteMutationValidator.ValidateTimePair(
             request.StartTime,
             request.EndTime,
-            nameof(SiteNotificationSettingMutation.StartTime));
-        if (!timePair.IsValid)
-        {
-            return Task.FromResult(
-                UseCaseResult<SiteNotificationSettingModel>.Validation(
-                    [.. timePair.Errors]));
-        }
+            nameof(SiteNotificationSettingMutation.StartTime),
+            nameof(SiteNotificationSettingMutation.EndTime));
 
         return unitOfWork.ExecuteInTransactionAsync(
             async token =>
@@ -458,6 +454,12 @@ public sealed class SiteApplicationService : ISiteApplicationService
                     target.UserId))
                 {
                     return UseCaseResult<SiteNotificationSettingModel>.Forbidden();
+                }
+
+                if (!timePair.IsValid)
+                {
+                    return UseCaseResult<SiteNotificationSettingModel>.Validation(
+                        [.. timePair.Errors]);
                 }
 
                 await writes.UpsertNotificationSettingAsync(

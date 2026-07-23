@@ -172,7 +172,7 @@ public sealed class SiteMutationUseCaseTests
     }
 
     [Fact]
-    public async Task UpdateAsync_UserWhoCannotManage_ReturnsForbiddenBeforeBusinessReads()
+    public async Task UpdateAsync_MalformedRequest_UserWhoCannotManage_ReturnsForbiddenBeforeValidation()
     {
         var fixture = SiteMutationFixture.Valid();
         var companyUser = new PortalUserContext(
@@ -186,14 +186,71 @@ public sealed class SiteMutationUseCaseTests
         var result = await fixture.Service.UpdateAsync(
             companyUser,
             fixture.Reads.Detail.Id,
-            fixture.Mutation with { ContractId = null },
+            fixture.Mutation with
+            {
+                SiteName = "",
+                EndTime = "not-a-time",
+                ContractId = null
+            },
             CancellationToken.None);
 
         Assert.Equal(UseCaseResultKind.Forbidden, result.Kind);
         Assert.Equal(1, fixture.UnitOfWork.TransactionCount);
+        Assert.Equal(0, fixture.Reads.ExistsCallCount);
         Assert.Equal(0, fixture.Reads.MutationValidationReadCount);
         Assert.Equal(0, fixture.UnitOfWork.SaveCount);
         Assert.Equal(0, fixture.Writes.UpdateCount);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_MalformedRequest_MissingSiteReturnsMaskedNotFound()
+    {
+        var fixture = SiteMutationFixture.Valid();
+        fixture.Reads.Exists = false;
+
+        var result = await fixture.Service.UpdateAsync(
+            fixture.Admin,
+            fixture.Reads.Detail.Id,
+            fixture.Mutation with
+            {
+                SiteName = "",
+                EndTime = "not-a-time",
+                ContractId = null
+            },
+            CancellationToken.None);
+
+        Assert.Equal(UseCaseResultKind.NotFound, result.Kind);
+        Assert.Equal(1, fixture.UnitOfWork.TransactionCount);
+        Assert.Equal(1, fixture.Reads.ExistsCallCount);
+        Assert.True(fixture.Reads.ExistsReadInsideTransaction);
+        Assert.Equal(0, fixture.Reads.MutationValidationReadCount);
+        Assert.Equal(0, fixture.Writes.UpdateCount);
+        Assert.Equal(0, fixture.UnitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_MalformedRequest_ExistingSiteReturnsValidationBeforeBusinessReads()
+    {
+        var fixture = SiteMutationFixture.Valid();
+
+        var result = await fixture.Service.UpdateAsync(
+            fixture.Admin,
+            fixture.Reads.Detail.Id,
+            fixture.Mutation with
+            {
+                StartTime = "08:00",
+                EndTime = "not-a-time",
+                ContractId = null
+            },
+            CancellationToken.None);
+
+        Assert.Equal(UseCaseResultKind.Validation, result.Kind);
+        Assert.Equal(1, fixture.UnitOfWork.TransactionCount);
+        Assert.Equal(1, fixture.Reads.ExistsCallCount);
+        Assert.True(fixture.Reads.ExistsReadInsideTransaction);
+        Assert.Equal(0, fixture.Reads.MutationValidationReadCount);
+        Assert.Equal(0, fixture.Writes.UpdateCount);
+        Assert.Equal(0, fixture.UnitOfWork.SaveCount);
     }
 
     [Fact]
@@ -243,7 +300,7 @@ public sealed class SiteMutationUseCaseTests
     }
 
     [Fact]
-    public async Task UpdateNotificationSettingAsync_CompanyUserCannotUpdateAnotherUsersSetting()
+    public async Task UpdateNotificationSettingAsync_InvalidTime_CompanyUserCannotUpdateAnotherUsersSetting()
     {
         var fixture = SiteMutationFixture.Valid();
         var companyUser = new PortalUserContext(
@@ -262,11 +319,13 @@ public sealed class SiteMutationUseCaseTests
             companyUser,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
-            new SiteNotificationSettingMutation(true, false, "08:00", "17:00"),
+            new SiteNotificationSettingMutation(true, false, "08:00", "not-a-time"),
             CancellationToken.None);
 
         Assert.Equal(UseCaseResultKind.Forbidden, result.Kind);
         Assert.Equal(1, fixture.UnitOfWork.TransactionCount);
+        Assert.Equal(1, fixture.Reads.ExistsCallCount);
+        Assert.Equal(1, fixture.Reads.NotificationTargetReadCount);
         Assert.Equal(0, fixture.UnitOfWork.SaveCount);
         Assert.Equal(0, fixture.Writes.NotificationSettingCount);
     }
@@ -329,7 +388,51 @@ public sealed class SiteMutationUseCaseTests
     }
 
     [Fact]
-    public async Task UpdateNotificationSettingAsync_MissingAssignment_ReturnsNotFoundWithoutSaving()
+    public async Task UpdateNotificationSettingAsync_MalformedEndTimeReportsExactLegacyFieldsWithoutWriting()
+    {
+        var fixture = SiteMutationFixture.Valid();
+
+        var result = await fixture.Service.UpdateNotificationSettingAsync(
+            fixture.Admin,
+            fixture.Reads.Detail.Id,
+            fixture.SiteUserId,
+            new SiteNotificationSettingMutation(
+                true,
+                false,
+                "08:00",
+                "not-a-time"),
+            CancellationToken.None);
+
+        Assert.Equal(UseCaseResultKind.Validation, result.Kind);
+        Assert.Collection(
+            result.Errors,
+            error =>
+            {
+                Assert.Equal(
+                    nameof(SiteNotificationSettingMutation.EndTime),
+                    error.Field);
+                Assert.Equal(
+                    "Time values must use HH:mm format.",
+                    error.Message);
+            },
+            error =>
+            {
+                Assert.Equal(
+                    nameof(SiteNotificationSettingMutation.StartTime),
+                    error.Field);
+                Assert.Equal(
+                    "You need to set both start and end time",
+                    error.Message);
+            });
+        Assert.Equal(1, fixture.UnitOfWork.TransactionCount);
+        Assert.Equal(1, fixture.Reads.ExistsCallCount);
+        Assert.Equal(1, fixture.Reads.NotificationTargetReadCount);
+        Assert.Equal(0, fixture.UnitOfWork.SaveCount);
+        Assert.Equal(0, fixture.Writes.NotificationSettingCount);
+    }
+
+    [Fact]
+    public async Task UpdateNotificationSettingAsync_InvalidTime_MissingTargetReturnsNotFoundWithoutSaving()
     {
         var fixture = SiteMutationFixture.Valid();
         fixture.Reads.NotificationTarget = null;
@@ -338,11 +441,34 @@ public sealed class SiteMutationUseCaseTests
             fixture.Admin,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
-            new SiteNotificationSettingMutation(true, false, null, null),
+            new SiteNotificationSettingMutation(true, false, "08:00", "not-a-time"),
             CancellationToken.None);
 
         Assert.Equal(UseCaseResultKind.NotFound, result.Kind);
         Assert.Equal(1, fixture.UnitOfWork.TransactionCount);
+        Assert.Equal(1, fixture.Reads.ExistsCallCount);
+        Assert.Equal(1, fixture.Reads.NotificationTargetReadCount);
+        Assert.Equal(0, fixture.UnitOfWork.SaveCount);
+        Assert.Equal(0, fixture.Writes.NotificationSettingCount);
+    }
+
+    [Fact]
+    public async Task UpdateNotificationSettingAsync_InvalidTime_MissingSiteReturnsMaskedNotFound()
+    {
+        var fixture = SiteMutationFixture.Valid();
+        fixture.Reads.Exists = false;
+
+        var result = await fixture.Service.UpdateNotificationSettingAsync(
+            fixture.Admin,
+            fixture.Reads.Detail.Id,
+            fixture.SiteUserId,
+            new SiteNotificationSettingMutation(true, false, "08:00", "not-a-time"),
+            CancellationToken.None);
+
+        Assert.Equal(UseCaseResultKind.NotFound, result.Kind);
+        Assert.Equal(1, fixture.UnitOfWork.TransactionCount);
+        Assert.Equal(1, fixture.Reads.ExistsCallCount);
+        Assert.Equal(0, fixture.Reads.NotificationTargetReadCount);
         Assert.Equal(0, fixture.UnitOfWork.SaveCount);
         Assert.Equal(0, fixture.Writes.NotificationSettingCount);
     }
@@ -350,7 +476,7 @@ public sealed class SiteMutationUseCaseTests
     [Theory]
     [InlineData(-2, -1)]
     [InlineData(1, 2)]
-    public async Task UpdateNotificationSettingAsync_ExpiredOrFutureSelfAssignment_IsMaskedAsSiteNotFound(
+    public async Task UpdateNotificationSettingAsync_InvalidTime_ExpiredOrFutureSelfAssignmentIsMaskedAsSiteNotFound(
         int startOffsetDays,
         int endOffsetDays)
     {
@@ -376,7 +502,7 @@ public sealed class SiteMutationUseCaseTests
             companyUser,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
-            new SiteNotificationSettingMutation(true, false, null, null),
+            new SiteNotificationSettingMutation(true, false, "08:00", "not-a-time"),
             CancellationToken.None);
 
         Assert.Equal(UseCaseResultKind.NotFound, result.Kind);
@@ -391,7 +517,7 @@ public sealed class SiteMutationUseCaseTests
     }
 
     [Fact]
-    public async Task UpdateNotificationSettingAsync_InaccessibleSite_IsMaskedBeforeTargetOwnership()
+    public async Task UpdateNotificationSettingAsync_InvalidTime_InaccessibleSiteIsMaskedBeforeTargetOwnership()
     {
         var fixture = SiteMutationFixture.Valid();
         var userId = Guid.NewGuid();
@@ -412,7 +538,7 @@ public sealed class SiteMutationUseCaseTests
             companyUser,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
-            new SiteNotificationSettingMutation(true, false, null, null),
+            new SiteNotificationSettingMutation(true, false, "08:00", "not-a-time"),
             CancellationToken.None);
 
         Assert.Equal(UseCaseResultKind.NotFound, result.Kind);

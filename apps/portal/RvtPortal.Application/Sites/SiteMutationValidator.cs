@@ -82,20 +82,28 @@ public static class SiteMutationValidator
         var weekday = ValidateTimePair(
             request.StartTime,
             request.EndTime,
-            nameof(SiteMutation.StartTime));
+            nameof(SiteMutation.StartTime),
+            nameof(SiteMutation.EndTime));
         var saturday = ValidateTimePair(
             request.SatStartTime,
             request.SatEndTime,
-            nameof(SiteMutation.SatStartTime));
+            nameof(SiteMutation.SatStartTime),
+            nameof(SiteMutation.SatEndTime));
         var sunday = ValidateTimePair(
             request.SunStartTime,
             request.SunEndTime,
-            nameof(SiteMutation.SunStartTime));
+            nameof(SiteMutation.SunStartTime),
+            nameof(SiteMutation.SunEndTime));
         errors.AddRange(weekday.Errors);
         errors.AddRange(saturday.Errors);
         errors.AddRange(sunday.Errors);
 
-        var operatingHours = ValidateOperatingHours(request, errors);
+        var operatingHours = ValidateOperatingHours(
+            request,
+            weekday,
+            saturday,
+            sunday,
+            errors);
         if (errors.Count > 0)
         {
             return new SiteMutationValidationResult(errors, null);
@@ -184,26 +192,32 @@ public static class SiteMutationValidator
     public static SiteTimePairValidationResult ValidateTimePair(
         string? startValue,
         string? endValue,
-        string field)
+        string startField,
+        string endField)
     {
         var errors = new List<UseCaseError>();
-        var start = ParseOptionalTime(startValue, field, errors);
-        var end = ParseOptionalTime(endValue, field, errors);
-        ValidateTimePair(field, start, end, errors);
+        var start = ParseOptionalTime(startValue, startField, errors);
+        var end = ParseOptionalTime(endValue, endField, errors);
+        ValidateTimePair(startField, start, end, errors);
         return new SiteTimePairValidationResult(errors, start, end);
     }
 
     private static IReadOnlyList<ValidatedSiteOperatingHours> ValidateOperatingHours(
         SiteMutation request,
+        SiteTimePairValidationResult weekday,
+        SiteTimePairValidationResult saturday,
+        SiteTimePairValidationResult sunday,
         List<UseCaseError> errors)
     {
+        if (request.OperatingHours is not { Count: > 0 })
+        {
+            return LegacyOperatingHours(weekday, saturday, sunday);
+        }
+
         var parsedByDay = new Dictionary<int, ValidatedSiteOperatingHours>();
-        var supplied = request.OperatingHours is { Count: > 0 }
-            ? request.OperatingHours
-            : LegacyOperatingHours(request);
         var seenDays = new HashSet<int>();
 
-        foreach (var hours in supplied)
+        foreach (var hours in request.OperatingHours)
         {
             var key = $"{nameof(SiteMutation.OperatingHours)}[{hours.DayOfWeek}]";
             if (hours.DayOfWeek is < 1 or > 7 ||
@@ -225,7 +239,11 @@ public static class SiteMutationValidator
                 continue;
             }
 
-            var pair = ValidateTimePair(hours.StartTime, hours.EndTime, key);
+            var pair = ValidateTimePair(
+                hours.StartTime,
+                hours.EndTime,
+                key,
+                key);
             errors.AddRange(pair.Errors);
             parsedByDay[hours.DayOfWeek] = new ValidatedSiteOperatingHours(
                 hours.DayOfWeek,
@@ -241,17 +259,28 @@ public static class SiteMutationValidator
             .ToList();
     }
 
-    private static IReadOnlyList<SiteOperatingHoursMutation> LegacyOperatingHours(
-        SiteMutation request) =>
+    private static IReadOnlyList<ValidatedSiteOperatingHours> LegacyOperatingHours(
+        SiteTimePairValidationResult weekday,
+        SiteTimePairValidationResult saturday,
+        SiteTimePairValidationResult sunday) =>
         [
-            new(1, request.StartTime, request.EndTime, IsClosed(request.StartTime, request.EndTime)),
-            new(2, request.StartTime, request.EndTime, IsClosed(request.StartTime, request.EndTime)),
-            new(3, request.StartTime, request.EndTime, IsClosed(request.StartTime, request.EndTime)),
-            new(4, request.StartTime, request.EndTime, IsClosed(request.StartTime, request.EndTime)),
-            new(5, request.StartTime, request.EndTime, IsClosed(request.StartTime, request.EndTime)),
-            new(6, request.SatStartTime, request.SatEndTime, IsClosed(request.SatStartTime, request.SatEndTime)),
-            new(7, request.SunStartTime, request.SunEndTime, IsClosed(request.SunStartTime, request.SunEndTime))
+            LegacyOperatingHoursForDay(1, weekday),
+            LegacyOperatingHoursForDay(2, weekday),
+            LegacyOperatingHoursForDay(3, weekday),
+            LegacyOperatingHoursForDay(4, weekday),
+            LegacyOperatingHoursForDay(5, weekday),
+            LegacyOperatingHoursForDay(6, saturday),
+            LegacyOperatingHoursForDay(7, sunday)
         ];
+
+    private static ValidatedSiteOperatingHours LegacyOperatingHoursForDay(
+        int dayOfWeek,
+        SiteTimePairValidationResult pair) =>
+        new(
+            dayOfWeek,
+            pair.StartTime,
+            pair.EndTime,
+            !pair.StartTime.HasValue && !pair.EndTime.HasValue);
 
     private static TimeSpan? ParseOptionalTime(
         string? value,
@@ -317,7 +346,4 @@ public static class SiteMutationValidator
     private static string? EmptyToNull(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static bool IsClosed(string? startTime, string? endTime) =>
-        string.IsNullOrWhiteSpace(startTime) &&
-        string.IsNullOrWhiteSpace(endTime);
 }

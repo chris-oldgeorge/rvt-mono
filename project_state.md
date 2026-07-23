@@ -1147,3 +1147,85 @@
   documentation-finalized head; merge or push readiness is not claimed here.
 - Generated `.codegraph/`, `apps/.nuget-packages/`, and the progress ledger
   remain unmodified and excluded from the Task 7 commit.
+
+## Sites Application Boundary Final Review Compatibility Repair - 2026-07-24
+
+- This final-review repair started from
+  `78d6addd70c851e4c845b1ae7b2629edd47f2baf` on
+  `codex/sites-application-boundary`. Its scope is limited to validation and
+  authorization precedence, validation-response compatibility, regression
+  coverage, and restoration of an unrelated tracked report. Archive and
+  notification-upsert concurrency, UTC-constructor hardening, and unrelated
+  refactors remain outside this repair.
+- `SiteApplicationService.UpdateAsync` still computes the pure `shape` result
+  before opening the transaction, but now returns shape errors only after
+  `SiteAuthorizationPolicy.CanManage(user)` and the scoped materialized
+  `ExistsAsync` check. Shape errors therefore cannot displace direct-caller
+  `Forbidden` or masked missing-site `NotFound`, while they still precede
+  `GetMutationValidationDataAsync`, `UpdateAsync`, and `SaveChangesAsync`.
+  The adapter's false update result remains the delete-race `NotFound` path.
+- `UpdateNotificationSettingAsync` similarly computes `timePair` before the
+  transaction but returns its errors only after scoped site visibility,
+  `GetNotificationSettingTargetAsync`, and target-ownership authorization.
+  Missing/inaccessible sites and missing targets stay masked as `NotFound`;
+  foreign targets remain `Forbidden`; every rejected combination records zero
+  notification writes and saves.
+- `SiteMutationValidator.ValidateTimePair` now takes distinct `startField` and
+  `endField` parameters. Parsing uses the corresponding field, while missing
+  pair members and reversed-order errors remain on `startField`. Explicit
+  daily operating-hour rows pass the same indexed key for both fields,
+  preserving that legacy contract.
+- When `SiteMutation.OperatingHours` is absent or empty, the validator no
+  longer reparses synthesized rows. The already parsed `weekday`, `saturday`,
+  and `sunday` results are passed to `LegacyOperatingHours` and expanded into
+  seven `ValidatedSiteOperatingHours` rows. `parsedByDay` and `seenDays` are
+  now used only for explicitly supplied daily rows.
+- Application test structure:
+  - `Sites/SiteMutationUseCaseTests.cs` covers malformed update precedence and
+    invalid notification times combined with missing, inaccessible,
+    expired/future, missing-target, and foreign-target resources. The fixture
+    counters `ExistsCallCount`, `MutationValidationReadCount`,
+    `NotificationTargetReadCount`, `UpdateCount`,
+    `NotificationSettingCount`, and `SaveCount` establish the exact gate and
+    zero-write behavior.
+  - New `Sites/SiteMutationValidatorTests.cs` uses the theory variables
+    `endField` and `startField` to assert exact legacy error field, message,
+    order, and count for `EndTime`, `SatEndTime`, and `SunEndTime`, plus the
+    single `StartTime` error for a reversed legacy weekday pair.
+- `ContractSiteOperationsTests` adds host-level masking and
+  `ValidationProblemDetails` compatibility coverage. The local `errors`
+  dictionary materializes the serialized `errors` object so tests assert exact
+  property counts and arrays for site and notification end fields, and prove
+  that reversed weekday input emits no synthesized `OperatingHours[*]` keys.
+- Strict TDD evidence:
+  - precedence application RED: 8 failed, 0 passed; every failure expected
+    `NotFound`/`Forbidden` and received `Validation`;
+  - precedence HTTP RED: 5 failed, 0 passed; every failure expected
+    `NotFound`/`Forbidden` and received `BadRequest`;
+  - precedence GREEN: application 8/8 and HTTP 5/5;
+  - validator application RED: 5 failed, 0 passed, exposing start-field end
+    parse errors, synthesized-row duplicates, and six reversed-weekday errors;
+  - validator HTTP RED: 5 failed, 0 passed, exposing missing end-field keys and
+    serialized key counts of six instead of the legacy one or two;
+  - validator GREEN: application 5/5 and HTTP 5/5;
+  - independent-review coverage control: the authorized existing-site
+    malformed-update test failed 1/1 against the pre-fix early-return mutation
+    (`TransactionCount` expected one and was zero), then passed 1/1 after the
+    repaired ordering was restored; its exact HTTP validation-body
+    characterization passed 1/1.
+- Fresh broad verification passes:
+  - `RvtPortal.Application.Tests`: 40 passed, 0 failed, 0 skipped;
+  - `RvtPortal.Spa.Tests`: 393 passed, 0 failed, 8 provider-gated skipped,
+    401 total;
+  - `RvtPortal.Spa.sln`: build succeeded with 0 errors and the five existing
+    `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories.
+  The client and API DTO/contract files are unchanged, so the conditional
+  client gate was not triggered.
+- `.superpowers/sdd/task-6-report.md` is restored byte-for-byte from
+  `1eeb6c71922b98dd7928330879a6813247c0a7e8`; the exact historical diff is
+  empty. The displaced Sites Task 6 report is retained only at ignored,
+  unstaged `.superpowers/sdd/sites-application-task-6-report.md`.
+- `RVT_TEST_POSTGRES_CONNECTION` remains unavailable, so the same eight
+  explicitly provider-gated PostgreSQL/TimescaleDB tests were discovered but
+  not executed. Generated `.codegraph/`, `apps/.nuget-packages/`, and
+  `.superpowers/sdd/progress.md` remain outside the repair commit.

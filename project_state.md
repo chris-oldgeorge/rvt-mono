@@ -426,13 +426,14 @@
   link.
 - Latest implementer evidence before the pause: 3/3 critical relational tests,
   64/64 owning-slice tests, and 337 portal tests passed; three opt-in PostgreSQL
-  tests remained skipped. This evidence has not yet received the final Task 4
-  independent re-review, so Task 4 remains in progress rather than complete.
-- Resume Task 4 by inspecting `git status`, reading
-  `.superpowers/sdd/task-4-report.md`, running the focused/full verification and
-  build/diff checks, generating a review package from `4bc2ac9` to the current
-  head, and re-dispatching the Task 4 reviewer. Address any Important findings
-  before updating `.superpowers/sdd/progress.md` to complete.
+  tests remained skipped. Resumed verification then passed 3/3 relational
+  controls, 30/30 Task 4 tests, 337 full-project tests with the same three
+  skips, and a zero-warning host build. The deterministic authorization-clock
+  fixture correction is test-only commit `a6dda94`.
+- Task 4 final review is complete at `a6dda94`. The reviewer found no remaining
+  Critical, High, Medium, or Low issues: relational result/exception rollback,
+  token retry, invited-user onboarding, origin enforcement, proxy trust,
+  forgot-password uniformity, and legitimate route/DTO behavior are approved.
 - Tasks 5 and 6 remain untouched: establish the explicit UTC/search timestamp
   contract, then complete schema deployment and failure reporting. Both require
   TDD and independent task review. Real PostgreSQL verification still requires

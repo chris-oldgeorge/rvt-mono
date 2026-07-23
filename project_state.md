@@ -442,6 +442,25 @@
   do not commit it. Existing `System.Security.Cryptography.Xml` 10.0.7 NU1903
   advisories remain outside this repair tranche.
 
+## Immediate Blockers Task 5 Review Completion - 2026-07-23
+
+- Task 5 implementation is complete through `0bd22c2` and passed independent
+  re-review with no Critical, Important, or Minor findings.
+- The approved contract rejects non-UTC API inputs, converts client
+  `datetime-local` values to UTC ISO instants, deliberately strips Kind only at
+  PostgreSQL `timestamp without time zone` query boundaries, restores UTC on
+  grid/graph/monitor-summary reads, and persists contract calendar dates as UTC
+  midnight without workstation-local conversion.
+- Checked-in PostgreSQL aggregate view SQL, EF runtime mappings, and the search
+  model snapshot now agree. UTC-naive aggregate fallbacks use
+  `CURRENT_TIMESTAMP AT TIME ZONE 'UTC'`; only genuine daily aggregates remain
+  `date`. Deterministic tests cover UTC and Europe/London display without skips.
+- Verification passed 347 backend tests with six provider-gated skips, all 68
+  client tests, both builds, and diff checks. The provider-gated metadata/query,
+  telemetry JSON, and contract-persistence tests are authored but were not run
+  because `RVT_TEST_POSTGRES_CONNECTION` is unset. Do not claim live Npgsql or
+  deployed-schema closure until those tests execute successfully.
+
 ## Immediate Blockers Task 4 Verification Resume - 2026-07-23
 
 - Task 4 implementation checkpoint `74d8696` passed the three exact critical

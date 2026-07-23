@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
@@ -38,23 +38,23 @@ namespace Omnidots.Api
             if (contacts != null && contacts.Count() > 0)
             {
 
-                MessageService.MessageContent.MessageEnum messageToSend = MessageService.MessageContent.MessageEnum.Offline; //Overenginnered this to make the messages stand alone....
+                LegacyMessageKind messageToSend = LegacyMessageKind.Offline; //Overenginnered this to make the messages stand alone....
                 switch (notification.AlertType)
                 {
                     case AlertType.Alert:
-                        messageToSend = MessageService.MessageContent.MessageEnum.Alert;
+                        messageToSend = LegacyMessageKind.Alert;
                         break;
                     case AlertType.Caution:
-                        messageToSend = MessageService.MessageContent.MessageEnum.Caution;
+                        messageToSend = LegacyMessageKind.Caution;
                         break;
                     case AlertType.Offline:
-                        messageToSend = MessageService.MessageContent.MessageEnum.Offline;
+                        messageToSend = LegacyMessageKind.Offline;
                         break;
                     case AlertType.BatteryAlert:
-                        messageToSend = MessageService.MessageContent.MessageEnum.Battery_Alert;
+                        messageToSend = LegacyMessageKind.Battery_Alert;
                         break;
                     case AlertType.BatteryCaution:
-                        messageToSend = MessageService.MessageContent.MessageEnum.Battery_Caution;
+                        messageToSend = LegacyMessageKind.Battery_Caution;
                         break;
                 }
                 var notificationUrl = "";
@@ -71,7 +71,7 @@ namespace Omnidots.Api
                         {
                             RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
                                 SensitiveLogRedactor.Redact(contact.EmailAddress));
-                            messageService.Sendmessage(messageToSend, MessageService.MessageContent.MessageTypeEnum.Email, contact, monitor.FleetNr!, notificationUrl);
+                            messageService.Sendmessage(messageToSend, LegacyMessageChannel.Email, contact, monitor.FleetNr!, notificationUrl);
                             operationalCommands.WriteNotificationAudit(notification.Id, contact.EmailAddress, NotificationConstants.SENT_OK);
                         }
                         else
@@ -93,7 +93,7 @@ namespace Omnidots.Api
                         {
                             RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
                                 SensitiveLogRedactor.Redact(contact.PhoneNumber));
-                            messageService.Sendmessage(messageToSend, MessageService.MessageContent.MessageTypeEnum.SMS, contact, monitor.FleetNr!, notificationUrl);
+                            messageService.Sendmessage(messageToSend, LegacyMessageChannel.SMS, contact, monitor.FleetNr!, notificationUrl);
                             operationalCommands.WriteNotificationAudit(notification.Id, contact.PhoneNumber!, NotificationConstants.SENT_OK);
                         }
                         else

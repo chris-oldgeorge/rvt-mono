@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text.Json;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Infrastructure.Communications;
 
 namespace Rvt.Monitor.Common.Infrastructure.Sms;

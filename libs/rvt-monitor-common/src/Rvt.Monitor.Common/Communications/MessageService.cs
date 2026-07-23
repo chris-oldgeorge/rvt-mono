@@ -1,5 +1,5 @@
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Notifications;
-using static Rvt.Monitor.Common.Communications.MessageService.MessageContent;
 
 namespace Rvt.Monitor.Common.Communications;
 
@@ -7,16 +7,16 @@ public sealed class MessageService(INotificationDeliveryService notificationDeli
 {
     [Obsolete("Use SendMessageAsync. Synchronous delivery remains only for legacy callers.")]
     public void Sendmessage(
-        MessageEnum message,
-        MessageTypeEnum messsageType,
+        LegacyMessageKind message,
+        LegacyMessageChannel messsageType,
         RvtContactDto contact,
         string MonitorName,
         string url = "") => SendMessage(message, messsageType, contact, MonitorName, url);
 
     [Obsolete("Use SendMessageAsync. Synchronous delivery remains only for legacy callers.")]
     public void SendMessage(
-        MessageEnum message,
-        MessageTypeEnum messsageType,
+        LegacyMessageKind message,
+        LegacyMessageChannel messsageType,
         RvtContactDto contact,
         string MonitorName,
         string url = "") => SendMessageAsync(
@@ -27,8 +27,8 @@ public sealed class MessageService(INotificationDeliveryService notificationDeli
             url).GetAwaiter().GetResult();
 
     public async Task SendMessageAsync(
-        MessageEnum message,
-        MessageTypeEnum messsageType,
+        LegacyMessageKind message,
+        LegacyMessageChannel messsageType,
         RvtContactDto contact,
         string MonitorName,
         string url = "",
@@ -57,38 +57,25 @@ public sealed class MessageService(INotificationDeliveryService notificationDeli
         }
     }
 
-    private static NotificationMessageKind ToMessageKind(MessageEnum message) => message switch
+    private static NotificationMessageKind ToMessageKind(LegacyMessageKind message) => message switch
     {
-        MessageEnum.Alert => NotificationMessageKind.Alert,
-        MessageEnum.Caution => NotificationMessageKind.Caution,
-        MessageEnum.Offline => NotificationMessageKind.Offline,
-        MessageEnum.Battery_Caution => NotificationMessageKind.BatteryCaution,
-        MessageEnum.Battery_Alert => NotificationMessageKind.BatteryAlert,
+        LegacyMessageKind.Alert => NotificationMessageKind.Alert,
+        LegacyMessageKind.Caution => NotificationMessageKind.Caution,
+        LegacyMessageKind.Offline => NotificationMessageKind.Offline,
+        LegacyMessageKind.Battery_Caution => NotificationMessageKind.BatteryCaution,
+        LegacyMessageKind.Battery_Alert => NotificationMessageKind.BatteryAlert,
         _ => throw new ArgumentOutOfRangeException(nameof(message), message, "Unsupported legacy message.")
     };
 
-    private static NotificationChannel ToChannel(MessageTypeEnum messageType) => messageType switch
+    private static NotificationChannel ToChannel(LegacyMessageChannel messageType) => messageType switch
     {
-        MessageTypeEnum.Email => NotificationChannel.Email,
-        MessageTypeEnum.SMS => NotificationChannel.Sms,
+        LegacyMessageChannel.Email => NotificationChannel.Email,
+        LegacyMessageChannel.SMS => NotificationChannel.Sms,
         _ => throw new ArgumentOutOfRangeException(nameof(messageType), messageType, "Unsupported delivery channel.")
     };
 
     public sealed class MessageContent
     {
-        public enum MessageEnum
-        {
-            Password_Set,
-            Password_Forgotten,
-            Alert,
-            Caution,
-            Offline,
-            Battery_Caution,
-            Battery_Alert,
-            Report_Weekly,
-            Report_Monthly
-        }
-
         public enum MonitorMessageTypeEnum
         {
             Dust = 0,
@@ -98,16 +85,9 @@ public sealed class MessageService(INotificationDeliveryService notificationDeli
             All = 4
         }
 
-        public enum MessageTypeEnum
-        {
-            Email = 0,
-            SMS = 1,
-            Both = 2
-        }
+        public LegacyMessageKind Message { get; set; }
 
-        public MessageEnum Message { get; set; }
-
-        public MessageTypeEnum MessageType { get; set; }
+        public LegacyMessageChannel MessageType { get; set; }
 
         public MonitorMessageTypeEnum MonitorType { get; set; }
 

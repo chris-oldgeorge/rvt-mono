@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Rvt.Monitor.Common.Alerts.Persistence;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 
 namespace Rvt.Monitor.Common.Alerts;
 

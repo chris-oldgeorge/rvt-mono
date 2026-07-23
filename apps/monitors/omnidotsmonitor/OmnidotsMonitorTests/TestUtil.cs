@@ -9,7 +9,7 @@ using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.EntityFramework;

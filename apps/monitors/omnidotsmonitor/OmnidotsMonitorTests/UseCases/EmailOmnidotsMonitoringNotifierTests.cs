@@ -1,5 +1,5 @@
 using Omnidots.Api.UseCases;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 
 namespace OmnidotsAdapterTests.UseCases;
 

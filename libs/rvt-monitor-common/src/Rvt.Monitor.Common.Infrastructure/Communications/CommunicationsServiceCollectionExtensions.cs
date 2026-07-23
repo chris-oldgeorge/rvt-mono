@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Communications;
 using Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
 using Rvt.Monitor.Common.Infrastructure.Email.SendGrid;

@@ -1,7 +1,7 @@
 using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Api.UseCases;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;

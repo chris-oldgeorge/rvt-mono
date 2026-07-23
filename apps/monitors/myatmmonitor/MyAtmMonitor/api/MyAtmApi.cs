@@ -4,7 +4,7 @@ using MyAtm.Api.Http;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
 using MyAtm.Model.Json;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
@@ -210,17 +210,17 @@ namespace MyAtm.Api
             {
                 var message = request.Kind switch
                 {
-                    NotificationMessageKind.Alert => MessageService.MessageContent.MessageEnum.Alert,
-                    NotificationMessageKind.Caution => MessageService.MessageContent.MessageEnum.Caution,
-                    NotificationMessageKind.Offline => MessageService.MessageContent.MessageEnum.Offline,
-                    NotificationMessageKind.BatteryCaution => MessageService.MessageContent.MessageEnum.Battery_Caution,
-                    NotificationMessageKind.BatteryAlert => MessageService.MessageContent.MessageEnum.Battery_Alert,
+                    NotificationMessageKind.Alert => LegacyMessageKind.Alert,
+                    NotificationMessageKind.Caution => LegacyMessageKind.Caution,
+                    NotificationMessageKind.Offline => LegacyMessageKind.Offline,
+                    NotificationMessageKind.BatteryCaution => LegacyMessageKind.Battery_Caution,
+                    NotificationMessageKind.BatteryAlert => LegacyMessageKind.Battery_Alert,
                     _ => throw new ArgumentOutOfRangeException(nameof(request), request.Kind, "Unsupported notification kind.")
                 };
                 var channel = request.Channel switch
                 {
-                    NotificationChannel.Email => MessageService.MessageContent.MessageTypeEnum.Email,
-                    NotificationChannel.Sms => MessageService.MessageContent.MessageTypeEnum.SMS,
+                    NotificationChannel.Email => LegacyMessageChannel.Email,
+                    NotificationChannel.Sms => LegacyMessageChannel.SMS,
                     _ => throw new ArgumentOutOfRangeException(nameof(request), request.Channel, "Unsupported notification channel.")
                 };
                 var contact = request.Channel == NotificationChannel.Email

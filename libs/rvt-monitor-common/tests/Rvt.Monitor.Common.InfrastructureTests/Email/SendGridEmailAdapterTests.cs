@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Moq;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Infrastructure.Communications;
 using Rvt.Monitor.Common.Infrastructure.Email.SendGrid;
 using SendGrid;

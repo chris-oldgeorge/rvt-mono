@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Alerts.Persistence;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 

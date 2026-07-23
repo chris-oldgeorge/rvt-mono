@@ -8,7 +8,7 @@ using AirQMonitorTests;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Org.BouncyCastle.Tls;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
@@ -165,7 +165,7 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
             dbClient.VerifyNoOtherCalls();
 
-            messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
+            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
             messageService.VerifyNoOtherCalls();
         }
 
@@ -250,7 +250,7 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
             dbClient.VerifyNoOtherCalls();
 
-            messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(2));
+            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(2));
             messageService.VerifyNoOtherCalls();
         }
 
@@ -327,7 +327,7 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
             dbClient.VerifyNoOtherCalls();
 
-            messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
+            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
 
             messageService.VerifyNoOtherCalls();
 
@@ -405,22 +405,22 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType), Times.Exactly(0));
             if (contacts.Count == 1)
             {
-                messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
+                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
                 dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
             }
             else if (contacts.Count == 2)
             {
-                messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.SMS, ContactEquivalentTo(contacts[1]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
+                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
+                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.SMS, ContactEquivalentTo(contacts[1]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
                 dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "foo@bob.org", NotificationConstants.SENT_OK));
                 dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "01234567890", NotificationConstants.SENT_OK));
             }
             else if (contacts.Count == 3)
             {
-                messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.SMS, ContactEquivalentTo(contacts[1]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.Email, ContactEquivalentTo(contacts[2]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.SMS, ContactEquivalentTo(contacts[2]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
+                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
+                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.SMS, ContactEquivalentTo(contacts[1]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
+                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[2]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
+                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.SMS, ContactEquivalentTo(contacts[2]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
                 dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "XXX@bob.org", NotificationConstants.SENT_OK));
                 dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "01234567890", NotificationConstants.SENT_OK));
                 dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "bar@bazbaz.org", NotificationConstants.SENT_OK));
@@ -470,7 +470,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, It.IsAny<string>(), rule.AlertType)).
                 Returns(false);
 
-            messageService.Setup(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>())).
+            messageService.Setup(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>())).
                 Throws(CommsException.Of("test-address", "test-message"));
 
             testObj.StoreNoiseLevels("foo", "bar");
@@ -505,7 +505,7 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "test-address", "test-message"), Times.Exactly(1));
             dbClient.VerifyNoOtherCalls();
 
-            messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
+            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
             messageService.VerifyNoOtherCalls();
         }
 
@@ -591,7 +591,7 @@ namespace AirQMonitorTests
             }
             dbClient.VerifyNoOtherCalls();
 
-            messageService.Verify(c => c.Sendmessage(MessageService.MessageContent.MessageEnum.Alert, MessageService.MessageContent.MessageTypeEnum.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()),
+            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()),
                 Times.Exactly(numExpectedMessages));
             messageService.VerifyNoOtherCalls();
         }

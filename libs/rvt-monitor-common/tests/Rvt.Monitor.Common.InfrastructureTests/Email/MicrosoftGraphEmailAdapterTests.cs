@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Infrastructure.Communications;
 using Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
 

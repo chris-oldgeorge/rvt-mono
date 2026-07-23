@@ -1,5 +1,5 @@
 using Moq;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Mqtt;
 using Svantek.Api;
 using Svantek.Api.Db;

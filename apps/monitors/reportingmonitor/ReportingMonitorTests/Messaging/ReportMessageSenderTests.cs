@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Reporting.Core.Models;
 using Rvt.Reporting.Messaging;
 

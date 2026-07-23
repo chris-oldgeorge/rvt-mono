@@ -1,4 +1,4 @@
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
@@ -11,7 +11,7 @@ namespace Rvt.Monitor.CommonTests.Architecture;
 public sealed class SharedRuntimeNamespaceTests
 {
     [TestMethod]
-    public void SharedRuntimeContractsUseTheCommonLibraryNamespaces()
+    public void SharedRuntimeContractsUseTheirOwningLibraryNamespaces()
     {
         var runtimeContracts = new[]
         {
@@ -29,6 +29,8 @@ public sealed class SharedRuntimeNamespaceTests
         };
 
         CollectionAssert.AllItemsAreUnique(runtimeContracts.Select(type => type.FullName).ToArray());
+        Assert.AreEqual("Rvt.Communication.Abstractions", typeof(IMessageService).Namespace);
+        Assert.AreEqual(typeof(IMessageService).Assembly, typeof(IEmailDeliveryPort).Assembly);
         Assert.IsFalse(typeof(RvtConfig).Assembly.GetTypes().Any(type =>
             type.Namespace is "Rvt.Api" or "Rvt.Api.Comms" or "Rvt.Api.Mqtt" or "Rvt.Model.Mqtt"
             or "Rvt.Notification" or "Rvt.Rules" or "Rvt.Util"));

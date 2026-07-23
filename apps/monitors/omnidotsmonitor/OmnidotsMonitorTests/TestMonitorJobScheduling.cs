@@ -14,7 +14,7 @@ using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Alerts.Persistence;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Hosting;
 using Rvt.Monitor.Common.Mqtt;

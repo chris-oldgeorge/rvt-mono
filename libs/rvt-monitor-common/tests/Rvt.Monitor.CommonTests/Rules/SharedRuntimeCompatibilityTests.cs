@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
@@ -19,14 +19,14 @@ public sealed class SharedRuntimeCompatibilityTests
     }
 
     [DataTestMethod]
-    [DataRow(AlertType.Alert, MessageService.MessageContent.MessageEnum.Alert)]
-    [DataRow(AlertType.Caution, MessageService.MessageContent.MessageEnum.Caution)]
-    [DataRow(AlertType.Offline, MessageService.MessageContent.MessageEnum.Offline)]
-    [DataRow(AlertType.BatteryAlert, MessageService.MessageContent.MessageEnum.Battery_Alert)]
-    [DataRow(AlertType.BatteryCaution, MessageService.MessageContent.MessageEnum.Battery_Caution)]
+    [DataRow(AlertType.Alert, LegacyMessageKind.Alert)]
+    [DataRow(AlertType.Caution, LegacyMessageKind.Caution)]
+    [DataRow(AlertType.Offline, LegacyMessageKind.Offline)]
+    [DataRow(AlertType.BatteryAlert, LegacyMessageKind.Battery_Alert)]
+    [DataRow(AlertType.BatteryCaution, LegacyMessageKind.Battery_Caution)]
     public void DurablePlannerPreservesLegacyNotificationAndMessageSelection(
         AlertType alertType,
-        MessageService.MessageContent.MessageEnum expectedMessage)
+        LegacyMessageKind expectedMessage)
     {
         var request = new RuleNotificationRequest(
             FleetNr: "SV-1",
@@ -170,11 +170,11 @@ public sealed class SharedRuntimeCompatibilityTests
 
     private sealed class RecordingMessageService : IMessageService
     {
-        public List<MessageService.MessageContent.MessageEnum> Messages { get; } = [];
+        public List<LegacyMessageKind> Messages { get; } = [];
 
         public Task SendMessageAsync(
-            MessageService.MessageContent.MessageEnum message,
-            MessageService.MessageContent.MessageTypeEnum messsageType,
+            LegacyMessageKind message,
+            LegacyMessageChannel messsageType,
             Rvt.Monitor.Common.Notifications.RvtContactDto contact,
             string MonitorName,
             string url = "",
@@ -185,15 +185,15 @@ public sealed class SharedRuntimeCompatibilityTests
         }
 
         public void Sendmessage(
-            MessageService.MessageContent.MessageEnum message,
-            MessageService.MessageContent.MessageTypeEnum messsageType,
+            LegacyMessageKind message,
+            LegacyMessageChannel messsageType,
             Rvt.Monitor.Common.Notifications.RvtContactDto contact,
             string MonitorName,
             string url = "") => Messages.Add(message);
 
         public void SendMessage(
-            MessageService.MessageContent.MessageEnum message,
-            MessageService.MessageContent.MessageTypeEnum messsageType,
+            LegacyMessageKind message,
+            LegacyMessageChannel messsageType,
             Rvt.Monitor.Common.Notifications.RvtContactDto contact,
             string MonitorName,
             string url = "") => Messages.Add(message);

@@ -12,7 +12,7 @@ using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
@@ -291,8 +291,8 @@ namespace OmnidotsAdapterTests
             mqttClient.VerifyNoOtherCalls();
 
             messageClient.Verify(c => c.Sendmessage(
-               MessageService.MessageContent.MessageEnum.Offline,
-               MessageService.MessageContent.MessageTypeEnum.Email,
+               LegacyMessageKind.Offline,
+               LegacyMessageChannel.Email,
                contacts[0],
                It.IsAny<string>(),
                It.IsAny<string>()), Times.Exactly(monitors.Count));
@@ -349,8 +349,8 @@ namespace OmnidotsAdapterTests
             httpClient.VerifyNoOtherCalls();
             mqttClient.VerifyNoOtherCalls();
             messageClient.Verify(c => c.Sendmessage(
-                MessageService.MessageContent.MessageEnum.Offline,
-                MessageService.MessageContent.MessageTypeEnum.Email,
+                LegacyMessageKind.Offline,
+                LegacyMessageChannel.Email,
                 It.IsAny<RvtContactDto>(),
                 It.IsAny<string>(),
                 It.IsAny<string>()), Times.Once);
@@ -414,8 +414,8 @@ namespace OmnidotsAdapterTests
             httpClient.VerifyNoOtherCalls();
             mqttClient.VerifyNoOtherCalls();
             messageClient.Verify(c => c.Sendmessage(
-                MessageService.MessageContent.MessageEnum.Offline,
-                MessageService.MessageContent.MessageTypeEnum.Email,
+                LegacyMessageKind.Offline,
+                LegacyMessageChannel.Email,
                 It.IsAny<RvtContactDto>(),
                 It.IsAny<string>(),
                 It.IsAny<string>()), Times.Once);
@@ -913,12 +913,12 @@ namespace OmnidotsAdapterTests
                     Times.Exactly(1));
                 //commsClient.Verify(c => c.SendMessage(ContactMethod.Email, expectedAlertType, contacts[0].EmailAddress, null, It.IsAny<string>()),
                 var expectedMessage = expectedAlertType == AlertType.BatteryAlert
-                    ? MessageService.MessageContent.MessageEnum.Battery_Alert
-                    : MessageService.MessageContent.MessageEnum.Battery_Caution;
+                    ? LegacyMessageKind.Battery_Alert
+                    : LegacyMessageKind.Battery_Caution;
 
                 messageClient.Verify(c => c.Sendmessage(
                      expectedMessage,
-                     MessageService.MessageContent.MessageTypeEnum.Email,
+                     LegacyMessageChannel.Email,
                      contacts[0],
                      It.IsAny<string>(),
                      It.IsAny<string>()), Times.Exactly(1));

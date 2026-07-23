@@ -5,16 +5,16 @@ public sealed class CommunicationsBoundaryTests
 {
     private static readonly string[] LegacyTransportFiles =
     [
-        "src/Rvt.Monitor.Common/Communications/Email" + "Sender.cs",
-        "src/Rvt.Monitor.Common/Communications/SmsSender.cs",
-        "src/Rvt.Monitor.Common/Communications/CommsClient.cs",
-        "src/Rvt.Monitor.Common/Communications/ICommsClient.cs",
-        "src/Rvt.Monitor.Common/Sms/TransmitSmsClient.cs"
+        "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Communications/Email" + "Sender.cs",
+        "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Communications/SmsSender.cs",
+        "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Communications/CommsClient.cs",
+        "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Communications/ICommsClient.cs",
+        "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Sms/TransmitSmsClient.cs"
     ];
 
     private static readonly string[] SynchronousCompatibilityCallers =
     [
-        "src/Rvt.Monitor.Common/Rules/RuleAlertNotificationDispatcher.cs"
+        "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rules/RuleAlertNotificationDispatcher.cs"
     ];
 
     [TestMethod]
@@ -28,10 +28,10 @@ public sealed class CommunicationsBoundaryTests
 
         var commonProject = File.ReadAllText(Path.Combine(
             root,
-            "src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj"));
+            "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj"));
         Assert.DoesNotContain("PackageReference Include=\"SendGrid\"", commonProject);
 
-        var commonSource = ReadProductionSource(root, "src/Rvt.Monitor.Common");
+        var commonSource = ReadProductionSource(root, "libs/rvt-monitor-common/src/Rvt.Monitor.Common");
         Assert.IsFalse(commonSource.Any(file => file.Text.Contains(
             "Email" + "Sender.",
             StringComparison.Ordinal)));
@@ -47,7 +47,7 @@ public sealed class CommunicationsBoundaryTests
     {
         var root = FindRepositoryRoot();
         var providerReferences = Directory
-            .EnumerateFiles(Path.Combine(root, "src"), "*.*", SearchOption.AllDirectories)
+            .EnumerateFiles(Path.Combine(root, "libs/rvt-monitor-common/src"), "*.*", SearchOption.AllDirectories)
             .Where(path => path.EndsWith(".cs", StringComparison.Ordinal) ||
                 path.EndsWith(".csproj", StringComparison.Ordinal))
             .Where(path => !IsGenerated(path))
@@ -73,7 +73,7 @@ public sealed class CommunicationsBoundaryTests
     public void ObsoleteSynchronousMessageCallsAreLimitedToExplicitCompatibilityAllowlist()
     {
         var root = FindRepositoryRoot();
-        var callers = ReadProductionSource(root, "src/Rvt.Monitor.Common")
+        var callers = ReadProductionSource(root, "libs/rvt-monitor-common/src/Rvt.Monitor.Common")
             .Where(file => file.Text.Contains(".Sendmessage(", StringComparison.Ordinal) ||
                 file.Text.Contains(".SendMessage(", StringComparison.Ordinal))
             .Select(file => file.RelativePath)

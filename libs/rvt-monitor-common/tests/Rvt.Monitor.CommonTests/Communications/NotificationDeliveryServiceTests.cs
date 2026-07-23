@@ -1,4 +1,5 @@
 using Moq;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Communications;
 
 namespace Rvt.Monitor.CommonTests.Communications;

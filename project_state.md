@@ -859,3 +859,25 @@
 - Implementation order is scaffold, policies/contracts, reads, writes,
   controller cutover, and documentation. The design review and a task-level
   implementation plan are required before production code changes.
+
+## Communication Abstractions Extraction - 2026-07-24
+
+- `Rvt.Communication.Abstractions` now owns provider-neutral delivery ports,
+  requests, failure exceptions, notification contracts, `LegacyMessageKind`,
+  `LegacyMessageChannel`, and the source-compatible
+  `Rvt.Monitor.Common.Notifications.RvtContactDto` type. The abstractions
+  project has no project or provider dependencies.
+- `Rvt.Monitor.Common` now references Abstractions; its active callers use the
+  moved contracts and top-level legacy enums. `MessageService`,
+  `NotificationDeliveryService`, and `NotificationMessageComposer` remain in
+  Common for the next communication implementation-move task.
+- Focused verification: abstraction tests pass 20/20. Common tests pass
+  405/407; the only two failures are the accepted
+  `MonitorDeliveryMigrationContractTests` path baseline. The former three
+  `CommunicationsBoundaryTests` path failures are green.
+- Aggregate source compilation reported no C# errors after the split, but the
+  package-aware `scripts/build-mono.sh` sequence stops at package validation:
+  it still packs only the legacy three packages, so the Common package's new
+  `Rvt.Communication.Abstractions` dependency cannot be found. Extending that
+  release/package-validation workflow is intentionally part of the later
+  package-release migration task.

@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using MyAtm.Api;
 using MyAtm.Api.Db;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 

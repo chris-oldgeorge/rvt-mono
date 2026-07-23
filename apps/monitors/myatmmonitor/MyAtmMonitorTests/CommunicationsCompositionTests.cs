@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MyAtm.Api;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 
 namespace MyAtmMonitorTests;
 

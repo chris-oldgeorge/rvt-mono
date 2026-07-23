@@ -7,7 +7,7 @@ using Omnidots.Api.Db;
 using Omnidots.Api.Http;
 using Omnidots.Model.Dto;
 using OmnidotsAdapterTests;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
@@ -108,8 +108,8 @@ namespace MyAtmMonitorTests
             mqttClient.VerifyNoOtherCalls();
 
             messageClient.Verify(c => c.Sendmessage(
-               MessageService.MessageContent.MessageEnum.Offline,
-               MessageService.MessageContent.MessageTypeEnum.Email,
+               LegacyMessageKind.Offline,
+               LegacyMessageChannel.Email,
                contacts[0],
                It.IsAny<string>(),
                It.IsAny<string>()), Times.Exactly(contacts.Count));
@@ -406,8 +406,8 @@ namespace MyAtmMonitorTests
 
             //commsClient.Verify(c => c.SendMessage(ContactMethod.Email, AlertType.Alert, "baz@bob.org", null, It.IsAny<string>()), Times.Exactly(2));
             messageClient.Verify(c => c.Sendmessage(
-               MessageService.MessageContent.MessageEnum.Offline,
-               MessageService.MessageContent.MessageTypeEnum.Email,
+               LegacyMessageKind.Offline,
+               LegacyMessageChannel.Email,
                contacts[0],
                It.IsAny<string>(),
                It.IsAny<string>()), Times.Exactly(2));
@@ -497,8 +497,8 @@ namespace MyAtmMonitorTests
 
             //commsClient.Verify(c => c.SendMessage(ContactMethod.Email, AlertType.Alert, "baz@bob.org", null, It.IsAny<string>()), Times.Exactly(1));
             messageClient.Verify(c => c.Sendmessage(
-               MessageService.MessageContent.MessageEnum.Offline,
-               MessageService.MessageContent.MessageTypeEnum.Email,
+               LegacyMessageKind.Offline,
+               LegacyMessageChannel.Email,
                contacts[0],
                It.IsAny<string>(),
                It.IsAny<string>()), Times.Exactly(1));
@@ -584,8 +584,8 @@ namespace MyAtmMonitorTests
             dbClient.VerifyNoOtherCalls();
 
             messageClient.Verify(c => c.Sendmessage(
-               MessageService.MessageContent.MessageEnum.Offline,
-               MessageService.MessageContent.MessageTypeEnum.Email,
+               LegacyMessageKind.Offline,
+               LegacyMessageChannel.Email,
                contacts[0],
                It.IsAny<string>(),
                It.IsAny<string>()), Times.Exactly(2));
@@ -633,8 +633,8 @@ namespace MyAtmMonitorTests
             //    Throws(CommsException.Of("test-address", "test-message"));
 
             messageClient.Setup(c => c.Sendmessage(
-               MessageService.MessageContent.MessageEnum.Offline,
-               MessageService.MessageContent.MessageTypeEnum.Email,
+               LegacyMessageKind.Offline,
+               LegacyMessageChannel.Email,
                contacts[0],
                It.IsAny<string>(),
                It.IsAny<string>())).
@@ -675,8 +675,8 @@ namespace MyAtmMonitorTests
 
             //commsClient.Verify(c => c.SendMessage(ContactMethod.Email, AlertType.Alert, "baz@bob.org", null, It.IsAny<string>()), Times.Exactly(1));
             messageClient.Verify(c => c.Sendmessage(
-                 MessageService.MessageContent.MessageEnum.Offline,
-                 MessageService.MessageContent.MessageTypeEnum.Email,
+                 LegacyMessageKind.Offline,
+                 LegacyMessageChannel.Email,
                  contacts[0],
                  It.IsAny<string>(),
                  It.IsAny<string>()), Times.Exactly(1));

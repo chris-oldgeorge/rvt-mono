@@ -1,4 +1,5 @@
 using Moq;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Communications;
 using Rvt.Monitor.Common.Notifications;
 
@@ -19,8 +20,8 @@ public sealed class MessageServiceAsyncTests
         var service = new MessageService(delivery.Object);
 
         await service.SendMessageAsync(
-            MessageService.MessageContent.MessageEnum.Alert,
-            MessageService.MessageContent.MessageTypeEnum.Email,
+            LegacyMessageKind.Alert,
+            LegacyMessageChannel.Email,
             new RvtContactDto(true, false, "alerts@example.test", null, null, null),
             "fleet-1",
             cancellationToken: cancellationSource.Token);
@@ -40,8 +41,8 @@ public sealed class MessageServiceAsyncTests
         var service = new MessageService(delivery.Object);
 
         await service.SendMessageAsync(
-            MessageService.MessageContent.MessageEnum.Alert,
-            MessageService.MessageContent.MessageTypeEnum.SMS,
+            LegacyMessageKind.Alert,
+            LegacyMessageChannel.SMS,
             new RvtContactDto(false, true, string.Empty, "447700900000", null, null),
             "fleet-1",
             cancellationToken: cancellationSource.Token);
@@ -62,8 +63,8 @@ public sealed class MessageServiceAsyncTests
 
         var exception = await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             service.SendMessageAsync(
-                MessageService.MessageContent.MessageEnum.Alert,
-                MessageService.MessageContent.MessageTypeEnum.Email,
+                LegacyMessageKind.Alert,
+                LegacyMessageChannel.Email,
                 new RvtContactDto(true, false, "alerts@example.test", null, null, null),
                 "fleet-1",
                 cancellationToken: cancellationSource.Token));

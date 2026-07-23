@@ -1,7 +1,7 @@
 using MyAtm.Api.Db;
 using MyAtm.Api.Rules;
 using MyAtm.Model.Dto;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
@@ -141,13 +141,13 @@ public sealed class MyAtmRuleProcessor
         {
             if (contact.Email && !string.IsNullOrWhiteSpace(contact.EmailAddress))
             {
-                legacyMessageService!.SendMessage(ToMessage(ruleDto.AlertType), MessageService.MessageContent.MessageTypeEnum.Email,
+                legacyMessageService!.SendMessage(ToMessage(ruleDto.AlertType), LegacyMessageChannel.Email,
                     contact.ToNotificationDto(), monitor.FleetNr ?? string.Empty, NotificationUrl(notification.Id, ruleDto.AlertType));
                 legacyOperationalCommands.WriteNotificationAudit(notification.Id, contact.EmailAddress, NotificationConstants.SENT_OK);
             }
             if (contact.SMS && !string.IsNullOrWhiteSpace(contact.PhoneNumber))
             {
-                legacyMessageService!.SendMessage(ToMessage(ruleDto.AlertType), MessageService.MessageContent.MessageTypeEnum.SMS,
+                legacyMessageService!.SendMessage(ToMessage(ruleDto.AlertType), LegacyMessageChannel.SMS,
                     contact.ToNotificationDto(), monitor.FleetNr ?? string.Empty, NotificationUrl(notification.Id, ruleDto.AlertType));
                 legacyOperationalCommands.WriteNotificationAudit(notification.Id, contact.PhoneNumber, NotificationConstants.SENT_OK);
             }
@@ -267,11 +267,11 @@ public sealed class MyAtmRuleProcessor
     private string NotificationUrl(Guid notificationId, AlertType alertType) =>
         alertType is AlertType.Alert or AlertType.Caution ? $"{portalBaseUrl}Notification/View/{notificationId}" : string.Empty;
 
-    private static MessageService.MessageContent.MessageEnum ToMessage(AlertType alertType) => alertType switch
+    private static LegacyMessageKind ToMessage(AlertType alertType) => alertType switch
     {
-        AlertType.Alert => MessageService.MessageContent.MessageEnum.Alert,
-        AlertType.Caution => MessageService.MessageContent.MessageEnum.Caution,
-        _ => MessageService.MessageContent.MessageEnum.Offline
+        AlertType.Alert => LegacyMessageKind.Alert,
+        AlertType.Caution => LegacyMessageKind.Caution,
+        _ => LegacyMessageKind.Offline
     };
 
     private void RequireLegacyDependencies()

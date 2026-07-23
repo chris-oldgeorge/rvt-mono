@@ -609,6 +609,9 @@
           "Rvt.Reporting.Storage": "[1.0.0, )"
         }
       },
+      "rvt.communication.abstractions": {
+        "type": "Project"
+      },
       "rvt.monitor.common": {
         "type": "Project",
         "dependencies": {
@@ -628,7 +631,8 @@
           "OpenTelemetry.Instrumentation.AspNetCore": "[1.16.0, )",
           "OpenTelemetry.Instrumentation.Http": "[1.16.0, )",
           "OpenTelemetry.Instrumentation.Runtime": "[1.15.1, )",
-          "Quartz.Extensions.Hosting": "[3.18.1, )"
+          "Quartz.Extensions.Hosting": "[3.18.1, )",
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
         }
       },
       "rvt.monitor.common.infrastructure": {

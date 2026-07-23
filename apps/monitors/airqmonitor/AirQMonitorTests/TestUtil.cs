@@ -3,7 +3,7 @@ using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Model.Dto;
 using Moq;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;

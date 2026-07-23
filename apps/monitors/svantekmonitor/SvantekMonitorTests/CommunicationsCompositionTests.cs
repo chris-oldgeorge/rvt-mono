@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Svantek.Api;
 
 namespace SvantekMonitorTests;

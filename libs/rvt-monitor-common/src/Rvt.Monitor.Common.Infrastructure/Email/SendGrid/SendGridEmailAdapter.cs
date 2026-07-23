@@ -1,5 +1,5 @@
 using System.Net;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Infrastructure.Communications;
 using SendGrid;
 using SendGrid.Helpers.Mail;

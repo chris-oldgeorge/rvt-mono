@@ -1,4 +1,4 @@
-namespace Rvt.Monitor.Common.Communications;
+namespace Rvt.Communication.Abstractions;
 
 public sealed record SmsDeliveryRequest
 {
@@ -11,6 +11,5 @@ public sealed record SmsDeliveryRequest
     }
 
     public string Recipient { get; }
-
     public string Content { get; }
 }

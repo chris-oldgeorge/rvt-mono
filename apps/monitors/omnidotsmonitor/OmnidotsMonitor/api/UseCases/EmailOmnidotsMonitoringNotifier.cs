@@ -1,5 +1,5 @@
 using System.Globalization;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 
 namespace Omnidots.Api.UseCases;
 

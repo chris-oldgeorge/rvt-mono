@@ -1,6 +1,6 @@
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 
-namespace Rvt.Monitor.CommonTests.Communications;
+namespace Rvt.Communication.AbstractionsTests;
 
 [TestClass]
 public sealed class DeliveryContractTests

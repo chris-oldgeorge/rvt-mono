@@ -1,3 +1,5 @@
+using Rvt.Communication.Abstractions;
+
 namespace Rvt.Monitor.Common.Communications;
 
 public sealed class NotificationDeliveryService(

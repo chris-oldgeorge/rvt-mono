@@ -8,7 +8,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RVT.BusinessLogic.Ports.Notifications;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 
 namespace RvtPortal.Spa.Adapters.Notifications;
 

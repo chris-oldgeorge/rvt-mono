@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Rvt.Communication.Abstractions</AssemblyName>
+    <RootNamespace>Rvt.Communication.Abstractions</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Rvt.Communication.Abstractions</PackageId>
+    <Description>Provider-neutral communication contracts and delivery failures for RVT applications.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

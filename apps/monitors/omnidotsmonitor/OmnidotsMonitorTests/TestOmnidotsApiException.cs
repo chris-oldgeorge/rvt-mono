@@ -4,7 +4,7 @@ using Moq;
 using Omnidots.Api.Db;
 using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;

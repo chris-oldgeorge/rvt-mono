@@ -133,7 +133,7 @@ public sealed class OmnidotsAlertArchitectureTests
         CollectionAssert.DoesNotContain(constructorDependencies, typeof(IDBClient));
         CollectionAssert.DoesNotContain(constructorDependencies, typeof(OmnidotsRuleProcessor));
         Assert.IsTrue(constructorDependencies.All(type =>
-            type.FullName is not "Rvt.Monitor.Common.Communications.IMessageService" and
+            type.FullName is not "Rvt.Communication.Abstractions.IMessageService" and
             not "Rvt.Monitor.Common.Mqtt.IMqttClient"));
 
         var processSource = ReadSource("omnidotsmonitor/OmnidotsMonitor/api/UseCases/ProcessWebhookHandler.cs");

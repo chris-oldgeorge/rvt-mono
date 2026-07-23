@@ -11,7 +11,7 @@ using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Rvt.Monitor.Common.Alerts;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Diagnostics;

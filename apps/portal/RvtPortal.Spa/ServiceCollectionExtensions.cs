@@ -33,7 +33,7 @@
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Infrastructure.Communications;
 using Rvt.Monitor.Common.Infrastructure.Email.SendGrid;
 using RVT.BusinessLogic;

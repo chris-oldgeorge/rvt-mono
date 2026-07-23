@@ -1,4 +1,5 @@
 using Moq;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Communications;
 using Rvt.Monitor.Common.Notifications;
 
@@ -8,13 +9,13 @@ namespace Rvt.Monitor.CommonTests.Communications;
 public sealed class MessageServiceCompatibilityTests
 {
     [DataTestMethod]
-    [DataRow(MessageService.MessageContent.MessageEnum.Alert, NotificationMessageKind.Alert)]
-    [DataRow(MessageService.MessageContent.MessageEnum.Caution, NotificationMessageKind.Caution)]
-    [DataRow(MessageService.MessageContent.MessageEnum.Offline, NotificationMessageKind.Offline)]
-    [DataRow(MessageService.MessageContent.MessageEnum.Battery_Caution, NotificationMessageKind.BatteryCaution)]
-    [DataRow(MessageService.MessageContent.MessageEnum.Battery_Alert, NotificationMessageKind.BatteryAlert)]
+    [DataRow(LegacyMessageKind.Alert, NotificationMessageKind.Alert)]
+    [DataRow(LegacyMessageKind.Caution, NotificationMessageKind.Caution)]
+    [DataRow(LegacyMessageKind.Offline, NotificationMessageKind.Offline)]
+    [DataRow(LegacyMessageKind.Battery_Caution, NotificationMessageKind.BatteryCaution)]
+    [DataRow(LegacyMessageKind.Battery_Alert, NotificationMessageKind.BatteryAlert)]
     public async Task SendMessageAsync_Email_MapsLegacyMessageKind(
-        MessageService.MessageContent.MessageEnum legacyKind,
+        LegacyMessageKind legacyKind,
         NotificationMessageKind expectedKind)
     {
         using var cancellationSource = new CancellationTokenSource();
@@ -32,7 +33,7 @@ public sealed class MessageServiceCompatibilityTests
 
         await service.SendMessageAsync(
             legacyKind,
-            MessageService.MessageContent.MessageTypeEnum.Email,
+            LegacyMessageChannel.Email,
             new RvtContactDto(true, false, "ops@example.test", null, null, null),
             "fleet-1",
             "https://portal.example/1",
@@ -55,8 +56,8 @@ public sealed class MessageServiceCompatibilityTests
         var service = new MessageService(delivery.Object);
 
         await service.SendMessageAsync(
-            MessageService.MessageContent.MessageEnum.Alert,
-            MessageService.MessageContent.MessageTypeEnum.SMS,
+            LegacyMessageKind.Alert,
+            LegacyMessageChannel.SMS,
             new RvtContactDto(false, true, string.Empty, "+441234567890", null, null),
             "fleet-1");
 
@@ -78,8 +79,8 @@ public sealed class MessageServiceCompatibilityTests
 
         var exception = await Assert.ThrowsExactlyAsync<CommsException>(() =>
             service.SendMessageAsync(
-                MessageService.MessageContent.MessageEnum.Alert,
-                MessageService.MessageContent.MessageTypeEnum.Email,
+                LegacyMessageKind.Alert,
+                LegacyMessageChannel.Email,
                 new RvtContactDto(true, false, "ops@example.test", null, null, null),
                 "fleet-1"));
 
@@ -95,8 +96,8 @@ public sealed class MessageServiceCompatibilityTests
 
         await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(() =>
             service.SendMessageAsync(
-                MessageService.MessageContent.MessageEnum.Alert,
-                MessageService.MessageContent.MessageTypeEnum.Both,
+                LegacyMessageKind.Alert,
+                LegacyMessageChannel.Both,
                 new RvtContactDto(true, true, "ops@example.test", "+441234567890", null, null),
                 "fleet-1"));
 
@@ -111,8 +112,8 @@ public sealed class MessageServiceCompatibilityTests
 
         await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(() =>
             service.SendMessageAsync(
-                MessageService.MessageContent.MessageEnum.Password_Set,
-                MessageService.MessageContent.MessageTypeEnum.Email,
+                LegacyMessageKind.Password_Set,
+                LegacyMessageChannel.Email,
                 new RvtContactDto(true, false, "ops@example.test", null, null, null),
                 "fleet-1"));
 
@@ -133,8 +134,8 @@ public sealed class MessageServiceCompatibilityTests
 
 #pragma warning disable CS0618
         service.SendMessage(
-            MessageService.MessageContent.MessageEnum.Alert,
-            MessageService.MessageContent.MessageTypeEnum.Email,
+            LegacyMessageKind.Alert,
+            LegacyMessageChannel.Email,
             new RvtContactDto(true, false, "ops@example.test", null, null, null),
             "fleet-1");
 #pragma warning restore CS0618

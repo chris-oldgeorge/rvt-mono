@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Rules;
@@ -59,21 +59,21 @@ public sealed class RuleAlertNotificationDispatcher
         }
     }
 
-    private static MessageService.MessageContent.MessageEnum ToMessage(Rvt.Monitor.Common.Notifications.AlertType alertType) =>
+    private static LegacyMessageKind ToMessage(Rvt.Monitor.Common.Notifications.AlertType alertType) =>
         alertType switch
         {
-            Rvt.Monitor.Common.Notifications.AlertType.Alert => MessageService.MessageContent.MessageEnum.Alert,
-            Rvt.Monitor.Common.Notifications.AlertType.Caution => MessageService.MessageContent.MessageEnum.Caution,
-            Rvt.Monitor.Common.Notifications.AlertType.BatteryAlert => MessageService.MessageContent.MessageEnum.Battery_Alert,
-            Rvt.Monitor.Common.Notifications.AlertType.BatteryCaution => MessageService.MessageContent.MessageEnum.Battery_Caution,
-            _ => MessageService.MessageContent.MessageEnum.Offline
+            Rvt.Monitor.Common.Notifications.AlertType.Alert => LegacyMessageKind.Alert,
+            Rvt.Monitor.Common.Notifications.AlertType.Caution => LegacyMessageKind.Caution,
+            Rvt.Monitor.Common.Notifications.AlertType.BatteryAlert => LegacyMessageKind.Battery_Alert,
+            Rvt.Monitor.Common.Notifications.AlertType.BatteryCaution => LegacyMessageKind.Battery_Caution,
+            _ => LegacyMessageKind.Offline
         };
 
     private void SendEmail(
         Guid notificationId,
         RvtContactDto contact,
         DateTime alertTime,
-        MessageService.MessageContent.MessageEnum messageToSend,
+        LegacyMessageKind messageToSend,
         string fleetNr,
         string notificationUrl)
     {
@@ -85,7 +85,7 @@ public sealed class RuleAlertNotificationDispatcher
                     SensitiveLogRedactor.Redact(contact.EmailAddress));
                 messageService.Sendmessage(
                     messageToSend,
-                    MessageService.MessageContent.MessageTypeEnum.Email,
+                    LegacyMessageChannel.Email,
                     contact.ToNotificationDto(),
                     fleetNr,
                     notificationUrl);
@@ -107,7 +107,7 @@ public sealed class RuleAlertNotificationDispatcher
         Guid notificationId,
         RvtContactDto contact,
         DateTime alertTime,
-        MessageService.MessageContent.MessageEnum messageToSend,
+        LegacyMessageKind messageToSend,
         string fleetNr,
         string notificationUrl)
     {
@@ -119,7 +119,7 @@ public sealed class RuleAlertNotificationDispatcher
                     SensitiveLogRedactor.Redact(contact.PhoneNumber));
                 messageService.Sendmessage(
                     messageToSend,
-                    MessageService.MessageContent.MessageTypeEnum.SMS,
+                    LegacyMessageChannel.SMS,
                     contact.ToNotificationDto(),
                     fleetNr,
                     notificationUrl);

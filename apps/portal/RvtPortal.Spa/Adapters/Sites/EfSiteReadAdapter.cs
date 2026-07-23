@@ -216,6 +216,70 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
         return new SiteNotificationSettingsData(siteId, site.SiteName, assignments);
     }
 
+    public async Task<SiteMutationValidationData> GetMutationValidationDataAsync(
+        SiteMutation request,
+        Guid? currentSiteId,
+        CancellationToken cancellationToken)
+    {
+        var siteName = request.SiteName.Trim();
+        var duplicateSiteName = await domainContext.Sites
+            .AsNoTracking()
+            .AnyAsync(
+                site => site.Id != currentSiteId &&
+                    site.SiteName == siteName,
+                cancellationToken);
+        var companyExists = await domainContext.Companies
+            .AsNoTracking()
+            .AnyAsync(
+                company => company.Id == request.CompanyId,
+                cancellationToken);
+
+        if (!request.ContractId.HasValue ||
+            request.ContractId.Value == Guid.Empty)
+        {
+            return new SiteMutationValidationData(
+                duplicateSiteName,
+                companyExists,
+                ContractExists: false,
+                ContractIsUnassigned: false,
+                ContractBelongsToCompany: false);
+        }
+
+        var contract = await domainContext.Contracts
+            .AsNoTracking()
+            .Where(item => item.Id == request.ContractId.Value)
+            .Select(item => new
+            {
+                item.CompanyId,
+                item.SiteiD
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        return new SiteMutationValidationData(
+            duplicateSiteName,
+            companyExists,
+            ContractExists: contract is not null,
+            ContractIsUnassigned: contract is not null &&
+                !contract.SiteiD.HasValue,
+            ContractBelongsToCompany: contract is not null &&
+                contract.CompanyId == request.CompanyId);
+    }
+
+    public Task<SiteNotificationSettingTarget?>
+        GetNotificationSettingTargetAsync(
+            Guid siteId,
+            Guid siteUserId,
+            CancellationToken cancellationToken)
+    {
+        return domainContext.SiteUsers
+            .AsNoTracking()
+            .Where(item => item.Id == siteUserId && item.SiteId == siteId)
+            .Select(item => new SiteNotificationSettingTarget(
+                item.Id,
+                item.SiteId,
+                item.UserId))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     private IQueryable<Site> VisibleSites(SiteAccessScope scope)
     {
         var sites = domainContext.Sites.AsNoTracking();

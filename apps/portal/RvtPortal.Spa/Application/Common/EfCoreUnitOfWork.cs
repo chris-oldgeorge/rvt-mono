@@ -12,7 +12,9 @@ using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Application.Common;
 
-public sealed class EfCoreUnitOfWork : IUnitOfWork
+public sealed class EfCoreUnitOfWork :
+    IUnitOfWork,
+    RvtPortal.Application.Common.IApplicationUnitOfWork
 {
     private readonly ApplicationDbContext applicationContext;
     private readonly RVTDbContext domainContext;

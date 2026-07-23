@@ -35,4 +35,14 @@ public interface ISiteReadPort
     Task<SiteNotificationSettingsData?> GetNotificationSettingsAsync(
         Guid siteId,
         CancellationToken cancellationToken);
+
+    Task<SiteMutationValidationData> GetMutationValidationDataAsync(
+        SiteMutation request,
+        Guid? currentSiteId,
+        CancellationToken cancellationToken);
+
+    Task<SiteNotificationSettingTarget?> GetNotificationSettingTargetAsync(
+        Guid siteId,
+        Guid siteUserId,
+        CancellationToken cancellationToken);
 }

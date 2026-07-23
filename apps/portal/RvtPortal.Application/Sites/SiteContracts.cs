@@ -167,3 +167,15 @@ public sealed record SiteNotificationSettingsData(
     Guid SiteId,
     string? SiteName,
     IReadOnlyList<SiteNotificationAssignment> Assignments);
+
+public sealed record SiteMutationValidationData(
+    bool DuplicateSiteName,
+    bool CompanyExists,
+    bool ContractExists,
+    bool ContractIsUnassigned,
+    bool ContractBelongsToCompany);
+
+public sealed record SiteNotificationSettingTarget(
+    Guid SiteUserId,
+    Guid SiteId,
+    Guid UserId);

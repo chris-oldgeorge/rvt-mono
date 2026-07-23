@@ -64,5 +64,10 @@ public sealed class SiteReadUseCaseTests
     }
 
     private static SiteApplicationService CreateService(ISiteReadPort reads) =>
-        new(reads, new EmptyPortalUserDirectory(), new FixedTimeProvider(Now));
+        new(
+            reads,
+            new NoOpSiteWritePort(),
+            new InlineUnitOfWork(),
+            new EmptyPortalUserDirectory(),
+            new FixedTimeProvider(Now));
 }

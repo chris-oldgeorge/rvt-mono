@@ -22,6 +22,7 @@ internal sealed class EmptyPortalUserDirectory : IPortalUserDirectory
 internal class FakeSiteReadPort : ISiteReadPort
 {
     public bool Exists { get; set; }
+    public int ExistsCallCount { get; private set; }
     public SiteAccessScope? LastScope { get; set; }
     public SiteQuery? LastQuery { get; set; }
     public PagedResult<SiteListModel> QueryResult { get; set; } = new();
@@ -31,6 +32,7 @@ internal class FakeSiteReadPort : ISiteReadPort
         SiteAccessScope scope,
         CancellationToken token)
     {
+        ExistsCallCount++;
         LastScope = scope;
         return Task.FromResult(Exists);
     }
@@ -71,4 +73,62 @@ internal class FakeSiteReadPort : ISiteReadPort
         Guid siteId,
         CancellationToken token) =>
         Task.FromResult<SiteNotificationSettingsData?>(null);
+
+    public virtual Task<SiteMutationValidationData> GetMutationValidationDataAsync(
+        SiteMutation request,
+        Guid? currentSiteId,
+        CancellationToken token) =>
+        Task.FromResult(new SiteMutationValidationData(
+            DuplicateSiteName: false,
+            CompanyExists: true,
+            ContractExists: true,
+            ContractIsUnassigned: true,
+            ContractBelongsToCompany: true));
+
+    public virtual Task<SiteNotificationSettingTarget?> GetNotificationSettingTargetAsync(
+        Guid siteId,
+        Guid siteUserId,
+        CancellationToken token) =>
+        Task.FromResult<SiteNotificationSettingTarget?>(null);
+}
+
+internal sealed class InlineUnitOfWork : IApplicationUnitOfWork
+{
+    public async Task<TResponse> ExecuteInTransactionAsync<TResponse>(
+        Func<CancellationToken, Task<TResponse>> operation,
+        CancellationToken cancellationToken) =>
+        await operation(cancellationToken);
+
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(1);
+}
+
+internal sealed class NoOpSiteWritePort : ISiteWritePort
+{
+    public Task<Guid> CreateAsync(
+        ValidatedSiteMutation mutation,
+        DateTime createDateUtc,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(Guid.NewGuid());
+
+    public Task<bool> UpdateAsync(
+        Guid siteId,
+        ValidatedSiteMutation mutation,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(true);
+
+    public Task<bool> TryClaimContractAsync(
+        Guid contractId,
+        Guid companyId,
+        Guid siteId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(true);
+
+    public Task UpsertNotificationSettingAsync(
+        Guid siteUserId,
+        SiteNotificationSettingMutation request,
+        TimeSpan? startTime,
+        TimeSpan? endTime,
+        CancellationToken cancellationToken) =>
+        Task.CompletedTask;
 }

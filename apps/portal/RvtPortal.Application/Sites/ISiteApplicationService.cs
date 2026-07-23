@@ -45,4 +45,22 @@ public interface ISiteApplicationService
         PortalUserContext user,
         Guid siteId,
         CancellationToken cancellationToken);
+
+    Task<UseCaseResult<SiteDetailModel>> CreateAsync(
+        PortalUserContext user,
+        SiteMutation request,
+        CancellationToken cancellationToken);
+
+    Task<UseCaseResult<SiteDetailModel>> UpdateAsync(
+        PortalUserContext user,
+        Guid id,
+        SiteMutation request,
+        CancellationToken cancellationToken);
+
+    Task<UseCaseResult<SiteNotificationSettingModel>> UpdateNotificationSettingAsync(
+        PortalUserContext user,
+        Guid siteId,
+        Guid siteUserId,
+        SiteNotificationSettingMutation request,
+        CancellationToken cancellationToken);
 }

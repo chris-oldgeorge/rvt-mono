@@ -41,6 +41,7 @@ using RVT.BusinessLogic;
 using RVT.DataAccess;
 using RVT.Entities.Ports.Persistence;
 using RvtPortal.Application.Identity;
+using RvtPortal.Application.Common;
 using RvtPortal.Application.Sites.Ports;
 using RVT.BusinessLogic.Notifications;
 using RVT.BusinessLogic.Ports.Notifications;
@@ -83,7 +84,11 @@ public static class ServiceCollectionExtensions
         services.AddHttpContextAccessor();
         services.AddMediatR(configuration => configuration.RegisterServicesFromAssemblyContaining<Program>());
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(TransactionPipelineBehavior<,>));
-        services.AddScoped<IUnitOfWork, EfCoreUnitOfWork>();
+        services.AddScoped<EfCoreUnitOfWork>();
+        services.AddScoped<IUnitOfWork>(
+            provider => provider.GetRequiredService<EfCoreUnitOfWork>());
+        services.AddScoped<IApplicationUnitOfWork>(
+            provider => provider.GetRequiredService<EfCoreUnitOfWork>());
         services.AddScoped<ILookupService, LookupService>();
         services.AddScoped<ICompanyService, CompanyService>();
         services.AddScoped<IMonitorService, MonitorService>();
@@ -123,6 +128,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPortalUserDirectory, PortalUserDirectory>();
         services.AddScoped<ISiteApplicationService, SiteApplicationService>();
         services.AddScoped<ISiteReadPort, EfSiteReadAdapter>();
+        services.AddScoped<ISiteWritePort, EfSiteWriteAdapter>();
         services.AddScoped<IReportRuleApplicationService, ReportRuleApplicationService>();
         services.AddScoped<IUserAdministrationReadService, UserAdministrationReadService>();
         services.AddScoped<IUserListApplicationService, UserListApplicationService>();

@@ -258,6 +258,68 @@
   and notification projections, options, details, operating hours, and
   notification-setting materialization remain database-side where they were
   before extraction.
+
+## Sites Application Boundary Task 4 - 2026-07-23
+
+- Current state: transactional site create, update, and notification-setting
+  mutations are implemented in the BCL-only `RvtPortal.Application` boundary.
+  Archive and customer-logo workflows remain in the host, and controllers
+  still use the legacy host service pending their separate cutover task.
+- Application structure:
+  - `Common/IApplicationUnitOfWork.cs` defines transaction execution and the
+    one-save command boundary.
+  - `Sites/Ports/ISiteWritePort.cs` defines explicit staging operations for
+    site create, site update, notification-setting upsert, and a conditional
+    contract claim.
+  - `Sites/SiteMutationValidator.cs` owns request-shape validation, exact
+    `HH:mm` parsing, optional text normalization, legacy/seven-day operating
+    hours normalization, and database-fact validation.
+  - `Sites/SiteApplicationService.cs` validates shape before transaction
+    entry, reads name/company/contract/ownership facts inside the transaction,
+    authorizes inside the transaction before business reads, stages one
+    mutation, saves once, and re-materializes the response.
+  - Update preserves legacy site-not-found precedence by materializing site
+    existence after its in-transaction management gate and before mutation-fact
+    validation. A false write-adapter update still maps to not-found for the
+    delete race between the existence read and entity materialization.
+- Materialized read contracts added to `ISiteReadPort`:
+  `SiteMutationValidationData` reports duplicate-name, company, and contract
+  facts; `SiteNotificationSettingTarget` reports only assignment ownership
+  identifiers. No EF, HTTP, host, vendor, or queryable types cross the port.
+- Host adapters:
+  - `EfSiteReadAdapter` supplies the focused mutation validation and
+    notification-target lookups.
+  - `EfSiteWriteAdapter` stages entities without parsing or validating. Create
+    stages the site and seven operating-hour rows; after the unit-of-work save,
+    `TryClaimContractAsync` issues one relational conditional update constrained
+    by contract id, company id, and an unassigned `SiteiD`. Update replaces
+    mutable values and operating-hour rows; notification writes upsert the
+    settings row.
+  - `EfCoreUnitOfWork` implements both the existing host `IUnitOfWork` and the
+    application-owned `IApplicationUnitOfWork`. DI registers one concrete
+    scoped instance and maps both interfaces to it.
+- Time variables: mutation use cases receive `TimeProvider`; create passes
+  `timeProvider.GetUtcNow().UtcDateTime` to the write port, and the EF adapter
+  persists it with `DateTimeKind.Utc`.
+- Authorization variables: create/update call
+  `SiteAuthorizationPolicy.CanManage(user)` inside their transaction before
+  any business read or write. Notification updates construct
+  `SiteAuthorizationPolicy.ReadScope(user, timeProvider.GetUtcNow().UtcDateTime)`
+  inside the transaction and call `ISiteReadPort.ExistsAsync` before resolving
+  a notification target or evaluating ownership, so expired, future, and
+  otherwise invisible assignments are masked as site-not-found.
+- Atomic-claim variables: `contractId`, `companyId`, and the staged `siteId`
+  form the compare-and-set predicate. A zero-row claim throws within the
+  shared transaction, rolling back the saved candidate site and hours; the
+  application catches that private signal outside the unit of work and returns
+  the existing contract-assigned validation error.
+- Verification: focused application mutation tests pass 18/18; focused
+  relational write-adapter and existing unit-of-work tests pass 11/11; all
+  application tests pass 24/24; application-boundary, site-read-adapter,
+  site-write-adapter, unit-of-work, and CQRS regressions pass 42/42; the SPA
+  host build succeeds with
+  zero warnings and zero errors. The existing `System.Security.Cryptography.Xml`
+  NU1903 advisories remain outside this task.
 - DI state: `ISiteReadPort` resolves to scoped `EfSiteReadAdapter`. The legacy
   `RvtPortal.Spa.Application.Sites.ISiteApplicationService` remains registered
   for controllers; HTTP cutover is deferred to Task 6.
@@ -274,6 +336,13 @@
     query forwarding with a reusable, extensible `FakeSiteReadPort`.
   - `SiteReadAdapterTests` resolves the adapter through DI and verifies inclusive
     active and expired assignment windows for existence and paged visibility.
+  - `SiteMutationUseCaseTests` verifies create/update manage gates, notification
+    visibility-before-ownership masking for expired/future assignments, and
+    stale-claim result mapping.
+  - `SiteWriteAdapterTests` uses relational SQLite and the real shared
+    `EfCoreUnitOfWork` to prove a stale conditional claim rolls back the
+    candidate site and its seven operating-hour rows without replacing the
+    existing contract assignment.
   - Application boundary architecture checks continue to prove
     `RvtPortal.Application` has no package/project references or forbidden
     framework/adapter imports.

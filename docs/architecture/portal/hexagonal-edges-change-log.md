@@ -87,3 +87,23 @@ Verification so far:
   slices. Moving those consumers is outside this extraction; the application
   boundary owns the equivalent pure Sites assignment policy, and both retain
   the same explicit-UTC inclusive window.
+
+## 2026-07-24 - Sites Archive Authorization Repair
+
+- Closed the validated application-boundary review finding in accepted commit
+  `8bf2f18afa0c33e3bf2749cbb4e8f01e097e90c4`.
+- `SiteApplicationService.ArchiveAsync` now applies
+  `SiteAuthorizationPolicy.CanManage` before archive-state reads, archive
+  export, transaction entry, archive writes, saves, or detail/logo enrichment.
+- Added a direct non-manager application regression that requires `Forbidden`
+  and zero archive-state, detail, logo-existence, export, transaction, write,
+  save, and workflow-event activity.
+- Preserved the authorized workflow's export-before-transaction ordering and
+  its established HTTP behavior.
+- The exact repair diff received an accepted review with no Critical,
+  Important, or Minor findings. The final whole-branch review remains a
+  separate root closeout step.
+- Fresh post-repair evidence is 32/32 application tests, 382 SPA passes with
+  eight explicitly PostgreSQL-gated skips, a zero-error solution build with
+  five existing NU1903 advisories, 68/68 client tests, and a successful client
+  production build.

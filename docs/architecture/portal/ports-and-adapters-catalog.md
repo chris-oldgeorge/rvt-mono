@@ -32,7 +32,7 @@ This catalog records the current pragmatic "hexagonal at the edges" structure. T
 | `ISiteWritePort` | `RvtPortal.Application/Sites/Ports/ISiteWritePort.cs` | `RvtPortal.Spa.Adapters.Sites.EfSiteWriteAdapter` | Explicit staged Sites mutations and the relational conditional contract claim. |
 | `IApplicationUnitOfWork` | `RvtPortal.Application/Common/IApplicationUnitOfWork.cs` | `RvtPortal.Spa.Application.Common.EfCoreUnitOfWork` | Application-facing execute/save transaction semantics backed by the existing shared three-context transaction adapter. |
 | `IPortalUserDirectory` | `RvtPortal.Application/Identity/IPortalUserDirectory.cs` | `RvtPortal.Spa.Api.PortalUserDirectory` | Application-owned Identity lookup port used by Sites and remaining legacy report-recipient workflows. |
-| `ISiteArchivePort` | `RvtPortal.Application/Sites/Ports/ISiteArchivePort.cs` | `RvtPortal.Spa.Adapters.Sites.SiteArchiveAdapter` | Creates the external site archive before the application transaction records archive state. |
+| `ISiteArchivePort` | `RvtPortal.Application/Sites/Ports/ISiteArchivePort.cs` | `RvtPortal.Spa.Adapters.Sites.SiteArchiveAdapter` | Creates the external site archive after the application management gate and before the application transaction records archive state. |
 | `ISiteLogoPort` | `RvtPortal.Application/Sites/Ports/ISiteLogoPort.cs` | `RvtPortal.Spa.Adapters.Sites.SiteLogoAdapter` | Saves, deletes, checks, and opens protected customer-logo content through BCL stream contracts. |
 
 ## Persistence Adapters
@@ -56,6 +56,12 @@ RvtPortal.Spa.Api.SitesController
       -> RvtPortal.Spa.Adapters.Sites
         -> EF Core / Identity / archive export / customer-logo storage
 ```
+
+`SiteApplicationService.ArchiveAsync` applies
+`SiteAuthorizationPolicy.CanManage` before archive-state reads, external
+export, transaction entry, persistence, or response enrichment. The host role
+attribute remains an HTTP-edge defense, while the application boundary
+independently protects direct callers.
 
 ## Follow-Up Candidates
 

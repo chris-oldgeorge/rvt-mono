@@ -1038,9 +1038,12 @@
 
 - Active branch: `codex/sites-application-boundary`. The accepted application
   slice ends at Task 6 commit
-  `13aa5ff4c678df3a70c9576ae73fccc067f56ac7`; Task 7 is the single commit
-  named `docs: record sites application extraction` that contains this final
-  resumable state.
+  `13aa5ff4c678df3a70c9576ae73fccc067f56ac7`; the initial Task 7 documentation
+  commit is `52e5a83d03132a96e80f50d29c651d4c93abd29a`
+  (`docs: record sites application extraction`), and the accepted archive
+  authorization repair is
+  `8bf2f18afa0c33e3bf2749cbb4e8f01e097e90c4`
+  (`fix: enforce archive management authorization`).
 - Extraction decision: the Sites slice moved incrementally into the BCL-only
   `apps/portal/RvtPortal.Application` project. `RVT.BusinessLogic` remains the
   legacy application boundary for slices not yet extracted and must not be
@@ -1081,7 +1084,7 @@
   part of the Sites extraction. The host helper and the application-owned pure
   policy retain explicit UTC input and inclusive start/end semantics.
 - Final verification:
-  - `RvtPortal.Application.Tests`: 31 passed, 0 failed, 0 skipped.
+  - `RvtPortal.Application.Tests`: 32 passed, 0 failed, 0 skipped.
   - `RvtPortal.Spa.Tests`: 382 passed, 0 failed, 8 skipped, 390 total.
     Every skip is explicitly gated on real PostgreSQL/TimescaleDB:
     contract calendar-date persistence, UTC site insert, three search
@@ -1095,7 +1098,8 @@
   - The ordinary documentation-layout run was polluted solely by the
     pre-existing untracked `apps/.nuget-packages/` cache and reported 180
     package-owned Markdown files in two issue groups. A clean isolated clone
-    containing the exact tracked tree plus the Task 7 documentation diff
+    containing the exact tracked tree plus the Task 7 documentation
+    finalization diff
     passed with 122 moves and 7 retained entry points; the cache was not moved,
     deleted, edited, or staged.
   - `git diff --check` completed with no output.
@@ -1134,5 +1138,12 @@
   `DetailReadCount`, `ExistsReadCount`, and `Events`; the mutation run without
   the management guard fails the focused control on all three read counters and
   the nonempty workflow event log.
+- The exact accepted repair diff
+  `52e5a83d03132a96e80f50d29c651d4c93abd29a..8bf2f18afa0c33e3bf2749cbb4e8f01e097e90c4`
+  received a read-only review with no Critical, Important, or Minor findings.
+  This closes the previously validated archive-authorization blocker only.
+  Task 7 implementation-plan Step 7 remains unchecked because root still owns
+  the final independent whole-branch review from `main` through the
+  documentation-finalized head; merge or push readiness is not claimed here.
 - Generated `.codegraph/`, `apps/.nuget-packages/`, and the progress ledger
   remain unmodified and excluded from the Task 7 commit.

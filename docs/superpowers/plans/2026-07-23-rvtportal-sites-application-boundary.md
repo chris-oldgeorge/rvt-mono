@@ -2524,6 +2524,15 @@ all repository guards pass
 git diff --check emits no output
 ```
 
+Post-repair rerun on 2026-07-24: application tests passed 32/32; SPA tests
+passed 382 with eight explicitly PostgreSQL/TimescaleDB-gated skips; the
+solution built with zero errors and five existing NU1903 advisories; client
+tests passed 68/68 and the production build succeeded; the mono-solution,
+mono-layout, and RVT common-source guards passed. The ordinary documentation
+guard was polluted by the pre-existing untracked `apps/.nuget-packages/`
+cache, while an isolated exact-tree run passed with 122 moves and seven
+retained entry points. `git diff --check` was clean.
+
 - [x] **Step 4: Run provider-gated verification when configured**
 
 If `RVT_TEST_POSTGRES_CONNECTION` is set, run:
@@ -2536,6 +2545,10 @@ dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
 Expected: all discovered PostgreSQL/TimescaleDB tests pass. If the variable is
 unset, record the exact skipped count in `project_state.md` and do not claim
 provider closure.
+
+`RVT_TEST_POSTGRES_CONNECTION` was unset during the post-repair rerun. All
+eight provider-gated tests were discovered and skipped; provider closure is
+not claimed.
 
 - [x] **Step 5: Save the final resumable state**
 
@@ -2570,3 +2583,9 @@ Use `superpowers:requesting-code-review` against the full branch diff from
 `main` to `HEAD`. Resolve every validated Critical or Important finding with a
 fresh focused RED/GREEN cycle, rerun the full gate, and only then present the
 branch for merge.
+
+Current state: the validated archive-authorization finding was repaired in
+`8bf2f18afa0c33e3bf2749cbb4e8f01e097e90c4`, and the exact repair review
+reported no findings. This checkbox remains open because the required final
+whole-branch review from `main` to the repaired and documentation-finalized
+head is still a root closeout action.

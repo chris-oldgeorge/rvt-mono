@@ -458,3 +458,70 @@
   full portal project passes 337 tests with the same three opt-in PostgreSQL
   skips. Existing NU1903 advisories and the untracked `apps/.nuget-packages/`
   cache remain outside Task 4.
+
+## Immediate Blockers Task 5 - 2026-07-23
+
+- Status: implementation and non-provider verification are complete on
+  `codex/immediate-blockers`; final disposition is `DONE_WITH_CONCERNS` because
+  real PostgreSQL evidence is unavailable. `RVT_TEST_POSTGRES_CONNECTION` is
+  unset, the repository has no Testcontainers harness, and sandbox/approval
+  failures prevented Docker image inspection or container startup.
+- Timestamp contract:
+  - application search bounds are UTC `DateTime` values;
+  - `SearchTimestampPolicy.ToDatabase` accepts only `Kind=Utc`, preserves ticks,
+    and changes the provider-bound value to `Kind=Unspecified` for PostgreSQL
+    `timestamp without time zone`;
+  - `SearchTimestampPolicy.FromDatabase` preserves ticks and restores
+    `Kind=Utc` before telemetry rows and graph points reach JSON;
+  - daily aggregate `SampleTime` values keep database `date` semantics;
+  - contract `OnHireDate` and nullable `OffHireDate` persist as UTC midnight,
+    preserving calendar dates without workstation-local conversion.
+- File structure:
+  - new policy:
+    `apps/portal/RvtPortal.Spa/Application/Monitors/SearchTimestampPolicy.cs`;
+  - query-boundary changes:
+    `apps/portal/RvtPortal.Spa/Application/Monitors/MonitorService.cs`;
+  - API-return boundary:
+    `apps/portal/RvtPortal.Spa/Application/Data/DataApplicationService.cs`;
+  - complete EF mapping audit:
+    `apps/portal/RVT.DataAccess/Context/RVTSearchContext.cs`;
+  - contract persistence helper:
+    `apps/portal/RvtPortal.Spa/Application/Contracts/ContractCommands.cs`;
+  - backend controls:
+    `apps/portal/RvtPortal.Spa.Tests/DataViewTests.cs`,
+    `apps/portal/RvtPortal.Spa.Tests/SearchTimestampPostgresTests.cs`, and
+    `apps/portal/RvtPortal.Spa.Tests/ContractSiteOperationsTests.cs`;
+  - client contract seam/control:
+    `apps/portal/RvtPortal.Client/src/operations/DataViewPanels.tsx` and
+    `DataViewPanels.test.tsx`.
+- EF provider mapping variables: `dateTimeColumnType` remains
+  `timestamp without time zone` for PostgreSQL and `datetime` for SQL Server.
+  The model test enumerates all twelve `SampleTime` properties. The approved
+  daily/date entries are `NoiseLevel1dayAvg`, `NoiseLevelSiteAvg`, and
+  `OmnidotsPeakLevel1dayPeak`; the other nine use `dateTimeColumnType`.
+- Test variables and provider gate:
+  `RequiresPostgresFactAttribute.ConnectionVariable` is
+  `RVT_TEST_POSTGRES_CONNECTION`; the inserted provider-test timestamp is
+  `2026-07-01 14:30:00`, queried with UTC bounds and expected in JSON as
+  `2026-07-01T14:30:00Z`. The separate provider test persists contract date
+  `2026-07-01` through `UtcTimestampGuardInterceptor`.
+- TDD evidence: the focused pre-change run failed all seven backend cases for
+  the intended Kind/mapping/guard/JSON reasons, and the Europe/London client
+  control failed before the formatter contract was exposed. The corresponding
+  focused backend run passes 7/7; the owning backend slice passes 20 with the
+  two new PostgreSQL tests skipped; the full portal suite passes 344 with five
+  PostgreSQL skips (349 total). The client test passes under both
+  `TZ=Europe/London` and `TZ=UTC`; the full client suite passes 66 with the
+  timezone-specific control skipped under the Athens host zone, and the client
+  production build succeeds. The portal host build succeeds with zero warnings
+  and zero errors.
+- Provider concern: neither new PostgreSQL test has executed against Npgsql and
+  a live schema. They are discovered and skip explicitly when the connection
+  variable is absent; this task must not be treated as provider-closed until
+  both run with `RVT_TEST_POSTGRES_CONNECTION` configured.
+- Environment note: one exact provider-filter attempt without `-m:1` entered an
+  MSBuild IPC retry loop after sandbox socket denial; a targeted process-stop
+  escalation was rejected by the broken approval backend. Fresh serial
+  (`-m:1`) focused, owning, full-suite, and build commands nevertheless
+  completed successfully. The existing NU1903 advisories and untracked
+  `apps/.nuget-packages/` cache remain outside Task 5.

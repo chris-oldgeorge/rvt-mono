@@ -9,13 +9,18 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using RVT.DataAccess.Configuration;
+using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Application.Contracts;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public class ContractSiteOperationsTests
@@ -40,6 +45,84 @@ public class ContractSiteOperationsTests
         new(DayOfWeek: 6, DayName: "Saturday",  StartTime: "10:00", EndTime: "14:00", IsClosed: false),
         new(DayOfWeek: 7, DayName: "Sunday",    StartTime: null,    EndTime: null,    IsClosed: true),
     ];
+
+    [Fact]
+    // Function summary: Verifies contract create converts date-only values to UTC midnight before the timestamptz guard.
+    public void CreateContract_StoresCalendarDatesAsUtcMidnight()
+    {
+        using var context = NpgsqlDomainContext();
+        var request = new ContractMutationRequest
+        {
+            ContractNumber = "T5-CREATE-DATE",
+            CompanyId = Guid.NewGuid(),
+            OnHireDate = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified),
+            OffHireDate = new DateTime(2026, 7, 2, 23, 45, 0, DateTimeKind.Local)
+        };
+
+        var contract = ContractCommandWorkflow.CreateContract(request);
+        context.Contracts.Add(contract);
+
+        UtcTimestampGuardInterceptor.Guard(context);
+        Assert.Equal(new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc), contract.OnHireDate);
+        Assert.Equal(new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc), contract.OffHireDate);
+    }
+
+    [Fact]
+    // Function summary: Verifies contract update converts nullable date-only values to UTC midnight before the timestamptz guard.
+    public void UpdateContract_StoresCalendarDatesAsUtcMidnight()
+    {
+        using var context = NpgsqlDomainContext();
+        var contract = new Contract
+        {
+            Id = Guid.NewGuid(),
+            ContractNumber = "T5-OLD-DATE",
+            CompanyId = Guid.NewGuid(),
+            OnHireDate = DateTime.UnixEpoch
+        };
+        context.Contracts.Attach(contract);
+        ContractCommandWorkflow.ApplyContractMutation(contract, new ContractMutationRequest
+        {
+            ContractNumber = "T5-UPDATE-DATE",
+            CompanyId = contract.CompanyId,
+            OnHireDate = new DateTime(2026, 7, 1, 19, 0, 0, DateTimeKind.Local),
+            OffHireDate = new DateTime(2026, 7, 3, 11, 0, 0, DateTimeKind.Unspecified)
+        });
+
+        UtcTimestampGuardInterceptor.Guard(context);
+        Assert.Equal(new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc), contract.OnHireDate);
+        Assert.Equal(new DateTime(2026, 7, 3, 0, 0, 0, DateTimeKind.Utc), contract.OffHireDate);
+    }
+
+    [RequiresPostgresFact]
+    // Function summary: Verifies the create command persists a date-only contract through the real PostgreSQL UTC guard.
+    public async Task CreateContractCommand_PersistsCalendarDateAgainstRealPostgres()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
+        var options = new DbContextOptionsBuilder<RVTDbContext>()
+            .UseNpgsql(connectionString)
+            .AddInterceptors(UtcTimestampGuardInterceptor.Instance)
+            .Options;
+        await using var context = new RVTDbContext(options);
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        var company = new Company { Id = Guid.NewGuid(), CompanyName = "T5 Contract Date Company" };
+        context.Companies.Add(company);
+        await context.SaveChangesAsync();
+        var handler = new CreateContractCommandHandler(context);
+
+        var result = await handler.Handle(new CreateContractCommand(new ContractMutationRequest
+        {
+            ContractNumber = $"T5-{Guid.NewGuid():N}"[..20],
+            CompanyId = company.Id,
+            OnHireDate = new DateTime(2026, 7, 1)
+        }), CancellationToken.None);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var persisted = await context.Contracts.SingleAsync(contract => contract.Id == result.ContractId);
+        Assert.True(result.ShouldCommit);
+        Assert.Equal(new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc), persisted.OnHireDate);
+        await transaction.RollbackAsync();
+    }
 
     [Fact]
     // Function summary: Handles the contract crud validates duplicate dates and site company rules workflow for this module.
@@ -124,6 +207,15 @@ public class ContractSiteOperationsTests
         Assert.Equal(renamedContractNumber, (await update.Content.ReadFromJsonAsync<EntityResponse<ContractDetailResponse>>())?.Item?.ContractNumber);
         Assert.Contains(list!.Results, contract => contract.ContractNumber == existingContractNumber && contract.SiteName == siteName);
         Assert.Equal(HttpStatusCode.OK, delete.StatusCode);
+    }
+
+    // Function summary: Builds the PostgreSQL model without opening a connection so timestamp guards see actual provider types.
+    private static RVTDbContext NpgsqlDomainContext()
+    {
+        var options = new DbContextOptionsBuilder<RVTDbContext>()
+            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
+            .Options;
+        return new RVTDbContext(options);
     }
     [Fact]
     // Function summary: Handles the site crud validates contract and times then archives workflow for this module.

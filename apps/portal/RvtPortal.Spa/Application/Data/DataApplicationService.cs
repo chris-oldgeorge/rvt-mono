@@ -1,5 +1,6 @@
 // File summary: Provides role-scoped monitor data grid, graph, trace, and CSV workflows for the portal API.
 // Major updates:
+// - 2026-07-23 Restored plain database telemetry timestamps to UTC before API row and graph serialization.
 // - 2026-07-22 Built vibration trace datasets from the mapped OmnidotsTrace entity.
 // - 2026-07-09 pending Moved data view workflow logic out of the API controller.
 
@@ -660,7 +661,7 @@ public sealed class DataApplicationService : IDataApplicationService
         {
             return data.DustLevels.Value.Select(row => new MonitorDataRow
             {
-                SampleTime = row.SampleTime,
+                SampleTime = SearchTimestampPolicy.FromDatabase(row.SampleTime),
                 Values = new Dictionary<string, double?>
                 {
                     [Pm1Key] = row.Pm1,
@@ -675,7 +676,7 @@ public sealed class DataApplicationService : IDataApplicationService
         {
             return data.NoiseLevels.Value.Select(row => new MonitorDataRow
             {
-                SampleTime = row.SampleTime,
+                SampleTime = SearchTimestampPolicy.FromDatabase(row.SampleTime),
                 Values = new Dictionary<string, double?>
                 {
                     [LaeqKey] = row.Laeq,
@@ -694,7 +695,7 @@ public sealed class DataApplicationService : IDataApplicationService
         {
             return data.VibrationLevels.Value.Select(row => new MonitorDataRow
             {
-                SampleTime = row.SampleTime,
+                SampleTime = SearchTimestampPolicy.FromDatabase(row.SampleTime),
                 Values = new Dictionary<string, double?>
                 {
                     [XvtopKey] = row.Xvtop,

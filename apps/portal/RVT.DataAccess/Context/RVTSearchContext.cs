@@ -1,5 +1,6 @@
 ﻿// File summary: Defines Entity Framework Core context configuration for RVT domain and search data.
 // Major updates:
+// - 2026-07-23 Pinned every non-daily SampleTime to timestamp-without-zone and daily aggregates to date.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Added SQL Server/PostgreSQL provider support.
@@ -256,6 +257,7 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.Lc90).HasColumnName("LC90");
             entity.Property(e => e.Lceq).HasColumnName("LCeq");
             entity.Property(e => e.Lcmax).HasColumnName("LCmax");
+            entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
             entity.Property(e => e.SerialId).HasMaxLength(255);
         });
 
@@ -309,6 +311,7 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.Lc90).HasColumnName("LC90");
             entity.Property(e => e.Lceq).HasColumnName("LCeq");
             entity.Property(e => e.Lcmax).HasColumnName("LCmax");
+            entity.Property(e => e.SampleTime).HasColumnType("date");
             entity.Property(e => e.SerialId).HasMaxLength(32);
         });
 

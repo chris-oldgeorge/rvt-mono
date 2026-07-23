@@ -1,5 +1,6 @@
 // File summary: Handles transactional CQRS commands for contract mutation workflows.
 // Major updates:
+// - 2026-07-23 Persisted contract calendar dates as UTC midnight for the domain timestamptz contract.
 // - 2026-06-26 pending Moved contract create/update/delete writes behind MediatR transactional commands.
 
 using MediatR;
@@ -141,8 +142,8 @@ internal static class ContractCommandWorkflow
             ContractNumber = request.ContractNumber.Trim(),
             CompanyId = request.CompanyId,
             SiteiD = request.SiteId,
-            OnHireDate = request.OnHireDate.Date,
-            OffHireDate = request.OffHireDate?.Date
+            OnHireDate = AsUtcDate(request.OnHireDate),
+            OffHireDate = request.OffHireDate.HasValue ? AsUtcDate(request.OffHireDate.Value) : null
         };
     }
 
@@ -152,9 +153,13 @@ internal static class ContractCommandWorkflow
         contract.ContractNumber = request.ContractNumber.Trim();
         contract.CompanyId = request.CompanyId;
         contract.SiteiD = request.SiteId;
-        contract.OnHireDate = request.OnHireDate.Date;
-        contract.OffHireDate = request.OffHireDate?.Date;
+        contract.OnHireDate = AsUtcDate(request.OnHireDate);
+        contract.OffHireDate = request.OffHireDate.HasValue ? AsUtcDate(request.OffHireDate.Value) : null;
     }
+
+    // Function summary: Preserves date-only semantics while satisfying the domain context's UTC timestamp contract.
+    private static DateTime AsUtcDate(DateTime value) =>
+        DateTime.SpecifyKind(value.Date, DateTimeKind.Utc);
 
     private static async Task ValidateContractNumberAsync(
         RVTDbContext domainContext,

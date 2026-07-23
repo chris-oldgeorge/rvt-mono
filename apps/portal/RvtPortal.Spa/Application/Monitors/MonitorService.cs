@@ -1,5 +1,6 @@
 ﻿// File summary: Coordinates business-layer operations for monitor service workflows.
 // Major updates:
+// - 2026-07-23 Applied the explicit UTC/plain-timestamp conversion at non-date SampleTime query boundaries.
 // - 2026-07-22 Read vibration traces through the mapped OmnidotsTrace EF entity.
 // - 2026-07-09 pending Routed daily-average date conversion through the injected date-time provider.
 // - 2026-06-26 pending Aligned service implementation defaults and parameter names for Sonar cleanup.
@@ -226,6 +227,11 @@ namespace RvtPortal.Spa.Application.Monitors
                 FromDate = FromDate.UtcToLocal(dateTimeProvider).Date;
                 ToDate = ToDate.UtcToLocal(dateTimeProvider).Date;
             }
+            else
+            {
+                FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
+                ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
+            }
 
             List<OrderByProperty> orderBy = new List<OrderByProperty>();
             if (!string.IsNullOrEmpty(Sort))
@@ -253,6 +259,9 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Retrieves my atm dust levels8hour avg data for callers.
         public Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels8hourAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
         {
+            FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
+            ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
+
             List<OrderByProperty> orderBy = new List<OrderByProperty>();
             if (!string.IsNullOrEmpty(Sort))
             {
@@ -298,6 +307,9 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Retrieves air qnoise levels data for callers.
         public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
         {
+            FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
+            ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
+
             List<OrderByProperty> orderBy = new List<OrderByProperty>();
             if (!string.IsNullOrEmpty(Sort))
             {
@@ -323,6 +335,9 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Retrieves air qnoise levels1hour avg data for callers.
         public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1hourAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
         {
+            FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
+            ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
+
             List<OrderByProperty> orderBy = new List<OrderByProperty>();
             if (!string.IsNullOrEmpty(Sort))
             {
@@ -438,6 +453,10 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Retrieves omnidots peak levels data for callers.
         public Task<SearchQueryResult<OmnidotsPeakLevel>> GetOmnidotsPeakLevels(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
         {
+            var duration = ToDate - FromDate;
+            FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
+            ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
+
             List<OrderByProperty> orderBy = new List<OrderByProperty>();
             if (!string.IsNullOrEmpty(Sort))
             {
@@ -456,13 +475,13 @@ namespace RvtPortal.Spa.Application.Monitors
 
             int pageSize = PageSize ?? 30000;
             var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
-            if ((ToDate - FromDate).TotalHours < 1) //Samples every 2 second
+            if (duration.TotalHours < 1) //Samples every 2 second
                 return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevel, cancellationToken);
-            else if ((ToDate - FromDate).TotalHours < 4) //Samples every 2 second
+            else if (duration.TotalHours < 4) //Samples every 2 second
                 return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel1min, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevelFrom1Min, cancellationToken);
-            else if ((ToDate - FromDate).TotalDays < 1) //samples every 5min
+            else if (duration.TotalDays < 1) //samples every 5min
                 return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel5min, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevelFrom5Min, cancellationToken);
-            else if ((ToDate - FromDate).TotalDays < 2) //samples every 15min
+            else if (duration.TotalDays < 2) //samples every 15min
                 return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel15min, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevelFrom15Min, cancellationToken);
             else //Samples every 20 min
                 return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel20min, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevelFrom20Min, cancellationToken);

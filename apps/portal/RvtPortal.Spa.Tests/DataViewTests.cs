@@ -20,6 +20,7 @@ using RVT.DataAccess.Context;
 using RvtPortal.Spa.Application.Monitors;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
+using RVT.Entities.Ports.Persistence;
 using RVT.Entities.Querying;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
@@ -67,6 +68,70 @@ public class DataViewTests
         Assert.StartsWith("Date,Pm1,Pm2.5,Pm10,PmTotal", csv);
         Assert.Contains(FakeMonitorDataSource.PeakDustPm10.ToString("0.00", CultureInfo.InvariantCulture), csv);
         Assert.Equal(4, csv.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
+    }
+
+    [Fact]
+    // Function summary: Verifies database-style unspecified telemetry is restored to UTC before API JSON serialization.
+    public async Task DataGrid_RestoresDatabaseTimestampAsUtcJson()
+    {
+        var dataSource = new FakeMonitorDataSource();
+        using var factory = new SpaTestApplicationFactory();
+        using var clientFactory = CreateClientFactory(factory, dataSource);
+        var ids = await SeedDataViewScenarioAsync(factory, dataSource);
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        dataSource.AddDustData(
+            ids.DustDeploymentId,
+            Monitor(Guid.NewGuid(), "DATA-DUST", "SER-DATA-D", MonitorTypeEnum.Dust, ids.Today),
+            DateTime.SpecifyKind(ids.Today, DateTimeKind.Unspecified));
+
+        var client = CreateClient(clientFactory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        var grid = await GetJsonAsync(
+            client,
+            $"/api/data/deployments/{ids.DustDeploymentId}/grid?filterOption=60&page=1&pageSize={GridPageSize}&sort=sampleTime&sortDir=Descending");
+
+        Assert.Equal(
+            "2026-05-24T08:30:00Z",
+            grid.RootElement.GetProperty("rows")[0].GetProperty("sampleTime").GetString());
+    }
+
+    [Fact]
+    // Function summary: Verifies UTC application bounds keep their ticks and become unspecified only at the search database boundary.
+    public async Task MonitorService_TimeSeriesBounds_AreUnspecifiedAtDatabaseBoundary()
+    {
+        var reader = new RecordingSearchQueryReader();
+        var service = new MonitorService(null!, null!, null!, reader, null!, null!, null!, null!);
+        var from = new DateTime(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
+        var to = from.AddHours(1);
+
+        await service.GetAirQnoiseLevels("TEST-UTC-BOUND", from, to);
+
+        var bounds = reader.LastFilters!
+            .OfType<SingleFilter>()
+            .Where(filter => filter.PropertyName == "SampleTime")
+            .Select(filter => Assert.IsType<DateTime>(filter.Value))
+            .ToArray();
+        Assert.Equal([from.Ticks, to.Ticks], bounds.Select(bound => bound.Ticks));
+        Assert.All(bounds, bound => Assert.Equal(DateTimeKind.Unspecified, bound.Kind));
+    }
+
+    [Theory]
+    [InlineData(DateTimeKind.Local)]
+    [InlineData(DateTimeKind.Unspecified)]
+    // Function summary: Verifies the search boundary rejects application timestamp bounds that are not UTC.
+    public async Task MonitorService_TimeSeriesBounds_RejectNonUtcInputs(DateTimeKind kind)
+    {
+        var reader = new RecordingSearchQueryReader();
+        var service = new MonitorService(null!, null!, null!, reader, null!, null!, null!, null!);
+        var from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
+        var to = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 15, 0, 0), kind);
+
+        var error = await Assert.ThrowsAsync<ArgumentException>(
+            () => service.GetAirQnoiseLevels("TEST-NON-UTC-BOUND", from, to));
+
+        Assert.Equal("value", error.ParamName);
+        Assert.Contains("must be UTC", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -484,5 +549,23 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
                 new OmnidotsTrace { TraceId = traceId, X = 0.2, Y = SecondTraceY, Z = 0.3 },
                 new OmnidotsTrace { TraceId = traceId, X = 0.3, Y = 0.4, Z = 0.5 }
             ]);
+    }
+}
+
+internal sealed class RecordingSearchQueryReader : ISearchQueryReader
+{
+    public List<Filter>? LastFilters { get; private set; }
+
+    public Task<SearchQueryResult<TResult>> ReadFilteredAsync<TSource, TResult>(
+        List<Filter> whereFilter,
+        OrderByProperty[] orderBy,
+        int maximumRecords,
+        Paging pagedata,
+        Func<TSource, TResult> map,
+        CancellationToken cancellationToken = default)
+        where TSource : class
+    {
+        LastFilters = whereFilter;
+        return Task.FromResult(new SearchQueryResult<TResult>(true, string.Empty, [], 0, string.Empty));
     }
 }

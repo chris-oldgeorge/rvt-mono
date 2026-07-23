@@ -826,7 +826,7 @@ function fromDateToApi(value: string) {
 }
 
 // Function summary: Handles the format date time workflow for this module.
-function formatDateTime(value?: string | null) {
+export function formatDateTime(value?: string | null) {
   if (!value) {
     return '';
   }

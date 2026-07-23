@@ -8,13 +8,13 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <Target Name="PinCommonDependencyVersionForInfrastructurePackage"
+  <Target Name="PinInfrastructureProjectDependencyVersions"
           AfterTargets="_GetProjectReferenceVersions"
           BeforeTargets="GenerateNuspec"
           Condition="'$(PackageId)' == 'Rvt.Monitor.Common.Infrastructure'">
     <ItemGroup>
       <_ProjectReferencesWithVersions Update="@(_ProjectReferencesWithVersions)"
-          Condition="'%(_ProjectReferencesWithVersions.Filename)' == 'Rvt.Monitor.Common'">
+          Condition="'%(_ProjectReferencesWithVersions.Filename)' == 'Rvt.Monitor.Common' Or '%(_ProjectReferencesWithVersions.Filename)' == 'Rvt.Communication'">
         <ProjectVersion>[$(PackageVersion)]</ProjectVersion>
       </_ProjectReferencesWithVersions>
     </ItemGroup>

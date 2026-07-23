@@ -378,6 +378,12 @@
         "resolved": "9.0.13",
         "contentHash": "t8S9IDpjJKsLpLkeBdW8cWtcPyYqrGu93Dej1RO6WwuL/lkFSqWlan3rMJfortqz1mRIh+sys2AFsSA6jWJ3Jg=="
       },
+      "rvt.communication": {
+        "type": "Project",
+        "dependencies": {
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
+        }
+      },
       "rvt.communication.abstractions": {
         "type": "Project"
       },
@@ -408,6 +414,7 @@
         "type": "Project",
         "dependencies": {
           "Azure.Identity": "[1.15.0, )",
+          "Rvt.Communication": "[0.2.0-rc.1, )",
           "Rvt.Monitor.Common": "[0.2.0-rc.1, )",
           "SendGrid": "[9.29.3, )"
         }

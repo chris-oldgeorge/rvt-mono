@@ -56,6 +56,7 @@ chmod +x "${fake_bin}/dotnet"
 
 missing_artifact="${empty_feed}/Rvt.Monitor.Common.0.2.0-rc.1.nupkg"
 abstractions_artifact="${empty_feed}/Rvt.Communication.Abstractions.0.2.0-rc.1.nupkg"
+communication_artifact="${empty_feed}/Rvt.Communication.0.2.0-rc.1.nupkg"
 if output="$(
   PATH="${fake_bin}:${PATH}" \
     DOTNET_CALL_LOG="${dotnet_call_log}" \
@@ -93,6 +94,19 @@ FAKE_DOTNET_CREATE_PACKAGES=1 \
 if [[ ! -f "${abstractions_artifact}" ]]; then
   printf 'FAIL: build-mono.sh must pack %s for Common package validation.\n' \
     "${abstractions_artifact}" >&2
+  exit 1
+fi
+
+if [[ ! -f "${communication_artifact}" ]]; then
+  printf 'FAIL: build-mono.sh must pack %s for Infrastructure package validation.\n' \
+    "${communication_artifact}" >&2
+  exit 1
+fi
+
+infrastructure_pack_call="$(grep -F 'pack '"${repo_root}"'/libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj' "${dotnet_call_log}" | head -n 1)"
+if [[ "${infrastructure_pack_call}" != *'-m:1'* ]]; then
+  printf 'FAIL: build-mono.sh must pack Infrastructure with a single MSBuild node, got:\n%s\n' \
+    "${infrastructure_pack_call}" >&2
   exit 1
 fi
 

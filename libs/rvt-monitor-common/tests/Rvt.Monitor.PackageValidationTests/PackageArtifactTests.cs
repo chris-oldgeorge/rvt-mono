@@ -14,7 +14,7 @@ public sealed class PackageArtifactTests
         Path.Combine(AppContext.BaseDirectory, "../../../../../artifacts/packages"));
 
     [TestMethod]
-    public void ReleaseContainsExactlyTheThreeCompatibilityPackages()
+    public void ReleaseContainsExactlyTheFiveTemporaryCompatibilityPackages()
     {
         var names = Directory.EnumerateFiles(Artifacts, "*.nupkg")
             .Select(Path.GetFileName)
@@ -27,6 +27,8 @@ public sealed class PackageArtifactTests
 
         var packageIds = new[]
         {
+            "Rvt.Communication",
+            "Rvt.Communication.Abstractions",
             "Rvt.Monitor.Common",
             "Rvt.Monitor.Common.Infrastructure",
             "Rvt.Monitor.IntegrationTesting"
@@ -41,6 +43,8 @@ public sealed class PackageArtifactTests
     }
 
     [TestMethod]
+    [DataRow("Rvt.Communication", "Rvt.Communication.dll")]
+    [DataRow("Rvt.Communication.Abstractions", "Rvt.Communication.Abstractions.dll")]
     [DataRow("Rvt.Monitor.Common", "Rvt.Monitor.Common.dll")]
     [DataRow("Rvt.Monitor.Common.Infrastructure", "Rvt.Monitor.Common.Infrastructure.dll")]
     [DataRow("Rvt.Monitor.IntegrationTesting", "Rvt.Monitor.IntegrationTesting.dll")]
@@ -60,6 +64,8 @@ public sealed class PackageArtifactTests
     }
 
     [TestMethod]
+    [DataRow("Rvt.Communication", "Rvt.Communication.dll")]
+    [DataRow("Rvt.Communication.Abstractions", "Rvt.Communication.Abstractions.dll")]
     [DataRow("Rvt.Monitor.Common", "Rvt.Monitor.Common.dll")]
     [DataRow("Rvt.Monitor.Common.Infrastructure", "Rvt.Monitor.Common.Infrastructure.dll")]
     [DataRow("Rvt.Monitor.IntegrationTesting", "Rvt.Monitor.IntegrationTesting.dll")]
@@ -99,17 +105,20 @@ public sealed class PackageArtifactTests
     }
 
     [TestMethod]
-    public void InfrastructureDependencyStartsAtTheSynchronizedCommonVersion()
+    public void InfrastructureDependenciesStartAtTheSynchronizedCompatibilityVersion()
     {
         using var archive = Open("Rvt.Monitor.Common.Infrastructure");
         var nuspec = archive.Entries.Single(entry => entry.FullName.EndsWith(".nuspec", StringComparison.Ordinal));
         using var stream = nuspec.Open();
         var document = XDocument.Load(stream);
-        var dependency = document.Descendants().Single(element =>
-            element.Name.LocalName == "dependency" &&
-            (string?)element.Attribute("id") == "Rvt.Monitor.Common");
+        var dependencies = document.Descendants()
+            .Where(element => element.Name.LocalName == "dependency")
+            .Where(element => (string?)element.Attribute("id") is "Rvt.Monitor.Common" or "Rvt.Communication")
+            .ToArray();
 
-        Assert.AreEqual($"[{Version}]", (string?)dependency.Attribute("version"));
+        Assert.AreEqual(2, dependencies.Length);
+        Assert.IsTrue(dependencies.All(dependency =>
+            string.Equals($"[{Version}]", (string?)dependency.Attribute("version"), StringComparison.Ordinal)));
     }
 
     private static ZipArchive Open(string packageId) => ZipFile.OpenRead(

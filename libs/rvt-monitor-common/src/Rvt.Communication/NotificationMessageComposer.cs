@@ -1,6 +1,6 @@
 using Rvt.Communication.Abstractions;
 
-namespace Rvt.Monitor.Common.Communications;
+namespace Rvt.Communication;
 
 public sealed class NotificationMessageComposer : INotificationMessageComposer
 {

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Rvt.Communication;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Communications;
 using Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
 using Rvt.Monitor.Common.Infrastructure.Email.SendGrid;
 using Rvt.Monitor.Common.Infrastructure.Sms;
@@ -31,9 +31,7 @@ public static class CommunicationsServiceCollectionExtensions
         services.AddHttpClient<TransmitSmsAdapter>();
         services.AddSingleton<ISmsDeliveryPort>(provider =>
             provider.GetRequiredService<TransmitSmsAdapter>());
-        services.AddSingleton<INotificationMessageComposer, NotificationMessageComposer>();
-        services.AddSingleton<INotificationDeliveryService, NotificationDeliveryService>();
-        services.AddSingleton<IMessageService, MessageService>();
+        services.AddRvtCommunication();
         services.AddSingleton<IHostedService, CommunicationsStartupValidationService>();
         return services;
     }

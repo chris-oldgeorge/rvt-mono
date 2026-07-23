@@ -1,7 +1,7 @@
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Notifications;
 
-namespace Rvt.Monitor.Common.Communications;
+namespace Rvt.Communication;
 
 public sealed class MessageService(INotificationDeliveryService notificationDelivery) : IMessageService
 {

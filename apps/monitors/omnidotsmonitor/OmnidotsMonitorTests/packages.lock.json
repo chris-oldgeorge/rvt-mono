@@ -510,6 +510,12 @@
           "Rvt.Monitor.Common.Infrastructure": "[0.2.0-rc.1, )"
         }
       },
+      "rvt.communication": {
+        "type": "Project",
+        "dependencies": {
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
+        }
+      },
       "rvt.communication.abstractions": {
         "type": "Project"
       },
@@ -540,6 +546,7 @@
         "type": "Project",
         "dependencies": {
           "Azure.Identity": "[1.15.0, )",
+          "Rvt.Communication": "[0.2.0-rc.1, )",
           "Rvt.Monitor.Common": "[0.2.0-rc.1, )",
           "SendGrid": "[9.29.3, )"
         }

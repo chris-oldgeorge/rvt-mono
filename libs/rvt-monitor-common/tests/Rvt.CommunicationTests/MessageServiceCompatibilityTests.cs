@@ -1,9 +1,9 @@
 using Moq;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Communications;
+using Rvt.Communication;
 using Rvt.Monitor.Common.Notifications;
 
-namespace Rvt.Monitor.CommonTests.Communications;
+namespace Rvt.CommunicationTests;
 
 [TestClass]
 public sealed class MessageServiceCompatibilityTests

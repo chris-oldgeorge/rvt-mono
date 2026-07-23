@@ -14,6 +14,7 @@
     <PackageReference Include="Azure.Identity" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
     <PackageReference Include="SendGrid" />
+    <ProjectReference Include="../Rvt.Communication/Rvt.Communication.csproj" />
     <ProjectReference Include="../Rvt.Monitor.Common/Rvt.Monitor.Common.csproj" />
   </ItemGroup>
 </Project>

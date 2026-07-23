@@ -9,6 +9,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -280,8 +281,10 @@ public class ContractSiteOperationsTests
                 })
                 .ToList()
         });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         var created = await create.Content.ReadFromJsonAsync<EntityResponse<SiteDetailResponse>>();
         var siteId = created!.Item!.Id;
+        Assert.Equal($"/api/sites/{siteId}", create.Headers.Location?.AbsolutePath);
         var update = await client.PutAsJsonAsync($"/api/sites/{siteId}", new SiteMutationRequest
         {
             SiteName = updatedSiteName,
@@ -296,7 +299,6 @@ public class ContractSiteOperationsTests
 
         Assert.Equal(HttpStatusCode.BadRequest, missingContract.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, invalidTimes.StatusCode);
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         Assert.Contains(created.Item.ContractList, contract => contract.Id == contractId);
         // The submitted schedule round-trips verbatim, including named days and closed days.
         Assert.Equal(
@@ -410,9 +412,58 @@ public class ContractSiteOperationsTests
         using var form = new MultipartFormDataContent();
         form.Add(new ByteArrayContent(Encoding.UTF8.GetBytes("<svg onload=alert(1)>not really an image</svg>")), "logo", "customer-logo.png");
         var upload = await client.PostAsync($"/api/sites/{siteId}/customer-logo", form);
+        using var problem = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.BadRequest, upload.StatusCode);
+        Assert.Equal("Invalid customer logo", problem.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            "Customer logos must be valid PNG, JPEG, or WebP images.",
+            problem.RootElement.GetProperty("detail").GetString());
+        Assert.False(problem.RootElement.TryGetProperty("errors", out _));
     }
+
+    [Fact]
+    // Function summary: Preserves masked site-not-found ordering before missing-logo validation.
+    public async Task SiteCustomerLogo_MissingSiteWithoutFile_ReturnsMaskedNotFound()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var missingSiteId = Guid.NewGuid();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("ignored"), "unrelated");
+        var upload = await client.PostAsync($"/api/sites/{missingSiteId}/customer-logo", form);
+        using var problem = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound, upload.StatusCode);
+        Assert.Equal("Site not found", problem.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            $"Site '{missingSiteId}' was not found.",
+            problem.RootElement.GetProperty("detail").GetString());
+    }
+
+    [Fact]
+    // Function summary: Preserves the legacy site-not-found payload when deleting a logo for a missing site.
+    public async Task SiteCustomerLogo_DeleteMissingSite_ReturnsLegacyNotFound()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var missingSiteId = Guid.NewGuid();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        var delete = await client.DeleteAsync($"/api/sites/{missingSiteId}/customer-logo");
+        using var problem = JsonDocument.Parse(await delete.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+        Assert.Equal("Site not found", problem.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            $"Site '{missingSiteId}' was not found.",
+            problem.RootElement.GetProperty("detail").GetString());
+    }
+
     [Fact]
     // Function summary: Handles the company user site access is scoped and can update own notification settings workflow for this module.
     public async Task CompanyUserSiteAccess_IsScopedAndCanUpdateOwnNotificationSettings()

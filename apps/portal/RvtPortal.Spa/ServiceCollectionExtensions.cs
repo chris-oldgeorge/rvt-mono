@@ -48,8 +48,6 @@ using RVT.BusinessLogic.Ports.Notifications;
 using RVT.BusinessLogic.Ports.Storage;
 using RVT.BusinessLogic.Ports.Vendors;
 using RVT.BusinessLogic.Reports;
-using RVT.BusinessLogic.Sites;
-using RvtPortal.Spa.Application.Sites;
 using RvtPortal.Spa.Adapters.Notifications;
 using RvtPortal.Spa.Adapters.Reporting;
 using RvtPortal.Spa.Adapters.Storage;
@@ -126,7 +124,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IApiResultMapper, ApiResultMapper>();
         services.AddScoped<ICurrentUserContextFactory, CurrentUserContextFactory>();
         services.AddScoped<IPortalUserDirectory, PortalUserDirectory>();
-        services.AddScoped<ISiteApplicationService, SiteApplicationService>();
+        services.AddScoped<
+            RvtPortal.Application.Sites.ISiteApplicationService,
+            RvtPortal.Application.Sites.SiteApplicationService>();
         services.AddScoped<ISiteReadPort, EfSiteReadAdapter>();
         services.AddScoped<ISiteWritePort, EfSiteWriteAdapter>();
         services.AddScoped<ISiteArchivePort, SiteArchiveAdapter>();

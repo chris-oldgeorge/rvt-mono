@@ -3,13 +3,23 @@
 // - 2026-07-05 pending Added site API mapper for controller-to-business refactoring.
 // - 2026-07-05 pending Added mappings for site monitor, open-notification, and notification-setting workflows.
 
-using RVT.BusinessLogic.Application.Paging;
-using RVT.BusinessLogic.Sites;
+using RvtPortal.Application.Common;
+using RvtPortal.Application.Sites;
 
 namespace RvtPortal.Spa.Api.Mappers;
 
 public static class SiteApiMapper
 {
+    // Function summary: Copies the host-normalized legacy page request into the application-owned paging contract.
+    public static RvtPortal.Application.Common.PageRequest ToApplicationPage(
+        RVT.BusinessLogic.Application.Paging.PageRequest page) =>
+        new(
+            page.SearchText,
+            page.Page,
+            page.PageSize,
+            page.Sort,
+            page.SortDir);
+
     // Function summary: Maps paged site application results to the existing API response contract.
     public static QuerySitesResponse ToQueryResponse(PagedResult<SiteListModel> result, bool isScopedToCurrentUser)
     {

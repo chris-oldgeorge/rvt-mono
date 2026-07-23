@@ -51,6 +51,27 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         Guid siteId,
         CancellationToken cancellationToken)
     {
+        // EF InMemory does not implement ExecuteUpdateAsync. Keep the production
+        // relational claim atomic while preserving equivalent host-contract
+        // behavior for the suite's non-relational provider.
+        if (!domainContext.Database.IsRelational())
+        {
+            var contract = await domainContext.Contracts.SingleOrDefaultAsync(
+                item =>
+                    item.Id == contractId &&
+                    item.CompanyId == companyId &&
+                    item.SiteiD == null,
+                cancellationToken);
+            if (contract is null)
+            {
+                return false;
+            }
+
+            contract.SiteiD = siteId;
+            await domainContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
         var affected = await domainContext.Contracts
             .Where(contract =>
                 contract.Id == contractId &&

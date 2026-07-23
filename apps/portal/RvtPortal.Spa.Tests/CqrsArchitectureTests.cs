@@ -44,13 +44,14 @@ using RVT.BusinessLogic.Ports.Storage;
 using RVT.BusinessLogic.Reports;
 using RvtPortal.Spa.Application.ReportRules;
 using RvtPortal.Spa.Adapters.Archive;
-using RVT.BusinessLogic.Sites;
-using RvtPortal.Spa.Application.Sites;
+using RvtPortal.Application.Sites;
+using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Common;
 using RvtPortal.Spa.Application.Lookups;
 using RvtPortal.Spa.Adapters.Reporting;
 using RvtPortal.Spa.Adapters.Storage;
+using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -157,16 +158,21 @@ public class CqrsArchitectureTests
     }
 
     [Fact]
-    // Function summary: Verifies site detail, monitor, notification, and mutation workflows enter the site application service instead of owning EF, Identity, or direct command dispatch in the controller.
-    public void SitesController_DelegatesDetailMonitorAndNotificationReadsToApplicationService()
+    // Function summary: Verifies site HTTP workflows depend only on the application boundary and HTTP mappers.
+    public void SitesController_DependsOnlyOnSiteUseCasesAndHttpMappers()
     {
         var constructorParameters = ConstructorParameters(typeof(SitesController));
 
-        Assert.Contains(typeof(ISiteApplicationService), constructorParameters);
+        Assert.Contains(typeof(RvtPortal.Application.Sites.ISiteApplicationService), constructorParameters);
         Assert.Contains(typeof(ICurrentUserContextFactory), constructorParameters);
+        Assert.Contains(typeof(IApiResultMapper), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
-        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<RvtPortal.Spa.Data.ApplicationUser>), constructorParameters);
+        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
         Assert.DoesNotContain(typeof(IMediator), constructorParameters);
+        Assert.DoesNotContain(typeof(ICustomerLogoStorage), constructorParameters);
+        Assert.DoesNotContain(
+            constructorParameters,
+            type => type.FullName == "RvtPortal.Spa.Adapters.Archive.ISiteArchiveService");
     }
 
     [Theory]
@@ -395,17 +401,17 @@ public class CqrsArchitectureTests
     }
 
     [Fact]
-    // Function summary: Verifies site archiving is injected through a business port instead of creating configuration-bound services directly.
+    // Function summary: Verifies site archiving enters the application-owned port instead of depending on the host archive service.
     public void SiteApplicationService_DependsOnArchivePort()
     {
-        // ArchiveAsync is the live archive path; it must reach the export through the ISiteArchiveService port,
-        // not by newing up the configuration-bound SiteArchiveService itself.
+        // ArchiveAsync is the live archive path; application code must remain unaware of the host service.
         var constructorParameters = ConstructorParameters(typeof(SiteApplicationService));
         var archiveServiceType = typeof(ISiteArchiveService).Assembly.GetType(
             "RvtPortal.Spa.Adapters.Archive.SiteArchiveService",
             throwOnError: true) ?? throw new InvalidOperationException("SiteArchiveService type not found.");
 
-        Assert.Contains(constructorParameters, type => type.FullName == "RvtPortal.Spa.Adapters.Archive.ISiteArchiveService");
+        Assert.Contains(typeof(ISiteArchivePort), constructorParameters);
+        Assert.DoesNotContain(typeof(ISiteArchiveService), constructorParameters);
         Assert.DoesNotContain(
             archiveServiceType.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic),
             constructor => constructor.GetParameters().Length == 0);

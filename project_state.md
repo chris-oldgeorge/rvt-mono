@@ -960,3 +960,76 @@
 - The existing `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories
   remain outside Task 5. Generated `.codegraph/` and
   `apps/.nuget-packages/` remain untracked and must not be staged.
+
+## Sites Application Boundary Task 6 - 2026-07-23
+
+- Active branch: `codex/sites-application-boundary`; Task 6 started from the
+  accepted Task 5 commit `7235e3d9ea5dc3ed9c5d3c08ffd4524722410bd7`.
+- `SitesController` now depends on
+  `RvtPortal.Application.Sites.ISiteApplicationService`,
+  `ICurrentUserContextFactory`, and `IApiResultMapper` only. Its route,
+  authorization, request-size, and response metadata are byte-for-byte
+  unchanged from the Task 5 base.
+- `SiteApiMapper` consumes the application-owned Sites contracts. The
+  `ToApplicationPage` boundary copies the host-normalized legacy `PageRequest`
+  fields (`SearchText`, `Page`, `PageSize`, `Sort`, and `SortDir`) into the
+  application-owned page contract. Fixed-sort panels still use
+  `GetNormalizedPage`, `GetNormalizedPageSize`, and `GetNormalizedSortDir`.
+- `IApiResultMapper` retains its legacy `ApplicationResult<T>` overload and
+  adds the six-kind `UseCaseResult<T>` mapping. `SitesController` keeps
+  `CreatedAtAction` for create, maps `HasCustomerLogo` to
+  `/api/sites/{id}/customer-logo` at the HTTP edge, and returns successful logo
+  reads with `File(...)` so streams are never JSON-wrapped.
+- DI now maps the application-owned `ISiteApplicationService` to the
+  application-owned `SiteApplicationService`. The duplicate host
+  `SiteApplicationService`, host `SiteCommands`, and
+  `RVT.BusinessLogic.Sites` application models are removed.
+- Intentional brief variance: the host
+  `Application/Sites/ActiveSiteAssignment.cs` remains. The prescribed
+  namespace scan found seven live non-Sites consumers in notification,
+  dashboard, monitor, and alert-level slices. Repointing or relocating those
+  EF expression consumers is outside Task 6, so deleting the helper would
+  break accepted behavior. Current live variables remain `userId`/`nowUtc`,
+  and the inclusive `StartDate <= nowUtc` plus nullable `EndDate >= nowUtc`
+  assignment window is unchanged.
+- Boundary-drift fix: the host contract suite uses EF InMemory, which does not
+  implement `ExecuteUpdateAsync`. `EfSiteWriteAdapter.TryClaimContractAsync`
+  now uses a conditional tracked claim plus `SaveChangesAsync` only when
+  `Database.IsRelational()` is false. Relational providers retain the accepted
+  atomic conditional `ExecuteUpdateAsync`; its `affected == 1` result is
+  unchanged.
+- TDD evidence: the architecture RED failed because the constructor exposed
+  the legacy Sites service and `ICustomerLogoStorage`; its GREEN passed 1/1.
+  The first compatibility run passed 35, skipped one PostgreSQL-gated test,
+  and failed two create flows. Detailed logs traced both failures to the
+  unsupported InMemory `ExecuteUpdateAsync` call. After the provider-specific
+  compatibility branch, the prescribed architecture/contract slice passes
+  38 with one PostgreSQL-gated skip, `SiteWriteAdapterTests` passes 4/4, and
+  the complete SPA host suite passes 381 with eight provider-gated skips.
+- Contract assertions explicitly preserve create `Location` as
+  `/api/sites/{siteId}` and the protected post-delete logo response as 404.
+  Independent-review regressions additionally preserve the legacy customer-logo
+  upload failure ordering: current-user creation and masked site-manage
+  visibility/existence precede null-logo validation, so a missing site with no
+  logo returns the endpoint's `Site not found` 404 response. Invalid logo
+  application validation is handled only at this HTTP edge as plain
+  ProblemDetails with title `Invalid customer logo`, the storage error in
+  `detail`, HTTP 400, and no ValidationProblemDetails `errors` member. The
+  generic `IApiResultMapper` remains unchanged.
+- Delete-logo missing-site translation is also endpoint-specific:
+  `DeleteCustomerLogo` returns the controller's legacy `SiteNotFound(id)`
+  ProblemDetails for `UseCaseResultKind.NotFound` before delegating all other
+  result kinds to `IApiResultMapper`. The regression asserts HTTP 404, title
+  `Site not found`, and detail `Site '{id}' was not found.`.
+- Independent-review TDD RED failed both contracts with the former HTTP 400
+  null-logo ordering and generic ValidationProblemDetails title. GREEN passes
+  both regressions. The delete-logo re-review RED received HTTP 404 but exposed
+  the generic mapper title `Resource not found.`; its GREEN passes. The
+  architecture/contract slice now passes 39 with one PostgreSQL-gated skip,
+  and the full SPA host suite passes 382 with eight provider-gated skips. The
+  complete `SitesController` action-attribute sequence still has an empty
+  metadata diff against Task 5 base
+  `7235e3d9ea5dc3ed9c5d3c08ffd4524722410bd7`.
+  Existing `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories remain
+  outside Task 6. Generated `.codegraph/` and `apps/.nuget-packages/` remain
+  untracked and excluded from the task commit.

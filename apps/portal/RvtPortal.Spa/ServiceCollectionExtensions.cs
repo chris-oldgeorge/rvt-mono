@@ -1,5 +1,6 @@
 ﻿// File summary: Supports the ASP.NET Core host that serves the RVT React portal and backend API.
 // Major updates:
+// - 2026-07-23 Registered the application-owned Sites read port and EF adapter.
 // - 2026-07-22 Registered the framework time provider required by report-generation clients.
 // - 2026-07-09 pending Bound TimeZones configuration to the injectable business date-time provider.
 // - 2026-07-08 pending Registered hexagonal edge ports, adapters, and report-rule application services.
@@ -40,6 +41,7 @@ using RVT.BusinessLogic;
 using RVT.DataAccess;
 using RVT.Entities.Ports.Persistence;
 using RvtPortal.Application.Identity;
+using RvtPortal.Application.Sites.Ports;
 using RVT.BusinessLogic.Notifications;
 using RVT.BusinessLogic.Ports.Notifications;
 using RVT.BusinessLogic.Ports.Storage;
@@ -52,6 +54,7 @@ using RvtPortal.Spa.Adapters.Reporting;
 using RvtPortal.Spa.Adapters.Storage;
 using RvtPortal.Spa.Adapters.Vendors;
 using RvtPortal.Spa.Adapters.Archive;
+using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Application.AlertLevels;
 using RvtPortal.Spa.Application.Auth;
 using RvtPortal.Spa.Application.Companies;
@@ -119,6 +122,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICurrentUserContextFactory, CurrentUserContextFactory>();
         services.AddScoped<IPortalUserDirectory, PortalUserDirectory>();
         services.AddScoped<ISiteApplicationService, SiteApplicationService>();
+        services.AddScoped<ISiteReadPort, EfSiteReadAdapter>();
         services.AddScoped<IReportRuleApplicationService, ReportRuleApplicationService>();
         services.AddScoped<IUserAdministrationReadService, UserAdministrationReadService>();
         services.AddScoped<IUserListApplicationService, UserListApplicationService>();

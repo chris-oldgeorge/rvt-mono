@@ -238,6 +238,49 @@
   `git diff --check` is clean. The obsolete untracked suffixed C# copy was
   subsequently removed, leaving the tracked boundary test as the sole copy.
 
+## Sites Application Boundary Task 3 - 2026-07-23
+
+- Current state: the BCL-only `RvtPortal.Application` project owns common
+  use-case results and paging primitives, the complete transport-neutral Sites
+  contract set, the Sites read facade, and the materialized `ISiteReadPort`.
+- Application structure:
+  - `Common/UseCaseResult.cs`, `PageRequest.cs`, and `PagedResult.cs` define the
+    application-owned result and paging types.
+  - `Sites/SiteContracts.cs`, `ISiteApplicationService.cs`,
+    `Ports/ISiteReadPort.cs`, and `SiteApplicationService.cs` define the read
+    use cases and their persistence-neutral boundary.
+  - `Sites/SiteApplicationService.cs` creates one UTC
+    `SiteAuthorizationPolicy.ReadScope` per user-facing read, masks invisible
+    sites as not found, joins materialized notification assignments with
+    `IPortalUserDirectory`, and restricts company users to their own settings.
+- Host adapter: `RvtPortal.Spa/Adapters/Sites/EfSiteReadAdapter.cs` owns the
+  extracted EF Core read queries. Filtering, counts, sorting, paging, monitor
+  and notification projections, options, details, operating hours, and
+  notification-setting materialization remain database-side where they were
+  before extraction.
+- DI state: `ISiteReadPort` resolves to scoped `EfSiteReadAdapter`. The legacy
+  `RvtPortal.Spa.Application.Sites.ISiteApplicationService` remains registered
+  for controllers; HTTP cutover is deferred to Task 6.
+- Access variables: `VisibleSites` supports `All`, inclusive-window `Assigned`,
+  and empty `None` scopes. Assignment comparisons use `scope.NowUtc`.
+- Sort variables: `DefaultSort = "createDate"`,
+  `MonitorSort = "fleetNumber"`, and
+  `NotificationSort = "notificationTime"`. Open-notification pages and
+  site-detail notification rows retain the existing limit of 20.
+- Detail facts: `CanManage` is enriched by the application service;
+  `HasCustomerLogo` remains false until Task 5 adds the storage port.
+- Tests:
+  - `SiteReadUseCaseTests` verifies assigned-scope masking and exact materialized
+    query forwarding with a reusable, extensible `FakeSiteReadPort`.
+  - `SiteReadAdapterTests` resolves the adapter through DI and verifies inclusive
+    active and expired assignment windows for existence and paged visibility.
+  - Application boundary architecture checks continue to prove
+    `RvtPortal.Application` has no package/project references or forbidden
+    framework/adapter imports.
+- Known environment concern: portal builds continue to report the pre-existing
+  NU1903 high-severity advisories for `System.Security.Cryptography.Xml` 10.0.7.
+  No dependency versions changed in this task.
+
 ## Immediate Blockers Task 2 - 2026-07-22
 
 - Portal startup now explicitly registers `TimeProvider.System`, satisfying

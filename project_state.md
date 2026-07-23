@@ -64,9 +64,34 @@
   projects selected explicitly by application composition roots.
 - Design specification:
   `docs/superpowers/specs/2026-07-23-rvt-provider-adapter-project-split-design.md`.
-  Implementation planning must update the hard-coded three-package release,
-  validation, SBOM, solution, and package-consumer assumptions to the approved
-  eleven-package graph.
+  Execution is divided into three implementation plans:
+  `docs/superpowers/plans/2026-07-23-rvt-communication-provider-split.md`,
+  `docs/superpowers/plans/2026-07-23-rvt-storage-provider-split.md`, and
+  `docs/superpowers/plans/2026-07-23-rvt-provider-package-release-migration.md`.
+  The release plan updates the hard-coded three-package validation, SBOM,
+  solution, and package-consumer assumptions to the approved eleven-package
+  graph.
+- Target production package set: `Rvt.Monitor.Common`,
+  `Rvt.Monitor.IntegrationTesting`, `Rvt.Communication.Abstractions`,
+  `Rvt.Communication`, `Rvt.Communication.SendGridMail`,
+  `Rvt.Communication.MicrosoftGraphMail`,
+  `Rvt.Communication.TransmitSms`, `Rvt.Storage.Abstractions`,
+  `Rvt.Storage.Local`, `Rvt.Storage.AzureBlob`, and `Rvt.Storage.S3`.
+  The clean-split release baseline is `1.0.0-rc.1`;
+  `Rvt.Monitor.Common.Infrastructure` is removed rather than retained as a
+  facade or meta-package.
+- Storage abstraction definitions: `IObjectStorageClient` provides streaming
+  write, open-read, and delete-if-exists operations;
+  `IObjectStorageClientFactory.GetRequiredClient(resourceName)` resolves a
+  named host-configured resource; `StorageObjectKey` protects provider-neutral
+  object names; and provider adapters translate vendor failures into
+  `ObjectStorageException` with `StorageFailureKind`.
+- Communication abstraction definitions: `IEmailDeliveryPort` and
+  `ISmsDeliveryPort` remain transport ports; `LegacyMessageKind` and
+  `LegacyMessageChannel` replace implementation-owned nested message enums;
+  `RvtContactDto` remains source-compatible in the
+  `Rvt.Monitor.Common.Notifications` namespace but is compiled by
+  `Rvt.Communication.Abstractions` to avoid a project cycle.
 - TODO(storage): after the provider split, migrate Portal
   `MonitorPictureStorage` and `SiteArchiveService` from direct Azure
   `BlobContainerClient` construction to `IObjectStorageClientFactory`. Preserve

@@ -1033,3 +1033,93 @@
   Existing `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories remain
   outside Task 6. Generated `.codegraph/` and `apps/.nuget-packages/` remain
   untracked and excluded from the task commit.
+
+## Sites Application Boundary Task 7 - 2026-07-23
+
+- Active branch: `codex/sites-application-boundary`. The accepted application
+  slice ends at Task 6 commit
+  `13aa5ff4c678df3a70c9576ae73fccc067f56ac7`; Task 7 is the single commit
+  named `docs: record sites application extraction` that contains this final
+  resumable state.
+- Extraction decision: the Sites slice moved incrementally into the BCL-only
+  `apps/portal/RvtPortal.Application` project. `RVT.BusinessLogic` remains the
+  legacy application boundary for slices not yet extracted and must not be
+  moved opportunistically during unrelated work.
+- New ownership:
+  - `RvtPortal.Application/Common` owns `UseCaseResult<T>`, `PageRequest`,
+    `PagedResult<T>`, and the unit-of-work port.
+  - `RvtPortal.Application/Identity` owns transport-neutral portal user facts,
+    role names, profiles, and the user-directory port.
+  - `RvtPortal.Application/Sites` owns the complete Sites contracts, pure UTC
+    authorization policy, validation, application service, and focused ports.
+  - `RvtPortal.Application.Tests` owns pure application use-case and policy
+    tests. `RvtPortal.Spa.Tests` owns the executable filesystem architecture
+    guards plus host adapter and HTTP compatibility coverage.
+  - `RvtPortal.Spa/Adapters/Sites` owns the EF read/write, archive-export, and
+    customer-logo adapters. `SitesController` and `SiteApiMapper` remain the
+    HTTP/DTO edge.
+- Composition registrations:
+  - application `ISiteApplicationService` resolves to application
+    `SiteApplicationService`;
+  - `ISiteReadPort` resolves to `EfSiteReadAdapter`;
+  - `ISiteWritePort` resolves to `EfSiteWriteAdapter`;
+  - `ISiteArchivePort` resolves to `SiteArchiveAdapter`;
+  - `ISiteLogoPort` resolves to `SiteLogoAdapter`;
+  - `IPortalUserDirectory` resolves to the host `PortalUserDirectory`;
+  - `IApplicationUnitOfWork` and the legacy host `IUnitOfWork` both resolve to
+    the same scoped `EfCoreUnitOfWork`, retaining the shared domain, search,
+    and Identity transaction.
+- Public application boundary interfaces are
+  `ISiteApplicationService`, `ISiteReadPort`, `ISiteWritePort`,
+  `ISiteArchivePort`, `ISiteLogoPort`, `IApplicationUnitOfWork`, and
+  `IPortalUserDirectory`.
+- Approved Task 6 variance: the host
+  `RvtPortal.Spa.Application.Sites.ActiveSiteAssignment` remains for seven live
+  EF-expression consumers in notification close authorization, dashboard
+  visibility, monitor list/read authorization, two monitor-administration
+  queries, and alert-level authorization. Relocating those consumers is not
+  part of the Sites extraction. The host helper and the application-owned pure
+  policy retain explicit UTC input and inclusive start/end semantics.
+- Final verification:
+  - `RvtPortal.Application.Tests`: 31 passed, 0 failed, 0 skipped.
+  - `RvtPortal.Spa.Tests`: 382 passed, 0 failed, 8 skipped, 390 total.
+    Every skip is explicitly gated on real PostgreSQL/TimescaleDB:
+    contract calendar-date persistence, UTC site insert, three search
+    timestamp/view checks, dashboard-breach `timestamptz`, and two schema
+    deploy/default checks.
+  - `RVT_TEST_POSTGRES_CONNECTION` was unset. The eight provider tests were
+    discovered but not executed, so provider closure is not claimed.
+  - `RvtPortal.Spa.sln` built with 0 errors and 5 known NU1903 warnings.
+  - `RvtPortal.Client` passed 68/68 tests and its production build completed.
+  - Mono-solution, mono-layout, and RVT common-source boundary guards passed.
+  - The ordinary documentation-layout run was polluted solely by the
+    pre-existing untracked `apps/.nuget-packages/` cache and reported 180
+    package-owned Markdown files in two issue groups. A clean isolated clone
+    containing the exact tracked tree plus the Task 7 documentation diff
+    passed with 122 moves and 7 retained entry points; the cache was not moved,
+    deleted, edited, or staged.
+  - `git diff --check` completed with no output.
+- Known advisories: `System.Security.Cryptography.Xml` 10.0.7 continues to
+  report five existing high-severity NU1903 advisories:
+  `GHSA-23rf-6693-g89p`, `GHSA-8q5v-6pqq-x66h`,
+  `GHSA-cvvh-rhrc-wg4q`, `GHSA-g8r8-53c2-pm3f`, and
+  `GHSA-mmjf-rqrv-855v`. No dependency version changed in this extraction.
+- Remaining slice candidates, without selecting the next one, include monitor,
+  report/report-rule, company/user, contract, notification, dashboard, and
+  alert-level boundaries. Each requires its own behavior-preserving design and
+  verification scope.
+- Independent full-branch review of
+  `1eeb6c71922b98dd7928330879a6813247c0a7e8..4a1f5e8f4360b2b24a0ab44719d00bec9e99bfe2`
+  found no Critical issues and one validated Important authorization defect:
+  `SiteApplicationService.ArchiveAsync` reads archive state, exports, and
+  persists archive metadata without first applying
+  `SiteAuthorizationPolicy.CanManage(user)`. The controller's admin role
+  attribute protects the current HTTP route, but a direct application-service
+  caller can archive any existing site. The required repair is a focused
+  non-admin application regression proving no read/export/transaction/write,
+  followed by the management check before archive state or external work and a
+  fresh full gate. Task 7 does not broaden into that accepted Task 5 behavior,
+  so the implementation-plan review checkbox remains open and this branch is
+  not yet merge-ready.
+- Generated `.codegraph/`, `apps/.nuget-packages/`, and the progress ledger
+  remain unmodified and excluded from the Task 7 commit.

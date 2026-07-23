@@ -38,7 +38,7 @@
 - Consumes: repository-root discovery from `RvtPortal.Spa.Tests.Support.RepositoryLayout`.
 - Produces: a BCL-only `RvtPortal.Application` assembly referenced by the host, plus a dedicated unit-test project and executable project-graph guards.
 
-- [ ] **Step 1: Write the failing filesystem architecture test**
+- [x] **Step 1: Write the failing filesystem architecture test**
 
 Create `ApplicationBoundaryArchitectureTests.cs` without referencing the not-yet-created assembly:
 
@@ -104,7 +104,7 @@ public sealed class ApplicationBoundaryArchitectureTests
 }
 ```
 
-- [ ] **Step 2: Run the architecture test and verify RED**
+- [x] **Step 2: Run the architecture test and verify RED**
 
 Run:
 
@@ -115,7 +115,7 @@ dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
 
 Expected: FAIL because `RvtPortal.Application/RvtPortal.Application.csproj` does not exist.
 
-- [ ] **Step 3: Create the two projects**
+- [x] **Step 3: Create the two projects**
 
 Create `RvtPortal.Application.csproj`:
 
@@ -161,7 +161,7 @@ Add this host reference to `RvtPortal.Spa.csproj`:
 <ProjectReference Include="..\RvtPortal.Application\RvtPortal.Application.csproj" />
 ```
 
-- [ ] **Step 4: Add both projects to both solutions**
+- [x] **Step 4: Add both projects to both solutions**
 
 Run:
 
@@ -178,7 +178,7 @@ dotnet sln apps/portal/RvtPortal.Spa.sln add \
   apps/portal/RvtPortal.Application.Tests/RvtPortal.Application.Tests.csproj
 ```
 
-- [ ] **Step 5: Verify GREEN**
+- [x] **Step 5: Verify GREEN**
 
 Run:
 
@@ -191,7 +191,7 @@ dotnet build apps/portal/RvtPortal.Application/RvtPortal.Application.csproj --no
 
 Expected: architecture tests pass, the monorepo solution guard reports no project/folder mismatch, and the application project builds with zero errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add \
@@ -241,7 +241,7 @@ git commit -m "refactor: scaffold portal application boundary"
   - `SiteAccessScope` with `All`, `Assigned`, and `None` modes
   - inclusive UTC assignment-window policy.
 
-- [ ] **Step 1: Write policy tests**
+- [x] **Step 1: Write policy tests**
 
 Create `SiteAuthorizationPolicyTests.cs`:
 
@@ -305,7 +305,7 @@ public sealed class SiteAuthorizationPolicyTests
 }
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run:
 
@@ -316,7 +316,7 @@ dotnet test apps/portal/RvtPortal.Application.Tests/RvtPortal.Application.Tests.
 
 Expected: build fails because the identity and authorization types do not exist.
 
-- [ ] **Step 3: Add the shared identity contracts**
+- [x] **Step 3: Add the shared identity contracts**
 
 Create `PortalUserContext.cs`:
 
@@ -374,7 +374,7 @@ public interface IPortalUserDirectory
 }
 ```
 
-- [ ] **Step 4: Add the pure authorization policy**
+- [x] **Step 4: Add the pure authorization policy**
 
 Create the following types:
 
@@ -464,7 +464,7 @@ public static class SiteAuthorizationPolicy
 }
 ```
 
-- [ ] **Step 5: Repoint the host to the application-owned identity contracts**
+- [x] **Step 5: Repoint the host to the application-owned identity contracts**
 
 Delete the two superseded `RVT.BusinessLogic/Application` files. Add:
 
@@ -482,7 +482,7 @@ facts, now using `RvtPortal.Application.Identity.PortalUserContext`.
 `PortalUserDirectory` must continue mapping ASP.NET Identity users to the same
 profile fields, now implementing the application-owned port.
 
-- [ ] **Step 6: Verify GREEN and no unrelated behavior drift**
+- [x] **Step 6: Verify GREEN and no unrelated behavior drift**
 
 Run:
 
@@ -495,7 +495,7 @@ dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
 
 Expected: application policy tests pass; existing current-user and active-assignment HTTP tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add \
@@ -533,7 +533,7 @@ git commit -m "refactor: move portal user and site access policies"
   - read methods on `ISiteApplicationService`;
   - `EfSiteReadAdapter`.
 
-- [ ] **Step 1: Write failing application read-use-case tests**
+- [x] **Step 1: Write failing application read-use-case tests**
 
 Create tests with a recording fake port:
 
@@ -668,7 +668,7 @@ test class after copying the shown bodies. Make the fake port properties
 settable and its methods `virtual` so Tasks 4 and 5 can extend the same explicit
 test double as the port grows.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 Run:
 
@@ -679,7 +679,7 @@ dotnet test apps/portal/RvtPortal.Application.Tests/RvtPortal.Application.Tests.
 
 Expected: build fails because the result, Sites contracts, read port, and application service do not exist.
 
-- [ ] **Step 3: Add common result and paging primitives**
+- [x] **Step 3: Add common result and paging primitives**
 
 Implement `UseCaseResult<T>` with these exact public members:
 
@@ -783,7 +783,7 @@ public sealed class PagedResult<T>
 }
 ```
 
-- [ ] **Step 4: Move the Sites contracts into the application project**
+- [x] **Step 4: Move the Sites contracts into the application project**
 
 Create `SiteContracts.cs` with the exact transport-neutral shapes below. These
 are the existing Sites API-facing application models moved into the new
@@ -965,7 +965,7 @@ public sealed record SiteNotificationSettingsData(
     IReadOnlyList<SiteNotificationAssignment> Assignments);
 ```
 
-- [ ] **Step 5: Define the read port and read facade**
+- [x] **Step 5: Define the read port and read facade**
 
 Create `ISiteReadPort`:
 
@@ -1079,7 +1079,7 @@ settings, join `SiteNotificationSettingsData.Assignments` to
 `IPortalUserDirectory.ListUsersAsync`; for a non-admin company user, return
 only the row whose `UserId` equals the current user id.
 
-- [ ] **Step 6: Extract the EF read adapter without changing query behavior**
+- [x] **Step 6: Extract the EF read adapter without changing query behavior**
 
 Move the existing read-query helpers from
 `RvtPortal.Spa/Application/Sites/SiteApplicationService.cs` into
@@ -1131,7 +1131,7 @@ private IQueryable<Site> VisibleSites(SiteAccessScope scope)
 `HasCustomerLogo` false in this task; Task 5 enriches that application fact
 through `ISiteLogoPort.ExistsAsync` without coupling the EF adapter to storage.
 
-- [ ] **Step 7: Register and test the adapter**
+- [x] **Step 7: Register and test the adapter**
 
 Register:
 
@@ -1150,7 +1150,7 @@ Assert.Equal(activeSiteId, Assert.Single(
     (await reads.QueryAsync(assignedScope, query, CancellationToken.None)).Results).Id);
 ```
 
-- [ ] **Step 8: Verify GREEN**
+- [x] **Step 8: Verify GREEN**
 
 Run:
 
@@ -1163,7 +1163,7 @@ dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
 
 Expected: pure read-use-case tests and EF adapter visibility/paging tests pass.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add \
@@ -1198,7 +1198,7 @@ git commit -m "refactor: extract site read boundary"
   - explicit create/update/notification-setting write-port methods;
   - transactional use cases with one save per successful mutation.
 
-- [ ] **Step 1: Write failing transaction and validation tests**
+- [x] **Step 1: Write failing transaction and validation tests**
 
 Create `SiteMutationUseCaseTests` with recording read/write/unit-of-work fakes.
 Cover these exact outcomes:
@@ -1380,7 +1380,7 @@ When extending `ISiteReadPort`, add virtual default implementations for
 the shared `FakeSiteReadPort`; `MutationSiteReadPort` overrides only the
 behavior used by these tests.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 Run:
 
@@ -1391,7 +1391,7 @@ dotnet test apps/portal/RvtPortal.Application.Tests/RvtPortal.Application.Tests.
 
 Expected: build fails because mutation ports, validator, and use-case methods do not exist.
 
-- [ ] **Step 3: Define the inward transaction and write ports**
+- [x] **Step 3: Define the inward transaction and write ports**
 
 Create:
 
@@ -1512,7 +1512,7 @@ private static SiteApplicationService CreateService(ISiteReadPort reads) =>
         new FixedTimeProvider(Now));
 ```
 
-- [ ] **Step 4: Move validation into the application project**
+- [x] **Step 4: Move validation into the application project**
 
 Move the pure validation and normalization rules from the current Sites service
 and `SiteCommands.cs` into `SiteMutationValidator`:
@@ -1575,7 +1575,7 @@ public sealed record SiteMutationValidationResult(
 Use `TimeSpan.TryParseExact(value, "hh\\:mm", CultureInfo.InvariantCulture, out ...)`
 and return a field error instead of throwing for malformed wire input.
 
-- [ ] **Step 5: Implement transactional use cases**
+- [x] **Step 5: Implement transactional use cases**
 
 Extend `ISiteApplicationService` and `SiteApplicationService` with:
 
@@ -1642,7 +1642,7 @@ same transaction so a stale contract assignment cannot cause a partial create.
 Do not call `SaveChangesAsync` when the in-transaction business validation
 returns errors.
 
-- [ ] **Step 6: Implement EF write and unit-of-work adapters**
+- [x] **Step 6: Implement EF write and unit-of-work adapters**
 
 `EfSiteWriteAdapter` must move the existing entity mutation code without
 calling `SaveChangesAsync`. `CreateAsync` adds the `Site`, assigns the contract,
@@ -1674,7 +1674,7 @@ services.AddScoped<ISiteWritePort, EfSiteWriteAdapter>();
 Register `EfCoreUnitOfWork` itself once as scoped, and map both unit-of-work
 interfaces to that same scoped instance.
 
-- [ ] **Step 7: Add adapter transaction tests**
+- [x] **Step 7: Add adapter transaction tests**
 
 `SiteWriteAdapterTests` must use relational SQLite and the real
 `EfCoreUnitOfWork` to prove:
@@ -1692,7 +1692,7 @@ Assert.Equal(7, await context.SiteOperatingHours
 Add a failing-operation case that throws after staging and asserts the site and
 contract link are rolled back.
 
-- [ ] **Step 8: Verify GREEN**
+- [x] **Step 8: Verify GREEN**
 
 Run:
 
@@ -1705,7 +1705,7 @@ dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
 
 Expected: validation, single-save, commit, and rollback tests pass.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add \
@@ -1738,7 +1738,7 @@ git commit -m "refactor: extract transactional site mutations"
 - Consumes: existing host `ISiteArchiveService` and `ICustomerLogoStorage`.
 - Produces: SDK-free archive/logo ports and complete application use cases for archive, save/delete logo, and protected logo reads.
 
-- [ ] **Step 1: Write failing external-workflow tests**
+- [x] **Step 1: Write failing external-workflow tests**
 
 Cover these exact cases with recording fakes:
 
@@ -1957,7 +1957,7 @@ When adding `GetArchiveStateAsync` to `ISiteReadPort`, add a virtual
 null-returning implementation to the shared `FakeSiteReadPort`; the external
 fixture overrides it with the explicit state shown above.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 Run:
 
@@ -1968,7 +1968,7 @@ dotnet test apps/portal/RvtPortal.Application.Tests/RvtPortal.Application.Tests.
 
 Expected: build fails because archive/logo contracts and use cases do not exist.
 
-- [ ] **Step 3: Define application-owned external ports**
+- [x] **Step 3: Define application-owned external ports**
 
 Create:
 
@@ -2105,7 +2105,7 @@ public SiteApplicationService(
     TimeProvider timeProvider)
 ```
 
-- [ ] **Step 4: Implement archive and logo use cases**
+- [x] **Step 4: Implement archive and logo use cases**
 
 Extend `ISiteApplicationService` with:
 
@@ -2170,7 +2170,7 @@ enrichment. Create/update/archive/logo responses must all pass through the same
 detail-enrichment helper so the protected link never depends on controller-side
 file-system inspection.
 
-- [ ] **Step 5: Implement host adapters**
+- [x] **Step 5: Implement host adapters**
 
 `SiteArchiveAdapter` catches non-cancellation exceptions from the existing
 `ISiteArchiveService.Process` and returns `SiteArchiveExportResult.Failed`.
@@ -2190,7 +2190,7 @@ services.AddScoped<ISiteArchivePort, SiteArchiveAdapter>();
 services.AddScoped<ISiteLogoPort, SiteLogoAdapter>();
 ```
 
-- [ ] **Step 6: Verify GREEN**
+- [x] **Step 6: Verify GREEN**
 
 Run:
 
@@ -2203,7 +2203,7 @@ dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
 
 Expected: application failure-ordering tests and existing archive/storage adapter tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add \
@@ -2234,7 +2234,7 @@ git commit -m "refactor: extract site archive and logo workflows"
 - Consumes: complete application `ISiteApplicationService`.
 - Produces: unchanged `/api/sites` HTTP behavior with no direct EF, MediatR, archive, or customer-logo storage dependency in `SitesController`.
 
-- [ ] **Step 1: Strengthen the controller architecture test and verify RED**
+- [x] **Step 1: Strengthen the controller architecture test and verify RED**
 
 Replace the current Sites assertion with:
 
@@ -2267,7 +2267,7 @@ dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
 Expected: FAIL because the controller still depends on the legacy Sites service
 and `ICustomerLogoStorage`.
 
-- [ ] **Step 2: Add application-result HTTP mapping**
+- [x] **Step 2: Add application-result HTTP mapping**
 
 Add a second `IApiResultMapper.ToActionResult` overload for
 `RvtPortal.Application.Common.UseCaseResult<TModel>`. Map its six result kinds
@@ -2284,7 +2284,7 @@ UseCaseResultKind.ExternalServiceUnavailable => result.StatusCode ?? 503
 
 Do not alter the existing overload used by other slices.
 
-- [ ] **Step 3: Repoint the mapper and controller**
+- [x] **Step 3: Repoint the mapper and controller**
 
 Change `SiteApiMapper` to consume `RvtPortal.Application.Common` and
 `RvtPortal.Application.Sites` contracts. Preserve every API DTO assignment.
@@ -2392,7 +2392,7 @@ private IActionResult ToLogoActionResult(
 }
 ```
 
-- [ ] **Step 4: Cut DI over and remove duplicate implementations**
+- [x] **Step 4: Cut DI over and remove duplicate implementations**
 
 Register:
 
@@ -2413,7 +2413,7 @@ rg -n "RvtPortal\\.Spa\\.Application\\.Sites|RVT\\.BusinessLogic\\.Sites" \
 shows no live consumer other than deletion targets or comments being updated in
 this task.
 
-- [ ] **Step 5: Run focused compatibility tests and fix only boundary drift**
+- [x] **Step 5: Run focused compatibility tests and fix only boundary drift**
 
 Run:
 
@@ -2426,7 +2426,7 @@ Expected: architecture tests and all contract/site CRUD, archive, logo,
 assignment-window, and notification-setting HTTP tests pass without route or
 payload changes.
 
-- [ ] **Step 6: Add response-contract assertions**
+- [x] **Step 6: Add response-contract assertions**
 
 In `ContractSiteOperationsTests`, retain existing tests and add assertions that
 the create response still supplies the `Location` header and that protected
@@ -2439,7 +2439,7 @@ Assert.Equal(HttpStatusCode.NotFound, missingAfterDelete.StatusCode);
 
 Run the same focused command and expect all tests to pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add \
@@ -2465,7 +2465,7 @@ git commit -m "refactor: cut sites over to application boundary"
 - Consumes: the completed application slice and verification evidence.
 - Produces: current architecture documentation, resumable project state, and merge-ready evidence.
 
-- [ ] **Step 1: Update the ports and adapters catalog**
+- [x] **Step 1: Update the ports and adapters catalog**
 
 Replace the current Sites row and dependency diagram with:
 
@@ -2483,7 +2483,7 @@ RvtPortal.Spa.Api.SitesController
 Record that `RVT.BusinessLogic` remains a legacy boundary for slices not yet
 extracted and must not be moved opportunistically.
 
-- [ ] **Step 2: Record the change and exact dependency rules**
+- [x] **Step 2: Record the change and exact dependency rules**
 
 Append a dated entry to `hexagonal-edges-change-log.md` containing:
 
@@ -2496,7 +2496,7 @@ Append a dated entry to `hexagonal-edges-change-log.md` containing:
 - Added application, adapter, architecture, and HTTP compatibility tests.
 ```
 
-- [ ] **Step 3: Run the full verification gate**
+- [x] **Step 3: Run the full verification gate**
 
 Run:
 
@@ -2524,7 +2524,7 @@ all repository guards pass
 git diff --check emits no output
 ```
 
-- [ ] **Step 4: Run provider-gated verification when configured**
+- [x] **Step 4: Run provider-gated verification when configured**
 
 If `RVT_TEST_POSTGRES_CONNECTION` is set, run:
 
@@ -2537,7 +2537,7 @@ Expected: all discovered PostgreSQL/TimescaleDB tests pass. If the variable is
 unset, record the exact skipped count in `project_state.md` and do not claim
 provider closure.
 
-- [ ] **Step 5: Save the final resumable state**
+- [x] **Step 5: Save the final resumable state**
 
 Append to `project_state.md`:
 
@@ -2553,7 +2553,7 @@ remaining next slice candidates without selecting one
 
 Mark every completed checkbox in this plan.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add \

@@ -1,10 +1,11 @@
 # Project State
 
-## Communication workflow Task 2 - 2026-07-24 (in progress)
+## Communication workflow Task 2 - 2026-07-24 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; base before Task 2 was
   `6b80074` (Task 1 communication abstractions).
-- Added unstaged `Rvt.Communication` and `Rvt.CommunicationTests`, moved the
+- Commit `486748c` added `Rvt.Communication` and
+  `Rvt.CommunicationTests`, moved the
   provider-neutral workflow types/tests from Common, added idempotent
   `AddRvtCommunication`, and made Infrastructure temporarily reference and
   package-depend on Communication.
@@ -15,7 +16,7 @@
 - Confirmed local MSBuild issue: parallel Infrastructure `dotnet pack` stalls
   after Communication's `GetTargetFrameworks`; identical `-m:1` pack completes
   in 2.3 seconds. `scripts/build-mono.sh` now uses `-m:1` only for that pack.
-- Current blocker: Infrastructure restore from the bridge stalls after NU1900
+- Verification constraint: Infrastructure restore from the bridge stalls after NU1900
   inability to reach nuget.org vulnerability data. Its last bounded command
   was stopped at 2m11s; audit-disabled and `--disable-parallel` retry restores
   also timed out after 55 seconds. A bounded `dotnet build Rvt.Mono.slnx
@@ -26,13 +27,13 @@
 - Preserve unrelated untracked `.codegraph/`, `apps/.nuget-packages/`, and
   `apps/portal/RvtPortal.Client/src/localDate 2.ts`, plus the two Portal C#
   suffixed files and `docs/superpowers/specs/2026-07-23-rvtportal-sites-application-boundary-design 2.md`; do not stage.
-  Task 2 has scoped verification evidence and is ready for commit handoff.
+  Task 2 retained scoped verification evidence without modifying those files.
 - Scoped handoff verification (all `--no-restore`) passed for Rvt.Communication,
   Infrastructure, and all five monitor hosts. The source-boundary guard passed;
   Communication passed 31/31; package validation passed 12/12; Common remained
-  at its accepted 376 passed/2 missing-migration-path failures. Task 2 is ready
-  to commit with aggregate verification excluded for the unrelated Portal
-  duplicate files and restore environment issue.
+  at its accepted 376 passed/2 missing-migration-path failures. The independent
+  task review approved the implementation with aggregate verification excluded
+  for the unrelated Portal duplicate files and restore environment issue.
 
 ## Release Platform Hardening - 2026-07-23
 

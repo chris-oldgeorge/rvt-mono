@@ -14,7 +14,7 @@ public sealed class PackageArtifactTests
         Path.Combine(AppContext.BaseDirectory, "../../../../../artifacts/packages"));
 
     [TestMethod]
-    public void ReleaseContainsExactlyTheFiveTemporaryCompatibilityPackages()
+    public void ReleaseContainsExactlyTheSixTemporaryCompatibilityPackages()
     {
         var names = Directory.EnumerateFiles(Artifacts, "*.nupkg")
             .Select(Path.GetFileName)
@@ -29,6 +29,7 @@ public sealed class PackageArtifactTests
         {
             "Rvt.Communication",
             "Rvt.Communication.Abstractions",
+            "Rvt.Communication.SendGridMail",
             "Rvt.Monitor.Common",
             "Rvt.Monitor.Common.Infrastructure",
             "Rvt.Monitor.IntegrationTesting"
@@ -45,6 +46,7 @@ public sealed class PackageArtifactTests
     [TestMethod]
     [DataRow("Rvt.Communication", "Rvt.Communication.dll")]
     [DataRow("Rvt.Communication.Abstractions", "Rvt.Communication.Abstractions.dll")]
+    [DataRow("Rvt.Communication.SendGridMail", "Rvt.Communication.SendGridMail.dll")]
     [DataRow("Rvt.Monitor.Common", "Rvt.Monitor.Common.dll")]
     [DataRow("Rvt.Monitor.Common.Infrastructure", "Rvt.Monitor.Common.Infrastructure.dll")]
     [DataRow("Rvt.Monitor.IntegrationTesting", "Rvt.Monitor.IntegrationTesting.dll")]
@@ -66,6 +68,7 @@ public sealed class PackageArtifactTests
     [TestMethod]
     [DataRow("Rvt.Communication", "Rvt.Communication.dll")]
     [DataRow("Rvt.Communication.Abstractions", "Rvt.Communication.Abstractions.dll")]
+    [DataRow("Rvt.Communication.SendGridMail", "Rvt.Communication.SendGridMail.dll")]
     [DataRow("Rvt.Monitor.Common", "Rvt.Monitor.Common.dll")]
     [DataRow("Rvt.Monitor.Common.Infrastructure", "Rvt.Monitor.Common.Infrastructure.dll")]
     [DataRow("Rvt.Monitor.IntegrationTesting", "Rvt.Monitor.IntegrationTesting.dll")]
@@ -113,10 +116,10 @@ public sealed class PackageArtifactTests
         var document = XDocument.Load(stream);
         var dependencies = document.Descendants()
             .Where(element => element.Name.LocalName == "dependency")
-            .Where(element => (string?)element.Attribute("id") is "Rvt.Monitor.Common" or "Rvt.Communication")
+            .Where(element => (string?)element.Attribute("id") is "Rvt.Monitor.Common" or "Rvt.Communication" or "Rvt.Communication.SendGridMail")
             .ToArray();
 
-        Assert.AreEqual(2, dependencies.Length);
+        Assert.AreEqual(3, dependencies.Length);
         Assert.IsTrue(dependencies.All(dependency =>
             string.Equals($"[{Version}]", (string?)dependency.Attribute("version"), StringComparison.Ordinal)));
     }

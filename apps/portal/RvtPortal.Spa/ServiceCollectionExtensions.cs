@@ -34,8 +34,7 @@ using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Infrastructure.Communications;
-using Rvt.Monitor.Common.Infrastructure.Email.SendGrid;
+using Rvt.Communication.SendGridMail;
 using RVT.BusinessLogic;
 using RVT.BusinessLogic.Application.Users;
 using RVT.DataAccess;
@@ -97,16 +96,15 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(15);
         });
         services.AddOptions<PortalEmailOptions>().BindConfiguration("EmailConfiguration");
-        // Map the portal's existing EmailConfiguration keys onto the shared CommunicationsOptions rather than
+        // Map the portal's existing EmailConfiguration keys onto the SendGrid provider options rather than
         // calling AddMonitorCommunications(), so deployed configuration keys stay exactly as they were.
         services.AddSingleton(provider =>
         {
             var email = provider.GetRequiredService<IOptions<PortalEmailOptions>>().Value;
-            return new CommunicationsOptions
+            return new SendGridMailOptions
             {
-                EmailProvider = EmailProvider.SendGrid,
-                EmailEnabled = true,
-                SendGridApiKey = email.SENDGRID_API_KEY,
+                Enabled = true,
+                ApiKey = email.SENDGRID_API_KEY,
                 FromEmail = email.Sending_Email_Address,
                 FromName = "RVT Cloud"
             };

@@ -1,6 +1,6 @@
 using SendGrid;
 
-namespace Rvt.Monitor.Common.Infrastructure.Email.SendGrid;
+namespace Rvt.Communication.SendGridMail;
 
 public interface ISendGridClientFactory
 {

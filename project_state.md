@@ -1,5 +1,34 @@
 # Project State
 
+## Communication provider Task 3 - SendGrid mail extraction - 2026-07-24 (complete)
+
+- `Rvt.Communication.SendGridMail` now owns the SendGrid adapter, client factory,
+  `SendGridMailOptions`, its startup validation service, and explicit
+  `AddSendGridMail` overloads. Its `RVT:` configuration keys take precedence
+  over literal `RVT__` fallbacks. The provider registers one email port, one
+  factory, one options instance, and one provider-specific hosted validator;
+  duplicate email ports fail with the required exact message.
+- `Rvt.Monitor.Common.Infrastructure` temporarily source-references and package
+  depends on SendGridMail while keeping its existing SendGrid/Microsoft Graph
+  selector. Its temporary composition resolves provider-owned SendGrid options.
+  This bridge is scheduled for removal in Task 8 rather than becoming a facade.
+- The portal has a direct SendGridMail source reference because it owns a
+  separate SendGrid composition root. It maps its existing `EmailConfiguration`
+  settings to `SendGridMailOptions` and retains its original service lifetimes.
+- The temporary package graph is now six artifacts:
+  `Rvt.Monitor.Common`, `Rvt.Communication.Abstractions`,
+  `Rvt.Communication`, `Rvt.Communication.SendGridMail`,
+  `Rvt.Monitor.Common.Infrastructure`, and
+  `Rvt.Monitor.IntegrationTesting`. `scripts/build-mono.sh` restores, packs,
+  verifies, and clears cached copies of all six. Infrastructure packs with
+  `-m:1`; its SendGridMail dependency is exactly pinned to `[$(PackageVersion)]`.
+- Verification: provider tests 20/20; Infrastructure compatibility tests 52/52;
+  package-artifact tests 14/14; Common communication boundary tests 3/3; source
+  and temporary-six-package bridge guard passed; Infrastructure and all five
+  monitor hosts built with `--no-restore`. A Portal build no longer reports a
+  SendGrid reference error but remains blocked by the accepted unrelated
+  untracked duplicate Portal source files.
+
 ## Communication workflow Task 2 - 2026-07-24 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; base before Task 2 was

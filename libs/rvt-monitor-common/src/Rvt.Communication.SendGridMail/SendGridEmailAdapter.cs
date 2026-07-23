@@ -1,24 +1,23 @@
 using System.Net;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Infrastructure.Communications;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 
-namespace Rvt.Monitor.Common.Infrastructure.Email.SendGrid;
+namespace Rvt.Communication.SendGridMail;
 
 public sealed class SendGridEmailAdapter : IEmailDeliveryPort
 {
     private readonly Lazy<ISendGridClient> client;
-    private readonly CommunicationsOptions options;
+    private readonly SendGridMailOptions options;
 
     public SendGridEmailAdapter(
         ISendGridClientFactory clientFactory,
-        CommunicationsOptions options)
+        SendGridMailOptions options)
     {
         ArgumentNullException.ThrowIfNull(clientFactory);
         this.options = options ?? throw new ArgumentNullException(nameof(options));
         client = new Lazy<ISendGridClient>(
-            () => clientFactory.Create(options.SendGridApiKey),
+            () => clientFactory.Create(options.ApiKey),
             LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
@@ -28,9 +27,8 @@ public sealed class SendGridEmailAdapter : IEmailDeliveryPort
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!options.EmailEnabled ||
-            options.EmailProvider != EmailProvider.SendGrid ||
-            string.IsNullOrWhiteSpace(options.SendGridApiKey) ||
+        if (!options.Enabled ||
+            string.IsNullOrWhiteSpace(options.ApiKey) ||
             string.IsNullOrWhiteSpace(options.FromEmail))
         {
             throw new EmailDeliveryException(

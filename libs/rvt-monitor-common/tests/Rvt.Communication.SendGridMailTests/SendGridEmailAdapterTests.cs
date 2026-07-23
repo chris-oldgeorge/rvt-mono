@@ -2,12 +2,11 @@ using System.Net;
 using System.Net.Http.Headers;
 using Moq;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Infrastructure.Communications;
-using Rvt.Monitor.Common.Infrastructure.Email.SendGrid;
+using Rvt.Communication.SendGridMail;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 
-namespace Rvt.Monitor.Common.InfrastructureTests.Email;
+namespace Rvt.Communication.SendGridMailTests;
 
 [TestClass]
 public sealed class SendGridEmailAdapterTests
@@ -124,7 +123,7 @@ public sealed class SendGridEmailAdapterTests
         var client = new Mock<ISendGridClient>(MockBehavior.Strict);
         var factory = new Mock<ISendGridClientFactory>();
         factory.Setup(x => x.Create(string.Empty)).Returns(client.Object);
-        var adapter = new SendGridEmailAdapter(factory.Object, new CommunicationsOptions());
+        var adapter = new SendGridEmailAdapter(factory.Object, new SendGridMailOptions());
 
         var exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
             adapter.SendAsync(Request()));
@@ -176,10 +175,10 @@ public sealed class SendGridEmailAdapterTests
     private static EmailDeliveryRequest Request() =>
         new("ops@example.test", "subject", "plain", "<p>html</p>", []);
 
-    private static CommunicationsOptions Options() => new()
+    private static SendGridMailOptions Options() => new()
     {
-        EmailEnabled = true,
-        SendGridApiKey = "api-key",
+        Enabled = true,
+        ApiKey = "api-key",
         FromEmail = "sender@example.test",
         FromName = "RVT Cloud"
     };

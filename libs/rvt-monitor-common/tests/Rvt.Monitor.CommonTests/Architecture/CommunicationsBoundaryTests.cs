@@ -43,7 +43,7 @@ public sealed class CommunicationsBoundaryTests
     }
 
     [TestMethod]
-    public void SendGridProviderTypesAndPackageAreConfinedToInfrastructure()
+    public void SendGridProviderTypesAndPackageAreConfinedToSendGridMailAdapter()
     {
         var root = FindRepositoryRoot();
         var providerReferences = Directory
@@ -66,7 +66,7 @@ public sealed class CommunicationsBoundaryTests
 
         Assert.IsNotEmpty(providerReferences);
         Assert.IsTrue(providerReferences.All(file =>
-            file.RelativePath.Contains("Rvt.Monitor.Common.Infrastructure", StringComparison.Ordinal)));
+            file.RelativePath.Contains("Rvt.Communication.SendGridMail", StringComparison.Ordinal)));
     }
 
     [TestMethod]

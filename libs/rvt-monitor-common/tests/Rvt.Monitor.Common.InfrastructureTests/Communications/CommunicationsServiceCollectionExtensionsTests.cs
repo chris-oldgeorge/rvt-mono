@@ -5,7 +5,6 @@ using Rvt.Communication;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Infrastructure.Communications;
 using Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
-using Rvt.Monitor.Common.Infrastructure.Email.SendGrid;
 using Rvt.Monitor.Common.Infrastructure.Sms;
 
 namespace Rvt.Monitor.Common.InfrastructureTests.Communications;
@@ -29,7 +28,9 @@ public sealed class CommunicationsServiceCollectionExtensionsTests
         services.AddMonitorCommunications();
         await using var provider = services.BuildServiceProvider();
 
-        Assert.IsInstanceOfType<SendGridEmailAdapter>(provider.GetRequiredService<IEmailDeliveryPort>());
+        Assert.AreEqual(
+            "Rvt.Communication.SendGridMail.SendGridEmailAdapter",
+            provider.GetRequiredService<IEmailDeliveryPort>().GetType().FullName);
         Assert.IsInstanceOfType<TransmitSmsAdapter>(provider.GetRequiredService<ISmsDeliveryPort>());
         Assert.IsInstanceOfType<NotificationMessageComposer>(
             provider.GetRequiredService<INotificationMessageComposer>());

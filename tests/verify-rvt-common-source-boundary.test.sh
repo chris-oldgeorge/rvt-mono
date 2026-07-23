@@ -57,6 +57,9 @@ chmod +x "${fake_bin}/dotnet"
 missing_artifact="${empty_feed}/Rvt.Monitor.Common.0.2.0-rc.1.nupkg"
 abstractions_artifact="${empty_feed}/Rvt.Communication.Abstractions.0.2.0-rc.1.nupkg"
 communication_artifact="${empty_feed}/Rvt.Communication.0.2.0-rc.1.nupkg"
+sendgrid_mail_artifact="${empty_feed}/Rvt.Communication.SendGridMail.0.2.0-rc.1.nupkg"
+infrastructure_artifact="${empty_feed}/Rvt.Monitor.Common.Infrastructure.0.2.0-rc.1.nupkg"
+integration_testing_artifact="${empty_feed}/Rvt.Monitor.IntegrationTesting.0.2.0-rc.1.nupkg"
 if output="$(
   PATH="${fake_bin}:${PATH}" \
     DOTNET_CALL_LOG="${dotnet_call_log}" \
@@ -100,6 +103,27 @@ fi
 if [[ ! -f "${communication_artifact}" ]]; then
   printf 'FAIL: build-mono.sh must pack %s for Infrastructure package validation.\n' \
     "${communication_artifact}" >&2
+  exit 1
+fi
+
+for package_artifact in \
+  "${missing_artifact}" \
+  "${abstractions_artifact}" \
+  "${communication_artifact}" \
+  "${sendgrid_mail_artifact}" \
+  "${infrastructure_artifact}" \
+  "${integration_testing_artifact}"; do
+  if [[ ! -f "${package_artifact}" ]]; then
+    printf 'FAIL: build-mono.sh must pack the temporary six-package graph; missing %s.\n' \
+      "${package_artifact}" >&2
+    exit 1
+  fi
+done
+
+sendgrid_restore_call="$(grep -F 'restore '"${repo_root}"'/libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj' "${dotnet_call_log}" | head -n 1)"
+sendgrid_pack_call="$(grep -F 'pack '"${repo_root}"'/libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj' "${dotnet_call_log}" | head -n 1)"
+if [[ -z "${sendgrid_restore_call}" || -z "${sendgrid_pack_call}" ]]; then
+  printf 'FAIL: build-mono.sh must restore and pack Rvt.Communication.SendGridMail for the temporary six-package graph.\n' >&2
   exit 1
 fi
 

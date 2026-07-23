@@ -15,6 +15,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -260,16 +261,21 @@ public class MonitorWorkflowTests
         using var clientFactory = WithMonitorDataSource(factory, dataSource);
         var ids = await SeedMonitorScenarioAsync(factory);
         var monitor = Monitor(ids.OnlineMonitorId, "MON-ONLINE", "SER-ONLINE", MonitorTypeEnum.Dust, DateTime.UtcNow, DateTime.UtcNow);
-        dataSource.AddDustData(ids.OnlineDeploymentId, monitor, DateTime.UtcNow.Date.AddHours(8));
+        var databaseTimestamp = new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Unspecified);
+        dataSource.AddDustData(ids.OnlineDeploymentId, monitor, databaseTimestamp);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         var client = CreateClient(clientFactory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var detail = await client.GetFromJsonAsync<EntityResponse<MonitorDetailResponse>>($"/api/monitors/{ids.OnlineMonitorId}");
+        var response = await client.GetAsync($"/api/monitors/{ids.OnlineMonitorId}");
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var latestAverage = json.RootElement.GetProperty("item").GetProperty("latestAverage");
 
-        Assert.Equal("Latest 15 Min Average", detail?.Item?.LatestAverage?.Label);
-        Assert.Equal("pm10", detail?.Item?.LatestAverage?.Field);
-        AssertApproximately(FakeMonitorDataSource.PeakDustPm10, detail?.Item?.LatestAverage?.Value);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Latest 15 Min Average", latestAverage.GetProperty("label").GetString());
+        Assert.Equal("pm10", latestAverage.GetProperty("field").GetString());
+        AssertApproximately(FakeMonitorDataSource.PeakDustPm10, latestAverage.GetProperty("value").GetDouble());
+        Assert.Equal("2026-07-01T08:30:00Z", latestAverage.GetProperty("sampleTime").GetString());
     }
 
     [Fact]

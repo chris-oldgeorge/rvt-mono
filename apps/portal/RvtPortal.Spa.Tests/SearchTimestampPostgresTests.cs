@@ -1,9 +1,12 @@
 // File summary: Verifies the portal's PostgreSQL telemetry timestamp boundary and complete SampleTime store-type contract.
 
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using RVT.DataAccess;
 using RVT.DataAccess.Context;
+using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Data;
@@ -22,7 +25,7 @@ public sealed class SearchTimestampPostgresTests
             ["NoiseLevel15minAvg"] = "timestamp without time zone",
             ["NoiseLevel1dayAvg"] = "date",
             ["NoiseLevel1hourAvg"] = "timestamp without time zone",
-            ["NoiseLevelSiteAvg"] = "date",
+            ["NoiseLevelSiteAvg"] = "timestamp without time zone",
             ["OmnidotsPeakLevel"] = "timestamp without time zone",
             ["OmnidotsPeakLevel15min"] = "timestamp without time zone",
             ["OmnidotsPeakLevel1dayPeak"] = "date",
@@ -49,6 +52,147 @@ public sealed class SearchTimestampPostgresTests
                 StringComparer.Ordinal);
 
         Assert.Equal(ApprovedSampleTimeStoreTypes, actual);
+    }
+
+    [Fact]
+    // Function summary: Verifies the EF view metadata and checked-in PostgreSQL definitions agree on UTC-naive aggregate timestamps.
+    public void SearchModel_AggregateViewMappings_MatchCheckedInPostgresDefinitions()
+    {
+        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
+            .Options;
+        using var context = new RVTSearchContext(options);
+        var sql = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "apps",
+            "portal",
+            "database",
+            "postgres",
+            "post-load",
+            "03_views_and_routines.sql"));
+        var timestampViews = new Dictionary<string, Type>(StringComparer.Ordinal)
+        {
+            ["my_atm_dust_level_8_hour_avg"] = typeof(MyAtmDustLevel8hourAvg),
+            ["noise_level_1_hour_avg"] = typeof(NoiseLevel1hourAvg),
+            ["noise_level_site_avg"] = typeof(NoiseLevelSiteAvg),
+            ["omnidots_peak_level_1_min"] = typeof(OmnidotsPeakLevel1min),
+            ["omnidots_peak_level_5_min"] = typeof(OmnidotsPeakLevel5min),
+            ["omnidots_peak_level_15_min"] = typeof(OmnidotsPeakLevel15min),
+            ["omnidots_peak_level_20_min"] = typeof(OmnidotsPeakLevel20min)
+        };
+
+        foreach (var (viewName, entityType) in timestampViews)
+        {
+            var entity = context.Model.FindEntityType(entityType);
+            Assert.NotNull(entity);
+            Assert.Equal(viewName, entity.GetViewName());
+            Assert.Equal("timestamp without time zone", entity.FindProperty("SampleTime")?.GetColumnType());
+        }
+
+        foreach (var viewName in new[]
+                 {
+                     "air_q_noise_level_1_hour_avg",
+                     "noise_level_1_hour_avg",
+                     "my_atm_dust_level_8_hour_avg",
+                     "omnidots_peak_level_1_min",
+                     "omnidots_peak_level_5_min",
+                     "omnidots_peak_level_15_min",
+                     "omnidots_peak_level_20_min"
+                 })
+        {
+            var definition = ExtractViewDefinition(sql, viewName);
+            Assert.Contains("CURRENT_TIMESTAMP AT TIME ZONE 'UTC'", definition, StringComparison.OrdinalIgnoreCase);
+            var compactDefinition = definition
+                .Replace(" ", "", StringComparison.Ordinal)
+                .Replace("\t", "", StringComparison.Ordinal)
+                .Replace("\r", "", StringComparison.Ordinal)
+                .Replace("\n", "", StringComparison.Ordinal);
+            Assert.DoesNotContain(",CURRENT_TIMESTAMP)", compactDefinition, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    // Function summary: Verifies the checked-in model snapshot carries the same SampleTime types as the runtime PostgreSQL model.
+    public void SearchModelSnapshot_SampleTimeMappings_MatchRuntimeModel()
+    {
+        var snapshot = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "apps",
+            "portal",
+            "RVT.DataAccess",
+            "Migrations",
+            "Search",
+            "RVTSearchContextModelSnapshot.cs"));
+
+        foreach (var (entityName, storeType) in ApprovedSampleTimeStoreTypes)
+        {
+            var entityBlock = ExtractSnapshotEntityBlock(snapshot, entityName);
+            Assert.Matches(
+                $@"Property<DateTime\??>\(""SampleTime""\)\s*\.HasColumnType\(""{Regex.Escape(storeType)}""\)",
+                entityBlock);
+        }
+    }
+
+    [RequiresPostgresFact]
+    // Function summary: Inspects and queries every timestamp view affected by the PostgreSQL UTC-naive aggregate contract.
+    public async Task AggregateViews_HaveExpectedProviderTypesAndAcceptUtcNaiveBounds()
+    {
+        var expectedViewTypes = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["air_q_noise_level_1_hour_avg"] = "timestamp without time zone",
+            ["air_q_noise_level_site_avg"] = "timestamp without time zone",
+            ["my_atm_dust_level_8_hour_avg"] = "timestamp without time zone",
+            ["noise_level_1_hour_avg"] = "timestamp without time zone",
+            ["noise_level_site_avg"] = "timestamp without time zone",
+            ["omnidots_peak_level_1_min"] = "timestamp without time zone",
+            ["omnidots_peak_level_5_min"] = "timestamp without time zone",
+            ["omnidots_peak_level_15_min"] = "timestamp without time zone",
+            ["omnidots_peak_level_20_min"] = "timestamp without time zone",
+            ["noise_level_1_day_avg"] = "date",
+            ["omnidots_peak_level_1_day_peak"] = "date"
+        };
+        var connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
+        var searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+        await using var context = new RVTSearchContext(searchOptions);
+        var connection = context.Database.GetDbConnection();
+        await connection.OpenAsync();
+
+        foreach (var (viewName, expectedType) in expectedViewTypes)
+        {
+            await using var metadata = connection.CreateCommand();
+            metadata.CommandText = """
+                SELECT data_type
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = @view_name
+                  AND column_name = 'sample_time'
+                """;
+            var viewParameter = metadata.CreateParameter();
+            viewParameter.ParameterName = "view_name";
+            viewParameter.Value = viewName;
+            metadata.Parameters.Add(viewParameter);
+            Assert.Equal(expectedType, await metadata.ExecuteScalarAsync());
+
+            await using var query = connection.CreateCommand();
+            query.CommandText = $"""
+                SELECT sample_time
+                FROM public.{viewName}
+                WHERE sample_time >= @from_date
+                  AND sample_time <= @to_date
+                LIMIT 1
+                """;
+            var fromParameter = query.CreateParameter();
+            fromParameter.ParameterName = "from_date";
+            fromParameter.Value = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Unspecified);
+            query.Parameters.Add(fromParameter);
+            var toParameter = query.CreateParameter();
+            toParameter.ParameterName = "to_date";
+            toParameter.Value = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Unspecified);
+            query.Parameters.Add(toParameter);
+            await query.ExecuteScalarAsync();
+        }
     }
 
     [RequiresPostgresFact]
@@ -139,6 +283,38 @@ public sealed class SearchTimestampPostgresTests
         context.Deployments.Add(deployment);
         context.SaveChanges();
         return context;
+    }
+
+    private static string ExtractViewDefinition(string sql, string viewName)
+    {
+        var match = Regex.Match(
+            sql,
+            $@"CREATE\s+OR\s+REPLACE\s+VIEW\s+public\.{Regex.Escape(viewName)}\s+AS(?<body>.*?);",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        Assert.True(match.Success, $"View '{viewName}' was not found in the checked-in PostgreSQL script.");
+        return match.Value;
+    }
+
+    private static string ExtractSnapshotEntityBlock(string snapshot, string entityName)
+    {
+        var match = Regex.Match(
+            snapshot,
+            $@"modelBuilder\.Entity\(""[^""]*\.{Regex.Escape(entityName)}"",\s*b\s*=>\s*\{{(?<body>.*?)\n\s*\}}\);",
+            RegexOptions.Singleline);
+        Assert.True(match.Success, $"Entity '{entityName}' was not found in the search model snapshot.");
+        return match.Value;
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Rvt.Mono.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName
+            ?? throw new DirectoryNotFoundException("Could not find the repository root.");
     }
 
     private sealed class PostgresDustDataSource : IMonitorDataSource

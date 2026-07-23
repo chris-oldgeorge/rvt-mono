@@ -817,21 +817,21 @@ function toDateTimeInput(value: string | null) {
 }
 
 // Function summary: Handles the from date to API workflow for this module.
-function fromDateToApi(value: string) {
+export function fromDateToApi(value: string) {
   if (!value) {
     return null;
   }
 
-  return value;
+  return new Date(value).toISOString();
 }
 
 // Function summary: Handles the format date time workflow for this module.
-export function formatDateTime(value?: string | null) {
+export function formatDateTime(value?: string | null, timeZone?: string) {
   if (!value) {
     return '';
   }
 
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(new Date(value));
 }
 
 // Function summary: Handles the format duration workflow for this module.

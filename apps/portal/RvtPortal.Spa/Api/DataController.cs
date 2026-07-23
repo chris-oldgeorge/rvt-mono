@@ -23,6 +23,7 @@ public class DataController : ControllerBase
 {
     /// <summary>Set to "true" when a CSV export stopped at the reader's row bound and is therefore partial.</summary>
     public const string TruncatedHeader = "X-RVT-Truncated";
+    private static readonly string[] TimestampQueryFields = ["fromDate", "toDate"];
 
     private readonly IDataApplicationService dataApplication;
 
@@ -39,6 +40,11 @@ public class DataController : ControllerBase
     // Function summary: Returns paged monitor data grid rows for a visible deployment.
     public async Task<ActionResult<MonitorDataGridResponse>> Grid(Guid deploymentId, [FromQuery] MonitorDataGridRequest request)
     {
+        if (ValidateUtcQueryTimestamps() is { } timestampProblem)
+        {
+            return BadRequest(timestampProblem);
+        }
+
         var result = await dataApplication.GetGridAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
@@ -49,6 +55,11 @@ public class DataController : ControllerBase
     // Function summary: Streams monitor data as CSV for a visible deployment.
     public async Task<IActionResult> Download(Guid deploymentId, [FromQuery] MonitorDataGridRequest request)
     {
+        if (ValidateUtcQueryTimestamps() is { } timestampProblem)
+        {
+            return BadRequest(timestampProblem);
+        }
+
         var result = await dataApplication.DownloadAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToDownloadResult(result);
     }
@@ -59,6 +70,11 @@ public class DataController : ControllerBase
     // Function summary: Returns monitor graph data and alert thresholds for a visible deployment.
     public async Task<ActionResult<MonitorGraphResponse>> Graph(Guid deploymentId, [FromQuery] MonitorGraphRequest request)
     {
+        if (ValidateUtcQueryTimestamps() is { } timestampProblem)
+        {
+            return BadRequest(timestampProblem);
+        }
+
         var result = await dataApplication.GetGraphAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
@@ -69,6 +85,11 @@ public class DataController : ControllerBase
     // Function summary: Returns vibration trace indexes for a visible deployment.
     public async Task<ActionResult<TraceListResponse>> Traces(Guid deploymentId, [FromQuery] TraceListRequest request)
     {
+        if (ValidateUtcQueryTimestamps() is { } timestampProblem)
+        {
+            return BadRequest(timestampProblem);
+        }
+
         var result = await dataApplication.GetTracesAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
@@ -134,6 +155,7 @@ public class DataController : ControllerBase
                 Title = "Unsupported sort field",
                 Detail = $"Sort field '{failure.RequestedSort}' is not supported. Allowed values: {string.Join(", ", failure.AllowedFields ?? [])}"
             }),
+            DataWorkflowFailureKind.InvalidTimestamp => BadRequest(InvalidTimestampProblem(failure)),
             DataWorkflowFailureKind.TraceNotFound => NotFound(new ProblemDetails
             {
                 Title = "Trace not found",
@@ -155,7 +177,37 @@ public class DataController : ControllerBase
             });
         }
 
+        if (failure.Kind == DataWorkflowFailureKind.InvalidTimestamp)
+        {
+            return BadRequest(InvalidTimestampProblem(failure));
+        }
+
         return NotFound(ProblemDetailsFor(failure));
+    }
+
+    // Function summary: Builds the bad-request payload for ambiguous or non-UTC date bounds.
+    private static ProblemDetails InvalidTimestampProblem(DataWorkflowFailure failure)
+    {
+        return new ProblemDetails
+        {
+            Title = "UTC timestamps required",
+            Detail = $"The following fields must be explicit UTC instants ending in 'Z': {string.Join(", ", failure.InvalidFields ?? [])}."
+        };
+    }
+
+    // Function summary: Preserves the wire-format distinction that DateTime model binding loses for offset timestamps.
+    private ProblemDetails? ValidateUtcQueryTimestamps()
+    {
+        var invalidFields = TimestampQueryFields
+            .Where(field =>
+            {
+                var value = Request.Query[field].ToString();
+                return value.Length > 0 && !value.EndsWith("Z", StringComparison.OrdinalIgnoreCase);
+            })
+            .ToArray();
+        return invalidFields.Length == 0
+            ? null
+            : InvalidTimestampProblem(DataWorkflowFailure.InvalidTimestamp(invalidFields));
     }
 
     // Function summary: Builds the existing API problem-details payloads from application failure facts.

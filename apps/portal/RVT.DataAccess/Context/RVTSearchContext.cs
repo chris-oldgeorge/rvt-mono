@@ -311,7 +311,7 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.Lc90).HasColumnName("LC90");
             entity.Property(e => e.Lceq).HasColumnName("LCeq");
             entity.Property(e => e.Lcmax).HasColumnName("LCmax");
-            entity.Property(e => e.SampleTime).HasColumnType("date");
+            entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
             entity.Property(e => e.SerialId).HasMaxLength(32);
         });
 

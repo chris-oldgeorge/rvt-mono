@@ -525,3 +525,58 @@
   (`-m:1`) focused, owning, full-suite, and build commands nevertheless
   completed successfully. The existing NU1903 advisories and untracked
   `apps/.nuget-packages/` cache remain outside Task 5.
+
+## Immediate Blockers Task 5 Review Follow-up - 2026-07-23
+
+- Status: the review findings are fixed on `codex/immediate-blockers`. This
+  section supersedes the earlier Task 5 statements that treated
+  `NoiseLevelSiteAvg.SampleTime` as `date` and described the client timezone
+  control as conditional.
+- PostgreSQL/EF contract:
+  - `noise_level_site_avg.sample_time` and
+    `air_q_noise_level_site_avg.sample_time` are non-daily
+    `timestamp without time zone` values;
+  - only `NoiseLevel1dayAvg` and `OmnidotsPeakLevel1dayPeak` remain `date`
+    among the mapped noise/vibration aggregates;
+  - the 8-hour dust, hourly AirQ/final noise, and 1/5/15/20-minute vibration
+    `COALESCE` fallbacks now use
+    `CURRENT_TIMESTAMP AT TIME ZONE 'UTC'`, preventing PostgreSQL from
+    promoting the UTC-naive aggregate expression to `timestamptz`;
+  - `RVTSearchContextModelSnapshot` now matches the runtime PostgreSQL model
+    for `NoiseLevel15minAvg` and `NoiseLevelSiteAvg`;
+  - `SearchTimestampPostgresTests` compares runtime EF metadata, snapshot
+    source, and checked-in view SQL, while the provider-gated
+    `AggregateViews_HaveExpectedProviderTypesAndAcceptUtcNaiveBounds` variable
+    `expectedViewTypes` inspects and queries all affected views plus the two
+    genuine daily views.
+- Request boundary:
+  - `DataApplicationService.NormalizeUtc` was removed;
+  - application workflows return `InvalidTimestamp` for Local or Unspecified
+    `FromDate`/`ToDate` values instead of relabeling ticks;
+  - `DataController.TimestampQueryFields` is `["fromDate", "toDate"]` and
+    rejects wire values that are not explicit `Z` instants, preserving the
+    distinction model binding loses for offset strings;
+  - `DataViewPanels.fromDateToApi` converts browser `datetime-local` wall time
+    through `new Date(value).toISOString()` before API calls.
+- Response/display boundary:
+  - `MonitorDetailSummaryService.BuildMetric` applies
+    `SearchTimestampPolicy.FromDatabase` to dust, noise, and vibration metric
+    timestamps, so detail JSON includes `Z`;
+  - `formatDateTime(value, timeZone?)` defaults to the production local zone,
+    while the ordinary client test exercises explicit `UTC` and
+    `Europe/London` zones in one process with no conditional skip.
+- Review-fix TDD:
+  - RED backend: `0 passed, 5 failed, 2 provider skips`; RED client:
+    `0 passed, 2 failed`;
+  - focused GREEN: backend `5 passed, 2 provider skips`; client `2 passed`;
+  - owning backend slice: `34 passed, 2 provider skips`;
+  - full portal suite: `347 passed, 6 provider skips, 353 total`;
+  - full client suite: `68 passed`, no skips;
+  - client production build succeeded;
+  - portal solution build succeeded after restoring the previously absent
+    `RVT.SchemaDeploy/obj/project.assets.json`, with only the repository's
+    existing five NU1903 advisory warnings.
+- Provider concern remains: `RVT_TEST_POSTGRES_CONNECTION` is unset, so the
+  expanded live metadata/query test and the existing telemetry/provider tests
+  are discovered but not executed. No provider workaround was attempted after
+  controller direction.

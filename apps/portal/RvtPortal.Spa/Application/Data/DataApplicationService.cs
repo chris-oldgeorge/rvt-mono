@@ -68,6 +68,7 @@ public enum DataWorkflowFailureKind
 {
     DeploymentNotFound,
     InvalidSort,
+    InvalidTimestamp,
     TraceNotFound,
     NoDataToDownload,
     NoTraceDataToDownload
@@ -77,7 +78,8 @@ public sealed record DataWorkflowFailure(
     DataWorkflowFailureKind Kind,
     Guid? EntityId = null,
     string? RequestedSort = null,
-    IReadOnlyCollection<string>? AllowedFields = null)
+    IReadOnlyCollection<string>? AllowedFields = null,
+    IReadOnlyCollection<string>? InvalidFields = null)
 {
     // Function summary: Creates a deployment visibility failure.
     public static DataWorkflowFailure DeploymentNotFound(Guid deploymentId)
@@ -89,6 +91,14 @@ public sealed record DataWorkflowFailure(
     public static DataWorkflowFailure InvalidSort(string requestedSort, IEnumerable<string> allowedFields)
     {
         return new DataWorkflowFailure(DataWorkflowFailureKind.InvalidSort, RequestedSort: requestedSort, AllowedFields: allowedFields.ToArray());
+    }
+
+    // Function summary: Creates a failure for request timestamps that are not explicit UTC instants.
+    public static DataWorkflowFailure InvalidTimestamp(IEnumerable<string> invalidFields)
+    {
+        return new DataWorkflowFailure(
+            DataWorkflowFailureKind.InvalidTimestamp,
+            InvalidFields: invalidFields.ToArray());
     }
 
     // Function summary: Creates a trace visibility failure.
@@ -219,6 +229,11 @@ public sealed class DataApplicationService : IDataApplicationService
         DataViewActor actor,
         CancellationToken cancellationToken)
     {
+        if (ValidateUtcTimestamps((nameof(request.FromDate), request.FromDate), (nameof(request.ToDate), request.ToDate)) is { } timestampFailure)
+        {
+            return DataWorkflowResult<MonitorDataGridResponse>.Failed(timestampFailure);
+        }
+
         var deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
         if (deployment?.Monitor is null)
         {
@@ -234,8 +249,8 @@ public sealed class DataApplicationService : IDataApplicationService
         var page = request.GetNormalizedPage();
         var pageSize = request.GetNormalizedPageSize();
         var sortDir = request.GetNormalizedSortDir();
-        var fromDate = NormalizeUtc(request.FromDate);
-        var toDate = NormalizeUtc(request.ToDate);
+        var fromDate = request.FromDate;
+        var toDate = request.ToDate;
         var clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
         var monitorData = clampedWindow is null
             ? BuildEmptyMonitorData(deployment, fromDate, toDate, request.FilterOption)
@@ -261,14 +276,19 @@ public sealed class DataApplicationService : IDataApplicationService
         DataViewActor actor,
         CancellationToken cancellationToken)
     {
+        if (ValidateUtcTimestamps((nameof(request.FromDate), request.FromDate), (nameof(request.ToDate), request.ToDate)) is { } timestampFailure)
+        {
+            return DataDownloadWorkflowResult.Failed(timestampFailure);
+        }
+
         var deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
         if (deployment?.Monitor is null)
         {
             return DataDownloadWorkflowResult.Failed(DataWorkflowFailure.DeploymentNotFound(deploymentId));
         }
 
-        var fromDate = NormalizeUtc(request.FromDate);
-        var toDate = NormalizeUtc(request.ToDate);
+        var fromDate = request.FromDate;
+        var toDate = request.ToDate;
         var clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
         var monitorData = clampedWindow is null
             ? BuildEmptyMonitorData(deployment, fromDate, toDate, request.FilterOption)
@@ -302,14 +322,19 @@ public sealed class DataApplicationService : IDataApplicationService
         DataViewActor actor,
         CancellationToken cancellationToken)
     {
+        if (ValidateUtcTimestamps((nameof(request.FromDate), request.FromDate), (nameof(request.ToDate), request.ToDate)) is { } timestampFailure)
+        {
+            return DataWorkflowResult<MonitorGraphResponse>.Failed(timestampFailure);
+        }
+
         var deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
         if (deployment?.Monitor is null)
         {
             return DataWorkflowResult<MonitorGraphResponse>.Failed(DataWorkflowFailure.DeploymentNotFound(deploymentId));
         }
 
-        var fromDate = NormalizeUtc(request.FromDate);
-        var toDate = NormalizeUtc(request.ToDate);
+        var fromDate = request.FromDate;
+        var toDate = request.ToDate;
         var clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
         var monitorData = clampedWindow is null
             ? BuildEmptyMonitorData(deployment, fromDate, toDate, request.FilterOption)
@@ -331,6 +356,11 @@ public sealed class DataApplicationService : IDataApplicationService
         DataViewActor actor,
         CancellationToken cancellationToken)
     {
+        if (ValidateUtcTimestamps((nameof(request.FromDate), request.FromDate), (nameof(request.ToDate), request.ToDate)) is { } timestampFailure)
+        {
+            return DataWorkflowResult<TraceListResponse>.Failed(timestampFailure);
+        }
+
         var deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
         if (deployment?.Monitor is null)
         {
@@ -348,7 +378,7 @@ public sealed class DataApplicationService : IDataApplicationService
             });
         }
 
-        var clampedWindow = ClampRequestToOwnershipWindow(deployment, NormalizeUtc(request.FromDate), NormalizeUtc(request.ToDate));
+        var clampedWindow = ClampRequestToOwnershipWindow(deployment, request.FromDate, request.ToDate);
         var traceIndexes = clampedWindow is null
             ? []
             : await dataSource.GetTraceIndexesAsync(deployment.Monitor.SerialId, clampedWindow.Value.From, clampedWindow.Value.To);
@@ -974,15 +1004,17 @@ public sealed class DataApplicationService : IDataApplicationService
         return sortDir == SortDirections.Descending ? OrderByDirectionEnum.Descending : OrderByDirectionEnum.Ascending;
     }
 
-    // Function summary: Treats request dates as UTC for monitor data-source queries.
-    private static DateTime? NormalizeUtc(DateTime? value)
+    // Function summary: Rejects ambiguous server timestamps instead of relabeling their ticks as UTC.
+    private static DataWorkflowFailure? ValidateUtcTimestamps(params (string Field, DateTime? Value)[] timestamps)
     {
-        if (value is null)
-        {
-            return null;
-        }
+        var invalidFields = timestamps
+            .Where(timestamp => timestamp.Value.HasValue && timestamp.Value.Value.Kind != DateTimeKind.Utc)
+            .Select(timestamp => timestamp.Field)
+            .ToArray();
 
-        return DateTime.SpecifyKind(value.Value, DateTimeKind.Utc);
+        return invalidFields.Length == 0
+            ? null
+            : DataWorkflowFailure.InvalidTimestamp(invalidFields);
     }
 
     // Function summary: Returns the API-facing monitor type name.

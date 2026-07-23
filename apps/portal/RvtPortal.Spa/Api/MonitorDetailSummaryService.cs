@@ -217,7 +217,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
             Field = field,
             Value = value,
             Unit = unit,
-            SampleTime = sampleTime,
+            SampleTime = SearchTimestampPolicy.FromDatabase(sampleTime),
             Detail = detail
         };
     }

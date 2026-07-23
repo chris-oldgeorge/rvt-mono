@@ -60,7 +60,7 @@ public class DataViewTests
         Assert.Equal(OrderByDirectionEnum.Descending, dataSource.LastGridSortDirection);
 
         var download = await client.GetAsync(
-            $"/api/data/deployments/{ids.DustDeploymentId}/download?filterOption=60&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}&toDate={ids.Today.AddHours(3):yyyy-MM-ddTHH:mm:ss}");
+            $"/api/data/deployments/{ids.DustDeploymentId}/download?filterOption=60&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(3):yyyy-MM-ddTHH:mm:ss}Z");
         Assert.Equal(HttpStatusCode.OK, download.StatusCode);
         Assert.StartsWith("text/csv", download.Content.Headers.ContentType?.MediaType);
         Assert.Contains("Air Quality Levels at Dust Monitor DATA-DUST", download.Content.Headers.ContentDisposition?.FileNameStar);
@@ -94,6 +94,30 @@ public class DataViewTests
         Assert.Equal(
             "2026-05-24T08:30:00Z",
             grid.RootElement.GetProperty("rows")[0].GetProperty("sampleTime").GetString());
+    }
+
+    [Fact]
+    // Function summary: Verifies data-view requests reject ambiguous or offset timestamps and accept explicit UTC instants.
+    public async Task DataGrid_RequiresExplicitUtcRequestBounds()
+    {
+        var dataSource = new FakeMonitorDataSource();
+        using var factory = new SpaTestApplicationFactory();
+        using var clientFactory = CreateClientFactory(factory, dataSource);
+        var ids = await SeedDataViewScenarioAsync(factory, dataSource);
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(clientFactory);
+        await LoginAsync(client, AdminEmail, Password);
+        var route = $"/api/data/deployments/{ids.DustDeploymentId}/grid?filterOption=60&page=1&pageSize={GridPageSize}";
+
+        var zoneLess = await client.GetAsync($"{route}&fromDate=2026-05-24T08:00:00&toDate=2026-05-24T09:00:00");
+        var offset = await client.GetAsync($"{route}&fromDate=2026-05-24T09:00:00%2B01:00&toDate=2026-05-24T10:00:00%2B01:00");
+        var utc = await client.GetAsync($"{route}&fromDate=2026-05-24T08:00:00Z&toDate=2026-05-24T09:00:00Z");
+
+        Assert.Equal(HttpStatusCode.BadRequest, zoneLess.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, offset.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, utc.StatusCode);
+        Assert.Equal(DateTimeKind.Utc, dataSource.LastDeploymentRequest?.FromDate?.Kind);
+        Assert.Equal(new DateTime(2026, 5, 24, 8, 0, 0, DateTimeKind.Utc), dataSource.LastDeploymentRequest?.FromDate);
     }
 
     [Fact]
@@ -155,7 +179,7 @@ public class DataViewTests
             client,
             $"/api/data/deployments/{ids.DustDeploymentId}/grid?filterOption=60&page=1&pageSize={GridPageSize}&sort=sampleTime&sortDir=Descending");
         var download = await client.GetAsync(
-            $"/api/data/deployments/{ids.DustDeploymentId}/download?filterOption=60&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}&toDate={ids.Today.AddHours(3):yyyy-MM-ddTHH:mm:ss}");
+            $"/api/data/deployments/{ids.DustDeploymentId}/download?filterOption=60&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(3):yyyy-MM-ddTHH:mm:ss}Z");
 
         // The capped result must not look complete: JSON carries a flag, the CSV carries a header.
         Assert.True(grid.RootElement.GetProperty("truncated").GetBoolean());
@@ -180,7 +204,7 @@ public class DataViewTests
             client,
             $"/api/data/deployments/{ids.DustDeploymentId}/grid?filterOption=60&page=1&pageSize={GridPageSize}&sort=sampleTime&sortDir=Descending");
         var download = await client.GetAsync(
-            $"/api/data/deployments/{ids.DustDeploymentId}/download?filterOption=60&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}&toDate={ids.Today.AddHours(3):yyyy-MM-ddTHH:mm:ss}");
+            $"/api/data/deployments/{ids.DustDeploymentId}/download?filterOption=60&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(3):yyyy-MM-ddTHH:mm:ss}Z");
 
         Assert.False(grid.RootElement.GetProperty("truncated").GetBoolean());
         Assert.False(download.Headers.Contains(DataController.TruncatedHeader));
@@ -201,7 +225,7 @@ public class DataViewTests
 
         var graph = await GetJsonAsync(
             client,
-            $"/api/data/deployments/{ids.VibrationDeploymentId}/graph?filterOption=frequency&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}&toDate={ids.Today.AddHours(1):yyyy-MM-ddTHH:mm:ss}");
+            $"/api/data/deployments/{ids.VibrationDeploymentId}/graph?filterOption=frequency&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(1):yyyy-MM-ddTHH:mm:ss}Z");
 
         Assert.Equal("Vibration", graph.RootElement.GetProperty("monitorType").GetString());
         Assert.Equal("Frequency (Hz)", graph.RootElement.GetProperty("xAxisLabel").GetString());
@@ -236,7 +260,7 @@ public class DataViewTests
         var hidden = await client.GetAsync($"/api/data/deployments/{ids.HiddenDeploymentId}/traces");
         var wideList = await GetJsonAsync(
             client,
-            $"/api/data/deployments/{ids.VibrationDeploymentId}/traces?fromDate={ids.Today.AddDays(-10):yyyy-MM-ddTHH:mm:ss}&toDate={ids.Today.AddHours(1):yyyy-MM-ddTHH:mm:ss}");
+            $"/api/data/deployments/{ids.VibrationDeploymentId}/traces?fromDate={ids.Today.AddDays(-10):yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(1):yyyy-MM-ddTHH:mm:ss}Z");
         var oldDetail = await client.GetAsync($"/api/data/deployments/{ids.VibrationDeploymentId}/traces/{ids.OldTraceId}");
 
         Assert.Single(list.RootElement.GetProperty("traces").EnumerateArray());

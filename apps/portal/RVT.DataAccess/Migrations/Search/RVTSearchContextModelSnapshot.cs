@@ -566,7 +566,7 @@ namespace RVT.DataAccess.Migrations.Search
                         .HasColumnName("lcmax");
 
                     b.Property<DateTime?>("SampleTime")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("sample_time");
 
                     b.Property<string>("SerialId")
@@ -713,7 +713,7 @@ namespace RVT.DataAccess.Migrations.Search
                         .HasColumnName("lcmax");
 
                     b.Property<DateTime>("SampleTime")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("sample_time");
 
                     b.Property<string>("SerialId")

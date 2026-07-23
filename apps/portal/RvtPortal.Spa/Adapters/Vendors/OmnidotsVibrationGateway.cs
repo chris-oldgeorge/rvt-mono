@@ -43,6 +43,11 @@ public sealed class OmnidotsVibrationGateway : IVibrationVendorGateway
             return VendorSyncResult.Failure("Omnidots adapter secret is not configured.");
         }
 
+        if (!Uri.TryCreate(options.Url, UriKind.Absolute, out var endpoint))
+        {
+            return VendorSyncResult.Failure("Omnidots adapter URL is invalid.");
+        }
+
         var payload = new Dictionary<string, object>
         {
             ["secret"] = options.Secret,
@@ -53,14 +58,28 @@ public sealed class OmnidotsVibrationGateway : IVibrationVendorGateway
 
         var json = JsonSerializer.Serialize(payload);
         using var content = new StringContent(json, Encoding.UTF8, ContentType);
-        using var response = await httpClient.PostAsync(options.Url, content, cancellationToken);
-
-        if (response.IsSuccessStatusCode)
+        HttpResponseMessage response;
+        try
         {
-            return VendorSyncResult.Success();
+            response = await httpClient.PostAsync(endpoint, content, cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return VendorSyncResult.Failure("Omnidots adapter timed out.");
+        }
+        catch (HttpRequestException)
+        {
+            return VendorSyncResult.Failure("Omnidots adapter could not be reached.");
         }
 
-        var error = await response.Content.ReadAsStringAsync(cancellationToken);
-        return VendorSyncResult.Failure(error);
+        using (response)
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                return VendorSyncResult.Success();
+            }
+
+            return VendorSyncResult.Failure($"Omnidots adapter returned HTTP {(int)response.StatusCode}.");
+        }
     }
 }

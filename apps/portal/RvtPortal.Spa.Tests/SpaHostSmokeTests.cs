@@ -9,6 +9,7 @@ using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using RvtPortal.Spa.Adapters.Reporting;
 
 namespace RvtPortal.Spa.Tests;
@@ -41,16 +42,42 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    // Function summary: Handles the health endpoint returns server time workflow for this module.
-    public async Task HealthEndpoint_ReturnsServerTime()
+    // Function summary: Verifies liveness and readiness expose their distinct probe contracts.
+    public async Task HealthEndpoints_ExposeLivenessAndReadiness()
     {
-        var client = factory.CreateClient();
+        using var healthyFactory = new SpaTestApplicationFactory();
+        var client = healthyFactory.CreateClient();
 
-        using var response = await client.GetAsync("/api/health");
+        using var liveness = await client.GetAsync("/api/health/live");
+        using var readiness = await client.GetAsync("/api/health/ready");
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("serverTimeUtc", body);
+        Assert.Equal(HttpStatusCode.OK, liveness.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, readiness.StatusCode);
+        Assert.Contains("status", await liveness.Content.ReadAsStringAsync());
+        Assert.Contains("checks", await readiness.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    // Function summary: Verifies an unavailable dependency only fails readiness, never process liveness.
+    public async Task HealthEndpoints_UnhealthyReadyDependencyFailsReadinessOnly()
+    {
+        using var unhealthyFactory = new SpaTestApplicationFactory().WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services => services.AddHealthChecks().AddCheck(
+                "forced readiness failure",
+                () => HealthCheckResult.Unhealthy("test dependency unavailable"),
+                tags: ["ready"]));
+        });
+        var client = unhealthyFactory.CreateClient();
+
+        using var liveness = await client.GetAsync("/api/health/live");
+        using var readiness = await client.GetAsync("/api/health/ready");
+
+        Assert.Equal(HttpStatusCode.OK, liveness.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, readiness.StatusCode);
+        var body = await readiness.Content.ReadAsStringAsync();
+        Assert.Contains("forced readiness failure", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("test dependency unavailable", body, StringComparison.Ordinal);
     }
 
     [Fact]

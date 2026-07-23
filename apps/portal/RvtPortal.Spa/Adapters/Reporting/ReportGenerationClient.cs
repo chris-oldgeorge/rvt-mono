@@ -70,7 +70,7 @@ public sealed class ReportingServiceReportGenerationClient : IReportGenerationCl
                 StatusCodes.Status400BadRequest);
         }
 
-        if (string.IsNullOrWhiteSpace(options.BaseUrl))
+        if (!Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var baseUri))
         {
             throw new ReportGenerationServiceException("Report generation service URL is not configured.", StatusCodes.Status503ServiceUnavailable);
         }
@@ -80,7 +80,7 @@ public sealed class ReportingServiceReportGenerationClient : IReportGenerationCl
             : timeProvider.GetUtcNow();
         using var httpRequest = new HttpRequestMessage(
             HttpMethod.Post,
-            new Uri(new Uri(options.BaseUrl, UriKind.Absolute), $"/internal/reports/rules/{reportRuleId}/generate"))
+            new Uri(baseUri, $"/internal/reports/rules/{reportRuleId}/generate"))
         {
             Content = JsonContent.Create(new ReportingServiceRuleGenerationPayload(triggerUtc))
         };
@@ -97,7 +97,11 @@ public sealed class ReportingServiceReportGenerationClient : IReportGenerationCl
         }
         catch (HttpRequestException exception)
         {
-            throw new ReportGenerationServiceException($"Report generation service could not be reached: {exception.Message}", exception);
+            throw new ReportGenerationServiceException("Report generation service could not be reached.", exception);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new ReportGenerationServiceException("Report generation service timed out.", exception, StatusCodes.Status504GatewayTimeout);
         }
 
         using (httpResponse)

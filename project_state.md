@@ -1,5 +1,35 @@
 # Project State
 
+## Release Platform Hardening - 2026-07-23
+
+- The portal now maps explicit `/api/health/live` and `/api/health/ready`
+  probes. Liveness has no dependency checks; readiness runs the three EF
+  context checks plus schema validation and returns only statuses/check names.
+  The cutover runbook designates readiness as the deployment gate.
+- Existing proxy hardening remains configured before redirects, rate limiting,
+  authentication, and CSRF: only forwarded client IP and scheme are accepted,
+  defaults are cleared, and immediate peers must be configured in
+  `ForwardedHeaders:KnownProxies` or `KnownNetworks`.
+- Blob storage clients are constructed by the shared
+  `IBlobStorageClientFactory` for both connection-string and managed-identity
+  modes. Monitor pictures and site archives no longer independently construct
+  blob service clients. Report generation and Omnidots adapters use bounded
+  named client timeouts and translate malformed URLs, downstream timeouts, and
+  connection failures without reflecting secrets or vendor response bodies.
+- Calendar selections retain the full ISO date, local date-only defaults no
+  longer serialize through UTC, and calendar/breach effects ignore responses
+  after cancellation. Help Admin is explicitly excluded from the release
+  surface until its temporary asset editor receives stable row-key coverage.
+- Focused verification: `SpaHostSmokeTests` passed 5/5;
+  storage/archive/report/Omnidots tests passed 18/18; the corrected host-filter
+  controls passed 2/2; and the complete client suite passed 68/68 after a
+  production build. The full portal backend suite passed 376 tests with eight
+  explicit PostgreSQL/Timescale provider skips (384 discovered). Client lint completed with no errors and its two existing
+  `DataViewPanels.tsx` fast-refresh warnings. The planned
+  `DashboardRoutePanels`, `DashboardPanels`, and `ContractSitePanels` test
+  files are absent in this checkout, so their exact scoped Vitest command has
+  no matching files.
+
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
 - Workspace: `/Users/oldgeorge/Documents/rvt-mono`
@@ -732,3 +762,25 @@
   introduce `RvtPortal.Application` and extract the complete Sites slice
   incrementally, retaining route and payload compatibility and avoiding a
   broad rewrite. The design must be written and reviewed before implementation.
+
+## Sites Application Boundary Design - 2026-07-23
+
+- Active branch: `codex/sites-application-boundary`, created from and tracking
+  the pushed `main` integration commit `f7db3dd`.
+- Approved design:
+  `docs/superpowers/specs/2026-07-23-rvtportal-sites-application-boundary-design.md`.
+- The new `RvtPortal.Application` project is BCL-only for the first slice: no
+  NuGet or project references, ASP.NET Core, EF Core, DataAccess, host, or
+  vendor SDK dependencies.
+- `RvtPortal.Application` owns Sites use cases, contracts, results,
+  `PortalUserContext`, the explicit UTC active-assignment policy, and focused
+  read/write/archive/logo/user-directory/unit-of-work ports.
+- `RvtPortal.Spa` retains controllers, API mapping, DI composition, optimized
+  EF projections, Identity, archive/storage implementations, and the existing
+  three-context `EfCoreUnitOfWork`.
+- The full Sites surface includes list/options/detail, monitors, open
+  notifications, create/update/archive, notification settings, authorization,
+  and all customer-logo operations. Routes and payloads remain unchanged.
+- Implementation order is scaffold, policies/contracts, reads, writes,
+  controller cutover, and documentation. The design review and a task-level
+  implementation plan are required before production code changes.

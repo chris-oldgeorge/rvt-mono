@@ -65,19 +65,35 @@ public sealed class OmnidotsVibrationGatewayTests
     }
 
     [Fact]
-    // Function summary: Verifies a non-success vendor response surfaces the response body as the error.
-    public async Task UpdateAlertLevelsAsync_OnErrorResponse_ReturnsBodyAsError()
+    // Function summary: Verifies a non-success vendor response is typed without reflecting a potentially sensitive body.
+    public async Task UpdateAlertLevelsAsync_OnErrorResponse_ReturnsSafeStatusOnly()
     {
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.BadRequest)
         {
-            Content = new StringContent("vendor rejected the level")
+            Content = new StringContent("vendor rejected the level secret=adapter-secret")
         };
         var gateway = new OmnidotsVibrationGateway(new HttpClient(new RecordingHttpMessageHandler(response)), CreateOptions());
 
         var result = await gateway.UpdateAlertLevelsAsync("SER-001", 12.5, 7.25, CancellationToken.None);
 
         Assert.False(result.Succeeded);
-        Assert.Equal("vendor rejected the level", result.Error);
+        Assert.Equal("Omnidots adapter returned HTTP 400.", result.Error);
+    }
+
+    [Fact]
+    // Function summary: Verifies invalid endpoint configuration fails without issuing an outbound request.
+    public async Task UpdateAlertLevelsAsync_WithInvalidUrl_FailsWithoutSendingRequest()
+    {
+        var handler = new RecordingHttpMessageHandler(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+        var gateway = new OmnidotsVibrationGateway(
+            new HttpClient(handler),
+            Options.Create(new OmnidotsAdapterOptions { Url = "not a URL", Secret = AdapterSecret }));
+
+        var result = await gateway.UpdateAlertLevelsAsync("SER-001", 12.5, 7.25, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Omnidots adapter URL is invalid.", result.Error);
+        Assert.Equal(0, handler.RequestCount);
     }
 
     // --- Handler tests (the command consuming the port; success proceeds, failure surfaces the vendor error) ---

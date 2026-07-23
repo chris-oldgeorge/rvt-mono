@@ -350,7 +350,6 @@ public class SecurityHardeningTests
         {
             Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
         };
-
         using var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -862,7 +861,9 @@ public class SecurityHardeningTests
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["Auth:SkipPasswordResetEmail"] = "false",
-                    ["Spa:PublicBaseUrl"] = publicBaseUrl
+                    ["Spa:PublicBaseUrl"] = publicBaseUrl,
+                    // Test clients use localhost by default; the explicit public host remains the only deployed origin.
+                    ["AllowedHosts"] = "portal.example.test;localhost"
                 });
             });
             builder.ConfigureTestServices(services =>

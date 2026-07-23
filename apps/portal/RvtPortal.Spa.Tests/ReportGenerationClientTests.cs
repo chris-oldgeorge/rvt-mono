@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Adapters.Reporting;
@@ -16,6 +17,36 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class ReportGenerationClientTests
 {
+    [Fact]
+    // Function summary: Verifies malformed report-service configuration becomes a typed unavailable result without exposing credentials.
+    public async Task RequestGenerationAsync_WithInvalidBaseUrl_ThrowsTypedConfigurationFailure()
+    {
+        var client = new ReportingServiceReportGenerationClient(
+            new HttpClient(new CapturingHandler(new { })),
+            Options.Create(new ReportGenerationServiceOptions { BaseUrl = "not a url", InternalApiKey = "report-secret" }),
+            TimeProvider.System);
+
+        var exception = await Assert.ThrowsAsync<ReportGenerationServiceException>(() => client.RequestGenerationAsync(
+            Guid.NewGuid(), new ReportGenerationRequest { SendToRecipients = true }, CancellationToken.None));
+
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, exception.StatusCode);
+        Assert.DoesNotContain("report-secret", exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    // Function summary: Verifies a downstream timeout becomes a typed gateway-timeout failure when the caller did not cancel.
+    public async Task RequestGenerationAsync_WhenDownstreamTimesOut_ThrowsGatewayTimeout()
+    {
+        var client = new ReportingServiceReportGenerationClient(
+            new HttpClient(new ThrowingHandler(new TaskCanceledException("downstream timeout"))),
+            Options.Create(new ReportGenerationServiceOptions { BaseUrl = "https://reports.internal" }),
+            TimeProvider.System);
+
+        var exception = await Assert.ThrowsAsync<ReportGenerationServiceException>(() => client.RequestGenerationAsync(
+            Guid.NewGuid(), new ReportGenerationRequest { SendToRecipients = true }, CancellationToken.None));
+
+        Assert.Equal(StatusCodes.Status504GatewayTimeout, exception.StatusCode);
+    }
     [Fact]
     // Function summary: Verifies the report service client sends rule-generation requests with auth and trigger date.
     public async Task RequestGenerationAsync_SendsAuthenticatedRuleGenerationRequest()
@@ -132,5 +163,15 @@ public sealed class ReportGenerationClientTests
                 Content = JsonContent.Create(responseBody)
             };
         }
+    }
+
+    private sealed class ThrowingHandler : HttpMessageHandler
+    {
+        private readonly Exception exception;
+
+        public ThrowingHandler(Exception exception) => this.exception = exception;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromException<HttpResponseMessage>(exception);
     }
 }

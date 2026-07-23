@@ -37,7 +37,8 @@ Publish artifact checks:
 - `wwwroot/index.html` exists.
 - `wwwroot/assets` contains hashed JS/CSS output.
 - `RvtPortal.Spa.dll` exists in the publish folder.
-- `/api/health` returns `200` after deployment.
+- `/api/health/live` returns `200` for the container liveness probe.
+- `/api/health/ready` returns `200` only after database connectivity and schema validation succeed; use this endpoint as the deployment gate.
 - A non-API route returns the SPA shell.
 - An unknown `/api/*` route returns `application/problem+json`.
 

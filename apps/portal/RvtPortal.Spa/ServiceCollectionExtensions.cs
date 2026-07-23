@@ -94,7 +94,7 @@ public static class ServiceCollectionExtensions
         });
         services.AddHttpClient<IVibrationVendorGateway, OmnidotsVibrationGateway>(client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(30);
+            client.Timeout = TimeSpan.FromSeconds(15);
         });
         services.AddOptions<PortalEmailOptions>().BindConfiguration("EmailConfiguration");
         // Map the portal's existing EmailConfiguration keys onto the shared CommunicationsOptions rather than
@@ -142,6 +142,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMonitorDataSource, MonitorDataSource>();
         services.AddScoped<IMonitorDetailSummaryService, MonitorDetailSummaryService>();
         services.AddScoped<IMonitorPictureStorage, MonitorPictureStorage>();
+        services.AddSingleton<IBlobStorageClientFactory, BlobStorageClientFactory>();
         services.AddScoped<ICustomerLogoStorage, CustomerLogoStorage>();
         services.AddScoped<ISiteArchiveQueryCatalog, SiteArchiveQueryCatalog>();
         services.AddScoped<ISiteArchiveQueryExecutor, SiteArchiveQueryExecutor>();
@@ -154,7 +155,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMonitorReadAuthorizationService, MonitorReadAuthorizationService>();
         services.AddScoped<IReportRuleRecipientReader, ReportRuleRecipientReader>();
         services.AddOptions<ReportGenerationServiceOptions>().BindConfiguration("ReportGenerationService");
-        services.AddHttpClient<IReportGenerationClient, ReportingServiceReportGenerationClient>();
+        services.AddHttpClient<IReportGenerationClient, ReportingServiceReportGenerationClient>(client => client.Timeout = TimeSpan.FromSeconds(30));
         services.AddSingleton(TimeProvider.System);
         services.Configure<RvtTimeZoneOptions>(configuration.GetSection("TimeZones"));
 

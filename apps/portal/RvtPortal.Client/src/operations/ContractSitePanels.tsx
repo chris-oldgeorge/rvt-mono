@@ -1536,11 +1536,7 @@ function toDateInput(value?: string | null) {
   if (!value) {
     return '';
   }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value.slice(0, 10);
-  }
-  return date.toISOString().slice(0, 10);
+  return value.slice(0, 10);
 }
 // Function summary: Handles the format time range workflow for this module.
 function formatTimeRange(start?: string | null, end?: string | null) {

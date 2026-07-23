@@ -36,6 +36,8 @@ public sealed class SiteArchiveServiceSecurityTests
         Assert.DoesNotContain("SqlQueryRaw", source, StringComparison.Ordinal);
         Assert.DoesNotContain("ToListAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("StringBuilder", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("new BlobServiceClient", source, StringComparison.Ordinal);
+        Assert.Contains("IBlobStorageClientFactory", source, StringComparison.Ordinal);
     }
 
     [Theory]

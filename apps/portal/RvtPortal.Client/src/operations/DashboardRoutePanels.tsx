@@ -99,7 +99,7 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
   const [deploymentId, setDeploymentId] = useState(initialParams.get('deploymentId') ?? '');
   const [year, setYear] = useState(initialDate.year);
   const [month, setMonth] = useState(initialDate.month);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [monthData, setMonthData] = useState<CalendarMonthResponse | null>(null);
   const [dayData, setDayData] = useState<CalendarDayResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +137,7 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
         setDeployments(response.deployments);
         setYear(response.year);
         setMonth(response.month);
-        setSelectedDay(defaultSelectedDay(response));
+        setSelectedDate(defaultSelectedDate(response));
         setError(null);
       })
       .catch((err: Error) => {
@@ -156,13 +156,18 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
   }, [deploymentId, month, onRequestError, year]);
 
   useEffect(() => {
-    if (!monthData || !selectedDay) {
+    if (!monthData || !selectedDate) {
       setDayData(null);
       return;
     }
     const controller = new AbortController();
-    getCalendarDay({ monitorId: monthData.monitorId, year: monthData.year, month: monthData.month, day: selectedDay }, { signal: controller.signal })
-      .then(setDayData)
+    const date = parseCalendarDate(selectedDate);
+    getCalendarDay({ monitorId: monthData.monitorId, ...date }, { signal: controller.signal })
+      .then((response) => {
+        if (!controller.signal.aborted) {
+          setDayData(response);
+        }
+      })
       .catch((err: Error) => {
         if (isAbortError(err)) {
           return;
@@ -171,7 +176,7 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
         onRequestError(err);
       });
     return () => controller.abort();
-  }, [monthData, onRequestError, selectedDay]);
+  }, [monthData, onRequestError, selectedDate]);
 
   // Function summary: Handles the move month workflow for this module.
   function moveMonth(direction: -1 | 1) {
@@ -225,9 +230,9 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
               {monthData.days.map((day) => (
                 <CalendarDayButton
                   day={day}
-                  selectedDay={selectedDay}
+                  selectedDate={selectedDate}
                   key={day.date}
-                  onSelect={(value) => setSelectedDay(value)}
+                  onSelect={setSelectedDate}
                 />
               ))}
             </div>
@@ -288,21 +293,21 @@ function CalendarDayDetail({ day }: Readonly<{ day: CalendarDayResponse }>) {
 // Function summary: Renders the CalendarDayButton React component and wires its local UI behavior.
 function CalendarDayButton({
   day,
-  selectedDay,
+  selectedDate,
   onSelect
 }: Readonly<{
   day: CalendarMonthDayItem;
-  selectedDay: number | null;
-  onSelect: (day: number) => void;
+  selectedDate: string | null;
+  onSelect: (date: string) => void;
 }>) {
   const date = new Date(day.date);
   const dayNumber = date.getDate();
-  const isSelected = day.isCurrentMonth && selectedDay === dayNumber;
+  const isSelected = selectedDate === day.date;
   return (
     <button
       className={calendarDayClassName(day, isSelected)}
       type="button"
-      onClick={() => onSelect(dayNumber)}
+      onClick={() => onSelect(day.date)}
     >
       <span>{dayNumber}</span>
       <strong>{day.status}</strong>
@@ -392,10 +397,10 @@ function calendarDayClassName(day: CalendarMonthDayItem, isSelected: boolean) {
 }
 
 // Function summary: Handles the default selected day workflow for this module.
-function defaultSelectedDay(month: CalendarMonthResponse) {
+function defaultSelectedDate(month: CalendarMonthResponse) {
   const alertDay = month.days.find((day) => day.isCurrentMonth && day.notificationCount > 0);
   if (alertDay) {
-    return new Date(alertDay.date).getDate();
+    return alertDay.date;
   }
 
   const currentMonthDay = month.days.find((day) => day.isCurrentMonth);
@@ -403,7 +408,13 @@ function defaultSelectedDay(month: CalendarMonthResponse) {
     return null;
   }
 
-  return new Date(currentMonthDay.date).getDate();
+  return currentMonthDay.date;
+}
+
+// Function summary: Converts a calendar ISO date into the day-query fields without browser time-zone conversion.
+function parseCalendarDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  return { year, month, day };
 }
 
 // Function summary: Handles the initial calendar date workflow for this module.

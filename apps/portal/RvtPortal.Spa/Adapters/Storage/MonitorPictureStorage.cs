@@ -6,7 +6,6 @@
 // - 2026-06-25 pending Derived stored and served content type from the validated extension instead of client input.
 // - 2026-07-08 pending Added stored-picture delete support for failed database-save compensation.
 
-using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using RVT.BusinessLogic.Ports.Storage;
@@ -18,11 +17,13 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
     private const string LocalPrefix = "monitor-pictures/";
     private const string BlobPrefix = "blob://";
     private readonly IConfiguration configuration;
+    private readonly IBlobStorageClientFactory blobStorageClientFactory;
     private readonly IWebHostEnvironment environment;
 
     // Function summary: Initializes this type with storage configuration and host paths.
-    public MonitorPictureStorage(IConfiguration configuration, IWebHostEnvironment environment)
+    public MonitorPictureStorage(IBlobStorageClientFactory blobStorageClientFactory, IConfiguration configuration, IWebHostEnvironment environment)
     {
+        this.blobStorageClientFactory = blobStorageClientFactory;
         this.configuration = configuration;
         this.environment = environment;
     }
@@ -148,16 +149,7 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
 
     private BlobContainerClient? BuildBlobContainerClient()
     {
-        var connectionString = configuration["BlobStorage:blobConnectionString"];
-        if (!string.IsNullOrWhiteSpace(connectionString))
-        {
-            return new BlobContainerClient(connectionString, ContainerName());
-        }
-
-        var serviceUri = configuration["BlobStorage:blobServiceUri"];
-        return string.IsNullOrWhiteSpace(serviceUri)
-            ? null
-            : new BlobServiceClient(new Uri(serviceUri), new DefaultAzureCredential()).GetBlobContainerClient(ContainerName());
+        return blobStorageClientFactory.CreateContainerClient(ContainerName());
     }
 
     private string ContainerName()

@@ -20,10 +20,12 @@ using Azure.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
@@ -61,7 +63,18 @@ static void ConfigureServices(WebApplicationBuilder builder)
     ConfigureDataProtection(builder);
     ConfigureApplicationCookie(builder.Services, builder.Environment);
     ConfigureRateLimiting(builder);
+    ConfigureHealthChecks(builder.Services);
     builder.Services.AddRvtPortalBusinessServices(builder.Configuration);
+}
+
+// Function summary: Registers dependency checks used by the readiness probe while leaving liveness process-only.
+static void ConfigureHealthChecks(IServiceCollection services)
+{
+    services.AddHealthChecks()
+        .AddDbContextCheck<ApplicationDbContext>("identity database", tags: ["ready"])
+        .AddDbContextCheck<RVTDbContext>("domain database", tags: ["ready"])
+        .AddDbContextCheck<RVTSearchContext>("search database", tags: ["ready"])
+        .AddCheck<PortalSchemaReadinessHealthCheck>("schema", tags: ["ready"]);
 }
 
 // Function summary: Binds the public SPA origin and rejects unsafe production host configuration before startup.
@@ -464,6 +477,16 @@ static void ConfigureEnvironmentPipeline(WebApplication app)
 // Function summary: Maps endpoints into the shape required by callers.
 static void MapEndpoints(WebApplication app)
 {
+    app.MapHealthChecks("/api/health/live", new HealthCheckOptions
+    {
+        Predicate = _ => false,
+        ResponseWriter = WriteHealthResponseAsync
+    }).AllowAnonymous();
+    app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
+    {
+        Predicate = registration => registration.Tags.Contains("ready"),
+        ResponseWriter = WriteHealthResponseAsync
+    }).AllowAnonymous();
     app.MapControllers();
     app.MapGet("/error", ErrorEndpoint).ExcludeFromDescription();
     var retiredMvcUtilityMethods = new[] { HttpMethods.Get, HttpMethods.Post };
@@ -475,6 +498,21 @@ static void MapEndpoints(WebApplication app)
     app.MapMethods("/home/reset", retiredMvcUtilityMethods, RetiredMvcUtilityRoute).ExcludeFromDescription();
     app.MapFallback("/api/{**path}", ApiEndpointNotFound).ExcludeFromDescription();
     app.MapFallback(context => SpaFallbackAsync(context, app));
+}
+
+// Function summary: Emits a minimal probe response that identifies statuses and check names without dependency details.
+static Task WriteHealthResponseAsync(HttpContext context, HealthReport report)
+{
+    var response = new
+    {
+        status = report.Status.ToString(),
+        checks = report.Entries.ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value.Status.ToString(),
+            StringComparer.Ordinal)
+    };
+    context.Response.ContentType = "application/json";
+    return context.Response.WriteAsJsonAsync(response);
 }
 
 // Function summary: Identifies retired public monitor-picture static routes before SPA fallback.

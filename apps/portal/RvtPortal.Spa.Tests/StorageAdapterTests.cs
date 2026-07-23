@@ -3,6 +3,7 @@
 // - 2026-07-08 pending Added failed-replacement coverage for customer-logo storage.
 
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using RVT.BusinessLogic.Ports.Storage;
 using RvtPortal.Spa.Adapters.Storage;
@@ -12,6 +13,22 @@ namespace RvtPortal.Spa.Tests;
 public sealed class StorageAdapterTests
 {
     private static readonly byte[] PngHeader = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+    [Theory]
+    [InlineData("BlobStorage:blobConnectionString", "UseDevelopmentStorage=true")]
+    [InlineData("BlobStorage:blobServiceUri", "https://rvtstorage.blob.core.windows.net")]
+    // Function summary: Verifies both supported storage authentication modes create container clients through one factory.
+    public void BlobStorageClientFactory_CreatesContainerClientForConfiguredStorageMode(string key, string value)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { [key] = value })
+            .Build();
+
+        var container = new BlobStorageClientFactory(configuration).CreateContainerClient("site-archives");
+
+        Assert.NotNull(container);
+        Assert.EndsWith("/site-archives", container.Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
 
     [Fact]
     // Function summary: Verifies failed logo replacement keeps the previously stored logo intact.

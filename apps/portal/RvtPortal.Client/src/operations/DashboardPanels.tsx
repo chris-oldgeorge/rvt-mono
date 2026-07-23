@@ -31,6 +31,7 @@ import {
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
 import { Notice } from '../components/FormControls';
+import { localDateInputValue } from '../localDate';
 import type {
   AuthStateResponse,
   BreachesAlertsItem,
@@ -279,6 +280,9 @@ function BreachesAlertsWidget({ onRequestError }: Readonly<{ onRequestError: (er
     setIsLoading(true);
     queryBreachesAlerts({ date, page: 1, pageSize: 8, sort: 'notificationTime', sortDir: 'Descending' }, { signal: controller.signal })
       .then((nextResponse) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setResponse(nextResponse);
         setError(null);
       })
@@ -428,7 +432,7 @@ function dashboardAudience(role: string) {
 
 // Function summary: Maps day input value into the shape required by callers.
 function todayInputValue() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateInputValue();
 }
 
 // Function summary: Handles the format date time workflow for this module.

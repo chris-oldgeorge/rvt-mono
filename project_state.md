@@ -1,5 +1,35 @@
 # Project State
 
+## Release Platform Hardening - 2026-07-23
+
+- The portal now maps explicit `/api/health/live` and `/api/health/ready`
+  probes. Liveness has no dependency checks; readiness runs the three EF
+  context checks plus schema validation and returns only statuses/check names.
+  The cutover runbook designates readiness as the deployment gate.
+- Existing proxy hardening remains configured before redirects, rate limiting,
+  authentication, and CSRF: only forwarded client IP and scheme are accepted,
+  defaults are cleared, and immediate peers must be configured in
+  `ForwardedHeaders:KnownProxies` or `KnownNetworks`.
+- Blob storage clients are constructed by the shared
+  `IBlobStorageClientFactory` for both connection-string and managed-identity
+  modes. Monitor pictures and site archives no longer independently construct
+  blob service clients. Report generation and Omnidots adapters use bounded
+  named client timeouts and translate malformed URLs, downstream timeouts, and
+  connection failures without reflecting secrets or vendor response bodies.
+- Calendar selections retain the full ISO date, local date-only defaults no
+  longer serialize through UTC, and calendar/breach effects ignore responses
+  after cancellation. Help Admin is explicitly excluded from the release
+  surface until its temporary asset editor receives stable row-key coverage.
+- Focused verification: `SpaHostSmokeTests` passed 5/5;
+  storage/archive/report/Omnidots tests passed 18/18; the corrected host-filter
+  controls passed 2/2; and the complete client suite passed 68/68 after a
+  production build. The full portal backend suite passed 376 tests with eight
+  explicit PostgreSQL/Timescale provider skips (384 discovered). Client lint completed with no errors and its two existing
+  `DataViewPanels.tsx` fast-refresh warnings. The planned
+  `DashboardRoutePanels`, `DashboardPanels`, and `ContractSitePanels` test
+  files are absent in this checkout, so their exact scoped Vitest command has
+  no matching files.
+
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
 - Workspace: `/Users/oldgeorge/Documents/rvt-mono`

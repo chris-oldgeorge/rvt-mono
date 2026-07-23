@@ -15,9 +15,9 @@
 // - 2026-07-08 pending Replaced console archive error output with trace logging during cleanup review.
 
 using System.Data.Common;
-using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
 using Microsoft.Extensions.Configuration;
+using RvtPortal.Spa.Adapters.Storage;
 
 namespace RvtPortal.Spa.Adapters.Archive
 {
@@ -42,6 +42,7 @@ namespace RvtPortal.Spa.Adapters.Archive
         private readonly ISiteArchiveQueryExecutor queryExecutor;
         private readonly ISiteArchiveCsvWriter csvWriter;
         private readonly ISiteArchiveWorkspaceFactory workspaceFactory;
+        private readonly IBlobStorageClientFactory blobStorageClientFactory;
         private readonly BlobStorage config;
 
         // Function summary: Initializes this type with archive export collaborators resolved through dependency injection.
@@ -50,12 +51,14 @@ namespace RvtPortal.Spa.Adapters.Archive
             ISiteArchiveQueryExecutor queryExecutor,
             ISiteArchiveCsvWriter csvWriter,
             ISiteArchiveWorkspaceFactory workspaceFactory,
+            IBlobStorageClientFactory blobStorageClientFactory,
             IConfiguration configuration)
         {
             this.queryCatalog = queryCatalog;
             this.queryExecutor = queryExecutor;
             this.csvWriter = csvWriter;
             this.workspaceFactory = workspaceFactory;
+            this.blobStorageClientFactory = blobStorageClientFactory;
             config = new BlobStorage();
             configuration.GetSection("BlobStorage").Bind(config);
         }
@@ -100,8 +103,7 @@ namespace RvtPortal.Spa.Adapters.Archive
         {
             await System.IO.Compression.ZipFile.CreateFromDirectoryAsync(filesPath, zipFilePath, cancellationToken);
 
-            var blobServiceClient = new BlobServiceClient(config.blobConnectionString);
-            var monitorContainerClient = blobServiceClient.GetBlobContainerClient(config.ArchiveContainer);
+            var monitorContainerClient = RequiredContainer(config.ArchiveContainer);
 
             var blobClient = monitorContainerClient.GetBlobClient(blobName);
             await blobClient.UploadAsync(zipFilePath, true, cancellationToken);
@@ -120,8 +122,7 @@ namespace RvtPortal.Spa.Adapters.Archive
         private async Task BlobToFolder(string blobName, string downloadFolder, CancellationToken cancellationToken)
         {
             var downloadFilePath = Path.Combine(downloadFolder, blobName);
-            var blobServiceClient = new BlobServiceClient(config.blobConnectionString);
-            var containerClient = blobServiceClient.GetBlobContainerClient(config.ReportContainer);
+            var containerClient = RequiredContainer(config.ReportContainer);
             var blobClient = containerClient.GetBlobClient($"{config.ReportFolder}/{blobName}");
 
             if (await blobClient.ExistsAsync(cancellationToken))
@@ -130,6 +131,13 @@ namespace RvtPortal.Spa.Adapters.Archive
                 await using var fileStream = File.Create(downloadFilePath);
                 await response.Value.Content.CopyToAsync(fileStream, cancellationToken);
             }
+        }
+
+        // Function summary: Resolves a required archive container through the shared blob-client factory.
+        private Azure.Storage.Blobs.BlobContainerClient RequiredContainer(string containerName)
+        {
+            return blobStorageClientFactory.CreateContainerClient(containerName)
+                ?? throw new InvalidOperationException("Blob storage is not configured for site archives.");
         }
     }
 }

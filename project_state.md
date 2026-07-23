@@ -754,3 +754,21 @@
 - Implementation order is scaffold, policies/contracts, reads, writes,
   controller cutover, and documentation. The design review and a task-level
   implementation plan are required before production code changes.
+
+## Sites Application Boundary Plan - 2026-07-23
+
+- The approved design is expanded into
+  `docs/superpowers/plans/2026-07-23-rvtportal-sites-application-boundary.md`.
+- The plan contains seven independently reviewable tasks: compile-time
+  scaffold, shared identity/UTC policies, read extraction, transactional
+  writes, archive/logo workflows, controller cutover, and documentation/full
+  verification.
+- Key planned types are `UseCaseResult<T>`, `PortalUserContext`,
+  `SiteAccessScope`, `ISiteApplicationService`, `ISiteReadPort`,
+  `ISiteWritePort`, `ISiteArchivePort`, `ISiteLogoPort`, and
+  `IApplicationUnitOfWork`.
+- The application project remains BCL-only. Host adapters keep EF Core,
+  Identity, archive, logo storage, and the existing shared-connection unit of
+  work.
+- No production implementation has started. The next action is selecting
+  subagent-driven or inline plan execution.

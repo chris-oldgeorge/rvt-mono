@@ -55,6 +55,26 @@
   and matching `AllowedHosts`), and the immediate reverse-proxy IP addresses or
   CIDR ranges for `ForwardedHeaders:KnownProxies`/`KnownNetworks`.
 
+## Provider Adapter Project Split Design - 2026-07-23
+
+- Approved direction: perform a clean major-version split with no temporary
+  `Rvt.Monitor.Common.Infrastructure` facade. Provider-neutral communication
+  and storage contracts become standalone projects; SendGrid, Microsoft Graph,
+  TransmitSMS, Local, Azure Blob, and S3 each become individual adapter
+  projects selected explicitly by application composition roots.
+- Design specification:
+  `docs/superpowers/specs/2026-07-23-rvt-provider-adapter-project-split-design.md`.
+  Implementation planning must update the hard-coded three-package release,
+  validation, SBOM, solution, and package-consumer assumptions to the approved
+  eleven-package graph.
+- TODO(storage): after the provider split, migrate Portal
+  `MonitorPictureStorage` and `SiteArchiveService` from direct Azure
+  `BlobContainerClient` construction to `IObjectStorageClientFactory`. Preserve
+  protected streaming, local fallback and atomic writes, existing `blob://`
+  references, persisted archive URLs, and report/archive container boundaries.
+  Treat customer logos and the reporting service adapter as later explicit
+  decisions.
+
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
 - Workspace: `/Users/oldgeorge/Documents/rvt-mono`

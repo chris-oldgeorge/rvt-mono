@@ -43,6 +43,17 @@
   remediation adds explicit view casts, typed test parameters, and a
   version-tolerant default assertion. Every temporary credential file was
   deleted immediately after use.
+- Release-artifact verification: `RvtPortal.Spa` published successfully in
+  Release with `wwwroot/index.html`, hashed SPA assets, and the host DLL.
+  The client release gate then passed lint (two pre-existing fast-refresh
+  warnings only), 68/68 Vitest tests, 4/4 Playwright browser smoke tests, and
+  a production build. Targeted npm overrides update only the ESLint development
+  dependency tree; a fresh full `npm audit` reports zero vulnerabilities. The
+  repository has no portal production deployment manifest or target
+  configuration. Before traffic can be deployed, an operator must supply the
+  deployment target/secret store, the public HTTPS host (`Spa:PublicBaseUrl`
+  and matching `AllowedHosts`), and the immediate reverse-proxy IP addresses or
+  CIDR ranges for `ForwardedHeaders:KnownProxies`/`KnownNetworks`.
 
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 

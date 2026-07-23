@@ -72,6 +72,8 @@ public sealed class DeployOptions
             RVT.SchemaDeploy - applies the SQL that EF migrations cannot build.
 
               create_unmapped_schema.sql   tables and columns no EF model maps
+              restore_unmapped_column_defaults.sql
+                                           forward repair for columns that already exist
               post-load/*.sql              hypertables, continuous aggregates, views, routines
 
             Run it AFTER `dotnet ef database update` for all three contexts. Safe to re-run: it creates and

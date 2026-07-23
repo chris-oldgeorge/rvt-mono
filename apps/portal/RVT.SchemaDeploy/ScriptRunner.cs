@@ -45,8 +45,50 @@ public sealed class ScriptRunner
             throw new DeployException($"Could not connect to the database: {exception.Message}", exception);
         }
 
-        await RequireTimescaleAsync(connection, cancellationToken);
+        return await ApplyResolvedScriptsAsync(connection, scripts, cancellationToken);
+    }
 
+    /// <summary>
+    /// Applies the resolved list through an already-open connection. The caller owns the connection and any active
+    /// transaction, which lets provider verification exercise the real deploy twice and roll its fixture back.
+    /// </summary>
+    public async Task<int> RunAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        var scripts = ResolveScripts();
+        if (scripts.Count == 0)
+        {
+            throw new DeployException($"No SQL scripts found under {options.ScriptRoot}.");
+        }
+
+        if (options.DryRun)
+        {
+            foreach (var script in scripts)
+            {
+                Console.WriteLine($"  would apply  {Describe(script)}");
+            }
+
+            return scripts.Count;
+        }
+
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            throw new DeployException("The supplied PostgreSQL connection must already be open.");
+        }
+
+        return await ApplyResolvedScriptsAsync(connection, scripts, cancellationToken);
+    }
+
+    // Function summary: Applies one already-resolved list to the supplied open PostgreSQL connection.
+    private static async Task<int> ApplyResolvedScriptsAsync(
+        NpgsqlConnection connection,
+        IReadOnlyList<string> scripts,
+        CancellationToken cancellationToken)
+    {
+        await RequireTimescaleAsync(connection, cancellationToken);
         foreach (var script in scripts)
         {
             await ApplyAsync(connection, script, cancellationToken);
@@ -57,8 +99,10 @@ public sealed class ScriptRunner
 
     /// <summary>
     /// The order is a dependency order, not a preference. create_unmapped_schema.sql adds monitor.offline, and
-    /// post-load/03 creates views that select it - so post-load cannot run first. Within post-load the numeric
-    /// prefixes carry the order (01 primary keys, 02 hypertables, 03 views, ...), so they sort by name.
+    /// post-load/03 creates views that select it - so post-load cannot run first. The forward repair restores
+    /// defaults on columns the create script cannot change once they exist, so it runs between create and
+    /// post-load. Within post-load the numeric prefixes carry the order (01 primary keys, 02 hypertables,
+    /// 03 views, ...), so they sort by name.
     /// </summary>
     private List<string> ResolveScripts()
     {
@@ -68,6 +112,12 @@ public sealed class ScriptRunner
         if (File.Exists(unmapped))
         {
             scripts.Add(unmapped);
+        }
+
+        var repair = Path.Combine(options.ScriptRoot, "restore_unmapped_column_defaults.sql");
+        if (File.Exists(repair))
+        {
+            scripts.Add(repair);
         }
 
         var postLoad = Path.Combine(options.ScriptRoot, "post-load");

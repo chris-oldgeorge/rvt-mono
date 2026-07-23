@@ -3,8 +3,11 @@
 // - 2026-07-14 pending Added after rvt_alert_rule.created (NOT NULL, no default) broke every EF alert-rule insert.
 
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RVT.DataAccess.Context;
 using RVT.Entities;
+using RVT.SchemaDeploy;
+using RvtPortal.Spa.Tests.Support;
 using MonitorEntity = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Tests;
@@ -20,10 +23,9 @@ namespace RvtPortal.Spa.Tests;
 /// is simply absent from the test database, the insert succeeds, and the suite stays green while production
 /// fails. Only the shipped SQL can reveal this, so these tests read it.
 /// </summary>
+[Collection(SchemaDeployCollection.Name)]
 public sealed class UnmappedColumnDefaultTests
 {
-    private const string PostgresConnectionVariable = "RVT_TEST_POSTGRES_CONNECTION";
-
     [Fact]
     // Function summary: Verifies every unmapped NOT NULL column has a database default EF can rely on.
     public void UnmappedNotNullColumns_HaveDatabaseDefaults()
@@ -44,6 +46,30 @@ public sealed class UnmappedColumnDefaultTests
             string.Join(", ", offenders));
     }
 
+    [Fact]
+    // Function summary: Locks the forward repair to repeatable catalogue-only versions of the canonical defaults.
+    public void RepairScript_UsesIdempotentCanonicalDefaultsWithoutMutatingRows()
+    {
+        var repairSql = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "database", "postgres", "restore_unmapped_column_defaults.sql"));
+        var executableSql = StripSqlComments(repairSql);
+
+        Assert.Equal(2, CountOccurrences(executableSql, "ALTER TABLE "));
+        Assert.Equal(2, CountOccurrences(executableSql, "ALTER COLUMN "));
+        Assert.Contains(
+            "ALTER COLUMN created SET DEFAULT (now() AT TIME ZONE 'utc')",
+            executableSql,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "ALTER COLUMN battery_status SET DEFAULT 0",
+            executableSql,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("UPDATE ", executableSql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("INSERT ", executableSql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DELETE ", executableSql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("TRUNCATE ", executableSql, StringComparison.OrdinalIgnoreCase);
+    }
+
     [RequiresPostgresFact]
     // Function summary: Verifies EF can insert a monitor and an alert rule into a real PostgreSQL schema.
     public async Task MonitorAndAlertRuleInserts_SucceedAgainstRealPostgres()
@@ -52,7 +78,8 @@ public sealed class UnmappedColumnDefaultTests
         // database (dev, a restored backup, a from-scratch build) to prove EF's INSERT survives its schema.
         // Between them the two inserts cover both unmapped NOT NULL columns: monitor.battery_status, which no
         // EF code path inserts today, and rvt_alert_rule.created, which every alert level creation goes through.
-        var connectionString = Environment.GetEnvironmentVariable(PostgresConnectionVariable);
+        var connectionString =
+            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
         var options = new DbContextOptionsBuilder<RVTDbContext>().UseNpgsql(connectionString).Options;
         await using var context = new RVTDbContext(options);
 
@@ -88,6 +115,43 @@ public sealed class UnmappedColumnDefaultTests
 
         // Throws DbUpdateException (23502) if an unmapped NOT NULL column has no default.
         await context.SaveChangesAsync();
+        await transaction.RollbackAsync();
+    }
+
+    [RequiresPostgresFact]
+    // Function summary: Proves the complete deploy list is safe twice and preserves table data on real PostgreSQL.
+    public async Task SchemaDeploy_RunsTwiceAndPreservesDataWithCanonicalDefaults()
+    {
+        var connectionString =
+            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!;
+        var runner = new ScriptRunner(new DeployOptions
+        {
+            ConnectionString = connectionString,
+            ScriptRoot = Path.Combine(FindRepositoryRoot(), "database", "postgres"),
+            DryRun = false
+        });
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        var firstRunCount = await runner.RunAsync(connection);
+        var defaultsAfterFirstRun = await ReadRepairedDefaultsAsync(connection);
+        var sentinelSerialId = await SeedRepairSentinelAsync(connection, transaction);
+        var dataBeforeSecondRun = await ReadRepairTargetDataAsync(connection, sentinelSerialId);
+
+        var secondRunCount = await runner.RunAsync(connection);
+        var defaultsAfterSecondRun = await ReadRepairedDefaultsAsync(connection);
+        var dataAfterSecondRun = await ReadRepairTargetDataAsync(connection, sentinelSerialId);
+
+        Assert.Equal(firstRunCount, secondRunCount);
+        Assert.True(firstRunCount >= 3, "The deploy must include create, repair, and at least one post-load script.");
+        AssertCanonicalDefaults(defaultsAfterFirstRun);
+        AssertCanonicalDefaults(defaultsAfterSecondRun);
+        Assert.Equal(1, dataBeforeSecondRun.MonitorCount);
+        Assert.Equal(1, dataBeforeSecondRun.AlertRuleCount);
+        Assert.Equal(dataBeforeSecondRun, dataAfterSecondRun);
+
         await transaction.RollbackAsync();
     }
 
@@ -152,20 +216,18 @@ public sealed class UnmappedColumnDefaultTests
 
     private sealed record AddedColumn(string Name, bool IsNotNull, bool HasDefault);
 
-    /// <summary>
-    /// Marks a test that needs a real PostgreSQL database. xUnit v2 has no dynamic skip, so the decision is made
-    /// here, at discovery: without a connection string the test is reported as skipped rather than quietly passing.
-    /// </summary>
-    private sealed class RequiresPostgresFactAttribute : FactAttribute
+    // Function summary: Counts non-overlapping occurrences for the static idempotency contract.
+    private static int CountOccurrences(string source, string value)
     {
-        // Function summary: Skips the test unless a PostgreSQL connection string is configured.
-        public RequiresPostgresFactAttribute()
+        var count = 0;
+        var offset = 0;
+        while ((offset = source.IndexOf(value, offset, StringComparison.OrdinalIgnoreCase)) >= 0)
         {
-            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(PostgresConnectionVariable)))
-            {
-                Skip = $"Set {PostgresConnectionVariable} to run this against a real PostgreSQL database.";
-            }
+            count++;
+            offset += value.Length;
         }
+
+        return count;
     }
 
     // Function summary: Walks up from the test output directory to the repository root.
@@ -192,5 +254,103 @@ public sealed class UnmappedColumnDefaultTests
             Environment.NewLine,
             sql.Split(["\r\n", "\n"], StringSplitOptions.None)
                 .Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal)));
+    }
+
+    // Function summary: Reads PostgreSQL's normalized catalogue expressions for the two repaired defaults.
+    private static async Task<IReadOnlyDictionary<string, string>> ReadRepairedDefaultsAsync(
+        NpgsqlConnection connection)
+    {
+        const string sql =
+            """
+            SELECT table_name || '.' || column_name, column_default
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND (table_name, column_name) IN
+                  (('rvt_alert_rule', 'created'), ('monitor', 'battery_status'))
+            ORDER BY table_name, column_name;
+            """;
+
+        var defaults = new Dictionary<string, string>(StringComparer.Ordinal);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            defaults.Add(reader.GetString(0), reader.GetString(1));
+        }
+
+        return defaults;
+    }
+
+    // Function summary: Seeds rows that exercise both repaired defaults inside the caller-owned rollback fixture.
+    private static async Task<string> SeedRepairSentinelAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction)
+    {
+        var serialId = $"TSD-{Guid.NewGuid():N}"[..16];
+        var options = new DbContextOptionsBuilder<RVTDbContext>()
+            .UseNpgsql(connection)
+            .Options;
+        await using var context = new RVTDbContext(options);
+        await context.Database.UseTransactionAsync(transaction);
+
+        var monitor = new MonitorEntity
+        {
+            SerialId = serialId,
+            Manufacturer = "Test",
+            Model = "SchemaDeploy",
+            FirmwareVersion = "0",
+            TypeOfMonitor = MonitorTypeEnum.Dust,
+            ListedAtTime = DateTime.UtcNow
+        };
+        context.MonitorsList.Add(monitor);
+        context.RvtAlertRules.Add(new Alertlevel
+        {
+            MonitorId = monitor.Id,
+            SerialId = serialId,
+            AlertField = "PM10",
+            AlertType = AlertTypeEnum.Alert,
+            AveragingPeriod = (int)AveragingPeriodsDustEnum._15_min,
+            LimitOn = 10,
+            LimitOff = 5,
+            Weekdays = true,
+            Saturdays = false,
+            Sundays = false,
+            IsActive = false,
+            IsDeleted = false
+        });
+
+        await context.SaveChangesAsync();
+        return serialId;
+    }
+
+    // Function summary: Fingerprints every value in the sentinel rows to detect in-place data mutation.
+    private static async Task<(long MonitorCount, string MonitorHash, long AlertRuleCount, string AlertRuleHash)>
+        ReadRepairTargetDataAsync(NpgsqlConnection connection, string serialId)
+    {
+        const string sql =
+            """
+            SELECT
+                (SELECT count(*) FROM public.monitor WHERE serial_id = @serial_id),
+                (SELECT md5(COALESCE(
+                    string_agg(to_jsonb(row_data)::text, E'\n' ORDER BY to_jsonb(row_data)::text),
+                    '')) FROM public.monitor AS row_data WHERE serial_id = @serial_id),
+                (SELECT count(*) FROM public.rvt_alert_rule WHERE serial_id = @serial_id),
+                (SELECT md5(COALESCE(
+                    string_agg(to_jsonb(row_data)::text, E'\n' ORDER BY to_jsonb(row_data)::text),
+                    '')) FROM public.rvt_alert_rule AS row_data WHERE serial_id = @serial_id);
+            """;
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("serial_id", serialId);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        return (reader.GetInt64(0), reader.GetString(1), reader.GetInt64(2), reader.GetString(3));
+    }
+
+    // Function summary: Compares live PostgreSQL defaults with the server-normalized canonical repair expressions.
+    private static void AssertCanonicalDefaults(IReadOnlyDictionary<string, string> defaults)
+    {
+        Assert.Equal("0", defaults["monitor.battery_status"]);
+        Assert.Equal("timezone('utc'::text, now())", defaults["rvt_alert_rule.created"]);
     }
 }

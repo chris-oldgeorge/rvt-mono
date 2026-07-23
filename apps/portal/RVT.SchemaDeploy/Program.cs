@@ -8,9 +8,10 @@ using RVT.SchemaDeploy;
 //
 //   1. EF migrations, one chain per context   (dotnet ef database update --context ...)
 //   2. create_unmapped_schema.sql             (tables and columns no EF model maps)
-//   3. post-load/*.sql                        (hypertables, continuous aggregates, views, routines)
+//   3. restore_unmapped_column_defaults.sql   (forward repair for columns that already exist)
+//   4. post-load/*.sql                        (hypertables, continuous aggregates, views, routines)
 //
-// This tool is steps 2 and 3. It exists because the only thing that ever ran them was RVT.DatabaseMigrator,
+// This tool is steps 2 through 4. It exists because the only thing that ever ran them was RVT.DatabaseMigrator,
 // which could not run them on their own: it required a live SQL Server source and always dropped the target
 // schema and re-copied every row first. Once the cutover finished that made it unusable, so post-load changes
 // were applied by hand - which is how the monitor_measurement_removal_impact view came to be dropped and never

@@ -15,6 +15,8 @@
 -- This script only sets defaults. It does not backfill, because neither column has null rows to backfill: they
 -- are NOT NULL already. New databases get these defaults from create_unmapped_schema.sql instead; this script is
 -- for databases that already have the columns, where ADD COLUMN IF NOT EXISTS is a no-op and cannot add them.
+-- RVT.SchemaDeploy deliberately runs this after create_unmapped_schema.sql on every deployment, so new and
+-- existing databases follow the same resolved script list.
 --
 -- Idempotent: safe to re-run. ALTER COLUMN SET DEFAULT is a catalogue-only change - it does not rewrite the
 -- table and does not touch existing rows.

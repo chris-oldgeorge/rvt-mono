@@ -31,6 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RVT.SchemaDeploy\RVT.SchemaDeploy.csproj" />
     <ProjectReference Include="..\RvtPortal.Spa\RvtPortal.Spa.csproj" />
   </ItemGroup>
 

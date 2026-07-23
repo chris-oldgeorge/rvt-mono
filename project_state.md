@@ -461,6 +461,31 @@
   because `RVT_TEST_POSTGRES_CONNECTION` is unset. Do not claim live Npgsql or
   deployed-schema closure until those tests execute successfully.
 
+## Immediate Blockers Task 6 Implementation - 2026-07-23
+
+- `RVT.SchemaDeploy` now resolves and executes one deterministic sequence:
+  `create_unmapped_schema.sql`, `restore_unmapped_column_defaults.sql`, then
+  ordinally sorted `post-load/*.sql`. Dry-run and actual execution use the same
+  resolver; publish output includes the repair exactly once under `sql/`.
+- `ScriptRunner.RunAsync(NpgsqlConnection, CancellationToken)` accepts a
+  caller-owned open connection so provider tests can execute two deployments
+  inside one rollback-owned transaction. The provider-gated idempotency test
+  verifies canonical defaults and fingerprints seeded row values/counts before
+  and after the second run.
+- `share-dev-database.sh` no longer suppresses `pg_restore`. It returns the
+  exact restore status, stops before post-restore success output on failure,
+  and requires valid nonzero public-table and TimescaleDB hypertable counts
+  before printing `Restore complete.`
+- TDD evidence: RED was 4 expected failures, 4 passes, and 2 provider skips;
+  GREEN is 8 focused passes with 2 provider skips. The full portal project
+  passes 352 tests with seven provider-gated skips. Shell syntax, a fake-Docker
+  failure/zero/success harness, actual publish contents, the portal solution
+  build, and diff checks pass.
+- A pre-commit implementation review found no Critical, Important, or Minor
+  issues. Live PostgreSQL double-run/idempotency remains unverified because
+  `RVT_TEST_POSTGRES_CONNECTION` is unset; it must run against a dedicated test
+  database before deployed-schema closure is claimed.
+
 ## Immediate Blockers Task 4 Verification Resume - 2026-07-23
 
 - Task 4 implementation checkpoint `74d8696` passed the three exact critical

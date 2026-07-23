@@ -22,6 +22,9 @@
     <Content Include="..\database\postgres\create_unmapped_schema.sql"
              Link="sql\create_unmapped_schema.sql"
              CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\database\postgres\restore_unmapped_column_defaults.sql"
+             Link="sql\restore_unmapped_column_defaults.sql"
+             CopyToOutputDirectory="PreserveNewest" />
     <!--
       The Exclude keeps macOS AppleDouble sidecars (._foo.sql) from being copied as source files. It is not
       sufficient on its own: when the output directory is on an SMB share, the filesystem recreates a sidecar

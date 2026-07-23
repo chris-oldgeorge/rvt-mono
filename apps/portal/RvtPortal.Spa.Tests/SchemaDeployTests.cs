@@ -2,8 +2,13 @@
 // Major updates:
 // - 2026-07-14 pending Added with RVT.SchemaDeploy, which replaces the post-load half of RVT.DatabaseMigrator.
 
+using System.Diagnostics;
+using System.Xml.Linq;
+using RVT.SchemaDeploy;
+
 namespace RvtPortal.Spa.Tests;
 
+[Collection(SchemaDeployCollection.Name)]
 public class SchemaDeployTests
 {
     [Fact]
@@ -15,10 +20,116 @@ public class SchemaDeployTests
         // narrowed to a hand-written list, a new post-load script would be added to the repository, never copied,
         // and silently never applied - the failure would be a missing view in production, not a build error.
         var root = FindRepositoryRoot();
-        var project = File.ReadAllText(Path.Combine(root, "RVT.SchemaDeploy", "RVT.SchemaDeploy.csproj"));
+        var projectPath = Path.Combine(root, "RVT.SchemaDeploy", "RVT.SchemaDeploy.csproj");
+        var project = XDocument.Load(projectPath);
+        var publishedRepairScripts = project
+            .Descendants("Content")
+            .Where(element =>
+                string.Equals(
+                    (string?)element.Attribute("Include"),
+                    @"..\database\postgres\restore_unmapped_column_defaults.sql",
+                    StringComparison.Ordinal))
+            .ToArray();
 
-        Assert.Contains(@"post-load\*.sql", project, StringComparison.Ordinal);
-        Assert.Contains("create_unmapped_schema.sql", project, StringComparison.Ordinal);
+        var projectText = File.ReadAllText(projectPath);
+        Assert.Contains(@"post-load\*.sql", projectText, StringComparison.Ordinal);
+        Assert.Contains("create_unmapped_schema.sql", projectText, StringComparison.Ordinal);
+        var repair = Assert.Single(publishedRepairScripts);
+        Assert.Equal(@"sql\restore_unmapped_column_defaults.sql", (string?)repair.Attribute("Link"));
+        Assert.Equal("PreserveNewest", (string?)repair.Attribute("CopyToOutputDirectory"));
+    }
+
+    [Fact]
+    // Function summary: Verifies dry-run resolves every schema stage exactly once in dependency order.
+    public async Task DryRun_ListsRepairExactlyOnceBetweenCreateAndPostLoadScripts()
+    {
+        using var fixture = TemporaryDirectory.Create();
+        var postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
+        File.WriteAllText(Path.Combine(fixture.Path, "create_unmapped_schema.sql"), "-- create");
+        File.WriteAllText(Path.Combine(fixture.Path, "restore_unmapped_column_defaults.sql"), "-- repair");
+        File.WriteAllText(Path.Combine(postLoad, "02_second.sql"), "-- second");
+        File.WriteAllText(Path.Combine(postLoad, "01_first.sql"), "-- first");
+
+        var runner = new ScriptRunner(new DeployOptions
+        {
+            ConnectionString = "not-used-by-dry-run",
+            ScriptRoot = fixture.Path,
+            DryRun = true
+        });
+
+        var originalOutput = Console.Out;
+        await using var output = new StringWriter();
+        try
+        {
+            Console.SetOut(output);
+            var count = await runner.RunAsync();
+            Assert.Equal(4, count);
+        }
+        finally
+        {
+            Console.SetOut(originalOutput);
+        }
+
+        var resolved = output.ToString()
+            .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => line.StartsWith("would apply", StringComparison.Ordinal))
+            .Select(line => line["would apply".Length..].Trim())
+            .ToArray();
+
+        Assert.Equal(
+            [
+                "create_unmapped_schema.sql",
+                "restore_unmapped_column_defaults.sql",
+                Path.Combine("post-load", "01_first.sql"),
+                Path.Combine("post-load", "02_second.sql")
+            ],
+            resolved);
+        Assert.Single(
+            resolved,
+            path => string.Equals(
+                path,
+                "restore_unmapped_column_defaults.sql",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
+    // Function summary: Verifies a pg_restore failure is returned exactly and aborts all success verification.
+    public async Task Restore_WhenPgRestoreFails_PreservesStatusAndStopsBeforeVerification()
+    {
+        using var fixture = TemporaryDirectory.Create();
+        var result = await RunRestoreHarnessAsync(fixture, restoreStatus: 23, verificationCounts: "5|2");
+
+        Assert.Equal(23, result.ExitCode);
+        Assert.Contains("pg_restore failed with status 23", result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain("timescaledb_post_restore", result.DockerLog, StringComparison.Ordinal);
+        Assert.DoesNotContain("pg_tables", result.DockerLog, StringComparison.Ordinal);
+        Assert.DoesNotContain("Restore complete.", result.StandardOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    // Function summary: Verifies a restore with no application tables is rejected before success is reported.
+    public async Task Restore_WhenVerificationCountsAreZero_DoesNotReportCompletion()
+    {
+        using var fixture = TemporaryDirectory.Create();
+        var result = await RunRestoreHarnessAsync(fixture, restoreStatus: 0, verificationCounts: "0|0");
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("no public tables", result.StandardError, StringComparison.Ordinal);
+        Assert.Contains("pg_tables", result.DockerLog, StringComparison.Ordinal);
+        Assert.Contains("timescaledb_information.hypertables", result.DockerLog, StringComparison.Ordinal);
+        Assert.DoesNotContain("Restore complete.", result.StandardOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    // Function summary: Verifies completion is printed only after both restored table counts are nonzero.
+    public async Task Restore_WhenVerificationCountsAreNonzero_ReportsCompletion()
+    {
+        using var fixture = TemporaryDirectory.Create();
+        var result = await RunRestoreHarnessAsync(fixture, restoreStatus: 0, verificationCounts: "5|2");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Restore complete.", result.StandardOutput, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -59,4 +170,106 @@ public class SchemaDeployTests
         Assert.NotNull(directory);
         return directory.FullName;
     }
+
+    // Function summary: Runs restore against a fake Docker boundary and captures status, output, and invoked checks.
+    private static async Task<RestoreHarnessResult> RunRestoreHarnessAsync(
+        TemporaryDirectory fixture,
+        int restoreStatus,
+        string verificationCounts)
+    {
+        var dockerPath = Path.Combine(fixture.Path, "docker");
+        var dockerLogPath = Path.Combine(fixture.Path, "docker.log");
+        var dumpPath = Path.Combine(fixture.Path, "fixture.dump");
+        File.WriteAllText(dumpPath, "fixture");
+        File.WriteAllText(
+            dockerPath,
+            """
+            #!/usr/bin/env bash
+            printf '%s\n' "$*" >> "$FAKE_DOCKER_LOG"
+            case "$*" in
+                inspect*)
+                    printf 'true\n'
+                    ;;
+                *"current_setting('server_version')"*)
+                    printf '16.6|2.17.2\n'
+                    ;;
+                *pg_restore*)
+                    exit "${FAKE_PG_RESTORE_STATUS:-0}"
+                    ;;
+                *pg_tables*"timescaledb_information.hypertables"*)
+                    printf '%s\n' "${FAKE_VERIFY_COUNTS:-5|2}"
+                    ;;
+            esac
+            exit 0
+            """);
+        File.SetUnixFileMode(
+            dockerPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var script = Path.Combine(FindRepositoryRoot(), "docs", "deploy", "share-dev-database.sh");
+        var startInfo = new ProcessStartInfo("/usr/bin/env")
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false
+        };
+        startInfo.ArgumentList.Add("bash");
+        startInfo.ArgumentList.Add(script);
+        startInfo.ArgumentList.Add("restore");
+        startInfo.ArgumentList.Add("--file");
+        startInfo.ArgumentList.Add(dumpPath);
+        startInfo.Environment["PATH"] =
+            fixture.Path + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH");
+        startInfo.Environment["FAKE_DOCKER_LOG"] = dockerLogPath;
+        startInfo.Environment["FAKE_PG_RESTORE_STATUS"] = restoreStatus.ToString();
+        startInfo.Environment["FAKE_VERIFY_COUNTS"] = verificationCounts;
+
+        using var process = Process.Start(startInfo);
+        Assert.NotNull(process);
+        var standardOutput = await process.StandardOutput.ReadToEndAsync();
+        var standardError = await process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        return new RestoreHarnessResult(
+            process.ExitCode,
+            standardOutput,
+            standardError,
+            File.ReadAllText(dockerLogPath));
+    }
+
+    private sealed record RestoreHarnessResult(
+        int ExitCode,
+        string StandardOutput,
+        string StandardError,
+        string DockerLog);
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        private TemporaryDirectory(string path)
+        {
+            Path = path;
+        }
+
+        public string Path { get; }
+
+        public static TemporaryDirectory Create()
+        {
+            var path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"rvt-schema-deploy-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(path);
+            return new TemporaryDirectory(path);
+        }
+
+        public void Dispose()
+        {
+            Directory.Delete(Path, recursive: true);
+        }
+    }
+}
+
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class SchemaDeployCollection
+{
+    public const string Name = "Schema deployment";
 }

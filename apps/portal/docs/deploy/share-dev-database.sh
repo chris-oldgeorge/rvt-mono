@@ -193,9 +193,16 @@ cmd_restore() {
     local restore_args=(--no-owner --no-privileges)
     [ "$KEEP_OWNERSHIP" -eq 1 ] && restore_args=()
 
-    # pg_restore exits non-zero on ignorable notices; --exit-on-error is off deliberately, but real failures are
-    # caught by the verification below.
-    docker exec -i "$CONTAINER" pg_restore -U "$PGUSER" -d "$DB" "${restore_args[@]}" < "$FILE" || true
+    # Keep --exit-on-error off so pg_restore can report every archive issue, but never convert its aggregate
+    # status into success. Capture it explicitly so strict mode cannot skip the diagnostic, then return the exact
+    # pg_restore status without running post-restore success verification against a partial database.
+    local restore_status=0
+    docker exec -i "$CONTAINER" pg_restore -U "$PGUSER" -d "$DB" "${restore_args[@]}" < "$FILE" \
+        || restore_status=$?
+    if [ "$restore_status" -ne 0 ]; then
+        printf 'error: pg_restore failed with status %d; restore is incomplete.\n' "$restore_status" >&2
+        return "$restore_status"
+    fi
 
     docker exec "$CONTAINER" psql -U "$PGUSER" -d "$DB" -tAc "SELECT timescaledb_post_restore();" >/dev/null
     note "timescaledb_post_restore() done"
@@ -203,12 +210,22 @@ cmd_restore() {
     docker exec "$CONTAINER" psql -U "$PGUSER" -d "$DB" -c "ANALYZE;" >/dev/null
     note "ANALYZE done"
 
+    local verification public_tables hypertables
+    verification="$(docker exec "$CONTAINER" psql -U "$PGUSER" -d "$DB" -tA -F '|' -c \
+        "SELECT (SELECT count(*) FROM pg_tables WHERE schemaname='public'),
+                (SELECT count(*) FROM timescaledb_information.hypertables);")" \
+        || die "restore verification query failed."
+    IFS='|' read -r public_tables hypertables <<< "$verification"
+
+    [[ "$public_tables" =~ ^[0-9]+$ ]] || die "restore verification returned an invalid public table count: '${public_tables}'."
+    [[ "$hypertables" =~ ^[0-9]+$ ]] || die "restore verification returned an invalid hypertable count: '${hypertables}'."
+    [ "$public_tables" -gt 0 ] || die "restore verification found no public tables."
+    [ "$hypertables" -gt 0 ] || die "restore verification found no TimescaleDB hypertables."
+
     echo
     echo "Restore complete. Sanity check:"
-    docker exec "$CONTAINER" psql -U "$PGUSER" -d "$DB" -c \
-        "SELECT (SELECT count(*) FROM pg_tables WHERE schemaname='public') AS public_tables,
-                (SELECT count(*) FROM timescaledb_information.hypertables) AS hypertables,
-                pg_size_pretty(pg_database_size('${DB}')) AS size;"
+    note "public tables: ${public_tables}"
+    note "hypertables  : ${hypertables}"
 }
 
 [ $# -ge 1 ] || usage 1

@@ -1111,15 +1111,28 @@
 - Independent full-branch review of
   `1eeb6c71922b98dd7928330879a6813247c0a7e8..4a1f5e8f4360b2b24a0ab44719d00bec9e99bfe2`
   found no Critical issues and one validated Important authorization defect:
-  `SiteApplicationService.ArchiveAsync` reads archive state, exports, and
-  persists archive metadata without first applying
-  `SiteAuthorizationPolicy.CanManage(user)`. The controller's admin role
-  attribute protects the current HTTP route, but a direct application-service
-  caller can archive any existing site. The required repair is a focused
-  non-admin application regression proving no read/export/transaction/write,
-  followed by the management check before archive state or external work and a
-  fresh full gate. Task 7 does not broaden into that accepted Task 5 behavior,
-  so the implementation-plan review checkbox remains open and this branch is
-  not yet merge-ready.
+  `SiteApplicationService.ArchiveAsync` read archive state, exported, and
+  persisted archive metadata without first applying
+  `SiteAuthorizationPolicy.CanManage(user)`. The repair now places that policy
+  check before every archive-state, export, transaction, write, save, or detail
+  operation and returns the established `Forbidden` result for a direct
+  non-manager application caller. The focused regression records zero archive
+  state reads, detail-enrichment reads, logo-existence reads, exports,
+  transactions, archive writes, saves, and workflow events. Authorized callers
+  retain export-before-transaction ordering. Root final reviews and the
+  implementation-plan review checkbox remain open, so this branch is not yet
+  declared merge-ready.
+- Authorization-repair TDD evidence: the focused RED failed 0/1 with expected
+  `Forbidden` and actual `Success`; focused GREEN passed 1/1; the complete
+  external-workflow slice passed 8/8; all application tests passed 32/32; and
+  the complete SPA host suite passed 382 with eight PostgreSQL-gated skips.
+  `RvtPortal.Spa.sln` built with 0 errors and the same five known NU1903
+  warnings. The Task 7 ownership wording remains accurate: application tests
+  own application use-case/policy coverage, while SPA tests own executable
+  filesystem architecture guards plus host adapter and HTTP compatibility
+  coverage. Review-hardening variables are `ArchiveStateReadCount`,
+  `DetailReadCount`, `ExistsReadCount`, and `Events`; the mutation run without
+  the management guard fails the focused control on all three read counters and
+  the nonempty workflow event log.
 - Generated `.codegraph/`, `apps/.nuget-packages/`, and the progress ledger
   remain unmodified and excluded from the Task 7 commit.

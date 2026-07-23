@@ -8,6 +8,36 @@ namespace RvtPortal.Application.Tests.Sites;
 public sealed class SiteExternalWorkflowTests
 {
     [Fact]
+    public async Task ArchiveAsync_UserWhoCannotManage_ReturnsForbiddenBeforeExternalOrDatabaseWork()
+    {
+        var fixture = SiteExternalFixture.ReadableAdmin();
+        var companyUser = new PortalUserContext(
+            Guid.NewGuid(),
+            "company",
+            Guid.NewGuid(),
+            false,
+            false,
+            true);
+
+        var result = await fixture.Service.ArchiveAsync(
+            companyUser,
+            fixture.SiteId,
+            "company",
+            CancellationToken.None);
+
+        Assert.Multiple(
+            () => Assert.Equal(UseCaseResultKind.Forbidden, result.Kind),
+            () => Assert.Equal(0, fixture.Reads.ArchiveStateReadCount),
+            () => Assert.Equal(0, fixture.Reads.DetailReadCount),
+            () => Assert.Equal(0, fixture.Logos.ExistsReadCount),
+            () => Assert.Equal(0, fixture.Archive.ExportCount),
+            () => Assert.Equal(0, fixture.UnitOfWork.TransactionCount),
+            () => Assert.Equal(0, fixture.Writes.ArchiveCount),
+            () => Assert.Equal(0, fixture.UnitOfWork.SaveCount),
+            () => Assert.Empty(fixture.Events));
+    }
+
+    [Fact]
     public async Task ArchiveAsync_ExportFailureDoesNotOpenDatabaseTransaction()
     {
         var fixture = SiteExternalFixture.ReadableAdmin();
@@ -196,6 +226,7 @@ public sealed class SiteExternalWorkflowTests
     private sealed class ExternalUnitOfWork(List<string> events) : IApplicationUnitOfWork
     {
         public int TransactionCount { get; private set; }
+        public int SaveCount { get; private set; }
 
         public async Task<TResponse> ExecuteInTransactionAsync<TResponse>(
             Func<CancellationToken, Task<TResponse>> operation,
@@ -206,8 +237,11 @@ public sealed class SiteExternalWorkflowTests
             return await operation(cancellationToken);
         }
 
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(1);
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
+        {
+            SaveCount++;
+            return Task.FromResult(1);
+        }
     }
 
     private sealed class ExternalWritePort(List<string> events) : ISiteWritePort
@@ -278,6 +312,7 @@ public sealed class SiteExternalWorkflowTests
 
     private sealed class FakeLogoPort : ISiteLogoPort
     {
+        public int ExistsReadCount { get; private set; }
         public int SaveCount { get; private set; }
         public int DeleteCount { get; private set; }
         public int OpenReadCount { get; private set; }
@@ -287,8 +322,11 @@ public sealed class SiteExternalWorkflowTests
 
         public Task<bool> ExistsAsync(
             Guid siteId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(Exists);
+            CancellationToken cancellationToken)
+        {
+            ExistsReadCount++;
+            return Task.FromResult(Exists);
+        }
 
         public Task<SiteLogoSaveResult> SaveAsync(
             Guid siteId,
@@ -327,6 +365,8 @@ public sealed class SiteExternalWorkflowTests
         public new bool Exists { get; set; }
         public required SiteArchiveState ArchiveState { get; set; }
         public required SiteDetailModel Detail { get; init; }
+        public int ArchiveStateReadCount { get; private set; }
+        public int DetailReadCount { get; private set; }
 
         public override Task<bool> ExistsAsync(
             Guid siteId,
@@ -336,12 +376,18 @@ public sealed class SiteExternalWorkflowTests
 
         public override Task<SiteArchiveState?> GetArchiveStateAsync(
             Guid siteId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<SiteArchiveState?>(ArchiveState);
+            CancellationToken cancellationToken)
+        {
+            ArchiveStateReadCount++;
+            return Task.FromResult<SiteArchiveState?>(ArchiveState);
+        }
 
         public override Task<SiteDetailModel?> GetAsync(
             Guid siteId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<SiteDetailModel?>(Detail);
+            CancellationToken cancellationToken)
+        {
+            DetailReadCount++;
+            return Task.FromResult<SiteDetailModel?>(Detail);
+        }
     }
 }

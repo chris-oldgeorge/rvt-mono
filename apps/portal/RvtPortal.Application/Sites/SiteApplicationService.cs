@@ -314,6 +314,11 @@ public sealed class SiteApplicationService : ISiteApplicationService
         string createdBy,
         CancellationToken cancellationToken)
     {
+        if (!SiteAuthorizationPolicy.CanManage(user))
+        {
+            return UseCaseResult<SiteDetailModel>.Forbidden();
+        }
+
         var state = await reads.GetArchiveStateAsync(id, cancellationToken);
         if (state is null)
         {

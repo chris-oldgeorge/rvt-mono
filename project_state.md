@@ -732,3 +732,25 @@
   introduce `RvtPortal.Application` and extract the complete Sites slice
   incrementally, retaining route and payload compatibility and avoiding a
   broad rewrite. The design must be written and reviewed before implementation.
+
+## Sites Application Boundary Design - 2026-07-23
+
+- Active branch: `codex/sites-application-boundary`, created from and tracking
+  the pushed `main` integration commit `f7db3dd`.
+- Approved design:
+  `docs/superpowers/specs/2026-07-23-rvtportal-sites-application-boundary-design.md`.
+- The new `RvtPortal.Application` project is BCL-only for the first slice: no
+  NuGet or project references, ASP.NET Core, EF Core, DataAccess, host, or
+  vendor SDK dependencies.
+- `RvtPortal.Application` owns Sites use cases, contracts, results,
+  `PortalUserContext`, the explicit UTC active-assignment policy, and focused
+  read/write/archive/logo/user-directory/unit-of-work ports.
+- `RvtPortal.Spa` retains controllers, API mapping, DI composition, optimized
+  EF projections, Identity, archive/storage implementations, and the existing
+  three-context `EfCoreUnitOfWork`.
+- The full Sites surface includes list/options/detail, monitors, open
+  notifications, create/update/archive, notification settings, authorization,
+  and all customer-logo operations. Routes and payloads remain unchanged.
+- Implementation order is scaffold, policies/contracts, reads, writes,
+  controller cutover, and documentation. The design review and a task-level
+  implementation plan are required before production code changes.

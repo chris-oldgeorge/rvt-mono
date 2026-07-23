@@ -28,6 +28,10 @@
   monitor hosts built with `--no-restore`. A Portal build no longer reports a
   SendGrid reference error but remains blocked by the accepted unrelated
   untracked duplicate Portal source files.
+- Follow-up review fix: `Rvt.Mono.slnx` includes SendGridMail under
+  `/Libraries/RVT Monitor Common/` and its tests under
+  `/Libraries/RVT Monitor Common/Tests/`. The solution inventory guard now
+  recognizes all 44 module projects.
 
 ## Communication workflow Task 2 - 2026-07-24 (complete)
 

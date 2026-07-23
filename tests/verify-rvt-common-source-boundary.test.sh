@@ -55,6 +55,7 @@ EOF
 chmod +x "${fake_bin}/dotnet"
 
 missing_artifact="${empty_feed}/Rvt.Monitor.Common.0.2.0-rc.1.nupkg"
+abstractions_artifact="${empty_feed}/Rvt.Communication.Abstractions.0.2.0-rc.1.nupkg"
 if output="$(
   PATH="${fake_bin}:${PATH}" \
     DOTNET_CALL_LOG="${dotnet_call_log}" \
@@ -88,6 +89,12 @@ FAKE_DOTNET_CREATE_PACKAGES=1 \
   DOTNET_CALL_LOG="${dotnet_call_log}" \
   RVT_PACKAGE_FEED_DIR="${empty_feed}" \
   "${repo_root}/scripts/build-mono.sh"
+
+if [[ ! -f "${abstractions_artifact}" ]]; then
+  printf 'FAIL: build-mono.sh must pack %s for Common package validation.\n' \
+    "${abstractions_artifact}" >&2
+  exit 1
+fi
 
 if [[ ! -L "${validation_package_feed}" ]] || \
   [[ "$(readlink "${validation_package_feed}")" != "${empty_feed}" ]]; then

@@ -875,9 +875,19 @@
   405/407; the only two failures are the accepted
   `MonitorDeliveryMigrationContractTests` path baseline. The former three
   `CommunicationsBoundaryTests` path failures are green.
-- Aggregate source compilation reported no C# errors after the split, but the
-  package-aware `scripts/build-mono.sh` sequence stops at package validation:
-  it still packs only the legacy three packages, so the Common package's new
-  `Rvt.Communication.Abstractions` dependency cannot be found. Extending that
-  release/package-validation workflow is intentionally part of the later
-  package-release migration task.
+- Aggregate source compilation reported no C# errors after the split. The
+  immediate four-package validation bridge is in place for the Common
+  package's new `Rvt.Communication.Abstractions` dependency; the broader
+  package-release migration remains a later task.
+
+### Task 1 Package Validation Bridge Fix
+
+- The immediate four-package bridge now restores, packs, asserts, and evicts
+  `Rvt.Communication.Abstractions` alongside the prior three packages. The
+  RuntimeConsumer artifact lock was regenerated and includes the Common
+  package's transitive abstraction dependency.
+- The focused prerequisite guard passes, `dotnet build Rvt.Mono.slnx
+  --no-restore --nologo` succeeds with zero errors, and Task 1's focused
+  abstraction/Common results remain 20/20 and 405/407 respectively. The two
+  Common migration-path failures and the unrelated aggregate imported-suite
+  path/provider failures remain baseline exceptions.

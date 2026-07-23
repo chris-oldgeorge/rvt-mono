@@ -8,6 +8,7 @@ validation_locks="${repo_root}/artifacts/validation-locks"
 package_version="0.2.0-rc.1"
 
 common_project="${repo_root}/libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj"
+communication_abstractions_project="${repo_root}/libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj"
 infrastructure_project="${repo_root}/libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj"
 integration_testing_project="${repo_root}/libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj"
 runtime_consumer_project="${repo_root}/libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj"
@@ -17,15 +18,18 @@ solution="${repo_root}/Rvt.Mono.slnx"
 mkdir -p "${package_feed}" "${nuget_packages}" "${validation_locks}"
 
 dotnet restore "${common_project}" --packages "${nuget_packages}"
+dotnet restore "${communication_abstractions_project}" --packages "${nuget_packages}"
 dotnet restore "${infrastructure_project}" --packages "${nuget_packages}"
 dotnet restore "${integration_testing_project}" --packages "${nuget_packages}"
 
 dotnet pack "${common_project}" --no-restore --output "${package_feed}" -p:PackageVersion="${package_version}"
+dotnet pack "${communication_abstractions_project}" --no-restore --output "${package_feed}" -p:PackageVersion="${package_version}"
 dotnet pack "${infrastructure_project}" --no-restore --output "${package_feed}" -p:PackageVersion="${package_version}"
 dotnet pack "${integration_testing_project}" --no-restore --output "${package_feed}" -p:PackageVersion="${package_version}"
 
 for package_id in \
   Rvt.Monitor.Common \
+  Rvt.Communication.Abstractions \
   Rvt.Monitor.Common.Infrastructure \
   Rvt.Monitor.IntegrationTesting; do
   package_artifact="${package_feed}/${package_id}.${package_version}.nupkg"
@@ -41,6 +45,7 @@ rm -rf "${validation_package_feed}"
 ln -s "${package_feed}" "${validation_package_feed}"
 
 for package_id in \
+  rvt.communication.abstractions \
   rvt.monitor.common \
   rvt.monitor.common.infrastructure \
   rvt.monitor.integrationtesting; do

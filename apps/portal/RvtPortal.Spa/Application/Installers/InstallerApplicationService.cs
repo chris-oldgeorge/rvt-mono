@@ -12,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using RVT.BusinessLogic.Application;
 using RVT.DataAccess.Context;
 using RVT.Entities;
+using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Monitors;
 using MonitorEntity = RVT.Entities.Monitor;

@@ -772,3 +772,28 @@
   work.
 - No production implementation has started. The next action is selecting
   subagent-driven or inline plan execution.
+
+## Sites Application Boundary Task 2 - 2026-07-23
+
+- Active branch: `codex/sites-application-boundary`; Task 1 scaffold commit is
+  `5246c4390aa0c73072c98afbe6bb8867da60b8c4`.
+- `RvtPortal.Application.Identity` now owns the six-fact
+  `PortalUserContext`, `PortalRoleNames`, `PortalUserProfile`, and
+  `IPortalUserDirectory`. The superseded BusinessLogic identity files are
+  removed, and all SPA host consumers resolve the application-owned types.
+- `RvtPortal.Application.Sites` now owns `SiteAccessScopeKind`,
+  `SiteAccessScope`, `SiteAssignmentWindow`, `ActiveSiteAssignment`, and
+  `SiteAuthorizationPolicy`. Site access timestamps and assignment comparison
+  timestamps must have `DateTimeKind.Utc`; assignment windows use inclusive
+  start and end bounds.
+- Policy variables and facts: `NowUtc` in the focused tests is
+  `2026-07-23T12:00:00Z`; `SiteAccessScope.UserId` is populated only for
+  `Assigned`; admins receive `All`; company users with a user id receive
+  `Assigned`; all other users receive `None`.
+- Focused verification passes: 4/4 application policy tests and 30/30 SPA
+  CQRS/company-user site-access compatibility tests. The SPA restore continues
+  to report existing high-severity NU1903 advisories for
+  `System.Security.Cryptography.Xml` 10.0.7.
+- Generated untracked `.codegraph/` and `apps/.nuget-packages/` remain
+  untouched and excluded from the task commit. Task 3 Sites read extraction
+  has not started.

@@ -10,10 +10,10 @@ using Microsoft.EntityFrameworkCore;
 using RVT.Entities;
 using RVT.BusinessLogic.Application;
 using RVT.BusinessLogic.Application.Paging;
-using RVT.BusinessLogic.Application.Users;
 using RVT.DataAccess.Context;
 using RVT.BusinessLogic.Reports;
 using RVT.DataAccess.EntityModels.Models;
+using RvtPortal.Application.Identity;
 
 namespace RvtPortal.Spa.Application.ReportRules;
 

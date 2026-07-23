@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RVT.BusinessLogic.Application;
 using RVT.BusinessLogic.Application.Paging;
+using RvtPortal.Application.Identity;
 using RVT.BusinessLogic.Ports.Storage;
 using RVT.BusinessLogic.Sites;
 using RvtPortal.Spa.Application.Sites;

@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using RVT.BusinessLogic.Application;
 using RVT.DataAccess.Context;
 using RVT.Entities;
+using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Sites;
 

@@ -93,6 +93,49 @@ public class SchemaDeployTests
                 StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    // Function summary: Verifies canonical deployment refuses to omit the required create stage.
+    public async Task Run_WhenCreateScriptIsMissing_FailsBeforeDryRunOrConnection(bool dryRun)
+    {
+        using var fixture = TemporaryDirectory.Create();
+        File.WriteAllText(Path.Combine(fixture.Path, "restore_unmapped_column_defaults.sql"), "-- repair");
+        var postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
+        File.WriteAllText(Path.Combine(postLoad, "01_first.sql"), "-- first");
+
+        await AssertMissingStageAsync(fixture.Path, dryRun, "create_unmapped_schema.sql");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    // Function summary: Verifies canonical deployment refuses to omit the required forward-repair stage.
+    public async Task Run_WhenRepairScriptIsMissing_FailsBeforeDryRunOrConnection(bool dryRun)
+    {
+        using var fixture = TemporaryDirectory.Create();
+        File.WriteAllText(Path.Combine(fixture.Path, "create_unmapped_schema.sql"), "-- create");
+        var postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
+        File.WriteAllText(Path.Combine(postLoad, "01_first.sql"), "-- first");
+
+        await AssertMissingStageAsync(fixture.Path, dryRun, "restore_unmapped_column_defaults.sql");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    // Function summary: Verifies AppleDouble sidecars cannot satisfy the required post-load stage.
+    public async Task Run_WhenPostLoadHasOnlySidecars_FailsBeforeDryRunOrConnection(bool dryRun)
+    {
+        using var fixture = TemporaryDirectory.Create();
+        File.WriteAllText(Path.Combine(fixture.Path, "create_unmapped_schema.sql"), "-- create");
+        File.WriteAllText(Path.Combine(fixture.Path, "restore_unmapped_column_defaults.sql"), "-- repair");
+        var postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
+        File.WriteAllText(Path.Combine(postLoad, "._01_not_sql.sql"), "sidecar");
+
+        await AssertMissingStageAsync(fixture.Path, dryRun, "post-load");
+    }
+
     [Fact]
     // Function summary: Verifies a pg_restore failure is returned exactly and aborts all success verification.
     public async Task Restore_WhenPgRestoreFails_PreservesStatusAndStopsBeforeVerification()
@@ -118,6 +161,23 @@ public class SchemaDeployTests
         Assert.Contains("no public tables", result.StandardError, StringComparison.Ordinal);
         Assert.Contains("pg_tables", result.DockerLog, StringComparison.Ordinal);
         Assert.Contains("timescaledb_information.hypertables", result.DockerLog, StringComparison.Ordinal);
+        Assert.DoesNotContain("Restore complete.", result.StandardOutput, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("5|0", "no TimescaleDB hypertables")]
+    [InlineData("x|2", "invalid public table count")]
+    [InlineData("5|x", "invalid hypertable count")]
+    // Function summary: Verifies each invalid or empty restore-count branch independently blocks completion.
+    public async Task Restore_WhenOneVerificationCountIsInvalid_DoesNotReportCompletion(
+        string verificationCounts,
+        string expectedError)
+    {
+        using var fixture = TemporaryDirectory.Create();
+        var result = await RunRestoreHarnessAsync(fixture, restoreStatus: 0, verificationCounts);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains(expectedError, result.StandardError, StringComparison.Ordinal);
         Assert.DoesNotContain("Restore complete.", result.StandardOutput, StringComparison.Ordinal);
     }
 
@@ -169,6 +229,23 @@ public class SchemaDeployTests
 
         Assert.NotNull(directory);
         return directory.FullName;
+    }
+
+    // Function summary: Exercises shared required-stage validation without opening a PostgreSQL connection.
+    private static async Task AssertMissingStageAsync(
+        string scriptRoot,
+        bool dryRun,
+        string expectedStage)
+    {
+        var runner = new ScriptRunner(new DeployOptions
+        {
+            ConnectionString = "Host=invalid.test;Database=not-used",
+            ScriptRoot = scriptRoot,
+            DryRun = dryRun
+        });
+
+        var exception = await Assert.ThrowsAsync<DeployException>(() => runner.RunAsync());
+        Assert.Contains(expectedStage, exception.Message, StringComparison.Ordinal);
     }
 
     // Function summary: Runs restore against a fake Docker boundary and captures status, output, and invoked checks.

@@ -20,10 +20,6 @@ public sealed class ScriptRunner
     public async Task<int> RunAsync(CancellationToken cancellationToken = default)
     {
         var scripts = ResolveScripts();
-        if (scripts.Count == 0)
-        {
-            throw new DeployException($"No SQL scripts found under {options.ScriptRoot}.");
-        }
 
         if (options.DryRun)
         {
@@ -59,10 +55,6 @@ public sealed class ScriptRunner
         ArgumentNullException.ThrowIfNull(connection);
 
         var scripts = ResolveScripts();
-        if (scripts.Count == 0)
-        {
-            throw new DeployException($"No SQL scripts found under {options.ScriptRoot}.");
-        }
 
         if (options.DryRun)
         {
@@ -109,25 +101,39 @@ public sealed class ScriptRunner
         var scripts = new List<string>();
 
         var unmapped = Path.Combine(options.ScriptRoot, "create_unmapped_schema.sql");
-        if (File.Exists(unmapped))
+        if (!File.Exists(unmapped))
         {
-            scripts.Add(unmapped);
+            throw new DeployException(
+                $"Required SQL script is missing: create_unmapped_schema.sql (expected at {unmapped}).");
         }
+
+        scripts.Add(unmapped);
 
         var repair = Path.Combine(options.ScriptRoot, "restore_unmapped_column_defaults.sql");
-        if (File.Exists(repair))
+        if (!File.Exists(repair))
         {
-            scripts.Add(repair);
+            throw new DeployException(
+                "Required SQL script is missing: restore_unmapped_column_defaults.sql " +
+                $"(expected at {repair}).");
         }
+
+        scripts.Add(repair);
 
         var postLoad = Path.Combine(options.ScriptRoot, "post-load");
-        if (Directory.Exists(postLoad))
-        {
-            scripts.AddRange(Directory.GetFiles(postLoad, "*.sql")
+        var postLoadScripts = Directory.Exists(postLoad)
+            ? Directory.GetFiles(postLoad, "*.sql")
                 .Where(IsRealScript)
-                .OrderBy(path => path, StringComparer.Ordinal));
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray()
+            : [];
+        if (postLoadScripts.Length == 0)
+        {
+            throw new DeployException(
+                $"Required post-load stage has no deployable SQL scripts under {postLoad}. " +
+                "At least one non-sidecar *.sql script is required.");
         }
 
+        scripts.AddRange(postLoadScripts);
         return scripts;
     }
 

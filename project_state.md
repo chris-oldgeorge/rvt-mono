@@ -486,6 +486,30 @@
   `RVT_TEST_POSTGRES_CONNECTION` is unset; it must run against a dedicated test
   database before deployed-schema closure is claimed.
 
+## Immediate Blockers Task 6 Review Fix - 2026-07-23
+
+- Canonical schema deployment is now complete-or-fail. `ResolveScripts`
+  requires `create_unmapped_schema.sql`,
+  `restore_unmapped_column_defaults.sql`, and at least one non-AppleDouble
+  `post-load/*.sql` file before returning a list. Missing stages throw a clear
+  `DeployException` before dry-run output or any PostgreSQL connection attempt.
+- The canonical order remains create, repair, then ordinally sorted post-load
+  scripts, each exactly once. Both public execution paths still use the same
+  validated resolver.
+- Review-fix test variables are `dryRun`, `verificationCounts`,
+  `expectedStage`, and `expectedError`. Six stage cases cover dry-run and real
+  execution mode for missing create, missing repair, and sidecar-only
+  post-load. Shell cases independently cover `5|0`, `x|2`, and `5|x` in
+  addition to the existing `0|0`, failure-status, and success controls.
+- Review-fix RED was `6 failed, 11 passed, 2 provider skips`; GREEN was
+  `17 passed, 2 provider skips`. The full portal project passes `361` with
+  seven provider skips (`368` total), publish contains the repair exactly once
+  and dry-runs seven scripts in order, Bash syntax and diff checks pass, and the
+  portal solution builds with zero errors plus the five existing NU1903
+  advisories.
+- Live PostgreSQL remains deliberately unclaimed because
+  `RVT_TEST_POSTGRES_CONNECTION` is unset.
+
 ## Immediate Blockers Task 4 Verification Resume - 2026-07-23
 
 - Task 4 implementation checkpoint `74d8696` passed the three exact critical

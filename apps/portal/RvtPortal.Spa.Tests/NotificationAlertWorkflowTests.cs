@@ -1,5 +1,6 @@
 ﻿// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
+// - 2026-07-23 pending Seeded fixed-clock authorization scenarios from the same deterministic instant.
 // - 2026-07-22 pending Covered inactive and exact-boundary alert-level and notification-close authorization.
 // - 2026-06-26 pending Added moved-monitor contract-window notification isolation regressions.
 // - 2026-06-26 pending Added RC-grade company-user alert close authorization scenario coverage.
@@ -136,7 +137,7 @@ public class NotificationAlertWorkflowTests
     {
         var nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
         using var factory = new SpaTestApplicationFactory();
-        var ids = await SeedNotificationAlertScenarioAsync(factory);
+        var ids = await SeedNotificationAlertScenarioAsync(factory, nowUtc.UtcDateTime);
         var futureUser = await SeedCompanyUserAsync(factory, "alerts.future@rvt.test", ids.CompanyId);
         var expiredUser = await SeedCompanyUserAsync(factory, "alerts.expired@rvt.test", ids.CompanyId);
         var boundaryUser = await SeedCompanyUserAsync(factory, "alerts.boundary@rvt.test", ids.CompanyId);
@@ -169,7 +170,7 @@ public class NotificationAlertWorkflowTests
     {
         var nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
         using var factory = new SpaTestApplicationFactory();
-        var ids = await SeedNotificationAlertScenarioAsync(factory);
+        var ids = await SeedNotificationAlertScenarioAsync(factory, nowUtc.UtcDateTime);
         var futureNotificationId = ids.AlertNotificationId;
         var expiredNotificationId = Guid.NewGuid();
         var boundaryNotificationId = Guid.NewGuid();
@@ -353,7 +354,9 @@ public class NotificationAlertWorkflowTests
     }
 
     // Function summary: Initializes notification alert scenario state required by the application.
-    private static async Task<NotificationAlertIds> SeedNotificationAlertScenarioAsync(SpaTestApplicationFactory factory)
+    private static async Task<NotificationAlertIds> SeedNotificationAlertScenarioAsync(
+        SpaTestApplicationFactory factory,
+        DateTime? scenarioNowUtc = null)
     {
         var companyId = Guid.NewGuid();
         var otherCompanyId = Guid.NewGuid();
@@ -368,7 +371,7 @@ public class NotificationAlertWorkflowTests
         var alertNotificationId = Guid.NewGuid();
         var cautionNotificationId = Guid.NewGuid();
         var otherAlertNotificationId = Guid.NewGuid();
-        var now = DateTime.UtcNow;
+        var now = scenarioNowUtc ?? DateTime.UtcNow;
 
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Notification Company", Contracts = [] },

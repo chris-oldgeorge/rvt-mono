@@ -440,3 +440,20 @@
 - Known non-task state: `apps/.nuget-packages/` is an untracked generated cache;
   do not commit it. Existing `System.Security.Cryptography.Xml` 10.0.7 NU1903
   advisories remain outside this repair tranche.
+
+## Immediate Blockers Task 4 Verification Resume - 2026-07-23
+
+- Task 4 implementation checkpoint `74d8696` passed the three exact critical
+  relational/onboarding controls, the 30-test security/host slice, and the host
+  build. The full portal suite initially exposed an unrelated midnight-sensitive
+  Task 3 test fixture: its authorization clock was fixed at July 22 while its
+  contract/deployment seed dates came from the July 23 wall clock.
+- `NotificationAlertWorkflowTests.SeedNotificationAlertScenarioAsync` now has
+  optional variable `scenarioNowUtc`. The two fixed-clock active-assignment
+  tests pass their existing `nowUtc.UtcDateTime`, keeping all scenario dates and
+  authorization boundaries on the same deterministic instant. Production code
+  and non-fixed scenario tests are unchanged.
+- After the fixture correction, both affected boundary tests pass 2/2 and the
+  full portal project passes 337 tests with the same three opt-in PostgreSQL
+  skips. Existing NU1903 advisories and the untracked `apps/.nuget-packages/`
+  cache remain outside Task 4.

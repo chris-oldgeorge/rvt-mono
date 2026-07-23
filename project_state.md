@@ -29,6 +29,20 @@
   `DashboardRoutePanels`, `DashboardPanels`, and `ContractSitePanels` test
   files are absent in this checkout, so their exact scoped Vitest command has
   no matching files.
+- Production-provider gate: an existing local TimescaleDB container was
+  brought online after the first loopback connection attempt was refused.
+  The second selected run reached PostgreSQL and reported 22 passed, 4
+  failed (26 total). Root cause investigation found: the seed fixture passed
+  UTC-naive values to Npgsql without an explicit `timestamp` type; seven
+  aggregate view expressions were implicitly promoted to `timestamptz`; and
+  PostgreSQL normalized the equivalent `created` default expression with a
+  different spelling. The approved idempotent schema deploy applied all seven
+  deploy scripts, including the corrected aggregate-view definitions. The
+  final provider gate passed 26/26 against the database; the complete portal
+  suite passed 376 tests with the eight opt-in provider tests skipped. Source
+  remediation adds explicit view casts, typed test parameters, and a
+  version-tolerant default assertion. Every temporary credential file was
+  deleted immediately after use.
 
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 

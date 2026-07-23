@@ -51,7 +51,7 @@ CREATE OR REPLACE VIEW public.air_q_noise_level_1_day_avg AS
 DROP VIEW IF EXISTS public.air_q_noise_level_1_hour_avg CASCADE;
 CREATE OR REPLACE VIEW public.air_q_noise_level_1_hour_avg AS 
  SELECT serial_id
-      ,COALESCE(date_trunc('hour', sample_time) + interval '1 hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') as sample_time --Isnull ony to get the imported variable to not nullable
+      ,COALESCE(date_trunc('hour', sample_time) + interval '1 hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp without time zone as sample_time --Isnull ony to get the imported variable to not nullable
       ,avg(laeq) as laeq
       ,avg(lamax) as lamax
       ,avg(la_90) as la_90
@@ -394,7 +394,7 @@ SELECT D.serial_id
 DROP VIEW IF EXISTS public.my_atm_dust_level_8_hour_avg CASCADE;
 CREATE OR REPLACE VIEW public.my_atm_dust_level_8_hour_avg AS 
  SELECT serial_id
-      ,COALESCE(date_trunc('day', sample_time) + ((floor(extract(hour from sample_time) / 8) + 1) * interval '8 hours'), CURRENT_TIMESTAMP AT TIME ZONE 'UTC') as sample_time --Isnull ony to get the imported variable to not nullable
+      ,COALESCE(date_trunc('day', sample_time) + ((floor(extract(hour from sample_time) / 8) + 1) * interval '8 hours'), CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp without time zone as sample_time --Isnull ony to get the imported variable to not nullable
       ,avg(pm_1) as pm_1
       ,avg(pm_2_5) as pm_2_5
       ,avg(pm_10) as pm_10
@@ -469,7 +469,7 @@ Union all
 DROP VIEW IF EXISTS public.noise_level_1_hour_avg CASCADE;
 CREATE OR REPLACE VIEW public.noise_level_1_hour_avg AS 
  SELECT serial_id
-      ,COALESCE(date_trunc('hour', sample_time) + interval '1 hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') as sample_time --Isnull ony to get the imported variable to not nullable
+      ,COALESCE(date_trunc('hour', sample_time) + interval '1 hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp without time zone as sample_time --Isnull ony to get the imported variable to not nullable
       ,avg(laeq) as laeq
       ,max(lamax) as lamax
       ,avg(la_90) as la_90
@@ -484,7 +484,7 @@ CREATE OR REPLACE VIEW public.noise_level_1_hour_avg AS
  UNION all
 
   SELECT serial_id
-      ,COALESCE(date_trunc('hour', sample_time) + interval '1 hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') as sample_time --Isnull ony to get the imported variable to not nullable
+      ,COALESCE(date_trunc('hour', sample_time) + interval '1 hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp without time zone as sample_time --Isnull ony to get the imported variable to not nullable
       ,avg(laeq) as laeq
       ,max(lamax) as lamax
       ,avg(la_90) as la_90
@@ -618,7 +618,7 @@ CREATE OR REPLACE VIEW public.omnidots_peak_level_15_min AS
 
  SELECT  
 	serial_id,
-	COALESCE(date_trunc('hour', sample_time) + (floor(extract(minute from sample_time) / 15) * interval '15 minutes'), CURRENT_TIMESTAMP AT TIME ZONE 'UTC') as sample_time,
+	COALESCE(date_trunc('hour', sample_time) + (floor(extract(minute from sample_time) / 15) * interval '15 minutes'), CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp without time zone as sample_time,
     max(x_vtop) as x_vtop,
     max(y_vtop) as y_vtop,
     max(z_vtop) as z_vtop
@@ -651,7 +651,7 @@ CREATE OR REPLACE VIEW public.omnidots_peak_level_1_min AS
 
  SELECT  
     serial_id,
-    COALESCE(date_trunc('minute', sample_time), CURRENT_TIMESTAMP AT TIME ZONE 'UTC') as sample_time,
+    COALESCE(date_trunc('minute', sample_time), CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp without time zone as sample_time,
     max(x_vtop) as x_vtop,
     max(y_vtop) as y_vtop,
     max(z_vtop) as z_vtop
@@ -666,7 +666,7 @@ CREATE OR REPLACE VIEW public.omnidots_peak_level_20_min AS
 
  SELECT  
 	serial_id,
-    COALESCE(date_trunc('hour', sample_time) + (floor(extract(minute from sample_time) / 20) * interval '20 minutes'), CURRENT_TIMESTAMP AT TIME ZONE 'UTC') as sample_time,
+    COALESCE(date_trunc('hour', sample_time) + (floor(extract(minute from sample_time) / 20) * interval '20 minutes'), CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp without time zone as sample_time,
     max(x_vtop) as x_vtop,
     max(y_vtop) as y_vtop,
     max(z_vtop) as z_vtop
@@ -681,7 +681,7 @@ CREATE OR REPLACE VIEW public.omnidots_peak_level_5_min AS
 
  SELECT  
     serial_id,
-    COALESCE(date_trunc('hour', sample_time) + (floor(extract(minute from sample_time) / 5) * interval '5 minutes'), CURRENT_TIMESTAMP AT TIME ZONE 'UTC') as sample_time,
+    COALESCE(date_trunc('hour', sample_time) + (floor(extract(minute from sample_time) / 5) * interval '5 minutes'), CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp without time zone as sample_time,
     max(x_vtop) as x_vtop,
     max(y_vtop) as y_vtop,
     max(z_vtop) as z_vtop

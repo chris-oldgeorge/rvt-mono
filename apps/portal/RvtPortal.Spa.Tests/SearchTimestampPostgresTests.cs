@@ -4,6 +4,8 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Npgsql;
+using NpgsqlTypes;
 using RVT.DataAccess;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
@@ -139,6 +141,10 @@ public sealed class SearchTimestampPostgresTests
                 .Replace("\r", "", StringComparison.Ordinal)
                 .Replace("\n", "", StringComparison.Ordinal);
             Assert.DoesNotContain(",CURRENT_TIMESTAMP)", compactDefinition, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(
+                ")::timestampwithouttimezoneassample_time",
+                compactDefinition,
+                StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -238,11 +244,15 @@ public sealed class SearchTimestampPostgresTests
         await using var transaction = await searchContext.Database.BeginTransactionAsync();
         var serialId = $"T5{Guid.NewGuid():N}"[..22];
         var databaseTimestamp = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
+        var databaseTimestampParameter = new NpgsqlParameter("sample_time", databaseTimestamp)
+        {
+            NpgsqlDbType = NpgsqlDbType.Timestamp
+        };
         await searchContext.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO public.my_atm_dust_level
                 (serial_id, avrg, sample_time, pm_1, pm_2_5, pm_10, pm_total)
             VALUES
-                ({serialId}, {60}, {databaseTimestamp}, {1.0}, {2.0}, {3.0}, {4.0})
+                ({serialId}, {60}, {databaseTimestampParameter}, {1.0}, {2.0}, {3.0}, {4.0})
             """);
 
         var monitor = new RVT.Entities.Monitor
@@ -318,11 +328,19 @@ public sealed class SearchTimestampPostgresTests
         var serialId = $"T5{Guid.NewGuid():N}"[..22];
         var databaseStart = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
         var databaseEnd = databaseStart.AddMinutes(1);
+        var databaseStartParameter = new NpgsqlParameter("start_time", databaseStart)
+        {
+            NpgsqlDbType = NpgsqlDbType.Timestamp
+        };
+        var databaseEndParameter = new NpgsqlParameter("end_time", databaseEnd)
+        {
+            NpgsqlDbType = NpgsqlDbType.Timestamp
+        };
         await searchContext.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO public.omnidots_trace_index
                 (id, serial_id, start_time, end_time)
             VALUES
-                ({traceId}, {serialId}, {databaseStart}, {databaseEnd})
+                ({traceId}, {serialId}, {databaseStartParameter}, {databaseEndParameter})
             """);
 
         var monitor = new RVT.Entities.Monitor

@@ -351,6 +351,8 @@ public sealed class UnmappedColumnDefaultTests
     private static void AssertCanonicalDefaults(IReadOnlyDictionary<string, string> defaults)
     {
         Assert.Equal("0", defaults["monitor.battery_status"]);
-        Assert.Equal("timezone('utc'::text, now())", defaults["rvt_alert_rule.created"]);
+        Assert.Contains(
+            defaults["rvt_alert_rule.created"],
+            new[] { "timezone('utc'::text, now())", "(now() AT TIME ZONE 'utc'::text)" });
     }
 }

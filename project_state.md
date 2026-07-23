@@ -648,3 +648,51 @@
   expanded live metadata/query test and the existing telemetry/provider tests
   are discovered but not executed. No provider workaround was attempted after
   controller direction.
+
+## Immediate Blockers Final Whole-Branch Review Fix - 2026-07-23
+
+- Trace-index timestamps now follow the same explicit UTC application/plain
+  PostgreSQL timestamp boundary as other search telemetry. Both
+  `MonitorDataSource.GetTraceIndexesAsync` range bounds and
+  `MonitorService.GetVibrationTracesIndex` point-in-time bounds pass through
+  `SearchTimestampPolicy.ToDatabase`, preserving ticks, converting UTC Kind to
+  Unspecified only at the EF query boundary, and rejecting Local or
+  Unspecified application inputs.
+- Trace list `StartTime`/`EndTime` and trace detail `FromDate`/`ToDate` pass
+  through `SearchTimestampPolicy.FromDatabase` before DTO serialization.
+  Database-style Unspecified values therefore leave the API as explicit UTC
+  JSON instants ending in `Z`; routes and DTO property names are unchanged.
+- Timestamp controls added to
+  `apps/portal/RvtPortal.Spa.Tests/DataViewTests.cs` inspect real EF command
+  parameter Kinds, reject both non-UTC Kinds, and drive the authenticated HTTP
+  trace list/detail routes with database-style values. The PostgreSQL contract
+  test covers runtime and snapshot `OmnidotsTracesIndex.StartTime`/`EndTime`
+  mappings. The provider-gated `TraceIndexes_UtcBounds_QuerySuccessfullyAndReturnUtcJson`
+  test inserts a real trace index, queries listing/detail with UTC bounds, and
+  checks list/detail JSON `Z` output when
+  `RVT_TEST_POSTGRES_CONNECTION` is configured.
+- `share-dev-database.sh` now always makes a best-effort
+  `timescaledb_post_restore()` call after `pg_restore` fails. Cleanup failure
+  emits a distinct manual-cleanup diagnostic, while both cleanup-success and
+  cleanup-failure paths return the original `pg_restore` status exactly and
+  skip ANALYZE, verification queries, and completion output. The ordinary
+  successful restore sequence is unchanged.
+- Final-review variables are `databaseFromDate`, `databaseToDate`,
+  `cleanup_status`, `cleanupStatus`, `FAKE_POST_RESTORE_STATUS`,
+  `TraceBoundCommandProbe.DateTimeParameters`, `databaseStartTime`,
+  `databaseStart`, and `databaseEnd`.
+- TDD evidence: the first focused RED run produced six intended failures, one
+  existing mapping pass, and one PostgreSQL skip; its focused GREEN run passed
+  seven with one PostgreSQL skip. The point-in-time trace-index follow-up RED
+  failed all three intended cases and its GREEN passed all three.
+- Verification: the owning backend/schema slice passes 37 tests with three
+  explicit PostgreSQL skips; the dedicated fake-Docker restore harness passes
+  7/7; `bash -n` passes; the full portal project passes 369 tests with eight
+  PostgreSQL skips (377 total); and the portal solution builds with zero errors
+  plus the five pre-existing `System.Security.Cryptography.Xml` 10.0.7 NU1903
+  advisory warnings. `git diff --check` is clean.
+- Live PostgreSQL remains the sole provider evidence gap because
+  `RVT_TEST_POSTGRES_CONNECTION` is unset. The new trace listing/detail test is
+  discovered and explicitly skipped; no deployed-schema closure is claimed.
+  The generated untracked `apps/.nuget-packages/` cache remains excluded from
+  the commit.

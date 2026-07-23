@@ -560,6 +560,7 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Retrieves vibration traces index data for callers.
         public Task<OmnidotsTracesIndex?> GetVibrationTracesIndex(string SerialId, DateTime Date)
         {
+            Date = SearchTimestampPolicy.ToDatabase(Date);
             return searchContext.Set<OmnidotsTracesIndex>()
                 .Where(index => index.SerialId == SerialId && index.StartTime <= Date && index.EndTime >= Date)
                 .FirstOrDefaultAsync();

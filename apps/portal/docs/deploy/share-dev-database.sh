@@ -201,6 +201,13 @@ cmd_restore() {
         || restore_status=$?
     if [ "$restore_status" -ne 0 ]; then
         printf 'error: pg_restore failed with status %d; restore is incomplete.\n' "$restore_status" >&2
+        local cleanup_status=0
+        docker exec "$CONTAINER" psql -U "$PGUSER" -d "$DB" -tAc "SELECT timescaledb_post_restore();" >/dev/null \
+            || cleanup_status=$?
+        if [ "$cleanup_status" -ne 0 ]; then
+            printf 'error: timescaledb post-restore cleanup failed with status %d; manual cleanup is required.\n' \
+                "$cleanup_status" >&2
+        fi
         return "$restore_status"
     fi
 

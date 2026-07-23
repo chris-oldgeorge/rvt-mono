@@ -60,12 +60,14 @@ public sealed class MonitorDataSource : IMonitorDataSource
     // Function summary: Returns trace indexes for one serial number over a half-open time range.
     public async Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(string serialId, DateTime fromDate, DateTime toDate)
     {
+        var databaseFromDate = SearchTimestampPolicy.ToDatabase(fromDate);
+        var databaseToDate = SearchTimestampPolicy.ToDatabase(toDate);
         return await searchContext.OmnidotsTracesIndices
             .AsNoTracking()
             .Where(trace =>
                 trace.SerialId == serialId &&
-                trace.StartTime >= fromDate &&
-                trace.StartTime < toDate)
+                trace.StartTime >= databaseFromDate &&
+                trace.StartTime < databaseToDate)
             .OrderByDescending(trace => trace.StartTime)
             .ToListAsync();
     }

@@ -137,15 +137,35 @@ public class SchemaDeployTests
     }
 
     [Fact]
-    // Function summary: Verifies a pg_restore failure is returned exactly and aborts all success verification.
-    public async Task Restore_WhenPgRestoreFails_PreservesStatusAndStopsBeforeVerification()
+    // Function summary: Verifies a pg_restore failure is returned exactly after best-effort restore-mode cleanup.
+    public async Task Restore_WhenPgRestoreFails_PreservesStatusAndCleansUpBeforeStopping()
     {
         using var fixture = TemporaryDirectory.Create();
         var result = await RunRestoreHarnessAsync(fixture, restoreStatus: 23, verificationCounts: "5|2");
 
         Assert.Equal(23, result.ExitCode);
         Assert.Contains("pg_restore failed with status 23", result.StandardError, StringComparison.Ordinal);
-        Assert.DoesNotContain("timescaledb_post_restore", result.DockerLog, StringComparison.Ordinal);
+        Assert.Contains("timescaledb_post_restore", result.DockerLog, StringComparison.Ordinal);
+        Assert.DoesNotContain("post-restore cleanup failed", result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain("pg_tables", result.DockerLog, StringComparison.Ordinal);
+        Assert.DoesNotContain("Restore complete.", result.StandardOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    // Function summary: Verifies failed best-effort cleanup is diagnosed without replacing pg_restore's original status.
+    public async Task Restore_WhenPgRestoreAndCleanupFail_PreservesRestoreStatusAndReportsCleanupFailure()
+    {
+        using var fixture = TemporaryDirectory.Create();
+        var result = await RunRestoreHarnessAsync(
+            fixture,
+            restoreStatus: 23,
+            verificationCounts: "5|2",
+            cleanupStatus: 41);
+
+        Assert.Equal(23, result.ExitCode);
+        Assert.Contains("pg_restore failed with status 23", result.StandardError, StringComparison.Ordinal);
+        Assert.Contains("timescaledb_post_restore", result.DockerLog, StringComparison.Ordinal);
+        Assert.Contains("post-restore cleanup failed with status 41", result.StandardError, StringComparison.Ordinal);
         Assert.DoesNotContain("pg_tables", result.DockerLog, StringComparison.Ordinal);
         Assert.DoesNotContain("Restore complete.", result.StandardOutput, StringComparison.Ordinal);
     }
@@ -252,7 +272,8 @@ public class SchemaDeployTests
     private static async Task<RestoreHarnessResult> RunRestoreHarnessAsync(
         TemporaryDirectory fixture,
         int restoreStatus,
-        string verificationCounts)
+        string verificationCounts,
+        int cleanupStatus = 0)
     {
         var dockerPath = Path.Combine(fixture.Path, "docker");
         var dockerLogPath = Path.Combine(fixture.Path, "docker.log");
@@ -272,6 +293,9 @@ public class SchemaDeployTests
                     ;;
                 *pg_restore*)
                     exit "${FAKE_PG_RESTORE_STATUS:-0}"
+                    ;;
+                *"timescaledb_post_restore()"*)
+                    exit "${FAKE_POST_RESTORE_STATUS:-0}"
                     ;;
                 *pg_tables*"timescaledb_information.hypertables"*)
                     printf '%s\n' "${FAKE_VERIFY_COUNTS:-5|2}"
@@ -299,6 +323,7 @@ public class SchemaDeployTests
             fixture.Path + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH");
         startInfo.Environment["FAKE_DOCKER_LOG"] = dockerLogPath;
         startInfo.Environment["FAKE_PG_RESTORE_STATUS"] = restoreStatus.ToString();
+        startInfo.Environment["FAKE_POST_RESTORE_STATUS"] = cleanupStatus.ToString();
         startInfo.Environment["FAKE_VERIFY_COUNTS"] = verificationCounts;
 
         using var process = Process.Start(startInfo);

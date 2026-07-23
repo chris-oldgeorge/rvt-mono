@@ -393,8 +393,8 @@ public sealed class DataApplicationService : IDataApplicationService
                 .Select(trace => new TraceSummaryItem
                 {
                     Id = trace.Id,
-                    StartTime = trace.StartTime,
-                    EndTime = trace.EndTime,
+                    StartTime = SearchTimestampPolicy.FromDatabase(trace.StartTime)!.Value,
+                    EndTime = SearchTimestampPolicy.FromDatabase(trace.EndTime)!.Value,
                     DurationSeconds = Math.Max(0, (int)(trace.EndTime - trace.StartTime).TotalSeconds)
                 })
                 .ToList()
@@ -606,8 +606,8 @@ public sealed class DataApplicationService : IDataApplicationService
             MonitorId = deployment.MonitorId,
             TraceId = traceId,
             MonitorName = MonitorData.GetMonitorName(deployment.Monitor, traces: true),
-            FromDate = monitorData.FromDate,
-            ToDate = monitorData.ToDate,
+            FromDate = SearchTimestampPolicy.FromDatabase(monitorData.FromDate)!.Value,
+            ToDate = SearchTimestampPolicy.FromDatabase(monitorData.ToDate)!.Value,
             Samples = samples
                 .Select((sample, index) => new TraceSampleItem { Index = index, X = sample.X, Y = sample.Y, Z = sample.Z })
                 .ToList()

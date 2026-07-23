@@ -5,6 +5,7 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
+using System.Data.Common;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -13,6 +14,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RVT.BusinessLogic;
@@ -159,6 +161,105 @@ public class DataViewTests
     }
 
     [Fact]
+    // Function summary: Verifies trace-list UTC bounds become provider-naive values only at the real EF query boundary.
+    public async Task MonitorDataSource_TraceBounds_AreUnspecifiedAtDatabaseBoundary()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var probe = new TraceBoundCommandProbe();
+        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(probe)
+            .Options;
+        await using var searchContext = new RVTSearchContext(options);
+        await searchContext.Database.EnsureCreatedAsync();
+        var start = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
+        searchContext.OmnidotsTracesIndices.Add(new OmnidotsTracesIndex
+        {
+            Id = Guid.NewGuid(),
+            SerialId = "TRACE-UTC-BOUND",
+            StartTime = start,
+            EndTime = start.AddMinutes(1)
+        });
+        await searchContext.SaveChangesAsync();
+        probe.Clear();
+        var dataSource = new MonitorDataSource(null!, searchContext, null!);
+        var from = new DateTime(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
+        var to = from.AddHours(1);
+
+        var traces = await dataSource.GetTraceIndexesAsync("TRACE-UTC-BOUND", from, to);
+
+        Assert.Single(traces);
+        Assert.Equal([from.Ticks, to.Ticks], probe.DateTimeParameters.Select(value => value.Ticks));
+        Assert.All(probe.DateTimeParameters, value => Assert.Equal(DateTimeKind.Unspecified, value.Kind));
+    }
+
+    [Theory]
+    [InlineData(DateTimeKind.Local)]
+    [InlineData(DateTimeKind.Unspecified)]
+    // Function summary: Verifies trace-list data access rejects bounds that violate the UTC application contract.
+    public async Task MonitorDataSource_TraceBounds_RejectNonUtcInputs(DateTimeKind kind)
+    {
+        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseInMemoryDatabase($"trace-bound-kind-{Guid.NewGuid():N}")
+            .Options;
+        await using var searchContext = new RVTSearchContext(options);
+        var dataSource = new MonitorDataSource(null!, searchContext, null!);
+        var from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
+        var to = from.AddHours(1);
+
+        var error = await Assert.ThrowsAsync<ArgumentException>(
+            () => dataSource.GetTraceIndexesAsync("TRACE-NON-UTC-BOUND", from, to));
+
+        Assert.Equal("value", error.ParamName);
+        Assert.Contains("must be UTC", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    // Function summary: Verifies the point-in-time trace-index lookup also strips UTC Kind only at its EF query boundary.
+    public async Task MonitorService_TraceIndexBound_IsUnspecifiedAtDatabaseBoundary()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var probe = new TraceBoundCommandProbe();
+        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(probe)
+            .Options;
+        await using var searchContext = new RVTSearchContext(options);
+        await searchContext.Database.EnsureCreatedAsync();
+        probe.Clear();
+        var service = new MonitorService(null!, null!, null!, null!, searchContext, null!, null!, null!);
+        var instant = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Utc);
+
+        await service.GetVibrationTracesIndex("TRACE-UTC-INSTANT", instant);
+
+        var parameter = Assert.Single(probe.DateTimeParameters);
+        Assert.Equal(instant.Ticks, parameter.Ticks);
+        Assert.Equal(DateTimeKind.Unspecified, parameter.Kind);
+    }
+
+    [Theory]
+    [InlineData(DateTimeKind.Local)]
+    [InlineData(DateTimeKind.Unspecified)]
+    // Function summary: Verifies point-in-time trace-index reads reject non-UTC application instants.
+    public async Task MonitorService_TraceIndexBound_RejectsNonUtcInput(DateTimeKind kind)
+    {
+        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseInMemoryDatabase($"trace-index-kind-{Guid.NewGuid():N}")
+            .Options;
+        await using var searchContext = new RVTSearchContext(options);
+        var service = new MonitorService(null!, null!, null!, null!, searchContext, null!, null!, null!);
+        var instant = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 30, 0), kind);
+
+        var error = await Assert.ThrowsAsync<ArgumentException>(
+            () => service.GetVibrationTracesIndex("TRACE-NON-UTC-INSTANT", instant));
+
+        Assert.Equal("value", error.ParamName);
+        Assert.Contains("must be UTC", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     // Function summary: Verifies a read that stopped at its row bound is reported as truncated, not as complete.
     public async Task CappedRead_IsReportedAsTruncated()
     {
@@ -265,9 +366,13 @@ public class DataViewTests
 
         Assert.Single(list.RootElement.GetProperty("traces").EnumerateArray());
         Assert.Equal(ids.TraceId, list.RootElement.GetProperty("traces")[0].GetProperty("id").GetGuid());
+        Assert.Equal("2026-05-24T08:10:00Z", list.RootElement.GetProperty("traces")[0].GetProperty("startTime").GetString());
+        Assert.Equal("2026-05-24T08:11:00Z", list.RootElement.GetProperty("traces")[0].GetProperty("endTime").GetString());
         Assert.Single(wideList.RootElement.GetProperty("traces").EnumerateArray());
         Assert.Equal(ids.TraceId, wideList.RootElement.GetProperty("traces")[0].GetProperty("id").GetGuid());
         Assert.Equal(ids.TraceId, detail.RootElement.GetProperty("traceId").GetGuid());
+        Assert.Equal("2026-05-24T08:10:00Z", detail.RootElement.GetProperty("fromDate").GetString());
+        Assert.Equal("2026-05-24T08:11:00Z", detail.RootElement.GetProperty("toDate").GetString());
         Assert.Equal(3, detail.RootElement.GetProperty("samples").GetArrayLength());
         AssertApproximately(FakeMonitorDataSource.SecondTraceY, detail.RootElement.GetProperty("samples")[1].GetProperty("y").GetDouble());
         Assert.Equal(HttpStatusCode.OK, download.StatusCode);
@@ -445,6 +550,39 @@ public class DataViewTests
         Guid TraceId,
         Guid OldTraceId,
         DateTime Today);
+
+    private sealed class TraceBoundCommandProbe : DbCommandInterceptor
+    {
+        public List<DateTime> DateTimeParameters { get; } = [];
+
+        public void Clear()
+        {
+            DateTimeParameters.Clear();
+        }
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result)
+        {
+            DateTimeParameters.AddRange(
+                command.Parameters
+                    .Cast<DbParameter>()
+                    .Select(parameter => parameter.Value)
+                    .OfType<DateTime>());
+            return result;
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            ReaderExecuting(command, eventData, result);
+            return ValueTask.FromResult(result);
+        }
+    }
 }
 
 internal sealed class FakeMonitorDataSource : IMonitorDataSource
@@ -565,9 +703,16 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
     // Function summary: Registers trace data at a specific timestamp for ownership-window tests.
     public void AddTraceDataAt(RVT.Entities.Monitor monitor, Guid traceId, DateTime startTime)
     {
+        var databaseStartTime = DateTime.SpecifyKind(startTime, DateTimeKind.Unspecified);
         traces[traceId] = (
             monitor,
-            new OmnidotsTracesIndex { Id = traceId, SerialId = monitor.SerialId, StartTime = startTime, EndTime = startTime.AddMinutes(1) },
+            new OmnidotsTracesIndex
+            {
+                Id = traceId,
+                SerialId = monitor.SerialId,
+                StartTime = databaseStartTime,
+                EndTime = databaseStartTime.AddMinutes(1)
+            },
             [
                 new OmnidotsTrace { TraceId = traceId, X = 0.1, Y = 0.1, Z = 0.1 },
                 new OmnidotsTrace { TraceId = traceId, X = 0.2, Y = SecondTraceY, Z = 0.3 },

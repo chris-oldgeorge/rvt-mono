@@ -8,6 +8,7 @@ using RVT.DataAccess;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
+using RVT.Entities.Querying;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Data;
 using RvtPortal.Spa.Application.Monitors;
@@ -52,6 +53,36 @@ public sealed class SearchTimestampPostgresTests
                 StringComparer.Ordinal);
 
         Assert.Equal(ApprovedSampleTimeStoreTypes, actual);
+    }
+
+    [Fact]
+    // Function summary: Verifies both trace-index bounds use the PostgreSQL UTC-naive timestamp contract in runtime and snapshot metadata.
+    public void SearchModel_TraceIndexTimeMappings_MatchApprovedPostgresContract()
+    {
+        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
+            .Options;
+        using var context = new RVTSearchContext(options);
+        var entity = context.Model.FindEntityType(typeof(OmnidotsTracesIndex));
+        Assert.NotNull(entity);
+        Assert.Equal("timestamp without time zone", entity.FindProperty(nameof(OmnidotsTracesIndex.StartTime))?.GetColumnType());
+        Assert.Equal("timestamp without time zone", entity.FindProperty(nameof(OmnidotsTracesIndex.EndTime))?.GetColumnType());
+
+        var snapshot = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "apps",
+            "portal",
+            "RVT.DataAccess",
+            "Migrations",
+            "Search",
+            "RVTSearchContextModelSnapshot.cs"));
+        var entityBlock = ExtractSnapshotEntityBlock(snapshot, nameof(OmnidotsTracesIndex));
+        Assert.Matches(
+            @"Property<DateTime>\(""StartTime""\)\s*\.HasColumnType\(""timestamp without time zone""\)",
+            entityBlock);
+        Assert.Matches(
+            @"Property<DateTime>\(""EndTime""\)\s*\.HasColumnType\(""timestamp without time zone""\)",
+            entityBlock);
     }
 
     [Fact]
@@ -273,6 +304,87 @@ public sealed class SearchTimestampPostgresTests
         await transaction.RollbackAsync();
     }
 
+    [RequiresPostgresFact]
+    // Function summary: Queries trace indexes with UTC bounds and verifies list/detail API values restore the UTC JSON contract.
+    public async Task TraceIndexes_UtcBounds_QuerySuccessfullyAndReturnUtcJson()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
+        var searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+        await using var searchContext = new RVTSearchContext(searchOptions);
+        await using var transaction = await searchContext.Database.BeginTransactionAsync();
+        var traceId = Guid.NewGuid();
+        var serialId = $"T5{Guid.NewGuid():N}"[..22];
+        var databaseStart = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
+        var databaseEnd = databaseStart.AddMinutes(1);
+        await searchContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO public.omnidots_trace_index
+                (id, serial_id, start_time, end_time)
+            VALUES
+                ({traceId}, {serialId}, {databaseStart}, {databaseEnd})
+            """);
+
+        var monitor = new RVT.Entities.Monitor
+        {
+            Id = Guid.NewGuid(),
+            SerialId = serialId,
+            FleetNr = "T5-TRACE-UTC",
+            Manufacturer = "Test",
+            Model = "Test",
+            FirmwareVersion = "0",
+            TypeOfMonitor = MonitorTypeEnum.Vibration,
+            ListedAtTime = DateTime.UnixEpoch
+        };
+        var contract = new Contract
+        {
+            Id = Guid.NewGuid(),
+            ContractNumber = "T5-TRACE-UTC-CONTRACT",
+            CompanyId = Guid.NewGuid(),
+            OnHireDate = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        var deployment = new Deployment
+        {
+            Id = Guid.NewGuid(),
+            MonitorId = monitor.Id,
+            Monitor = monitor,
+            ContractId = contract.Id,
+            Contract = contract,
+            StartDate = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        await using var domainContext = CreateDomainContext(deployment);
+        var realDataSource = new MonitorDataSource(null!, searchContext, null!);
+        var dataSource = new PostgresTraceDataSource(realDataSource, monitor);
+        var application = new DataApplicationService(domainContext, dataSource);
+        var actor = new DataViewActor(null, IsAdmin: true, IsCompanyUser: false);
+
+        var list = await application.GetTracesAsync(
+            deployment.Id,
+            new TraceListRequest
+            {
+                FromDate = new DateTime(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc),
+                ToDate = new DateTime(2026, 7, 1, 15, 0, 0, DateTimeKind.Utc)
+            },
+            actor,
+            CancellationToken.None);
+        var detail = await application.GetTraceDetailAsync(
+            deployment.Id,
+            traceId,
+            actor,
+            CancellationToken.None);
+        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var listJson = JsonSerializer.Serialize(list.Value, jsonOptions);
+        var detailJson = JsonSerializer.Serialize(detail.Value, jsonOptions);
+
+        Assert.Null(list.Failure);
+        Assert.Null(detail.Failure);
+        Assert.Contains("\"startTime\":\"2026-07-01T14:30:00Z\"", listJson, StringComparison.Ordinal);
+        Assert.Contains("\"endTime\":\"2026-07-01T14:31:00Z\"", listJson, StringComparison.Ordinal);
+        Assert.Contains("\"fromDate\":\"2026-07-01T14:30:00Z\"", detailJson, StringComparison.Ordinal);
+        Assert.Contains("\"toDate\":\"2026-07-01T14:31:00Z\"", detailJson, StringComparison.Ordinal);
+        await transaction.RollbackAsync();
+    }
+
     // Function summary: Creates an isolated domain model that supplies deployment visibility to the API application service.
     private static RVTDbContext CreateDomainContext(Deployment deployment)
     {
@@ -362,6 +474,44 @@ public sealed class SearchTimestampPostgresTests
         public Task<RVT.DataAccess.EntityModels.Models.OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
         {
             return Task.FromResult<RVT.DataAccess.EntityModels.Models.OmnidotsTracesIndex?>(null);
+        }
+    }
+
+    private sealed class PostgresTraceDataSource : IMonitorDataSource
+    {
+        private readonly MonitorDataSource inner;
+        private readonly RVT.Entities.Monitor monitor;
+
+        public PostgresTraceDataSource(MonitorDataSource inner, RVT.Entities.Monitor monitor)
+        {
+            this.inner = inner;
+            this.monitor = monitor;
+        }
+
+        public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request)
+        {
+            var index = await inner.GetTraceIndexAsync(request.TraceId!.Value);
+            Assert.NotNull(index);
+            return new MonitorData
+            {
+                Monitor = monitor,
+                FromDate = index.StartTime,
+                ToDate = index.EndTime,
+                VibrationTraces = new SearchQueryResult<OmnidotsTrace>(true, string.Empty, [], 0, string.Empty)
+            };
+        }
+
+        public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
+            string serialId,
+            DateTime fromDate,
+            DateTime toDate)
+        {
+            return inner.GetTraceIndexesAsync(serialId, fromDate, toDate);
+        }
+
+        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
+        {
+            return inner.GetTraceIndexAsync(traceId);
         }
     }
 }

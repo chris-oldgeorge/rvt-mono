@@ -317,29 +317,8 @@ public class SecurityHardeningTests
     }
 
     [Fact]
-    // Function summary: Verifies an attacker-controlled Host cannot become a password-reset email link when public origin configuration is absent.
-    public async Task ForgotPassword_WithoutPublicBaseUrl_DoesNotSendHostDerivedLink()
-    {
-        var messenger = new RecordingAccountMessenger();
-        using var factory = new SpaTestApplicationFactory();
-        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        using var app = ConfigureAuthDelivery(factory, messenger, publicBaseUrl: "");
-        var client = CreateClient(app);
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
-        {
-            Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
-        };
-        request.Headers.Host = "attacker.example";
-
-        using var response = await client.SendAsync(request);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Null(messenger.PasswordResetCallbackUrl);
-    }
-
-    [Fact]
-    // Function summary: Verifies configured public origin controls password-reset links even when Host is malicious.
-    public async Task ForgotPassword_WithPublicBaseUrl_SendsConfiguredHostLink()
+    // Function summary: Verifies a disallowed Host is rejected before any password-reset email can be delivered.
+    public async Task ForgotPassword_WithDisallowedHost_IsRejectedBeforeDelivery()
     {
         var messenger = new RecordingAccountMessenger();
         using var factory = new SpaTestApplicationFactory();
@@ -351,6 +330,46 @@ public class SecurityHardeningTests
             Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
         };
         request.Headers.Host = "attacker.example";
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null(messenger.PasswordResetCallbackUrl);
+    }
+
+    [Fact]
+    // Function summary: Verifies missing public-origin configuration keeps the anonymous response generic and suppresses delivery.
+    public async Task ForgotPassword_WithoutPublicBaseUrl_ReturnsGenericSuccessWithoutDelivery()
+    {
+        var messenger = new RecordingAccountMessenger();
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        using var app = ConfigureAuthDelivery(factory, messenger, publicBaseUrl: "");
+        var client = CreateClient(app);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+        {
+            Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
+        };
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(messenger.PasswordResetCallbackUrl);
+    }
+
+    [Fact]
+    // Function summary: Verifies configured public origin controls password-reset links for an allowed request host.
+    public async Task ForgotPassword_WithPublicBaseUrl_SendsConfiguredHostLink()
+    {
+        var messenger = new RecordingAccountMessenger();
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        var client = CreateClient(app);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+        {
+            Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
+        };
 
         using var response = await client.SendAsync(request);
 

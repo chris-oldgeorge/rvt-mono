@@ -701,3 +701,34 @@
   findings are resolved and assessed the five-area immediate-blocker tranche as
   ready to merge, subject to running the eight provider-gated tests against a
   dedicated PostgreSQL/TimescaleDB database before production rollout.
+
+## Immediate Blockers Main Integration - 2026-07-23
+
+- Local `main` was fast-forwarded from `5048052` to the reviewed immediate-
+  blockers tip `0b30293`. The pending integration commit only corrects the
+  password-reset security tests described below; production behavior is
+  unchanged.
+- The former worktree produced a false-green result because its
+  `apps/portal/RvtPortal.Spa/appsettings.json` carried the macOS `hidden` file
+  flag. ASP.NET Core's physical configuration provider omitted that file, so
+  `AllowedHosts` was absent. The normal checkout correctly loads
+  `AllowedHosts=localhost;127.0.0.1` and rejects `Host: attacker.example`
+  before the authentication controller runs.
+- `SecurityHardeningTests` now separates three contracts:
+  a disallowed request host returns `400` without delivery; an allowed request
+  with no `Authentication:PublicBaseUrl` returns the generic `200` response
+  without delivery; and an allowed request with a configured public base URL
+  sends a callback rooted at that configured origin.
+- Current verification from the normal checkout:
+  portal backend `370 passed, 8 provider-gated skips, 378 total`; client
+  `68 passed`; client production build succeeded; monorepo solution/layout,
+  RVT source-boundary, local-package sequencing, and documentation guards all
+  passed. Four existing `System.Security.Cryptography.Xml` 10.0.7 NU1903
+  advisories remain.
+- Generated local state is intentionally untracked:
+  `.codegraph/` in the normal checkout and
+  `apps/.nuget-packages/` in the former immediate-blockers worktree.
+- Next approved branch: `codex/sites-application-boundary`. Its scope is to
+  introduce `RvtPortal.Application` and extract the complete Sites slice
+  incrementally, retaining route and payload compatibility and avoiding a
+  broad rewrite. The design must be written and reviewed before implementation.

@@ -15,8 +15,20 @@ public sealed class CommunicationsOptionsTests
         Assert.IsTrue(options.EmailEnabled);
         Assert.AreEqual("NoReply@rvtgroup.co.uk", options.FromEmail);
         Assert.AreEqual("RVT Cloud", options.FromName);
-        Assert.IsFalse(options.SmsEnabled);
-        Assert.AreEqual("KrakenAlert", options.SmsSender);
+    }
+
+    [TestMethod]
+    public void CommunicationsOptions_DoesNotExposeTransmitSmsSettings()
+    {
+        var propertyNames = typeof(CommunicationsOptions)
+            .GetProperties()
+            .Select(property => property.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.DoesNotContain("SmsEnabled", propertyNames);
+        Assert.DoesNotContain("SmsApiKey", propertyNames);
+        Assert.DoesNotContain("SmsApiSecret", propertyNames);
+        Assert.DoesNotContain("SmsSender", propertyNames);
     }
 
     [DataTestMethod]
@@ -109,31 +121,6 @@ public sealed class CommunicationsOptionsTests
     public void Validate_EmailDisabledAllowsMissingProviderCredentials()
     {
         var options = Load(("RVT:EMAIL_ENABLED", "false"));
-
-        options.Validate();
-    }
-
-    [TestMethod]
-    public void Validate_SmsEnabledRequiresKeyAndSecretWithoutLeakingConfiguredValues()
-    {
-        const string configuredKey = "configured-api-key-secret";
-        var options = Load(
-            ("RVT:EMAIL_ENABLED", "false"),
-            ("RVT:SMS_ENABLED", "true"),
-            ("RVT:SMS_API_KEY", configuredKey));
-
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(options.Validate);
-
-        Assert.Contains("RVT__SMS_API_SECRET", exception.Message);
-        Assert.DoesNotContain(configuredKey, exception.Message);
-    }
-
-    [TestMethod]
-    public void Validate_SmsDisabledAllowsMissingCredentials()
-    {
-        var options = Load(
-            ("RVT:EMAIL_ENABLED", "false"),
-            ("RVT:SMS_ENABLED", "false"));
 
         options.Validate();
     }

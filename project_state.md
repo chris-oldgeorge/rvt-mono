@@ -13,9 +13,10 @@
   adapter, one SMS port, options, and startup validator; an existing SMS port
   fails with `An SMS delivery provider is already registered.`.
 - `Rvt.Monitor.Common.Infrastructure` temporarily project-references the
-  provider and resolves its provider-owned options/adapter/validator while its
-  broader communications composition remains in place. Its packed dependency
-  is exactly pinned to `[$(PackageVersion)]` through the temporary bridge.
+  provider and resolves its provider-owned options/adapter/validator directly
+  from `IConfiguration`. `CommunicationsOptions` is now email-only and no
+  longer parses, exposes, or validates SMS settings. Its packed dependency is
+  exactly pinned to `[$(PackageVersion)]` through the temporary bridge.
 - The solution includes the provider and test projects in the RVT Monitor
   Common library/test folders. The temporary build/package graph is now eight
   artifacts, with TransmitSMS restored, packed, required in artifact checks,

@@ -22,14 +22,6 @@ public sealed record CommunicationsOptions
 
     public string MicrosoftSenderAddress { get; init; } = string.Empty;
 
-    public bool SmsEnabled { get; init; }
-
-    public string SmsApiKey { get; init; } = string.Empty;
-
-    public string SmsApiSecret { get; init; } = string.Empty;
-
-    public string SmsSender { get; init; } = "KrakenAlert";
-
     public static CommunicationsOptions FromConfiguration(IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
@@ -44,11 +36,7 @@ public sealed record CommunicationsOptions
             MicrosoftTenantId = Get(configuration, "MICROSOFT_TENANT_ID") ?? string.Empty,
             MicrosoftClientId = Get(configuration, "MICROSOFT_CLIENT_ID") ?? string.Empty,
             MicrosoftClientSecret = Get(configuration, "MICROSOFT_CLIENT_SECRET") ?? string.Empty,
-            MicrosoftSenderAddress = Get(configuration, "MICROSOFT_SENDER_ADDRESS") ?? string.Empty,
-            SmsEnabled = ParseBoolean(configuration, "SMS_ENABLED", defaultValue: false),
-            SmsApiKey = Get(configuration, "SMS_API_KEY") ?? string.Empty,
-            SmsApiSecret = Get(configuration, "SMS_API_SECRET") ?? string.Empty,
-            SmsSender = Get(configuration, "SMS_SENDER") ?? "KrakenAlert"
+            MicrosoftSenderAddress = Get(configuration, "MICROSOFT_SENDER_ADDRESS") ?? string.Empty
         };
     }
 
@@ -75,13 +63,6 @@ public sealed record CommunicationsOptions
             {
                 missing.Add("RVT__EMAIL_PROVIDER");
             }
-        }
-
-        if (SmsEnabled)
-        {
-            Require(SmsApiKey, "RVT__SMS_API_KEY", missing);
-            Require(SmsApiSecret, "RVT__SMS_API_SECRET", missing);
-            Require(SmsSender, "RVT__SMS_SENDER", missing);
         }
 
         if (missing.Count > 0)

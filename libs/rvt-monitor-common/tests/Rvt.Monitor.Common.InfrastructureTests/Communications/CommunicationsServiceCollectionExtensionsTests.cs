@@ -3,8 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Rvt.Communication;
 using Rvt.Communication.Abstractions;
+using Rvt.Communication.TransmitSms;
 using Rvt.Monitor.Common.Infrastructure.Communications;
-using Rvt.Monitor.Common.Infrastructure.Sms;
 
 namespace Rvt.Monitor.Common.InfrastructureTests.Communications;
 

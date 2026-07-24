@@ -15,6 +15,7 @@
     <ProjectReference Include="../Rvt.Communication/Rvt.Communication.csproj" />
     <ProjectReference Include="../Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj" />
     <ProjectReference Include="../Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj" />
+    <ProjectReference Include="../Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj" />
     <ProjectReference Include="../Rvt.Monitor.Common/Rvt.Monitor.Common.csproj" />
   </ItemGroup>
 </Project>

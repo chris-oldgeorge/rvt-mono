@@ -264,6 +264,12 @@
           "SendGrid": "[9.29.3, )"
         }
       },
+      "rvt.communication.transmitsms": {
+        "type": "Project",
+        "dependencies": {
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
+        }
+      },
       "rvt.monitor.common": {
         "type": "Project",
         "dependencies": {

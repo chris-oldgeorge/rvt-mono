@@ -1,10 +1,10 @@
 using System.Net;
+using System.Net.Http.Headers;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Infrastructure.Communications;
-using Rvt.Monitor.Common.Infrastructure.Sms;
-using static Rvt.Monitor.Common.InfrastructureTests.Sms.TransmitSmsClientTests;
+using Rvt.Communication.TransmitSms;
+using static Rvt.Communication.TransmitSmsTests.TransmitSmsClientTests;
 
-namespace Rvt.Monitor.Common.InfrastructureTests.Sms;
+namespace Rvt.Communication.TransmitSmsTests;
 
 [TestClass]
 public sealed class TransmitSmsAdapterTests
@@ -30,9 +30,9 @@ public sealed class TransmitSmsAdapterTests
     {
         using var handler = SuccessHandler();
         using var httpClient = new HttpClient(handler);
-        var adapter = new TransmitSmsAdapter(httpClient, new CommunicationsOptions
+        var adapter = new TransmitSmsAdapter(httpClient, new TransmitSmsOptions
         {
-            EmailEnabled = false
+            Enabled = false
         });
 
         var exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
@@ -110,6 +110,24 @@ public sealed class TransmitSmsAdapterTests
     }
 
     [TestMethod]
+    public async Task SendAsync_TransientHttpFailureRetainsRetryAfter()
+    {
+        using var handler = new CapturingHandler(
+            (HttpStatusCode)429,
+            "raw-private-response",
+            TimeSpan.FromSeconds(30));
+        using var httpClient = new HttpClient(handler);
+        var adapter = new TransmitSmsAdapter(httpClient, EnabledOptions());
+
+        var exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
+            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
+
+        Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
+        Assert.AreEqual("429", exception.Code);
+        Assert.AreEqual(TimeSpan.FromSeconds(30), exception.RetryAfter);
+    }
+
+    [TestMethod]
     public async Task SendAsync_CallerCancellationPropagates()
     {
         using var cancellationSource = new CancellationTokenSource();
@@ -131,13 +149,12 @@ public sealed class TransmitSmsAdapterTests
         HttpStatusCode.OK,
         """{"error":{"code":"SUCCESS","description":"OK"}}""");
 
-    private static CommunicationsOptions EnabledOptions() => new()
+    private static TransmitSmsOptions EnabledOptions() => new()
     {
-        EmailEnabled = false,
-        SmsEnabled = true,
-        SmsApiKey = "api-key",
-        SmsApiSecret = "api-secret",
-        SmsSender = "KrakenAlert"
+        Enabled = true,
+        ApiKey = "api-key",
+        ApiSecret = "api-secret",
+        Sender = "KrakenAlert"
     };
 
     private sealed class ThrowingHandler(Exception exception) : HttpMessageHandler

@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Rvt.Monitor.Common.Infrastructure.Sms;
+namespace Rvt.Communication.TransmitSms;
 
 internal sealed class TransmitSmsClient
 {

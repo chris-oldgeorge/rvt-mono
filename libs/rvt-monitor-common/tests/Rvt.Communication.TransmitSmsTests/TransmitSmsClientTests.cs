@@ -1,8 +1,9 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
-using Rvt.Monitor.Common.Infrastructure.Sms;
+using Rvt.Communication.TransmitSms;
 
-namespace Rvt.Monitor.Common.InfrastructureTests.Sms;
+namespace Rvt.Communication.TransmitSmsTests;
 
 [TestClass]
 public sealed class TransmitSmsClientTests
@@ -61,7 +62,8 @@ public sealed class TransmitSmsClientTests
 
     internal sealed class CapturingHandler(
         HttpStatusCode statusCode,
-        string responseBody) : HttpMessageHandler
+        string responseBody,
+        TimeSpan? retryAfter = null) : HttpMessageHandler
     {
         public HttpRequestMessage? Request { get; private set; }
 
@@ -76,10 +78,16 @@ public sealed class TransmitSmsClientTests
                 ? null
                 : await request.Content.ReadAsStringAsync(cancellationToken);
 
-            return new HttpResponseMessage(statusCode)
+            var response = new HttpResponseMessage(statusCode)
             {
                 Content = new StringContent(responseBody, Encoding.UTF8, "application/json")
             };
+            if (retryAfter is { } retryAfterValue)
+            {
+                response.Headers.RetryAfter = new RetryConditionHeaderValue(retryAfterValue);
+            }
+
+            return response;
         }
     }
 }

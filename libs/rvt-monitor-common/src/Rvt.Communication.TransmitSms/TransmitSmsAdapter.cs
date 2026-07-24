@@ -1,18 +1,17 @@
 using System.Net;
 using System.Text.Json;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Infrastructure.Communications;
 
-namespace Rvt.Monitor.Common.Infrastructure.Sms;
+namespace Rvt.Communication.TransmitSms;
 
 public sealed class TransmitSmsAdapter : ISmsDeliveryPort
 {
     private const string ProviderName = "TransmitSMS";
 
     private readonly TransmitSmsClient client;
-    private readonly CommunicationsOptions options;
+    private readonly TransmitSmsOptions options;
 
-    public TransmitSmsAdapter(HttpClient httpClient, CommunicationsOptions options)
+    public TransmitSmsAdapter(HttpClient httpClient, TransmitSmsOptions options)
     {
         client = new TransmitSmsClient(httpClient);
         this.options = options ?? throw new ArgumentNullException(nameof(options));
@@ -29,11 +28,11 @@ public sealed class TransmitSmsAdapter : ISmsDeliveryPort
         {
             await client.SendAsync(
                 new TransmitSmsRequest(
-                    options.SmsApiKey,
-                    options.SmsApiSecret,
+                    options.ApiKey,
+                    options.ApiSecret,
                     request.Recipient,
                     request.Content,
-                    options.SmsSender),
+                    options.Sender),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -63,14 +62,14 @@ public sealed class TransmitSmsAdapter : ISmsDeliveryPort
 
     private void EnsureConfigured()
     {
-        if (!options.SmsEnabled)
+        if (!options.Enabled)
         {
             throw Failure(DeliveryFailureKind.Configuration, "disabled");
         }
 
-        if (string.IsNullOrWhiteSpace(options.SmsApiKey) ||
-            string.IsNullOrWhiteSpace(options.SmsApiSecret) ||
-            string.IsNullOrWhiteSpace(options.SmsSender))
+        if (string.IsNullOrWhiteSpace(options.ApiKey) ||
+            string.IsNullOrWhiteSpace(options.ApiSecret) ||
+            string.IsNullOrWhiteSpace(options.Sender))
         {
             throw Failure(DeliveryFailureKind.Configuration, "missing-settings");
         }

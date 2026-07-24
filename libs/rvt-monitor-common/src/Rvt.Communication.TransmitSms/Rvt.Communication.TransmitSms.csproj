@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Rvt.Communication.TransmitSms</AssemblyName>
+    <RootNamespace>Rvt.Communication.TransmitSms</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Rvt.Communication.TransmitSms</PackageId>
+    <Description>TransmitSMS delivery adapter for RVT communication workflows.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+    <ProjectReference Include="../Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

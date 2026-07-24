@@ -164,6 +164,19 @@
           "Microsoft.Extensions.Configuration.Abstractions": "10.0.0"
         }
       },
+      "Microsoft.Extensions.DependencyInjection": {
+        "type": "Transitive",
+        "resolved": "10.0.4",
+        "contentHash": "NkvJ8aSr3AG30yabjv7ZWwTG/wq5OElNTlNq39Ok2HSEF3TIwAc1f1xnTJlR/GuoJmEgkfT7WBO9YbSXRk41+g==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.4"
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.9",
+        "contentHash": "g41l/30G3K4B/d/L8kjux0+30e27c8D0FVQ/PFCpbekgfDpj9mnDhieP67EqXWvl1EWNeZh2rpR4F5B/jcDOHA=="
+      },
       "Microsoft.Extensions.Diagnostics.Abstractions": {
         "type": "Transitive",
         "resolved": "10.0.0",
@@ -501,6 +514,26 @@
       "rvt.communication.abstractions": {
         "type": "Project"
       },
+      "rvt.communication.microsoftgraphmail": {
+        "type": "Project",
+        "dependencies": {
+          "Azure.Identity": "[1.15.0, )",
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
+        }
+      },
+      "rvt.communication.sendgridmail": {
+        "type": "Project",
+        "dependencies": {
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )",
+          "SendGrid": "[9.29.3, )"
+        }
+      },
+      "rvt.communication.transmitsms": {
+        "type": "Project",
+        "dependencies": {
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
+        }
+      },
       "rvt.monitor.common": {
         "type": "Project",
         "dependencies": {
@@ -527,10 +560,11 @@
       "rvt.monitor.common.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "Azure.Identity": "[1.15.0, )",
           "Rvt.Communication": "[0.2.0-rc.1, )",
-          "Rvt.Monitor.Common": "[0.2.0-rc.1, )",
-          "SendGrid": "[9.29.3, )"
+          "Rvt.Communication.MicrosoftGraphMail": "[0.2.0-rc.1, )",
+          "Rvt.Communication.SendGridMail": "[0.2.0-rc.1, )",
+          "Rvt.Communication.TransmitSms": "[0.2.0-rc.1, )",
+          "Rvt.Monitor.Common": "[0.2.0-rc.1, )"
         }
       },
       "AWSSDK.S3": {
@@ -626,21 +660,6 @@
           "Microsoft.Extensions.Configuration.Abstractions": "10.0.9",
           "Microsoft.Extensions.Primitives": "10.0.9"
         }
-      },
-      "Microsoft.Extensions.DependencyInjection": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.9, )",
-        "resolved": "10.0.9",
-        "contentHash": "NijozhERJDIaJ4k5TSMy1jOi0cSC2HfkvRD/Sl+kGSSKgVbFnF4GxgtMN/MrzHB8D1JxIrD4xSer9Blh9v3axQ==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.9"
-        }
-      },
-      "Microsoft.Extensions.DependencyInjection.Abstractions": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.9, )",
-        "resolved": "10.0.9",
-        "contentHash": "g41l/30G3K4B/d/L8kjux0+30e27c8D0FVQ/PFCpbekgfDpj9mnDhieP67EqXWvl1EWNeZh2rpR4F5B/jcDOHA=="
       },
       "MQTTnet": {
         "type": "CentralTransitive",

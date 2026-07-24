@@ -1,5 +1,32 @@
 # Project State
 
+## Communication provider Task 5 - TransmitSMS extraction - 2026-07-24 (complete)
+
+- `Rvt.Communication.TransmitSms` now owns the TransmitSMS client and adapter,
+  `TransmitSmsOptions`, its startup validation service, and `AddTransmitSms`
+  overloads. It reads `RVT:` keys before literal `RVT__` aliases; defaults to
+  disabled SMS, empty credentials, and `KrakenAlert` sender. Enabled validation
+  names missing key/secret/sender settings without exposing configured secrets.
+- The adapter preserves the existing form POST endpoint, Basic authorization,
+  cancellation behavior, provider-code-only errors, retry-after parsing, and
+  delivery-failure classifications. Provider registration adds one typed HTTP
+  adapter, one SMS port, options, and startup validator; an existing SMS port
+  fails with `An SMS delivery provider is already registered.`.
+- `Rvt.Monitor.Common.Infrastructure` temporarily project-references the
+  provider and resolves its provider-owned options/adapter/validator while its
+  broader communications composition remains in place. Its packed dependency
+  is exactly pinned to `[$(PackageVersion)]` through the temporary bridge.
+- The solution includes the provider and test projects in the RVT Monitor
+  Common library/test folders. The temporary build/package graph is now eight
+  artifacts, with TransmitSMS restored, packed, required in artifact checks,
+  and cleared from the local package cache before package validation.
+- Verification: TransmitSMS tests passed 24/24; Infrastructure tests passed
+  18/18; source-boundary/package guard and solution inventory guard passed;
+  Infrastructure package packing with `-m:1` produced a nuspec pinned to
+  `[0.2.0-rc.1]`; and Infrastructure plus all five monitor hosts built with
+  `--no-restore`. The provider test build still reports the existing MSTest
+  parallelization/data-test analyzer warnings.
+
 ## Communication provider Task 3 - SendGrid mail extraction - 2026-07-24 (complete)
 
 - `Rvt.Communication.SendGridMail` now owns the SendGrid adapter, client factory,

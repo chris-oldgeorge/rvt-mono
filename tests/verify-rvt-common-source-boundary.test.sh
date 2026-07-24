@@ -59,6 +59,7 @@ abstractions_artifact="${empty_feed}/Rvt.Communication.Abstractions.0.2.0-rc.1.n
 communication_artifact="${empty_feed}/Rvt.Communication.0.2.0-rc.1.nupkg"
 sendgrid_mail_artifact="${empty_feed}/Rvt.Communication.SendGridMail.0.2.0-rc.1.nupkg"
 graph_mail_artifact="${empty_feed}/Rvt.Communication.MicrosoftGraphMail.0.2.0-rc.1.nupkg"
+transmit_sms_artifact="${empty_feed}/Rvt.Communication.TransmitSms.0.2.0-rc.1.nupkg"
 infrastructure_artifact="${empty_feed}/Rvt.Monitor.Common.Infrastructure.0.2.0-rc.1.nupkg"
 integration_testing_artifact="${empty_feed}/Rvt.Monitor.IntegrationTesting.0.2.0-rc.1.nupkg"
 if output="$(
@@ -113,10 +114,11 @@ for package_artifact in \
   "${communication_artifact}" \
   "${graph_mail_artifact}" \
   "${sendgrid_mail_artifact}" \
+  "${transmit_sms_artifact}" \
   "${infrastructure_artifact}" \
   "${integration_testing_artifact}"; do
   if [[ ! -f "${package_artifact}" ]]; then
-    printf 'FAIL: build-mono.sh must pack the temporary seven-package graph; missing %s.\n' \
+    printf 'FAIL: build-mono.sh must pack the temporary eight-package graph; missing %s.\n' \
       "${package_artifact}" >&2
     exit 1
   fi
@@ -133,6 +135,13 @@ graph_restore_call="$(grep -F 'restore '"${repo_root}"'/libs/rvt-monitor-common/
 graph_pack_call="$(grep -F 'pack '"${repo_root}"'/libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj' "${dotnet_call_log}" | head -n 1)"
 if [[ -z "${graph_restore_call}" || -z "${graph_pack_call}" ]]; then
   printf 'FAIL: build-mono.sh must restore and pack Rvt.Communication.MicrosoftGraphMail for the temporary seven-package graph.\n' >&2
+  exit 1
+fi
+
+transmit_sms_restore_call="$(grep -F 'restore '"${repo_root}"'/libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj' "${dotnet_call_log}" | head -n 1)"
+transmit_sms_pack_call="$(grep -F 'pack '"${repo_root}"'/libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj' "${dotnet_call_log}" | head -n 1)"
+if [[ -z "${transmit_sms_restore_call}" || -z "${transmit_sms_pack_call}" ]]; then
+  printf 'FAIL: build-mono.sh must restore and pack Rvt.Communication.TransmitSms for the temporary eight-package graph.\n' >&2
   exit 1
 fi
 

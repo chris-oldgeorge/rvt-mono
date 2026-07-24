@@ -5,7 +5,7 @@ using Rvt.Communication;
 using Rvt.Communication.Abstractions;
 using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
-using Rvt.Monitor.Common.Infrastructure.Sms;
+using Rvt.Communication.TransmitSms;
 
 namespace Rvt.Monitor.Common.Infrastructure.Communications;
 
@@ -21,6 +21,8 @@ public static class CommunicationsServiceCollectionExtensions
             provider.GetRequiredService<IConfiguration>()));
         services.AddSingleton(provider => MicrosoftGraphMailOptions.FromConfiguration(
             provider.GetRequiredService<IConfiguration>()));
+        services.AddSingleton(provider => TransmitSmsOptions.FromConfiguration(
+            provider.GetRequiredService<IConfiguration>()));
         services.AddSingleton<ISendGridClientFactory, SendGridClientFactory>();
         services.AddSingleton<SendGridEmailAdapter>();
         services.AddSingleton<IMicrosoftGraphAccessTokenProvider, AzureIdentityGraphAccessTokenProvider>();
@@ -35,6 +37,7 @@ public static class CommunicationsServiceCollectionExtensions
         services.AddHttpClient<TransmitSmsAdapter>();
         services.AddSingleton<ISmsDeliveryPort>(provider =>
             provider.GetRequiredService<TransmitSmsAdapter>());
+        services.AddSingleton<IHostedService, TransmitSmsStartupValidationService>();
         services.AddRvtCommunication();
         services.AddSingleton<IHostedService, CommunicationsStartupValidationService>();
         return services;

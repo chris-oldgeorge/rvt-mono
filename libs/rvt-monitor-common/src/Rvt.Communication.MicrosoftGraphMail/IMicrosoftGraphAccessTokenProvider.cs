@@ -1,4 +1,4 @@
-namespace Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
+namespace Rvt.Communication.MicrosoftGraphMail;
 
 public interface IMicrosoftGraphAccessTokenProvider
 {

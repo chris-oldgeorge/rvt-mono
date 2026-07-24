@@ -1,3 +1,3 @@
-namespace Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
+namespace Rvt.Communication.MicrosoftGraphMail;
 
 internal sealed record MicrosoftGraphUploadSession(Uri UploadUrl);

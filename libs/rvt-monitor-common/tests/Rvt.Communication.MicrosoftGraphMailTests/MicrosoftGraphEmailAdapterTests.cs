@@ -3,10 +3,9 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Infrastructure.Communications;
-using Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
+using Rvt.Communication.MicrosoftGraphMail;
 
-namespace Rvt.Monitor.Common.InfrastructureTests.Email;
+namespace Rvt.Communication.MicrosoftGraphMailTests;
 
 [TestClass]
 public sealed class MicrosoftGraphEmailAdapterTests
@@ -193,7 +192,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
         var adapter = new MicrosoftGraphEmailAdapter(
             httpClient,
             tokens,
-            new CommunicationsOptions { EmailProvider = EmailProvider.MicrosoftGraph });
+            new MicrosoftGraphMailOptions());
 
         var exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
             adapter.SendAsync(Request()));
@@ -433,14 +432,13 @@ public sealed class MicrosoftGraphEmailAdapterTests
     private static EmailDeliveryRequest Request() =>
         new("ops@example.test", "subject", "plain", "<p>html</p>", []);
 
-    private static CommunicationsOptions Options() => new()
+    private static MicrosoftGraphMailOptions Options() => new()
     {
-        EmailProvider = EmailProvider.MicrosoftGraph,
-        EmailEnabled = true,
-        MicrosoftTenantId = "tenant",
-        MicrosoftClientId = "client",
-        MicrosoftClientSecret = "secret",
-        MicrosoftSenderAddress = "sender@example.test"
+        Enabled = true,
+        TenantId = "tenant",
+        ClientId = "client",
+        ClientSecret = "secret",
+        SenderAddress = "sender@example.test"
     };
 
     private sealed class RecordingTokenProvider(string token) : IMicrosoftGraphAccessTokenProvider

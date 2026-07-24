@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
+namespace Rvt.Communication.MicrosoftGraphMail;
 
 [JsonSerializable(typeof(GraphSendMailRequest))]
 [JsonSerializable(typeof(GraphMessage))]

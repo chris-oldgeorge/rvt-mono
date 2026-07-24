@@ -3,14 +3,13 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Infrastructure.Communications;
 
-namespace Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
+namespace Rvt.Communication.MicrosoftGraphMail;
 
 public sealed class MicrosoftGraphEmailAdapter(
     HttpClient httpClient,
     IMicrosoftGraphAccessTokenProvider tokenProvider,
-    CommunicationsOptions options) : IEmailDeliveryPort
+    MicrosoftGraphMailOptions options) : IEmailDeliveryPort
 {
     internal const long SmallAttachmentLimit = 3L * 1024 * 1024;
     internal const long MaximumAttachmentLength = 150L * 1024 * 1024;
@@ -23,9 +22,8 @@ public sealed class MicrosoftGraphEmailAdapter(
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!options.EmailEnabled ||
-            options.EmailProvider != EmailProvider.MicrosoftGraph ||
-            string.IsNullOrWhiteSpace(options.MicrosoftSenderAddress))
+        if (!options.Enabled ||
+            string.IsNullOrWhiteSpace(options.SenderAddress))
         {
             throw new EmailDeliveryException(
                 "MicrosoftGraph",
@@ -63,7 +61,7 @@ public sealed class MicrosoftGraphEmailAdapter(
         var json = JsonSerializer.Serialize(payload, MicrosoftGraphJsonContext.Default.GraphSendMailRequest);
         var uri = new Uri(
             GraphBaseUri,
-            $"users/{Uri.EscapeDataString(options.MicrosoftSenderAddress)}/sendMail");
+            $"users/{Uri.EscapeDataString(options.SenderAddress)}/sendMail");
 
         await SendAuthenticatedAsync(uri, json, readResponseBody: false, cancellationToken)
             .ConfigureAwait(false);
@@ -79,7 +77,7 @@ public sealed class MicrosoftGraphEmailAdapter(
             body,
             [new GraphRecipient(new GraphEmailAddress(request.Recipient))],
             null);
-        var senderPath = $"users/{Uri.EscapeDataString(options.MicrosoftSenderAddress)}";
+        var senderPath = $"users/{Uri.EscapeDataString(options.SenderAddress)}";
         var draftUri = new Uri(GraphBaseUri, $"{senderPath}/messages");
         var draftJson = JsonSerializer.Serialize(
             draft,

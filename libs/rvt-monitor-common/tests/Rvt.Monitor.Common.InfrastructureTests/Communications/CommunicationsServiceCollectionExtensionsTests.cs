@@ -4,7 +4,6 @@ using Microsoft.Extensions.Hosting;
 using Rvt.Communication;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Infrastructure.Communications;
-using Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
 using Rvt.Monitor.Common.Infrastructure.Sms;
 
 namespace Rvt.Monitor.Common.InfrastructureTests.Communications;
@@ -60,7 +59,8 @@ public sealed class CommunicationsServiceCollectionExtensionsTests
         services.AddMonitorCommunications();
         using var provider = services.BuildServiceProvider();
 
-        Assert.IsInstanceOfType<MicrosoftGraphEmailAdapter>(
-            provider.GetRequiredService<IEmailDeliveryPort>());
+        Assert.AreEqual(
+            "Rvt.Communication.MicrosoftGraphMail.MicrosoftGraphEmailAdapter",
+            provider.GetRequiredService<IEmailDeliveryPort>().GetType().FullName);
     }
 }

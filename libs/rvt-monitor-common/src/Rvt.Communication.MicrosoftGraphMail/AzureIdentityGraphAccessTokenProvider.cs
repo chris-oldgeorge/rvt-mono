@@ -2,34 +2,33 @@ using Azure;
 using Azure.Core;
 using Azure.Identity;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Infrastructure.Communications;
 
-namespace Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
+namespace Rvt.Communication.MicrosoftGraphMail;
 
 public sealed class AzureIdentityGraphAccessTokenProvider : IMicrosoftGraphAccessTokenProvider
 {
     private static readonly TokenRequestContext TokenContext =
         new(["https://graph.microsoft.com/.default"]);
 
-    private readonly TokenCredential credential;
+    private readonly Lazy<TokenCredential> credential;
 
-    public AzureIdentityGraphAccessTokenProvider(CommunicationsOptions options)
+    public AzureIdentityGraphAccessTokenProvider(MicrosoftGraphMailOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        credential = new ClientSecretCredential(
-            options.MicrosoftTenantId,
-            options.MicrosoftClientId,
-            options.MicrosoftClientSecret);
+        credential = new Lazy<TokenCredential>(() => new ClientSecretCredential(
+            options.TenantId,
+            options.ClientId,
+            options.ClientSecret));
     }
 
     internal AzureIdentityGraphAccessTokenProvider(TokenCredential credential) =>
-        this.credential = credential;
+        this.credential = new Lazy<TokenCredential>(() => credential);
 
     public async ValueTask<string> GetAccessTokenAsync(CancellationToken cancellationToken)
     {
         try
         {
-            return (await credential.GetTokenAsync(TokenContext, cancellationToken).ConfigureAwait(false)).Token;
+            return (await credential.Value.GetTokenAsync(TokenContext, cancellationToken).ConfigureAwait(false)).Token;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

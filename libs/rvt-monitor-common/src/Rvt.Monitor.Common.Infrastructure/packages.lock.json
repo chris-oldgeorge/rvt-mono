@@ -2,17 +2,6 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
-      "Azure.Identity": {
-        "type": "Direct",
-        "requested": "[1.15.0, )",
-        "resolved": "1.15.0",
-        "contentHash": "tvJVy5s8VdsAYHIcBw1KrwDTcTWr2K5fG5o/xEJ2zU3+QUViDx/utut83+fGoB/bcBspxuC6wG650GwAUkU2UQ==",
-        "dependencies": {
-          "Azure.Core": "1.47.1",
-          "Microsoft.Identity.Client": "4.73.1",
-          "Microsoft.Identity.Client.Extensions.Msal": "4.73.1"
-        }
-      },
       "Microsoft.SourceLink.GitHub": {
         "type": "Direct",
         "requested": "[8.0.0, )",
@@ -261,6 +250,13 @@
       "rvt.communication.abstractions": {
         "type": "Project"
       },
+      "rvt.communication.microsoftgraphmail": {
+        "type": "Project",
+        "dependencies": {
+          "Azure.Identity": "[1.15.0, )",
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
+        }
+      },
       "rvt.communication.sendgridmail": {
         "type": "Project",
         "dependencies": {
@@ -298,6 +294,17 @@
         "contentHash": "bHe+BZRyC/TnyPw3/l6N96V/hqtBHyjtXINVrVxVl8LTYx2fxNI1HTwknm0jslSkOiOKeHRZ/oduxMcJXBbtsg==",
         "dependencies": {
           "AWSSDK.Core": "[4.0.100.3, 5.0.0)"
+        }
+      },
+      "Azure.Identity": {
+        "type": "CentralTransitive",
+        "requested": "[1.15.0, )",
+        "resolved": "1.15.0",
+        "contentHash": "tvJVy5s8VdsAYHIcBw1KrwDTcTWr2K5fG5o/xEJ2zU3+QUViDx/utut83+fGoB/bcBspxuC6wG650GwAUkU2UQ==",
+        "dependencies": {
+          "Azure.Core": "1.47.1",
+          "Microsoft.Identity.Client": "4.73.1",
+          "Microsoft.Identity.Client.Extensions.Msal": "4.73.1"
         }
       },
       "Azure.Storage.Blobs": {

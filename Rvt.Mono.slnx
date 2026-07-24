@@ -34,6 +34,7 @@
     <Project Path="libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj" />
     <Project Path="libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj" />
     <Project Path="libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj" />
+    <Project Path="libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj" />
     <Project Path="libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj" />
     <Project Path="libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj" />
     <Project Path="libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj" />
@@ -43,6 +44,7 @@
     <Project Path="libs/rvt-monitor-common/package-validation/TestConsumer/TestConsumer.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Communication.AbstractionsTests/Rvt.Communication.AbstractionsTests.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.CommunicationTests/Rvt.CommunicationTests.csproj" />
+    <Project Path="libs/rvt-monitor-common/tests/Rvt.Communication.MicrosoftGraphMailTests/Rvt.Communication.MicrosoftGraphMailTests.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Communication.SendGridMailTests/Rvt.Communication.SendGridMailTests.csproj" />
     <Project Path="libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting.Tests/Rvt.Monitor.IntegrationTesting.Tests.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Monitor.Common.InfrastructureTests/Rvt.Monitor.Common.InfrastructureTests.csproj" />

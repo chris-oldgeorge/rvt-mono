@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
+namespace Rvt.Communication.MicrosoftGraphMail;
 
 internal sealed record GraphSendMailRequest(
     [property: JsonPropertyName("message")] GraphMessage Message,

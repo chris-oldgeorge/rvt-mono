@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Rvt.Communication;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Infrastructure.Email.MicrosoftGraph;
+using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
 using Rvt.Monitor.Common.Infrastructure.Sms;
 
@@ -18,6 +18,8 @@ public static class CommunicationsServiceCollectionExtensions
         services.AddSingleton(provider => CommunicationsOptions.FromConfiguration(
             provider.GetRequiredService<IConfiguration>()));
         services.AddSingleton(provider => SendGridMailOptions.FromConfiguration(
+            provider.GetRequiredService<IConfiguration>()));
+        services.AddSingleton(provider => MicrosoftGraphMailOptions.FromConfiguration(
             provider.GetRequiredService<IConfiguration>()));
         services.AddSingleton<ISendGridClientFactory, SendGridClientFactory>();
         services.AddSingleton<SendGridEmailAdapter>();

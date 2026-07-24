@@ -959,3 +959,29 @@
   abstraction/Common results remain 20/20 and 405/407 respectively. The two
   Common migration-path failures and the unrelated aggregate imported-suite
   path/provider failures remain baseline exceptions.
+
+## Communication Task 4: Microsoft Graph Mail Extraction - 2026-07-24
+
+- `Rvt.Communication.MicrosoftGraphMail` owns Microsoft Graph email delivery:
+  the Graph adapter, token-provider port and Azure Identity implementation,
+  source-generated Graph models/context, upload sessions, provider options,
+  registration, and startup validation. Its only project dependency is
+  `Rvt.Communication.Abstractions`; Azure Identity is provider-local.
+- `MicrosoftGraphMailOptions` maps `RVT:...` before literal `RVT__...` aliases
+  for `EMAIL_ENABLED`, tenant ID, client ID, client secret, and sender address.
+  Disabled providers permit absent credentials; enabled validation reports all
+  missing key names without including secret values.
+- The temporary `Rvt.Monitor.Common.Infrastructure` selector retains the
+  `EmailProvider` runtime choice for the five monitor hosts, but constructs the
+  moved Graph adapter from provider-owned Graph options. It directly references
+  GraphMail and its compatibility package pins all four internal dependencies
+  (Common, Communication, SendGridMail, and MicrosoftGraphMail) exactly.
+- Root `Rvt.Mono.slnx` inventory contains the GraphMail source project under
+  `/Libraries/RVT Monitor Common/` and its tests under `/Tests/`; the temporary
+  compatibility bridge packs exactly seven packages and keeps Infrastructure
+  packing at `-m:1`.
+- Focused results: GraphMail tests 31/31, Infrastructure tests 31/31,
+  package-artifact tests 16/16, solution inventory and source-boundary bridge
+  guards pass, and all five monitor hosts build with `--no-restore`. Existing
+  MSTest analyzer warnings and unrelated untracked Portal duplicate C# files
+  remain outside this extraction.

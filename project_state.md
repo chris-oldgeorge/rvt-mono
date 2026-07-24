@@ -22,7 +22,8 @@
   artifacts, with TransmitSMS restored, packed, required in artifact checks,
   and cleared from the local package cache before package validation.
 - Verification: TransmitSMS tests passed 24/24; Infrastructure tests passed
-  18/18; source-boundary/package guard and solution inventory guard passed;
+  17/17 after the ownership-boundary follow-up; source-boundary/package guard
+  and solution inventory guard passed;
   Infrastructure package packing with `-m:1` produced a nuspec pinned to
   `[0.2.0-rc.1]`; and Infrastructure plus all five monitor hosts built with
   `--no-restore`. The provider test build still reports the existing MSTest

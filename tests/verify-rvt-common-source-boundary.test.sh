@@ -60,7 +60,6 @@ communication_artifact="${empty_feed}/Rvt.Communication.0.2.0-rc.1.nupkg"
 sendgrid_mail_artifact="${empty_feed}/Rvt.Communication.SendGridMail.0.2.0-rc.1.nupkg"
 graph_mail_artifact="${empty_feed}/Rvt.Communication.MicrosoftGraphMail.0.2.0-rc.1.nupkg"
 transmit_sms_artifact="${empty_feed}/Rvt.Communication.TransmitSms.0.2.0-rc.1.nupkg"
-infrastructure_artifact="${empty_feed}/Rvt.Monitor.Common.Infrastructure.0.2.0-rc.1.nupkg"
 integration_testing_artifact="${empty_feed}/Rvt.Monitor.IntegrationTesting.0.2.0-rc.1.nupkg"
 if output="$(
   PATH="${fake_bin}:${PATH}" \
@@ -103,7 +102,7 @@ if [[ ! -f "${abstractions_artifact}" ]]; then
 fi
 
 if [[ ! -f "${communication_artifact}" ]]; then
-  printf 'FAIL: build-mono.sh must pack %s for Infrastructure package validation.\n' \
+  printf 'FAIL: build-mono.sh must pack %s for communication package validation.\n' \
     "${communication_artifact}" >&2
   exit 1
 fi
@@ -115,10 +114,9 @@ for package_artifact in \
   "${graph_mail_artifact}" \
   "${sendgrid_mail_artifact}" \
   "${transmit_sms_artifact}" \
-  "${infrastructure_artifact}" \
   "${integration_testing_artifact}"; do
   if [[ ! -f "${package_artifact}" ]]; then
-    printf 'FAIL: build-mono.sh must pack the temporary eight-package graph; missing %s.\n' \
+    printf 'FAIL: build-mono.sh must pack the temporary seven-package graph; missing %s.\n' \
       "${package_artifact}" >&2
     exit 1
   fi
@@ -141,14 +139,13 @@ fi
 transmit_sms_restore_call="$(grep -F 'restore '"${repo_root}"'/libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj' "${dotnet_call_log}" | head -n 1)"
 transmit_sms_pack_call="$(grep -F 'pack '"${repo_root}"'/libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj' "${dotnet_call_log}" | head -n 1)"
 if [[ -z "${transmit_sms_restore_call}" || -z "${transmit_sms_pack_call}" ]]; then
-  printf 'FAIL: build-mono.sh must restore and pack Rvt.Communication.TransmitSms for the temporary eight-package graph.\n' >&2
+  printf 'FAIL: build-mono.sh must restore and pack Rvt.Communication.TransmitSms for the temporary seven-package graph.\n' >&2
   exit 1
 fi
 
-infrastructure_pack_call="$(grep -F 'pack '"${repo_root}"'/libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj' "${dotnet_call_log}" | head -n 1)"
-if [[ "${infrastructure_pack_call}" != *'-m:1'* ]]; then
-  printf 'FAIL: build-mono.sh must pack Infrastructure with a single MSBuild node, got:\n%s\n' \
-    "${infrastructure_pack_call}" >&2
+removed_infrastructure_identity='Rvt.Monitor.Common.'"Infrastructure"
+if grep -Fq "${removed_infrastructure_identity}" "${repo_root}/scripts/build-mono.sh"; then
+  printf 'FAIL: build-mono.sh must not retain the removed Infrastructure package.\n' >&2
   exit 1
 fi
 

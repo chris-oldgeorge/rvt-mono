@@ -45,28 +45,100 @@ public sealed class CommunicationsBoundaryTests
     [TestMethod]
     public void SendGridProviderTypesAndPackageAreConfinedToSendGridMailAdapter()
     {
+        AssertProviderOwnership(
+            "Rvt.Communication.SendGridMail",
+            "using " + "SendGrid",
+            "SendGrid.Helpers" + ".Mail",
+            "PackageReference Include=\"SendGrid\"");
+    }
+
+    [TestMethod]
+    public void MicrosoftGraphProviderTypesAndPackagesAreConfinedToMicrosoftGraphMailAdapter()
+    {
+        AssertProviderOwnership(
+            "Rvt.Communication.MicrosoftGraphMail",
+            "AzureIdentityGraphAccessTokenProvider",
+            "MicrosoftGraphEmailAdapter",
+            "graph.microsoft.com");
+    }
+
+    [TestMethod]
+    public void TransmitSmsProviderTypesAreConfinedToTransmitSmsAdapter()
+    {
+        AssertProviderOwnership(
+            "Rvt.Communication.TransmitSms",
+            "TransmitSmsClient",
+            "TransmitSmsOptions",
+            "TransmitSmsDeliveryAdapter");
+    }
+
+    [TestMethod]
+    public void ProviderNeutralProjectsContainNoVendorDependencies()
+    {
         var root = FindRepositoryRoot();
-        var providerReferences = Directory
-            .EnumerateFiles(Path.Combine(root, "libs/rvt-monitor-common/src"), "*.*", SearchOption.AllDirectories)
-            .Where(path => path.EndsWith(".cs", StringComparison.Ordinal) ||
-                path.EndsWith(".csproj", StringComparison.Ordinal))
-            .Where(path => !IsGenerated(path))
-            .Select(path => new
-            {
-                RelativePath = Normalize(Path.GetRelativePath(root, path)),
-                Text = File.ReadAllText(path)
-            })
-            .Where(file => !file.RelativePath.EndsWith(
-                "CommunicationsBoundaryTests.cs",
-                StringComparison.Ordinal))
-            .Where(file => file.Text.Contains("using " + "SendGrid", StringComparison.Ordinal) ||
-                file.Text.Contains("SendGrid.Helpers" + ".Mail", StringComparison.Ordinal) ||
-                file.Text.Contains("PackageReference Include=\"SendGrid\"", StringComparison.Ordinal))
+        string[] neutralProjects =
+        [
+            "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions",
+            "libs/rvt-monitor-common/src/Rvt.Communication",
+            "libs/rvt-monitor-common/src/Rvt.Monitor.Common"
+        ];
+        string[] vendorMarkers =
+        [
+            "using " + "SendGrid",
+            "SendGrid.Helpers" + ".Mail",
+            "PackageReference Include=\"SendGrid\"",
+            "graph.microsoft.com",
+            "AzureIdentityGraphAccessTokenProvider",
+            "MicrosoftGraphEmailAdapter",
+            "TransmitSmsClient",
+            "TransmitSmsOptions",
+            "TransmitSmsDeliveryAdapter"
+        ];
+
+        var offenders = neutralProjects
+            .SelectMany(project => ReadProductionSource(root, project))
+            .Where(file => vendorMarkers.Any(marker =>
+                file.Text.Contains(marker, StringComparison.Ordinal)))
+            .Select(file => file.RelativePath)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.IsNotEmpty(providerReferences);
-        Assert.IsTrue(providerReferences.All(file =>
-            file.RelativePath.Contains("Rvt.Communication.SendGridMail", StringComparison.Ordinal)));
+        CollectionAssert.AreEqual(Array.Empty<string>(), offenders);
+    }
+
+    [TestMethod]
+    public void RemovedInfrastructureProjectIsAbsentFromActiveSourceAndSolutions()
+    {
+        var root = FindRepositoryRoot();
+        var removedIdentity = string.Concat("Rvt.Monitor.Common.", "Infrastructure");
+        var removedProject = Path.Combine(
+            root,
+            "libs/rvt-monitor-common/src",
+            removedIdentity);
+
+        Assert.IsFalse(Directory.Exists(removedProject));
+
+        var activeReferences = new[]
+            {
+                "libs/rvt-monitor-common/src",
+                "apps/monitors",
+                "apps/portal",
+                "services/reporting"
+            }
+            .SelectMany(relative => ReadProductionSource(root, relative))
+            .Where(file => file.Text.Contains(removedIdentity, StringComparison.Ordinal))
+            .Select(file => file.RelativePath)
+            .Concat(new[]
+            {
+                "libs/rvt-monitor-common/rvt-common.sln",
+                "Rvt.Mono.slnx"
+            }
+            .Where(relative => File.ReadAllText(Path.Combine(root, relative))
+                .Contains(removedIdentity, StringComparison.Ordinal)))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        CollectionAssert.AreEqual(Array.Empty<string>(), activeReferences);
     }
 
     [TestMethod]
@@ -100,6 +172,20 @@ public sealed class CommunicationsBoundaryTests
                 Normalize(Path.GetRelativePath(root, path)),
                 File.ReadAllText(path)))
             .ToArray();
+    }
+
+    private static void AssertProviderOwnership(string expectedProject, params string[] markers)
+    {
+        var root = FindRepositoryRoot();
+        var providerReferences = ReadProductionSource(root, "libs/rvt-monitor-common/src")
+            .Where(file => markers.Any(marker => file.Text.Contains(marker, StringComparison.Ordinal)))
+            .ToArray();
+
+        Assert.IsNotEmpty(providerReferences);
+        Assert.IsTrue(
+            providerReferences.All(file =>
+                file.RelativePath.Contains(expectedProject, StringComparison.Ordinal)),
+            string.Join(Environment.NewLine, providerReferences.Select(file => file.RelativePath)));
     }
 
     private static bool IsGenerated(string path)

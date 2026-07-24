@@ -1,8 +1,6 @@
 // File summary: Confines the RVT common source reference to the host adapter layer and keeps private feeds out of the repo.
 // Major updates:
-// - 2026-07-22 pending Migrated the host boundary from a private package to the mono-repository Infrastructure source project.
-// - 2026-07-17 pending Adopted Rvt.Monitor.Common.Infrastructure for email: replaced the zero-package rule with a
-//   host-only boundary (the business core still must not reference it) plus a credential-hygiene check on NuGet.config.
+// - 2026-07-24 confined the host to communication abstractions and the SendGrid adapter.
 // - 2026-07-17 pending Added the zero-package boundary scanner and regression fixtures.
 
 using RvtPortal.Spa.Tests.Support;
@@ -106,7 +104,7 @@ public sealed class RvtCommonDependencyBoundaryTests
             "using Rvt.Communication;",
             "Rvt.Communication.MicrosoftGraphMail",
             "Rvt.Communication.TransmitSms",
-            "Rvt.Monitor.Common.Infrastructure",
+            string.Concat("Rvt.Monitor.Common.", "Infrastructure"),
             "Amazon.S3",
             "Rvt.Storage.S3"
         ];

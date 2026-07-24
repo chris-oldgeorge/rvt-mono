@@ -1086,3 +1086,25 @@
   guards pass, and all five monitor hosts build with `--no-restore`. Existing
   MSTest analyzer warnings and unrelated untracked Portal duplicate C# files
   remain outside this extraction.
+
+## Communication Task 8: Legacy Infrastructure Removal - 2026-07-24
+
+- The tracked `Rvt.Monitor.Common.Infrastructure` source and test projects are
+  removed. Both solutions now list the five extracted communication projects
+  and their five test projects; active monitors deliberately reference all
+  three providers, while Portal remains limited to Abstractions and SendGrid.
+- Communication ownership guards now confine SendGrid, Microsoft Graph, and
+  TransmitSMS implementation markers to their provider projects and reject a
+  reintroduced Infrastructure project. The transitional `build-mono.sh` graph
+  now packs seven packages and no longer builds or validates Infrastructure.
+- Provider projects no longer depend on the broad `Microsoft.AspNetCore.App`
+  framework. They declare exact 10.0.9 Configuration, DI, Hosting, and HTTP
+  dependencies as required; SendGrid and Azure Identity remain provider-local.
+- Verification: ownership 7/7, SendGrid 20/20, Graph 31/31, TransmitSMS 24/24,
+  MyAtm boundary 12/12, both shell boundary tests pass, and `rvt-common.sln`
+  restores with temporary delegated locks and builds with zero errors.
+- Lock regeneration remains delegated to the eleven-package release plan.
+  Portal testing remains externally blocked by the preserved untracked
+  duplicate `* 2.cs` files. Blob client/service unification and every other
+  storage, compatibility, plugin, database, MQTT, scheduling, observability,
+  notification, API, and persisted-record item remain future pending work.

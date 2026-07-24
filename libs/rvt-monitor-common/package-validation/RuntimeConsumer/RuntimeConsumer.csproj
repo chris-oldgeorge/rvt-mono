@@ -12,6 +12,5 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Rvt.Monitor.Common" Version="[$(RvtPackageVersion)]" />
-    <PackageReference Include="Rvt.Monitor.Common.Infrastructure" Version="[$(RvtPackageVersion)]" />
   </ItemGroup>
 </Project>

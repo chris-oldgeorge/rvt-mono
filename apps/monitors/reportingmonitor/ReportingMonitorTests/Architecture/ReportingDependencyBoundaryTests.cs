@@ -78,7 +78,8 @@ public sealed class ReportingDependencyBoundaryTests
         Assert.DoesNotContain(messagingSource, text =>
             text.Contains("using " + "SendGrid", StringComparison.Ordinal) ||
             text.Contains("Rvt.Reporting.Messaging.SendGrid", StringComparison.Ordinal) ||
-            text.Contains("PackageReference Include=\"SendGrid\"", StringComparison.Ordinal));
+            text.Contains("PackageReference Include=\"SendGrid\"", StringComparison.Ordinal) ||
+            text.Contains(string.Concat("Rvt.Monitor.Common.", "Infrastructure"), StringComparison.Ordinal));
     }
 
     private static string FindRepositoryRoot()

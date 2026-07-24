@@ -13,7 +13,6 @@ communication_project="${repo_root}/libs/rvt-monitor-common/src/Rvt.Communicatio
 graph_mail_project="${repo_root}/libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj"
 sendgrid_mail_project="${repo_root}/libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj"
 transmit_sms_project="${repo_root}/libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj"
-infrastructure_project="${repo_root}/libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj"
 integration_testing_project="${repo_root}/libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj"
 runtime_consumer_project="${repo_root}/libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj"
 test_consumer_project="${repo_root}/libs/rvt-monitor-common/package-validation/TestConsumer/TestConsumer.csproj"
@@ -27,7 +26,6 @@ dotnet restore "${communication_project}" --packages "${nuget_packages}"
 dotnet restore "${graph_mail_project}" --packages "${nuget_packages}"
 dotnet restore "${sendgrid_mail_project}" --packages "${nuget_packages}"
 dotnet restore "${transmit_sms_project}" --packages "${nuget_packages}"
-dotnet restore "${infrastructure_project}" --packages "${nuget_packages}"
 dotnet restore "${integration_testing_project}" --packages "${nuget_packages}"
 
 dotnet pack "${common_project}" --no-restore --output "${package_feed}" -p:PackageVersion="${package_version}"
@@ -36,7 +34,6 @@ dotnet pack "${communication_project}" --no-restore --output "${package_feed}" -
 dotnet pack "${graph_mail_project}" --no-restore --output "${package_feed}" -p:PackageVersion="${package_version}"
 dotnet pack "${sendgrid_mail_project}" --no-restore --output "${package_feed}" -p:PackageVersion="${package_version}"
 dotnet pack "${transmit_sms_project}" --no-restore --output "${package_feed}" -p:PackageVersion="${package_version}"
-dotnet pack "${infrastructure_project}" --no-restore -m:1 --output "${package_feed}" -p:PackageVersion="${package_version}"
 dotnet pack "${integration_testing_project}" --no-restore --output "${package_feed}" -p:PackageVersion="${package_version}"
 
 for package_id in \
@@ -46,7 +43,6 @@ for package_id in \
   Rvt.Communication.MicrosoftGraphMail \
   Rvt.Communication.SendGridMail \
   Rvt.Communication.TransmitSms \
-  Rvt.Monitor.Common.Infrastructure \
   Rvt.Monitor.IntegrationTesting; do
   package_artifact="${package_feed}/${package_id}.${package_version}.nupkg"
   if [[ ! -f "${package_artifact}" ]]; then
@@ -67,7 +63,6 @@ for package_id in \
   rvt.communication.sendgridmail \
   rvt.communication.transmitsms \
   rvt.monitor.common \
-  rvt.monitor.common.infrastructure \
   rvt.monitor.integrationtesting; do
   rm -rf "${nuget_packages:?}/${package_id}/${package_version}"
 done

@@ -8,7 +8,6 @@ public sealed class CommonPackageBoundaryTests
 {
     private const string ExpectedRvtVersion = "0.2.0-rc.1";
     private const string CommonProject = "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj";
-    private const string InfrastructureProject = "libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj";
     private const string CommunicationAbstractionsProject = "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj";
     private const string CommunicationProject = "libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj";
     private const string SendGridMailProject = "libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj";
@@ -19,7 +18,6 @@ public sealed class CommonPackageBoundaryTests
     private static readonly string[] RvtPackageIds =
     [
         "Rvt.Monitor.Common",
-        "Rvt.Monitor.Common.Infrastructure",
         "Rvt.Communication.Abstractions",
         "Rvt.Communication",
         "Rvt.Communication.SendGridMail",
@@ -40,7 +38,6 @@ public sealed class CommonPackageBoundaryTests
     private static readonly string[] RvtSourceProjects =
     [
         CommonProject,
-        InfrastructureProject,
         .. MonitorCommunicationProjects,
         IntegrationTestingProject
     ];
@@ -69,11 +66,11 @@ public sealed class CommonPackageBoundaryTests
             ["apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj"] =
                 [CommonProject, IntegrationTestingProject],
             ["apps/monitors/reportingmonitor/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj"] =
-                [CommonProject],
+                [CommunicationAbstractionsProject],
             ["apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj"] =
                 [CommonProject],
             ["apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj"] =
-                [InfrastructureProject, SendGridMailProject]
+                [CommunicationAbstractionsProject, SendGridMailProject]
         };
 
     [TestMethod]
@@ -122,7 +119,7 @@ public sealed class CommonPackageBoundaryTests
         var expectations = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj"] =
-                ["Rvt.Monitor.Common", "Rvt.Monitor.Common.Infrastructure"],
+                ["Rvt.Monitor.Common"],
             ["libs/rvt-monitor-common/package-validation/TestConsumer/TestConsumer.csproj"] =
                 ["Rvt.Monitor.IntegrationTesting"]
         };

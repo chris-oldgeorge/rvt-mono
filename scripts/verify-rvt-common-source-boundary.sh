@@ -4,7 +4,9 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 common_project="libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj"
-infrastructure_project="libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj"
+removed_infrastructure_project="libs/rvt-monitor-common/src/Rvt.Monitor.Common."\
+"Infrastructure/Rvt.Monitor.Common."\
+"Infrastructure.csproj"
 communication_abstractions_project="libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj"
 communication_project="libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj"
 sendgrid_mail_project="libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj"
@@ -117,6 +119,10 @@ reject_package_validation_source_references() {
   fi
 }
 
+if [[ -e "${repo_root}/${removed_infrastructure_project}" ]]; then
+  fail "Removed communication infrastructure project still exists: ${removed_infrastructure_project}"
+fi
+
 for project in \
   apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj \
   apps/monitors/myatmmonitor/MyAtmMonitor/MyAtmMonitor.csproj \
@@ -129,7 +135,7 @@ for project in \
   require_project_reference "${project}" "${sendgrid_mail_project}"
   require_project_reference "${project}" "${microsoft_graph_mail_project}"
   require_project_reference "${project}" "${transmit_sms_project}"
-  reject_project_reference "${project}" "${infrastructure_project}"
+  reject_project_reference "${project}" "${removed_infrastructure_project}"
 done
 
 require_project_reference \
@@ -159,7 +165,7 @@ done
 
 require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${communication_abstractions_project}"
 require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${sendgrid_mail_project}"
-reject_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${infrastructure_project}"
+reject_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${removed_infrastructure_project}"
 
 require_project_reference \
   services/reporting/src/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
@@ -176,13 +182,12 @@ runtime_consumer=libs/rvt-monitor-common/package-validation/RuntimeConsumer/Runt
 test_consumer=libs/rvt-monitor-common/package-validation/TestConsumer/TestConsumer.csproj
 
 require_package_reference "${runtime_consumer}" Rvt.Monitor.Common
-require_package_reference "${runtime_consumer}" Rvt.Monitor.Common.Infrastructure
 require_package_reference "${test_consumer}" Rvt.Monitor.IntegrationTesting
 
 for project in "${runtime_consumer}" "${test_consumer}"; do
   for target in \
     "${common_project}" \
-    "${infrastructure_project}" \
+    "${removed_infrastructure_project}" \
     "${communication_abstractions_project}" \
     "${communication_project}" \
     "${sendgrid_mail_project}" \

@@ -10,7 +10,9 @@
     <Description>SendGrid email delivery adapter for RVT communication workflows.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
     <PackageReference Include="SendGrid" />
     <ProjectReference Include="../Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj" />

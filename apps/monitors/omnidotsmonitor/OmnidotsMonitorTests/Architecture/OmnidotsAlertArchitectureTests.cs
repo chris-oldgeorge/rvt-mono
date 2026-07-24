@@ -29,7 +29,7 @@ public sealed class OmnidotsAlertArchitectureTests
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.Api));
         services.AddLogging();
-        services.AddOmnidotsMonitor();
+        services.AddOmnidotsMonitor(configuration);
         services.PostConfigure<DurableAlertOptions>(options =>
             options.PortalBaseUrl = "https://portal.example.test/");
 
@@ -158,7 +158,7 @@ public sealed class OmnidotsAlertArchitectureTests
         builder.Configuration.AddConfiguration(Configuration(apiEnabled, validSecurity));
         builder.Services.AddSingleton(new MonitorExecutionModeContext(
             apiEnabled ? MonitorExecutionMode.Api : MonitorExecutionMode.QuartzScheduler));
-        builder.Services.AddOmnidotsMonitor();
+        builder.Services.AddOmnidotsMonitor(builder.Configuration);
         builder.Services.PostConfigure<DurableAlertOptions>(options =>
             options.PortalBaseUrl = "https://portal.example.test/");
         builder.Services.Replace(ServiceDescriptor.Singleton<IMonitorDbContextFactory<OmnidotsMonitorContext>>(

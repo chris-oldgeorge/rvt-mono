@@ -10,12 +10,15 @@ using Omnidots.Api.Db.EntityFramework;
 using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
-using Rvt.Monitor.Common.Alerts;
+using Rvt.Communication;
 using Rvt.Communication.Abstractions;
+using Rvt.Communication.MicrosoftGraphMail;
+using Rvt.Communication.SendGridMail;
+using Rvt.Communication.TransmitSms;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Monitor.Common.Infrastructure.Communications;
 using Rvt.Monitor.Common.Mqtt;
 
 namespace Omnidots.Api;
@@ -26,7 +29,9 @@ namespace Omnidots.Api;
 // - 2026-07-15 Durable alerts: composed Common alert persistence, delivery, workers, and focused API handlers.
 public static class OmnidotsMonitorServices
 {
-    public static IServiceCollection AddOmnidotsMonitor(this IServiceCollection services)
+    public static IServiceCollection AddOmnidotsMonitor(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddSingleton<IHttpClient>(_ => new HttpWebClient(RvtConfig.BASE_URL));
         services.AddSingleton<IDBClient>(_ => new DBClient(RvtConfig.DB_CONNECTION_STRING));
@@ -71,7 +76,9 @@ public static class OmnidotsMonitorServices
         services.AddSingleton<IOmnidotsMonitoringNotifier, EmailOmnidotsMonitoringNotifier>();
         services.TryAddSingleton<TimeProvider>(_ => TimeProvider.System);
         services.AddSingleton<IMqttClient, RvtMqttClient>();
-        services.AddMonitorCommunications();
+        services.AddRvtCommunication();
+        AddEmailProvider(services, configuration);
+        services.AddTransmitSms(configuration);
         services.AddSingleton<IMonitorDbContextFactory<OmnidotsMonitorContext>>(
             _ => new OmnidotsMonitorContextFactory(
                 RvtConfig.DB_CONNECTION_STRING,
@@ -124,5 +131,26 @@ public static class OmnidotsMonitorServices
             }
         });
         return services;
+    }
+
+    private static void AddEmailProvider(IServiceCollection services, IConfiguration configuration)
+    {
+        var configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
+            ?? configuration["RVT__EMAIL_PROVIDER"]
+            ?? "SendGrid";
+
+        if (string.Equals(configuredProvider, "SendGrid", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSendGridMail(configuration);
+        }
+        else if (string.Equals(configuredProvider, "MicrosoftGraph", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddMicrosoftGraphMail(configuration);
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                "RVT__EMAIL_PROVIDER must be SendGrid or MicrosoftGraph.");
+        }
     }
 }

@@ -5,9 +5,12 @@ using Microsoft.Extensions.Options;
 using ReportingMonitor.Api.Db;
 using ReportingMonitor.Api.Db.EntityFramework;
 using ReportingMonitor.Api.UseCases;
+using Rvt.Communication;
+using Rvt.Communication.MicrosoftGraphMail;
+using Rvt.Communication.SendGridMail;
+using Rvt.Communication.TransmitSms;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.EntityFramework;
-using Rvt.Monitor.Common.Infrastructure.Communications;
 using Rvt.Monitor.Common.Storage;
 using Rvt.Reporting.Core.Reports;
 using Rvt.Reporting.Messaging;
@@ -20,7 +23,9 @@ namespace ReportingMonitor.Api;
 
 public static class ReportingMonitorServices
 {
-    public static IServiceCollection AddReportingMonitor(this IServiceCollection services)
+    public static IServiceCollection AddReportingMonitor(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddSingleton(provider =>
         {
@@ -69,7 +74,9 @@ public static class ReportingMonitorServices
             defaultContainer: "pdfreports",
             defaultPrefix: "rvtreports",
             legacyContainerEnvironmentKey: "BLOB_REPORT_CONTAINER_NAME"));
-        services.AddMonitorCommunications();
+        services.AddRvtCommunication();
+        AddEmailProvider(services, configuration);
+        services.AddTransmitSms(configuration);
         services.AddSingleton<IOptions<ReportMessageSenderOptions>>(provider =>
         {
             var options = provider.GetRequiredService<ReportingMonitorOptions>();
@@ -115,6 +122,27 @@ public static class ReportingMonitorServices
         services.AddScoped<GenerateOneTimeReportHandler>();
         services.AddSingleton<ReportingMonitorJobDispatcher>();
         return services;
+    }
+
+    private static void AddEmailProvider(IServiceCollection services, IConfiguration configuration)
+    {
+        var configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
+            ?? configuration["RVT__EMAIL_PROVIDER"]
+            ?? "SendGrid";
+
+        if (string.Equals(configuredProvider, "SendGrid", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSendGridMail(configuration);
+        }
+        else if (string.Equals(configuredProvider, "MicrosoftGraph", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddMicrosoftGraphMail(configuration);
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                "RVT__EMAIL_PROVIDER must be SendGrid or MicrosoftGraph.");
+        }
     }
 
     public static IEndpointRouteBuilder MapReportingMonitorApi(this IEndpointRouteBuilder endpoints) =>

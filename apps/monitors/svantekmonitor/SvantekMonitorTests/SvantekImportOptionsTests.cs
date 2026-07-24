@@ -89,7 +89,7 @@ public sealed class SvantekImportOptionsTests
             .Build();
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddSvantekMonitor();
+        services.AddSvantekMonitor(configuration);
 
         using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<SvantekImportOptions>();
@@ -113,7 +113,7 @@ public sealed class SvantekImportOptionsTests
             .Build();
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddSvantekMonitor();
+        services.AddSvantekMonitor(configuration);
 
         using var provider = services.BuildServiceProvider();
 
@@ -132,7 +132,8 @@ public sealed class SvantekImportOptionsTests
                     ["RVT:SMS_ENABLED"] = "false",
                     [$"{SvantekImportOptions.SectionName}:MaximumRequestWindow"] = "00:00:00"
                 }))
-            .ConfigureServices(services => services.AddSvantekMonitor())
+            .ConfigureServices((context, services) =>
+                services.AddSvantekMonitor(context.Configuration))
             .Build();
 
         await Assert.ThrowsExactlyAsync<OptionsValidationException>(() => host.StartAsync());

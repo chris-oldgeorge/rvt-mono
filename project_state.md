@@ -1,5 +1,32 @@
 # Project State
 
+## Communication provider Task 6 - monitor composition roots - 2026-07-24 (complete)
+
+- `MonitorHost.RunAsync` now passes the effective `IConfiguration` to its
+  service-composition callback in API, Quartz scheduler, and one-shot modes.
+  All five monitor `Program.cs` entry points and every direct registration
+  caller pass that configuration into `AddAirQMonitor`, `AddMyAtmMonitor`,
+  `AddOmnidotsMonitor`, `AddReportingMonitor`, or `AddSvantekMonitor`.
+- Each monitor composition root explicitly registers the neutral
+  `Rvt.Communication` workflow, selects SendGrid by default or Microsoft Graph
+  by a case-insensitive exact provider match, reads `RVT:EMAIL_PROVIDER` before
+  literal `RVT__EMAIL_PROVIDER`, and always registers TransmitSMS. Invalid
+  values fail at registration with the safe exact message
+  `RVT__EMAIL_PROVIDER must be SendGrid or MicrosoftGraph.` without echoing the
+  configured value.
+- The five active monitor host projects no longer reference
+  `Rvt.Monitor.Common.Infrastructure`. Each retains `Rvt.Monitor.Common` and
+  directly references Communication Abstractions, Communication, SendGridMail,
+  MicrosoftGraphMail, and TransmitSms. The source-reference matrix and shell
+  boundary guard enforce this graph while retaining the Portal/Infrastructure
+  boundary for later tasks.
+- Verification: all five focused communication suites passed 3/3 (15 total);
+  `MonitorHostTests` passed 3/3; the source-reference matrix passed 12/12; the
+  shell source-boundary guard passed; all five hosts built with zero warnings
+  and errors; and `apps/monitors/rvt-monitors.sln` built with zero errors. The
+  solution build retained the known NU1900 warning because NuGet vulnerability
+  metadata was unreachable. No restore was needed.
+
 ## Communication provider Task 5 - TransmitSMS extraction - 2026-07-24 (complete)
 
 - `Rvt.Communication.TransmitSms` now owns the TransmitSMS client and adapter,

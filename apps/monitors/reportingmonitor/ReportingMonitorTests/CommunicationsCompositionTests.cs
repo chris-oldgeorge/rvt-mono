@@ -1,35 +1,34 @@
-using AirQ.Api;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ReportingMonitor.Api;
 using Rvt.Communication.Abstractions;
 
-namespace AirQMonitorTests;
+namespace ReportingMonitorTests;
 
-[TestClass]
 public sealed class CommunicationsCompositionTests
 {
-    [TestMethod]
-    public async Task AddAirQMonitor_MissingProvider_ComposesSendGridSmsAndWorkflows()
+    [Fact]
+    public async Task AddReportingMonitor_MissingProvider_ComposesSendGridSmsAndWorkflows()
     {
         var (services, configuration) = CreateServices();
-        services.AddAirQMonitor(configuration);
+        services.AddReportingMonitor(configuration);
 
         using var provider = services.BuildServiceProvider();
 
-        Assert.AreEqual(
+        Assert.Equal(
             "Rvt.Communication.SendGridMail.SendGridEmailAdapter",
             provider.GetRequiredService<IEmailDeliveryPort>().GetType().FullName);
-        Assert.AreEqual(
+        Assert.Equal(
             "Rvt.Communication.TransmitSms.TransmitSmsAdapter",
             provider.GetRequiredService<ISmsDeliveryPort>().GetType().FullName);
-        Assert.IsNotNull(provider.GetRequiredService<INotificationDeliveryService>());
-        Assert.IsNotNull(provider.GetRequiredService<IMessageService>());
+        Assert.NotNull(provider.GetRequiredService<INotificationDeliveryService>());
+        Assert.NotNull(provider.GetRequiredService<IMessageService>());
         await StartValidatorsAsync(provider);
     }
 
-    [TestMethod]
-    public void AddAirQMonitor_MicrosoftGraphCaseInsensitive_ComposesMicrosoftGraph()
+    [Fact]
+    public void AddReportingMonitor_MicrosoftGraphCaseInsensitive_ComposesMicrosoftGraph()
     {
         var (services, configuration) = CreateServices(new Dictionary<string, string?>
         {
@@ -37,19 +36,19 @@ public sealed class CommunicationsCompositionTests
             ["RVT__EMAIL_PROVIDER"] = "invalid-fallback-must-not-win"
         });
 
-        services.AddAirQMonitor(configuration);
+        services.AddReportingMonitor(configuration);
 
         using var provider = services.BuildServiceProvider();
-        Assert.AreEqual(
+        Assert.Equal(
             "Rvt.Communication.MicrosoftGraphMail.MicrosoftGraphEmailAdapter",
             provider.GetRequiredService<IEmailDeliveryPort>().GetType().FullName);
-        Assert.IsTrue(provider.GetServices<IHostedService>()
-            .Any(service => service.GetType().FullName ==
-                "Rvt.Communication.MicrosoftGraphMail.MicrosoftGraphMailStartupValidationService"));
+        Assert.Contains(provider.GetServices<IHostedService>(),
+            service => service.GetType().FullName ==
+                "Rvt.Communication.MicrosoftGraphMail.MicrosoftGraphMailStartupValidationService");
     }
 
-    [TestMethod]
-    public void AddAirQMonitor_InvalidProvider_ThrowsSafeMessageAtCompositionTime()
+    [Fact]
+    public void AddReportingMonitor_InvalidProvider_ThrowsSafeMessageAtCompositionTime()
     {
         const string invalidProvider = "sensitive-invalid-provider";
         var (services, configuration) = CreateServices(new Dictionary<string, string?>
@@ -57,10 +56,10 @@ public sealed class CommunicationsCompositionTests
             ["RVT__EMAIL_PROVIDER"] = invalidProvider
         });
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
-            services.AddAirQMonitor(configuration));
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            services.AddReportingMonitor(configuration));
 
-        Assert.AreEqual("RVT__EMAIL_PROVIDER must be SendGrid or MicrosoftGraph.", exception.Message);
+        Assert.Equal("RVT__EMAIL_PROVIDER must be SendGrid or MicrosoftGraph.", exception.Message);
         Assert.DoesNotContain(invalidProvider, exception.Message, StringComparison.Ordinal);
     }
 
@@ -92,10 +91,10 @@ public sealed class CommunicationsCompositionTests
     private static async Task StartValidatorsAsync(IServiceProvider provider)
     {
         var validators = provider.GetServices<IHostedService>().ToArray();
-        Assert.IsTrue(validators.Any(service => service.GetType().FullName ==
-            "Rvt.Communication.SendGridMail.SendGridMailStartupValidationService"));
-        Assert.IsTrue(validators.Any(service => service.GetType().FullName ==
-            "Rvt.Communication.TransmitSms.TransmitSmsStartupValidationService"));
+        Assert.Contains(validators, service => service.GetType().FullName ==
+            "Rvt.Communication.SendGridMail.SendGridMailStartupValidationService");
+        Assert.Contains(validators, service => service.GetType().FullName ==
+            "Rvt.Communication.TransmitSms.TransmitSmsStartupValidationService");
         foreach (var validator in validators)
         {
             await validator.StartAsync(CancellationToken.None);

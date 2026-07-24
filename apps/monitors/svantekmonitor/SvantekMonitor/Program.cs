@@ -18,7 +18,7 @@ return await MonitorHost.RunAsync<SvantekMonitorJobDispatcher>(
     (jobName, services) => MonitorJobRunner.RunAsync(jobName, services.GetRequiredService<ISvantekMonitorJobs>()),
     app => app.MapSvantekMonitorApi(),
     ConfigureLogging,
-    services => services.AddSvantekMonitor());
+    (services, configuration) => services.AddSvantekMonitor(configuration));
 
 static void ConfigureLogging(ILoggingBuilder logging)
 {

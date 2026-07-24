@@ -230,7 +230,7 @@ public sealed class MonitoringHandlerTests
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
-        services.AddOmnidotsMonitor();
+        services.AddOmnidotsMonitor(configuration);
         using var provider = services.BuildServiceProvider();
 
         Assert.AreEqual(
@@ -270,7 +270,7 @@ public sealed class MonitoringHandlerTests
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
-        services.AddOmnidotsMonitor();
+        services.AddOmnidotsMonitor(configuration);
         using var provider = services.BuildServiceProvider();
 
         var exception = Assert.ThrowsExactly<OptionsValidationException>(
@@ -295,7 +295,7 @@ public sealed class MonitoringHandlerTests
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
-        services.AddOmnidotsMonitor();
+        services.AddOmnidotsMonitor(configuration);
         using var provider = services.BuildServiceProvider();
 
         var compatibilityFacade = provider.GetRequiredService<IDBClient>();
@@ -392,7 +392,7 @@ public sealed class MonitoringHandlerTests
             [$"{OmnidotsMonitoringOptions.SectionName}:WindowEnd"] = "18:00:00",
             [$"{OmnidotsMonitoringOptions.SectionName}:StaleAfter"] = "01:00:00"
         });
-        builder.Services.AddOmnidotsMonitor();
+        builder.Services.AddOmnidotsMonitor(builder.Configuration);
         TestUtil.UseTestMonitorContextFactory(builder.Services);
         return builder.Build();
     }

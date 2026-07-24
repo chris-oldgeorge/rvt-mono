@@ -381,9 +381,9 @@ public sealed class TestMonitorJobScheduling
             _ => "DispatchAlerts",
             InvokeJobRunner,
             _ => Assert.Fail("API mapping must not run for one-shot alert dispatch."),
-            configureServices: services =>
+            configureServices: (services, configuration) =>
             {
-                services.AddOmnidotsMonitor();
+                services.AddOmnidotsMonitor(configuration);
                 TestUtil.UseTestMonitorContextFactory(services);
                 services.RemoveAll<IAlertOutboxStore>();
                 services.RemoveAll<IAlertDeliveryAdapter>();
@@ -437,9 +437,9 @@ public sealed class TestMonitorJobScheduling
             _ => "CleanupAlerts",
             InvokeJobRunner,
             _ => Assert.Fail("API mapping must not run for one-shot alert cleanup."),
-            configureServices: services =>
+            configureServices: (services, configuration) =>
             {
-                services.AddOmnidotsMonitor();
+                services.AddOmnidotsMonitor(configuration);
                 TestUtil.UseTestMonitorContextFactory(services);
                 services.RemoveAll<IAlertOutboxStore>();
                 services.AddSingleton(store.Object);

@@ -82,8 +82,9 @@ public sealed class SvantekJobCancellationTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
-        services.AddSvantekMonitor();
+        var configuration = new ConfigurationBuilder().Build();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSvantekMonitor(configuration);
 
         using var provider = services.BuildServiceProvider();
         var concrete = provider.GetRequiredService<SvantekService>();

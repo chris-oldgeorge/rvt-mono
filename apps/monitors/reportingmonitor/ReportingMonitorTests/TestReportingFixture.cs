@@ -70,7 +70,7 @@ internal static class ReportingServiceProviderFactory
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment());
         services.AddLogging();
-        services.AddReportingMonitor();
+        services.AddReportingMonitor(configuration);
         configureServices?.Invoke(services);
 
         return services.BuildServiceProvider(new ServiceProviderOptions

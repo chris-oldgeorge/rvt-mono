@@ -8,4 +8,5 @@ return await MonitorHost.RunAsync<ReportingMonitorJobDispatcher>(
     ReportingMonitorJobRunner.GetJobName,
     (jobName, services) => services.GetRequiredService<ReportingMonitorJobDispatcher>().RunAsync(jobName, CancellationToken.None),
     app => app.MapReportingMonitorApi(),
-    configureServices: services => services.AddReportingMonitor());
+    configureServices: (services, configuration) =>
+        services.AddReportingMonitor(configuration));

@@ -5,6 +5,11 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 common_project="libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj"
 infrastructure_project="libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj"
+communication_abstractions_project="libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj"
+communication_project="libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj"
+sendgrid_mail_project="libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj"
+microsoft_graph_mail_project="libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj"
+transmit_sms_project="libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj"
 integration_testing_project="libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj"
 
 failures=0
@@ -47,6 +52,15 @@ require_project_reference() {
   fi
 }
 
+reject_project_reference() {
+  local project="$1"
+  local target="$2"
+  require_file "${project}" || return 0
+  if has_project_reference "${project}" "${target}"; then
+    fail "${project} must not reference ${target}"
+  fi
+}
+
 has_package_reference() {
   local project="$1"
   local package="$2"
@@ -55,7 +69,15 @@ has_package_reference() {
 
 reject_active_package_references() {
   local package project
-  for package in Rvt.Monitor.Common Rvt.Monitor.Common.Infrastructure Rvt.Monitor.IntegrationTesting; do
+  for package in \
+    Rvt.Monitor.Common \
+    Rvt.Monitor.Common.Infrastructure \
+    Rvt.Communication.Abstractions \
+    Rvt.Communication \
+    Rvt.Communication.SendGridMail \
+    Rvt.Communication.MicrosoftGraphMail \
+    Rvt.Communication.TransmitSms \
+    Rvt.Monitor.IntegrationTesting; do
     while IFS= read -r -d '' project; do
       if grep -Eq "<PackageReference[[:space:]][^>]*Include=\"${package}\"" "${project}"; then
         fail "${project#"${repo_root}/"} must not reference ${package} as a package"
@@ -89,7 +111,12 @@ for project in \
   apps/monitors/svantekmonitor/SvantekMonitor/SvantekMonitor.csproj \
   apps/monitors/reportingmonitor/ReportingMonitor/ReportingMonitor.csproj; do
   require_project_reference "${project}" "${common_project}"
-  require_project_reference "${project}" "${infrastructure_project}"
+  require_project_reference "${project}" "${communication_abstractions_project}"
+  require_project_reference "${project}" "${communication_project}"
+  require_project_reference "${project}" "${sendgrid_mail_project}"
+  require_project_reference "${project}" "${microsoft_graph_mail_project}"
+  require_project_reference "${project}" "${transmit_sms_project}"
+  reject_project_reference "${project}" "${infrastructure_project}"
 done
 
 for project in \
@@ -110,6 +137,7 @@ for project in \
 done
 
 require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${infrastructure_project}"
+require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${sendgrid_mail_project}"
 reject_active_package_references
 
 runtime_consumer=libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj
@@ -120,7 +148,15 @@ require_package_reference "${runtime_consumer}" Rvt.Monitor.Common.Infrastructur
 require_package_reference "${test_consumer}" Rvt.Monitor.IntegrationTesting
 
 for project in "${runtime_consumer}" "${test_consumer}"; do
-  for target in "${common_project}" "${infrastructure_project}" "${integration_testing_project}"; do
+  for target in \
+    "${common_project}" \
+    "${infrastructure_project}" \
+    "${communication_abstractions_project}" \
+    "${communication_project}" \
+    "${sendgrid_mail_project}" \
+    "${microsoft_graph_mail_project}" \
+    "${transmit_sms_project}" \
+    "${integration_testing_project}"; do
     reject_package_validation_source_references "${project}" "${target}"
   done
 done

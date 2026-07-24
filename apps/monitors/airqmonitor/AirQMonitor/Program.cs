@@ -16,4 +16,5 @@ return await MonitorHost.RunAsync<AirQMonitorJobDispatcher>(
     MonitorJobRunner.GetJobName,
     (jobName, services) => MonitorJobRunner.RunAsync(jobName, services.GetRequiredService<AirQService>()),
     app => app.MapAirQMonitorApi(),
-    configureServices: services => services.AddAirQMonitor());
+    configureServices: (services, configuration) =>
+        services.AddAirQMonitor(configuration));

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -6,11 +7,14 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
+using Rvt.Communication;
 using Rvt.Communication.Abstractions;
+using Rvt.Communication.MicrosoftGraphMail;
+using Rvt.Communication.SendGridMail;
+using Rvt.Communication.TransmitSms;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Monitor.Common.Infrastructure.Communications;
 using Rvt.Monitor.Common.Mqtt;
 
 namespace MyAtm.Api;
@@ -20,7 +24,9 @@ namespace MyAtm.Api;
 // - 2026-07-12 DI composition: replaced manual MyAtmService wiring with container registrations.
 public static class MyAtmMonitorServices
 {
-    public static IServiceCollection AddMyAtmMonitor(this IServiceCollection services)
+    public static IServiceCollection AddMyAtmMonitor(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddSingleton<IValidateOptions<MyAtmMonitorOptions>, MyAtmMonitorOptionsValidator>();
         services.AddOptions<MyAtmMonitorOptions>()
@@ -72,7 +78,9 @@ public static class MyAtmMonitorServices
         services.AddSingleton(provider => provider.GetRequiredService<MyAtmMonitorOptions>()
             .ToDeliveryOptions(RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC));
         services.AddSingleton<IMqttClient, RvtMqttClient>();
-        services.AddMonitorCommunications();
+        services.AddRvtCommunication();
+        AddEmailProvider(services, configuration);
+        services.AddTransmitSms(configuration);
         services.AddSingleton<IMonitorDeliveryFailureSink, MyAtmDeliveryFailureSink>();
         services.AddSingleton<MonitorDeliveryDispatcher>();
         services.AddSingleton(provider => new MyAtmHttpGateway(
@@ -152,5 +160,26 @@ public static class MyAtmMonitorServices
         });
         services.AddSingleton<IMyAtmMonitorJobs>(provider => provider.GetRequiredService<MyAtmService>());
         return services;
+    }
+
+    private static void AddEmailProvider(IServiceCollection services, IConfiguration configuration)
+    {
+        var configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
+            ?? configuration["RVT__EMAIL_PROVIDER"]
+            ?? "SendGrid";
+
+        if (string.Equals(configuredProvider, "SendGrid", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSendGridMail(configuration);
+        }
+        else if (string.Equals(configuredProvider, "MicrosoftGraph", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddMicrosoftGraphMail(configuration);
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                "RVT__EMAIL_PROVIDER must be SendGrid or MicrosoftGraph.");
+        }
     }
 }

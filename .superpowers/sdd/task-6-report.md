@@ -1,152 +1,201 @@
-# Task 6 Report: Complete and failure-aware schema deployment
+# Task 6 Report: Migrate the five monitor composition roots
 
 ## Outcome
 
-- Status: `DONE_WITH_CONCERNS`
-- Intended commit: `fix: deploy required database repairs`
-- Live-provider closure: unavailable because `RVT_TEST_POSTGRES_CONNECTION`
-  is unset and Docker access could not be approved.
+- Status: `DONE`
+- Intended commit: `refactor: compose monitor communication providers explicitly`
+- Scope: AirQ, MyAtm, Omnidots, ReportingMonitor, Svantek, shared
+  `MonitorHost`, and the monitor source-boundary guard.
 
-## Implemented contract
+## RED evidence
 
-- `ScriptRunner` resolves one deterministic sequence for dry-run and execution:
-  `create_unmapped_schema.sql`, `restore_unmapped_column_defaults.sql`, then
-  ordinally sorted `post-load/*.sql`.
-- `RVT.SchemaDeploy.csproj` publishes the repair exactly once as
-  `sql/restore_unmapped_column_defaults.sql`.
-- The runner supports a caller-owned open `NpgsqlConnection`, allowing two
-  deployments to execute inside one provider-test transaction and roll back.
-- The repair retains the canonical UTC-naive default expression introduced by
-  Task 5 and remains idempotent.
-- `share-dev-database.sh` preserves the exact nonzero `pg_restore` status,
-  aborts before success verification on failure, and prints completion only
-  after valid nonzero public-table and hypertable counts.
+The provider-selection/composition tests were written before production
+changes for all five monitors. They require:
 
-## TDD evidence
+- missing provider configuration to resolve the SendGrid email adapter;
+- case-insensitive `MicrosoftGraph` to resolve the Microsoft Graph adapter;
+- `RVT:EMAIL_PROVIDER` to take precedence over literal
+  `RVT__EMAIL_PROVIDER`;
+- invalid selection to throw the exact safe message without the invalid value;
+- TransmitSMS, `INotificationDeliveryService`, and `IMessageService` to
+  resolve;
+- the selected email and TransmitSMS startup validators to succeed while both
+  channels are disabled.
 
-RED focused result: `4 failed, 4 passed, 2 provider-gated skipped`. The four
-expected failures proved the resolved list had three rather than four stages,
-publish content omitted the repair, `pg_restore` status 23 became success, and
-zero verification counts still returned success.
+The first parallel RED attempt was intentionally discarded as test evidence
+for four projects because their shared dependency outputs collided. Omnidots
+reached the expected missing-provider-reference compilation failure, while the
+other four included `CS2012` shared-`obj` file locks. All later .NET commands
+were run sequentially with `-m:1`.
 
-GREEN evidence:
+Clean sequential RED:
 
-- focused schema/repair slice: `8 passed, 2 provider-gated skipped`;
-- full portal project: `352 passed, 7 provider-gated skipped, 0 failed`;
-- `bash -n apps/portal/docs/deploy/share-dev-database.sh`: passed;
-- fake-Docker shell harness: exact status 23 propagated and verification was
-  skipped; zero counts failed; nonzero counts printed completion;
-- actual `dotnet publish` succeeded and contained the repair once;
-- portal solution build: succeeded with zero errors and only the five existing
-  `System.Security.Cryptography.Xml` NU1903 warnings;
+```text
+dotnet test apps/monitors/airqmonitor/AirQMonitorTests/AirQMonitorTests.csproj \
+  --no-restore --filter FullyQualifiedName~CommunicationsCompositionTests \
+  --nologo -m:1
+```
+
+Result: failed with `CS0234` for
+`Rvt.Communication.MicrosoftGraphMail`,
+`Rvt.Communication.SendGridMail`, and
+`Rvt.Communication.TransmitSms`. This proved the current
+Infrastructure-only host graph did not expose the provider projects required
+by the new composition contract.
+
+## Flow and signature changes
+
+- `MonitorHost.RunAsync` changed its optional callback from
+  `Action<IServiceCollection>` to
+  `Action<IServiceCollection, IConfiguration>`.
+- API mode invokes it with
+  `(apiBuilder.Services, apiBuilder.Configuration)`.
+- Quartz scheduler and one-shot modes invoke it with
+  `(services, context.Configuration)`.
+- All five `Program.cs` roots accept both callback parameters and pass the
+  configuration into their monitor registration extension.
+- Every direct test caller was migrated to pass its existing
+  `IConfiguration`; the focused `MonitorHostTests` caller was updated for the
+  new callback signature.
+
+## Explicit provider composition
+
+Each of the five `*MonitorServices.cs` roots now:
+
+1. calls `AddRvtCommunication()`;
+2. reads `RVT:EMAIL_PROVIDER`, then literal `RVT__EMAIL_PROVIDER`, then
+   defaults to `SendGrid`;
+3. matches `SendGrid` or `MicrosoftGraph` with
+   `StringComparison.OrdinalIgnoreCase`;
+4. calls the selected provider-owned registration method;
+5. throws
+   `InvalidOperationException("RVT__EMAIL_PROVIDER must be SendGrid or MicrosoftGraph.")`
+   for every other value;
+6. always calls `AddTransmitSms(configuration)`.
+
+The tests also set a valid hierarchical provider and an invalid literal
+fallback simultaneously, proving hierarchical-key precedence. Invalid-value
+tests use a sentinel string and assert exact message equality plus absence of
+the sentinel.
+
+## Project and boundary graph
+
+All five active host projects retain `Rvt.Monitor.Common`, remove
+`Rvt.Monitor.Common.Infrastructure`, and add exactly these five communication
+project references:
+
+- `Rvt.Communication.Abstractions`
+- `Rvt.Communication`
+- `Rvt.Communication.SendGridMail`
+- `Rvt.Communication.MicrosoftGraphMail`
+- `Rvt.Communication.TransmitSms`
+
+`CommonPackageBoundaryTests` and
+`scripts/verify-rvt-common-source-boundary.sh` now recognize and require this
+explicit graph, reject Infrastructure from active monitor hosts, reject direct
+communication package references in active applications, and retain the
+existing Portal/Infrastructure plus Portal/SendGrid graph for later tasks.
+No monitor solution or lock-file edit was necessary: the explicit project
+graph built with existing assets, and active locks do not retain direct RVT
+packages.
+
+The exact communication namespace caller manifest command returned no legacy
+callers:
+
+```text
+rg -l '^using Rvt\.Monitor\.Common\.Communications|MessageService\.MessageContent' \
+  apps/monitors --glob '*.cs' | sort
+```
+
+The active-host scan also returned no Infrastructure reference and no
+`AddMonitorCommunications` call.
+
+## GREEN and verification evidence
+
+Focused composition suites, all with `--no-restore --nologo -m:1`:
+
+- AirQ: 3 passed, 0 failed.
+- MyAtm: 3 passed, 0 failed.
+- Omnidots: 3 passed, 0 failed.
+- ReportingMonitor: 3 passed, 0 failed.
+- Svantek: 3 passed, 0 failed.
+- Total: 15 passed, 0 failed.
+
+Additional focused checks:
+
+- `MonitorHostTests`: 3 passed, 0 failed. Existing MSTest analyzer warnings
+  remain outside this change.
+- `CommonPackageBoundaryTests`: 12 passed, 0 failed.
+- `bash scripts/verify-rvt-common-source-boundary.sh`: passed.
 - `git diff --check`: passed.
 
-Provider-gated tests deploy twice through the same caller-owned PostgreSQL
-connection/transaction, compare canonical defaults, seed rows through EF, and
-fingerprint values/counts before and after the second run. They were discovered
-but did not execute, so live PostgreSQL idempotency is not claimed.
+All five individual host builds used `--no-restore --nologo -m:1` and passed
+with 0 warnings and 0 errors.
+
+Required aggregate build:
+
+```text
+dotnet build apps/monitors/rvt-monitors.sln --no-restore --nologo -m:1
+```
+
+Result: succeeded in 1.71 seconds with 0 errors. It retained one known NU1900
+warning from `Rvt.Monitor.IntegrationTesting` because NuGet vulnerability
+metadata at `api.nuget.org` was unreachable.
 
 ## Files changed
 
-- `apps/portal/RVT.SchemaDeploy/DeployOptions.cs`
-- `apps/portal/RVT.SchemaDeploy/Program.cs`
-- `apps/portal/RVT.SchemaDeploy/RVT.SchemaDeploy.csproj`
-- `apps/portal/RVT.SchemaDeploy/ScriptRunner.cs`
-- `apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj`
-- `apps/portal/RvtPortal.Spa.Tests/SchemaDeployTests.cs`
-- `apps/portal/RvtPortal.Spa.Tests/UnmappedColumnDefaultTests.cs`
-- `apps/portal/database/postgres/restore_unmapped_column_defaults.sql`
-- `apps/portal/docs/deploy/share-dev-database.sh`
-- `project_state.md`
-
-## Self-review and independent pre-commit review
-
-The implementer review found no Critical, Important, or Minor issues. It
-confirmed that dry-run and execution share one resolver, the caller-owned
-connection enlists commands and EF in one transaction, the provider test
-fingerprints data across the second run, shell failure propagation is exact,
-and Task 5 UTC SQL remains intact. Recommendation: run the provider-gated tests
-against a dedicated PostgreSQL test database because deployment DDL takes
-substantial locks.
-
-## Remaining concerns
-
-- Real PostgreSQL double-run/idempotency remains unverified.
-- The generated `apps/.nuget-packages/` cache is unrelated and must not be
-  committed.
-- Existing NU1903 advisories remain outside this task.
-
-## Parent review fix - 2026-07-23
-
-### Finding disposition
-
-The parent review found that the initial resolver could silently omit an
-individual required stage and proceed whenever at least one other script
-remained. That Important finding is fixed:
-
-- `ResolveScripts` now throws `DeployException` when
-  `create_unmapped_schema.sql` is absent;
-- it separately throws when `restore_unmapped_column_defaults.sql` is absent;
-- it requires the `post-load` stage to contain at least one real `*.sql` file;
-  an absent directory, empty directory, or AppleDouble-only directory cannot
-  satisfy the stage;
-- validation happens inside the one resolver used by dry-run, connection-string
-  execution, and caller-owned-connection execution, before output or connection
-  work;
-- when complete, the resolved list remains create, repair, then ordinally
-  sorted post-load scripts, exactly once.
-
-The Minor shell-test finding is also closed. The fake-Docker harness now
-executes these branches independently:
-
-- `5|0` rejects a zero TimescaleDB hypertable count;
-- `x|2` rejects a malformed public-table count;
-- `5|x` rejects a malformed hypertable count.
-
-The existing `0|0`, exact `pg_restore` status 23, abort-before-verification, and
-`5|2` completion controls remain.
-
-### Review-fix TDD evidence
-
-RED command:
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
-  --filter 'FullyQualifiedName~SchemaDeployTests|FullyQualifiedName~UnmappedColumnDefaultTests' \
-  --no-restore --nologo -m:1
-```
-
-Pre-production result: `6 failed, 11 passed, 2 skipped, 19 total`.
-
-All six failures were intended required-stage cases. Dry-run returned without
-an exception, while execution mode reached the invalid connection instead of
-reporting missing create, repair, or post-load. The three new shell branch
-cases passed at RED because they characterize defensive production branches
-that already existed.
-
-GREEN result for the same command: `17 passed, 0 failed, 2 skipped, 19 total`.
-The two skips are the provider-gated PostgreSQL cases.
-
-Final verification:
-
-- full portal suite: `361 passed, 0 failed, 7 skipped, 368 total`;
-- portal solution build: succeeded with `0` errors and the five existing
-  `System.Security.Cryptography.Xml` NU1903 advisories;
-- `bash -n apps/portal/docs/deploy/share-dev-database.sh`: passed;
-- actual `dotnet publish`: succeeded, included
-  `sql/restore_unmapped_column_defaults.sql` exactly once, and its executable
-  dry-run listed all seven scripts in canonical order;
-- `git diff --check`: passed.
-
-### Review-fix files
-
-- `apps/portal/RVT.SchemaDeploy/ScriptRunner.cs`
-- `apps/portal/RvtPortal.Spa.Tests/SchemaDeployTests.cs`
+- `libs/rvt-monitor-common/src/Rvt.Monitor.Common/Hosting/MonitorHost.cs`
+- `libs/rvt-monitor-common/tests/Rvt.Monitor.CommonTests/Hosting/MonitorHostTests.cs`
+- `apps/monitors/airqmonitor/AirQMonitor/Program.cs`
+- `apps/monitors/airqmonitor/AirQMonitor/api/AirQMonitorServices.cs`
+- `apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj`
+- `apps/monitors/airqmonitor/AirQMonitorTests/CommunicationsCompositionTests.cs`
+- `apps/monitors/myatmmonitor/MyAtmMonitor/Program.cs`
+- `apps/monitors/myatmmonitor/MyAtmMonitor/api/MyAtmMonitorServices.cs`
+- `apps/monitors/myatmmonitor/MyAtmMonitor/MyAtmMonitor.csproj`
+- `apps/monitors/myatmmonitor/MyAtmMonitorTests/CommunicationsCompositionTests.cs`
+- `apps/monitors/myatmmonitor/MyAtmMonitorTests/MyAtmMonitorServiceRegistrationTests.cs`
+- `apps/monitors/myatmmonitor/MyAtmMonitorTests/MyAtmOperationalConfigurationTests.cs`
+- `apps/monitors/myatmmonitor/MyAtmMonitorTests/Architecture/CommonPackageBoundaryTests.cs`
+- `apps/monitors/omnidotsmonitor/OmnidotsMonitor/Program.cs`
+- `apps/monitors/omnidotsmonitor/OmnidotsMonitor/api/OmnidotsMonitorServices.cs`
+- `apps/monitors/omnidotsmonitor/OmnidotsMonitor/OmnidotsMonitor.csproj`
+- `apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/Architecture/CommunicationsCompositionTests.cs`
+- `apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/Architecture/OmnidotsAlertArchitectureTests.cs`
+- `apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/Config/OmnidotsApiSecurityOptionsTests.cs`
+- `apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/EntityFramework/OmnidotsWebhookEndToEndTests.cs`
+- `apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/TestMonitorJobScheduling.cs`
+- `apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/UseCases/MonitoringHandlerTests.cs`
+- `apps/monitors/reportingmonitor/ReportingMonitor/Program.cs`
+- `apps/monitors/reportingmonitor/ReportingMonitor/api/ReportingMonitorServices.cs`
+- `apps/monitors/reportingmonitor/ReportingMonitor/ReportingMonitor.csproj`
+- `apps/monitors/reportingmonitor/ReportingMonitorTests/CommunicationsCompositionTests.cs`
+- `apps/monitors/reportingmonitor/ReportingMonitorTests/TestReportingFixture.cs`
+- `apps/monitors/svantekmonitor/SvantekMonitor/Program.cs`
+- `apps/monitors/svantekmonitor/SvantekMonitor/api/SvantekMonitorServices.cs`
+- `apps/monitors/svantekmonitor/SvantekMonitor/SvantekMonitor.csproj`
+- `apps/monitors/svantekmonitor/SvantekMonitorTests/CommunicationsCompositionTests.cs`
+- `apps/monitors/svantekmonitor/SvantekMonitorTests/SvantekImportOptionsTests.cs`
+- `apps/monitors/svantekmonitor/SvantekMonitorTests/SvantekJobCancellationTests.cs`
+- `scripts/verify-rvt-common-source-boundary.sh`
 - `project_state.md`
 - `.superpowers/sdd/task-6-report.md`
 
-### Remaining concern
+## Self-review and concerns
 
-`RVT_TEST_POSTGRES_CONNECTION` remains unset. The transaction-scoped
-double-run/idempotency test is still discovered but was not executed against a
-live PostgreSQL provider, so deployed-schema closure remains unclaimed.
+Self-review found no Critical, Important, or Minor implementation issue:
+
+- all three host modes use their effective configuration object;
+- all roots implement the exact precedence, default, case-insensitive match,
+  and safe failure contract;
+- provider-owned adapters and startup validators remain resolvable while
+  disabled;
+- each active host has one Common and exactly five communication references;
+- no active monitor source or project file depends on Infrastructure;
+- unrelated untracked `.codegraph`, package-cache, Portal duplicate, and
+  suffixed files remain unstaged.
+
+Non-blocking environmental concern: the aggregate build could not retrieve
+NuGet vulnerability metadata and emitted the existing NU1900 warning. No
+restore was attempted or required, and compilation/test results were
+otherwise complete.

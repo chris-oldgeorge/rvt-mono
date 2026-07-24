@@ -15,7 +15,11 @@
 
   <ItemGroup>
     <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj" />
-    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj" />
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj" />
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj" />
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj" />
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj" />
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj" />
     <ProjectReference Include="..\Rvt.Reporting.Core\Rvt.Reporting.Core.csproj" />
     <ProjectReference Include="..\Rvt.Reporting.Pdf\Rvt.Reporting.Pdf.csproj" />
     <ProjectReference Include="..\Rvt.Reporting.Storage\Rvt.Reporting.Storage.csproj" />

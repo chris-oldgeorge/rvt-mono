@@ -422,7 +422,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.Api));
         services.AddLogging();
-        services.AddOmnidotsMonitor();
+        services.AddOmnidotsMonitor(configuration);
         using var provider = services.BuildServiceProvider();
         return provider.GetRequiredService<OmnidotsApiSecurityOptions>();
     }

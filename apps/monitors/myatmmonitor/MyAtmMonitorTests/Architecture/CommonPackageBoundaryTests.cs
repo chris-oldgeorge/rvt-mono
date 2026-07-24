@@ -9,36 +9,63 @@ public sealed class CommonPackageBoundaryTests
     private const string ExpectedRvtVersion = "0.2.0-rc.1";
     private const string CommonProject = "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj";
     private const string InfrastructureProject = "libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj";
+    private const string CommunicationAbstractionsProject = "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj";
+    private const string CommunicationProject = "libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj";
+    private const string SendGridMailProject = "libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj";
+    private const string MicrosoftGraphMailProject = "libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj";
+    private const string TransmitSmsProject = "libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj";
     private const string IntegrationTestingProject = "libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj";
 
     private static readonly string[] RvtPackageIds =
     [
         "Rvt.Monitor.Common",
         "Rvt.Monitor.Common.Infrastructure",
+        "Rvt.Communication.Abstractions",
+        "Rvt.Communication",
+        "Rvt.Communication.SendGridMail",
+        "Rvt.Communication.MicrosoftGraphMail",
+        "Rvt.Communication.TransmitSms",
         "Rvt.Monitor.IntegrationTesting"
+    ];
+
+    private static readonly string[] MonitorCommunicationProjects =
+    [
+        CommunicationAbstractionsProject,
+        CommunicationProject,
+        SendGridMailProject,
+        MicrosoftGraphMailProject,
+        TransmitSmsProject
+    ];
+
+    private static readonly string[] RvtSourceProjects =
+    [
+        CommonProject,
+        InfrastructureProject,
+        .. MonitorCommunicationProjects,
+        IntegrationTestingProject
     ];
 
     private static readonly IReadOnlyDictionary<string, string[]> ExpectedSourceReferences =
         new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj"] =
-                [CommonProject, InfrastructureProject],
+                [CommonProject, .. MonitorCommunicationProjects],
             ["apps/monitors/airqmonitor/AirQMonitorTests/AirQMonitorTests.csproj"] =
                 [IntegrationTestingProject],
             ["apps/monitors/myatmmonitor/MyAtmMonitor/MyAtmMonitor.csproj"] =
-                [CommonProject, InfrastructureProject],
+                [CommonProject, .. MonitorCommunicationProjects],
             ["apps/monitors/myatmmonitor/MyAtmMonitorTests/MyAtmMonitorTests.csproj"] =
                 [IntegrationTestingProject],
             ["apps/monitors/omnidotsmonitor/OmnidotsMonitor/OmnidotsMonitor.csproj"] =
-                [CommonProject, InfrastructureProject],
+                [CommonProject, .. MonitorCommunicationProjects],
             ["apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/OmnidotsMonitorTests.csproj"] =
                 [IntegrationTestingProject],
             ["apps/monitors/svantekmonitor/SvantekMonitor/SvantekMonitor.csproj"] =
-                [CommonProject, InfrastructureProject],
+                [CommonProject, .. MonitorCommunicationProjects],
             ["apps/monitors/svantekmonitor/SvantekMonitorTests/SvantekMonitorTests.csproj"] =
                 [IntegrationTestingProject],
             ["apps/monitors/reportingmonitor/ReportingMonitor/ReportingMonitor.csproj"] =
-                [CommonProject, InfrastructureProject],
+                [CommonProject, .. MonitorCommunicationProjects],
             ["apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj"] =
                 [CommonProject, IntegrationTestingProject],
             ["apps/monitors/reportingmonitor/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj"] =
@@ -46,7 +73,7 @@ public sealed class CommonPackageBoundaryTests
             ["apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj"] =
                 [CommonProject],
             ["apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj"] =
-                [InfrastructureProject]
+                [InfrastructureProject, SendGridMailProject]
         };
 
     [TestMethod]
@@ -206,10 +233,7 @@ public sealed class CommonPackageBoundaryTests
             .Select(element => (string?)element.Attribute("Include"))
             .Where(include => !string.IsNullOrWhiteSpace(include))
             .Select(include => ResolveProjectReference(root, projectPath, include!))
-            .Where(reference =>
-                string.Equals(reference, CommonProject, StringComparison.Ordinal) ||
-                string.Equals(reference, InfrastructureProject, StringComparison.Ordinal) ||
-                string.Equals(reference, IntegrationTestingProject, StringComparison.Ordinal))
+            .Where(reference => RvtSourceProjects.Contains(reference, StringComparer.Ordinal))
             .Order(StringComparer.Ordinal)
             .ToArray();
         var expected = expectedReferences.Order(StringComparer.Ordinal).ToArray();

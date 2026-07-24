@@ -15,4 +15,5 @@ return await MonitorHost.RunAsync<OmnidotsMonitorJobDispatcher>(
     MonitorJobRunner.GetJobName,
     (jobName, services) => MonitorJobRunner.RunAsync(jobName, services),
     app => app.MapOmnidotsMonitorApi(),
-    configureServices: services => services.AddOmnidotsMonitor());
+    configureServices: (services, configuration) =>
+        services.AddOmnidotsMonitor(configuration));

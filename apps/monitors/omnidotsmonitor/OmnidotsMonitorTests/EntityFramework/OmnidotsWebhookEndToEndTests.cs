@@ -120,7 +120,7 @@ public sealed class OmnidotsWebhookEndToEndTests
             [$"{OmnidotsApiSecurityOptions.SectionName}:ConfigureConcurrencyLimit"] = "2"
         });
         builder.Services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.Api));
-        builder.Services.AddOmnidotsMonitor();
+        builder.Services.AddOmnidotsMonitor(builder.Configuration);
         builder.Services.Replace(ServiceDescriptor.Singleton<IMonitorDbContextFactory<OmnidotsMonitorContext>>(
             new OmnidotsMonitorContextFactory(
                 database!.ConnectionString,

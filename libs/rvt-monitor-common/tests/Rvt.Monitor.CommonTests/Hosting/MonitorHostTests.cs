@@ -27,7 +27,7 @@ public sealed class MonitorHostTests
                 return Task.FromResult(7);
             },
             _ => Assert.Fail("API mapping should not run for one-shot jobs."),
-            configureServices: services => services.AddSingleton<TestMarkerService>());
+            configureServices: (services, _) => services.AddSingleton<TestMarkerService>());
 
         Assert.AreEqual(7, exitCode);
         Assert.AreEqual("StoreMonitors", observedJobName);

@@ -16,4 +16,5 @@ return await MonitorHost.RunAsync<MyAtmMonitorJobDispatcher>(
     MonitorJobRunner.GetJobName,
     (jobName, services) => MonitorJobRunner.RunAsync(jobName, services.GetRequiredService<MyAtmService>()),
     app => app.MapMyAtmMonitorApi(),
-    configureServices: services => services.AddMyAtmMonitor());
+    configureServices: (services, configuration) =>
+        services.AddMyAtmMonitor(configuration));

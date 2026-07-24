@@ -20,14 +20,15 @@ public sealed class MyAtmMonitorServiceRegistrationTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
+        var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["MyAtmVendor:BaseUrl"] = "https://vendor.example/",
                 ["MyAtmVendor:ApiKey"] = "test-key"
             })
-            .Build());
-        services.AddMyAtmMonitor();
+            .Build();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddMyAtmMonitor(configuration);
         var dbClient = new Mock<IDBClient>();
         services.AddSingleton(dbClient.Object);
         services.AddSingleton(new Mock<IMqttClient>().Object);

@@ -41,7 +41,7 @@ public static class MonitorHost
         Func<string, IServiceProvider, Task<int>> runJobAsync,
         Action<WebApplication> mapApi,
         Action<ILoggingBuilder>? configureLogging = null,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection, IConfiguration>? configureServices = null)
         where TDispatcher : class, IMonitorJobDispatcher
     {
         var configuration = BuildConfiguration(args);
@@ -84,7 +84,7 @@ public static class MonitorHost
             MonitorOpenTelemetry.ConfigureServices(apiBuilder.Services, apiBuilder.Configuration, monitorName);
             apiBuilder.Services.AddSingleton<IMonitorRuntimeDefaultsResolver>(new MonitorRuntimeDefaultsResolver(monitorName));
             apiBuilder.Services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.Api));
-            configureServices?.Invoke(apiBuilder.Services);
+            configureServices?.Invoke(apiBuilder.Services, apiBuilder.Configuration);
 
             if (schedulerEnabled)
             {
@@ -106,7 +106,7 @@ public static class MonitorHost
                     MonitorOpenTelemetry.ConfigureServices(services, context.Configuration, monitorName);
                     services.AddSingleton<IMonitorRuntimeDefaultsResolver>(new MonitorRuntimeDefaultsResolver(monitorName));
                     services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.QuartzScheduler));
-                    configureServices?.Invoke(services);
+                    configureServices?.Invoke(services, context.Configuration);
                     services.AddMonitorQuartzScheduler<TDispatcher>(context.Configuration, monitorName);
                 })
                 .ConfigureLogging((context, logging) =>
@@ -129,7 +129,7 @@ public static class MonitorHost
         IConfiguration configuration,
         string monitorName,
         Action<ILoggingBuilder>? configureLogging,
-        Action<IServiceCollection>? configureServices)
+        Action<IServiceCollection, IConfiguration>? configureServices)
     {
         return Host.CreateDefaultBuilder(args)
             .ConfigureAppConfiguration(builder => builder.AddConfiguration(configuration))
@@ -138,7 +138,7 @@ public static class MonitorHost
                 MonitorOpenTelemetry.ConfigureServices(services, context.Configuration, monitorName);
                 services.AddSingleton<IMonitorRuntimeDefaultsResolver>(new MonitorRuntimeDefaultsResolver(monitorName));
                 services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.OneShot));
-                configureServices?.Invoke(services);
+                configureServices?.Invoke(services, context.Configuration);
             })
             .ConfigureLogging((context, logging) =>
             {

@@ -20,8 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Rvt.Reporting.Service\Rvt.Reporting.Service.csproj" />
     <ProjectReference Include="..\..\src\Rvt.Reporting.Core\Rvt.Reporting.Core.csproj" />
+    <ProjectReference Include="..\..\src\Rvt.Reporting.Messaging\Rvt.Reporting.Messaging.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj" />
+    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj" />
     <ProjectReference Include="..\Rvt.Reporting.Core\Rvt.Reporting.Core.csproj" />
   </ItemGroup>
 

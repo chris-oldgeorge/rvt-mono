@@ -82,7 +82,11 @@ reject_active_package_references() {
       if grep -Eq "<PackageReference[[:space:]][^>]*Include=\"${package}\"" "${project}"; then
         fail "${project#"${repo_root}/"} must not reference ${package} as a package"
       fi
-    done < <(find "${repo_root}/apps/monitors" "${repo_root}/apps/portal" -name '*.csproj' -print0)
+    done < <(find \
+      "${repo_root}/apps/monitors" \
+      "${repo_root}/apps/portal" \
+      "${repo_root}/services/reporting" \
+      -name '*.csproj' -print0)
   done
 }
 
@@ -92,6 +96,15 @@ require_package_reference() {
   require_file "${project}" || return 0
   if ! has_package_reference "${project}" "${package}"; then
     fail "${project} must retain PackageReference to ${package}"
+  fi
+}
+
+reject_package_reference() {
+  local project="$1"
+  local package="$2"
+  require_file "${project}" || return 0
+  if has_package_reference "${project}" "${package}"; then
+    fail "${project} must not reference package ${package}"
   fi
 }
 
@@ -119,11 +132,19 @@ for project in \
   reject_project_reference "${project}" "${infrastructure_project}"
 done
 
-for project in \
+require_project_reference \
   apps/monitors/reportingmonitor/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
-  apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj; do
-  require_project_reference "${project}" "${common_project}"
-done
+  "${communication_abstractions_project}"
+reject_project_reference \
+  apps/monitors/reportingmonitor/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
+  "${common_project}"
+reject_package_reference \
+  apps/monitors/reportingmonitor/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
+  SendGrid
+
+require_project_reference \
+  apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj \
+  "${common_project}"
 
 require_project_reference apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj "${common_project}"
 require_project_reference apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj "${integration_testing_project}"
@@ -136,8 +157,19 @@ for project in \
   require_project_reference "${project}" "${integration_testing_project}"
 done
 
-require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${infrastructure_project}"
+require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${communication_abstractions_project}"
 require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${sendgrid_mail_project}"
+reject_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${infrastructure_project}"
+
+require_project_reference \
+  services/reporting/src/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
+  "${communication_abstractions_project}"
+reject_package_reference \
+  services/reporting/src/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
+  SendGrid
+require_project_reference \
+  services/reporting/src/Rvt.Reporting.Service/Rvt.Reporting.Service.csproj \
+  "${sendgrid_mail_project}"
 reject_active_package_references
 
 runtime_consumer=libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj

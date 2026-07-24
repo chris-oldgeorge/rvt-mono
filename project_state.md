@@ -1,5 +1,48 @@
 # Project State
 
+## Communication provider Task 7 - Portal and reporting mail migration - 2026-07-24 (complete)
+
+- The Portal host now source-references only
+  `Rvt.Communication.Abstractions` and `Rvt.Communication.SendGridMail` for
+  communication. It retains the existing `PortalEmailOptions` binding and
+  explicitly maps the existing `EmailConfiguration` keys into
+  `SendGridMailOptions`; the manual Infrastructure, SendGrid factory, and
+  concrete adapter registrations are removed.
+- The Portal `RvtCommonEmailDelivery` adapter remains the translation seam
+  between the business-layer `IEmailDelivery` result contract and
+  `IEmailDeliveryPort`. Focused tests cover request mapping, the existing
+  debug-recipient override, typed provider-failure translation, and caller
+  cancellation.
+- The monitor reporting messaging project now references only Communication
+  Abstractions for email delivery. Its existing attachment mapping,
+  disabled/test-recipient behavior, cancellation, and result semantics are
+  preserved.
+- The containerized reporting messaging project no longer references or
+  constructs the SendGrid SDK. Its provider-neutral `ReportMessageSender`
+  sends one `EmailAttachment` through `IEmailDeliveryPort`, while the service
+  host explicitly registers SendGridMail from the existing `RVT:EMAIL_*` and
+  `RVT:SENDGRID_API_KEY` settings.
+- The root source-boundary guard now enforces the Task 7 graph for the Portal,
+  monitor reporting messaging, and containerized reporting projects. The two
+  monitor lock files updated by restore reflect the active provider graph and
+  removal of the old Infrastructure/Common messaging edges.
+- Verification: Portal focused tests passed 12/12 through a temporary MSBuild
+  import that excluded only the two preserved untracked duplicate `* 2.cs`
+  files; monitor reporting sender tests passed 7/7; containerized reporting
+  sender tests passed 6/6; the source-boundary guard and its regression harness
+  passed; and scoped Portal, monitor-reporting, and service-reporting builds
+  completed with zero compiler warnings and errors. Portal test restore/test
+  output retained five existing NU1903 advisories for
+  `System.Security.Cryptography.Xml` 10.0.7.
+- Future pending work remains out of scope: unify Portal blob storage
+  client/service use through `IObjectStorageClientFactory`; migrate
+  customer-logo storage; decide the independent reporting-service Azure
+  storage path; migrate the legacy Portal storage utility; dynamic provider
+  plugins; external-consumer compatibility tooling; notification content or
+  business changes; public API or persisted-record changes; removal of the
+  legacy synchronous `IMessageService`; and later database, MQTT, scheduling,
+  and observability dependency-boundary reviews.
+
 ## Communication provider Task 6 - monitor composition roots - 2026-07-24 (complete)
 
 - `MonitorHost.RunAsync` now passes the effective `IConfiguration` to its

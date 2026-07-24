@@ -1,9 +1,10 @@
 using Npgsql;
 using Quartz;
+using Rvt.Communication.SendGridMail;
 using Rvt.Reporting.Core.Reports;
 using Rvt.Reporting.Core.Scheduling;
 using Rvt.Reporting.Data.Postgres;
-using Rvt.Reporting.Messaging.SendGrid;
+using Rvt.Reporting.Messaging;
 using Rvt.Reporting.Pdf.Documents;
 using Rvt.Reporting.Service.Api;
 using Rvt.Reporting.Service.Scheduling;
@@ -20,7 +21,7 @@ builder.Services.AddScoped<IReportGenerationService, ReportGenerationService>();
 builder.Services.AddScoped<IReportingRepository, PostgresReportingRepository>();
 builder.Services.AddScoped<IReportPdfRenderer, QuestPdfReportRenderer>();
 builder.Services.AddScoped<IReportStorage, AzureBlobReportStorage>();
-builder.Services.AddScoped<IReportMessageSender, SendGridReportMessageSender>();
+builder.Services.AddScoped<IReportMessageSender, ReportMessageSender>();
 builder.Services.AddHttpClient<ICustomerLogoProvider, SpaCustomerLogoClient>();
 builder.Services.AddHttpClient<IReportNarrativeProvider, OllamaReportNarrativeProvider>();
 
@@ -35,14 +36,19 @@ builder.Services.Configure<AzureBlobReportStorageOptions>(options =>
     options.ContainerName = builder.Configuration["RVT:BLOB_REPORT_CONTAINER_NAME"] ?? options.ContainerName;
 });
 
-builder.Services.Configure<SendGridReportMessageOptions>(options =>
+var emailEnabled = builder.Configuration.GetValue("RVT:EMAIL_ENABLED", true);
+builder.Services.Configure<ReportMessageSenderOptions>(options =>
 {
-    options.EmailEnabled = builder.Configuration.GetValue("RVT:EMAIL_ENABLED", true);
+    options.EmailEnabled = emailEnabled;
     options.EmailTestMode = builder.Configuration.GetValue("RVT:EMAIL_TEST_MODE", false);
     options.TestReportToEmail = builder.Configuration["RVT:EMAIL_TEST_REPORT_TO_EMAIL"];
-    options.FromEmail = builder.Configuration["RVT:EMAIL_ALERT_FROM_EMAIL"] ?? options.FromEmail;
-    options.FromName = builder.Configuration["RVT:EMAIL_ALERT_FROM_NAME"] ?? options.FromName;
-    options.ApiKey = builder.Configuration["RVT:SENDGRID_API_KEY"];
+});
+builder.Services.AddSendGridMail(new SendGridMailOptions
+{
+    Enabled = emailEnabled,
+    ApiKey = builder.Configuration["RVT:SENDGRID_API_KEY"] ?? string.Empty,
+    FromEmail = builder.Configuration["RVT:EMAIL_ALERT_FROM_EMAIL"] ?? "NoReply@rvtgroup.co.uk",
+    FromName = builder.Configuration["RVT:EMAIL_ALERT_FROM_NAME"] ?? "RVT Cloud"
 });
 
 builder.Services.Configure<InternalApiOptions>(options =>

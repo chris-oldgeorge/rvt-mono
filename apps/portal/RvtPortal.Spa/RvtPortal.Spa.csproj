@@ -33,9 +33,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Shared RVT common email/notification adapters. Host-only: the business core depends on its own
-         IEmailDelivery port, never on this project (enforced by RvtCommonDependencyBoundaryTests). -->
-    <ProjectReference Include="../../../libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj" />
+    <!-- Host-only communication adapter seam: the business core depends on its own IEmailDelivery port. -->
+    <ProjectReference Include="../../../libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj" />
     <ProjectReference Include="../../../libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj" />
     <ProjectReference Include="..\RVT.BusinessLogic\RVT.BusinessLogic.csproj" />
     <ProjectReference Include="..\RVT.DataAccess\RVT.DataAccess.csproj" />

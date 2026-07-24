@@ -601,8 +601,12 @@
         "dependencies": {
           "Microsoft.EntityFrameworkCore": "[10.0.4, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.2, )",
+          "Rvt.Communication": "[0.2.0-rc.1, )",
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )",
+          "Rvt.Communication.MicrosoftGraphMail": "[0.2.0-rc.1, )",
+          "Rvt.Communication.SendGridMail": "[0.2.0-rc.1, )",
+          "Rvt.Communication.TransmitSms": "[0.2.0-rc.1, )",
           "Rvt.Monitor.Common": "[0.2.0-rc.1, )",
-          "Rvt.Monitor.Common.Infrastructure": "[0.2.0-rc.1, )",
           "Rvt.Reporting.Core": "[1.0.0, )",
           "Rvt.Reporting.Messaging": "[1.0.0, )",
           "Rvt.Reporting.Pdf": "[1.0.0, )",
@@ -618,6 +622,26 @@
       },
       "rvt.communication.abstractions": {
         "type": "Project"
+      },
+      "rvt.communication.microsoftgraphmail": {
+        "type": "Project",
+        "dependencies": {
+          "Azure.Identity": "[1.15.0, )",
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
+        }
+      },
+      "rvt.communication.sendgridmail": {
+        "type": "Project",
+        "dependencies": {
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )",
+          "SendGrid": "[9.29.3, )"
+        }
+      },
+      "rvt.communication.transmitsms": {
+        "type": "Project",
+        "dependencies": {
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
+        }
       },
       "rvt.monitor.common": {
         "type": "Project",
@@ -642,15 +666,6 @@
           "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
         }
       },
-      "rvt.monitor.common.infrastructure": {
-        "type": "Project",
-        "dependencies": {
-          "Azure.Identity": "[1.15.0, )",
-          "Rvt.Communication": "[0.2.0-rc.1, )",
-          "Rvt.Monitor.Common": "[0.2.0-rc.1, )",
-          "SendGrid": "[9.29.3, )"
-        }
-      },
       "rvt.monitor.integrationtesting": {
         "type": "Project",
         "dependencies": {
@@ -667,7 +682,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Options": "[10.0.9, )",
-          "Rvt.Monitor.Common": "[0.2.0-rc.1, )",
+          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )",
           "Rvt.Reporting.Core": "[1.0.0, )"
         }
       },

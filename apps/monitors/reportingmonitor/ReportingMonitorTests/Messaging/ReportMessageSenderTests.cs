@@ -8,6 +8,35 @@ namespace ReportingMonitorTests.Messaging;
 public sealed class ReportMessageSenderTests
 {
     [Fact]
+    public void MessagingProject_ReferencesCommunicationAbstractionsWithoutCommonOrSendGrid()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var projectPath = Path.Combine(
+            repositoryRoot,
+            "apps",
+            "monitors",
+            "reportingmonitor",
+            "Rvt.Reporting.Messaging",
+            "Rvt.Reporting.Messaging.csproj");
+        var project = System.Xml.Linq.XDocument.Load(projectPath);
+        var references = project.Descendants()
+            .Where(element => element.Name.LocalName is "ProjectReference" or "PackageReference")
+            .Select(element => (string?)element.Attribute("Include"))
+            .Where(reference => reference is not null)
+            .Select(reference => reference!.Replace('\\', '/'))
+            .ToArray();
+
+        Assert.Contains(references, reference =>
+            reference.EndsWith(
+                "Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj",
+                StringComparison.Ordinal));
+        Assert.DoesNotContain(references, reference =>
+            reference.Contains("Rvt.Monitor.Common", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(references, reference =>
+            reference.Contains("SendGrid", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task SendAsync_MapsReportAndExistingMessageContentToEmailPort()
     {
         var port = new RecordingEmailPort();
@@ -110,6 +139,21 @@ public sealed class ReportMessageSenderTests
 
     private static RenderedReport Report() =>
         new("report.pdf", "application/pdf", [1, 2, 3, 4]);
+
+    private static string FindRepositoryRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory);
+             directory is not null;
+             directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "Rvt.Mono.slnx")))
+            {
+                return directory.FullName;
+            }
+        }
+
+        throw new DirectoryNotFoundException("Could not locate the RVT mono-repository root.");
+    }
 
     private sealed class RecordingEmailPort : IEmailDeliveryPort
     {

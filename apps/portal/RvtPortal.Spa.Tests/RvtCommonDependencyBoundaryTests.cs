@@ -71,25 +71,60 @@ public sealed class RvtCommonDependencyBoundaryTests
     }
 
     [Fact]
-    public void HostAdapter_UsesInfrastructureSourceWithoutRvtPackageReferences()
+    public void HostAdapter_UsesOnlyApprovedCommunicationAdapterProjects()
     {
         var projectPath = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa", "RvtPortal.Spa.csproj");
         var project = System.Xml.Linq.XDocument.Load(projectPath);
         var packageReferences = project.Descendants()
             .Where(element => element.Name.LocalName == "PackageReference")
             .Select(element => (string?)element.Attribute("Include"))
-            .Where(package => package?.StartsWith("Rvt.Monitor.", StringComparison.OrdinalIgnoreCase) == true)
+            .Where(package => package?.StartsWith("Rvt.", StringComparison.OrdinalIgnoreCase) == true)
             .ToArray();
         var sourceReferences = project.Descendants()
             .Where(element => element.Name.LocalName == "ProjectReference")
             .Select(element => (string?)element.Attribute("Include"))
-            .Where(reference => reference?.Replace('\\', '/').EndsWith(
-                "libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj",
-                StringComparison.Ordinal) == true)
+            .Where(reference => reference?.Contains(
+                "libs/rvt-monitor-common/src/",
+                StringComparison.OrdinalIgnoreCase) == true)
+            .Select(reference => Path.GetFileNameWithoutExtension(reference!)
+                ?? throw new InvalidOperationException("Project reference did not have a file name."))
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
         Assert.Empty(packageReferences);
-        Assert.Single(sourceReferences);
+        Assert.Equal(
+            ["Rvt.Communication.Abstractions", "Rvt.Communication.SendGridMail"],
+            sourceReferences);
+    }
+
+    [Fact]
+    public void HostAdapter_DoesNotUseUnapprovedProviderNamespaces()
+    {
+        var hostRoot = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa");
+        string[] forbiddenMarkers =
+        [
+            "using Rvt.Communication;",
+            "Rvt.Communication.MicrosoftGraphMail",
+            "Rvt.Communication.TransmitSms",
+            "Rvt.Monitor.Common.Infrastructure",
+            "Amazon.S3",
+            "Rvt.Storage.S3"
+        ];
+
+        var offenders = Directory.EnumerateFiles(hostRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Where(path => !Path.GetFileName(path).Contains(" 2.", StringComparison.Ordinal))
+            .SelectMany(path => File.ReadLines(path)
+                .Select((line, index) => (line, index))
+                .Where(candidate => forbiddenMarkers.Any(marker =>
+                    candidate.line.Contains(marker, StringComparison.Ordinal)))
+                .Select(candidate =>
+                    $"{Path.GetRelativePath(hostRoot, path)}:{candidate.index + 1}:{candidate.line.Trim()}"))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(offenders);
     }
 
     [Fact]

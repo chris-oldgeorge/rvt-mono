@@ -1,6 +1,6 @@
 // File summary: Outbound email adapter delivering account emails through the shared RVT common email port.
 // Major updates:
-// - 2026-07-17 pending Swapped the portal's own SendGrid client for the shared Rvt.Monitor.Common email adapter.
+// - 2026-07-24 Completed the clean split to the shared communication abstraction and host-selected SendGrid adapter.
 //   The seam worked as designed: the core port (RVT.BusinessLogic.Ports.Notifications.IEmailDelivery) is unchanged,
 //   so AccountMessenger, the auth/user workflows, and their error handling were not touched by this swap.
 // - 2026-07-15 pending Moved SendGrid delivery out of RVT.Utilities.EmailSender behind the IEmailDelivery port.
@@ -13,7 +13,7 @@ using Rvt.Communication.Abstractions;
 namespace RvtPortal.Spa.Adapters.Notifications;
 
 // Portal-side email settings bound from the existing "EmailConfiguration" section. Property names are preserved
-// so deployed configuration keys are unchanged; they are mapped onto the shared CommunicationsOptions at startup.
+// so deployed configuration keys and the existing debug-recipient behavior remain unchanged.
 public sealed class PortalEmailOptions
 {
     public bool UseDebugEmail { get; set; }

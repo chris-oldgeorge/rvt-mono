@@ -21,7 +21,9 @@
   constructs the SendGrid SDK. Its provider-neutral `ReportMessageSender`
   sends one `EmailAttachment` through `IEmailDeliveryPort`, while the service
   host explicitly registers SendGridMail from the existing `RVT:EMAIL_*` and
-  `RVT:SENDGRID_API_KEY` settings.
+  `RVT:SENDGRID_API_KEY` settings. Disabled email remains a successful no-op
+  even when the supplied cancellation token was already cancelled, preserving
+  the legacy containerized sender behavior.
 - The root source-boundary guard now enforces the Task 7 graph for the Portal,
   monitor reporting messaging, and containerized reporting projects. The two
   monitor lock files updated by restore reflect the active provider graph and
@@ -29,7 +31,7 @@
 - Verification: Portal focused tests passed 12/12 through a temporary MSBuild
   import that excluded only the two preserved untracked duplicate `* 2.cs`
   files; monitor reporting sender tests passed 7/7; containerized reporting
-  sender tests passed 6/6; the source-boundary guard and its regression harness
+  sender tests passed 7/7; the source-boundary guard and its regression harness
   passed; and scoped Portal, monitor-reporting, and service-reporting builds
   completed with zero compiler warnings and errors. Portal test restore/test
   output retained five existing NU1903 advisories for

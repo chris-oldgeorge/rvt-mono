@@ -14,7 +14,9 @@ the clean communication project boundaries:
 
 The provider-neutral senders preserve disabled mode, test-recipient override,
 attachment mapping, typed failure translation, safe untyped-failure
-translation, and caller cancellation. No storage implementation was changed.
+translation, and caller cancellation. The containerized sender also preserves
+the legacy successful disabled no-op when the supplied token is already
+cancelled. No storage implementation was changed.
 
 ## CodeGraph orientation
 
@@ -131,7 +133,7 @@ Result: passed 7/7 in 3.5 seconds.
 dotnet test services/reporting/tests/Rvt.Reporting.Service.Tests/Rvt.Reporting.Service.Tests.csproj --filter FullyQualifiedName~ReportMessageSenderTests --nologo
 ```
 
-Result: passed 6/6 in 4.0 seconds.
+Result: passed 7/7 after the review correction described below.
 
 ```bash
 bash scripts/verify-rvt-common-source-boundary.sh
@@ -167,6 +169,49 @@ An optional `dotnet list <messaging-project> package` command stalled while
 restoring and was cancelled after 60 seconds. It was not rerun; required tests,
 compiled assembly assertions, source-boundary guards, and builds had already
 verified removal of the direct SendGrid dependency.
+
+## Review correction: disabled email and pre-cancelled callers
+
+Independent review found that the first Task 7 implementation checked caller
+cancellation before the disabled-email branch. The legacy containerized sender
+returned the successful disabled result without observing cancellation.
+
+The regression test was added first:
+
+```bash
+dotnet test services/reporting/tests/Rvt.Reporting.Service.Tests/Rvt.Reporting.Service.Tests.csproj --filter FullyQualifiedName~SendAsync_DisabledIgnoresPreCancelledCallerToken --no-restore --nologo
+```
+
+RED result: exited 1 in 2.8 seconds with the expected
+`OperationCanceledException` from `ReportMessageSender.cs:23`.
+
+The minimal production correction moved
+`cancellationToken.ThrowIfCancellationRequested()` after the disabled-email
+return. Verification after the correction:
+
+```bash
+dotnet test services/reporting/tests/Rvt.Reporting.Service.Tests/Rvt.Reporting.Service.Tests.csproj --filter FullyQualifiedName~ReportMessageSenderTests --no-restore --nologo
+dotnet test apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj --filter FullyQualifiedName~ReportMessageSenderTests --no-restore --nologo
+dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~RvtCommonDependencyBoundaryTests|FullyQualifiedName~RvtCommonEmailDeliveryTests' --no-restore --nologo -p:CustomAfterMicrosoftCommonTargets=/private/tmp/rvt-task7-exclude-portal-duplicates.targets
+bash scripts/verify-rvt-common-source-boundary.sh
+bash tests/verify-rvt-common-source-boundary.test.sh
+dotnet build services/reporting/src/Rvt.Reporting.Service/Rvt.Reporting.Service.csproj --no-restore -m:1 --nologo
+```
+
+Results:
+
+- Containerized reporting sender: 7/7 passed in 2.7 seconds.
+- Monitor reporting sender: 7/7 passed in 1.5 seconds.
+- Portal focused suite: 12/12 passed in 4.8 seconds; existing NU1903
+  advisories only.
+- Source-boundary guard and regression harness: passed.
+- Single-node scoped service build: succeeded with 0 warnings and 0 errors in
+  0.7 seconds.
+
+The first post-review service-build attempt was chained after the boundary
+guards and stalled without build output. It was stopped at the 60-second bound.
+The identical no-restore build completed immediately with `-m:1`; no unrelated
+code or restore state was changed.
 
 ## Residual risks and future pending work
 

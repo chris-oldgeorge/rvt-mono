@@ -20,12 +20,12 @@ public sealed class ReportMessageSender(
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(report);
-        cancellationToken.ThrowIfCancellationRequested();
         if (!options.EmailEnabled)
         {
             return new ReportSendResult(true, "Email disabled by configuration.");
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         var effectiveRecipient = options.EmailTestMode &&
             !string.IsNullOrWhiteSpace(options.TestReportToEmail)
                 ? options.TestReportToEmail

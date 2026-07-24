@@ -56,6 +56,27 @@ public sealed class ReportMessageSenderTests
     }
 
     [Fact]
+    public async Task SendAsync_DisabledIgnoresPreCancelledCallerToken()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var port = new RecordingEmailPort();
+        var sender = CreateSender(
+            port,
+            new ReportMessageSenderOptions { EmailEnabled = false });
+
+        var result = await sender.SendAsync(
+            "recipient@example.test",
+            "AB1",
+            Report(),
+            cancellation.Token);
+
+        Assert.True(result.Success);
+        Assert.Equal("Email disabled by configuration.", result.StatusMessage);
+        Assert.Empty(port.Requests);
+    }
+
+    [Fact]
     public async Task SendAsync_TestModeUsesConfiguredOverrideRecipient()
     {
         var port = new RecordingEmailPort();

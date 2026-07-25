@@ -1,5 +1,53 @@
 # Project State
 
+## Communication provider Task 9 - verification and documentation - 2026-07-25 (complete)
+
+- The source-level communication split is verified. The project graph is
+  `Rvt.Communication.Abstractions` at the base; the provider-neutral
+  `Rvt.Communication` workflow and each of SendGridMail,
+  MicrosoftGraphMail, and TransmitSms reference Abstractions directly.
+  `Rvt.Monitor.Common` retains only an Abstractions reference for compatibility.
+  `Rvt.Monitor.Common.Infrastructure` is removed and is not a facade.
+- All five monitor hosts directly reference and compose Abstractions, the
+  workflow, SendGrid, Microsoft Graph, and TransmitSMS. They select SendGrid by
+  default or Microsoft Graph by exact case-insensitive
+  `RVT:EMAIL_PROVIDER`/`RVT__EMAIL_PROVIDER` configuration. Portal remains
+  explicitly SendGrid-only.
+- Both reporting messaging projects now reference only Abstractions. The
+  monitor Reporting host owns dynamic SendGrid/Microsoft Graph selection; the
+  containerized reporting-service host explicitly owns its existing
+  SendGrid-only selection.
+- Fresh bounded library verification passed 126/126: Abstractions 20,
+  workflow 31, SendGrid 20, Graph 31, and TransmitSMS 24. Fresh focused vendor
+  monitor composition tests passed 12/12. Portal passed 381 with eight known
+  provider-gated skips, and the containerized reporting service passed 14/14.
+- The full monitor suites remain environment/baseline-gated rather than green:
+  AirQ 87 passed/33 failed, MyAtm 139/69, Omnidots 337/64, and Svantek 86/40.
+  The failures require the missing PostgreSQL integration connection and, for
+  MyAtm/Svantek, include retained pre-monorepo path assumptions. No
+  communication-focused regression was identified.
+- Dependency isolation is green: both neutral `dotnet list --include-transitive`
+  results exclude SendGrid, Azure Identity, Azure Storage, and AWS S3, and the
+  source-boundary guard passed.
+- The aggregate/locked gate is explicitly **not green**. ReportingMonitor is
+  blocked by central Logging.Abstractions 10.0.4 versus transitive 10.0.9;
+  RuntimeConsumer lacks the not-yet-packed `Rvt.Communication` 0.2.0-rc.1
+  artifact; TestConsumer cannot resolve its expected RVT type; and five
+  retained monitor/package-validation locks still name the removed
+  Infrastructure project. These are owned by the dedicated eleven-package
+  release/lock plan.
+- Storage isolation and every future-pending item remain out of scope. Portal
+  `BlobStorageClientFactory`/service unification through
+  `IObjectStorageClientFactory`, customer-logo and reporting storage adoption,
+  synchronous legacy message removal, dynamic plugins, external compatibility
+  tooling, notification/business/API/persisted-record changes, database, MQTT,
+  scheduling, observability, and the full eleven-package release pipeline all
+  remain pending.
+- Exact graph, command results, known failures, and the complete pending-work
+  list are recorded in
+  `docs/architecture/rvt-monitor-common/communications.md` and the Task 9
+  report.
+
 ## Portal test-host SendGrid follow-up - 2026-07-25 (complete)
 
 - Both Portal test-host paths now provide deterministic, non-secret legacy

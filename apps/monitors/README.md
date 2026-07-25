@@ -1,6 +1,6 @@
 # RVT Monitors
 
-RVT Monitors contains the container-ready monitor services used to import environmental monitoring data into the RVT PostgreSQL/Timescale database and generate customer reports. The codebase includes four vendor monitor applications, a reporting monitor, shared monitor infrastructure, local Docker orchestration, and an OpenTelemetry/Grafana observability stack.
+RVT Monitors contains the container-ready monitor services used to import environmental monitoring data into the RVT PostgreSQL/Timescale database and generate customer reports. The codebase includes four vendor monitor applications, a reporting monitor, shared monitor runtime projects, local Docker orchestration, and an OpenTelemetry/Grafana observability stack.
 
 Detailed monitor documentation is centralized in the
 [repository documentation index](../../docs/index.md#monitors).
@@ -22,7 +22,16 @@ Detailed monitor documentation is centralized in the
 
 This release package intentionally excludes agent memory, internal planning notes, and local development state files such as `AGENTS.md`, `project_state.md`, `docs/superpowers/**`, `docs/database/monitors/monitor-data-access-migration.md`, `docs/release/**`, `.codegraph/**`, and release-export tooling.
 
-Shared runtime, infrastructure, and test support come from the private `Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and `Rvt.Monitor.IntegrationTesting` packages at the exact version `0.2.0-rc.1`. `NuGet.config` maps `Rvt.Monitor.*` exclusively to GitHub Packages, and `Directory.Packages.props` centrally pins the version. Authentication must be supplied only to the running restore or container-build process; never write a package credential into source, NuGet configuration, build arguments, image layers, or committed environment files.
+The active mono-repository graph source-references `Rvt.Monitor.Common`,
+`Rvt.Monitor.IntegrationTesting`, `Rvt.Communication.Abstractions`,
+`Rvt.Communication`, and the three explicit provider projects.
+`Rvt.Monitor.Common.Infrastructure` has been removed and is not a facade.
+Retained package locks and the `0.2.0-rc.1` package-validation assets have not
+yet been migrated to this graph; that work belongs to the dedicated
+eleven-package release plan. Authentication must be supplied only to the
+running restore or container-build process; never write a package credential
+into source, NuGet configuration, build arguments, image layers, or committed
+environment files.
 
 ## Architecture Summary
 
@@ -72,7 +81,25 @@ ReportingMonitor additionally uses `RVT__INTERNAL_API_KEY` for its protected `/i
 
 ### Shared email and SMS delivery
 
-All monitor hosts and ReportingMonitor compose the provider-neutral communication ports from `Rvt.Monitor.Common.Infrastructure`. Provider SDKs do not leak into monitor or reporting application code. Delivery configuration is validated when the host starts; setting a channel to `false` disables its credential requirements and makes local/API-only deployments explicit.
+Each of the five monitor hosts directly composes
+`Rvt.Communication.Abstractions`, the `Rvt.Communication` workflow, one selected
+mail provider, and `Rvt.Communication.TransmitSms`. The host reads
+`RVT:EMAIL_PROVIDER` before the literal `RVT__EMAIL_PROVIDER` fallback, selects
+SendGrid by default or Microsoft Graph by a case-insensitive exact match, and
+rejects any other value. Both mail provider projects are source-referenced so
+the choice is explicit at build time; this is not dynamic provider discovery.
+Provider SDKs do not leak into monitor or reporting messaging projects.
+Delivery configuration is validated when the host starts; setting a channel to
+`false` disables its credential requirements and makes local/API-only
+deployments explicit.
+
+The Portal is intentionally different: its host composes only
+`Rvt.Communication.Abstractions` and
+`Rvt.Communication.SendGridMail`. The monitor Reporting messaging project and
+the containerized reporting-service messaging project each depend only on
+communication abstractions. ReportingMonitor selects SendGrid or Microsoft
+Graph in its host like the other monitors, while the containerized reporting
+service explicitly selects SendGrid in its host.
 
 | Setting | Purpose |
 | --- | --- |
@@ -143,6 +170,20 @@ Run a single monitor test project:
 ```bash
 dotnet test svantekmonitor/SvantekMonitorTests/SvantekMonitorTests.csproj
 ```
+
+The complete monitor suites require
+`RVT__POSTGRES_INTEGRATION_CONNECTION`. Several retained architecture tests
+also resolve paths from the modules' former monorepo locations. Without that
+database setting and path-baseline migration, full-suite failures are expected
+and must not be reported as communication regressions. The focused
+`CommunicationsCompositionTests` are the provider-choice gate.
+
+The retained monitor/package-validation lock snapshots still name the removed
+Infrastructure project. ReportingMonitor restore is also blocked until the
+release/lock plan reconciles centrally pinned
+`Microsoft.Extensions.Logging.Abstractions` 10.0.4 with the provider graph's
+10.0.9 transitive requirement. Do not claim an aggregate or locked build is
+green until that dedicated plan completes.
 
 ReportingMonitor's database fixture creates an isolated generated schema. Supply its admin connection only to the test process; do not put it in app settings or source control:
 

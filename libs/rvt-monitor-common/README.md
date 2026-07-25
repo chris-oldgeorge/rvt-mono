@@ -1,28 +1,52 @@
-# RVT shared monitor packages
+# RVT shared monitor projects
 
 Detailed shared-library documentation is centralized in the
 [repository documentation index](../../docs/index.md#rvt-monitor-common).
+The verified communication graph and gate evidence are documented in
+[communications.md](../../docs/architecture/rvt-monitor-common/communications.md).
 
-This repository builds the shared .NET 10 package train used by RVT monitor applications:
+This repository builds the shared .NET 10 runtime, communication, and
+integration-test projects used by RVT applications:
 
-- `Rvt.Monitor.Common` contains shared monitor contracts, data helpers, storage, hosting, scheduling, observability, and the compatibility runtime.
-- `Rvt.Monitor.Common.Infrastructure` contains provider adapters, configuration validation, and infrastructure composition.
-- `Rvt.Monitor.IntegrationTesting` contains PostgreSQL integration-test fixture support and is intended only for test projects.
+- `Rvt.Monitor.Common` contains shared monitor data, hosting, scheduling,
+  observability, storage compatibility, and delivery runtime code. It
+  references `Rvt.Communication.Abstractions` for retained compatibility
+  contracts.
+- `Rvt.Communication.Abstractions` owns the provider-neutral email and SMS
+  ports, requests, results, failures, and legacy communication contracts.
+- `Rvt.Communication` owns the provider-neutral workflow and compatibility
+  services and references only `Rvt.Communication.Abstractions`.
+- `Rvt.Communication.SendGridMail`,
+  `Rvt.Communication.MicrosoftGraphMail`, and
+  `Rvt.Communication.TransmitSms` are independent adapters. Each references
+  only `Rvt.Communication.Abstractions` from the RVT project graph.
+- `Rvt.Monitor.IntegrationTesting` contains PostgreSQL integration-test
+  fixture support and is intended only for test projects.
 
-All three packages require .NET 10 and are released together at one exact version. Consumers must pin that exact version rather than using floating versions or ranges.
+`Rvt.Monitor.Common.Infrastructure` has been removed. Active composition roots
+select provider projects directly; no application should add an Infrastructure
+reference or treat it as a facade.
 
 ## Local development
 
+Use existing restore assets when verifying the source graph:
+
 ```bash
-dotnet restore rvt-common.sln --use-lock-file
-dotnet build rvt-common.sln -c Release --no-restore --nologo
-dotnet test rvt-common.sln -c Release --no-build --nologo
-dotnet pack src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj -c Release --no-build --no-restore --nologo
-dotnet pack src/Rvt.Monitor.Common.Infrastructure/Rvt.Monitor.Common.Infrastructure.csproj -c Release --no-build --no-restore --nologo
-dotnet pack testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj -c Release --no-build --no-restore --nologo
+dotnet build rvt-common.sln --no-restore --nologo
+dotnet test tests/Rvt.Communication.AbstractionsTests/Rvt.Communication.AbstractionsTests.csproj --no-restore --nologo
+dotnet test tests/Rvt.CommunicationTests/Rvt.CommunicationTests.csproj --no-restore --nologo
+dotnet test tests/Rvt.Communication.SendGridMailTests/Rvt.Communication.SendGridMailTests.csproj --no-restore --nologo
+dotnet test tests/Rvt.Communication.MicrosoftGraphMailTests/Rvt.Communication.MicrosoftGraphMailTests.csproj --no-restore --nologo
+dotnet test tests/Rvt.Communication.TransmitSmsTests/Rvt.Communication.TransmitSmsTests.csproj --no-restore --nologo
 ```
 
-GitHub Packages authentication is supplied only at runtime. Do not store credentials in this repository:
+The source-level communication split is verified, but packaging is not yet
+migrated. Retained monitor and package-validation locks still contain the
+removed Infrastructure identity, and the current package-validation assets do
+not represent the new package set. Do not publish from those retained assets.
+
+GitHub Packages authentication is supplied only at runtime. Do not store
+credentials in this repository:
 
 ```bash
 export GITHUB_USER="your-github-user"
@@ -32,6 +56,17 @@ export NuGetPackageSourceCredentials_rvt="Username=$GITHUB_USER;Password=$GITHUB
 
 ## Releases and migrations
 
-Release versions are immutable. Release candidates and stable versions are published as synchronized three-package trains; a correction receives a new SemVer version and is never overwritten. Consumer repositories update their exact pins and verify staging independently before deployment or promotion.
+The dedicated package-release plan must update the full eleven-package pack,
+package-consumer, lock, SBOM, vulnerability, release-manifest, and release-asset
+pipeline before the split can be released. That plan replaces the obsolete
+three-package assumptions and establishes the clean-split release baseline; it
+is pending, not complete.
 
-Database migration ownership remains with the designated application or shared-schema migration authority. Publishing these packages does not apply migrations; the migration owner must provide forward and rollback artifacts and coordinate their application before dependent runtime changes are enabled.
+Release versions remain immutable. Consumers must use coordinated exact
+versions rather than floating versions or ranges, and a correction receives a
+new SemVer version rather than overwriting an existing package.
+
+Database migration ownership remains with the designated application or
+shared-schema migration authority. Publishing packages does not apply
+migrations; the migration owner must provide forward and rollback artifacts
+and coordinate their application before dependent runtime changes are enabled.

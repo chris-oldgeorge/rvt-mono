@@ -11,9 +11,9 @@ versions and locks remain owned by the later release/lock plan.
 Carry-forward merge blocker: Graph large-attachment upload-chunk non-caller
 timeouts still need safe transient translation. No storage task depends on it;
 the final overall review must resolve it before merge.
-Task 7 boundary-guard follow-up: fix round 1/5 complete (base `d134bc0`;
-pending commit). The regression now requires `Rvt.Reporting.Storage` to
-reference `Rvt.Storage.Abstractions` and rejects `Rvt.Monitor.Common`,
+Task 7 boundary-guard follow-up: complete (commits `d134bc0` and `92be3b1`,
+review clean). The regression requires `Rvt.Reporting.Storage` to reference
+`Rvt.Storage.Abstractions` and rejects `Rvt.Monitor.Common`,
 `Rvt.Storage.Local`, `Rvt.Storage.AzureBlob`, and `Rvt.Storage.S3`; both
 temporary roots are cleanup-trapped.
 Task 1: complete (commit `da0dfd2`, review clean).
@@ -30,4 +30,10 @@ Task 7: complete (commit `6854a5c`, review clean; scoped verification uses an
 untracked temporary ReportingMonitor central-version/lock override).
 Task 8: complete (commit `6b678a5`, review clean).
 Task 9: complete (commit `0dc3b51`, review clean).
-Task 10: in progress (base `0dc3b51`).
+Task 10: complete (base `92be3b1`; documentation/state/report verification is
+recorded in this commit). The documentation-test RED was inapplicable because
+no behaviorally useful semantic documentation-test home exists. Fresh guards,
+storage 148/148, bounded Common 340/340, Svantek 93/93, ReportingMonitor
+74/74, and the exact-path-excluded root build are green; ordinary
+environment/lock/root-build blockers and all Future Pending Work remain
+explicitly pending.

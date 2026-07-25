@@ -1,6 +1,6 @@
 # Dependency license review
 
-Reviewed: 2026-07-16
+Reviewed: 2026-07-16; storage ownership updated: 2026-07-26
 
 ## Scope and method
 
@@ -21,18 +21,27 @@ dotnet list rvt-common.sln package --vulnerable --include-transitive --no-restor
 
 It completed successfully and reported no vulnerable packages for all seven solution projects.
 
+The later storage provider split changes package ownership, not the recorded
+license decisions. `Rvt.Monitor.Common` no longer references any Azure or AWS
+storage SDK. `AWSSDK.S3` is direct only in `Rvt.Storage.S3`, with
+`AWSSDK.Core` transitive through that provider. `Azure.Identity` and
+`Azure.Storage.Blobs` are direct only in `Rvt.Storage.AzureBlob`, with
+`Azure.Core`, `Azure.Storage.Common`, and `System.ClientModel` transitive
+through that provider. `Rvt.Storage.Abstractions` and `Rvt.Storage.Local` own
+no cloud-provider SDK dependency.
+
 `Microsoft.Data.SqlClient.SNI.runtime` declares a packaged license file rather than an SPDX expression. Its resolved `LICENSE.txt` was inspected directly and contains Microsoft Software License Terms permitting object-code distribution as part of an application subject to the stated conditions. It is approved for this package use on that recorded basis. All other decisions below are based on the exact license expression or license URL recorded in the resolved `.nuspec`.
 
 ## Reviewed inventory
 
 | Package ID | Resolved version | Relationship | License expression or URL | Repository/source URL | Decision |
 | --- | --- | --- | --- | --- | --- |
-| `AWSSDK.Core` | `4.0.100.3` | transitive | Expression: `Apache-2.0`; URL: <https://licenses.nuget.org/Apache-2.0> | Project/source: <https://github.com/aws/aws-sdk-net/> | Approved |
-| `AWSSDK.S3` | `4.0.100.3` | direct | Expression: `Apache-2.0`; URL: <https://licenses.nuget.org/Apache-2.0> | Project/source: <https://github.com/aws/aws-sdk-net/> | Approved |
-| `Azure.Core` | `1.47.1` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
-| `Azure.Identity` | `1.15.0` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
-| `Azure.Storage.Blobs` | `12.25.0` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
-| `Azure.Storage.Common` | `12.24.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
+| `AWSSDK.Core` | `4.0.100.3` | transitive via `Rvt.Storage.S3` | Expression: `Apache-2.0`; URL: <https://licenses.nuget.org/Apache-2.0> | Project/source: <https://github.com/aws/aws-sdk-net/> | Approved |
+| `AWSSDK.S3` | `4.0.100.3` | direct in `Rvt.Storage.S3` | Expression: `Apache-2.0`; URL: <https://licenses.nuget.org/Apache-2.0> | Project/source: <https://github.com/aws/aws-sdk-net/> | Approved |
+| `Azure.Core` | `1.47.1` | transitive via `Rvt.Storage.AzureBlob` | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
+| `Azure.Identity` | `1.15.0` | direct in `Rvt.Storage.AzureBlob` | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
+| `Azure.Storage.Blobs` | `12.25.0` | direct in `Rvt.Storage.AzureBlob` | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
+| `Azure.Storage.Common` | `12.24.0` | transitive via `Rvt.Storage.AzureBlob` | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
 | `Castle.Core` | `5.1.1` | transitive | Expression: `Apache-2.0`; URL: <https://licenses.nuget.org/Apache-2.0> | Repository: <https://github.com/castleproject/Core> | Approved |
 | `MQTTnet` | `4.3.7.1207` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/MQTTnet.git> | Approved |
 | `MQTTnet.Extensions.ManagedClient` | `4.3.7.1207` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/MQTTnet.git> | Approved |
@@ -110,7 +119,7 @@ It completed successfully and reported no vulnerable packages for all seven solu
 | `Quartz.Extensions.DependencyInjection` | `3.18.1` | transitive | Expression: `Apache-2.0`; URL: <https://licenses.nuget.org/Apache-2.0> | Repository: <https://github.com/quartznet/quartznet> | Approved |
 | `Quartz.Extensions.Hosting` | `3.18.1` | direct | Expression: `Apache-2.0`; URL: <https://licenses.nuget.org/Apache-2.0> | Repository: <https://github.com/quartznet/quartznet> | Approved |
 | `SendGrid` | `9.29.3` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/sendgrid/sendgrid-csharp.git> | Approved |
-| `System.ClientModel` | `1.5.1` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
+| `System.ClientModel` | `1.5.1` | transitive via `Rvt.Storage.AzureBlob` | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
 | `System.Configuration.ConfigurationManager` | `9.0.13` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |
 | `System.Diagnostics.EventLog` | `9.0.13` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |
 | `System.IO.Hashing` | `8.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |

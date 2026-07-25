@@ -26,6 +26,9 @@ The active mono-repository graph source-references `Rvt.Monitor.Common`,
 `Rvt.Monitor.IntegrationTesting`, `Rvt.Communication.Abstractions`,
 `Rvt.Communication`, and the three explicit provider projects.
 `Rvt.Monitor.Common.Infrastructure` has been removed and is not a facade.
+Storage is likewise split into the provider-neutral
+`Rvt.Storage.Abstractions` package and the explicit `Rvt.Storage.Local`,
+`Rvt.Storage.AzureBlob`, and `Rvt.Storage.S3` adapter packages.
 Retained package locks and the `0.2.0-rc.1` package-validation assets have not
 yet been migrated to this graph; that work belongs to the dedicated
 eleven-package release plan. Authentication must be supplied only to the
@@ -77,7 +80,46 @@ Common runtime configuration is supplied through environment variables or app se
 | `testlocal` | Enables local demo filters where implemented so only known test monitors are processed. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry collector endpoint. |
 
-ReportingMonitor additionally uses `RVT__INTERNAL_API_KEY` for its protected `/internal/reports` routes and the shared blob-storage settings (`RVT__BLOB_PROVIDER`, `RVT__BLOB_CONTAINER`, `RVT__BLOB_PREFIX`, and the selected provider's settings). Its defaults are container `pdfreports`, prefix `rvtreports`, and the Local provider. The legacy `RVT__BLOB_REPORT_CONTAINER_NAME` setting remains a fallback when `RVT__BLOB_CONTAINER` is absent. Email, SendGrid, SPA, AI-summary, and complete storage settings are documented in the [ReportingMonitor guide](../../docs/modules/monitors/reportingmonitor/README.md). It uses the standard `ConnectionStrings__DefaultConnection` setting and PostgreSQL provider.
+ReportingMonitor additionally uses `RVT__INTERNAL_API_KEY` for its protected `/internal/reports` routes and the provider-neutral object-storage settings (`RVT__BLOB_PROVIDER`, `RVT__BLOB_CONTAINER`, `RVT__BLOB_PREFIX`, and the selected provider's settings). Its defaults are container `pdfreports`, prefix `rvtreports`, and the Local provider. The legacy `RVT__BLOB_REPORT_CONTAINER_NAME` setting remains a fallback when `RVT__BLOB_CONTAINER` is absent. Email, SendGrid, SPA, AI-summary, and complete storage settings are documented in the [ReportingMonitor guide](../../docs/modules/monitors/reportingmonitor/README.md). It uses the standard `ConnectionStrings__DefaultConnection` setting and PostgreSQL provider.
+
+### Object storage providers
+
+Storage consumers depend on the `IObjectStorageClientFactory` named-client
+contract from `Rvt.Storage.Abstractions`; provider SDKs and filesystem
+implementation details belong only to `Rvt.Storage.AzureBlob`,
+`Rvt.Storage.S3`, and `Rvt.Storage.Local`. `Rvt.Monitor.Common` owns no storage
+implementation and has no Azure or AWS SDK dependency. Svantek resolves the
+named resource `svantek-sound-recordings`, while ReportingMonitor resolves
+`reporting-reports`.
+
+The Svantek and ReportingMonitor hosts reference all three adapter packages
+only because they deliberately retain deployment-time selection among
+`Local`, `AzureBlob`, and `S3`. Each process composes exactly one adapter for
+its named resource; these references are not dynamic provider discovery.
+
+The split preserves the existing configuration aliases and their
+first-nonblank precedence:
+
+| Purpose | Accepted keys |
+| --- | --- |
+| Provider | `BlobStorage:Provider`, `RVT:BLOB_PROVIDER`, `RVT__BLOB_PROVIDER` |
+| Local root | `BlobStorage:LocalRoot`, `RVT:BLOB_LOCAL_ROOT`, `RVT__BLOB_LOCAL_ROOT` |
+| Container | `BlobStorage:Container`, `RVT:BLOB_CONTAINER`, `RVT__BLOB_CONTAINER`; Svantek also retains `RVT:AUDIO_FOLDER` / `RVT__AUDIO_FOLDER`, and ReportingMonitor retains `RVT:BLOB_REPORT_CONTAINER_NAME` / `RVT__BLOB_REPORT_CONTAINER_NAME` |
+| Prefix | `BlobStorage:Prefix`, `RVT:BLOB_PREFIX`, `RVT__BLOB_PREFIX` |
+| Azure connection | `BlobStorage:AzureConnectionString`, `RVT:BLOB_CONNECTION_STRING`, `RVT__BLOB_CONNECTION_STRING` |
+| Azure service URI | `BlobStorage:AzureServiceUri`, `RVT:BLOB_SERVICE_URI`, `RVT__BLOB_SERVICE_URI` |
+| S3 bucket | `BlobStorage:S3Bucket`, `RVT:S3_BUCKET`, `RVT__S3_BUCKET` |
+| S3 region | `BlobStorage:S3Region`, `RVT:S3_REGION`, `RVT__S3_REGION` |
+| S3-compatible endpoint | `BlobStorage:S3ServiceUrl`, `RVT:S3_SERVICE_URL`, `RVT__S3_SERVICE_URL` |
+| S3 path style | `BlobStorage:S3ForcePathStyle`, `RVT:S3_FORCE_PATH_STYLE`, `RVT__S3_FORCE_PATH_STYLE` |
+
+ReportingMonitor keeps URI construction outside the generic storage port so
+persisted `report.report_link` values retain their established absolute
+formats: Local `file:`, Azure HTTPS, and S3 `s3:`.
+
+Portal blob-client/service unification and adoption by the independent
+`services/reporting` Azure report-storage adapter are explicitly future
+pending work; neither is part of the monitor-host migration.
 
 ### Shared email and SMS delivery
 
@@ -124,7 +166,7 @@ Durable alert/outbox delivery is at least once. Transient network, timeout, thro
 
 For rollout, deploy first with SendGrid selected, verify the existing path, then configure Graph in staging and enable ReportingMonitor test-recipient mode. Switch one workload to `RVT__EMAIL_PROVIDER=MicrosoftGraph`, verify acceptance, persisted report outcomes, notification audits, retry scheduling, and dead letters, then expand the rollout. Keep both credentials during migration. Rollback requires no database change: restore `RVT__EMAIL_PROVIDER=SendGrid` and restart/redeploy. Disabling `RVT__EMAIL_ENABLED` or `RVT__SMS_ENABLED` is the channel-level emergency stop.
 
-Svantek uses local blob storage by default for sound recordings. In the local Compose setup, the `svantek-audiofiles` named volume is mounted at `/data/rvt/blobs`, so recordings persist across container recreation. Remove the volume explicitly when the stored recordings should be deleted.
+Svantek uses the Local object-storage adapter by default for sound recordings. In the local Compose setup, the `svantek-audiofiles` named volume is mounted at `/data/rvt/blobs`, so recordings persist across container recreation. Remove the volume explicitly when the stored recordings should be deleted.
 
 To switch Svantek to Azure Blob Storage, provide:
 
@@ -233,7 +275,7 @@ docker compose --project-directory . \
 
 Grafana is available at `http://localhost:3000` when the observability stack is running.
 
-ReportingMonitor is available at `http://localhost:8085/liveness`; its database-backed readiness endpoint is `http://localhost:8085/readiness`. Its `/internal/reports` endpoints require `X-RVT-Internal-Key` when `RVT__INTERNAL_API_KEY` is configured (and always outside Development when it is absent). With the default Local blob provider, generated PDFs persist in the `reporting-reportfiles` named volume under `/data/rvt/blobs/pdfreports/rvtreports/`. Supply the database connection and all reporting vendor credentials through an untracked Compose override or deployment secret store; the base Compose file deliberately declares no database service.
+ReportingMonitor is available at `http://localhost:8085/liveness`; its database-backed readiness endpoint is `http://localhost:8085/readiness`. Its `/internal/reports` endpoints require `X-RVT-Internal-Key` when `RVT__INTERNAL_API_KEY` is configured (and always outside Development when it is absent). With the default Local object-storage provider, generated PDFs persist in the `reporting-reportfiles` named volume under `/data/rvt/blobs/pdfreports/rvtreports/`. Supply the database connection and all reporting vendor credentials through an untracked Compose override or deployment secret store; the base Compose file deliberately declares no database service.
 
 AirQ's import API is not published to the host by the base Compose file. Set
 `RVT__MONITOR_API_KEY` through a secret mechanism before enabling `MonitorApi`.

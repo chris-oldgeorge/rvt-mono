@@ -1,5 +1,85 @@
 # Project State
 
+## Storage provider Task 10 - final verification and documentation - 2026-07-26 (complete)
+
+- Storage operator documentation now names the provider-neutral
+  `Rvt.Storage.Abstractions` contract and the `Rvt.Storage.Local`,
+  `Rvt.Storage.AzureBlob`, and `Rvt.Storage.S3` adapters. Consumers resolve
+  `IObjectStorageClient` through the named `IObjectStorageClientFactory`
+  contract; Svantek uses `svantek-sound-recordings` and ReportingMonitor uses
+  `reporting-reports`.
+- Svantek and ReportingMonitor reference all three adapter projects only to
+  retain deliberate deployment-time selection among Local, Azure Blob, and
+  S3. Each host composes exactly one provider for its named resource.
+  Existing `BlobStorage:*`, `RVT:*`, and literal `RVT__*` configuration aliases,
+  defaults, and legacy container fallbacks are unchanged.
+- ReportingMonitor continues to resolve its persisted report URI outside the
+  generic storage port. `report.report_link` retains Local `file:`, Azure HTTPS,
+  and S3 `s3:` absolute formats.
+- `Rvt.Monitor.Common` owns no storage implementation and references none of
+  `AWSSDK.S3`, `Azure.Identity`, or `Azure.Storage.Blobs`. The dependency
+  license review now attributes Azure SDK dependencies to
+  `Rvt.Storage.AzureBlob` and AWS SDK dependencies to `Rvt.Storage.S3`;
+  Abstractions and Local remain cloud-SDK independent.
+- No behaviorally useful documentation-assertion test exists for these
+  operator statements. The repository documentation tests cover move-manifest
+  layout and release-automation instructions; extending either would be the
+  prohibited grep-only source-text coupling. Task 10's planned documentation
+  RED prerequisite is therefore inapplicable, and no test logic changed.
+- Fresh shell verification passes
+  `verify-mono-layout.test.sh`, `verify-mono-solution.test.sh`,
+  `verify-rvt-common-source-boundary.test.sh`, and the new
+  `verify-rvt-common-source-boundary-regression.test.sh`. Final
+  `git diff --check` has no output.
+- Bounded, no-restore, single-node verification passes storage 148/148,
+  Common 340/340 excluding only the two known
+  `MonitorDeliveryMigrationContractTests`, Svantek 93/93 excluding only its
+  unavailable PostgreSQL/repository-root fixtures, and ReportingMonitor 74/74
+  excluding only `TestReportingDbClient`. Reporting uses the preserved
+  untracked Logging.Abstractions/Options 10.0.9 verification override.
+- The established ordinary full-suite classifications remain unchanged:
+  Common has 340 passes and two missing-migration-path failures; Svantek has
+  93 passes and 40 absent-PostgreSQL/repository-root-sensitive failures;
+  ReportingMonitor has 74 passes and ten tests requiring
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`. Those known blockers were not
+  retried as green gates.
+- A bounded root build imported a temporary targets file that removed exactly
+  the two preserved untracked Portal C# copies. It succeeds with 76 existing
+  analyzer/advisory warnings and 0 errors. The ordinary root build remains
+  blocked by those two `* 2.cs` files and is not claimed green.
+- The brief's raw legacy-symbol regex matches only the provider-owned
+  replacement identifier `AzureBlobStorageOptions`; an exact whole-symbol
+  search returns no legacy symbol matches. The Common project vendor-SDK
+  search also returns no matches.
+- Package release verification remains pending rather than green. Task 10
+  changes no package policy or lock, and the complete eleven-package
+  release/lock migration still owns atomic lock regeneration and the clean
+  ReportingMonitor locked-restore reconciliation.
+- Future Pending Work remains pending and outside this implementation:
+  1. Migrate Portal `MonitorPictureStorage` and `SiteArchiveService` from
+     `BlobStorageClientFactory` to `IObjectStorageClientFactory`, preserving
+     protected streaming, Local fallback, atomic writes, existing `blob://`
+     monitor references, persisted archive URLs, and report/archive container
+     boundaries.
+  2. Decide whether Portal customer-logo storage should use the shared
+     named-client contract.
+  3. Decide whether
+     `services/reporting/src/Rvt.Reporting.Storage/AzureBlob/AzureBlobReportStorage.cs`
+     should adopt `Rvt.Storage.AzureBlob`; it remains an independent adapter.
+  4. Make an independent deprecation/removal decision for
+     `apps/portal/RVT.Utilities/AzureBlobService.cs`.
+  5. Consider dynamic provider discovery only if deployments require installing
+     a provider without rebuilding a host.
+  6. Consider external-consumer migration tooling only if coordinated
+     major-version adoption proves insufficient.
+  7. Review database, MQTT, scheduling, and observability dependencies as
+     separate boundary projects after the communication and storage splits.
+- Microsoft Graph large-attachment upload-chunk non-caller timeout translation
+  remains the carry-forward merge blocker. Storage completion does not make
+  the overall branch merge-ready.
+- Full Task 10 evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-10-report.md`.
+
 ## Storage provider Task 7 boundary-guard follow-up - 2026-07-26 (complete)
 
 - `Rvt.Reporting.Storage` was already correctly migrated in Task 7 to reference

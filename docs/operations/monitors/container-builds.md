@@ -67,7 +67,39 @@ docker compose up airqmonitor-api
 
 For ReportingMonitor, use `docker compose up reportingmonitor-api`. The base service intentionally starts with the API enabled and Quartz disabled; enable the scheduler only in an explicit deployment configuration.
 
-Svantek uses local blob storage by default in the Compose setup. The named `svantek-audiofiles` volume is mounted at `/data/rvt/blobs` and persists sound recordings across container recreation. Remove the volume explicitly when the stored recordings should be deleted.
+## Object Storage Provider Composition
+
+The monitor hosts use the provider-neutral `IObjectStorageClientFactory`
+contract from `Rvt.Storage.Abstractions`. Local filesystem behavior belongs to
+`Rvt.Storage.Local`, Azure Blob behavior and SDK dependencies belong to
+`Rvt.Storage.AzureBlob`, and S3 behavior and SDK dependencies belong to
+`Rvt.Storage.S3`; none is supplied by `Rvt.Monitor.Common`.
+
+Svantek uses the named resource `svantek-sound-recordings`, and
+ReportingMonitor uses `reporting-reports`. Both hosts reference all three
+provider packages only because an operator can select `Local`, `AzureBlob`, or
+`S3` at deployment time. Startup composes exactly one provider for each named
+resource.
+
+Existing configuration names are unchanged. Selection checks
+`BlobStorage:Provider`, `RVT:BLOB_PROVIDER`, then
+`RVT__BLOB_PROVIDER`. Provider settings continue to accept their
+`BlobStorage:*`, `RVT:*`, and `RVT__*` forms, including the Local
+root/container/prefix keys, Azure connection-string/service-URI keys, and S3
+bucket/region/service-URL/path-style keys. Svantek retains the `AUDIO_FOLDER`
+container alias, and ReportingMonitor retains the
+`BLOB_REPORT_CONTAINER_NAME` alias. The complete alias matrix is in the
+[monitor README](../../../apps/monitors/README.md#object-storage-providers).
+
+ReportingMonitor persists absolute provider-specific links without changing
+their formats: Local `file:`, Azure HTTPS, and S3 `s3:`. URI resolution stays
+outside the generic object-storage contract.
+
+Portal blob-client/service migration and the independent
+`services/reporting` Azure storage adapter remain future pending and are not
+container rollout prerequisites for this monitor split.
+
+Svantek uses the Local object-storage provider by default in the Compose setup. The named `svantek-audiofiles` volume is mounted at `/data/rvt/blobs` and persists sound recordings across container recreation. Remove the volume explicitly when the stored recordings should be deleted.
 
 To switch Svantek to Azure Blob Storage, provide the generic configuration through the deployment environment:
 

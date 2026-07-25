@@ -53,6 +53,35 @@ The host binds these environment-variable names without storing values in source
 
 Azure Blob storage can use either a connection string or a service URI with the Azure credential chain. S3 credentials use the AWS SDK credential chain and are not application settings. See the root README for provider examples.
 
+## Storage composition
+
+Reporting storage depends on the `IObjectStorageClientFactory` named-client
+contract in `Rvt.Storage.Abstractions` and resolves the logical resource
+`reporting-reports`. The host directly references `Rvt.Storage.Local`,
+`Rvt.Storage.AzureBlob`, and `Rvt.Storage.S3` only to preserve deliberate
+deployment-time provider selection; it registers exactly one of those adapters
+for the resource. Azure and AWS SDK dependencies remain owned by their provider
+packages and do not flow through `Rvt.Monitor.Common` or
+`Rvt.Reporting.Storage`.
+
+The provider split does not rename configuration. Provider selection still
+checks `BlobStorage:Provider`, `RVT:BLOB_PROVIDER`, then
+`RVT__BLOB_PROVIDER`; Local, Azure, and S3 continue to accept the
+`BlobStorage:*`, `RVT:*`, and literal `RVT__*` aliases listed in the root
+monitor README. The defaults and `RVT__BLOB_REPORT_CONTAINER_NAME` fallback
+above are unchanged.
+
+`IObjectStorageClient` returns only the normalized object key. A
+ReportingMonitor-specific URI resolver intentionally remains outside that
+generic port so persisted links keep their established absolute schemes:
+Local `file:`, Azure HTTPS, and S3 `s3:`.
+
+The independent adapter at
+`services/reporting/src/Rvt.Reporting.Storage/AzureBlob/AzureBlobReportStorage.cs`
+has not migrated to `Rvt.Storage.AzureBlob`; that decision is future pending.
+Portal storage unification is also future pending and does not change
+ReportingMonitor's `reporting-reports` boundary.
+
 Each report recipient has an independent persisted delivery outcome. Provider-returned failures and non-cancellation provider exceptions are saved in `report_delivery.error_message`, bounded to 1,024 characters, and do not prevent later recipients from being attempted. Scheduled generation similarly isolates failures by rule; explicit cancellation still stops processing.
 
 Reporting retains `IReportMessageSender` as its application boundary and sends the generated PDF through the shared email port. SendGrid remains the default provider. Microsoft Graph uses app-only `Mail.Send`; PDFs from exactly 3 MiB through 150 MiB use draft/upload sessions and additionally require `Mail.ReadWrite`. Restrict the Entra application to `RVT__MICROSOFT_SENDER_ADDRESS`. Graph gets the visible sender name from that mailbox, while `RVT__EMAIL_ALERT_FROM_NAME` applies to SendGrid. No POP or IMAP configuration is used.

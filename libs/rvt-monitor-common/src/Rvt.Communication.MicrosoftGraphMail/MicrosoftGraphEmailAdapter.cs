@@ -6,15 +6,37 @@ using Rvt.Communication.Abstractions;
 
 namespace Rvt.Communication.MicrosoftGraphMail;
 
-public sealed class MicrosoftGraphEmailAdapter(
-    HttpClient httpClient,
-    IMicrosoftGraphAccessTokenProvider tokenProvider,
-    MicrosoftGraphMailOptions options) : IEmailDeliveryPort
+public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
 {
     internal const long SmallAttachmentLimit = 3L * 1024 * 1024;
     internal const long MaximumAttachmentLength = 150L * 1024 * 1024;
     private const int UploadChunkLength = 3 * 1024 * 1024;
     private static readonly Uri GraphBaseUri = new("https://graph.microsoft.com/v1.0/");
+
+    private readonly HttpClient? httpClient;
+    private readonly IHttpClientFactory? httpClientFactory;
+    private readonly IMicrosoftGraphAccessTokenProvider tokenProvider;
+    private readonly MicrosoftGraphMailOptions options;
+
+    public MicrosoftGraphEmailAdapter(
+        HttpClient httpClient,
+        IMicrosoftGraphAccessTokenProvider tokenProvider,
+        MicrosoftGraphMailOptions options)
+    {
+        this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        this.tokenProvider = tokenProvider ?? throw new ArgumentNullException(nameof(tokenProvider));
+        this.options = options ?? throw new ArgumentNullException(nameof(options));
+    }
+
+    internal MicrosoftGraphEmailAdapter(
+        IHttpClientFactory httpClientFactory,
+        IMicrosoftGraphAccessTokenProvider tokenProvider,
+        MicrosoftGraphMailOptions options)
+    {
+        this.httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+        this.tokenProvider = tokenProvider ?? throw new ArgumentNullException(nameof(tokenProvider));
+        this.options = options ?? throw new ArgumentNullException(nameof(options));
+    }
 
     public async Task SendAsync(
         EmailDeliveryRequest request,
@@ -37,6 +59,18 @@ public sealed class MicrosoftGraphEmailAdapter(
                 "MicrosoftGraph",
                 DeliveryFailureKind.Permanent,
                 "AttachmentTooLarge");
+        }
+
+        if (httpClientFactory is not null)
+        {
+            using var operationClient = httpClientFactory.CreateClient(
+                MicrosoftGraphMailServiceCollectionExtensions.HttpClientName);
+            var operationAdapter = new MicrosoftGraphEmailAdapter(
+                operationClient,
+                tokenProvider,
+                options);
+            await operationAdapter.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            return;
         }
 
         if (request.Attachments.Any(attachment => attachment.Length >= SmallAttachmentLimit))
@@ -87,9 +121,21 @@ public sealed class MicrosoftGraphEmailAdapter(
             draftJson,
             readResponseBody: true,
             cancellationToken).ConfigureAwait(false);
-        var draftResponse = JsonSerializer.Deserialize(
-            draftBody!,
-            MicrosoftGraphJsonContext.Default.GraphDraftResponse);
+        GraphDraftResponse? draftResponse;
+        try
+        {
+            draftResponse = JsonSerializer.Deserialize(
+                draftBody!,
+                MicrosoftGraphJsonContext.Default.GraphDraftResponse);
+        }
+        catch (JsonException)
+        {
+            throw new EmailDeliveryException(
+                "MicrosoftGraph",
+                DeliveryFailureKind.Permanent,
+                "InvalidDraftResponse");
+        }
+
         if (string.IsNullOrWhiteSpace(draftResponse?.Id))
         {
             throw new EmailDeliveryException(
@@ -150,9 +196,21 @@ public sealed class MicrosoftGraphEmailAdapter(
             json,
             readResponseBody: true,
             cancellationToken).ConfigureAwait(false);
-        var response = JsonSerializer.Deserialize(
-            responseBody!,
-            MicrosoftGraphJsonContext.Default.GraphUploadSessionResponse);
+        GraphUploadSessionResponse? response;
+        try
+        {
+            response = JsonSerializer.Deserialize(
+                responseBody!,
+                MicrosoftGraphJsonContext.Default.GraphUploadSessionResponse);
+        }
+        catch (JsonException)
+        {
+            throw new EmailDeliveryException(
+                "MicrosoftGraph",
+                DeliveryFailureKind.Permanent,
+                "InvalidUploadSession");
+        }
+
         if (!Uri.TryCreate(response?.UploadUrl, UriKind.Absolute, out var uploadUri) ||
             uploadUri.Scheme != Uri.UriSchemeHttps)
         {
@@ -213,7 +271,7 @@ public sealed class MicrosoftGraphEmailAdapter(
         HttpResponseMessage response;
         try
         {
-            response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+            response = await httpClient!.SendAsync(message, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -283,11 +341,18 @@ public sealed class MicrosoftGraphEmailAdapter(
         HttpResponseMessage response;
         try
         {
-            response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+            response = await httpClient!.SendAsync(message, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (OperationCanceledException)
+        {
+            throw new EmailDeliveryException(
+                "MicrosoftGraph",
+                DeliveryFailureKind.Transient,
+                "Timeout");
         }
         catch (HttpRequestException)
         {

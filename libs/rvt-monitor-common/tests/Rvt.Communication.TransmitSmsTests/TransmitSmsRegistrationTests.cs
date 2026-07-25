@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -60,9 +62,66 @@ public sealed class TransmitSmsRegistrationTests
         Assert.AreEqual("An SMS delivery provider is already registered.", exception.Message);
     }
 
+    [TestMethod]
+    public async Task AddTransmitSms_SingletonPortUsesFactoryManagedClientPerDelivery()
+    {
+        var services = new ServiceCollection();
+        var clientFactory = new RecordingHttpClientFactory();
+        services.AddTransmitSms(new TransmitSmsOptions
+        {
+            Enabled = true,
+            ApiKey = "api-key",
+            ApiSecret = "api-secret",
+            Sender = "KrakenAlert"
+        });
+        services.AddSingleton<IHttpClientFactory>(clientFactory);
+
+        using var provider = services.BuildServiceProvider();
+        var port = provider.GetRequiredService<ISmsDeliveryPort>();
+        var request = new SmsDeliveryRequest("447700900123", "Threshold breached");
+
+        await port.SendAsync(request);
+        await port.SendAsync(request);
+
+        Assert.AreSame(port, provider.GetRequiredService<ISmsDeliveryPort>());
+        CollectionAssert.AreEqual(new[] { 1, 2 }, clientFactory.RequestClientIds);
+    }
+
     private sealed class ExistingSmsDeliveryPort : ISmsDeliveryPort
     {
         public Task SendAsync(SmsDeliveryRequest request, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+    }
+
+    private sealed class RecordingHttpClientFactory : IHttpClientFactory
+    {
+        private int clientId;
+
+        internal List<int> RequestClientIds { get; } = [];
+
+        public HttpClient CreateClient(string name)
+        {
+            var currentClientId = ++clientId;
+            return new HttpClient(new RecordingHandler(currentClientId, RequestClientIds));
+        }
+
+        private sealed class RecordingHandler(
+            int clientId,
+            List<int> requestClientIds) : HttpMessageHandler
+        {
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request,
+                CancellationToken cancellationToken)
+            {
+                requestClientIds.Add(clientId);
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """{"error":{"code":"SUCCESS","description":"OK"}}""",
+                        Encoding.UTF8,
+                        "application/json")
+                });
+            }
+        }
     }
 }

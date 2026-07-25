@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -61,9 +62,76 @@ public sealed class MicrosoftGraphMailRegistrationTests
         Assert.AreEqual("An email delivery provider is already registered.", exception.Message);
     }
 
+    [TestMethod]
+    public async Task AddMicrosoftGraphMail_SingletonPortUsesFactoryManagedClientPerDelivery()
+    {
+        var services = new ServiceCollection();
+        var clientFactory = new RecordingHttpClientFactory(_ =>
+            new HttpResponseMessage(HttpStatusCode.Accepted));
+        services.AddMicrosoftGraphMail(new MicrosoftGraphMailOptions
+        {
+            Enabled = true,
+            TenantId = "tenant",
+            ClientId = "client",
+            ClientSecret = "secret",
+            SenderAddress = "sender@example.test"
+        });
+        services.AddSingleton<IHttpClientFactory>(clientFactory);
+        services.AddSingleton<IMicrosoftGraphAccessTokenProvider>(
+            new StaticTokenProvider());
+
+        using var provider = services.BuildServiceProvider();
+        var port = provider.GetRequiredService<IEmailDeliveryPort>();
+        var request = new EmailDeliveryRequest(
+            "ops@example.test", "subject", "plain", "<p>html</p>", []);
+
+        await port.SendAsync(request);
+        await port.SendAsync(request);
+
+        Assert.AreSame(port, provider.GetRequiredService<IEmailDeliveryPort>());
+        CollectionAssert.AreEqual(new[] { 1, 2 }, clientFactory.RequestClientIds);
+    }
+
     private sealed class ExistingEmailDeliveryPort : IEmailDeliveryPort
     {
         public Task SendAsync(EmailDeliveryRequest request, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+    }
+
+    private sealed class StaticTokenProvider : IMicrosoftGraphAccessTokenProvider
+    {
+        public ValueTask<string> GetAccessTokenAsync(CancellationToken cancellationToken) =>
+            ValueTask.FromResult("token");
+    }
+
+    private sealed class RecordingHttpClientFactory(
+        Func<int, HttpResponseMessage> responseFactory) : IHttpClientFactory
+    {
+        private int clientId;
+
+        internal List<int> RequestClientIds { get; } = [];
+
+        public HttpClient CreateClient(string name)
+        {
+            var currentClientId = ++clientId;
+            return new HttpClient(new RecordingHandler(
+                currentClientId,
+                RequestClientIds,
+                responseFactory));
+        }
+
+        private sealed class RecordingHandler(
+            int clientId,
+            List<int> requestClientIds,
+            Func<int, HttpResponseMessage> responseFactory) : HttpMessageHandler
+        {
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request,
+                CancellationToken cancellationToken)
+            {
+                requestClientIds.Add(clientId);
+                return Task.FromResult(responseFactory(clientId));
+            }
+        }
     }
 }

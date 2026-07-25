@@ -8,12 +8,21 @@ public sealed class TransmitSmsAdapter : ISmsDeliveryPort
 {
     private const string ProviderName = "TransmitSMS";
 
-    private readonly TransmitSmsClient client;
+    private readonly TransmitSmsClient? client;
+    private readonly IHttpClientFactory? httpClientFactory;
     private readonly TransmitSmsOptions options;
 
     public TransmitSmsAdapter(HttpClient httpClient, TransmitSmsOptions options)
     {
         client = new TransmitSmsClient(httpClient);
+        this.options = options ?? throw new ArgumentNullException(nameof(options));
+    }
+
+    internal TransmitSmsAdapter(
+        IHttpClientFactory httpClientFactory,
+        TransmitSmsOptions options)
+    {
+        this.httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         this.options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
@@ -24,9 +33,28 @@ public sealed class TransmitSmsAdapter : ISmsDeliveryPort
         ArgumentNullException.ThrowIfNull(request);
         EnsureConfigured();
 
+        if (httpClientFactory is not null)
+        {
+            using var operationClient = httpClientFactory.CreateClient(
+                TransmitSmsServiceCollectionExtensions.HttpClientName);
+            await SendAsync(
+                new TransmitSmsClient(operationClient),
+                request,
+                cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await SendAsync(client!, request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SendAsync(
+        TransmitSmsClient operationClient,
+        SmsDeliveryRequest request,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            await client.SendAsync(
+            await operationClient.SendAsync(
                 new TransmitSmsRequest(
                     options.ApiKey,
                     options.ApiSecret,

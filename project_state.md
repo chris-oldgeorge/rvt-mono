@@ -1,5 +1,37 @@
 # Project State
 
+## Communication final-review HTTP hardening - 2026-07-25 (complete)
+
+- Microsoft Graph mail and TransmitSMS keep their singleton delivery-port
+  composition, while their DI-held adapters now retain `IHttpClientFactory`
+  rather than transient typed clients. Each delivery creates and disposes one
+  named factory-managed `HttpClient`, preventing process-long client capture
+  without changing the singleton neutral workflow API. Public direct
+  `HttpClient` adapter constructors remain available.
+- Microsoft Graph non-caller HTTP cancellation now maps to a safe transient
+  `EmailDeliveryException` with code `Timeout`; caller-requested cancellation
+  still propagates. Malformed successful draft and upload-session JSON maps to
+  the existing safe permanent `InvalidDraftResponse` and
+  `InvalidUploadSession` codes without response content in exception text.
+- Strict TDD RED: Graph focused tests failed 4/5 for the exact timeout,
+  malformed-response, and retained-client symptoms while caller cancellation
+  passed; TransmitSMS lifetime failed 1/1 with request client IDs `[1,1]`
+  instead of `[1,2]`. GREEN: the same Graph tests passed 5/5 and TransmitSMS
+  passed 1/1.
+- Full suites passed: Graph 35/35, TransmitSMS 25/25, Abstractions 20/20, and
+  workflow 31/31. The four runnable vendor monitor communication composition
+  suites passed 12/12. Both provider projects and all five monitor hosts built
+  sequentially with zero warnings and errors. The source-boundary/prerequisite
+  guard and `git diff --check` passed.
+- ReportingMonitor's focused test project remains blocked by the documented
+  release-lock `NU1109` (central Logging.Abstractions 10.0.4 versus transitive
+  10.0.9), although its host build is green. The five retained locks naming
+  removed Infrastructure remain unchanged for the separate eleven-package
+  release/lock plan.
+- Storage, Portal, reporting behavior, central package versions, locks, and all
+  future-pending work remain excluded. Full evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-communication-provider-split/final-fix-report.md`.
+
 ## Communication provider Task 9 - verification and documentation - 2026-07-25 (complete)
 
 - The source-level communication split is verified. The project graph is

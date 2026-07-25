@@ -7,6 +7,8 @@ namespace Rvt.Communication.TransmitSms;
 
 public static class TransmitSmsServiceCollectionExtensions
 {
+    internal const string HttpClientName = "Rvt.Communication.TransmitSms";
+
     public static IServiceCollection AddTransmitSms(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -27,7 +29,10 @@ public static class TransmitSmsServiceCollectionExtensions
         }
 
         services.AddSingleton(options);
-        services.AddHttpClient<TransmitSmsAdapter>();
+        services.AddHttpClient(HttpClientName);
+        services.AddSingleton(provider => new TransmitSmsAdapter(
+            provider.GetRequiredService<IHttpClientFactory>(),
+            provider.GetRequiredService<TransmitSmsOptions>()));
         services.AddSingleton<ISmsDeliveryPort>(provider =>
             provider.GetRequiredService<TransmitSmsAdapter>());
         services.AddSingleton<IHostedService, TransmitSmsStartupValidationService>();

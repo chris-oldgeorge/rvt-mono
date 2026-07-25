@@ -166,6 +166,27 @@ public sealed class MicrosoftGraphEmailAdapterTests
     }
 
     [TestMethod]
+    public async Task SendAsync_HttpTimeoutIsTransientAndSafe()
+    {
+        using var httpClient = new HttpClient(new ThrowingHandler(
+            new OperationCanceledException("raw timeout secret")))
+        {
+            BaseAddress = new Uri("https://graph.microsoft.com/v1.0/")
+        };
+        var adapter = new MicrosoftGraphEmailAdapter(
+            httpClient,
+            new RecordingTokenProvider("token"),
+            Options());
+
+        var exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+            adapter.SendAsync(Request()));
+
+        Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
+        Assert.AreEqual("Timeout", exception.Code);
+        Assert.DoesNotContain("raw timeout secret", exception.ToString());
+    }
+
+    [TestMethod]
     public async Task SendAsync_TokenFailureIsPermanentAndSafe()
     {
         using var handler = new RecordingHandler(HttpStatusCode.Accepted);
@@ -353,6 +374,62 @@ public sealed class MicrosoftGraphEmailAdapterTests
         Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
         Assert.DoesNotContain(invalidUploadUrl, exception.ToString());
         Assert.IsFalse(handler.Requests.Any(request => request.Method == HttpMethod.Put));
+    }
+
+    [TestMethod]
+    public async Task SendAsync_MalformedDraftResponseIsSafeTypedFailure()
+    {
+        const string malformedResponse = "{\"id\":\"raw-draft-secret\"";
+        using var handler = new SequenceHandler((HttpStatusCode.Created, malformedResponse));
+        using var httpClient = new HttpClient(handler);
+        var adapter = new MicrosoftGraphEmailAdapter(
+            httpClient,
+            new RecordingTokenProvider("token"),
+            Options());
+
+        var exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+            adapter.SendAsync(new EmailDeliveryRequest(
+                "ops@example.test",
+                "subject",
+                "plain",
+                "<p>html</p>",
+                [new EmailAttachment(
+                    "large.bin",
+                    "application/octet-stream",
+                    new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit])])));
+
+        Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
+        Assert.AreEqual("InvalidDraftResponse", exception.Code);
+        Assert.DoesNotContain(malformedResponse, exception.ToString());
+    }
+
+    [TestMethod]
+    public async Task SendAsync_MalformedUploadSessionResponseIsSafeTypedFailure()
+    {
+        const string malformedResponse = "{\"uploadUrl\":\"raw-session-secret\"";
+        using var handler = new SequenceHandler(
+            (HttpStatusCode.Created, """{"id":"draft-id"}"""),
+            (HttpStatusCode.OK, malformedResponse));
+        using var httpClient = new HttpClient(handler);
+        var adapter = new MicrosoftGraphEmailAdapter(
+            httpClient,
+            new RecordingTokenProvider("token"),
+            Options());
+
+        var exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+            adapter.SendAsync(new EmailDeliveryRequest(
+                "ops@example.test",
+                "subject",
+                "plain",
+                "<p>html</p>",
+                [new EmailAttachment(
+                    "large.bin",
+                    "application/octet-stream",
+                    new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit])])));
+
+        Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
+        Assert.AreEqual("InvalidUploadSession", exception.Code);
+        Assert.DoesNotContain(malformedResponse, exception.ToString());
     }
 
     [TestMethod]

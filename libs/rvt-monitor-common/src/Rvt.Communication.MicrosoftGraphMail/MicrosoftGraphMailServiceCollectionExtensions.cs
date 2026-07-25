@@ -7,6 +7,8 @@ namespace Rvt.Communication.MicrosoftGraphMail;
 
 public static class MicrosoftGraphMailServiceCollectionExtensions
 {
+    internal const string HttpClientName = "Rvt.Communication.MicrosoftGraphMail";
+
     public static IServiceCollection AddMicrosoftGraphMail(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
@@ -24,8 +26,12 @@ public static class MicrosoftGraphMailServiceCollectionExtensions
 
         services.AddSingleton(options);
         services.AddSingleton<IMicrosoftGraphAccessTokenProvider, AzureIdentityGraphAccessTokenProvider>();
-        services.AddHttpClient<MicrosoftGraphEmailAdapter>(client =>
+        services.AddHttpClient(HttpClientName, client =>
             client.BaseAddress = new Uri("https://graph.microsoft.com/v1.0/"));
+        services.AddSingleton(provider => new MicrosoftGraphEmailAdapter(
+            provider.GetRequiredService<IHttpClientFactory>(),
+            provider.GetRequiredService<IMicrosoftGraphAccessTokenProvider>(),
+            provider.GetRequiredService<MicrosoftGraphMailOptions>()));
         services.AddSingleton<IEmailDeliveryPort>(provider => provider.GetRequiredService<MicrosoftGraphEmailAdapter>());
         services.AddSingleton<IHostedService, MicrosoftGraphMailStartupValidationService>();
         return services;

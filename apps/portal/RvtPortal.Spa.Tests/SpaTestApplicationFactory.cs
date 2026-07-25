@@ -5,6 +5,7 @@
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 // - 2026-06-24 pending Added report-content shared-key test configuration.
 // - 2026-06-25 pending Removed EF Core options configuration callbacks when replacing contexts with in-memory stores.
+// - 2026-07-25 pending Replaced WebApplicationFactory's wildcard host default with the portal's explicit local test hosts.
 
 using System.Data.Common;
 using System.Globalization;
@@ -49,6 +50,7 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(environment);
+        builder.UseSetting("AllowedHosts", "localhost;127.0.0.1");
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
             configuration.AddInMemoryCollection(new Dictionary<string, string?>

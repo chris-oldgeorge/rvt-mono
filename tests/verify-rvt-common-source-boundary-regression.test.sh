@@ -39,3 +39,69 @@ fi
 grep -Fq \
   "Removed communication infrastructure project still exists: ${removed_project}" \
   "${test_root}/output"
+
+boundary_root="$(mktemp -d /private/tmp/rvt-common-source-boundary.XXXXXX)"
+cleanup() {
+  rm -rf "${test_root}" "${boundary_root}"
+}
+
+copy_project() {
+  local project="$1"
+  mkdir -p "${boundary_root}/$(dirname "${project}")"
+  cp "${repo_root}/${project}" "${boundary_root}/${project}"
+}
+
+for project in \
+  apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj \
+  apps/monitors/myatmmonitor/MyAtmMonitor/MyAtmMonitor.csproj \
+  apps/monitors/omnidotsmonitor/OmnidotsMonitor/OmnidotsMonitor.csproj \
+  apps/monitors/svantekmonitor/SvantekMonitor/SvantekMonitor.csproj \
+  apps/monitors/reportingmonitor/ReportingMonitor/ReportingMonitor.csproj \
+  apps/monitors/reportingmonitor/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
+  apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj \
+  apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj \
+  apps/monitors/airqmonitor/AirQMonitorTests/AirQMonitorTests.csproj \
+  apps/monitors/myatmmonitor/MyAtmMonitorTests/MyAtmMonitorTests.csproj \
+  apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/OmnidotsMonitorTests.csproj \
+  apps/monitors/svantekmonitor/SvantekMonitorTests/SvantekMonitorTests.csproj \
+  apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj \
+  services/reporting/src/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
+  services/reporting/src/Rvt.Reporting.Service/Rvt.Reporting.Service.csproj \
+  libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj \
+  libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj \
+  libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj \
+  libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj \
+  libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj \
+  libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj \
+  libs/rvt-monitor-common/src/Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj \
+  libs/rvt-monitor-common/src/Rvt.Storage.Local/Rvt.Storage.Local.csproj \
+  libs/rvt-monitor-common/src/Rvt.Storage.AzureBlob/Rvt.Storage.AzureBlob.csproj \
+  libs/rvt-monitor-common/src/Rvt.Storage.S3/Rvt.Storage.S3.csproj \
+  libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj \
+  libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj \
+  libs/rvt-monitor-common/package-validation/TestConsumer/TestConsumer.csproj; do
+  copy_project "${project}"
+done
+
+mkdir -p "${boundary_root}/scripts"
+cp "${repo_root}/scripts/verify-rvt-common-source-boundary.sh" "${boundary_root}/scripts/"
+
+if ! "${boundary_root}/scripts/verify-rvt-common-source-boundary.sh" >"${boundary_root}/output" 2>&1; then
+  printf 'Expected the guard to accept Reporting Storage with only Rvt.Storage.Abstractions.\n' >&2
+  cat "${boundary_root}/output" >&2
+  exit 1
+fi
+
+sed -i.bak \
+  's#Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj#Rvt.Monitor.Common/Rvt.Monitor.Common.csproj#' \
+  "${boundary_root}/apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj"
+rm "${boundary_root}/apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj.bak"
+
+if "${boundary_root}/scripts/verify-rvt-common-source-boundary.sh" >"${boundary_root}/output" 2>&1; then
+  printf 'Expected the guard to reject a Reporting Storage reference to Rvt.Monitor.Common.\n' >&2
+  exit 1
+fi
+
+grep -Fq \
+  'apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj must not reference libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj' \
+  "${boundary_root}/output"

@@ -12,6 +12,7 @@ communication_project="libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communi
 sendgrid_mail_project="libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj"
 microsoft_graph_mail_project="libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj"
 transmit_sms_project="libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj"
+storage_abstractions_project="libs/rvt-monitor-common/src/Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj"
 integration_testing_project="libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj"
 
 failures=0
@@ -149,6 +150,9 @@ reject_package_reference \
   SendGrid
 
 require_project_reference \
+  apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj \
+  "${storage_abstractions_project}"
+reject_project_reference \
   apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj \
   "${common_project}"
 

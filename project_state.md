@@ -1,5 +1,22 @@
 # Project State
 
+## Storage provider Task 7 boundary-guard follow-up - 2026-07-26 (complete)
+
+- `Rvt.Reporting.Storage` was already correctly migrated in Task 7 to reference
+  `Rvt.Storage.Abstractions` only for storage. The shared
+  `verify-rvt-common-source-boundary.sh` guard incorrectly retained its former
+  `Rvt.Monitor.Common` requirement.
+- The guard now requires the Abstractions project and rejects a Common project
+  reference. Its isolated behavioral regression first failed only on the stale
+  Common requirement, then passed after the correction; the normal
+  source-boundary test also passes.
+- This corrective guard/test-only change does not alter Task 10's four pending
+  documentation edits, consumer source, package policy, locks, or future
+  pending work. The Graph upload-chunk timeout translation remains the
+  carry-forward merge blocker.
+- Full evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-7-boundary-fix-report.md`.
+
 ## Storage provider Task 9 - source solution wiring - 2026-07-26 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; Task 9 starts from the

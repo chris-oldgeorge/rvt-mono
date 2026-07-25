@@ -91,9 +91,14 @@ public sealed class AirQModelMappingTests
 
         var monitor = context.Model.FindEntityType(typeof(MonitorEntity));
         Assert.IsNotNull(monitor);
+        var index = monitor.GetIndexes().Single();
         Assert.AreEqual(
             "ix_monitor_serial_id_type_of_monitor",
-            monitor.GetIndexes().Single().GetDatabaseName());
+            index.GetDatabaseName());
+        CollectionAssert.AreEqual(
+            new[] { "SerialId", "TypeOfMonitor" },
+            index.Properties.Select(property => property.Name).ToArray());
+        Assert.IsFalse(index.IsUnique);
     }
 
     private static void AssertColumns(

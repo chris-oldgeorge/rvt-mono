@@ -103,9 +103,14 @@ public sealed class SvantekModelMappingTests
 
         var monitor = context.Model.FindEntityType(typeof(MonitorEntity));
         Assert.IsNotNull(monitor);
+        var index = monitor.GetIndexes().Single();
         Assert.AreEqual(
             "ix_monitor_serial_id_type_of_monitor",
-            monitor.GetIndexes().Single().GetDatabaseName());
+            index.GetDatabaseName());
+        CollectionAssert.AreEqual(
+            new[] { "SerialId", "TypeOfMonitor" },
+            index.Properties.Select(property => property.Name).ToArray());
+        Assert.IsFalse(index.IsUnique);
     }
 
     [TestMethod]
@@ -121,9 +126,14 @@ public sealed class SvantekModelMappingTests
             "what_3_words",
             deployment.FindProperty(nameof(DeploymentEntity.What3Words))!.GetColumnName());
         Assert.IsNotNull(notification);
+        var recordingLink = notification.FindProperty("RecordingLink");
+        Assert.IsNotNull(recordingLink);
         Assert.AreEqual(
             "recording_link",
-            notification.FindProperty("RecordingLink")!.GetColumnName());
+            recordingLink.GetColumnName());
+        Assert.IsTrue(recordingLink.IsShadowProperty());
+        Assert.AreEqual(PropertySaveBehavior.Ignore, recordingLink.GetBeforeSaveBehavior());
+        Assert.AreEqual(PropertySaveBehavior.Save, recordingLink.GetAfterSaveBehavior());
     }
 
     [TestMethod]

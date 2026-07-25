@@ -41,10 +41,12 @@
   `Rvt.Storage.Tests` project and referenced with `PrivateAssets="all"`.
   Its direct/transitive graph is recorded only in the storage test lock; no
   provider project or provider lock changed.
-- No real provider inconsistency surfaced, so no production code, package
-  version, or lock file changed. Tasks 6-10 remain pending: consumer
-  migrations, legacy Common storage removal, solution/packaging integration,
-  and final verification/documentation. Portal storage and the independent
+- No real provider inconsistency surfaced, so no provider production code,
+  provider package version, or provider lock changed. The test-only Roslyn
+  central entry and `Rvt.Storage.Tests` lock are the only package/lock changes.
+  Tasks 6-10 remain pending: consumer migrations, legacy Common storage
+  removal, solution/packaging integration, and final
+  verification/documentation. Portal storage and the independent
   `services/reporting` Azure adapter remain future work.
 - Full Task 5 evidence is in
   `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-5-report.md`.

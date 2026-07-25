@@ -15,7 +15,11 @@ trap cleanup EXIT
 sql_server="Sql""Server"
 sql_server_upper="SQL ""Server"
 sql_server_lower="sql""server"
+sql_server_hyphen="SQL-""Server"
+sql_server_underscore="SQL_""Server"
 sql_client="Sql""Client"
+sql_connection="Sql""Connection"
+sql_bulk_copy="Sql""BulkCopy"
 ef_provider_package="Microsoft.EntityFrameworkCore.${sql_server}"
 data_client_package="Microsoft.Data.${sql_client}"
 use_provider="Use${sql_server}"
@@ -89,6 +93,14 @@ assert_rejected \
   src/Legacy.cs \
   "options.${use_provider}(connectionString);"
 assert_rejected \
+  csharp-api-connection \
+  src/LegacyConnection.cs \
+  "var connection = new ${sql_connection}(connectionString);"
+assert_rejected \
+  csharp-api-bulk-copy \
+  src/LegacyBulkCopy.cs \
+  "using var bulkCopy = new ${sql_bulk_copy}(connectionString);"
+assert_rejected \
   provider-configuration \
   src/appsettings.json \
   "{ \"Database\": { \"Provider\": \"${sql_server}\" } }"
@@ -97,8 +109,20 @@ assert_rejected \
   docs/legacy.md \
   "Use ${sql_server_upper} for production deployments."
 assert_rejected \
+  prose-hyphen \
+  docs/legacy-hyphen.md \
+  "Use ${sql_server_hyphen} for production deployments."
+assert_rejected \
+  prose-underscore \
+  docs/legacy-underscore.md \
+  "Use ${sql_server_underscore} for production deployments."
+assert_rejected \
   retired-path \
   "database/${sql_server_lower}/legacy.sql" \
+  'select 1;'
+assert_rejected \
+  retired-path-space \
+  "database/${sql_server_upper}/legacy.sql" \
   'select 1;'
 
 printf 'PostgreSQL-only guard fixtures verified.\n'

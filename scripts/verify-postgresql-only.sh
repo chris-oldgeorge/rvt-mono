@@ -43,7 +43,7 @@ while IFS= read -r -d '' path; do
     continue
   fi
 
-  if [[ "${path}" =~ [sS][qQ][lL][_-]?[sS]erver|[mM][sS][sS][qQ][lL] ]]; then
+  if [[ "${path}" =~ [sS][qQ][lL][[:space:]_-]?[sS]erver|[mM][sS][sS][qQ][lL] ]]; then
     report_finding "${path}" "retired SQL Server path"
   fi
 done < <(git -C "${repo_root}" ls-files -z)
@@ -71,7 +71,7 @@ report_content_matches "forbidden C# API SqlConnection" -F -e "SqlConnection"
 report_content_matches "forbidden C# API SqlBulkCopy" -F -e "SqlBulkCopy"
 report_content_matches \
   "forbidden SQL Server provider or support text" \
-  -i -E -e 'SqlServer|MSSQL|SQL[[:space:]]+Server'
+  -i -E -e 'Sql[-_[:space:]]?Server|MSSQL'
 
 if (( failures > 0 )); then
   printf '%d PostgreSQL-only violation(s) found.\n' "${failures}" >&2

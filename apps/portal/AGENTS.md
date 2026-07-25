@@ -26,11 +26,8 @@ This repository is the RVT Portal SPA alpha worktree. Use the workspace-level `.
 ## DBR Artifacts To Keep Current
 
 - Update `docs/database/database-name-registry.csv` when table, view, or column names change.
-- Update `docs/database/sqlserver-name-registry.csv` when SQL Server source mappings change.
-- Update `docs/database/database-name-equivalents-for-migrator-sqlserver.csv` when the SQL Server-to-Postgres migrator needs new name mappings.
 - Update `docs/database/database-constraint-index-name-registry.csv` when constraints or indexes change.
-- The SQL Server-to-Postgres migrator (`RVT.DatabaseMigrator`) was retired on 2026-07-14. A database is built
-  from EF migrations (three contexts) plus `RVT.SchemaDeploy`, which applies the SQL under
+- A database is built from EF migrations (three contexts) plus `RVT.SchemaDeploy`, which applies the scripts under
   `database/postgres/`. See `../../docs/database/portal/ef-migrations.md`.
 
 ## Compatibility Boundaries

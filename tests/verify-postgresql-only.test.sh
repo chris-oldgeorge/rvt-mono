@@ -51,6 +51,7 @@ assert_rejected() {
   local name="$1"
   local relative_path="$2"
   local content="$3"
+  local expected_rule="${4:-}"
   local fixture="${temp_dir}/${name}"
   local output
 
@@ -67,6 +68,12 @@ assert_rejected() {
   if [[ "${output}" != *"${relative_path}"* || "${output}" != *"rule:"* ]]; then
     printf 'FAIL: %s mutation must report its path and matched rule, got:\n%s\n' \
       "${name}" "${output}" >&2
+    exit 1
+  fi
+
+  if [[ -n "${expected_rule}" && "${output}" != *"[rule: ${expected_rule}]"* ]]; then
+    printf 'FAIL: %s mutation must report rule %s, got:\n%s\n' \
+      "${name}" "${expected_rule}" "${output}" >&2
     exit 1
   fi
 }
@@ -86,9 +93,9 @@ assert_rejected \
   src/Legacy.csproj \
   "<PackageReference Include=\"${ef_provider_package}\" Version=\"10.0.0\" />"
 assert_rejected \
-  lockfile-package \
+  transitive-lock-entry \
   src/packages.lock.json \
-  "{ \"dependencies\": { \"${data_client_package}\": \"6.0.0\" } }"
+  "{ \"net10.0\": { \"${data_client_package}\": { \"type\": \"Transitive\", \"resolved\": \"6.0.0\" } } }"
 assert_rejected \
   csharp-api \
   src/Legacy.cs \
@@ -122,12 +129,14 @@ assert_rejected \
   docs/legacy-double-space.md \
   "Use ${sql_server_double_space} for production deployments."
 assert_rejected \
-  retired-path \
+  retired-sqlserver-directory \
   "database/${sql_server_lower}/legacy.sql" \
-  'select 1;'
+  'select 1;' \
+  "retired database/sqlserver path"
 assert_rejected \
-  retired-path-space \
-  "database/${sql_server_upper}/legacy.sql" \
-  'select 1;'
+  retired-sqlserver-script \
+  "database/legacy.schema.${sql_server_lower}.sql" \
+  'select 1;' \
+  "retired .sqlserver.sql script path"
 
 printf 'PostgreSQL-only guard fixtures verified.\n'

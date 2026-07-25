@@ -43,6 +43,16 @@ while IFS= read -r -d '' path; do
     continue
   fi
 
+  if [[ "${path}" == database/sqlserver || "${path}" == database/sqlserver/* ]]; then
+    report_finding "${path}" "retired database/sqlserver path"
+    continue
+  fi
+
+  if [[ "${path}" == *.sqlserver.sql ]]; then
+    report_finding "${path}" "retired .sqlserver.sql script path"
+    continue
+  fi
+
   if [[ "${path}" =~ [sS][qQ][lL][[:space:]_-]?[sS]erver|[mM][sS][sS][qQ][lL] ]]; then
     report_finding "${path}" "retired SQL Server path"
   fi

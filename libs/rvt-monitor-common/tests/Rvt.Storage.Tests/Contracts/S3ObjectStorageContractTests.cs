@@ -13,12 +13,34 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
     protected override Task<IObjectStorageClientFixture> CreateFixtureAsync() =>
         Task.FromResult<IObjectStorageClientFixture>(new S3Fixture());
 
+    [TestMethod]
+    public async Task OpenReadAsync_DisposesProviderResponseLease()
+    {
+        await using var fixture = new S3Fixture();
+        var key = StorageObjectKey.Parse("lease/sample.bin");
+        await fixture.Client.WriteAsync(
+            new StorageWriteRequest(
+                key,
+                new MemoryStream([1, 2, 3], writable: false)));
+
+        var result = await fixture.Client.OpenReadAsync(key);
+        Assert.IsNotNull(result);
+        await result.DisposeAsync();
+
+        Assert.AreEqual(
+            2,
+            fixture.LastResponseStreamDisposeCount,
+            "The content owner disposes the stream once and the S3 response lease "
+            + "must dispose the same response stream a second time.");
+    }
+
     private sealed class S3Fixture : IObjectStorageClientFixture
     {
         private readonly Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         private readonly Dictionary<string, StoredObject> objects =
             new(StringComparer.Ordinal);
         private readonly S3ObjectStorageClient client;
+        private DisposeCountingStream? lastResponseStream;
 
         public S3Fixture()
         {
@@ -60,6 +82,9 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
 
         public IObjectStorageClient Client => client;
 
+        public int LastResponseStreamDisposeCount =>
+            lastResponseStream?.DisposeCount ?? 0;
+
         public ValueTask DisposeAsync()
         {
             client.Dispose();
@@ -91,9 +116,10 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
                 return Task.FromException<GetObjectResponse>(CreateMissingException());
             }
 
+            lastResponseStream = new DisposeCountingStream(storedObject.Content);
             var response = new GetObjectResponse
             {
-                ResponseStream = new MemoryStream(storedObject.Content, writable: false),
+                ResponseStream = lastResponseStream,
             };
             response.Headers.ContentLength = storedObject.Content.Length;
             if (storedObject.ContentType is not null)
@@ -136,5 +162,17 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
                 HttpStatusCode.NotFound);
 
         private sealed record StoredObject(byte[] Content, string? ContentType);
+
+        private sealed class DisposeCountingStream(byte[] content)
+            : MemoryStream(content, writable: false)
+        {
+            public int DisposeCount { get; private set; }
+
+            protected override void Dispose(bool disposing)
+            {
+                DisposeCount++;
+                base.Dispose(disposing);
+            }
+        }
     }
 }

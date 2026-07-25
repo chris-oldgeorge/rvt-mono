@@ -110,3 +110,45 @@ local-only.
 Consumer migrations, legacy Common storage removal, solution/packaging work,
 Portal storage, the independent `services/reporting` Azure adapter, and every
 other future-pending item remain excluded for Tasks 6-10 or later plans.
+
+## Review hardening round 1
+
+The first review round identified three test-quality gaps. This follow-up
+changes tests and documentation only:
+
+- Azure contract coverage now increments and asserts the strict raw
+  `Response.Dispose` callback. S3 uses a disposal-counting response stream and
+  asserts exactly two disposals: the first from `StorageReadResult` content
+  ownership and the second from the retained `GetObjectResponse` lease. This
+  makes response disposal distinct from stream disposal alone.
+- Project dependency parsing now processes every matching MSBuild item in
+  document order. `Include` and `Update` activate each semicolon-separated
+  identity; `Remove` deactivates it. The same reader handles both package and
+  project references.
+- Raw source substring checks were replaced with a syntax-aware lexical
+  dependency analyzer. It tokenizes identifiers and qualified names while
+  skipping line/block comments and regular, verbatim, raw, interpolated, and
+  character literals; understands `global::`, global using directives, and
+  namespace/type aliases; and resolves unqualified filesystem boundary types
+  to their canonical `System.IO` names.
+
+### Review RED
+
+```bash
+dotnet test libs/rvt-monitor-common/tests/Rvt.Storage.Tests/Rvt.Storage.Tests.csproj \
+  --filter 'FullyQualifiedName~ProviderResponseLease|FullyQualifiedName~StorageDependencyBoundaryRegressionTests' \
+  --nologo -v minimal
+```
+
+Failed 5/5 for the intended gaps: Azure lease count 0 rather than 1, S3
+response-stream disposal count 0 rather than 2, omitted `Update` plus retained
+`Remove`, comment/string false positives, and unresolved `System.IO` alias
+usage.
+
+### Review GREEN
+
+The same focused command passed 5/5 after the helper changes. The complete
+contract filter passed 26/26, including the two provider response-lease cases.
+The complete boundary filter passed 7/7, including the three regression
+fixtures. The complete storage suite passed 142/142. `git diff --check` also
+passed for the review-fix scope.

@@ -17,8 +17,8 @@ public sealed class StorageDependencyBoundaryTests
             "Amazon.",
             "Microsoft.Extensions.",
             "System.IO.File",
-            "Directory",
-            "FileStream");
+            "System.IO.Directory",
+            "System.IO.FileStream");
     }
 
     [TestMethod]
@@ -65,12 +65,12 @@ public sealed class StorageDependencyBoundaryTests
 
     private sealed class StorageProjectSnapshot
     {
-        private readonly IReadOnlyDictionary<string, string> sourceFiles;
+        private readonly IReadOnlyDictionary<string, CSharpDependencyAnalysis> sourceFiles;
 
         private StorageProjectSnapshot(
             IReadOnlyCollection<string> packageReferences,
             IReadOnlyCollection<string> projectReferences,
-            IReadOnlyDictionary<string, string> sourceFiles)
+            IReadOnlyDictionary<string, CSharpDependencyAnalysis> sourceFiles)
         {
             PackageReferences = packageReferences;
             ProjectReferences = projectReferences;
@@ -96,21 +96,13 @@ public sealed class StorageDependencyBoundaryTests
                 $"Expected storage project '{projectPath}' to exist.");
 
             var project = XDocument.Load(projectPath);
-            var packageReferences = project
-                .Descendants()
-                .Where(element => element.Name.LocalName == "PackageReference")
-                .Select(element => element.Attribute("Include")?.Value)
-                .Where(value => !string.IsNullOrWhiteSpace(value))
-                .Cast<string>()
-                .OrderBy(value => value, StringComparer.Ordinal)
-                .ToArray();
-            var projectReferences = project
-                .Descendants()
-                .Where(element => element.Name.LocalName == "ProjectReference")
-                .Select(element => element.Attribute("Include")?.Value)
-                .Where(value => !string.IsNullOrWhiteSpace(value))
+            var packageReferences = ProjectDependencyReader.ReadActiveIdentities(
+                project,
+                "PackageReference");
+            var projectReferences = ProjectDependencyReader
+                .ReadActiveIdentities(project, "ProjectReference")
                 .Select(value => Path.GetFileNameWithoutExtension(
-                    value!.Replace('\\', Path.DirectorySeparatorChar)))
+                    value.Replace('\\', Path.DirectorySeparatorChar)))
                 .OrderBy(value => value, StringComparer.Ordinal)
                 .ToArray();
             var sourceFiles = Directory
@@ -119,7 +111,7 @@ public sealed class StorageDependencyBoundaryTests
                 .OrderBy(path => path, StringComparer.Ordinal)
                 .ToDictionary(
                     path => Path.GetRelativePath(repositoryRoot, path),
-                    File.ReadAllText,
+                    path => CSharpDependencyAnalyzer.Analyze(File.ReadAllText(path)),
                     StringComparer.Ordinal);
 
             Assert.IsNotEmpty(
@@ -157,9 +149,8 @@ public sealed class StorageDependencyBoundaryTests
             foreach (var requiredMarker in requiredMarkers)
             {
                 Assert.IsTrue(
-                    sourceFiles.Values.Any(source => source.Contains(
-                        requiredMarker,
-                        StringComparison.Ordinal)),
+                    sourceFiles.Values.Any(source =>
+                        source.UsesDependency(requiredMarker)),
                     $"Expected production source to use '{requiredMarker}'.");
             }
         }
@@ -169,9 +160,7 @@ public sealed class StorageDependencyBoundaryTests
             foreach (var forbiddenMarker in forbiddenMarkers)
             {
                 var matches = sourceFiles
-                    .Where(file => file.Value.Contains(
-                        forbiddenMarker,
-                        StringComparison.Ordinal))
+                    .Where(file => file.Value.UsesDependency(forbiddenMarker))
                     .Select(file => file.Key)
                     .ToArray();
                 Assert.IsEmpty(

@@ -12,12 +12,30 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
     protected override Task<IObjectStorageClientFixture> CreateFixtureAsync() =>
         Task.FromResult<IObjectStorageClientFixture>(new AzureBlobFixture());
 
+    [TestMethod]
+    public async Task OpenReadAsync_DisposesProviderResponseLease()
+    {
+        await using var fixture = new AzureBlobFixture();
+        var key = StorageObjectKey.Parse("lease/sample.bin");
+        await fixture.Client.WriteAsync(
+            new StorageWriteRequest(
+                key,
+                new MemoryStream([1, 2, 3], writable: false)));
+
+        var result = await fixture.Client.OpenReadAsync(key);
+        Assert.IsNotNull(result);
+        await result.DisposeAsync();
+
+        Assert.AreEqual(1, fixture.ProviderLeaseDisposeCount);
+    }
+
     private sealed class AzureBlobFixture : IObjectStorageClientFixture
     {
         private readonly Mock<BlobContainerClient> container =
             new(MockBehavior.Strict);
         private readonly Dictionary<string, StoredObject> objects =
             new(StringComparer.Ordinal);
+        private int providerLeaseDisposeCount;
 
         public AzureBlobFixture()
         {
@@ -46,6 +64,8 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
         }
 
         public IObjectStorageClient Client { get; }
+
+        public int ProviderLeaseDisposeCount => providerLeaseDisposeCount;
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
@@ -116,7 +136,9 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
                 contentType: storedObject.ContentType);
             var result = BlobsModelFactory.BlobDownloadStreamingResult(content, details);
             var rawResponse = new Mock<Response>(MockBehavior.Strict);
-            rawResponse.Setup(response => response.Dispose());
+            rawResponse
+                .Setup(response => response.Dispose())
+                .Callback(() => Interlocked.Increment(ref providerLeaseDisposeCount));
             return Task.FromResult(Response.FromValue(result, rawResponse.Object));
         }
 

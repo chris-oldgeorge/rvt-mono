@@ -21,10 +21,19 @@
   independent, Azure limited to its Azure SDK dependencies, S3 limited to its
   AWS SDK dependency, and all providers directly referenced only to
   Abstractions.
+- Review hardening makes Azure raw-response disposal directly observable and
+  proves S3 response-lease disposal through the response stream's distinct
+  second disposal. MSBuild dependency parsing now handles `Include`, `Update`,
+  and `Remove` identities in order. Source boundaries use syntax-aware lexical
+  analysis that ignores comments/literals and resolves global usings,
+  `global::`, and aliases rather than raw substring scans.
 - Test-first evidence: the shared fixture shells failed 24/24 before their
   real implementations and then passed 24/24. The boundary snapshot shell
   failed 4/4 before implementation and then passed 4/4. The complete storage
-  suite passed 137/137 and `git diff --check` passed.
+  suite initially passed 137/137. Review hardening failed its five focused
+  regressions before implementation, then passed 5/5; the expanded contract,
+  boundary, and full suites passed 26/26, 7/7, and 142/142 respectively.
+  `git diff --check` passed.
 - No real provider inconsistency surfaced, so no production code, package
   version, or lock file changed. Tasks 6-10 remain pending: consumer
   migrations, legacy Common storage removal, solution/packaging integration,

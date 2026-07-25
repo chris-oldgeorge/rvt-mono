@@ -350,17 +350,13 @@ namespace MyAtmMonitorTests
             var TAG = "MyTestError";
             var MESSAGE = "bang";
 
-            var monitorOptions = new MonitorDbOptions(
-                MonitorDatabaseProvider.PostgreSql,
-                new Dictionary<string, string>());
             var beforeWrite = DateTime.UtcNow;
             MonitorDb.WriteException(
                 connectionString,
                 TAG,
                 AdapterException.Of(MESSAGE),
                 "MyAtmMonitorTests",
-                "1.0",
-                monitorOptions);
+                "1.0");
             var afterWrite = DateTime.UtcNow;
 
             using var connection = new NpgsqlConnection(connectionString);

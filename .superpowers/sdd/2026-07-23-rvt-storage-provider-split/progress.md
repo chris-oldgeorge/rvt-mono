@@ -37,3 +37,6 @@ storage 148/148, bounded Common 340/340, Svantek 93/93, ReportingMonitor
 74/74, and the exact-path-excluded root build are green; ordinary
 environment/lock/root-build blockers and all Future Pending Work remain
 explicitly pending.
+Task 10 review fix round 1/5: complete. ReportingMonitor documentation now
+attributes normalized-key return to the named `IObjectStorageClient` and
+provider-URI construction/persistence to `IReportObjectUriResolver`.

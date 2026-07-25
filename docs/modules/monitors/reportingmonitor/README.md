@@ -49,7 +49,7 @@ The host binds these environment-variable names without storing values in source
 - `RVT__AI_SUMMARY_MODEL`
 - `RVT__AI_SUMMARY_TIMEOUT_SECONDS`
 
-`RVT__BLOB_REPORT_CONTAINER_NAME` remains a legacy fallback for the report container when `RVT__BLOB_CONTAINER` is not configured. New deployments should use the common `RVT__BLOB_*` settings. The default Local provider writes PDFs below `/data/rvt/blobs/pdfreports/rvtreports/`; Docker Compose mounts the `reporting-reportfiles` named volume at `/data/rvt/blobs`. The storage adapter returns the provider URI, which is persisted in `report.report_link`.
+`RVT__BLOB_REPORT_CONTAINER_NAME` remains a legacy fallback for the report container when `RVT__BLOB_CONTAINER` is not configured. New deployments should use the common `RVT__BLOB_*` settings. The default Local provider writes PDFs below `/data/rvt/blobs/pdfreports/rvtreports/`; Docker Compose mounts the `reporting-reportfiles` named volume at `/data/rvt/blobs`. The named storage client returns the normalized object key; ReportingMonitor's `IReportObjectUriResolver` converts that key to the provider URI persisted in `report.report_link`.
 
 Azure Blob storage can use either a connection string or a service URI with the Azure credential chain. S3 credentials use the AWS SDK credential chain and are not application settings. See the root README for provider examples.
 

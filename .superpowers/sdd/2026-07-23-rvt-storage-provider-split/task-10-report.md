@@ -52,6 +52,14 @@ changes and is not treated as a semantic documentation gate.
   Azure and AWS packages to `Rvt.Storage.AzureBlob` and `Rvt.Storage.S3`
   instead of `Rvt.Monitor.Common`.
 
+## Review fix round 1/5
+
+Review found one earlier ReportingMonitor paragraph incorrectly saying the
+storage adapter returns the provider URI. It now states the implemented
+boundary precisely: the named `IObjectStorageClient` returns the normalized
+object key, and ReportingMonitor's `IReportObjectUriResolver` converts that key
+to the provider-specific URI persisted in `report.report_link`.
+
 ## Fresh verification ledger
 
 All .NET commands used `--no-restore`, `-m:1`, and

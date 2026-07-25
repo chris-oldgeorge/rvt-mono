@@ -1,5 +1,46 @@
 # Project State
 
+## Storage provider Task 3 - Azure Blob adapter - 2026-07-25 (complete)
+
+- Worktree: `.worktrees/release-platform-hardening`; Task 3 starts from Task 2
+  commit `406f057`. `Rvt.Storage.AzureBlob` is now a separate packable net10
+  provider project referencing `Rvt.Storage.Abstractions`; the legacy
+  `Rvt.Monitor.Common` Azure storage implementation remains present and
+  unchanged for Task 8.
+- `AzureBlobStorageOptions` preserves provider-neutral, `RVT:`, literal
+  `RVT__`, audio-folder, and custom reporting-container aliases and precedence.
+  A connection string takes precedence over the service URI; otherwise the
+  provider requires an absolute service URI and uses
+  `DefaultAzureCredential`. Containers are required and trimmed, and prefixes
+  use the shared traversal-safe key normalization.
+- `AddRvtAzureBlobStorage` follows the Local provider pattern: one keyed
+  singleton client, one named registration, the shared client factory, and
+  startup validation through `IHostedService`.
+- `AzureBlobObjectStorageClient` streams the original request stream to Azure
+  after `CreateIfNotExistsAsync`, applies optional content type, and returns
+  only the provider-neutral key. Reads stream `DownloadStreamingAsync` content
+  and metadata without buffering, return `null` for 404, and retain the raw
+  Azure response as the shared disposal lease. Deletes return the SDK boolean;
+  `GetObjectUri` remains concrete-provider API.
+- Azure failures classify 403 as `AccessDenied`, 409 as `Conflict`, and 408,
+  429, and 5xx as `Unavailable`; caller cancellation propagates. Shared
+  exception messages never copy Azure response or inner exception text.
+- Strict TDD evidence: options/registration first failed compilation because
+  the Azure provider was absent, then passed 18/18. Client behavior then failed
+  14/14 on the deliberate unimplemented operation shell, then passed 14/14.
+  The complete Azure filter passed 32/32, the complete storage project passed
+  76/76, and the provider built with zero warnings and errors. All Azure
+  operation tests use strict SDK doubles and no network.
+- Existing central Azure/Microsoft.Extensions versions were reused unchanged.
+  Locked restore added only the new Azure provider lock plus the Azure project
+  graph and strict-test Moq graph in the storage test lock.
+- Tasks 4-10 remain pending. S3 extraction, parity and architecture tests,
+  consumer migration, legacy Common storage removal, solution/packaging work,
+  Portal storage, and the independent `services/reporting` Azure adapter remain
+  excluded and unchanged.
+- Full Task 3 evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-3-report.md`.
+
 ## Storage provider Task 2 - Local filesystem adapter - 2026-07-25 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; Task 2 starts from Task 1

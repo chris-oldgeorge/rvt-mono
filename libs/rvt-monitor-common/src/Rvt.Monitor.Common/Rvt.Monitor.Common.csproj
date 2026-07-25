@@ -14,10 +14,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj" />
-    <PackageReference Include="AWSSDK.S3" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Azure.Identity" />
-    <PackageReference Include="Azure.Storage.Blobs" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />

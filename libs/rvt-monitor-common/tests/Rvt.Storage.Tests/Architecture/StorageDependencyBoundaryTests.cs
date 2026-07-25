@@ -6,6 +6,25 @@ namespace Rvt.Storage.Tests.Architecture;
 public sealed class StorageDependencyBoundaryTests
 {
     [TestMethod]
+    public void Common_ReferencesNoCloudProviderSdkPackages()
+    {
+        var project = StorageProjectSnapshot.Load("Rvt.Monitor.Common");
+
+        project.AssertPackagesExclude(
+            "AWSSDK.S3",
+            "Azure.Identity",
+            "Azure.Storage.Blobs");
+    }
+
+    [TestMethod]
+    public void Common_ProductionSourceUsesNoCloudProviderNamespaces()
+    {
+        var project = StorageProjectSnapshot.Load("Rvt.Monitor.Common");
+
+        project.AssertSourceExcludes("Amazon.", "Azure.Storage");
+    }
+
+    [TestMethod]
     public void Abstractions_RemainsProviderFrameworkAndFilesystemIndependent()
     {
         var project = StorageProjectSnapshot.Load("Rvt.Storage.Abstractions");

@@ -54,6 +54,21 @@ public sealed class StorageDependencyBoundaryRegressionTests
     }
 
     [TestMethod]
+    public void SourceAnalyzer_RootNamespaceMatchesChildNamespaceGuard()
+    {
+        const string source =
+            """
+            using Amazon;
+            namespace Example;
+            internal sealed class Sample;
+            """;
+
+        var analysis = CSharpDependencyAnalyzer.Analyze(source);
+
+        Assert.IsTrue(analysis.UsesDependency("Amazon."));
+    }
+
+    [TestMethod]
     public void SourceAnalyzer_ResolvesGlobalUsingAndNamespaceAliases()
     {
         const string source =
@@ -196,7 +211,12 @@ internal sealed class CSharpDependencyAnalysis(
         string dependency,
         string dependencyName) =>
         dependencyName.EndsWith(".", StringComparison.Ordinal)
-            ? dependency.StartsWith(dependencyName, StringComparison.Ordinal)
+            ? dependency.Equals(
+                    dependencyName[..^1],
+                    StringComparison.Ordinal)
+                || dependency.StartsWith(
+                    dependencyName,
+                    StringComparison.Ordinal)
             : dependency.Equals(dependencyName, StringComparison.Ordinal)
                 || dependency.StartsWith(
                     $"{dependencyName}.",

@@ -1,5 +1,49 @@
 # Project State
 
+## Storage provider Task 8 - Common legacy removal - 2026-07-25 (complete)
+
+- Worktree: `.worktrees/release-platform-hardening`; Task 8 starts from the
+  Task 7 commit. The 12 legacy files under
+  `libs/rvt-monitor-common/src/Rvt.Monitor.Common/Storage/` and their four
+  Common storage test files are removed.
+- `Rvt.Monitor.Common.csproj` no longer references `AWSSDK.S3`,
+  `Azure.Identity`, or `Azure.Storage.Blobs`. Central versions remain in
+  `libs/rvt-monitor-common/Directory.Packages.props`; the S3 and Azure Blob
+  provider projects retain their SDK references.
+- The new persistent guard loads
+  `StorageProjectSnapshot.Load("Rvt.Monitor.Common")`.
+  `Common_ReferencesNoCloudProviderSdkPackages` forbids the three SDK package
+  identities above, while
+  `Common_ProductionSourceUsesNoCloudProviderNamespaces` forbids the semantic
+  dependency markers `Amazon.` and `Azure.Storage`.
+- Strict TDD evidence: before deletion, the focused boundary command failed
+  the two new assertions for `AWSSDK.S3` and the Common S3 source namespace,
+  with four existing boundary tests passing. After deletion, the identical
+  command passes 6/6. Review hardening added a root-namespace regression that
+  failed before `Amazon.` also matched `using Amazon;`, then passed after the
+  semantic matcher fix.
+- The exact legacy-symbol/Common-namespace scan and the Common vendor scan both
+  return no matches. The brief's raw substring regex still matches only
+  provider-owned replacement names containing `BlobStorageOptions` or
+  `AzureBlobStorageService`; this is a command-pattern false positive, not a
+  residual legacy Common API use.
+- Complete storage tests pass 148/148. The bounded Common set passes 340/340,
+  Svantek storage composition/upload passes 11/11, and ReportingMonitor's
+  non-DB set passes 74/74.
+- Full Common reports 340 passed and two pre-existing missing-migration-file
+  failures. Full Svantek reports 93 passed and 40 absent-PostgreSQL/stale-root
+  fixture failures. Full ReportingMonitor reports 74 passed and ten failures
+  that explicitly require `RVT__POSTGRES_INTEGRATION_CONNECTION`.
+- Restore-capable verification temporarily rewrote tracked locks; those exact
+  diffs were restored to `HEAD`. No central version, provider SDK reference,
+  tracked lock, Portal storage, independent reporting-service source, or
+  unrelated file is included in Task 8.
+- The untracked ReportingMonitor `Directory.Packages.props` override remains
+  preserved. Its clean locked-restore conflict remains release-plan work and
+  is not claimed green.
+- Full Task 8 evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-8-report.md`.
+
 ## Storage provider Task 7 - ReportingMonitor report storage - 2026-07-25 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; Task 7 starts from the

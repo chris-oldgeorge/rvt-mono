@@ -130,7 +130,7 @@ assert_rejected \
   "Use ${sql_server_double_space} for production deployments."
 assert_rejected \
   retired-sqlserver-directory \
-  "database/${sql_server_lower}/legacy.sql" \
+  "apps/portal/database/${sql_server_lower}/legacy.sql" \
   'select 1;' \
   "retired database/sqlserver path"
 assert_rejected \

@@ -43,7 +43,8 @@ while IFS= read -r -d '' path; do
     continue
   fi
 
-  if [[ "${path}" == database/sqlserver || "${path}" == database/sqlserver/* ]]; then
+  if [[ "${path}" == database/sqlserver || "${path}" == database/sqlserver/* ||
+        "${path}" == */database/sqlserver || "${path}" == */database/sqlserver/* ]]; then
     report_finding "${path}" "retired database/sqlserver path"
     continue
   fi

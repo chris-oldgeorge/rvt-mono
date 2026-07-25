@@ -1476,3 +1476,48 @@
   PostgreSQL/TimescaleDB tests remain explicit skips. Live SQL Server DML and
   SQL Server migration deployment also remain unclosed. These are deployment
   verification gaps, not hidden merge claims.
+
+## PostgreSQL-Only Execution Checkpoint - 2026-07-25
+
+- Resume instruction: start a future session with
+  `Read project_state.md to get up to speed`.
+- Worktree:
+  `/Users/oldgeorge/Documents/rvt-mono/.worktrees/postgresql-only`.
+- Branch: `codex/postgresql-only`.
+- Checkpoint implementation head before this state-only commit:
+  `8aa4a2c8b37fca60a1e86573ce39390095ad0be2`.
+- Approved design:
+  `docs/superpowers/specs/2026-07-25-postgresql-only-design.md`.
+- Committed implementation plan:
+  `docs/superpowers/plans/2026-07-25-postgresql-only.md`.
+- SDD recovery ledger:
+  `.superpowers/sdd/2026-07-25-postgresql-only/progress.md`.
+- Task 1 is complete and review-clean:
+  - `e9b1b8d` added `scripts/verify-postgresql-only.sh`,
+    `tests/verify-postgresql-only.test.sh`, and the temporary guarded
+    `scripts/build-mono.sh` integration.
+  - `efdfd0a` added spaced/hyphenated/underscored provider-name coverage plus
+    independent connection and bulk-copy API mutation cases.
+  - `8aa4a2c` restored one-or-more whitespace matching after scoped re-review.
+  - Fixture verification is green. The real repository is deliberately red
+    with 323 legacy findings until subsequent removal tasks complete.
+  - One deferred Minor review note remains: mutation fixtures assert a path
+    and generic rule marker rather than the exact expected rule category.
+- Execution order is intentionally Task 1, Task 3, Task 2, then Tasks 4-13.
+  Task 3 must remove the archive/write consumers of `RvtDatabaseProvider`
+  before Task 2 deletes that core provider type.
+- Task 3 has not changed source files. Its first implementer stopped before
+  edits when the required codegraph lookup and then the agent service returned
+  HTTP 503. Resume by dispatching a fresh Task 3 implementer from:
+  `.superpowers/sdd/2026-07-25-postgresql-only/task-3-brief.md`.
+- Current PostgreSQL-only execution variables:
+  - `RVT_ENFORCE_POSTGRESQL_ONLY=1` temporarily enables the repository guard
+    in `scripts/build-mono.sh`; Task 13 removes the gate and makes it
+    unconditional.
+  - `RVT_TEST_POSTGRES_CONNECTION` gates Portal live PostgreSQL tests.
+  - `RVT__POSTGRES_INTEGRATION_CONNECTION` gates monitor/TimescaleDB tests.
+  - `RVT_EF_CONNECTION` supplies Portal design-time EF access.
+  - `RVT_EF_PROVIDER` is still present in current code and is scheduled for
+    retirement in Task 2.
+- The main checkout's generated `.codegraph/` and
+  `apps/.nuget-packages/` remain untouched and untracked.

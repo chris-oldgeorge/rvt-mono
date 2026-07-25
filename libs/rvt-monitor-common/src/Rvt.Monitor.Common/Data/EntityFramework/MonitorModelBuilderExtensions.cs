@@ -7,11 +7,13 @@ namespace Rvt.Monitor.Common.Data.EntityFramework;
 
 public static class MonitorModelBuilderExtensions
 {
-    public static ModelBuilder ApplySharedMonitorMappings(this ModelBuilder modelBuilder)
+    public static ModelBuilder ApplySharedMonitorMappings(
+        this ModelBuilder modelBuilder,
+        MonitorDbOptions options)
     {
         modelBuilder.Entity<MonitorEntity>(entity =>
         {
-            entity.ToTable("monitor");
+            entity.ToTable(TableName(options, "MonitorsList", "monitor"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.FleetNr, "fleet_row_count");
@@ -40,7 +42,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<DeploymentEntity>(entity =>
         {
-            entity.ToTable("deployment");
+            entity.ToTable(TableName(options, "Deployments", "deployment"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.StartDate, "start_date");
@@ -56,7 +58,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<ContractEntity>(entity =>
         {
-            entity.ToTable("contract");
+            entity.ToTable(TableName(options, "Contracts", "contract"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.ContractNumber, "contract_number");
@@ -68,7 +70,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<SiteEntity>(entity =>
         {
-            entity.ToTable("site");
+            entity.ToTable(TableName(options, "Sites", "site"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.SiteName, "site_name");
@@ -88,7 +90,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<RvtAlertRuleEntity>(entity =>
         {
-            entity.ToTable("rvt_alert_rule");
+            entity.ToTable(TableName(options, "RvtAlertRules", "rvt_alert_rule"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.MonitorId, "monitor_id");
@@ -111,7 +113,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<NotificationEntity>(entity =>
         {
-            entity.ToTable("notification");
+            entity.ToTable(TableName(options, "Notifications", "notification"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.NotificationTime, "notification_time");
@@ -128,7 +130,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<MonitorDeliveryOutboxEntity>(entity =>
         {
-            entity.ToTable("monitor_delivery_outbox");
+            entity.ToTable(TableName(options, "MonitorDeliveryOutbox", "monitor_delivery_outbox"));
             entity.HasKey(row => row.Id);
             entity.HasOne<NotificationEntity>()
                 .WithMany()
@@ -174,7 +176,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<NotificationSentEntity>(entity =>
         {
-            entity.ToTable("notification_sent");
+            entity.ToTable(TableName(options, "NotificationsSent", "notification_sent"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.SendTime, "send_time");
@@ -185,7 +187,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<NotificationSettingEntity>(entity =>
         {
-            entity.ToTable("notification_setting");
+            entity.ToTable(TableName(options, "NotificationSettings", "notification_setting"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.Email, "email");
@@ -197,7 +199,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<AspNetUserEntity>(entity =>
         {
-            entity.ToTable("AspNetUsers");
+            entity.ToTable(TableName(options, "AspNetUsers", "AspNetUsers"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "Id");
             MapProperty(entity, row => row.CompanyId, "company_id");
@@ -222,7 +224,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<SiteUserEntity>(entity =>
         {
-            entity.ToTable("site_user");
+            entity.ToTable(TableName(options, "SiteUsers", "site_user"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.StartDate, "start_date");
@@ -233,7 +235,7 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<SiteAverageEntity>(entity =>
         {
-            entity.ToTable("site_average");
+            entity.ToTable(TableName(options, "SiteAverages", "site_average"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.SiteId, "site_id");
@@ -259,7 +261,7 @@ public static class MonitorModelBuilderExtensions
         modelBuilder.Entity<AlertOccurrenceEntity>(entity =>
         {
             entity.ToTable(
-                "alert_occurrence",
+                TableName(options, "AlertOccurrences", "alert_occurrence"),
                 table =>
                 {
                     table.HasCheckConstraint(
@@ -311,7 +313,7 @@ public static class MonitorModelBuilderExtensions
         modelBuilder.Entity<AlertDeliveryOutboxEntity>(entity =>
         {
             entity.ToTable(
-                "alert_delivery_outbox",
+                TableName(options, "AlertDeliveryOutbox", "alert_delivery_outbox"),
                 table =>
                 {
                     table.HasCheckConstraint(
@@ -350,6 +352,24 @@ public static class MonitorModelBuilderExtensions
         });
 
         return modelBuilder;
+    }
+
+    private static string TableName(
+        MonitorDbOptions options,
+        string logicalName,
+        string canonicalName)
+    {
+        if (!options.IdentifierMap.TryGetValue(logicalName, out var mappedName))
+        {
+            return canonicalName;
+        }
+
+        var safeName = MonitorDb.RequireSafeSqlIdentifier(
+            mappedName,
+            $"shared EF table '{logicalName}'");
+        return safeName.Length >= 2 && safeName[0] == '"' && safeName[^1] == '"'
+            ? safeName[1..^1]
+            : safeName;
     }
 
     private static void MapProperty<TEntity, TProperty>(

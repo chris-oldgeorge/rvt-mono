@@ -34,7 +34,7 @@ public abstract class MonitorDbContextBase : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplySharedMonitorMappings();
+        modelBuilder.ApplySharedMonitorMappings(MonitorOptions);
         OnMonitorModelCreating(modelBuilder);
     }
 

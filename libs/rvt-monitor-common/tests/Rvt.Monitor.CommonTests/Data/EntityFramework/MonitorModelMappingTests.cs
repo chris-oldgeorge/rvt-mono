@@ -19,40 +19,11 @@ public sealed class MonitorModelMappingTests
         string StoreType,
         int? MaxLength = null);
 
-    private sealed class TestMappedEntity
-    {
-        public Guid Id { get; set; }
-    }
-
-    [TestMethod]
-    public void SharedMappings_ExposeProviderFreeCanonicalEntryPoint()
-    {
-        var method = typeof(MonitorModelBuilderExtensions)
-            .GetMethod(nameof(MonitorModelBuilderExtensions.ApplySharedMonitorMappings));
-
-        Assert.IsNotNull(method);
-        CollectionAssert.AreEqual(
-            new[] { typeof(ModelBuilder) },
-            method.GetParameters().Select(parameter => parameter.ParameterType).ToArray());
-    }
-
     private sealed class TestMonitorContext(
         DbContextOptions<TestMonitorContext> options,
         MonitorDbOptions monitorOptions)
         : MonitorDbContextBase(options, monitorOptions)
     {
-        protected override void OnMonitorModelCreating(ModelBuilder modelBuilder)
-        {
-            var table = MonitorOptions.IdentifierMap.TryGetValue("test_entity", out var mapped)
-                ? mapped
-                : "test_entity";
-            modelBuilder.Entity<TestMappedEntity>(entity =>
-            {
-                entity.ToTable(table);
-                entity.HasKey(row => row.Id);
-                entity.Property(row => row.Id).HasColumnName("id").HasColumnType("uuid");
-            });
-        }
     }
 
     [TestMethod]
@@ -110,23 +81,37 @@ public sealed class MonitorModelMappingTests
     }
 
     [TestMethod]
-    public void SharedModel_CachesModelsByIdentifierMapWithoutProviderDimension()
+    public void SharedModel_AppliesSharedMonitorTableOverridesAcrossCachedModels()
     {
         using var firstContext = CreateContext(new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["test_entity"] = "first_test_entity"
+            ["MonitorsList"] = "first_monitor"
         });
         using var secondContext = CreateContext(new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["test_entity"] = "second_test_entity"
+            ["MonitorsList"] = "second_monitor"
         });
 
         Assert.AreEqual(
-            "first_test_entity",
-            firstContext.Model.FindEntityType(typeof(TestMappedEntity))!.GetTableName());
+            "first_monitor",
+            firstContext.Model.FindEntityType(typeof(MonitorEntity))!.GetTableName());
         Assert.AreEqual(
-            "second_test_entity",
-            secondContext.Model.FindEntityType(typeof(TestMappedEntity))!.GetTableName());
+            "second_monitor",
+            secondContext.Model.FindEntityType(typeof(MonitorEntity))!.GetTableName());
+        Assert.AreNotSame(firstContext.Model, secondContext.Model);
+    }
+
+    [TestMethod]
+    public void SharedModel_RejectsUnsafeSharedTableOverride()
+    {
+        using var context = CreateContext(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["MonitorsList"] = "monitor; DROP TABLE notification;--"
+        });
+
+        var exception = Assert.ThrowsExactly<InvalidOperationException>(() => _ = context.Model);
+
+        StringAssert.Contains(exception.Message, "Unsafe SQL identifier");
     }
 
     [TestMethod]

@@ -1,5 +1,36 @@
 # Project State
 
+## Storage provider Task 1 - provider-neutral streaming contracts - 2026-07-25 (complete)
+
+- Worktree: `.worktrees/release-platform-hardening`; base before Task 1 was
+  `0b655b6`. `Rvt.Storage.Abstractions` now provides validated normalized object
+  keys, streaming write/read contracts, named logical-resource lookup, shared
+  failure classification, and secret-safe storage exceptions under the
+  `Rvt.Storage` namespace.
+- `StorageObjectKey` trims and normalizes separators while rejecting empty,
+  rooted, UNC, Windows-drive-rooted, dot-segment, and traversal names.
+  `ObjectStorageClientFactory` uses ordinal resource matching, rejects blank
+  names and duplicates, and does not enumerate registrations in unknown-name
+  errors. `StorageReadResult` asynchronously disposes content before disposing
+  its provider lease from a `finally` block.
+- Strict TDD evidence: the key slice first failed compilation because
+  `StorageObjectKey` was absent, then passed 8/8. The remaining abstraction
+  slice first failed compilation because the client/request/result contracts
+  were absent, then the complete abstraction filter passed 13/13.
+- The net10 abstraction project has no direct or transitive packages and no
+  configuration, dependency-injection, provider SDK, or filesystem APIs. The
+  test project directly references only Microsoft.NET.Test.Sdk,
+  MSTest.TestAdapter, MSTest.TestFramework, and the abstraction project.
+- Tasks 2-10 remain pending: Local, Azure Blob, and S3 provider extraction;
+  provider parity and dependency-boundary enforcement; Svantek and
+  ReportingMonitor consumer migration; legacy Common storage removal; solution
+  and packaging integration; and final verification/documentation. Portal blob
+  unification and the independent `services/reporting` Azure adapter remain
+  excluded future work, along with all previously recorded non-storage pending
+  work.
+- Full Task 1 evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-1-report.md`.
+
 ## Communication final-review HTTP hardening - 2026-07-25 (complete)
 
 - Microsoft Graph mail and TransmitSMS keep their singleton delivery-port

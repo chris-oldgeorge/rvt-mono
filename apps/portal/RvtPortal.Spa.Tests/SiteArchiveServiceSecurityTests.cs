@@ -1,21 +1,20 @@
-﻿// File summary: Covers provider translation and parameterization behavior for site archive exports.
+﻿// File summary: Covers canonical PostgreSQL SQL and parameterization behavior for site archive exports.
 // Major updates:
+// - 2026-07-25 pending Replaced provider-dialect coverage with canonical PostgreSQL archive and site-write guards.
 // - 2026-07-25 pending Added stable URL canonicalization and effective-port cleanup coverage.
 // - 2026-07-09 pending Added guardrails for split archive SQL, unique workspaces, and streaming CSV output.
 // - 2026-07-05 pending Replaced source-text archive SQL checks with reflection-backed behavior tests.
 // - 2026-06-08 pending Added archive export SQL injection regression coverage.
 
 using Microsoft.EntityFrameworkCore;
-using System.Data.Common;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Reflection;
 using Microsoft.Extensions.Configuration;
+using Npgsql;
 using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Adapters.Archive;
 using RvtPortal.Spa.Adapters.Sites;
-using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
 
 namespace RvtPortal.Spa.Tests;
@@ -203,67 +202,58 @@ public sealed class SiteArchiveServiceSecurityTests
         Assert.DoesNotContain("StringBuilder", source, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData(RvtDatabaseProvider.SqlServer, "Microsoft.Data.SqlClient.SqlParameter")]
-    [InlineData(RvtDatabaseProvider.Postgres, "Npgsql.NpgsqlParameter")]
-    // Function summary: Verifies archive queries receive a provider-specific parameter instead of an interpolated site id.
-    public void SiteArchiveService_CreatesProviderSpecificSiteIdParameter(
-        RvtDatabaseProvider provider,
-        string expectedParameterType)
+    [Fact]
+    // Function summary: Verifies archive queries receive an Npgsql parameter instead of an interpolated site id.
+    public void SiteArchiveService_CreatesNpgsqlSiteIdParameter()
     {
         var siteId = Guid.NewGuid();
-        var service = CreateQueryExecutor(provider);
+        var service = new SiteArchiveQueryExecutor(NoOpDomainContext());
 
-        var parameter = InvokePrivate<DbParameter>(service, "CreateSiteIdParameter", siteId);
+        var parameter = service.CreateSiteIdParameter(siteId);
 
         Assert.Equal("@SiteId", parameter.ParameterName);
         Assert.Equal(siteId, parameter.Value);
-        Assert.Equal(expectedParameterType, parameter.GetType().FullName);
+        Assert.IsType<NpgsqlParameter>(parameter);
     }
 
     [Fact]
-    // Function summary: Verifies SQL Server archive SQL is supplied by the query catalog without PostgreSQL syntax.
-    public void SiteArchiveQueryCatalog_ProvidesSqlServerArchiveSql()
+    // Function summary: Verifies the archive catalog supplies one canonical public-schema PostgreSQL SQL definition.
+    public void SiteArchiveQueryCatalog_ProvidesCanonicalPostgresArchiveSql()
     {
-        var catalog = CreateQueryCatalog(RvtDatabaseProvider.SqlServer);
-
-        var sql = FirstExportSql(catalog);
-
-        Assert.Contains("dbo.deployment", sql, StringComparison.Ordinal);
-        Assert.Contains("s.id = @SiteId", sql, StringComparison.Ordinal);
-        Assert.Contains("getdate()", AllExportSql(catalog), StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("public.deployment", sql, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("now()", AllExportSql(catalog), StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    // Function summary: Verifies PostgreSQL archive SQL is supplied by the query catalog without regex translation.
-    public void SiteArchiveQueryCatalog_ProvidesPostgresArchiveSql()
-    {
-        var catalog = CreateQueryCatalog(RvtDatabaseProvider.Postgres);
+        var catalog = new SiteArchiveQueryCatalog();
 
         var sql = FirstExportSql(catalog);
         var allSql = AllExportSql(catalog);
 
-        Assert.Contains("public.deployment", sql, StringComparison.Ordinal);
+        Assert.Contains("\"public\".\"deployment\"", sql, StringComparison.Ordinal);
         Assert.Contains("s.id = @SiteId", sql, StringComparison.Ordinal);
         Assert.Contains("now()", allSql, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("[dbo]", allSql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("\"public\".\"report\"", catalog.ReportLinksSql, StringComparison.Ordinal);
+        Assert.DoesNotContain("dbo", allSql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("getdate()", allSql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain('[', allSql);
     }
 
-    // Function summary: Creates the internal archive query executor with a provider-specific connection factory.
-    private static object CreateQueryExecutor(RvtDatabaseProvider provider)
+    [Fact]
+    // Function summary: Verifies both atomic site writes use ON CONFLICT and no SQL Server locked batch remains.
+    public void EfSiteWriteAdapter_UsesOnConflictWithoutSqlServerLockedBatches()
     {
-        var serviceType = ArchiveType("RvtPortal.Spa.Adapters.Archive.SiteArchiveQueryExecutor");
-        var factory = CreateConnectionFactory(provider);
+        var source = File.ReadAllText(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            "..",
+            "RvtPortal.Spa",
+            "Adapters",
+            "Sites",
+            "EfSiteWriteAdapter.cs"));
 
-        return Activator.CreateInstance(
-            serviceType,
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            binder: null,
-            args: [NoOpDomainContext(), factory],
-            culture: null) ?? throw new InvalidOperationException("Could not create SiteArchiveQueryExecutor.");
+        Assert.Contains("ON CONFLICT (\"site_id\") DO NOTHING", source, StringComparison.Ordinal);
+        Assert.Contains("ON CONFLICT (\"site_user_id\") DO UPDATE", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("UPDLOCK", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("HOLDLOCK", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("@@ROWCOUNT", source, StringComparison.OrdinalIgnoreCase);
     }
 
     // Function summary: Builds a domain context the archive executor only needs to hold, never to query.
@@ -274,44 +264,8 @@ public sealed class SiteArchiveServiceSecurityTests
             .Options);
     }
 
-    // Function summary: Creates the internal archive query catalog with a provider-specific connection factory.
-    private static object CreateQueryCatalog(RvtDatabaseProvider provider)
-    {
-        var serviceType = ArchiveType("RvtPortal.Spa.Adapters.Archive.SiteArchiveQueryCatalog");
-        var factory = CreateConnectionFactory(provider);
-
-        return Activator.CreateInstance(
-            serviceType,
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            binder: null,
-            args: [factory],
-            culture: null) ?? throw new InvalidOperationException("Could not create SiteArchiveQueryCatalog.");
-    }
-
-    // Function summary: Resolves an internal archive type from the business assembly.
-    private static Type ArchiveType(string typeName)
-    {
-        return typeof(BlobStorage).Assembly.GetType(
-            typeName,
-            throwOnError: true) ?? throw new InvalidOperationException("SiteArchiveService type not found.");
-    }
-
-    // Function summary: Creates a provider-specific database connection factory for archive component tests.
-    private static RvtDatabaseConnectionFactory CreateConnectionFactory(RvtDatabaseProvider provider)
-    {
-        var connectionString = provider == RvtDatabaseProvider.SqlServer
-            ? "Server=(local);Database=rvt;User Id=rvt;Password=rvt;TrustServerCertificate=True"
-            : "Host=localhost;Database=rvt;Username=rvt;Password=rvt";
-        return new RvtDatabaseConnectionFactory(new RvtDatabaseOptions
-        {
-            Provider = provider,
-            ConnectionString = connectionString
-        });
-    }
-
     private static SiteArchiveService CreateArchiveService(string blobConnectionString)
     {
-        var connectionFactory = CreateConnectionFactory(RvtDatabaseProvider.SqlServer);
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -320,8 +274,8 @@ public sealed class SiteArchiveServiceSecurityTests
             })
             .Build();
         return new SiteArchiveService(
-            new SiteArchiveQueryCatalog(connectionFactory),
-            new SiteArchiveQueryExecutor(NoOpDomainContext(), connectionFactory),
+            new SiteArchiveQueryCatalog(),
+            new SiteArchiveQueryExecutor(NoOpDomainContext()),
             new SiteArchiveCsvWriter(),
             new SiteArchiveWorkspaceFactory(),
             configuration);
@@ -341,36 +295,15 @@ public sealed class SiteArchiveServiceSecurityTests
     }
 
     // Function summary: Reads the first configured CSV export SQL from the query catalog.
-    private static string FirstExportSql(object catalog)
+    private static string FirstExportSql(ISiteArchiveQueryCatalog catalog)
     {
-        return ExportSql(catalog).First();
+        return catalog.CsvExports.First().Sql;
     }
 
     // Function summary: Reads all configured CSV export SQL from the query catalog.
-    private static string AllExportSql(object catalog)
+    private static string AllExportSql(ISiteArchiveQueryCatalog catalog)
     {
-        return string.Join(Environment.NewLine, ExportSql(catalog));
-    }
-
-    // Function summary: Enumerates SQL text from archive export descriptors.
-    private static IEnumerable<string> ExportSql(object catalog)
-    {
-        var exports = (System.Collections.IEnumerable)(catalog.GetType().GetProperty("CsvExports")?.GetValue(catalog)
-            ?? throw new InvalidOperationException("CsvExports property not found."));
-        foreach (var export in exports)
-        {
-            yield return (string)(export.GetType().GetProperty("Sql")?.GetValue(export)
-                ?? throw new InvalidOperationException("Sql property not found."));
-        }
-    }
-
-    // Function summary: Invokes an archive component helper used by focused security tests.
-    private static T InvokePrivate<T>(object target, string methodName, params object[] args)
-    {
-        var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            ?? throw new MissingMethodException(target.GetType().FullName, methodName);
-
-        return (T)(method.Invoke(target, args) ?? throw new InvalidOperationException($"{methodName} returned null."));
+        return string.Join(Environment.NewLine, catalog.CsvExports.Select(export => export.Sql));
     }
 
     private sealed class ThrowingSiteArchiveService(Exception exception)

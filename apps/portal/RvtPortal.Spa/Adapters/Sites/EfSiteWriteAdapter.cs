@@ -1,6 +1,6 @@
-// File summary: Implements provider-aware site mutation persistence and serialized owner-scoped writes.
+// File summary: Implements PostgreSQL site mutation persistence with intentional SQLite/InMemory test paths.
 // Major updates:
-// - 2026-07-25 pending Made the SQL Server archive winner update site state in the guarded claim batch.
+// - 2026-07-25 pending Removed retired SQL Server locked-batch writes while preserving ON CONFLICT concurrency.
 
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
@@ -170,47 +170,20 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         var createDateUtc = DateTime.SpecifyKind(
             archivedUtc,
             DateTimeKind.Utc);
-        int affected;
-        if (IsPostgres() || IsSqlite())
-        {
-            affected = await domainContext.Database.ExecuteSqlInterpolatedAsync(
-                $"""
-                INSERT INTO "site_archived"
-                    ("id", "created_by", "create_date", "picture_link", "site_id")
-                VALUES
-                    ({archiveId}, {createdBy}, {createDateUtc}, {archiveUrl}, {siteId})
-                ON CONFLICT ("site_id") DO NOTHING
-                """,
-                cancellationToken);
-        }
-        else if (IsSqlServer())
-        {
-            affected = await domainContext.Database.ExecuteSqlInterpolatedAsync(
-                $"""
-                INSERT INTO [site_archived]
-                    ([id], [created_by], [create_date], [picture_link], [site_id])
-                SELECT
-                    {archiveId}, {createdBy}, {createDateUtc}, {archiveUrl}, {siteId}
-                WHERE NOT EXISTS
-                (
-                    SELECT 1
-                    FROM [site_archived] WITH (UPDLOCK, HOLDLOCK)
-                    WHERE [site_id] = {siteId}
-                );
-
-                IF @@ROWCOUNT > 0
-                BEGIN
-                    UPDATE [site]
-                    SET [archived] = {true}
-                    WHERE [id] = {siteId};
-                END;
-                """,
-                cancellationToken);
-        }
-        else
+        if (!IsPostgres() && !IsSqlite())
         {
             throw UnsupportedRelationalProvider();
         }
+
+        var affected = await domainContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO "site_archived"
+                ("id", "created_by", "create_date", "picture_link", "site_id")
+            VALUES
+                ({archiveId}, {createdBy}, {createDateUtc}, {archiveUrl}, {siteId})
+            ON CONFLICT ("site_id") DO NOTHING
+            """,
+            cancellationToken);
 
         if (affected == 0)
         {
@@ -222,16 +195,6 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
             return new SiteArchiveClaimResult(
                 Claimed: false,
                 durableArchiveUrl);
-        }
-
-        // The SQL Server claim batch conditionally persists the archived flag with the winning metadata insert,
-        // so no follow-up read or tracked update is needed. Other relational providers keep their existing
-        // tracked update so SaveChanges remains the single persistence boundary for that part of the claim.
-        if (IsSqlServer())
-        {
-            return new SiteArchiveClaimResult(
-                Claimed: true,
-                archiveUrl);
         }
 
         var site = await domainContext.Sites
@@ -252,50 +215,26 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         if (domainContext.Database.IsRelational())
         {
             var settingId = Guid.NewGuid();
-            if (IsPostgres() || IsSqlite())
+            if (!IsPostgres() && !IsSqlite())
             {
-                await domainContext.Database.ExecuteSqlInterpolatedAsync(
-                    $"""
-                    INSERT INTO "notification_setting"
-                        ("id", "site_user_id", "email", "sms", "start_time", "end_time")
-                    VALUES
-                        ({settingId}, {siteUserId}, {request.Email}, {request.Sms}, {startTime}, {endTime})
-                    ON CONFLICT ("site_user_id") DO UPDATE
-                    SET
-                        "email" = EXCLUDED."email",
-                        "sms" = EXCLUDED."sms",
-                        "start_time" = EXCLUDED."start_time",
-                        "end_time" = EXCLUDED."end_time"
-                    """,
-                    cancellationToken);
-                return;
+                throw UnsupportedRelationalProvider();
             }
 
-            if (IsSqlServer())
-            {
-                await domainContext.Database.ExecuteSqlInterpolatedAsync(
-                    $"""
-                    UPDATE [notification_setting] WITH (UPDLOCK, HOLDLOCK)
-                    SET
-                        [email] = {request.Email},
-                        [sms] = {request.Sms},
-                        [start_time] = {startTime},
-                        [end_time] = {endTime}
-                    WHERE [site_user_id] = {siteUserId};
-
-                    IF @@ROWCOUNT = 0
-                    BEGIN
-                        INSERT INTO [notification_setting]
-                            ([id], [site_user_id], [email], [sms], [start_time], [end_time])
-                        VALUES
-                            ({settingId}, {siteUserId}, {request.Email}, {request.Sms}, {startTime}, {endTime});
-                    END;
-                    """,
-                    cancellationToken);
-                return;
-            }
-
-            throw UnsupportedRelationalProvider();
+            await domainContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT INTO "notification_setting"
+                    ("id", "site_user_id", "email", "sms", "start_time", "end_time")
+                VALUES
+                    ({settingId}, {siteUserId}, {request.Email}, {request.Sms}, {startTime}, {endTime})
+                ON CONFLICT ("site_user_id") DO UPDATE
+                SET
+                    "email" = EXCLUDED."email",
+                    "sms" = EXCLUDED."sms",
+                    "start_time" = EXCLUDED."start_time",
+                    "end_time" = EXCLUDED."end_time"
+                """,
+                cancellationToken);
+            return;
         }
 
         var settings = await domainContext.NotificationSettings
@@ -321,12 +260,6 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         string.Equals(
             domainContext.Database.ProviderName,
             "Npgsql.EntityFrameworkCore.PostgreSQL",
-            StringComparison.Ordinal);
-
-    private bool IsSqlServer() =>
-        string.Equals(
-            domainContext.Database.ProviderName,
-            "Microsoft.EntityFrameworkCore.SqlServer",
             StringComparison.Ordinal);
 
     private bool IsSqlite() =>

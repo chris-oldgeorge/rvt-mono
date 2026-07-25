@@ -1,5 +1,32 @@
 # Project State
 
+## Portal test-host SendGrid follow-up - 2026-07-25 (complete)
+
+- Both Portal test-host paths now provide deterministic, non-secret legacy
+  `EmailConfiguration:SENDGRID_API_KEY` and
+  `EmailConfiguration:Sending_Email_Address` values through `UseSetting`.
+  This makes the values available while minimal-host `Program.ConfigureServices`
+  eagerly constructs `SendGridMailOptions`; the custom factory's later
+  `ConfigureAppConfiguration` collection is intentionally unchanged for its
+  other test settings.
+- TDD RED: `SwaggerDocument_IsAvailable` and
+  `HealthEndpoints_ExposeLivenessAndReadiness` each failed 0/1 because enabled
+  SendGrid validation reported the missing API key and from-address. GREEN:
+  both fixtures passed together 2/2, the Task 7 Portal composition/adapter
+  tests passed 12/12, and the complete Portal suite passed 381 with eight known
+  opt-in PostgreSQL integration skips (389 total). Output retained five known
+  NU1903 advisories for `System.Security.Cryptography.Xml` 10.0.7.
+- No production code or provider validation changed. Verification used a
+  temporary MSBuild import that excluded only the preserved untracked
+  `BlobStorageClientFactory 2.cs` and
+  `PortalSchemaReadinessHealthCheck 2.cs` files.
+- All previously documented future-pending work remains out of scope,
+  including Portal blob client/service unification through
+  `IObjectStorageClientFactory`, customer-logo and reporting storage adoption,
+  legacy storage utility migration, dynamic plugins and external compatibility
+  tooling, synchronous `IMessageService` removal, and later notification,
+  API/persisted-record, database, MQTT, scheduling, and observability work.
+
 ## Communication provider Task 7 - Portal and reporting mail migration - 2026-07-24 (complete)
 
 - The Portal host now source-references only

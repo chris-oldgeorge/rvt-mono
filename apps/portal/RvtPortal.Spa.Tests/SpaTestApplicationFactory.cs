@@ -49,6 +49,8 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(environment);
+        builder.UseSetting("EmailConfiguration:SENDGRID_API_KEY", "test-sendgrid-api-key");
+        builder.UseSetting("EmailConfiguration:Sending_Email_Address", "portal-tests@example.test");
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
             configuration.AddInMemoryCollection(new Dictionary<string, string?>

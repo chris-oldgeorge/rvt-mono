@@ -25,6 +25,8 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
         {
             builder.UseSetting("environment", "Testing");
             builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=(localdb)\\mssqllocaldb;Database=RvtPortalSpaTests;Trusted_Connection=True;MultipleActiveResultSets=true");
+            builder.UseSetting("EmailConfiguration:SENDGRID_API_KEY", "test-sendgrid-api-key");
+            builder.UseSetting("EmailConfiguration:Sending_Email_Address", "portal-tests@example.test");
         });
     }
 

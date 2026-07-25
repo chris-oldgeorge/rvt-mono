@@ -20,84 +20,59 @@ public sealed class AirQMonitorContext : MonitorDbContextBase
     {
         modelBuilder.Entity<AirQNoiseLevelEntity>(entity =>
         {
-            entity.ToTable(TableName("AirQNoiseLevels", "air_q_noise_level"), Schema());
+            entity.ToTable("air_q_noise_level");
             entity.HasKey(row => new { row.SerialId, row.SampleTime });
-            entity.Property(row => row.SerialId).HasColumnName(Column("SerialId", "serial_id"));
-            entity.Property(row => row.SampleTime).HasColumnName(Column("SampleTime", "sample_time"));
-            entity.Property(row => row.LAeq).HasColumnName(Column("LAeq", "laeq"));
-            entity.Property(row => row.LAmax).HasColumnName(Column("LAmax", "lamax"));
-            entity.Property(row => row.LA90).HasColumnName(Column("LA90", "la_90"));
-            entity.Property(row => row.LA10).HasColumnName(Column("LA10", "la_10"));
-            entity.Property(row => row.LCeq).HasColumnName(Column("LCeq", "lceq"));
-            entity.Property(row => row.LCmax).HasColumnName(Column("LCmax", "lcmax"));
-            entity.Property(row => row.LC90).HasColumnName(Column("LC90", "lc_90"));
-            entity.Property(row => row.LC10).HasColumnName(Column("LC10", "lc_10"));
+            entity.Property(row => row.SerialId).HasColumnName("serial_id");
+            entity.Property(row => row.SampleTime).HasColumnName("sample_time");
+            entity.Property(row => row.LAeq).HasColumnName("laeq");
+            entity.Property(row => row.LAmax).HasColumnName("lamax");
+            entity.Property(row => row.LA90).HasColumnName("la_90");
+            entity.Property(row => row.LA10).HasColumnName("la_10");
+            entity.Property(row => row.LCeq).HasColumnName("lceq");
+            entity.Property(row => row.LCmax).HasColumnName("lcmax");
+            entity.Property(row => row.LC90).HasColumnName("lc_90");
+            entity.Property(row => row.LC10).HasColumnName("lc_10");
         });
 
         modelBuilder.Entity<AirQMonitorStatusEntity>(entity =>
         {
-            entity.ToTable(TableName("AirQMonitorStatus", "air_q_monitor_status"), Schema());
+            entity.ToTable("air_q_monitor_status");
             entity.HasKey(row => row.SerialId);
-            if (MonitorOptions.IsPostgreSql)
-            {
-                entity.Property(row => row.Id).HasColumnName("id");
-            }
-            else
-            {
-                entity.Ignore(row => row.Id);
-            }
-
-            entity.Property(row => row.SerialId).HasColumnName(Column("SerialId", "serial_id"));
-            entity.Property(row => row.UpdateTime).HasColumnName(Column("UpdateTime", "update_time"));
-            entity.Property(row => row.Status).HasColumnName(Column("Status", "status"));
-            entity.Property(row => row.ErrorCount).HasColumnName(Column("ErrorCount", "error_count"));
-            entity.Property(row => row.BatteryVoltage).HasColumnName(Column("BatteryVoltage", "battery_voltage"));
-            entity.Property(row => row.CalibrationDate).HasColumnName(Column("CalibrationDate", "calibration_date"));
-            entity.Property(row => row.FilterChangeDate).HasColumnName(Column("FilterChangeDate", "filter_change_date"));
-            entity.Property(row => row.PumpHours).HasColumnName(Column("PumpHours", "pump_hours"));
+            entity.Property(row => row.Id).HasColumnName("id");
+            entity.Property(row => row.SerialId).HasColumnName("serial_id");
+            entity.Property(row => row.UpdateTime).HasColumnName("update_time");
+            entity.Property(row => row.Status).HasColumnName("status");
+            entity.Property(row => row.ErrorCount).HasColumnName("error_count");
+            entity.Property(row => row.BatteryVoltage).HasColumnName("battery_voltage");
+            entity.Property(row => row.CalibrationDate).HasColumnName("calibration_date");
+            entity.Property(row => row.FilterChangeDate).HasColumnName("filter_change_date");
+            entity.Property(row => row.PumpHours).HasColumnName("pump_hours");
         });
 
         modelBuilder.Entity<AirQErrorMessageEntity>(entity =>
         {
-            entity.ToTable(TableName("AirQErrorMessages", "air_q_error_message"), Schema());
+            entity.ToTable("air_q_error_message");
             entity.HasKey(row => new { row.Tag, row.ErrorTime, row.Error });
-            entity.Property(row => row.Tag).HasColumnName(Column("Tag", "tag"));
-            entity.Property(row => row.Error).HasColumnName(Column("Error", "error"));
-            entity.Property(row => row.ErrorTime).HasColumnName(Column("ErrorTime", "error_time"));
+            entity.Property(row => row.Tag).HasColumnName("tag");
+            entity.Property(row => row.Error).HasColumnName("error");
+            entity.Property(row => row.ErrorTime).HasColumnName("error_time");
         });
 
         modelBuilder.Entity<AirQNoise8HourAverageEntity>(entity =>
         {
-            entity.ToTable(TableName("AirQNoise8HourAverage", "air_q_noise_8_hour_average"), Schema());
+            entity.ToTable("air_q_noise_8_hour_average");
             entity.HasKey(row => new { row.SerialId, row.SampleTime });
-            entity.Property(row => row.SerialId).HasColumnName(Column("SerialId", "serial_id"));
-            entity.Property(row => row.SampleTime).HasColumnName(Column("SampleTime", "sample_time"));
-            entity.Property(row => row.LAeq).HasColumnName(Column("LAeq", "laeq"));
-            entity.Property(row => row.LAmax).HasColumnName(Column("LAmax", "lamax"));
-            entity.Property(row => row.LA90).HasColumnName(Column("LA90", "la_90"));
-            entity.Property(row => row.LA10).HasColumnName(Column("LA10", "la_10"));
-            entity.Property(row => row.LCeq).HasColumnName(Column("LCeq", "lceq"));
-            entity.Property(row => row.LCmax).HasColumnName(Column("LCmax", "lcmax"));
-            entity.Property(row => row.LC90).HasColumnName(Column("LC90", "lc_90"));
-            entity.Property(row => row.LC10).HasColumnName(Column("LC10", "lc_10"));
-            entity.Property(row => row.NumberOfSamples).HasColumnName(Column("NumberOfSamples", "number_of_samples"));
+            entity.Property(row => row.SerialId).HasColumnName("serial_id");
+            entity.Property(row => row.SampleTime).HasColumnName("sample_time");
+            entity.Property(row => row.LAeq).HasColumnName("laeq");
+            entity.Property(row => row.LAmax).HasColumnName("lamax");
+            entity.Property(row => row.LA90).HasColumnName("la_90");
+            entity.Property(row => row.LA10).HasColumnName("la_10");
+            entity.Property(row => row.LCeq).HasColumnName("lceq");
+            entity.Property(row => row.LCmax).HasColumnName("lcmax");
+            entity.Property(row => row.LC90).HasColumnName("lc_90");
+            entity.Property(row => row.LC10).HasColumnName("lc_10");
+            entity.Property(row => row.NumberOfSamples).HasColumnName("number_of_samples");
         });
     }
-
-    private string? Schema() => MonitorOptions.IsPostgreSql ? null : "dbo";
-
-    private string TableName(string sqlServerName, string postgreSqlName)
-    {
-        if (!MonitorOptions.IsPostgreSql)
-        {
-            return sqlServerName;
-        }
-
-        return MonitorOptions.IdentifierMap.TryGetValue(sqlServerName, out var mapped)
-            ? mapped.Trim('"')
-            : postgreSqlName;
-    }
-
-    private string Column(string sqlServerName, string postgreSqlName) =>
-        MonitorOptions.IsPostgreSql ? postgreSqlName : sqlServerName;
 }

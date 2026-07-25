@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
-using Svantek.Api.Db;
 using Svantek.Api.Db.EntityFramework;
 
 namespace SvantekMonitorTests.EntityFramework;
@@ -10,73 +10,191 @@ namespace SvantekMonitorTests.EntityFramework;
 public sealed class SvantekModelMappingTests
 {
     [TestMethod]
-    public void SvantekContext_MapsNoiseLevelForSqlServer()
+    [DataRow(typeof(SvantekMonitorStatusEntity), "svantek_monitor_status")]
+    [DataRow(typeof(SvantekNoiseLevelEntity), "svantek_noise_level")]
+    [DataRow(typeof(SvantekNoise8HourAverageEntity), "svantek_noise_8_hour_average")]
+    [DataRow(typeof(SvantekErrorMessageEntity), "svantek_error_message")]
+    public void SvantekContext_MapsCanonicalTablesWithoutSchemas(Type entityClrType, string tableName)
     {
-        using var context = CreateContext(MonitorDatabaseProvider.SqlServer);
-        var entityType = context.Model.FindEntityType(typeof(SvantekNoiseLevelEntity));
+        using var context = CreateContext();
+        var entityType = context.Model.FindEntityType(entityClrType);
 
         Assert.IsNotNull(entityType);
-        Assert.AreEqual("SvantekNoiseLevels", entityType.GetTableName());
-        Assert.AreEqual("dbo", entityType.GetSchema());
-        Assert.AreEqual("LAmax", entityType.FindProperty(nameof(SvantekNoiseLevelEntity.LAmax))!.GetColumnName());
-    }
-
-    [TestMethod]
-    public void SvantekContext_MapsNoiseLevelForPostgreSql()
-    {
-        using var context = CreateContext(MonitorDatabaseProvider.PostgreSql);
-        var entityType = context.Model.FindEntityType(typeof(SvantekNoiseLevelEntity));
-
-        Assert.IsNotNull(entityType);
-        Assert.AreEqual("svantek_noise_level", entityType.GetTableName());
+        Assert.AreEqual(tableName, entityType.GetTableName());
         Assert.IsNull(entityType.GetSchema());
-        Assert.AreEqual("lamax", entityType.FindProperty(nameof(SvantekNoiseLevelEntity.LAmax))!.GetColumnName());
     }
 
     [TestMethod]
-    public void SvantekContext_MapsStatusAndEightHourAverageTables()
+    public void SvantekContext_MapsCanonicalColumnsAndTimestampTypes()
     {
-        using var context = CreateContext(MonitorDatabaseProvider.PostgreSql);
+        using var context = CreateContext();
 
-        Assert.AreEqual("svantek_monitor_status", context.Model.FindEntityType(typeof(SvantekMonitorStatusEntity))!.GetTableName());
-        Assert.AreEqual("svantek_noise_8_hour_average", context.Model.FindEntityType(typeof(SvantekNoise8HourAverageEntity))!.GetTableName());
+        AssertColumns(
+            context.Model.FindEntityType(typeof(SvantekMonitorStatusEntity))!,
+            ("SerialId", "serial_id"),
+            ("UpdateTime", "update_time"),
+            ("Status", "status"),
+            ("ErrorCount", "error_count"),
+            ("BatteryVoltage", "battery_voltage"),
+            ("CalibrationDate", "calibration_date"),
+            ("FilterChangeDate", "filter_change_date"),
+            ("PumpHours", "pump_hours"),
+            ("ProjectId", "project_id"),
+            ("PointId", "point_id"),
+            ("Active", "active"),
+            ("LastLogin", "lastlogin"),
+            ("LastLogout", "lastlogout"),
+            ("IsOnline", "isonline"),
+            ("LastStatusTimestamp", "laststatustimestamp"),
+            ("BatteryCharge", "batterycharge"),
+            ("BatteryTimeToEmpty", "batterytimetoempty"),
+            ("PowerSource", "powersource"),
+            ("IsBatteryCharging", "isbatterycharging"),
+            ("GsmSignalQuality", "gsmsignalquality"),
+            ("MeasurementState", "measurementstate"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(SvantekNoiseLevelEntity))!,
+            ("SerialId", "serial_id"),
+            ("SampleTime", "sample_time"),
+            ("LAeq", "laeq"),
+            ("LAmax", "lamax"),
+            ("LA90", "la_90"),
+            ("LA10", "la_10"),
+            ("LCeq", "lceq"),
+            ("LCmax", "lcmax"),
+            ("LC90", "lc_90"),
+            ("LC10", "lc_10"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(SvantekNoise8HourAverageEntity))!,
+            ("SerialId", "serial_id"),
+            ("SampleTime", "sample_time"),
+            ("LAeq", "laeq"),
+            ("LAmax", "lamax"),
+            ("LA90", "la_90"),
+            ("LA10", "la_10"),
+            ("LCeq", "lceq"),
+            ("LCmax", "lcmax"),
+            ("LC90", "lc_90"),
+            ("LC10", "lc_10"),
+            ("NumberOfSamples", "number_of_samples"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(SvantekErrorMessageEntity))!,
+            ("Tag", "tag"),
+            ("Error", "error"),
+            ("ErrorTime", "error_time"));
+
+        AssertTimestamp(context, typeof(SvantekMonitorStatusEntity), nameof(SvantekMonitorStatusEntity.UpdateTime));
+        AssertTimestamp(context, typeof(SvantekMonitorStatusEntity), nameof(SvantekMonitorStatusEntity.CalibrationDate));
+        AssertTimestamp(context, typeof(SvantekMonitorStatusEntity), nameof(SvantekMonitorStatusEntity.FilterChangeDate));
+        AssertTimestamp(context, typeof(SvantekNoiseLevelEntity), nameof(SvantekNoiseLevelEntity.SampleTime));
+        AssertTimestamp(context, typeof(SvantekNoise8HourAverageEntity), nameof(SvantekNoise8HourAverageEntity.SampleTime));
+        AssertTimestamp(context, typeof(SvantekErrorMessageEntity), nameof(SvantekErrorMessageEntity.ErrorTime));
     }
 
     [TestMethod]
-    public void SvantekContext_MapsDeploymentForPostgreSqlSchema()
+    public void SvantekContext_PreservesKeysAndSharedMonitorIndex()
     {
-        using var context = CreateContext(MonitorDatabaseProvider.PostgreSql);
-        var entityType = context.Model.FindEntityType(typeof(DeploymentEntity));
+        using var context = CreateContext();
 
-        Assert.IsNotNull(entityType);
-        Assert.AreEqual("deployment", entityType.GetTableName());
-        Assert.IsNull(entityType.FindProperty(nameof(DeploymentEntity.What2words)));
-        Assert.AreEqual("what_3_words", entityType.FindProperty(nameof(DeploymentEntity.What3Words))!.GetColumnName());
+        AssertKey(context, typeof(SvantekMonitorStatusEntity), "SerialId");
+        AssertKey(context, typeof(SvantekNoiseLevelEntity), "SerialId", "SampleTime");
+        AssertKey(context, typeof(SvantekNoise8HourAverageEntity), "SerialId", "SampleTime");
+        AssertKey(context, typeof(SvantekErrorMessageEntity), "Tag", "ErrorTime", "Error");
+
+        var monitor = context.Model.FindEntityType(typeof(MonitorEntity));
+        Assert.IsNotNull(monitor);
+        Assert.AreEqual(
+            "ix_monitor_serial_id_type_of_monitor",
+            monitor.GetIndexes().Single().GetDatabaseName());
     }
 
     [TestMethod]
-    public void SvantekContext_ConvertsPostgreSqlTextBooleans()
+    public void SvantekContext_MapsCanonicalDeploymentAndNotificationProperties()
     {
-        using var context = CreateContext(MonitorDatabaseProvider.PostgreSql);
+        using var context = CreateContext();
+        var deployment = context.Model.FindEntityType(typeof(DeploymentEntity));
+        var notification = context.Model.FindEntityType(typeof(NotificationEntity));
+
+        Assert.IsNotNull(deployment);
+        Assert.IsNull(deployment.FindProperty(nameof(DeploymentEntity.What2words)));
+        Assert.AreEqual(
+            "what_3_words",
+            deployment.FindProperty(nameof(DeploymentEntity.What3Words))!.GetColumnName());
+        Assert.IsNotNull(notification);
+        Assert.AreEqual(
+            "recording_link",
+            notification.FindProperty("RecordingLink")!.GetColumnName());
+    }
+
+    [TestMethod]
+    public void SvantekContext_PreservesTextBooleanConversion()
+    {
+        using var context = CreateContext();
         var entityType = context.Model.FindEntityType(typeof(SvantekMonitorStatusEntity));
-        var converter = entityType!
-            .FindProperty(nameof(SvantekMonitorStatusEntity.Active))!
-            .GetTypeMapping()
-            .Converter;
 
-        Assert.IsNotNull(converter);
-        Assert.IsTrue((bool)converter.ConvertFromProvider("1")!);
-        Assert.IsFalse((bool)converter.ConvertFromProvider("0")!);
-        Assert.IsTrue((bool)converter.ConvertFromProvider("True")!);
-        Assert.AreEqual("1", converter.ConvertToProvider(true));
-        Assert.AreEqual("0", converter.ConvertToProvider(false));
+        foreach (var propertyName in new[]
+                 {
+                     nameof(SvantekMonitorStatusEntity.Active),
+                     nameof(SvantekMonitorStatusEntity.IsOnline),
+                     nameof(SvantekMonitorStatusEntity.IsBatteryCharging)
+                 })
+        {
+            var property = entityType!.FindProperty(propertyName)!;
+            var converter = property.GetTypeMapping().Converter;
+
+            Assert.IsNotNull(converter);
+            Assert.AreEqual("text", property.GetRelationalTypeMapping().StoreType);
+            Assert.IsTrue((bool)converter.ConvertFromProvider("1")!);
+            Assert.IsFalse((bool)converter.ConvertFromProvider("0")!);
+            Assert.IsTrue((bool)converter.ConvertFromProvider("True")!);
+            Assert.AreEqual("1", converter.ConvertToProvider(true));
+            Assert.AreEqual("0", converter.ConvertToProvider(false));
+        }
     }
 
-    private static SvantekMonitorContext CreateContext(MonitorDatabaseProvider provider)
+    private static void AssertColumns(
+        IReadOnlyEntityType entityType,
+        params (string Property, string Column)[] expectedColumns)
     {
-        var options = new MonitorDbOptions(provider, new Dictionary<string, string>());
+        Assert.HasCount(expectedColumns.Length, entityType.GetProperties());
+        foreach (var expected in expectedColumns)
+        {
+            Assert.AreEqual(
+                expected.Column,
+                entityType.FindProperty(expected.Property)!.GetColumnName(),
+                expected.Property);
+        }
+    }
+
+    private static void AssertTimestamp(
+        SvantekMonitorContext context,
+        Type entityClrType,
+        string propertyName)
+    {
+        var property = context.Model.FindEntityType(entityClrType)!.FindProperty(propertyName);
+        Assert.IsNotNull(property);
+        Assert.AreEqual("timestamp with time zone", property.GetRelationalTypeMapping().StoreType);
+    }
+
+    private static void AssertKey(
+        SvantekMonitorContext context,
+        Type entityClrType,
+        params string[] expectedProperties)
+    {
+        var keyProperties = context.Model
+            .FindEntityType(entityClrType)!
+            .FindPrimaryKey()!
+            .Properties
+            .Select(property => property.Name)
+            .ToArray();
+        CollectionAssert.AreEqual(expectedProperties, keyProperties);
+    }
+
+    private static SvantekMonitorContext CreateContext()
+    {
+        var options = new MonitorDbOptions(new Dictionary<string, string>());
         var dbOptions = new DbContextOptionsBuilder<SvantekMonitorContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata")
             .Options;
 
         return new SvantekMonitorContext(dbOptions, options);

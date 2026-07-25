@@ -165,8 +165,7 @@ namespace AirQMonitorTests
                 TAG,
                 AdapterException.Of(MESSAGE),
                 "AirQMonitorTests",
-                "1.0",
-                new MonitorDbOptions(MonitorDatabaseProvider.PostgreSql, new Dictionary<string, string>()));
+                "1.0");
 
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();

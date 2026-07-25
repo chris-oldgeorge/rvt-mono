@@ -712,13 +712,13 @@ public sealed class SiteMutationUseCaseTests
             return Task.FromResult(UpdateResult);
         }
 
-        public Task MarkArchivedAsync(
+        public Task<SiteArchiveClaimResult> TryClaimArchiveAsync(
             Guid siteId,
             string createdBy,
             string archiveUrl,
             DateTime archivedUtc,
             CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+            Task.FromResult(new SiteArchiveClaimResult(true, archiveUrl));
 
         public Task UpsertNotificationSettingAsync(
             Guid siteUserId,

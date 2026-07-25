@@ -129,13 +129,13 @@ internal sealed class NoOpSiteWritePort : ISiteWritePort
         CancellationToken cancellationToken) =>
         Task.FromResult(true);
 
-    public Task MarkArchivedAsync(
+    public Task<SiteArchiveClaimResult> TryClaimArchiveAsync(
         Guid siteId,
         string createdBy,
         string archiveUrl,
         DateTime archivedUtc,
         CancellationToken cancellationToken) =>
-        Task.CompletedTask;
+        Task.FromResult(new SiteArchiveClaimResult(true, archiveUrl));
 
     public Task UpsertNotificationSettingAsync(
         Guid siteUserId,
@@ -153,6 +153,12 @@ internal sealed class NoOpSiteArchivePort : ISiteArchivePort
         CancellationToken cancellationToken) =>
         Task.FromResult(
             SiteArchiveExportResult.Success("https://archive.example/site.zip"));
+
+    public Task<SiteArchiveCleanupResult> CleanupSupersededAsync(
+        Guid siteId,
+        string durableArchiveUrl,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(SiteArchiveCleanupResult.Success());
 }
 
 internal sealed class NoOpSiteLogoPort : ISiteLogoPort

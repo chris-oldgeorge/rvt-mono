@@ -113,6 +113,12 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
         {
             return Task.FromResult($"https://tests.local/site-archives/{siteId:N}.zip");
         }
+
+        public Task DeleteSupersededAsync(
+            Guid siteId,
+            string durableArchiveUrl,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     // Simulates the blob-backed export being unavailable, so the caller's failure handling can be exercised.
@@ -122,6 +128,12 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
         {
             throw new InvalidOperationException("Blob storage is unavailable in this test.");
         }
+
+        public Task DeleteSupersededAsync(
+            Guid siteId,
+            string durableArchiveUrl,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Blob storage is unavailable in this test.");
     }
 
     // Function summary: Initializes user state required by the application.

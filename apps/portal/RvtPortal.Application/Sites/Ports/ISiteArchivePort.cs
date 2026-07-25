@@ -12,9 +12,25 @@ public sealed record SiteArchiveExportResult(
         new(false, null, message);
 }
 
+public sealed record SiteArchiveCleanupResult(
+    bool Succeeded,
+    string? ErrorMessage)
+{
+    public static SiteArchiveCleanupResult Success() =>
+        new(true, null);
+
+    public static SiteArchiveCleanupResult Failed(string message) =>
+        new(false, message);
+}
+
 public interface ISiteArchivePort
 {
     Task<SiteArchiveExportResult> ExportAsync(
         Guid siteId,
+        CancellationToken cancellationToken);
+
+    Task<SiteArchiveCleanupResult> CleanupSupersededAsync(
+        Guid siteId,
+        string durableArchiveUrl,
         CancellationToken cancellationToken);
 }

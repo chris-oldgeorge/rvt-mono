@@ -1229,3 +1229,208 @@
   explicitly provider-gated PostgreSQL/TimescaleDB tests were discovered but
   not executed. Generated `.codegraph/`, `apps/.nuget-packages/`, and
   `.superpowers/sdd/progress.md` remain outside the repair commit.
+
+## Site Write Concurrency Repair - 2026-07-25
+
+- Resume instruction: start a future session with
+  `Read project_state.md to get up to speed`.
+- Active branch: `codex/sites-application-boundary`. This repair started from
+  and was verified against base
+  `19e8dbe0e98664b4bb05c2dd571dfca7c41abf5e`. Its required single commit is
+  named `fix: serialize site archive and notification writes`. The later root
+  whole-branch review and any push remain separate; merge or deployment
+  readiness is not claimed here.
+- Public Sites HTTP routes, response envelopes, authorization behavior, and the
+  one-archive-per-site domain contract are unchanged.
+  `RvtPortal.Application` remains BCL-only.
+- Approved design and implementation plan:
+  - `docs/superpowers/specs/2026-07-24-site-write-concurrency-repair-design.md`;
+  - `docs/superpowers/plans/2026-07-24-site-write-concurrency-repair.md`.
+- Repair file structure:
+  - `apps/portal/RVT.DataAccess/Context/RVTDbContext.cs`,
+    `Migrations/20260723234806_EnforceSiteWriteUniqueness.cs`,
+    its generated `.Designer.cs`, and `RVTDbContextModelSnapshot.cs` own the
+    relational uniqueness model and one-time duplicate cleanup;
+  - `apps/portal/RvtPortal.Application/Sites/Ports/ISiteReadPort.cs`,
+    `ISiteWritePort.cs`, `ISiteArchivePort.cs`, and
+    `Sites/SiteApplicationService.cs` own canonical archive state, atomic
+    claim results, cleanup outcomes, and unknown-commit orchestration;
+  - `apps/portal/RvtPortal.Spa/Adapters/Sites/EfSiteReadAdapter.cs`,
+    `EfSiteWriteAdapter.cs`, and `SiteArchiveAdapter.cs`, plus
+    `Adapters/Archive/SiteArchiveService.cs` and
+    `SiteArchiveWorkspaceFactory.cs`, own materialized canonical URL reads,
+    provider-native DML, guarded blob reconciliation, and archive workspaces;
+  - `apps/portal/database/postgres/post-load/06_site_write_uniqueness.sql`
+    owns the rerunnable, non-destructive PostgreSQL duplicate guard and unique
+    index repair;
+  - application coverage is in `SiteExternalWorkflowTests.cs`,
+    `SiteMutationUseCaseTests.cs`, and `SiteTestDoubles.cs`; host/provider
+    coverage is in `SchemaDeployTests.cs`,
+    `SiteArchiveServiceSecurityTests.cs`,
+    `SiteArchiveWorkspaceFactoryTests.cs`, `SiteConcurrencyTests.cs`,
+    `SiteConcurrencyPostgresTests.cs`, `SiteReadAdapterTests.cs`,
+    `SiteWriteAdapterTests.cs`, and `SpaTestApplicationFactory.cs`.
+- New application state and port signatures:
+  - `SiteArchiveState(Guid SiteId, bool Archived, string? ArchiveUrl)`;
+  - `SiteArchiveClaimResult(bool Claimed, string? DurableArchiveUrl)` returned
+    by `ISiteWritePort.TryClaimArchiveAsync(...)`;
+  - `SiteArchiveCleanupResult(bool Succeeded, string? ErrorMessage)` returned
+    by `ISiteArchivePort.CleanupSupersededAsync(Guid siteId,
+    string durableArchiveUrl, CancellationToken)`;
+  - the host archive boundary exposes
+    `ISiteArchiveService.DeleteSupersededAsync(Guid siteId,
+    string durableArchiveUrl, CancellationToken)`.
+- Archive exports retain a unique local `archiveId` for `RootPath` and
+  `ZipPath`, but every new export for one site uses the deterministic blob key
+  exactly `<site-id-N>/site-archive.zip`. Concurrent new exporters therefore
+  share one overwriteable candidate while relational archive metadata remains
+  canonical. Existing legacy URLs remain valid and are not renamed.
+- `EfSiteReadAdapter.GetArchiveStateAsync` is a no-tracking projection that
+  returns the site's archived flag and the single canonical
+  `site_archived.picture_link`. Relational archive claims use provider-native
+  conflict handling and return the durable URL for either winner or loser.
+- Archive cleanup is retryable. An already archived request reconciles the
+  derived stable candidate before returning detail, so a failed loser cleanup
+  is rediscovered without a second export. Cleanup failure maps to the existing
+  external-service-unavailable result.
+- Blob reconciliation fails closed before any delete unless the durable URL is
+  an absolute HTTP(S) URL without credentials or a fragment and identifies the
+  configured archive scheme, host, port, account, and container. If durable
+  metadata identifies the stable candidate, cleanup returns without a storage
+  delete. If verified legacy metadata identifies a different blob, cleanup
+  deletes only the derived stable candidate with snapshots included. No path
+  deletes the canonical URL.
+- Unknown transaction outcomes are verified with
+  `GetArchiveStateAsync(id, CancellationToken.None)`. A matching canonical URL
+  proves durable success and retains the candidate. A different canonical URL
+  is treated as a losing claim and reconciles only the stable candidate. When
+  canonical metadata is absent or verification fails, the candidate is
+  retained and the original persistence exception is rethrown with its stack.
+- Notification writes now converge on one complete row per `site_user_id`.
+  PostgreSQL and SQLite use `INSERT ... ON CONFLICT ... DO UPDATE`; SQL Server
+  uses a locked `UPDATE WITH (UPDLOCK, HOLDLOCK)` followed by a conditional
+  insert. Archive claims similarly use PostgreSQL/SQLite conflict handling or a
+  SQL Server locked existence check. EF InMemory keeps its tracked
+  compatibility path, and unknown relational providers fail explicitly.
+- PostgreSQL/Npgsql is the canonical checked-in EF migration, designer, model
+  snapshot, and generated-script provider. Migration
+  `20260723234806_EnforceSiteWriteUniqueness` locks the owner tables, retains
+  the smallest notification-setting UUID, retains the newest archive by
+  `create_date DESC, id DESC`, reconciles `site.archived = true`, and then
+  creates unique indexes on `notification_setting.site_user_id` and
+  `site_archived.site_id`. Its down path relaxes uniqueness without restoring
+  discarded duplicates.
+- Deterministic row deletion occurs only in that one-time migration.
+  Rerunnable `RVT.SchemaDeploy` SQL locks the same tables, rejects duplicate
+  owner groups with an actionable migration hint, and repairs only the two
+  named indexes on clean data. It performs no table-data insertion, update,
+  deletion, merge, or truncation.
+- SQL Server runtime DML is structurally covered, but a canonical SQL Server
+  migration chain/snapshot and live migration deployment were not generated or
+  validated. SQL Server migration-deployment closure remains separate work.
+  Historical blob URLs discarded by relational deduplication also remain an
+  operator/lifecycle audit item because database migration has no storage
+  credentials.
+- Fresh final integration verification:
+  - `RvtPortal.Application.Tests`: 48 passed, 0 failed, 0 skipped;
+  - `RvtPortal.Spa.Tests`: 408 passed, 0 failed, 9 skipped, 417 total;
+  - `RvtPortal.Spa.sln`: build succeeded with 0 errors and the five existing
+    `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories;
+  - PostgreSQL `dotnet ef migrations has-pending-model-changes` reported no
+    model changes since the last migration;
+  - `git diff --check` completed with no output.
+- `RVT_TEST_POSTGRES_CONNECTION` was unset. The new
+  `SiteConcurrencyPostgresTests.AtomicSiteWrites_ConcurrentRequestsKeepOneValidRowPerOwner`
+  case and the existing eight PostgreSQL/TimescaleDB cases were discovered but
+  skipped, so live PostgreSQL concurrency/deployed-schema closure is not
+  claimed. The UTC-midnight notification fixture did not fail during this run,
+  so no baseline-only exception was applied.
+- Existing NU1903 advisories remain
+  `GHSA-23rf-6693-g89p`, `GHSA-8q5v-6pqq-x66h`,
+  `GHSA-cvvh-rhrc-wg4q`, `GHSA-g8r8-53c2-pm3f`, and
+  `GHSA-mmjf-rqrv-855v`; dependency versions are unchanged.
+- `.superpowers/sdd/task-6-report.md` remains byte-identical to merge-base
+  `1eeb6c71922b98dd7928330879a6813247c0a7e8`. Generated `.codegraph/`,
+  `apps/.nuget-packages/`, `.superpowers/sdd/progress.md`, this plan's ignored
+  SDD workspace, and historical reports remain outside the repair commit.
+
+## Site Write Concurrency Final Review Fix - 2026-07-25
+
+- The final review fix started from reviewed commit
+  `c9295f0ff087275b8129e18bfeeb99357f430a1a`; its parent remains
+  `19e8dbe0e98664b4bb05c2dd571dfca7c41abf5e`, and the concurrency repair
+  remains one amended commit named
+  `fix: serialize site archive and notification writes`.
+- `EfCoreUnitOfWork.ExecuteInTransactionAsync` now captures the primary
+  operation/commit exception with `ExceptionDispatchInfo`, attempts rollback
+  with `CancellationToken.None`, and explicitly disposes application, search,
+  and domain transaction wrappers in reverse creation order. Rollback and
+  disposal faults are secondary; when possible they are retained under
+  `Exception.Data` as an `AggregateException`, and diagnostic attachment itself
+  is best-effort so it cannot replace the primary. The same primary-preservation
+  and reverse-cleanup rules now cover caller-owned ambient enlistments.
+  A disposal fault remains primary when the operation/commit path succeeded.
+- `EfCoreUnitOfWorkTests` uses a real shared SQLite relational transaction and
+  EF transaction interceptor. Its commit interceptor throws a stable exception
+  instance and cancels the live request token; rollback then throws a distinct
+  instance while proving cleanup received `CancellationToken.None`. The test
+  asserts primary identity and stack plus retained secondary diagnostics.
+  A second fault test proves a primary exception whose virtual `Data` getter
+  throws still escapes unchanged.
+- New `SiteSqlServerDmlTests.cs` constructs `RVTDbContext` with
+  `UseSqlServer`, suppresses connection opening and async non-query execution,
+  and records the real provider-generated `SqlCommand` and `SqlParameter`
+  values without a live SQL Server. Archive coverage asserts the complete
+  metadata insert, site-owner predicate, `NOT EXISTS`,
+  `UPDLOCK, HOLDLOCK`, and winner-only site archived update. Notification
+  coverage asserts the locked complete update, `site_user_id` predicate,
+  `@@ROWCOUNT` gate, and complete conditional insert.
+- The SQL Server archive claim is now one batch: after the locked conditional
+  metadata insert, `IF @@ROWCOUNT > 0` performs a parameterized
+  `[site].[archived]` update for the same site. A winner therefore needs no
+  follow-up site read; the zero-row loser path still reads and returns the
+  canonical durable archive URL. This is runtime DML coverage only. A canonical
+  SQL Server migration chain and live migration deployment remain separate and
+  unclosed.
+- `SiteArchiveServiceSecurityTests` now explicitly prove that a percent-encoded
+  stable blob name and a stable URL carrying query/SAS parameters are equivalent
+  to the candidate and cause no delete. The same configured account/container
+  on a wrong effective port fails closed, and a loopback observer proves no
+  delete request is sent.
+- Strict RED/GREEN controls:
+  - original UoW RED: 1 failed/1 total because rollback's exception replaced
+    the exact commit exception; GREEN passed 1/1;
+  - EDI mutation RED: 1 failed/1 total because a normal throw erased the commit
+    interceptor stack; restored EDI GREEN passed 1/1;
+  - throwing-`Data` RED: 1 failed/1 total because diagnostic attachment
+    replaced the commit exception; the guarded attachment joined the focused
+    UoW GREEN at 10/10;
+  - SQL Server initial RED: notification passed, while archive failed 1/2 on
+    the unsuppressed follow-up reader; compound archive DML GREEN passed 2/2.
+    Removing `HOLDLOCK` from both runtime branches then failed 2/2, and the
+    restored lock hints passed 2/2. Swapping archive owner/URL and notification
+    email/SMS bindings then failed 2/2 on exact placeholder-to-column
+    assertions before restoration;
+  - URL mutation RED failed 3/3 by attempting deletes for encoded/query
+    equivalents and accepting the wrong port; restored production passed 3/3.
+- The final read-only re-review reported no remaining Critical, Important, or
+  Minor findings.
+- Fresh final verification:
+  - combined UoW, SQL Server DML, and archive-security slice: 28 passed,
+    0 failed, 0 skipped;
+  - `RvtPortal.Application.Tests`: 48 passed, 0 failed, 0 skipped;
+  - `RvtPortal.Spa.Tests`: 415 passed, 0 failed, 9 provider-gated skipped,
+    424 total;
+  - `RvtPortal.Spa.sln`: build succeeded with 0 errors and the five existing
+    `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories;
+  - canonical PostgreSQL
+    `dotnet ef migrations has-pending-model-changes` reported no model changes
+    since the last migration;
+  - `git diff --check` completed with no output.
+- `RVT_TEST_POSTGRES_CONNECTION` remains unset, so the nine explicit
+  PostgreSQL/TimescaleDB cases were discovered but not executed. Live
+  PostgreSQL concurrency and deployed-schema closure are not claimed. Live SQL
+  Server execution and SQL Server migration deployment are also not claimed.
+  Generated `.codegraph/`, `apps/.nuget-packages/`, SDD ledgers/workspaces,
+  old progress files, and historical reports remain outside the amended commit;
+  only the required ignored final-fix report is written in the SDD task folder.

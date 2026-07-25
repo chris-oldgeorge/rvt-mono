@@ -326,6 +326,19 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return SiteNotFound<SiteDetailModel>(id);
         }
 
+        var detailCancellationToken = cancellationToken;
+        if (state.Archived && state.ArchiveUrl is not null)
+        {
+            var cleanup = await CleanupArchiveAsync(
+                id,
+                state.ArchiveUrl,
+                cancellationToken);
+            if (!cleanup.Succeeded)
+            {
+                return ArchiveCleanupFailure(cleanup);
+            }
+        }
+
         if (!state.Archived)
         {
             var export = await archive.ExportAsync(id, cancellationToken);
@@ -336,25 +349,122 @@ public sealed class SiteApplicationService : ISiteApplicationService
                         ?? "The site archive could not be created, so the site was not archived. Please try again.");
             }
 
-            await unitOfWork.ExecuteInTransactionAsync(
-                async token =>
+            SiteArchiveClaimResult? claim = null;
+            try
+            {
+                claim = await unitOfWork.ExecuteInTransactionAsync(
+                    async token =>
+                    {
+                        var result = await writes.TryClaimArchiveAsync(
+                            id,
+                            createdBy,
+                            export.ArchiveUrl,
+                            timeProvider.GetUtcNow().UtcDateTime,
+                            token);
+                        if (result.Claimed)
+                        {
+                            await unitOfWork.SaveChangesAsync(token);
+                        }
+
+                        return result;
+                    },
+                    cancellationToken);
+            }
+            catch (Exception persistenceException)
+            {
+                SiteArchiveState? durableState = null;
+                try
                 {
-                    await writes.MarkArchivedAsync(
+                    durableState = await reads.GetArchiveStateAsync(
                         id,
-                        createdBy,
+                        CancellationToken.None);
+                }
+                catch
+                {
+                    Rethrow(persistenceException);
+                }
+
+                if (string.IsNullOrWhiteSpace(durableState?.ArchiveUrl))
+                {
+                    Rethrow(persistenceException);
+                }
+
+                if (!string.Equals(
+                        durableState.ArchiveUrl,
                         export.ArchiveUrl,
-                        timeProvider.GetUtcNow().UtcDateTime,
-                        token);
-                    await unitOfWork.SaveChangesAsync(token);
-                    return true;
-                },
-                cancellationToken);
+                        StringComparison.Ordinal))
+                {
+                    var cleanup = await CleanupArchiveAsync(
+                        id,
+                        durableState.ArchiveUrl,
+                        CancellationToken.None);
+                    if (!cleanup.Succeeded)
+                    {
+                        return ArchiveCleanupFailure(cleanup);
+                    }
+                }
+
+                detailCancellationToken = CancellationToken.None;
+            }
+
+            if (claim?.DurableArchiveUrl is not null
+                && !string.Equals(
+                    claim.DurableArchiveUrl,
+                    export.ArchiveUrl,
+                    StringComparison.Ordinal))
+            {
+                var cleanup = await CleanupArchiveAsync(
+                    id,
+                    claim.DurableArchiveUrl,
+                    CancellationToken.None);
+                if (!cleanup.Succeeded)
+                {
+                    return ArchiveCleanupFailure(cleanup);
+                }
+            }
         }
 
-        var detail = await ReadDetailAsync(user, id, cancellationToken);
+        var detail = await ReadDetailAsync(user, id, detailCancellationToken);
         return detail is null
             ? SiteNotFound<SiteDetailModel>(id)
             : UseCaseResult<SiteDetailModel>.Success(detail);
+    }
+
+    private async Task<SiteArchiveCleanupResult> CleanupArchiveAsync(
+        Guid siteId,
+        string durableArchiveUrl,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await archive.CleanupSupersededAsync(
+                siteId,
+                durableArchiveUrl,
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (
+            cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            return SiteArchiveCleanupResult.Failed(exception.Message);
+        }
+    }
+
+    private static UseCaseResult<SiteDetailModel> ArchiveCleanupFailure(
+        SiteArchiveCleanupResult cleanup) =>
+        UseCaseResult<SiteDetailModel>.ExternalServiceUnavailable(
+            cleanup.ErrorMessage
+                ?? "The site archive candidate could not be reconciled with durable archive metadata. Contact support.");
+
+    [System.Diagnostics.CodeAnalysis.DoesNotReturn]
+    private static void Rethrow(Exception exception)
+    {
+        System.Runtime.ExceptionServices.ExceptionDispatchInfo
+            .Capture(exception)
+            .Throw();
     }
 
     public async Task<UseCaseResult<SiteDetailModel>> SaveCustomerLogoAsync(

@@ -51,4 +51,7 @@ public interface ISiteReadPort
         CancellationToken cancellationToken);
 }
 
-public sealed record SiteArchiveState(Guid SiteId, bool Archived);
+public sealed record SiteArchiveState(
+    Guid SiteId,
+    bool Archived,
+    string? ArchiveUrl);

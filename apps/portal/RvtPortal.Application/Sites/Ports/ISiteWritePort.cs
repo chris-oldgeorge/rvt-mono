@@ -1,5 +1,9 @@
 namespace RvtPortal.Application.Sites.Ports;
 
+public sealed record SiteArchiveClaimResult(
+    bool Claimed,
+    string? DurableArchiveUrl);
+
 public interface ISiteWritePort
 {
     Task<Guid> CreateAsync(
@@ -18,7 +22,7 @@ public interface ISiteWritePort
         ValidatedSiteMutation mutation,
         CancellationToken cancellationToken);
 
-    Task MarkArchivedAsync(
+    Task<SiteArchiveClaimResult> TryClaimArchiveAsync(
         Guid siteId,
         string createdBy,
         string archiveUrl,

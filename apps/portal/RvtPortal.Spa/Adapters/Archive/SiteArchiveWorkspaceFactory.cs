@@ -18,7 +18,7 @@ internal sealed class SiteArchiveWorkspaceFactory : ISiteArchiveWorkspaceFactory
         var archiveId = $"{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}";
         var rootPath = Path.Combine(Path.GetTempPath(), "rvt-site-archives", siteId.ToString("N"), archiveId);
         var filesPath = Path.Combine(rootPath, "files");
-        var blobName = $"{siteId:N}/{archiveId}.zip";
+        var blobName = $"{siteId:N}/site-archive.zip";
         var zipPath = Path.Combine(rootPath, $"{archiveId}.zip");
 
         return new SiteArchiveWorkspace(rootPath, filesPath, zipPath, blobName);

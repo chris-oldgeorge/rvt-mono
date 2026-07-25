@@ -19,10 +19,43 @@ public sealed class SiteReadAdapterTests
     {
         using var factory = new SpaTestApplicationFactory();
         var siteId = Guid.NewGuid();
+        const string archiveUrl = "https://archive.example/canonical.zip";
+        await factory.SeedDomainEntitiesAsync(
+            new Site
+            {
+                Id = siteId,
+                SiteName = "Archived Site",
+                Archived = true,
+                CreateDate = Now.UtcDateTime,
+                Contracts = []
+            },
+            new SiteArchived
+            {
+                Id = Guid.NewGuid(),
+                SiteId = siteId,
+                PictureLink = archiveUrl,
+                CreatedBy = "admin",
+                CreateDate = Now.UtcDateTime
+            });
+        using var scope = factory.Services.CreateScope();
+        var reads = scope.ServiceProvider.GetRequiredService<ISiteReadPort>();
+
+        var state = await reads.GetArchiveStateAsync(
+            siteId,
+            CancellationToken.None);
+
+        Assert.Equal(new SiteArchiveState(siteId, true, archiveUrl), state);
+    }
+
+    [Fact]
+    public async Task GetArchiveStateAsync_ReturnsNullCanonicalUrlWhenMetadataIsAbsent()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var siteId = Guid.NewGuid();
         await factory.SeedDomainEntitiesAsync(new Site
         {
             Id = siteId,
-            SiteName = "Archived Site",
+            SiteName = "Archived Without Metadata",
             Archived = true,
             CreateDate = Now.UtcDateTime,
             Contracts = []
@@ -34,7 +67,7 @@ public sealed class SiteReadAdapterTests
             siteId,
             CancellationToken.None);
 
-        Assert.Equal(new SiteArchiveState(siteId, true), state);
+        Assert.Equal(new SiteArchiveState(siteId, true, null), state);
     }
 
     [Fact]

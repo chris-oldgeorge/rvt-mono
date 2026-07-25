@@ -81,7 +81,11 @@ public sealed class SiteExternalWorkflowTests
     public async Task ArchiveAsync_AlreadyArchivedSkipsExportAndReturnsEnrichedDetail()
     {
         var fixture = SiteExternalFixture.ReadableAdmin();
-        fixture.Reads.ArchiveState = new SiteArchiveState(fixture.SiteId, true);
+        const string legacyArchiveUrl = "https://archive.example/legacy.zip";
+        fixture.Reads.ArchiveState = new SiteArchiveState(
+            fixture.SiteId,
+            true,
+            legacyArchiveUrl);
         fixture.Logos.Exists = true;
 
         var result = await fixture.Service.ArchiveAsync(
@@ -95,6 +99,205 @@ public sealed class SiteExternalWorkflowTests
         Assert.Equal(0, fixture.Archive.ExportCount);
         Assert.Equal(0, fixture.UnitOfWork.TransactionCount);
         Assert.Equal(0, fixture.Writes.ArchiveCount);
+        Assert.Equal(
+            [(fixture.SiteId, legacyArchiveUrl)],
+            fixture.Archive.ReconciliationRequests);
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_LosingClaimCleanupFailureReportsExternalFailure()
+    {
+        var fixture = SiteExternalFixture.ReadableAdmin();
+        fixture.Writes.ArchiveClaimResult = new SiteArchiveClaimResult(
+            Claimed: false,
+            DurableArchiveUrl: "https://archive.example/winner.zip");
+        fixture.Archive.CleanupResult = SiteArchiveCleanupResult.Failed(
+            "The duplicate archive could not be removed.");
+
+        var result = await fixture.Service.ArchiveAsync(
+            fixture.Admin,
+            fixture.SiteId,
+            "admin",
+            CancellationToken.None);
+
+        Assert.Equal(UseCaseResultKind.ExternalServiceUnavailable, result.Kind);
+        Assert.Equal(
+            "The duplicate archive could not be removed.",
+            result.Message);
+        Assert.Equal(1, fixture.Archive.CleanupCount);
+        Assert.False(fixture.Archive.CleanupToken.CanBeCanceled);
+        Assert.Equal(
+            [(fixture.SiteId, "https://archive.example/winner.zip")],
+            fixture.Archive.ReconciliationRequests);
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_UnknownCommitWithDurableSameUrlReturnsSuccessWithoutCleanup()
+    {
+        var fixture = SiteExternalFixture.ReadableAdmin();
+        using var requestCancellation = new CancellationTokenSource();
+        fixture.UnitOfWork.TransactionExceptionAfterOperation =
+            new IOException("connection dropped during commit");
+        fixture.Reads.ArchiveStates.Enqueue(
+            new SiteArchiveState(
+                fixture.SiteId,
+                true,
+                fixture.Archive.Result.ArchiveUrl));
+
+        var result = await fixture.Service.ArchiveAsync(
+            fixture.Admin,
+            fixture.SiteId,
+            "admin",
+            requestCancellation.Token);
+
+        Assert.Equal(UseCaseResultKind.Success, result.Kind);
+        Assert.Equal(2, fixture.Reads.ArchiveStateReadCount);
+        Assert.Equal(0, fixture.Archive.DeleteCount);
+        Assert.Empty(fixture.Archive.ReconciliationRequests);
+        Assert.False(fixture.Reads.LastArchiveStateToken.CanBeCanceled);
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_FailedLoserCleanupIsRediscoveredAfterSiteIsArchived()
+    {
+        var fixture = SiteExternalFixture.ReadableAdmin();
+        fixture.Writes.ArchiveClaimResult =
+            new SiteArchiveClaimResult(false, "https://archive.example/legacy.zip");
+        fixture.Archive.CleanupResults.Enqueue(
+            SiteArchiveCleanupResult.Failed("cleanup failed"));
+        fixture.Archive.CleanupResults.Enqueue(
+            SiteArchiveCleanupResult.Success());
+
+        var first = await fixture.Service.ArchiveAsync(
+            fixture.Admin, fixture.SiteId, "admin", CancellationToken.None);
+        fixture.Reads.ArchiveState = new SiteArchiveState(
+            fixture.SiteId,
+            true,
+            "https://archive.example/legacy.zip");
+        var retry = await fixture.Service.ArchiveAsync(
+            fixture.Admin, fixture.SiteId, "admin", CancellationToken.None);
+
+        Assert.Equal(UseCaseResultKind.ExternalServiceUnavailable, first.Kind);
+        Assert.Equal(UseCaseResultKind.Success, retry.Kind);
+        Assert.Equal(1, fixture.Archive.ExportCount);
+        Assert.Equal(2, fixture.Archive.DeleteCount);
+        Assert.Equal(
+            [
+                (fixture.SiteId, "https://archive.example/legacy.zip"),
+                (fixture.SiteId, "https://archive.example/legacy.zip")
+            ],
+            fixture.Archive.ReconciliationRequests);
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_UnknownCancellationWithoutCanonicalMetadataRetainsCandidateAndRethrowsOriginal()
+    {
+        var fixture = SiteExternalFixture.ReadableAdmin();
+        var persistenceException = new OperationCanceledException("commit cancelled");
+        fixture.UnitOfWork.TransactionException = persistenceException;
+
+        var actual = await Assert.ThrowsAsync<OperationCanceledException>(
+            () => fixture.Service.ArchiveAsync(
+                fixture.Admin,
+                fixture.SiteId,
+                "admin",
+                CancellationToken.None));
+
+        Assert.Same(persistenceException, actual);
+        Assert.Equal(2, fixture.Reads.ArchiveStateReadCount);
+        Assert.Equal(0, fixture.Archive.CleanupCount);
+        Assert.False(fixture.Reads.LastArchiveStateToken.CanBeCanceled);
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_UnknownCancellationVerificationFailureRetainsCandidateAndRethrowsOriginal()
+    {
+        var fixture = SiteExternalFixture.ReadableAdmin();
+        var persistenceException = new OperationCanceledException("metadata cancelled");
+        fixture.UnitOfWork.TransactionException = persistenceException;
+        fixture.Reads.ArchiveStateExceptionAfterFirstRead =
+            new IOException("verification unavailable");
+
+        var actual = await Assert.ThrowsAsync<OperationCanceledException>(
+            () => fixture.Service.ArchiveAsync(
+                fixture.Admin,
+                fixture.SiteId,
+                "admin",
+                CancellationToken.None));
+
+        Assert.Same(persistenceException, actual);
+        Assert.Equal(2, fixture.Reads.ArchiveStateReadCount);
+        Assert.Equal(0, fixture.Archive.CleanupCount);
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_UnknownCancellationWithMatchingCanonicalUrlReturnsDurableSuccess()
+    {
+        var fixture = SiteExternalFixture.ReadableAdmin();
+        fixture.UnitOfWork.TransactionExceptionAfterOperation =
+            new OperationCanceledException("commit acknowledgement cancelled");
+        fixture.Reads.ArchiveStates.Enqueue(
+            new SiteArchiveState(
+                fixture.SiteId,
+                true,
+                fixture.Archive.Result.ArchiveUrl));
+
+        var result = await fixture.Service.ArchiveAsync(
+            fixture.Admin,
+            fixture.SiteId,
+            "admin",
+            CancellationToken.None);
+
+        Assert.Equal(UseCaseResultKind.Success, result.Kind);
+        Assert.Equal(0, fixture.Archive.CleanupCount);
+        Assert.False(fixture.Reads.LastArchiveStateToken.CanBeCanceled);
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_UnknownCommitWithDifferentCanonicalUrlReconcilesLegacyWinnerAndReturnsSuccess()
+    {
+        var fixture = SiteExternalFixture.ReadableAdmin();
+        const string legacyArchiveUrl = "https://archive.example/legacy.zip";
+        fixture.UnitOfWork.TransactionExceptionAfterOperation =
+            new IOException("connection dropped during commit");
+        fixture.Reads.ArchiveStates.Enqueue(
+            new SiteArchiveState(fixture.SiteId, true, legacyArchiveUrl));
+
+        var result = await fixture.Service.ArchiveAsync(
+            fixture.Admin,
+            fixture.SiteId,
+            "admin",
+            CancellationToken.None);
+
+        Assert.Equal(UseCaseResultKind.Success, result.Kind);
+        Assert.Equal(
+            [(fixture.SiteId, legacyArchiveUrl)],
+            fixture.Archive.ReconciliationRequests);
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_UnknownCommitWithDifferentCanonicalUrlReportsReconciliationFailure()
+    {
+        var fixture = SiteExternalFixture.ReadableAdmin();
+        const string legacyArchiveUrl = "https://archive.example/legacy.zip";
+        fixture.UnitOfWork.TransactionExceptionAfterOperation =
+            new IOException("connection dropped during commit");
+        fixture.Reads.ArchiveStates.Enqueue(
+            new SiteArchiveState(fixture.SiteId, true, legacyArchiveUrl));
+        fixture.Archive.CleanupResult =
+            SiteArchiveCleanupResult.Failed("reconciliation failed");
+
+        var result = await fixture.Service.ArchiveAsync(
+            fixture.Admin,
+            fixture.SiteId,
+            "admin",
+            CancellationToken.None);
+
+        Assert.Equal(UseCaseResultKind.ExternalServiceUnavailable, result.Kind);
+        Assert.Equal("reconciliation failed", result.Message);
+        Assert.Equal(
+            [(fixture.SiteId, legacyArchiveUrl)],
+            fixture.Archive.ReconciliationRequests);
     }
 
     [Fact]
@@ -182,7 +385,7 @@ public sealed class SiteExternalWorkflowTests
             var reads = new ExternalReadPort
             {
                 Exists = true,
-                ArchiveState = new SiteArchiveState(siteId, false),
+                ArchiveState = new SiteArchiveState(siteId, false, null),
                 Detail = new SiteDetailModel { Id = siteId, SiteName = "Site" }
             };
             var writes = new ExternalWritePort(events);
@@ -227,6 +430,8 @@ public sealed class SiteExternalWorkflowTests
     {
         public int TransactionCount { get; private set; }
         public int SaveCount { get; private set; }
+        public Exception? TransactionException { get; set; }
+        public Exception? TransactionExceptionAfterOperation { get; set; }
 
         public async Task<TResponse> ExecuteInTransactionAsync<TResponse>(
             Func<CancellationToken, Task<TResponse>> operation,
@@ -234,7 +439,18 @@ public sealed class SiteExternalWorkflowTests
         {
             TransactionCount++;
             events.Add("transaction");
-            return await operation(cancellationToken);
+            if (TransactionException is not null)
+            {
+                throw TransactionException;
+            }
+
+            var response = await operation(cancellationToken);
+            if (TransactionExceptionAfterOperation is not null)
+            {
+                throw TransactionExceptionAfterOperation;
+            }
+
+            return response;
         }
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
@@ -250,8 +466,10 @@ public sealed class SiteExternalWorkflowTests
         public string? CreatedBy { get; private set; }
         public string? ArchiveUrl { get; private set; }
         public DateTime? ArchivedUtc { get; private set; }
+        public SiteArchiveClaimResult ArchiveClaimResult { get; set; } =
+            new(true, "https://archive.example/site.zip");
 
-        public Task MarkArchivedAsync(
+        public Task<SiteArchiveClaimResult> TryClaimArchiveAsync(
             Guid siteId,
             string createdBy,
             string archiveUrl,
@@ -263,7 +481,7 @@ public sealed class SiteExternalWorkflowTests
             ArchiveUrl = archiveUrl;
             ArchivedUtc = archivedUtc;
             events.Add("archive");
-            return Task.CompletedTask;
+            return Task.FromResult(ArchiveClaimResult);
         }
 
         public Task<Guid> CreateAsync(
@@ -297,8 +515,15 @@ public sealed class SiteExternalWorkflowTests
     private sealed class FakeArchivePort(List<string> events) : ISiteArchivePort
     {
         public int ExportCount { get; private set; }
+        public int DeleteCount { get; private set; }
+        public int CleanupCount => DeleteCount;
+        public CancellationToken CleanupToken { get; private set; }
         public SiteArchiveExportResult Result { get; set; } =
             SiteArchiveExportResult.Success("https://archive.example/site.zip");
+        public SiteArchiveCleanupResult CleanupResult { get; set; } =
+            SiteArchiveCleanupResult.Success();
+        public Queue<SiteArchiveCleanupResult> CleanupResults { get; } = new();
+        public List<(Guid SiteId, string DurableArchiveUrl)> ReconciliationRequests { get; } = [];
 
         public Task<SiteArchiveExportResult> ExportAsync(
             Guid siteId,
@@ -307,6 +532,20 @@ public sealed class SiteExternalWorkflowTests
             ExportCount++;
             events.Add("export");
             return Task.FromResult(Result);
+        }
+
+        public Task<SiteArchiveCleanupResult> CleanupSupersededAsync(
+            Guid siteId,
+            string durableArchiveUrl,
+            CancellationToken cancellationToken)
+        {
+            DeleteCount++;
+            CleanupToken = cancellationToken;
+            ReconciliationRequests.Add((siteId, durableArchiveUrl));
+            return Task.FromResult(
+                CleanupResults.TryDequeue(out var result)
+                    ? result
+                    : CleanupResult);
         }
     }
 
@@ -367,6 +606,9 @@ public sealed class SiteExternalWorkflowTests
         public required SiteDetailModel Detail { get; init; }
         public int ArchiveStateReadCount { get; private set; }
         public int DetailReadCount { get; private set; }
+        public Queue<SiteArchiveState> ArchiveStates { get; } = new();
+        public CancellationToken LastArchiveStateToken { get; private set; }
+        public Exception? ArchiveStateExceptionAfterFirstRead { get; set; }
 
         public override Task<bool> ExistsAsync(
             Guid siteId,
@@ -379,7 +621,18 @@ public sealed class SiteExternalWorkflowTests
             CancellationToken cancellationToken)
         {
             ArchiveStateReadCount++;
-            return Task.FromResult<SiteArchiveState?>(ArchiveState);
+            LastArchiveStateToken = cancellationToken;
+            if (ArchiveStateReadCount > 1
+                && ArchiveStateExceptionAfterFirstRead is not null)
+            {
+                throw ArchiveStateExceptionAfterFirstRead;
+            }
+
+            return Task.FromResult<SiteArchiveState?>(
+                ArchiveStateReadCount > 1
+                    && ArchiveStates.TryDequeue(out var state)
+                    ? state
+                    : ArchiveState);
         }
 
         public override Task<SiteDetailModel?> GetAsync(

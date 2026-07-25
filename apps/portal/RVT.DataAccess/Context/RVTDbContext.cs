@@ -74,6 +74,16 @@ namespace RVT.DataAccess.Context
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
+            modelBuilder.Entity<RVT.Entities.SiteArchived>(entity =>
+            {
+                entity.HasIndex(archive => archive.SiteId).IsUnique();
+            });
+
+            modelBuilder.Entity<RVT.Entities.NotificationSettings>(entity =>
+            {
+                entity.HasIndex(settings => settings.SiteUserId).IsUnique();
+            });
+
             modelBuilder.Entity<RVT.Entities.HelpSection>(entity =>
             {
                 entity.HasIndex(section => section.Slug).IsUnique();

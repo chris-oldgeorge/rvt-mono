@@ -34,6 +34,12 @@ namespace RvtPortal.Spa.Adapters.Archive
     {
         // Function summary: Builds a site archive export and returns its stored archive URL; throws if it fails.
         Task<string> Process(Guid siteId, CancellationToken cancellationToken);
+
+        // Function summary: Reconciles the stable candidate against durable archive metadata.
+        Task DeleteSupersededAsync(
+            Guid siteId,
+            string durableArchiveUrl,
+            CancellationToken cancellationToken);
     }
 
     internal class SiteArchiveService : ISiteArchiveService
@@ -108,6 +114,94 @@ namespace RvtPortal.Spa.Adapters.Archive
 
             BlockBlobClient blob = monitorContainerClient.GetBlockBlobClient(blobName);
             return blob.Uri.AbsoluteUri;
+        }
+
+        public async Task DeleteSupersededAsync(
+            Guid siteId,
+            string durableArchiveUrl,
+            CancellationToken cancellationToken)
+        {
+            if (!Uri.TryCreate(
+                    durableArchiveUrl,
+                    UriKind.Absolute,
+                    out var durableUri)
+                || (durableUri.Scheme != Uri.UriSchemeHttps
+                    && durableUri.Scheme != Uri.UriSchemeHttp)
+                || !string.IsNullOrEmpty(durableUri.UserInfo)
+                || !string.IsNullOrEmpty(durableUri.Fragment))
+            {
+                throw new InvalidOperationException(
+                    "The durable archive URL is not a verifiable absolute blob URL.");
+            }
+
+            BlobUriBuilder durableArchive;
+            try
+            {
+                durableArchive = new BlobUriBuilder(durableUri);
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                or UriFormatException)
+            {
+                throw new InvalidOperationException(
+                    "The durable archive URL is not a verifiable absolute blob URL.",
+                    exception);
+            }
+
+            var blobServiceClient = new BlobServiceClient(config.blobConnectionString);
+            var archiveContainer = blobServiceClient.GetBlobContainerClient(config.ArchiveContainer);
+            var candidateBlob = archiveContainer.GetBlobClient(
+                $"{siteId:N}/site-archive.zip");
+            var candidateArchive = new BlobUriBuilder(candidateBlob.Uri);
+            if (!IdentifiesConfiguredContainer(
+                    durableUri,
+                    durableArchive,
+                    candidateBlob.Uri,
+                    candidateArchive))
+            {
+                throw new InvalidOperationException(
+                    "The durable archive URL does not identify a blob in the configured archive account and container.");
+            }
+
+            if (string.Equals(
+                    durableArchive.BlobName,
+                    candidateArchive.BlobName,
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            await candidateBlob.DeleteIfExistsAsync(
+                Azure.Storage.Blobs.Models.DeleteSnapshotsOption.IncludeSnapshots,
+                cancellationToken: cancellationToken);
+        }
+
+        private static bool IdentifiesConfiguredContainer(
+            Uri durableUri,
+            BlobUriBuilder durableArchive,
+            Uri candidateUri,
+            BlobUriBuilder candidateArchive)
+        {
+            return string.Equals(
+                    durableUri.Scheme,
+                    candidateUri.Scheme,
+                    StringComparison.OrdinalIgnoreCase)
+                && string.Equals(
+                    durableUri.IdnHost,
+                    candidateUri.IdnHost,
+                    StringComparison.OrdinalIgnoreCase)
+                && durableUri.Port == candidateUri.Port
+                && !string.IsNullOrWhiteSpace(durableArchive.AccountName)
+                && string.Equals(
+                    durableArchive.AccountName,
+                    candidateArchive.AccountName,
+                    StringComparison.Ordinal)
+                && !string.IsNullOrWhiteSpace(durableArchive.BlobContainerName)
+                && string.Equals(
+                    durableArchive.BlobContainerName,
+                    candidateArchive.BlobContainerName,
+                    StringComparison.Ordinal)
+                && !string.IsNullOrWhiteSpace(durableArchive.BlobName);
         }
 
         // Function summary: Creates a provider-specific site id parameter for focused archive security tests.

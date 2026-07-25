@@ -14,7 +14,7 @@ namespace RvtPortal.Spa.Tests;
 public sealed class SiteWriteAdapterTests
 {
     [Fact]
-    public async Task MarkArchivedAsync_PersistsUtcArchiveMetadata()
+    public async Task TryClaimArchiveAsync_PersistsUtcArchiveMetadata()
     {
         await using var fixture = await SiteWriteAdapterFixture.CreateAsync();
         var siteId = Guid.NewGuid();
@@ -38,12 +38,13 @@ public sealed class SiteWriteAdapterTests
         await fixture.UnitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
-                await fixture.Adapter.MarkArchivedAsync(
+                var claim = await fixture.Adapter.TryClaimArchiveAsync(
                     siteId,
                     "admin",
                     "https://archive.example/site.zip",
                     archivedUtc,
                     token);
+                Assert.True(claim.Claimed);
                 await fixture.UnitOfWork.SaveChangesAsync(token);
                 return true;
             },

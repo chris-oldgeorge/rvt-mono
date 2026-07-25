@@ -1,11 +1,15 @@
 ﻿// File summary: Covers provider translation and parameterization behavior for site archive exports.
 // Major updates:
+// - 2026-07-25 pending Added stable URL canonicalization and effective-port cleanup coverage.
 // - 2026-07-09 pending Added guardrails for split archive SQL, unique workspaces, and streaming CSV output.
 // - 2026-07-05 pending Replaced source-text archive SQL checks with reflection-backed behavior tests.
 // - 2026-06-08 pending Added archive export SQL injection regression coverage.
 
 using Microsoft.EntityFrameworkCore;
 using System.Data.Common;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using RvtPortal.Application.Sites.Ports;
@@ -40,6 +44,141 @@ public sealed class SiteArchiveServiceSecurityTests
             () => cancellationAdapter.ExportAsync(
                 Guid.NewGuid(),
                 CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeleteSupersededAsync_MatchingStableUrlDoesNotCallBlobStorage()
+    {
+        var siteId = Guid.NewGuid();
+        var service = CreateArchiveService(
+            BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+
+        await service.DeleteSupersededAsync(
+            siteId,
+            $"http://127.0.0.1:1/archiveaccount/site-archives/{siteId:N}/site-archive.zip",
+            timeout.Token);
+    }
+
+    [Fact]
+    public async Task DeleteSupersededAsync_PercentEncodedMatchingStableUrlDoesNotCallBlobStorage()
+    {
+        var siteId = Guid.NewGuid();
+        var service = CreateArchiveService(
+            BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+
+        await service.DeleteSupersededAsync(
+            siteId,
+            $"http://127.0.0.1:1/archiveaccount/site-archives/{siteId:N}/site%2Darchive.zip",
+            timeout.Token);
+    }
+
+    [Fact]
+    public async Task DeleteSupersededAsync_QueryEquivalentMatchingStableUrlDoesNotCallBlobStorage()
+    {
+        var siteId = Guid.NewGuid();
+        var service = CreateArchiveService(
+            BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+
+        await service.DeleteSupersededAsync(
+            siteId,
+            $"http://127.0.0.1:1/archiveaccount/site-archives/{siteId:N}/site-archive.zip"
+                + "?sv=2025-05-05&sr=b&sig=test-signature",
+            timeout.Token);
+    }
+
+    [Fact]
+    public async Task DeleteSupersededAsync_SameAccountAndContainerWithWrongEffectivePortFailsClosedWithoutDeleting()
+    {
+        using var server = new LoopbackBlobServer();
+        var siteId = Guid.NewGuid();
+        var service = CreateArchiveService(
+            BlobConnectionString($"{server.Endpoint}/archiveaccount"));
+        var candidateUri = new Uri(
+            $"{server.Endpoint}/archiveaccount/site-archives/{siteId:N}/site-archive.zip");
+        var wrongPort = candidateUri.Port == 65535
+            ? candidateUri.Port - 1
+            : candidateUri.Port + 1;
+        var durableArchiveUrl = new UriBuilder(candidateUri)
+        {
+            Port = wrongPort
+        }.Uri.AbsoluteUri;
+
+        var exception = await Record.ExceptionAsync(
+            () => service.DeleteSupersededAsync(
+                siteId,
+                durableArchiveUrl,
+                CancellationToken.None));
+        var noRequestWindow = Task.Delay(TimeSpan.FromMilliseconds(250));
+        var completedTask = await Task.WhenAny(server.Request, noRequestWindow);
+
+        Assert.Multiple(
+            () => Assert.IsType<InvalidOperationException>(exception),
+            () => Assert.Same(noRequestWindow, completedTask));
+    }
+
+    [Theory]
+    [InlineData("not-an-absolute-url")]
+    [InlineData("file:///tmp/site-archive.zip")]
+    [InlineData("https://archiveaccount.blob.core.windows.net/site-archives/legacy.zip#fragment")]
+    public async Task SiteArchiveAdapter_MapsUnverifiableDurableUrlToCleanupFailure(
+        string durableArchiveUrl)
+    {
+        var adapter = new SiteArchiveAdapter(
+            CreateArchiveService(BlobConnectionString()));
+
+        var result = await adapter.CleanupSupersededAsync(
+            Guid.NewGuid(),
+            durableArchiveUrl,
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+    }
+
+    [Theory]
+    [InlineData("https://otheraccount.blob.core.windows.net/site-archives/legacy.zip")]
+    [InlineData("https://archiveaccount.blob.core.windows.net/other-container/legacy.zip")]
+    public async Task DeleteSupersededAsync_WrongAccountOrContainerFailsClosed(
+        string durableArchiveUrl)
+    {
+        var service = CreateArchiveService(BlobConnectionString());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.DeleteSupersededAsync(
+                Guid.NewGuid(),
+                durableArchiveUrl,
+                CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeleteSupersededAsync_LegacyUrlDeletesOnlyDerivedStableCandidateWithSnapshots()
+    {
+        using var server = new LoopbackBlobServer();
+        var siteId = Guid.NewGuid();
+        var service = CreateArchiveService(
+            BlobConnectionString($"{server.Endpoint}/archiveaccount"));
+        var durableArchiveUrl =
+            $"{server.Endpoint}/archiveaccount/site-archives/legacy/archive.zip";
+
+        await service.DeleteSupersededAsync(
+            siteId,
+            durableArchiveUrl,
+            CancellationToken.None);
+        var request = await server.Request;
+
+        Assert.Multiple(
+            () => Assert.Equal(
+                $"/archiveaccount/site-archives/{siteId:N}/site-archive.zip",
+                request.Path),
+            () => Assert.Equal("DELETE", request.Method),
+            () => Assert.Equal("include", request.DeleteSnapshots),
+            () => Assert.DoesNotContain(
+                "/legacy/archive.zip",
+                request.Path,
+                StringComparison.Ordinal));
     }
 
     [Fact]
@@ -170,6 +309,37 @@ public sealed class SiteArchiveServiceSecurityTests
         });
     }
 
+    private static SiteArchiveService CreateArchiveService(string blobConnectionString)
+    {
+        var connectionFactory = CreateConnectionFactory(RvtDatabaseProvider.SqlServer);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BlobStorage:blobConnectionString"] = blobConnectionString,
+                ["BlobStorage:ArchiveContainer"] = "site-archives"
+            })
+            .Build();
+        return new SiteArchiveService(
+            new SiteArchiveQueryCatalog(connectionFactory),
+            new SiteArchiveQueryExecutor(NoOpDomainContext(), connectionFactory),
+            new SiteArchiveCsvWriter(),
+            new SiteArchiveWorkspaceFactory(),
+            configuration);
+    }
+
+    private static string BlobConnectionString(
+        string? blobEndpoint = null)
+    {
+        var endpoint = blobEndpoint is null
+            ? string.Empty
+            : $";BlobEndpoint={blobEndpoint}";
+        return "DefaultEndpointsProtocol=https"
+            + ";AccountName=archiveaccount"
+            + $";AccountKey={Convert.ToBase64String(new byte[64])}"
+            + ";EndpointSuffix=core.windows.net"
+            + endpoint;
+    }
+
     // Function summary: Reads the first configured CSV export SQL from the query catalog.
     private static string FirstExportSql(object catalog)
     {
@@ -210,5 +380,68 @@ public sealed class SiteArchiveServiceSecurityTests
             Guid siteId,
             CancellationToken cancellationToken) =>
             Task.FromException<string>(exception);
+
+        public Task DeleteSupersededAsync(
+            Guid siteId,
+            string durableArchiveUrl,
+            CancellationToken cancellationToken) =>
+            Task.FromException(exception);
     }
+
+    private sealed class LoopbackBlobServer : IDisposable
+    {
+        private readonly TcpListener listener = new(IPAddress.Loopback, 0);
+
+        public LoopbackBlobServer()
+        {
+            listener.Start();
+            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            Endpoint = $"http://127.0.0.1:{port}";
+            Request = ReceiveAsync();
+        }
+
+        public string Endpoint { get; }
+
+        public Task<BlobRequest> Request { get; }
+
+        public void Dispose()
+        {
+            listener.Stop();
+        }
+
+        private async Task<BlobRequest> ReceiveAsync()
+        {
+            using var client = await listener.AcceptTcpClientAsync();
+            await using var stream = client.GetStream();
+            using var reader = new StreamReader(
+                stream,
+                Encoding.ASCII,
+                detectEncodingFromByteOrderMarks: false,
+                leaveOpen: true);
+            var requestLine = await reader.ReadLineAsync()
+                ?? throw new InvalidOperationException("Blob request line was missing.");
+            var parts = requestLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string? deleteSnapshots = null;
+            while (await reader.ReadLineAsync() is { Length: > 0 } header)
+            {
+                if (header.StartsWith(
+                        "x-ms-delete-snapshots:",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    deleteSnapshots = header[
+                        (header.IndexOf(':', StringComparison.Ordinal) + 1)..].Trim();
+                }
+            }
+
+            var response = Encoding.ASCII.GetBytes(
+                "HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            await stream.WriteAsync(response);
+            return new BlobRequest(parts[0], new Uri($"http://localhost{parts[1]}").AbsolutePath, deleteSnapshots);
+        }
+    }
+
+    private sealed record BlobRequest(
+        string Method,
+        string Path,
+        string? DeleteSnapshots);
 }

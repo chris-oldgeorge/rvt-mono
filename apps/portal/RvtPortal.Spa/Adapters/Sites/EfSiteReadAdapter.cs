@@ -85,7 +85,13 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
         return domainContext.Sites
             .AsNoTracking()
             .Where(site => site.Id == siteId)
-            .Select(site => new SiteArchiveState(site.Id, site.Archived))
+            .Select(site => new SiteArchiveState(
+                site.Id,
+                site.Archived,
+                domainContext.SiteArchived
+                    .Where(item => item.SiteId == site.Id)
+                    .Select(item => item.PictureLink)
+                    .SingleOrDefault()))
             .SingleOrDefaultAsync(cancellationToken);
     }
 

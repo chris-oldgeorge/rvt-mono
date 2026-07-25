@@ -4,7 +4,7 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
-    <PackageVersion Condition="'$(PackageVersion)' == ''">0.2.0-rc.1</PackageVersion>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">1.0.0-rc.1</PackageVersion>
     <Version>$(PackageVersion)</Version>
     <Authors>RVT</Authors>
     <Company>RVT Group</Company>

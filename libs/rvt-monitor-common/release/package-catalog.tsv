@@ -1,0 +1,11 @@
+Rvt.Monitor.Common	src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj
+Rvt.Monitor.IntegrationTesting	testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj
+Rvt.Communication.Abstractions	src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj
+Rvt.Communication	src/Rvt.Communication/Rvt.Communication.csproj
+Rvt.Communication.SendGridMail	src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj
+Rvt.Communication.MicrosoftGraphMail	src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj
+Rvt.Communication.TransmitSms	src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj
+Rvt.Storage.Abstractions	src/Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj
+Rvt.Storage.Local	src/Rvt.Storage.Local/Rvt.Storage.Local.csproj
+Rvt.Storage.AzureBlob	src/Rvt.Storage.AzureBlob/Rvt.Storage.AzureBlob.csproj
+Rvt.Storage.S3	src/Rvt.Storage.S3/Rvt.Storage.S3.csproj

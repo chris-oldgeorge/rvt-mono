@@ -1,5 +1,40 @@
 # Project State
 
+## Provider package release migration Task 1 - 2026-07-26 (complete)
+
+- Resume instruction: start a future session with
+  `Read project_state.md to get up to speed`.
+- Worktree: `.worktrees/release-platform-hardening`. Task 1 starts from the
+  approved provider source-split head `e8089dd`.
+- `libs/rvt-monitor-common/release/package-catalog.tsv` is the release source of
+  truth for exactly eleven ordered package IDs and their real project paths:
+  Common, IntegrationTesting, five Communication packages, and four Storage
+  packages.
+- The clean-split `PackageVersion` default is `1.0.0-rc.1`; `Version` derives
+  from it. `PinSynchronizedRvtProjectReferenceVersions` runs for packable
+  projects after `_GetProjectReferenceVersions` and before `GenerateNuspec`,
+  updating every `_ProjectReferencesWithVersions` item whose `Filename` begins
+  `Rvt.` so `ProjectVersion` is exact `[$(PackageVersion)]`.
+- Test variables are `PackageRoot`, `Artifacts`, `rows`, and
+  `expectedPackageIds`. `PackageRoot` resolves
+  `libs/rvt-monitor-common`; the TSV parser requires exactly two literal
+  tab-separated columns, exact ordered IDs, and an existing project for every
+  path.
+- Strict TDD evidence: focused RED compiled and failed 0/1 with
+  `DirectoryNotFoundException` while the catalog was absent. The identical
+  no-restore slice passes 1/1 after the minimal catalog implementation. The
+  required SendGrid MSBuild property probe prints `1.0.0-rc.1`.
+- A no-restore SendGrid pack probe in `/private/tmp` succeeds and emits the real
+  `Rvt.Communication.Abstractions` dependency as exact `[1.0.0-rc.1]`.
+  SendGrid remains `9.29.3`.
+- `Directory.Packages.props` was reviewed and intentionally remains unchanged:
+  no obsolete infrastructure-only entry is present, every entry is referenced,
+  and `AWSSDK.S3` `4.0.100.3`, `Azure.Identity` `1.15.0`,
+  `Azure.Storage.Blobs` `12.25.0`, and `SendGrid` `9.29.3` are retained.
+- No lockfile or active-consumer reference changed. All unrelated untracked
+  files remain preserved. Full evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-provider-package-release-migration/task-1-report.md`.
+
 ## Storage provider split merge-blocker fix - 2026-07-26 (complete)
 
 - Resume instruction: start a future session with

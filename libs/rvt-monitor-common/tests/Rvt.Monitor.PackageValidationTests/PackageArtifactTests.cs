@@ -10,8 +10,45 @@ public sealed class PackageArtifactTests
 {
     private static readonly string Version =
         Environment.GetEnvironmentVariable("RVT_PACKAGE_VERSION") ?? "0.2.0-rc.1";
+    private static readonly string PackageRoot = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "../../../../../"));
     private static readonly string Artifacts = Path.GetFullPath(
-        Path.Combine(AppContext.BaseDirectory, "../../../../../artifacts/packages"));
+        Path.Combine(PackageRoot, "artifacts/packages"));
+
+    [TestMethod]
+    public void PackageCatalogDeclaresTheExactApprovedTrain()
+    {
+        var rows = File.ReadAllLines(Path.Combine(PackageRoot, "release/package-catalog.tsv"))
+            .Select((line, index) =>
+            {
+                var columns = line.Split('\t');
+                Assert.HasCount(2, columns, $"Catalog row {index + 1} must have two tab-separated columns.");
+                return columns;
+            })
+            .ToArray();
+        var expectedPackageIds = new[]
+        {
+            "Rvt.Monitor.Common",
+            "Rvt.Monitor.IntegrationTesting",
+            "Rvt.Communication.Abstractions",
+            "Rvt.Communication",
+            "Rvt.Communication.SendGridMail",
+            "Rvt.Communication.MicrosoftGraphMail",
+            "Rvt.Communication.TransmitSms",
+            "Rvt.Storage.Abstractions",
+            "Rvt.Storage.Local",
+            "Rvt.Storage.AzureBlob",
+            "Rvt.Storage.S3"
+        };
+
+        CollectionAssert.AreEqual(expectedPackageIds, rows.Select(row => row[0]).ToArray());
+        foreach (var row in rows)
+        {
+            Assert.IsTrue(
+                File.Exists(Path.Combine(PackageRoot, row[1])),
+                $"Catalog project path does not exist: {row[1]}");
+        }
+    }
 
     [TestMethod]
     public void ReleaseContainsExactlyTheSevenTemporaryCompatibilityPackages()

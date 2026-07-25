@@ -65,16 +65,16 @@ public sealed class StorageDependencyBoundaryTests
 
     private sealed class StorageProjectSnapshot
     {
-        private readonly IReadOnlyDictionary<string, CSharpDependencyAnalysis> sourceFiles;
+        private readonly CSharpDependencyAnalysis sourceAnalysis;
 
         private StorageProjectSnapshot(
             IReadOnlyCollection<string> packageReferences,
             IReadOnlyCollection<string> projectReferences,
-            IReadOnlyDictionary<string, CSharpDependencyAnalysis> sourceFiles)
+            CSharpDependencyAnalysis sourceAnalysis)
         {
             PackageReferences = packageReferences;
             ProjectReferences = projectReferences;
-            this.sourceFiles = sourceFiles;
+            this.sourceAnalysis = sourceAnalysis;
         }
 
         public IReadOnlyCollection<string> PackageReferences { get; }
@@ -111,7 +111,7 @@ public sealed class StorageDependencyBoundaryTests
                 .OrderBy(path => path, StringComparer.Ordinal)
                 .ToDictionary(
                     path => Path.GetRelativePath(repositoryRoot, path),
-                    path => CSharpDependencyAnalyzer.Analyze(File.ReadAllText(path)),
+                    File.ReadAllText,
                     StringComparer.Ordinal);
 
             Assert.IsNotEmpty(
@@ -125,7 +125,7 @@ public sealed class StorageDependencyBoundaryTests
             return new StorageProjectSnapshot(
                 packageReferences,
                 projectReferences,
-                sourceFiles);
+                CSharpDependencyAnalyzer.AnalyzeProject(sourceFiles));
         }
 
         public void AssertPackagesExclude(params string[] forbiddenPrefixes)
@@ -149,8 +149,7 @@ public sealed class StorageDependencyBoundaryTests
             foreach (var requiredMarker in requiredMarkers)
             {
                 Assert.IsTrue(
-                    sourceFiles.Values.Any(source =>
-                        source.UsesDependency(requiredMarker)),
+                    sourceAnalysis.UsesDependency(requiredMarker),
                     $"Expected production source to use '{requiredMarker}'.");
             }
         }
@@ -159,10 +158,7 @@ public sealed class StorageDependencyBoundaryTests
         {
             foreach (var forbiddenMarker in forbiddenMarkers)
             {
-                var matches = sourceFiles
-                    .Where(file => file.Value.UsesDependency(forbiddenMarker))
-                    .Select(file => file.Key)
-                    .ToArray();
+                var matches = sourceAnalysis.GetSourceFilesUsing(forbiddenMarker);
                 Assert.IsEmpty(
                     matches,
                     $"Forbidden source dependency '{forbiddenMarker}' was found in: "

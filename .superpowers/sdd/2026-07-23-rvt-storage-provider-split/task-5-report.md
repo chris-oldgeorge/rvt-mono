@@ -152,3 +152,56 @@ contract filter passed 26/26, including the two provider response-lease cases.
 The complete boundary filter passed 7/7, including the three regression
 fixtures. The complete storage suite passed 142/142. `git diff --check` also
 passed for the review-fix scope.
+
+## Review hardening round 2
+
+Round 2 supersedes the round-1 custom lexical source analyzer with Roslyn
+syntax and semantic analysis. The storage test project alone references
+`Microsoft.CodeAnalysis.CSharp` 5.0.0 with `PrivateAssets="all"`; its centrally
+managed version is conditioned to `Rvt.Storage.Tests`. Only the storage test
+lock receives the direct compiler package and its analyzer/common
+dependencies. Provider source, provider projects, and provider locks remain
+unchanged.
+
+All production source files for one storage project are parsed as separate
+syntax trees in one `CSharpCompilation`. Framework implicit usings and the
+test output's managed reference graph are supplied as metadata references.
+The analyzer records resolved namespace, type, alias-target, and containing
+type symbols per source file. Consequently:
+
+- executable expressions inside interpolated strings participate normally;
+- global aliases resolve across source-file boundaries;
+- comments and literal text have no semantic symbols;
+- user-defined `File`, `Directory`, and `FileStream` types retain their own
+  namespaces and cannot masquerade as `System.IO` dependencies.
+
+The regression class and file are both named
+`StorageDependencyBoundaryRegressionTests`, matching the focused filter.
+
+### Round 2 RED
+
+```bash
+dotnet test libs/rvt-monitor-common/tests/Rvt.Storage.Tests/Rvt.Storage.Tests.csproj \
+  --filter FullyQualifiedName~StorageDependencyBoundaryRegressionTests \
+  --nologo -v minimal
+```
+
+Selected exactly six tests: three prior guards passed and three new semantic
+regressions failed. The failures were the skipped `System.IO.File` call inside
+an interpolation hole, the unresolved cross-file global `System.IO` alias,
+and the false classification of a user-defined `File` type.
+
+### Round 2 GREEN and final verification
+
+The same focused command passed 6/6.
+
+```bash
+dotnet test libs/rvt-monitor-common/tests/Rvt.Storage.Tests/Rvt.Storage.Tests.csproj \
+  --filter FullyQualifiedName~StorageDependencyBoundary --nologo -v minimal
+```
+
+Passed 10/10 (four project boundaries plus six focused regressions).
+
+The provider contract filter passed 26/26 and the complete storage suite
+passed 145/145. Locked restore and `git diff --check` passed. No provider
+production code or lock changed.

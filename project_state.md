@@ -23,17 +23,24 @@
   Abstractions.
 - Review hardening makes Azure raw-response disposal directly observable and
   proves S3 response-lease disposal through the response stream's distinct
-  second disposal. MSBuild dependency parsing now handles `Include`, `Update`,
-  and `Remove` identities in order. Source boundaries use syntax-aware lexical
-  analysis that ignores comments/literals and resolves global usings,
-  `global::`, and aliases rather than raw substring scans.
+  second disposal. MSBuild dependency parsing handles `Include`, `Update`, and
+  `Remove` identities in order. Round 2 replaces the interim lexer with one
+  project-wide Roslyn compilation: semantic symbols include interpolation
+  holes and cross-file global aliases while excluding comments, literal text,
+  and user-defined filesystem lookalikes.
 - Test-first evidence: the shared fixture shells failed 24/24 before their
   real implementations and then passed 24/24. The boundary snapshot shell
   failed 4/4 before implementation and then passed 4/4. The complete storage
   suite initially passed 137/137. Review hardening failed its five focused
   regressions before implementation, then passed 5/5; the expanded contract,
   boundary, and full suites passed 26/26, 7/7, and 142/142 respectively.
-  `git diff --check` passed.
+  Round 2 then failed three of six focused semantic regressions before
+  implementation and passed 6/6 after it; the final boundary, contract, and
+  full suites passed 10/10, 26/26, and 145/145. `git diff --check` passed.
+- `Microsoft.CodeAnalysis.CSharp` 5.0.0 is centrally conditioned to the
+  `Rvt.Storage.Tests` project and referenced with `PrivateAssets="all"`.
+  Its direct/transitive graph is recorded only in the storage test lock; no
+  provider project or provider lock changed.
 - No real provider inconsistency surfaced, so no production code, package
   version, or lock file changed. Tasks 6-10 remain pending: consumer
   migrations, legacy Common storage removal, solution/packaging integration,

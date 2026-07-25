@@ -1,9 +1,12 @@
 using System.Xml.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Rvt.Storage.Tests.Architecture;
 
 [TestClass]
-public sealed class StorageDependencyBoundaryTestsRegression
+public sealed class StorageDependencyBoundaryRegressionTests
 {
     [TestMethod]
     public void ProjectDependencyReader_RecognizesUpdateAndHonorsRemove()
@@ -70,6 +73,69 @@ public sealed class StorageDependencyBoundaryTestsRegression
         Assert.IsTrue(analysis.UsesDependency("Azure.Storage.Blobs"));
         Assert.IsTrue(analysis.UsesDependency("System.IO.File"));
     }
+
+    [TestMethod]
+    public void SourceAnalyzer_AnalyzesExecutableInterpolationHoles()
+    {
+        const string source =
+            """
+            namespace Example;
+            internal sealed class Sample
+            {
+                public string Describe() =>
+                    $"Exists: {System.IO.File.Exists("sample.bin")}";
+            }
+            """;
+
+        var analysis = CSharpDependencyAnalyzer.Analyze(source);
+
+        Assert.IsTrue(analysis.UsesDependency("System.IO.File"));
+    }
+
+    [TestMethod]
+    public void SourceAnalyzer_ResolvesGlobalAliasesAcrossSourceFiles()
+    {
+        var sources = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["GlobalUsings.cs"] = "global using IO = System.IO;",
+            ["Consumer.cs"] =
+                """
+                namespace Example;
+                internal sealed class Sample
+                {
+                    public void Delete() => IO.File.Delete("sample.bin");
+                }
+                """,
+        };
+
+        var analysis = CSharpDependencyAnalyzer.AnalyzeProject(sources);
+
+        Assert.IsTrue(analysis.UsesDependency("System.IO.File"));
+    }
+
+    [TestMethod]
+    public void SourceAnalyzer_DoesNotTreatUserDefinedFilesystemNamesAsSystemIo()
+    {
+        const string source =
+            """
+            namespace Example;
+            internal sealed class File;
+            internal sealed class Directory;
+            internal sealed class FileStream;
+            internal sealed class Sample
+            {
+                public File? CurrentFile { get; }
+                public Directory? CurrentDirectory { get; }
+                public FileStream? CurrentStream { get; }
+            }
+            """;
+
+        var analysis = CSharpDependencyAnalyzer.Analyze(source);
+
+        Assert.IsFalse(analysis.UsesDependency("System.IO.File"));
+        Assert.IsFalse(analysis.UsesDependency("System.IO.Directory"));
+        Assert.IsFalse(analysis.UsesDependency("System.IO.FileStream"));
+    }
 }
 
 internal static class ProjectDependencyReader
@@ -112,309 +178,192 @@ internal static class ProjectDependencyReader
 }
 
 internal sealed class CSharpDependencyAnalysis(
-    IReadOnlyCollection<string> dependencies)
+    IReadOnlyDictionary<string, IReadOnlyCollection<string>> sourceFilesByDependency)
 {
-    public bool UsesDependency(string dependencyPrefix) =>
-        dependencies.Any(dependency => dependency.StartsWith(
-            dependencyPrefix,
-            StringComparison.Ordinal));
+    public bool UsesDependency(string dependencyName) =>
+        sourceFilesByDependency.Keys.Any(dependency =>
+            MatchesDependency(dependency, dependencyName));
+
+    public IReadOnlyCollection<string> GetSourceFilesUsing(string dependencyName) =>
+        sourceFilesByDependency
+            .Where(item => MatchesDependency(item.Key, dependencyName))
+            .SelectMany(item => item.Value)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+    private static bool MatchesDependency(
+        string dependency,
+        string dependencyName) =>
+        dependencyName.EndsWith(".", StringComparison.Ordinal)
+            ? dependency.StartsWith(dependencyName, StringComparison.Ordinal)
+            : dependency.Equals(dependencyName, StringComparison.Ordinal)
+                || dependency.StartsWith(
+                    $"{dependencyName}.",
+                    StringComparison.Ordinal);
 }
 
 internal static class CSharpDependencyAnalyzer
 {
-    private static readonly HashSet<string> FileSystemTypes =
-        new(["File", "Directory", "FileStream"], StringComparer.Ordinal);
+    private const string ImplicitUsingsPath = "__RvtStorageImplicitUsings.g.cs";
 
-    public static CSharpDependencyAnalysis Analyze(string source)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        var tokens = Tokenize(source);
-        var dependencies = new HashSet<string>(StringComparer.Ordinal);
-        var aliases = ReadUsingDirectives(tokens, dependencies);
+    private static readonly Lazy<IReadOnlyCollection<MetadataReference>>
+        MetadataReferences = new(CreateMetadataReferences);
 
-        for (var index = 0; index < tokens.Count; index++)
+    public static CSharpDependencyAnalysis Analyze(string source) =>
+        AnalyzeProject(new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            if (!IsIdentifier(tokens[index]))
-            {
-                continue;
-            }
+            ["Source.cs"] = source,
+        });
 
-            var end = index;
-            while (end + 2 < tokens.Count
-                   && tokens[end + 1] is "." or "::"
-                   && IsIdentifier(tokens[end + 2]))
-            {
-                end += 2;
-            }
-
-            var name = CanonicalizeQualifiedName(tokens, index, end);
-            var firstSegment = name.Split('.', 2)[0];
-            if (aliases.TryGetValue(firstSegment, out var aliasTarget))
-            {
-                name = name.Length == firstSegment.Length
-                    ? aliasTarget
-                    : $"{aliasTarget}.{name[(firstSegment.Length + 1)..]}";
-            }
-
-            if (name.Contains('.', StringComparison.Ordinal))
-            {
-                dependencies.Add(name);
-            }
-            else if (FileSystemTypes.Contains(name))
-            {
-                dependencies.Add($"System.IO.{name}");
-            }
-
-            index = end;
-        }
-
-        return new CSharpDependencyAnalysis(dependencies);
-    }
-
-    private static Dictionary<string, string> ReadUsingDirectives(
-        IReadOnlyList<string> tokens,
-        ISet<string> dependencies)
+    public static CSharpDependencyAnalysis AnalyzeProject(
+        IReadOnlyDictionary<string, string> sources)
     {
-        var aliases = new Dictionary<string, string>(StringComparer.Ordinal);
-        for (var index = 0; index < tokens.Count; index++)
+        ArgumentNullException.ThrowIfNull(sources);
+        var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(
+            LanguageVersion.Preview);
+        var sourceTrees = sources
+            .OrderBy(source => source.Key, StringComparer.Ordinal)
+            .Select(source => CSharpSyntaxTree.ParseText(
+                source.Value,
+                parseOptions,
+                source.Key))
+            .ToArray();
+        var implicitUsings = CSharpSyntaxTree.ParseText(
+            """
+            global using System;
+            global using System.Collections.Generic;
+            global using System.IO;
+            global using System.Linq;
+            global using System.Threading;
+            global using System.Threading.Tasks;
+            """,
+            parseOptions,
+            ImplicitUsingsPath);
+        var compilation = CSharpCompilation.Create(
+            $"RvtStorageDependencyAnalysis_{Guid.NewGuid():N}",
+            sourceTrees.Append(implicitUsings),
+            MetadataReferences.Value,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        var filesByDependency = new Dictionary<string, HashSet<string>>(
+            StringComparer.Ordinal);
+
+        foreach (var syntaxTree in sourceTrees)
         {
-            if (tokens[index] != "using"
-                || index + 1 >= tokens.Count
-                || tokens[index + 1] == "(")
+            var semanticModel = compilation.GetSemanticModel(
+                syntaxTree,
+                ignoreAccessibility: true);
+            var root = syntaxTree.GetRoot();
+            foreach (var name in root.DescendantNodes().OfType<NameSyntax>())
             {
-                continue;
-            }
-
-            var end = index + 1;
-            while (end < tokens.Count && tokens[end] != ";")
-            {
-                end++;
-            }
-
-            if (end == tokens.Count)
-            {
-                continue;
-            }
-
-            var equals = -1;
-            for (var candidate = index + 1; candidate < end; candidate++)
-            {
-                if (tokens[candidate] == "=")
+                if (name is IdentifierNameSyntax identifier)
                 {
-                    equals = candidate;
-                    break;
-                }
-            }
-
-            var targetStart = equals >= 0 ? equals + 1 : index + 1;
-            if (targetStart < end && tokens[targetStart] == "static")
-            {
-                targetStart++;
-            }
-
-            var target = CanonicalizeQualifiedName(tokens, targetStart, end - 1);
-            if (target.Length > 0)
-            {
-                dependencies.Add(target);
-                if (equals > index + 1)
-                {
-                    aliases[tokens[index + 1]] = target;
-                }
-            }
-
-            index = end;
-        }
-
-        return aliases;
-    }
-
-    private static string CanonicalizeQualifiedName(
-        IReadOnlyList<string> tokens,
-        int start,
-        int end)
-    {
-        var segments = new List<string>();
-        for (var index = start; index <= end; index++)
-        {
-            if (IsIdentifier(tokens[index]) && tokens[index] != "global")
-            {
-                segments.Add(tokens[index]);
-            }
-        }
-
-        return string.Join('.', segments);
-    }
-
-    private static IReadOnlyList<string> Tokenize(string source)
-    {
-        var tokens = new List<string>();
-        for (var index = 0; index < source.Length;)
-        {
-            if (char.IsWhiteSpace(source[index]))
-            {
-                index++;
-                continue;
-            }
-
-            if (source[index] == '/' && index + 1 < source.Length)
-            {
-                if (source[index + 1] == '/')
-                {
-                    index += 2;
-                    while (index < source.Length && source[index] is not '\r' and not '\n')
-                    {
-                        index++;
-                    }
-
-                    continue;
+                    RecordSymbol(
+                        semanticModel.GetAliasInfo(identifier)?.Target,
+                        syntaxTree.FilePath,
+                        filesByDependency);
                 }
 
-                if (source[index + 1] == '*')
-                {
-                    index += 2;
-                    while (index + 1 < source.Length
-                           && (source[index] != '*' || source[index + 1] != '/'))
-                    {
-                        index++;
-                    }
-
-                    index = Math.Min(source.Length, index + 2);
-                    continue;
-                }
+                var symbolInfo = semanticModel.GetSymbolInfo(name);
+                RecordSymbol(
+                    symbolInfo.Symbol ?? symbolInfo.CandidateSymbols.FirstOrDefault(),
+                    syntaxTree.FilePath,
+                    filesByDependency);
+                RecordSymbol(
+                    semanticModel.GetTypeInfo(name).Type,
+                    syntaxTree.FilePath,
+                    filesByDependency);
             }
-
-            if (IsStringOrCharacterStart(source, index, out var quoteIndex))
-            {
-                index = SkipLiteral(source, quoteIndex);
-                continue;
-            }
-
-            if (IsIdentifierStart(source[index])
-                || (source[index] == '@'
-                    && index + 1 < source.Length
-                    && IsIdentifierStart(source[index + 1])))
-            {
-                var start = source[index] == '@' ? ++index : index;
-                index++;
-                while (index < source.Length && IsIdentifierPart(source[index]))
-                {
-                    index++;
-                }
-
-                tokens.Add(source[start..index]);
-                continue;
-            }
-
-            if (source[index] == ':'
-                && index + 1 < source.Length
-                && source[index + 1] == ':')
-            {
-                tokens.Add("::");
-                index += 2;
-                continue;
-            }
-
-            tokens.Add(source[index].ToString());
-            index++;
         }
 
-        return tokens;
+        return new CSharpDependencyAnalysis(
+            filesByDependency.ToDictionary(
+                item => item.Key,
+                item => (IReadOnlyCollection<string>)item.Value.ToArray(),
+                StringComparer.Ordinal));
     }
 
-    private static bool IsStringOrCharacterStart(
-        string source,
-        int index,
-        out int quoteIndex)
+    private static void RecordSymbol(
+        ISymbol? symbol,
+        string sourcePath,
+        IDictionary<string, HashSet<string>> filesByDependency)
     {
-        quoteIndex = index;
-        if (source[index] is '"' or '\'')
+        var dependencySymbol = symbol switch
         {
-            return true;
+            IAliasSymbol alias => alias.Target,
+            INamespaceSymbol namespaceSymbol => namespaceSymbol,
+            INamedTypeSymbol namedType => namedType.OriginalDefinition,
+            IMethodSymbol method => method.ContainingType,
+            IPropertySymbol property => property.ContainingType,
+            IFieldSymbol field => field.ContainingType,
+            IEventSymbol eventSymbol => eventSymbol.ContainingType,
+            ILocalSymbol local => local.Type,
+            IParameterSymbol parameter => parameter.Type,
+            _ => null,
+        };
+
+        if (dependencySymbol is null)
+        {
+            return;
         }
 
-        var candidate = index;
-        while (candidate < source.Length
-               && source[candidate] is '$' or '@')
+        var dependency = dependencySymbol
+            .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+            .Replace("global::", string.Empty, StringComparison.Ordinal);
+        if (dependency.Length == 0 || dependency == "<global namespace>")
         {
-            candidate++;
+            return;
         }
 
-        if (candidate < source.Length && source[candidate] == '"')
+        if (!filesByDependency.TryGetValue(dependency, out var sourceFiles))
         {
-            quoteIndex = candidate;
-            return true;
+            sourceFiles = new HashSet<string>(StringComparer.Ordinal);
+            filesByDependency.Add(dependency, sourceFiles);
         }
 
-        return false;
+        sourceFiles.Add(sourcePath);
     }
 
-    private static int SkipLiteral(string source, int quoteIndex)
+    private static IReadOnlyCollection<MetadataReference> CreateMetadataReferences()
     {
-        var quote = source[quoteIndex];
-        var rawQuoteCount = 1;
-        while (quote == '"'
-               && quoteIndex + rawQuoteCount < source.Length
-               && source[quoteIndex + rawQuoteCount] == '"')
+        var assemblyPaths = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase);
+        if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string
+            trustedPlatformAssemblies)
         {
-            rawQuoteCount++;
+            foreach (var path in trustedPlatformAssemblies.Split(
+                         Path.PathSeparator,
+                         StringSplitOptions.RemoveEmptyEntries))
+            {
+                assemblyPaths.Add(path);
+            }
         }
 
-        if (rawQuoteCount < 3)
+        foreach (var path in Directory.EnumerateFiles(
+                     AppContext.BaseDirectory,
+                     "*.dll",
+                     SearchOption.TopDirectoryOnly))
         {
-            rawQuoteCount = 1;
+            assemblyPaths.Add(path);
         }
 
-        var verbatim = quote == '"'
-            && quoteIndex > 0
-            && source[..quoteIndex].TakeLast(2).Contains('@');
-        var index = quoteIndex + rawQuoteCount;
-        while (index < source.Length)
+        var references = new List<MetadataReference>();
+        foreach (var path in assemblyPaths.OrderBy(
+                     path => path,
+                     StringComparer.OrdinalIgnoreCase))
         {
-            if (rawQuoteCount >= 3
-                && index + rawQuoteCount <= source.Length
-                && source.AsSpan(index, rawQuoteCount).SequenceEqual(
-                    source.AsSpan(quoteIndex, rawQuoteCount)))
+            try
             {
-                return index + rawQuoteCount;
+                references.Add(MetadataReference.CreateFromFile(path));
             }
-
-            if (rawQuoteCount == 1 && source[index] == quote)
+            catch (BadImageFormatException)
             {
-                if (verbatim
-                    && quote == '"'
-                    && index + 1 < source.Length
-                    && source[index + 1] == '"')
-                {
-                    index += 2;
-                    continue;
-                }
-
-                return index + 1;
             }
-
-            if (!verbatim
-                && rawQuoteCount == 1
-                && source[index] == '\\'
-                && index + 1 < source.Length)
+            catch (FileLoadException)
             {
-                index += 2;
-                continue;
             }
-
-            index++;
         }
 
-        return source.Length;
+        return references;
     }
-
-    private static bool IsIdentifier(string token) =>
-        token.Length > 0
-        && IsIdentifierStart(token[0])
-        && token.Skip(1).All(IsIdentifierPart);
-
-    private static bool IsIdentifierStart(char value) =>
-        value == '_' || char.IsLetter(value);
-
-    private static bool IsIdentifierPart(char value) =>
-        value == '_' || char.IsLetterOrDigit(value);
 }

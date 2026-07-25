@@ -1434,3 +1434,45 @@
   Generated `.codegraph/`, `apps/.nuget-packages/`, SDD ledgers/workspaces,
   old progress files, and historical reports remain outside the amended commit;
   only the required ignored final-fix report is written in the SDD task folder.
+
+## Sites Application Boundary Final Whole-Branch Review - 2026-07-25
+
+- Resume instruction: start a future session with
+  `Read project_state.md to get up to speed`.
+- Current branch is `codex/sites-application-boundary`; its merge base with
+  `main` is `1eeb6c71922b98dd7928330879a6813247c0a7e8`. The reviewed implementation
+  head was `e3dba33d203180496b790ca0302749c86bbf4f58`.
+- The independent read-only review of
+  `1eeb6c71922b98dd7928330879a6813247c0a7e8..e3dba33d203180496b790ca0302749c86bbf4f58`
+  reported no Critical or Important findings and assessed the branch as ready
+  to merge.
+- One Minor follow-up remains: the public positional constructors and `with`
+  support on `SiteAccessScope` and `SiteAssignmentWindow` can bypass their UTC
+  naming/invariants. `ActiveSiteAssignment.IsActive` checks `nowUtc` but not
+  assignment bounds. Production scope construction currently flows through
+  `SiteAuthorizationPolicy.ReadScope` and the validated factories, while the
+  application assignment helper currently has test-only callers. A future
+  slice should replace the positional records with immutable validated
+  construction, enforce valid scope kind/user combinations and UTC assignment
+  bounds, and add bypass regression tests.
+- Fresh release verification on the reviewed tree:
+  - `RvtPortal.Application.Tests`: 48 passed, 0 failed, 0 skipped;
+  - `RvtPortal.Spa.Tests`: 415 passed, 0 failed, 9 provider-gated skipped,
+    424 total;
+  - `RvtPortal.Client`: 68 passed, 0 failed, and the production Vite build
+    succeeded;
+  - `RvtPortal.Spa.sln`: build succeeded with 0 errors and the five existing
+    `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories;
+  - PostgreSQL `dotnet ef migrations has-pending-model-changes` reported no
+    changes;
+  - mono-solution, mono-layout, and RVT common-source boundary guards passed;
+  - the documentation-layout guard passed against a clean archive of the
+    tracked tree with 122 moves and 7 retained entry points;
+  - `git diff --check` completed with no output.
+- The ordinary documentation-layout run remains polluted only by the generated,
+  untracked `apps/.nuget-packages/` cache. That cache and `.codegraph/` remain
+  untouched and outside Git.
+- `RVT_TEST_POSTGRES_CONNECTION` is unset, so the nine live
+  PostgreSQL/TimescaleDB tests remain explicit skips. Live SQL Server DML and
+  SQL Server migration deployment also remain unclosed. These are deployment
+  verification gaps, not hidden merge claims.

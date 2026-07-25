@@ -44,7 +44,8 @@ public sealed class ReportingIntegrationContractTests
             var gitPath = Path.Combine(directory.FullName, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
-                return Path.Combine([directory.FullName, .. segments]);
+                return Path.Combine(
+                    [directory.FullName, "apps", "monitors", .. segments]);
             }
 
             directory = directory.Parent;
@@ -56,15 +57,26 @@ public sealed class ReportingIntegrationContractTests
 
 internal static class ReportingServiceProviderFactory
 {
-    public static ServiceProvider Create(Action<IServiceCollection>? configureServices = null)
+    public static ServiceProvider Create(
+        Action<IServiceCollection>? configureServices = null,
+        IReadOnlyDictionary<string, string?>? configurationValues = null)
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
+        var settings = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=reporting_monitor_tests;Username=reporting",
+            ["RVT:DATABASE_PROVIDER"] = "PostgreSql",
+            ["RVT:EMAIL_ENABLED"] = "false"
+        };
+        if (configurationValues is not null)
+        {
+            foreach (var setting in configurationValues)
             {
-                ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=reporting_monitor_tests;Username=reporting",
-                ["RVT:DATABASE_PROVIDER"] = "PostgreSql",
-                ["RVT:EMAIL_ENABLED"] = "false"
-            })
+                settings[setting.Key] = setting.Value;
+            }
+        }
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(settings)
             .Build();
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);

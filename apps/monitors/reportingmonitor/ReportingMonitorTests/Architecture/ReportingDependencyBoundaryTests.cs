@@ -1,11 +1,15 @@
 using Microsoft.Extensions.DependencyInjection;
 using ReportingMonitor.Api;
 using ReportingMonitor.Api.Db;
+using ReportingMonitor.Api.Storage;
 using ReportingMonitor.Api.UseCases;
-using Rvt.Monitor.Common.Storage;
 using Rvt.Reporting.Core.Reports;
 using Rvt.Reporting.Messaging;
 using Rvt.Reporting.Storage;
+using Rvt.Storage;
+using Rvt.Storage.AzureBlob;
+using Rvt.Storage.Local;
+using Rvt.Storage.S3;
 
 namespace ReportingMonitorTests.Architecture;
 
@@ -15,7 +19,7 @@ public sealed class ReportingDependencyBoundaryTests
     public void ApplicationCodeOutsideCompositionAndDataAdapters_DoesNotReferenceEfCoreEntitiesOrNpgsql()
     {
         var sourceFiles = Directory
-            .GetFiles(Path.Combine(FindRepositoryRoot(), "reportingmonitor", "ReportingMonitor", "api"), "*.cs", SearchOption.AllDirectories)
+            .GetFiles(Path.Combine(FindMonitorsRoot(), "reportingmonitor", "ReportingMonitor", "api"), "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}api{Path.DirectorySeparatorChar}db{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Where(path => !path.EndsWith("ReportingMonitorServices.cs", StringComparison.Ordinal));
 
@@ -43,12 +47,91 @@ public sealed class ReportingDependencyBoundaryTests
         Assert.IsType<GenerateScheduledReportsHandler>(scope.ServiceProvider.GetRequiredService<GenerateScheduledReportsHandler>());
         Assert.IsType<ReportGenerationService>(scope.ServiceProvider.GetRequiredService<IReportGenerationService>());
         Assert.IsType<ReportingMonitorJobDispatcher>(provider.GetRequiredService<ReportingMonitorJobDispatcher>());
-        Assert.IsType<LocalFileBlobStorageService>(provider.GetRequiredService<IBlobStorageService>());
+        Assert.IsType<LocalObjectStorageClient>(GetReportClient(provider));
+        Assert.IsType<ConfiguredReportObjectUriResolver>(provider.GetRequiredService<IReportObjectUriResolver>());
         Assert.IsType<MonitorBlobReportStorage>(provider.GetRequiredService<IReportStorage>());
-        var blobOptions = provider.GetRequiredService<BlobStorageOptions>();
-        Assert.Equal("pdfreports", blobOptions.Container);
-        Assert.Equal("rvtreports", blobOptions.Prefix);
+        Assert.Equal(
+            Path.GetFullPath("/data/rvt/blobs/pdfreports/rvtreports/probe.pdf"),
+            ResolveReportUri(provider, "probe.pdf").LocalPath);
         Assert.IsType<ReportMessageSender>(provider.GetRequiredService<IReportMessageSender>());
+    }
+
+    [Fact]
+    public void Composition_ProviderNeutralKey_SelectsLocalAheadOfRvtAliases()
+    {
+        using var provider = ReportingServiceProviderFactory.Create(
+            configurationValues: new Dictionary<string, string?>
+            {
+                ["BlobStorage:Provider"] = "Local",
+                ["RVT:BLOB_PROVIDER"] = "AzureBlob",
+                ["RVT__BLOB_PROVIDER"] = "S3",
+            });
+
+        Assert.IsType<LocalObjectStorageClient>(GetReportClient(provider));
+    }
+
+    [Fact]
+    public void Composition_BlankProviderNeutralKey_UsesRvtAzureAlias()
+    {
+        using var provider = ReportingServiceProviderFactory.Create(
+            configurationValues: new Dictionary<string, string?>
+            {
+                ["BlobStorage:Provider"] = " ",
+                ["RVT:BLOB_PROVIDER"] = "AzureBlob",
+                ["RVT__BLOB_PROVIDER"] = "S3",
+                ["BlobStorage:AzureServiceUri"] = "https://storage.example.test",
+            });
+
+        Assert.IsType<AzureBlobObjectStorageClient>(GetReportClient(provider));
+        Assert.Equal(
+            "https://storage.example.test/pdfreports/rvtreports/probe.pdf",
+            ResolveReportUri(provider, "probe.pdf").AbsoluteUri);
+    }
+
+    [Fact]
+    public void Composition_LiteralRvtProviderAlias_SelectsS3()
+    {
+        using var provider = ReportingServiceProviderFactory.Create(
+            configurationValues: new Dictionary<string, string?>
+            {
+                ["RVT__BLOB_PROVIDER"] = "S3",
+                ["BlobStorage:S3Bucket"] = "report-bucket",
+                ["BlobStorage:S3Region"] = "eu-central-1",
+            });
+
+        Assert.IsType<S3ObjectStorageClient>(GetReportClient(provider));
+        Assert.Equal(
+            "s3://report-bucket/rvtreports/probe.pdf",
+            ResolveReportUri(provider, "probe.pdf").AbsoluteUri);
+    }
+
+    [Fact]
+    public void Composition_LegacyReportContainerAlias_OverridesTheReportingContainerDefault()
+    {
+        using var provider = ReportingServiceProviderFactory.Create(
+            configurationValues: new Dictionary<string, string?>
+            {
+                ["RVT__BLOB_REPORT_CONTAINER_NAME"] = "legacy-report-container",
+            });
+
+        Assert.Equal(
+            Path.GetFullPath("/data/rvt/blobs/legacy-report-container/rvtreports/probe.pdf"),
+            ResolveReportUri(provider, "probe.pdf").LocalPath);
+    }
+
+    [Fact]
+    public void Composition_UnsupportedProvider_ThrowsExactSafeMessage()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            ReportingServiceProviderFactory.Create(
+                configurationValues: new Dictionary<string, string?>
+                {
+                    ["BlobStorage:Provider"] = "GoogleCloud",
+                }));
+
+        Assert.Equal(
+            "Unsupported blob storage provider 'GoogleCloud'. Allowed values are 'Local', 'AzureBlob', and 'S3'.",
+            exception.Message);
     }
 
     [Fact]
@@ -59,7 +142,7 @@ public sealed class ReportingDependencyBoundaryTests
             reference => reference.Name?.Contains("SendGrid", StringComparison.OrdinalIgnoreCase) == true);
 
         var messagingProject = File.ReadAllText(Path.Combine(
-            FindRepositoryRoot(),
+            FindMonitorsRoot(),
             "reportingmonitor",
             "Rvt.Reporting.Messaging",
             "Rvt.Reporting.Messaging.csproj"));
@@ -67,7 +150,7 @@ public sealed class ReportingDependencyBoundaryTests
 
         var messagingSource = Directory
             .EnumerateFiles(
-                Path.Combine(FindRepositoryRoot(), "reportingmonitor", "Rvt.Reporting.Messaging"),
+                Path.Combine(FindMonitorsRoot(), "reportingmonitor", "Rvt.Reporting.Messaging"),
                 "*.cs",
                 SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
@@ -82,7 +165,7 @@ public sealed class ReportingDependencyBoundaryTests
             text.Contains(string.Concat("Rvt.Monitor.Common.", "Infrastructure"), StringComparison.Ordinal));
     }
 
-    private static string FindRepositoryRoot()
+    private static string FindMonitorsRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
@@ -90,7 +173,7 @@ public sealed class ReportingDependencyBoundaryTests
             var gitPath = Path.Combine(directory.FullName, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
-                return directory.FullName;
+                return Path.Combine(directory.FullName, "apps", "monitors");
             }
 
             directory = directory.Parent;
@@ -98,4 +181,14 @@ public sealed class ReportingDependencyBoundaryTests
 
         throw new InvalidOperationException("Could not find repository root from test output directory.");
     }
+
+    private static IObjectStorageClient GetReportClient(IServiceProvider provider) =>
+        provider
+            .GetRequiredService<IObjectStorageClientFactory>()
+            .GetRequiredClient(ReportingStorageResourceNames.Reports);
+
+    private static Uri ResolveReportUri(IServiceProvider provider, string key) =>
+        provider
+            .GetRequiredService<IReportObjectUriResolver>()
+            .Resolve(StorageObjectKey.Parse(key));
 }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ReportingMonitor.Api.Db;
 using ReportingMonitor.Api.Db.EntityFramework;
+using ReportingMonitor.Api.Storage;
 using ReportingMonitor.Api.UseCases;
 using Rvt.Communication;
 using Rvt.Communication.MicrosoftGraphMail;
@@ -11,7 +12,6 @@ using Rvt.Communication.SendGridMail;
 using Rvt.Communication.TransmitSms;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.EntityFramework;
-using Rvt.Monitor.Common.Storage;
 using Rvt.Reporting.Core.Reports;
 using Rvt.Reporting.Messaging;
 using Rvt.Reporting.Pdf.Documents;
@@ -69,11 +69,7 @@ public static class ReportingMonitorServices
         services.AddScoped<IReportingGenerationCommands>(provider => provider.GetRequiredService<ReportingDbClient>());
         services.AddScoped<IReportingHealthQueries>(provider => provider.GetRequiredService<ReportingDbClient>());
 
-        services.AddMonitorBlobStorage(configuration => BlobStorageOptions.Bind(
-            configuration,
-            defaultContainer: "pdfreports",
-            defaultPrefix: "rvtreports",
-            legacyContainerEnvironmentKey: "BLOB_REPORT_CONTAINER_NAME"));
+        services.AddReportingStorage(configuration);
         services.AddRvtCommunication();
         AddEmailProvider(services, configuration);
         services.AddTransmitSms(configuration);

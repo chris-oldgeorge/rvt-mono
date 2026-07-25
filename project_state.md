@@ -1,5 +1,46 @@
 # Project State
 
+## Storage provider Task 7 - ReportingMonitor report storage - 2026-07-25 (complete)
+
+- Worktree: `.worktrees/release-platform-hardening`; Task 7 starts from the
+  Task 6 commit `ab7e5e0`. ReportingMonitor now writes through the named
+  provider-neutral `IObjectStorageClientFactory` resource
+  `reporting-reports`; report bytes, filename/key, content type, cancellation,
+  and the provider-returned normalized key are preserved.
+- The ReportingMonitor host deliberately references and composes exactly one
+  Local, Azure Blob, or S3 provider. Selection retains the Svantek precedence,
+  blank-value fallback, case-insensitive names, Local default, and exact safe
+  unsupported-provider message.
+- Reporting defaults remain container `pdfreports` and prefix `rvtreports`,
+  including the legacy `BLOB_REPORT_CONTAINER_NAME` alias. A concrete-client
+  `IReportObjectUriResolver` preserves Local `file:`, Azure blob, and S3 `s3:`
+  URI formats outside `IObjectStorageClient`; `StorageWriteResult` still
+  exposes only a key.
+- Persisted URI behavior is unchanged: `ReportGenerationService` forwards the
+  resolved URI and `ReportingDbClient` stores
+  `request.ReportUri.ToString()` in `report.report_link`.
+- `Rvt.Reporting.Storage` references only `Rvt.Storage.Abstractions` for
+  storage. Its broad interim `Microsoft.AspNetCore.App` reference was removed;
+  the existing logo client now receives `IOptions<T>` through a narrow
+  `Microsoft.Extensions.Options` package reference.
+- Strict TDD evidence includes the initial focused compile failure against the
+  legacy blob interface followed by the provider-neutral GREEN slice. Final
+  focused storage/architecture verification passes 10/10, and the complete
+  non-environment ReportingMonitor set passes 74/74.
+- The unfiltered ReportingMonitor suite compiles and runs 84 tests: 74 pass;
+  10 PostgreSQL integration tests remain unavailable because
+  `RVT__POSTGRES_INTEGRATION_CONNECTION` is not set.
+- Verification used an untracked ReportingMonitor `Directory.Packages.props`
+  override for Logging.Abstractions/Options 10.0.9 and per-project
+  `NuGetLockFilePath` output under `/tmp/rvt-storage-task7-locks`. No tracked
+  lock or central package policy is changed, and the repository locked-restore
+  gate is not claimed green.
+- Legacy Common storage removal remains Task 8; solution/packaging and final
+  verification remain Tasks 9 and 10. Portal and the independent reporting
+  service remain out of scope.
+- Full Task 7 evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-7-report.md`.
+
 ## Storage provider Task 6 - Svantek sound recordings - 2026-07-25 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; Task 6 starts from the

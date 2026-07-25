@@ -56,9 +56,7 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
     private static EfAlertCommitStore<TestMonitorContext> CreateStore(
         Exception duplicateRecoveryFailure)
     {
-        var options = new MonitorDbOptions(
-            MonitorDatabaseProvider.PostgreSql,
-            new Dictionary<string, string>());
+        var options = new MonitorDbOptions(new Dictionary<string, string>());
         var contextOptions = new DbContextOptionsBuilder<TestMonitorContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))

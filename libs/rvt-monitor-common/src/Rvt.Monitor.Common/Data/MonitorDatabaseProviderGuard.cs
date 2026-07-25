@@ -7,7 +7,7 @@ public static class MonitorDatabaseProviderGuard
 {
     public static void EnsureSupported()
     {
-        _ = MonitorDb.ResolveProvider(
+        MonitorDb.ValidateLegacyProvider(
             Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
             Environment.GetEnvironmentVariable("DatabaseProvider"));
     }

@@ -7,299 +7,297 @@ namespace Rvt.Monitor.Common.Data.EntityFramework;
 
 public static class MonitorModelBuilderExtensions
 {
-    public static ModelBuilder ApplySharedMonitorMappings(this ModelBuilder modelBuilder, MonitorDbOptions options)
+    public static ModelBuilder ApplySharedMonitorMappings(this ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<MonitorEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "MonitorsList", "monitor"), Schema(options));
+            entity.ToTable("monitor");
             entity.HasKey(row => row.Id);
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.FleetNr, options, "FleetNr", "fleet_row_count");
-            MapProperty(entity, row => row.SerialId, options, "SerialId", "serial_id");
-            MapProperty(entity, row => row.CustomerId, options, "CustomerId", "customer_id");
-            MapProperty(entity, row => row.ListedAtTime, options, "ListedAtTime", "listed_at_time");
-            MapProperty(entity, row => row.Model, options, "Model", "model");
-            MapProperty(entity, row => row.LocationId, options, "LocationId", "location_id");
-            MapProperty(entity, row => row.Latitude, options, "Latitude", "latitude");
-            MapProperty(entity, row => row.Longitude, options, "Longitude", "longitude");
-            MapProperty(entity, row => row.LocationAddress, options, "LocationAddress", "location_address");
-            MapProperty(entity, row => row.TimeZone, options, "TimeZone", "time_zone");
-            MapProperty(entity, row => row.CustomerDisplayName, options, "CustomerDisplayName", "customer_display_name");
-            MapProperty(entity, row => row.Manufacturer, options, "Manufacturer", "manufacturer");
-            MapProperty(entity, row => row.FirmwareVersion, options, "FirmwareVersion", "firmware_version");
-            MapProperty(entity, row => row.TypeOfMonitor, options, "TypeOfMonitor", "type_of_monitor");
-            MapProperty(entity, row => row.Offline, options, "Offline", "offline");
-            MapProperty(entity, row => row.LastDataTime1Min, options, "LastDataTime1Min", "last_data_time_1_min");
-            MapProperty(entity, row => row.LastDataTime15Min, options, "LastDataTime15Min", "last_data_time_15_min");
-            MapProperty(entity, row => row.LastDataTime1Hour, options, "LastDataTime1Hour", "last_data_time_1_hour");
-            MapProperty(entity, row => row.LastDataTime24Hour, options, "LastDataTime24Hour", "last_data_time_24_hour");
-            MapProperty(entity, row => row.BatteryStatus, options, "BatteryStatus", "battery_status");
-            entity.HasIndex(row => new { row.SerialId, row.TypeOfMonitor });
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.FleetNr, "fleet_row_count");
+            MapProperty(entity, row => row.SerialId, "serial_id");
+            MapProperty(entity, row => row.CustomerId, "customer_id");
+            MapProperty(entity, row => row.ListedAtTime, "listed_at_time");
+            MapProperty(entity, row => row.Model, "model");
+            MapProperty(entity, row => row.LocationId, "location_id");
+            MapProperty(entity, row => row.Latitude, "latitude");
+            MapProperty(entity, row => row.Longitude, "longitude");
+            MapProperty(entity, row => row.LocationAddress, "location_address");
+            MapProperty(entity, row => row.TimeZone, "time_zone");
+            MapProperty(entity, row => row.CustomerDisplayName, "customer_display_name");
+            MapProperty(entity, row => row.Manufacturer, "manufacturer");
+            MapProperty(entity, row => row.FirmwareVersion, "firmware_version");
+            MapProperty(entity, row => row.TypeOfMonitor, "type_of_monitor");
+            MapProperty(entity, row => row.Offline, "offline");
+            MapProperty(entity, row => row.LastDataTime1Min, "last_data_time_1_min");
+            MapProperty(entity, row => row.LastDataTime15Min, "last_data_time_15_min");
+            MapProperty(entity, row => row.LastDataTime1Hour, "last_data_time_1_hour");
+            MapProperty(entity, row => row.LastDataTime24Hour, "last_data_time_24_hour");
+            MapProperty(entity, row => row.BatteryStatus, "battery_status");
+            entity.HasIndex(row => new { row.SerialId, row.TypeOfMonitor })
+                .HasDatabaseName("ix_monitor_serial_id_type_of_monitor");
         });
 
         modelBuilder.Entity<DeploymentEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "Deployments", "deployment"), Schema(options));
+            entity.ToTable("deployment");
             entity.HasKey(row => row.Id);
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.StartDate, options, "StartDate", "start_date");
-            MapProperty(entity, row => row.EndDate, options, "EndDate", "end_date");
-            MapProperty(entity, row => row.Lng, options, "Lng", "lng");
-            MapProperty(entity, row => row.Lat, options, "Lat", "lat");
-            MapProperty(entity, row => row.What2words, options, "What2words", "what2words");
-            MapProperty(entity, row => row.What3Words, options, "What3Words", "what3words");
-            MapProperty(entity, row => row.PictureLink, options, "PictureLink", "picture_link");
-            MapProperty(entity, row => row.ContractId, options, "ContractId", "contract_id");
-            MapProperty(entity, row => row.MonitorId, options, "MonitorId", "monitor_id");
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.StartDate, "start_date");
+            MapProperty(entity, row => row.EndDate, "end_date");
+            MapProperty(entity, row => row.Lng, "lng");
+            MapProperty(entity, row => row.Lat, "lat");
+            MapProperty(entity, row => row.What2words, "what2words");
+            MapProperty(entity, row => row.What3Words, "what3words");
+            MapProperty(entity, row => row.PictureLink, "picture_link");
+            MapProperty(entity, row => row.ContractId, "contract_id");
+            MapProperty(entity, row => row.MonitorId, "monitor_id");
         });
 
         modelBuilder.Entity<ContractEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "Contracts", "contract"), Schema(options));
+            entity.ToTable("contract");
             entity.HasKey(row => row.Id);
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.ContractNumber, options, "ContractNumber", "contract_number");
-            MapProperty(entity, row => row.OnHireDate, options, "OnHireDate", "on_hire_date");
-            MapProperty(entity, row => row.OffHireDate, options, "OffHireDate", "off_hire_date");
-            MapProperty(entity, row => row.CompanyId, options, "CompanyId", "company_id");
-            MapProperty(entity, row => row.SiteId, options, "SiteId", "site_id");
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.ContractNumber, "contract_number");
+            MapProperty(entity, row => row.OnHireDate, "on_hire_date");
+            MapProperty(entity, row => row.OffHireDate, "off_hire_date");
+            MapProperty(entity, row => row.CompanyId, "company_id");
+            MapProperty(entity, row => row.SiteId, "site_id");
         });
 
         modelBuilder.Entity<SiteEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "Sites", "site"), Schema(options));
+            entity.ToTable("site");
             entity.HasKey(row => row.Id);
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.SiteName, options, "SiteName", "site_name");
-            MapProperty(entity, row => row.CreateDate, options, "CreateDate", "create_date");
-            MapProperty(entity, row => row.AddressLine1, options, "AddressLine1", "address_line_1");
-            MapProperty(entity, row => row.AddressLine2, options, "AddressLine2", "address_line_2");
-            MapProperty(entity, row => row.Postcode, options, "Postcode", "postcode");
-            MapProperty(entity, row => row.City, options, "City", "city");
-            MapProperty(entity, row => row.County, options, "County", "county");
-            MapProperty(entity, row => row.StartTime, options, "StartTime", "start_time");
-            MapProperty(entity, row => row.EndTime, options, "EndTime", "end_time");
-            MapProperty(entity, row => row.SatStartTime, options, "SatStartTime", "sat_start_time");
-            MapProperty(entity, row => row.SatEndTime, options, "SatEndTime", "sat_end_time");
-            MapProperty(entity, row => row.SunStartTime, options, "SunStartTime", "sun_start_time");
-            MapProperty(entity, row => row.SunEndTime, options, "SunEndTime", "sun_end_time");
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.SiteName, "site_name");
+            MapProperty(entity, row => row.CreateDate, "create_date");
+            MapProperty(entity, row => row.AddressLine1, "address_line_1");
+            MapProperty(entity, row => row.AddressLine2, "address_line_2");
+            MapProperty(entity, row => row.Postcode, "postcode");
+            MapProperty(entity, row => row.City, "city");
+            MapProperty(entity, row => row.County, "county");
+            MapProperty(entity, row => row.StartTime, "start_time");
+            MapProperty(entity, row => row.EndTime, "end_time");
+            MapProperty(entity, row => row.SatStartTime, "sat_start_time");
+            MapProperty(entity, row => row.SatEndTime, "sat_end_time");
+            MapProperty(entity, row => row.SunStartTime, "sun_start_time");
+            MapProperty(entity, row => row.SunEndTime, "sun_end_time");
         });
 
         modelBuilder.Entity<RvtAlertRuleEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "RvtAlertRules", "rvt_alert_rule"), Schema(options));
+            entity.ToTable("rvt_alert_rule");
             entity.HasKey(row => row.Id);
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.MonitorId, options, "MonitorId", "monitor_id");
-            MapProperty(entity, row => row.SerialId, options, "SerialId", "serial_id");
-            MapProperty(entity, row => row.AlertField, options, "AlertField", "alert_field");
-            MapProperty(entity, row => row.LimitOn, options, "LimitOn", "limit_on");
-            MapProperty(entity, row => row.LimitOff, options, "LimitOff", "limit_off");
-            MapProperty(entity, row => row.AlertType, options, "AlertType", "alert_type");
-            MapProperty(entity, row => row.IsActive, options, "IsActive", "is_active");
-            MapProperty(entity, row => row.AveragingPeriod, options, "AveragingPeriod", "averaging_period");
-            MapProperty(entity, row => row.Weekdays, options, "Weekdays", "weekdays");
-            MapProperty(entity, row => row.Saturdays, options, "Saturdays", "saturdays");
-            MapProperty(entity, row => row.Sundays, options, "Sundays", "sundays");
-            MapProperty(entity, row => row.StartTime, options, "StartTime", "start_time");
-            MapProperty(entity, row => row.EndTime, options, "EndTime", "end_time");
-            MapProperty(entity, row => row.IsDeleted, options, "IsDeleted", "is_deleted");
-            MapProperty(entity, row => row.Created, options, "Created", "created");
-            MapProperty(entity, row => row.Accessed, options, "Accessed", "accessed");
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.MonitorId, "monitor_id");
+            MapProperty(entity, row => row.SerialId, "serial_id");
+            MapProperty(entity, row => row.AlertField, "alert_field");
+            MapProperty(entity, row => row.LimitOn, "limit_on");
+            MapProperty(entity, row => row.LimitOff, "limit_off");
+            MapProperty(entity, row => row.AlertType, "alert_type");
+            MapProperty(entity, row => row.IsActive, "is_active");
+            MapProperty(entity, row => row.AveragingPeriod, "averaging_period");
+            MapProperty(entity, row => row.Weekdays, "weekdays");
+            MapProperty(entity, row => row.Saturdays, "saturdays");
+            MapProperty(entity, row => row.Sundays, "sundays");
+            MapProperty(entity, row => row.StartTime, "start_time");
+            MapProperty(entity, row => row.EndTime, "end_time");
+            MapProperty(entity, row => row.IsDeleted, "is_deleted");
+            MapProperty(entity, row => row.Created, "created");
+            MapProperty(entity, row => row.Accessed, "accessed");
         });
 
         modelBuilder.Entity<NotificationEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "Notifications", "notification"), Schema(options));
+            entity.ToTable("notification");
             entity.HasKey(row => row.Id);
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.NotificationTime, options, "NotificationTime", "notification_time");
-            MapProperty(entity, row => row.LimitOn, options, "LimitOn", "limit_on");
-            MapProperty(entity, row => row.AveragingPeriod, options, "AveragingPeriod", "averaging_period");
-            MapProperty(entity, row => row.Level, options, "Level", "level");
-            MapProperty(entity, row => row.ClosedTime, options, "ClosedTime", "closed_time");
-            MapProperty(entity, row => row.ClosedByUser, options, "ClosedByUser", "closed_by_user");
-            MapProperty(entity, row => row.ClosedByNote, options, "ClosedByNote", "closed_by_note");
-            MapProperty(entity, row => row.MonitorId, options, "MonitorId", "monitor_id");
-            MapProperty(entity, row => row.AlertField, options, "AlertField", "alert_field");
-            MapProperty(entity, row => row.AlertType, options, "AlertType", "alert_type");
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.NotificationTime, "notification_time");
+            MapProperty(entity, row => row.LimitOn, "limit_on");
+            MapProperty(entity, row => row.AveragingPeriod, "averaging_period");
+            MapProperty(entity, row => row.Level, "level");
+            MapProperty(entity, row => row.ClosedTime, "closed_time");
+            MapProperty(entity, row => row.ClosedByUser, "closed_by_user");
+            MapProperty(entity, row => row.ClosedByNote, "closed_by_note");
+            MapProperty(entity, row => row.MonitorId, "monitor_id");
+            MapProperty(entity, row => row.AlertField, "alert_field");
+            MapProperty(entity, row => row.AlertType, "alert_type");
         });
 
         modelBuilder.Entity<MonitorDeliveryOutboxEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "MonitorDeliveryOutbox", "monitor_delivery_outbox"), Schema(options));
+            entity.ToTable("monitor_delivery_outbox");
             entity.HasKey(row => row.Id);
             entity.HasOne<NotificationEntity>()
                 .WithMany()
                 .HasForeignKey(row => row.NotificationId)
                 .OnDelete(DeleteBehavior.SetNull);
-            entity.HasIndex(row => new { row.Producer, row.DeliveryKey }).IsUnique();
-            entity.HasIndex(row => new { row.Producer, row.Status, row.NextAttemptAt });
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.Producer, options, "Producer", "producer");
-            MapProperty(entity, row => row.NotificationId, options, "NotificationId", "notification_id");
-            MapProperty(entity, row => row.CorrelationKey, options, "CorrelationKey", "correlation_key");
-            MapProperty(entity, row => row.DeliveryKey, options, "DeliveryKey", "delivery_key");
+            entity.HasIndex(row => new { row.Producer, row.DeliveryKey })
+                .IsUnique()
+                .HasDatabaseName("uq_monitor_delivery_outbox_producer_delivery_key");
+            entity.HasIndex(row => new { row.Producer, row.Status, row.NextAttemptAt })
+                .HasDatabaseName("ix_monitor_delivery_outbox_due");
+            entity.HasIndex(row => row.NotificationId)
+                .HasDatabaseName("ix_monitor_delivery_outbox_notification_id");
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.Producer, "producer");
+            MapProperty(entity, row => row.NotificationId, "notification_id");
+            MapProperty(entity, row => row.CorrelationKey, "correlation_key");
+            MapProperty(entity, row => row.DeliveryKey, "delivery_key");
             entity.Property(row => row.Kind)
                 .HasConversion<string>()
-                .HasColumnName(options.IsPostgreSql ? "kind" : "Kind");
-            MapProperty(entity, row => row.Destination, options, "Destination", "destination");
-            MapProperty(entity, row => row.PayloadVersion, options, "PayloadVersion", "payload_version");
-            MapProperty(entity, row => row.Payload, options, "Payload", "payload");
-            MapProperty(entity, row => row.Status, options, "Status", "status");
-            MapProperty(entity, row => row.AttemptCount, options, "AttemptCount", "attempt_count");
-            MapProperty(entity, row => row.NextAttemptAt, options, "NextAttemptAt", "next_attempt_at");
-            MapProperty(entity, row => row.LeaseId, options, "LeaseId", "lease_id");
-            MapProperty(entity, row => row.LeaseUntil, options, "LeaseUntil", "lease_until");
-            MapProperty(entity, row => row.CompletedAt, options, "CompletedAt", "completed_at");
-            MapProperty(entity, row => row.DeadLetteredAt, options, "DeadLetteredAt", "dead_lettered_at");
-            MapProperty(entity, row => row.LastError, options, "LastError", "last_error");
-            MapProperty(entity, row => row.CreatedAt, options, "CreatedAt", "created_at");
+                .HasColumnName("kind")
+                .HasColumnType("text")
+                .HasMaxLength(64);
+            MapProperty(entity, row => row.Destination, "destination");
+            MapProperty(entity, row => row.PayloadVersion, "payload_version");
+            MapProperty(entity, row => row.Payload, "payload");
+            MapProperty(entity, row => row.Status, "status");
+            MapProperty(entity, row => row.AttemptCount, "attempt_count");
+            MapProperty(entity, row => row.NextAttemptAt, "next_attempt_at");
+            MapProperty(entity, row => row.LeaseId, "lease_id");
+            MapProperty(entity, row => row.LeaseUntil, "lease_until");
+            MapProperty(entity, row => row.CompletedAt, "completed_at");
+            MapProperty(entity, row => row.DeadLetteredAt, "dead_lettered_at");
+            MapProperty(entity, row => row.LastError, "last_error");
+            MapProperty(entity, row => row.CreatedAt, "created_at");
 
-            if (!options.IsPostgreSql)
-            {
-                entity.Property(row => row.Producer).HasMaxLength(64);
-                entity.Property(row => row.CorrelationKey).HasMaxLength(450);
-                entity.Property(row => row.DeliveryKey)
-                    .HasMaxLength(450)
-                    .UseCollation("Latin1_General_100_BIN2");
-                entity.Property(row => row.Kind).HasMaxLength(64);
-                entity.Property(row => row.Destination).HasMaxLength(512);
-                entity.Property(row => row.Status).HasMaxLength(32);
-                entity.Property(row => row.LastError).HasMaxLength(1024);
-            }
+            entity.Property(row => row.Producer).HasColumnType("text").HasMaxLength(64);
+            entity.Property(row => row.CorrelationKey).HasColumnType("text").HasMaxLength(450);
+            entity.Property(row => row.DeliveryKey).HasColumnType("text").HasMaxLength(450);
+            entity.Property(row => row.Destination).HasColumnType("text").HasMaxLength(512);
+            entity.Property(row => row.Status).HasColumnType("text").HasMaxLength(32);
+            entity.Property(row => row.LastError).HasColumnType("text").HasMaxLength(1024);
         });
 
         modelBuilder.Entity<NotificationSentEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "NotificationsSent", "notification_sent"), Schema(options));
+            entity.ToTable("notification_sent");
             entity.HasKey(row => row.Id);
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.SendTime, options, "SendTime", "send_time");
-            MapProperty(entity, row => row.Address, options, "Address", "address");
-            MapProperty(entity, row => row.ErrorMessage, options, "ErrorMessage", "error_message");
-            MapProperty(entity, row => row.NotificationId, options, "NotificationId", "notification_id");
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.SendTime, "send_time");
+            MapProperty(entity, row => row.Address, "address");
+            MapProperty(entity, row => row.ErrorMessage, "error_message");
+            MapProperty(entity, row => row.NotificationId, "notification_id");
         });
 
         modelBuilder.Entity<NotificationSettingEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "NotificationSettings", "notification_setting"), Schema(options));
+            entity.ToTable("notification_setting");
             entity.HasKey(row => row.Id);
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.Email, options, "Email", "email");
-            MapProperty(entity, row => row.SMS, options, "SMS", "sms");
-            MapProperty(entity, row => row.StartTime, options, "StartTime", "start_time");
-            MapProperty(entity, row => row.EndTime, options, "EndTime", "end_time");
-            MapProperty(entity, row => row.SiteUserId, options, "SiteUserId", "site_user_id");
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.Email, "email");
+            MapProperty(entity, row => row.SMS, "sms");
+            MapProperty(entity, row => row.StartTime, "start_time");
+            MapProperty(entity, row => row.EndTime, "end_time");
+            MapProperty(entity, row => row.SiteUserId, "site_user_id");
         });
 
         modelBuilder.Entity<AspNetUserEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "AspNetUsers", "AspNetUsers"), Schema(options));
+            entity.ToTable("AspNetUsers");
             entity.HasKey(row => row.Id);
-            MapIdentityProperty(entity, row => row.Id, options, "Id");
-            MapProperty(entity, row => row.CompanyId, options, "CompanyId", "company_id");
-            MapProperty(entity, row => row.IsDisabled, options, "IsDisabled", "is_disabled");
-            MapProperty(entity, row => row.Name, options, "Name", "name");
-            MapIdentityProperty(entity, row => row.UserName, options, "UserName");
-            MapProperty(entity, row => row.NormalizedUserName, options, "NormalizedUserName", "normalized_user_name");
-            MapIdentityProperty(entity, row => row.Email, options, "Email");
-            MapProperty(entity, row => row.NormalizedEmail, options, "NormalizedEmail", "normalized_email");
-            MapProperty(entity, row => row.EmailConfirmed, options, "EmailConfirmed", "email_confirmed");
-            MapProperty(entity, row => row.PasswordHash, options, "PasswordHash", "password_hash");
-            MapProperty(entity, row => row.SecurityStamp, options, "SecurityStamp", "security_stamp");
-            MapProperty(entity, row => row.ConcurrencyStamp, options, "ConcurrencyStamp", "concurrency_stamp");
-            MapIdentityProperty(entity, row => row.PhoneNumber, options, "PhoneNumber");
-            MapProperty(entity, row => row.PhoneNumberConfirmed, options, "PhoneNumberConfirmed", "phone_number_confirmed");
-            MapProperty(entity, row => row.TwoFactorEnabled, options, "TwoFactorEnabled", "two_factor_enabled");
-            MapProperty(entity, row => row.LockoutEnd, options, "LockoutEnd", "lockout_end");
-            MapProperty(entity, row => row.LockoutEnabled, options, "LockoutEnabled", "lockout_enabled");
-            MapProperty(entity, row => row.AccessFailedCount, options, "AccessFailedCount", "access_failed_count");
-            MapProperty(entity, row => row.CompanyRole, options, "CompanyRole", "company_role");
+            MapProperty(entity, row => row.Id, "Id");
+            MapProperty(entity, row => row.CompanyId, "company_id");
+            MapProperty(entity, row => row.IsDisabled, "is_disabled");
+            MapProperty(entity, row => row.Name, "name");
+            MapProperty(entity, row => row.UserName, "UserName");
+            MapProperty(entity, row => row.NormalizedUserName, "normalized_user_name");
+            MapProperty(entity, row => row.Email, "Email");
+            MapProperty(entity, row => row.NormalizedEmail, "normalized_email");
+            MapProperty(entity, row => row.EmailConfirmed, "email_confirmed");
+            MapProperty(entity, row => row.PasswordHash, "password_hash");
+            MapProperty(entity, row => row.SecurityStamp, "security_stamp");
+            MapProperty(entity, row => row.ConcurrencyStamp, "concurrency_stamp");
+            MapProperty(entity, row => row.PhoneNumber, "PhoneNumber");
+            MapProperty(entity, row => row.PhoneNumberConfirmed, "phone_number_confirmed");
+            MapProperty(entity, row => row.TwoFactorEnabled, "two_factor_enabled");
+            MapProperty(entity, row => row.LockoutEnd, "lockout_end");
+            MapProperty(entity, row => row.LockoutEnabled, "lockout_enabled");
+            MapProperty(entity, row => row.AccessFailedCount, "access_failed_count");
+            MapProperty(entity, row => row.CompanyRole, "company_role");
         });
 
         modelBuilder.Entity<SiteUserEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "SiteUsers", "site_user"), Schema(options));
+            entity.ToTable("site_user");
             entity.HasKey(row => row.Id);
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.StartDate, options, "StartDate", "start_date");
-            MapProperty(entity, row => row.EndDate, options, "EndDate", "end_date");
-            MapProperty(entity, row => row.UserId, options, "UserId", "user_id");
-            MapProperty(entity, row => row.SiteId, options, "SiteId", "site_id");
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.StartDate, "start_date");
+            MapProperty(entity, row => row.EndDate, "end_date");
+            MapProperty(entity, row => row.UserId, "user_id");
+            MapProperty(entity, row => row.SiteId, "site_id");
         });
 
         modelBuilder.Entity<SiteAverageEntity>(entity =>
         {
-            entity.ToTable(TableName(options, "SiteAverages", "site_average"), Schema(options));
+            entity.ToTable("site_average");
             entity.HasKey(row => row.Id);
-            MapProperty(entity, row => row.Id, options, "Id", "id");
-            MapProperty(entity, row => row.SiteId, options, "SiteId", "site_id");
-            MapProperty(entity, row => row.MonitorId, options, "MonitorId", "monitor_id");
-            MapProperty(entity, row => row.Field, options, "Field", "field");
-            MapProperty(entity, row => row.Level, options, "Level", "level");
-            MapProperty(entity, row => row.CollectionTime, options, "CollectionTime", "collection_time");
+            MapProperty(entity, row => row.Id, "id");
+            MapProperty(entity, row => row.SiteId, "site_id");
+            MapProperty(entity, row => row.MonitorId, "monitor_id");
+            MapProperty(entity, row => row.Field, "field");
+            MapProperty(entity, row => row.Level, "level");
+            MapProperty(entity, row => row.CollectionTime, "collection_time");
         });
 
         modelBuilder.Entity<ErrorMessageEntity>(entity =>
         {
-            entity.ToTable(options.IsPostgreSql ? "error_log" : "ErrorMessages", Schema(options));
+            entity.ToTable("error_log");
             entity.HasNoKey();
-            MapProperty(entity, row => row.Host, options, "Host", "host");
-            MapProperty(entity, row => row.Source, options, "Source", "source");
-            MapProperty(entity, row => row.Message, options, "Message", "message");
-            MapProperty(entity, row => row.Level, options, "Level", "level");
-            MapProperty(entity, row => row.StackTrace, options, "StackTrace", "stack_trace");
-            MapProperty(entity, row => row.Variables, options, "Variables", "variables");
-            MapProperty(entity, row => row.LogTime, options, "LogTime", "logged_at");
+            MapProperty(entity, row => row.Host, "host");
+            MapProperty(entity, row => row.Source, "source");
+            MapProperty(entity, row => row.Message, "message");
+            MapProperty(entity, row => row.Level, "level");
+            MapProperty(entity, row => row.StackTrace, "stack_trace");
+            MapProperty(entity, row => row.Variables, "variables");
+            MapProperty(entity, row => row.LogTime, "logged_at");
         });
 
         modelBuilder.Entity<AlertOccurrenceEntity>(entity =>
         {
-            var tableName = TableName(options, "AlertOccurrences", "alert_occurrence");
             entity.ToTable(
-                tableName,
-                Schema(options),
+                "alert_occurrence",
                 table =>
                 {
                     table.HasCheckConstraint(
-                        options.IsPostgreSql ? "ck_alert_occurrence_source_key_hash" : "CK_AlertOccurrences_SourceKeyHash",
-                        options.IsPostgreSql
-                            ? "octet_length(\"source_key_hash\") = 32"
-                            : "DATALENGTH([SourceKeyHash]) = 32");
+                        "ck_alert_occurrence_source_key_hash",
+                        "octet_length(\"source_key_hash\") = 32");
                     table.HasCheckConstraint(
-                        options.IsPostgreSql ? "ck_alert_occurrence_outcome" : "CK_AlertOccurrences_Outcome",
+                        "ck_alert_occurrence_outcome",
                         ExactStringCheck(
-                            options,
-                            "Outcome",
                             "outcome",
                             nameof(AlertOccurrenceOutcome.Accepted),
                             nameof(AlertOccurrenceOutcome.Ignored),
                             nameof(AlertOccurrenceOutcome.Suppressed)));
                 });
             entity.HasKey(row => row.Id);
-            ConfigureGuid(entity.Property(row => row.Id), options, "Id", "id");
-            ConfigureString(entity.Property(row => row.Source), options, "Source", "source", 128);
+            ConfigureGuid(entity.Property(row => row.Id), "id");
+            ConfigureString(entity.Property(row => row.Source), "source", 128);
             entity.Property(row => row.SourceKeyHash)
-                .HasColumnName(options.IsPostgreSql ? "source_key_hash" : "SourceKeyHash")
-                .HasColumnType(options.IsPostgreSql ? "bytea" : "binary(32)")
+                .HasColumnName("source_key_hash")
+                .HasColumnType("bytea")
                 .HasMaxLength(32);
-            ConfigureGuid(entity.Property(row => row.NotificationId), options, "NotificationId", "notification_id");
-            ConfigureGuid(entity.Property(row => row.MonitorId), options, "MonitorId", "monitor_id");
-            ConfigureString(entity.Property(row => row.SerialId), options, "SerialId", "serial_id", 128);
-            ConfigureInstant(entity.Property(row => row.EventTime), options, "EventTime", "event_time");
-            ConfigureInt(entity.Property(row => row.AlertType), options, "AlertType", "alert_type");
-            ConfigureString(entity.Property(row => row.AlertField), options, "AlertField", "alert_field", 128);
-            ConfigureDouble(entity.Property(row => row.Level), options, "Level", "level");
-            ConfigureDouble(entity.Property(row => row.LimitOn), options, "LimitOn", "limit_on");
-            ConfigureInt(entity.Property(row => row.AveragingPeriod), options, "AveragingPeriod", "averaging_period");
-            ConfigureString(entity.Property(row => row.Outcome), options, "Outcome", "outcome", 32);
-            ConfigureInstant(entity.Property(row => row.CreatedAt), options, "CreatedAt", "created_at");
+            ConfigureGuid(entity.Property(row => row.NotificationId), "notification_id");
+            ConfigureGuid(entity.Property(row => row.MonitorId), "monitor_id");
+            ConfigureString(entity.Property(row => row.SerialId), "serial_id", 128);
+            ConfigureInstant(entity.Property(row => row.EventTime), "event_time");
+            ConfigureInt(entity.Property(row => row.AlertType), "alert_type");
+            ConfigureString(entity.Property(row => row.AlertField), "alert_field", 128);
+            ConfigureDouble(entity.Property(row => row.Level), "level");
+            ConfigureDouble(entity.Property(row => row.LimitOn), "limit_on");
+            ConfigureInt(entity.Property(row => row.AveragingPeriod), "averaging_period");
+            ConfigureString(entity.Property(row => row.Outcome), "outcome", 32);
+            ConfigureInstant(entity.Property(row => row.CreatedAt), "created_at");
             entity.HasIndex(row => new { row.Source, row.SourceKeyHash })
                 .IsUnique()
-                .HasDatabaseName(options.IsPostgreSql
-                    ? "uq_alert_occurrence_source_key"
-                    : "UQ_AlertOccurrences_SourceKey");
+                .HasDatabaseName("uq_alert_occurrence_source_key");
+            entity.HasIndex(row => row.MonitorId)
+                .HasDatabaseName("ix_alert_occurrence_monitor_id");
+            entity.HasIndex(row => row.NotificationId)
+                .HasDatabaseName("ix_alert_occurrence_notification_id");
             entity.HasOne<MonitorEntity>()
                 .WithMany()
                 .HasForeignKey(row => row.MonitorId)
@@ -312,55 +310,39 @@ public static class MonitorModelBuilderExtensions
 
         modelBuilder.Entity<AlertDeliveryOutboxEntity>(entity =>
         {
-            var tableName = TableName(options, "AlertDeliveryOutbox", "alert_delivery_outbox");
             entity.ToTable(
-                tableName,
-                Schema(options),
+                "alert_delivery_outbox",
                 table =>
                 {
                     table.HasCheckConstraint(
-                        options.IsPostgreSql ? "ck_alert_delivery_outbox_kind" : "CK_AlertDeliveryOutbox_Kind",
-                        ExactStringCheck(options, "Kind", "kind", "MqttAlert", "Email", "Sms"));
+                        "ck_alert_delivery_outbox_kind",
+                        ExactStringCheck("kind", "MqttAlert", "Email", "Sms"));
                     table.HasCheckConstraint(
-                        options.IsPostgreSql ? "ck_alert_delivery_outbox_status" : "CK_AlertDeliveryOutbox_Status",
-                        ExactStringCheck(options, "Status", "status", "Pending", "Leased", "Completed", "DeadLetter"));
-                    if (!options.IsPostgreSql)
-                    {
-                        table.HasCheckConstraint(
-                            "CK_AlertDeliveryOutbox_PayloadLength",
-                            "DATALENGTH([Payload]) <= 16384");
-                    }
+                        "ck_alert_delivery_outbox_status",
+                        ExactStringCheck("status", "Pending", "Leased", "Completed", "DeadLetter"));
                 });
             entity.HasKey(row => row.Id);
-            ConfigureGuid(entity.Property(row => row.Id), options, "Id", "id");
-            ConfigureGuid(entity.Property(row => row.OccurrenceId), options, "OccurrenceId", "occurrence_id");
-            ConfigureString(entity.Property(row => row.DeliveryKey), options, "DeliveryKey", "delivery_key", 64);
-            ConfigureString(entity.Property(row => row.Kind), options, "Kind", "kind", 32);
-            ConfigureString(entity.Property(row => row.Destination), options, "Destination", "destination", 512);
-            ConfigureString(
-                entity.Property(row => row.Payload),
-                options,
-                "Payload",
-                "payload",
-                8192,
-                sqlServerColumnType: "nvarchar(max)");
-            ConfigureString(entity.Property(row => row.Status), options, "Status", "status", 32);
-            ConfigureInt(entity.Property(row => row.AttemptCount), options, "AttemptCount", "attempt_count");
-            ConfigureInstant(entity.Property(row => row.NextAttemptAt), options, "NextAttemptAt", "next_attempt_at");
-            ConfigureGuid(entity.Property(row => row.LeaseId), options, "LeaseId", "lease_id");
-            ConfigureInstant(entity.Property(row => row.LeaseUntil), options, "LeaseUntil", "lease_until");
-            ConfigureInstant(entity.Property(row => row.CompletedAt), options, "CompletedAt", "completed_at");
-            ConfigureString(entity.Property(row => row.LastError), options, "LastError", "last_error", 256);
-            ConfigureInstant(entity.Property(row => row.CreatedAt), options, "CreatedAt", "created_at");
+            ConfigureGuid(entity.Property(row => row.Id), "id");
+            ConfigureGuid(entity.Property(row => row.OccurrenceId), "occurrence_id");
+            ConfigureString(entity.Property(row => row.DeliveryKey), "delivery_key", 64);
+            ConfigureString(entity.Property(row => row.Kind), "kind", 32);
+            ConfigureString(entity.Property(row => row.Destination), "destination", 512);
+            ConfigureString(entity.Property(row => row.Payload), "payload", 8192);
+            ConfigureString(entity.Property(row => row.Status), "status", 32);
+            ConfigureInt(entity.Property(row => row.AttemptCount), "attempt_count");
+            ConfigureInstant(entity.Property(row => row.NextAttemptAt), "next_attempt_at");
+            ConfigureGuid(entity.Property(row => row.LeaseId), "lease_id");
+            ConfigureInstant(entity.Property(row => row.LeaseUntil), "lease_until");
+            ConfigureInstant(entity.Property(row => row.CompletedAt), "completed_at");
+            ConfigureString(entity.Property(row => row.LastError), "last_error", 256);
+            ConfigureInstant(entity.Property(row => row.CreatedAt), "created_at");
             entity.HasIndex(row => row.DeliveryKey)
                 .IsUnique()
-                .HasDatabaseName(options.IsPostgreSql
-                    ? "uq_alert_delivery_outbox_delivery_key"
-                    : "UQ_AlertDeliveryOutbox_DeliveryKey");
+                .HasDatabaseName("uq_alert_delivery_outbox_delivery_key");
             entity.HasIndex(row => new { row.Status, row.NextAttemptAt, row.LeaseUntil, row.CreatedAt })
-                .HasDatabaseName(options.IsPostgreSql
-                    ? "ix_alert_delivery_outbox_due"
-                    : "IX_AlertDeliveryOutbox_Due");
+                .HasDatabaseName("ix_alert_delivery_outbox_due");
+            entity.HasIndex(row => row.OccurrenceId)
+                .HasDatabaseName("ix_alert_delivery_outbox_occurrence_id");
             entity.HasOne<AlertOccurrenceEntity>()
                 .WithMany()
                 .HasForeignKey(row => row.OccurrenceId)
@@ -370,38 +352,9 @@ public static class MonitorModelBuilderExtensions
         return modelBuilder;
     }
 
-    private static string? Schema(MonitorDbOptions options)
-    {
-        return options.IsPostgreSql ? null : "dbo";
-    }
-
-    private static string TableName(MonitorDbOptions options, string sqlServerName, string postgreSqlName)
-    {
-        if (!options.IsPostgreSql)
-        {
-            return sqlServerName;
-        }
-
-        return options.IdentifierMap.TryGetValue(sqlServerName, out var mapped)
-            ? mapped.Trim('"')
-            : postgreSqlName;
-    }
-
     private static void MapProperty<TEntity, TProperty>(
         EntityTypeBuilder<TEntity> entity,
         System.Linq.Expressions.Expression<Func<TEntity, TProperty>> propertyExpression,
-        MonitorDbOptions options,
-        string sqlServerName,
-        string postgreSqlName)
-        where TEntity : class
-    {
-        entity.Property(propertyExpression).HasColumnName(options.IsPostgreSql ? postgreSqlName : sqlServerName);
-    }
-
-    private static void MapIdentityProperty<TEntity, TProperty>(
-        EntityTypeBuilder<TEntity> entity,
-        System.Linq.Expressions.Expression<Func<TEntity, TProperty>> propertyExpression,
-        MonitorDbOptions options,
         string columnName)
         where TEntity : class
     {
@@ -410,77 +363,55 @@ public static class MonitorModelBuilderExtensions
 
     private static void ConfigureGuid<TProperty>(
         PropertyBuilder<TProperty> property,
-        MonitorDbOptions options,
-        string sqlServerName,
-        string postgreSqlName)
+        string columnName)
     {
         property
-            .HasColumnName(options.IsPostgreSql ? postgreSqlName : sqlServerName)
-            .HasColumnType(options.IsPostgreSql ? "uuid" : "uniqueidentifier");
+            .HasColumnName(columnName)
+            .HasColumnType("uuid");
     }
 
     private static void ConfigureString<TProperty>(
         PropertyBuilder<TProperty> property,
-        MonitorDbOptions options,
-        string sqlServerName,
-        string postgreSqlName,
-        int maxLength,
-        string? sqlServerColumnType = null)
+        string columnName,
+        int maxLength)
     {
         property
-            .HasColumnName(options.IsPostgreSql ? postgreSqlName : sqlServerName)
-            .HasColumnType(options.IsPostgreSql ? $"varchar({maxLength})" : sqlServerColumnType ?? $"nvarchar({maxLength})")
+            .HasColumnName(columnName)
+            .HasColumnType($"varchar({maxLength})")
             .HasMaxLength(maxLength);
     }
 
     private static void ConfigureInstant<TProperty>(
         PropertyBuilder<TProperty> property,
-        MonitorDbOptions options,
-        string sqlServerName,
-        string postgreSqlName)
+        string columnName)
     {
         property
-            .HasColumnName(options.IsPostgreSql ? postgreSqlName : sqlServerName)
-            .HasColumnType(options.IsPostgreSql ? "timestamp with time zone" : "datetime2");
+            .HasColumnName(columnName)
+            .HasColumnType("timestamp with time zone");
     }
 
     private static void ConfigureInt(
         PropertyBuilder<int> property,
-        MonitorDbOptions options,
-        string sqlServerName,
-        string postgreSqlName)
+        string columnName)
     {
         property
-            .HasColumnName(options.IsPostgreSql ? postgreSqlName : sqlServerName)
-            .HasColumnType(options.IsPostgreSql ? "integer" : "int");
+            .HasColumnName(columnName)
+            .HasColumnType("integer");
     }
 
     private static void ConfigureDouble(
         PropertyBuilder<double> property,
-        MonitorDbOptions options,
-        string sqlServerName,
-        string postgreSqlName)
+        string columnName)
     {
         property
-            .HasColumnName(options.IsPostgreSql ? postgreSqlName : sqlServerName)
-            .HasColumnType(options.IsPostgreSql ? "double precision" : "float");
+            .HasColumnName(columnName)
+            .HasColumnType("double precision");
     }
 
     private static string ExactStringCheck(
-        MonitorDbOptions options,
-        string sqlServerColumn,
-        string postgreSqlColumn,
+        string columnName,
         params string[] values)
     {
-        if (options.IsPostgreSql)
-        {
-            return $"\"{postgreSqlColumn}\" IN ({string.Join(',', values.Select(value => $"'{value}'"))})";
-        }
-
-        return string.Join(
-            " OR ",
-            values.Select(value =>
-                $"([{sqlServerColumn}] COLLATE Latin1_General_100_BIN2 = N'{value}' " +
-                $"AND DATALENGTH([{sqlServerColumn}]) = DATALENGTH(N'{value}'))"));
+        return $"\"{columnName}\" IN ({string.Join(',', values.Select(value => $"'{value}'"))})";
     }
 }

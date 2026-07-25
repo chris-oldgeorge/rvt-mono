@@ -1,5 +1,6 @@
 // File summary: Provides a stable EF Core design-time factory for migration scaffolding.
 // Major updates:
+// - 2026-07-26 pending Made design-time domain migrations PostgreSQL-only through shared environment options.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-06-09 pending Added canonical-baseline migration scaffolding support independent of appsettings.
 // - 2026-07-14 pending Moved environment resolution to RvtDesignTimeDatabaseOptions, shared with the search factory.

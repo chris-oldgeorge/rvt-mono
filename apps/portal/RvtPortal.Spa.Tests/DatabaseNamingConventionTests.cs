@@ -166,7 +166,6 @@ public sealed class DatabaseNamingConventionTests
         var optionsBuilder = new DbContextOptionsBuilder<RVTDbContext>();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
-            Provider = RvtDatabaseProvider.Postgres,
             ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
         using var context = new RVTDbContext(optionsBuilder.Options);
@@ -187,7 +186,6 @@ public sealed class DatabaseNamingConventionTests
         var optionsBuilder = new DbContextOptionsBuilder<RVTSearchContext>();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
-            Provider = RvtDatabaseProvider.Postgres,
             ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
         using var context = new RVTSearchContext(optionsBuilder.Options);
@@ -215,7 +213,6 @@ public sealed class DatabaseNamingConventionTests
         var optionsBuilder = new DbContextOptionsBuilder<RVTSearchContext>();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
-            Provider = RvtDatabaseProvider.Postgres,
             ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
         using var context = new RVTSearchContext(optionsBuilder.Options);

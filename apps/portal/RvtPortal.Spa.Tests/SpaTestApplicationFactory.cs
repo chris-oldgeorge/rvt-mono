@@ -1,5 +1,6 @@
-// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
+// File summary: Provides the Portal test host with isolated in-memory contexts and explicit local host filtering.
 // Major updates:
+// - 2026-07-26 pending Removed the obsolete SQL Server provider setting from test database options.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
@@ -88,7 +89,6 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
                 options.UseInMemoryDatabase($"{databaseName}-search").UseInternalServiceProvider(databaseProvider));
             services.AddSingleton<IOptions<RvtDatabaseOptions>>(Options.Create(new RvtDatabaseOptions
             {
-                Provider = RvtDatabaseProvider.SqlServer,
                 ConnectionString = "Testing"
             }));
             services.AddSingleton<IRvtDatabaseConnectionFactory, RvtDatabaseConnectionFactory>();

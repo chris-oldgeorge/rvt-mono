@@ -1,5 +1,6 @@
-// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
+// File summary: Covers regression tests for API host startup and React migration parity.
 // Major updates:
+// - 2026-07-26 pending Updated smoke-host database configuration for PostgreSQL-only startup.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
@@ -23,7 +24,9 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
         this.factory = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("environment", "Testing");
-            builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=(localdb)\\mssqllocaldb;Database=RvtPortalSpaTests;Trusted_Connection=True;MultipleActiveResultSets=true");
+            builder.UseSetting(
+                "ConnectionStrings:DefaultConnection",
+                "Host=localhost;Database=rvt_portal_tests;Username=rvt;Password=test-only");
         });
     }
 

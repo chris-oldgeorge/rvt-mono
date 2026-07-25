@@ -71,7 +71,7 @@ report_content_matches "forbidden C# API SqlConnection" -F -e "SqlConnection"
 report_content_matches "forbidden C# API SqlBulkCopy" -F -e "SqlBulkCopy"
 report_content_matches \
   "forbidden SQL Server provider or support text" \
-  -i -E -e 'Sql[-_[:space:]]?Server|MSSQL'
+  -i -E -e 'Sql([[:space:]]+|[-_])?Server|MSSQL'
 
 if (( failures > 0 )); then
   printf '%d PostgreSQL-only violation(s) found.\n' "${failures}" >&2

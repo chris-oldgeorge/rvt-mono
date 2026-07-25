@@ -17,6 +17,7 @@ sql_server_upper="SQL ""Server"
 sql_server_lower="sql""server"
 sql_server_hyphen="SQL-""Server"
 sql_server_underscore="SQL_""Server"
+sql_server_double_space="SQL  ""Server"
 sql_client="Sql""Client"
 sql_connection="Sql""Connection"
 sql_bulk_copy="Sql""BulkCopy"
@@ -116,6 +117,10 @@ assert_rejected \
   prose-underscore \
   docs/legacy-underscore.md \
   "Use ${sql_server_underscore} for production deployments."
+assert_rejected \
+  prose-double-space \
+  docs/legacy-double-space.md \
+  "Use ${sql_server_double_space} for production deployments."
 assert_rejected \
   retired-path \
   "database/${sql_server_lower}/legacy.sql" \

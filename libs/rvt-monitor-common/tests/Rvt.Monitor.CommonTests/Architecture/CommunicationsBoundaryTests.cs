@@ -120,7 +120,7 @@ public sealed class CommunicationsBoundaryTests
             var gitPath = Path.Combine(directory.FullName, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
-                return directory.FullName;
+                return Path.Combine(directory.FullName, "libs", "rvt-monitor-common");
             }
 
             directory = directory.Parent;

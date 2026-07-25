@@ -38,6 +38,10 @@
     <Project Path="libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj" />
     <Project Path="libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj" />
     <Project Path="libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj" />
+    <Project Path="libs/rvt-monitor-common/src/Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj" />
+    <Project Path="libs/rvt-monitor-common/src/Rvt.Storage.AzureBlob/Rvt.Storage.AzureBlob.csproj" />
+    <Project Path="libs/rvt-monitor-common/src/Rvt.Storage.Local/Rvt.Storage.Local.csproj" />
+    <Project Path="libs/rvt-monitor-common/src/Rvt.Storage.S3/Rvt.Storage.S3.csproj" />
     <Project Path="libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj" />
   </Folder>
   <Folder Name="/Libraries/RVT Monitor Common/Tests/">
@@ -50,6 +54,7 @@
     <Project Path="libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting.Tests/Rvt.Monitor.IntegrationTesting.Tests.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Monitor.CommonTests/Rvt.Monitor.CommonTests.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Monitor.PackageValidationTests/Rvt.Monitor.PackageValidationTests.csproj" />
+    <Project Path="libs/rvt-monitor-common/tests/Rvt.Storage.Tests/Rvt.Storage.Tests.csproj" />
   </Folder>
   <Folder Name="/Services/" />
   <Folder Name="/Services/Reporting/">

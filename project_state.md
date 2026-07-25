@@ -1,5 +1,42 @@
 # Project State
 
+## Storage provider Task 9 - source solution wiring - 2026-07-26 (complete)
+
+- Worktree: `.worktrees/release-platform-hardening`; Task 9 starts from the
+  Task 8 commit `6b678a5`. The four production storage projects and
+  `Rvt.Storage.Tests` are represented exactly once in both
+  `libs/rvt-monitor-common/rvt-common.sln` and `Rvt.Mono.slnx`.
+- `apps/monitors/rvt-monitors.sln` contains the four production storage
+  projects, but not `Rvt.Storage.Tests`. This reflects the active Svantek and
+  ReportingMonitor hosts, which each directly reach Abstractions, Local,
+  Azure Blob, and S3.
+- Strict guard evidence: before solution wiring,
+  `tests/verify-mono-solution.test.sh` failed because the solution had 46
+  projects while the repository module inventory had 51. After the solution
+  edits, the unchanged guard passes. The three `dotnet sln ... list` commands
+  show each intended storage project once.
+- Restore verification redirected every lock to
+  `/tmp/rvt-storage-task9-locks.gI98g4` with
+  `RestorePackagesWithLockFile=true`, `RestoreLockedMode=false`, and
+  `--disable-parallel`. Both `rvt-common.sln` and `Rvt.Mono.slnx` restored
+  successfully without rewriting a tracked repository lock.
+- `rvt-common.sln` builds with 0 errors and 64 existing analyzer warnings.
+  The first unmodified root build reached and compiled all five new storage
+  entries but was blocked by duplicate types from the preserved untracked
+  Portal `* 2.cs` copies. A temporary MSBuild import under `/tmp`, excluding
+  only those future-pending copies, allowed `Rvt.Mono.slnx` to build with 0
+  errors and 76 existing analyzer/advisory warnings.
+- No package catalog, permanent central version, repository lock, solution
+  guard, Portal/reporting-service source, or ReportingMonitor override is part
+  of Task 9. The untracked ReportingMonitor `Directory.Packages.props` remains
+  a verification-only override, and complete lock regeneration remains owned
+  by the later provider-package release migration plan.
+- The Graph large-attachment upload-chunk non-caller timeout translation
+  remains the carry-forward merge blocker. Portal/reporting-service storage
+  migration and every other documented future-pending item remain unchanged.
+- Full Task 9 evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-9-report.md`.
+
 ## Storage provider Task 8 - Common legacy removal - 2026-07-25 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; Task 8 starts from the

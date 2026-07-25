@@ -2,7 +2,7 @@ using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Storage;
+using Rvt.Storage;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
 using Svantek.Api.UseCases;
@@ -52,7 +52,7 @@ public class SvantekApi
             mqttClient,
             messageService,
             apiKey,
-            MissingBlobStorageService.Instance,
+            MissingObjectStorageClientFactory.Instance,
             testLocal)
     {
     }
@@ -63,14 +63,14 @@ public class SvantekApi
         IMqttClient mqttClient,
         IMessageService messageService,
         string apiKey,
-        IBlobStorageService blobStorage)
+        IObjectStorageClientFactory storageFactory)
         : this(
             httpClient,
             dbClient,
             mqttClient,
             messageService,
             apiKey,
-            blobStorage,
+            storageFactory,
             RvtConfig.TESTLOCAL)
     {
     }
@@ -81,7 +81,7 @@ public class SvantekApi
         IMqttClient mqttClient,
         IMessageService messageService,
         string apiKey,
-        IBlobStorageService blobStorage,
+        IObjectStorageClientFactory storageFactory,
         bool testLocal,
         NoiseRequestWindowCalculator? noiseRequestWindowCalculator = null,
         TimeProvider? timeProvider = null)
@@ -133,7 +133,7 @@ public class SvantekApi
             dbClient,
             dbClient,
             gateway,
-            blobStorage);
+            storageFactory);
     }
 
     public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
@@ -156,20 +156,34 @@ public class SvantekApi
     public Task CheckForSoundRecordingsAsync(CancellationToken cancellationToken = default) =>
         checkForSoundRecordings.RunAsync(cancellationToken);
 
-    private sealed class MissingBlobStorageService : IBlobStorageService
+    private sealed class MissingObjectStorageClientFactory : IObjectStorageClientFactory
     {
-        public static MissingBlobStorageService Instance { get; } = new();
+        public static MissingObjectStorageClientFactory Instance { get; } = new();
 
-        public Task<BlobStorageWriteResult> WriteAsync(
-            BlobStorageWriteRequest request,
+        public IObjectStorageClient GetRequiredClient(string resourceName) =>
+            MissingObjectStorageClient.Instance;
+    }
+
+    private sealed class MissingObjectStorageClient : IObjectStorageClient
+    {
+        public static MissingObjectStorageClient Instance { get; } = new();
+
+        public Task<StorageWriteResult> WriteAsync(
+            StorageWriteRequest request,
             CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException(
-                "IBlobStorageService must be supplied to upload sound recordings.");
+                "IObjectStorageClientFactory must be supplied to upload sound recordings.");
 
-        public Task DeleteAsync(
-            string objectName,
+        public Task<StorageReadResult?> OpenReadAsync(
+            StorageObjectKey key,
             CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException(
-                "IBlobStorageService must be supplied to delete sound recordings.");
+                "IObjectStorageClientFactory must be supplied to read sound recordings.");
+
+        public Task<bool> DeleteIfExistsAsync(
+            StorageObjectKey key,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException(
+                "IObjectStorageClientFactory must be supplied to delete sound recordings.");
     }
 }

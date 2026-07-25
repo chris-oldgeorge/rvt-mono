@@ -10,9 +10,10 @@ using Rvt.Communication.TransmitSms;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Storage;
+using Rvt.Storage;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
+using Svantek.Api.Storage;
 using Svantek.Model.Config;
 
 namespace Svantek.Api;
@@ -26,7 +27,7 @@ public static class SvantekMonitorServices
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddMonitorBlobStorage();
+        services.AddSvantekStorage(configuration);
         services.AddSingleton<IHttpClient>(_ => new HttpWebClient<SvantekService>(RvtConfig.BASE_URL));
         services.AddSingleton<IDBClient>(_ => new DBClient(RvtConfig.DB_CONNECTION_STRING));
         services.AddSingleton<IMqttClient, RvtMqttClient>();
@@ -46,7 +47,7 @@ public static class SvantekMonitorServices
             provider.GetRequiredService<IMqttClient>(),
             provider.GetRequiredService<IMessageService>(),
             RvtConfig.API_KEY,
-            provider.GetRequiredService<IBlobStorageService>(),
+            provider.GetRequiredService<IObjectStorageClientFactory>(),
             RvtConfig.TESTLOCAL,
             provider.GetRequiredService<NoiseRequestWindowCalculator>()));
         services.AddSingleton(provider =>

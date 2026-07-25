@@ -23,14 +23,14 @@ namespace SvantekMonitorTests
             var dbClient = new Mock<IDBClient>();
             var mqttClient = new Mock<IMqttClient>();
             var emailClient = new Mock<IMessageService>();
-            var storage = new RecordingBlobStorageService();
+            var storage = new RecordingObjectStorageClient();
             var testObj = new SvantekApi(
                 httpClient.Object,
                 dbClient.Object,
                 mqttClient.Object,
                 emailClient.Object,
                 "test-api-key",
-                storage,
+                TestObjectStorageFactory.ForSoundRecordings(storage),
                 testLocal: false);
 
             var notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);

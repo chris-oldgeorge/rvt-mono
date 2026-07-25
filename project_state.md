@@ -1,5 +1,46 @@
 # Project State
 
+## Storage provider Task 6 - Svantek sound recordings - 2026-07-25 (complete)
+
+- Worktree: `.worktrees/release-platform-hardening`; Task 6 starts from the
+  Task 5 review baseline commit `56fbe64`. The previously completed
+  `MonitorHost` configuration callback migration was preserved unchanged.
+- Svantek now references `Rvt.Storage.Abstractions`, Local, Azure Blob, and S3
+  directly. `AddSvantekMonitor(IConfiguration)` composes exactly one provider
+  for the named `svantek-sound-recordings` resource.
+- Provider selection preserves the existing precedence and blank-value
+  fallback across `BlobStorage:Provider`, `RVT:BLOB_PROVIDER`,
+  `RVT__BLOB_PROVIDER`, then Local. Values are case-insensitive. Unsupported
+  values fail at composition with the exact allowed-provider message. Local
+  defaults remain `/data/rvt/blobs/audiofiles` with an empty prefix.
+- `CheckForSoundRecordingsHandler` accepts `IObjectStorageClientFactory`,
+  resolves its named client once during construction, and writes the existing
+  `{NotificationId}.wav` key through a read-only `MemoryStream`. Bytes,
+  `audio/wav`, cancellation, and the database recording-link update remain
+  unchanged. Direct `SvantekApi` construction without a storage dependency
+  retains a lazy, explicit missing-storage failure through a missing
+  factory/client pair.
+- Strict TDD evidence: composition first failed compilation on the absent
+  storage references/composition root, then passed 6/6. A follow-up blank-key
+  precedence regression failed 1/7 before its minimal fallback fix, then the
+  composition slice passed 7/7. The streaming test rewrite failed compilation
+  with five expected factory-to-legacy-port mismatches, then passed 4/4 after
+  production migration.
+- The shared Omnidots host scheduling guard passed 13/13. Svantek
+  communication/options/cancellation composition passed 20/20, and the
+  complete runnable non-environment Svantek set passed 93/93. The unfiltered
+  suite compiled and ran 133 tests: 93 passed; 40 remain blocked by the absent
+  PostgreSQL integration connection and pre-existing repository-root-sensitive
+  schema/boundary fixtures.
+- The Svantek host builds with zero warnings and errors. `git diff --check`
+  passes.
+- No package lock, Common legacy storage source, Portal/reporting-service
+  source, or host callback source changed. Common storage removal remains Task
+  8 work; ReportingMonitor migration and solution/packaging/final verification
+  remain Tasks 7, 9, and 10.
+- Full Task 6 evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-6-report.md`.
+
 ## Storage provider Task 5 - contract parity and dependency isolation - 2026-07-25 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; Task 5 starts from Task 4

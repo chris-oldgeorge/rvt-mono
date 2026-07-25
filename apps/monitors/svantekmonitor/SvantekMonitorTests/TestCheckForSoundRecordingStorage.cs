@@ -1,8 +1,9 @@
 using Moq;
-using Rvt.Monitor.Common.Storage;
+using Rvt.Storage;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
+using Svantek.Api.Storage;
 using Svantek.Api.UseCases;
 using SvantekMonitor.model.dto;
 
@@ -29,7 +30,7 @@ public sealed class TestCheckForSoundRecordingStorage
 
         var httpClient = new Mock<IHttpClient>();
         var dbClient = new Mock<IDBClient>();
-        var storage = new RecordingBlobStorageService();
+        var storage = new RecordingObjectStorageClient();
         using var cancellation = new CancellationTokenSource();
 
         dbClient.Setup(client => client.ReadLatestNotificationAsync(cancellation.Token)).ReturnsAsync(
@@ -57,7 +58,7 @@ public sealed class TestCheckForSoundRecordingStorage
             dbClient.Object,
             dbClient.Object,
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
-            storage);
+            TestObjectStorageFactory.ForSoundRecordings(storage));
 
         await handler.RunAsync(cancellation.Token);
 
@@ -66,9 +67,9 @@ public sealed class TestCheckForSoundRecordingStorage
             It.IsAny<MultipartFormDataContent>(),
             cancellation.Token), Times.Once);
         Assert.HasCount(1, storage.Writes);
-        Assert.AreEqual($"{notificationId}.wav", storage.Writes[0].Request.ObjectName);
-        CollectionAssert.AreEqual(soundContent, storage.Writes[0].Request.Content);
-        Assert.AreEqual("audio/wav", storage.Writes[0].Request.ContentType);
+        Assert.AreEqual($"{notificationId}.wav", storage.Writes[0].Key.Value);
+        CollectionAssert.AreEqual(soundContent, storage.Writes[0].Content);
+        Assert.AreEqual("audio/wav", storage.Writes[0].ContentType);
         Assert.AreEqual(cancellation.Token, storage.Writes[0].CancellationToken);
         dbClient.Verify(client => client.WriteSoundFileAsync(
             notificationId,
@@ -87,7 +88,7 @@ public sealed class TestCheckForSoundRecordingStorage
             """;
         var httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
         var dbClient = new Mock<IDBClient>(MockBehavior.Strict);
-        var storage = new RecordingBlobStorageService();
+        var storage = new RecordingObjectStorageClient();
         dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
             new List<NoiseNotificationLatest>
             {
@@ -105,7 +106,7 @@ public sealed class TestCheckForSoundRecordingStorage
             dbClient.Object,
             dbClient.Object,
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
-            storage);
+            TestObjectStorageFactory.ForSoundRecordings(storage));
 
         var aggregate = await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(
             () => handler.RunAsync());
@@ -137,7 +138,7 @@ public sealed class TestCheckForSoundRecordingStorage
             """;
         var httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
         var dbClient = new Mock<IDBClient>(MockBehavior.Strict);
-        var storage = new RecordingBlobStorageService();
+        var storage = new RecordingObjectStorageClient();
         dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
             new List<NoiseNotificationLatest>
             {
@@ -155,7 +156,7 @@ public sealed class TestCheckForSoundRecordingStorage
             dbClient.Object,
             dbClient.Object,
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
-            storage);
+            TestObjectStorageFactory.ForSoundRecordings(storage));
 
         var aggregate = await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(
             () => handler.RunAsync());
@@ -184,7 +185,7 @@ public sealed class TestCheckForSoundRecordingStorage
             """;
         var httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
         var dbClient = new Mock<IDBClient>(MockBehavior.Strict);
-        var storage = new RecordingBlobStorageService();
+        var storage = new RecordingObjectStorageClient();
         dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
             new List<NoiseNotificationLatest>
             {
@@ -199,7 +200,7 @@ public sealed class TestCheckForSoundRecordingStorage
             dbClient.Object,
             dbClient.Object,
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
-            storage);
+            TestObjectStorageFactory.ForSoundRecordings(storage));
 
         await handler.RunAsync();
 
@@ -209,24 +210,49 @@ public sealed class TestCheckForSoundRecordingStorage
     }
 }
 
-internal sealed class RecordingBlobStorageService : IBlobStorageService
+internal sealed class RecordingObjectStorageClient : IObjectStorageClient
 {
-    public List<StorageWrite> Writes { get; } = new();
+    public List<StorageWrite> Writes { get; } = [];
 
-    public Task<BlobStorageWriteResult> WriteAsync(
-        BlobStorageWriteRequest request,
+    public async Task<StorageWriteResult> WriteAsync(
+        StorageWriteRequest request,
         CancellationToken cancellationToken = default)
     {
-        Writes.Add(new StorageWrite(request, cancellationToken));
-        return Task.FromResult(new BlobStorageWriteResult(request.ObjectName));
+        using var buffer = new MemoryStream();
+        await request.Content.CopyToAsync(buffer, cancellationToken);
+        Writes.Add(new(
+            request.Key,
+            buffer.ToArray(),
+            request.ContentType,
+            cancellationToken));
+        return new StorageWriteResult(request.Key);
     }
 
-    public Task DeleteAsync(string objectName, CancellationToken cancellationToken = default)
-    {
-        throw new NotSupportedException();
-    }
+    public Task<StorageReadResult?> OpenReadAsync(
+        StorageObjectKey key,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<StorageReadResult?>(null);
+
+    public Task<bool> DeleteIfExistsAsync(
+        StorageObjectKey key,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(false);
 
     internal sealed record StorageWrite(
-        BlobStorageWriteRequest Request,
+        StorageObjectKey Key,
+        byte[] Content,
+        string? ContentType,
         CancellationToken CancellationToken);
+}
+
+internal static class TestObjectStorageFactory
+{
+    internal static IObjectStorageClientFactory ForSoundRecordings(
+        IObjectStorageClient client) =>
+        new ObjectStorageClientFactory(
+        [
+            new ObjectStorageClientRegistration(
+                SvantekStorageComposition.SoundRecordingsResource,
+                client),
+        ]);
 }

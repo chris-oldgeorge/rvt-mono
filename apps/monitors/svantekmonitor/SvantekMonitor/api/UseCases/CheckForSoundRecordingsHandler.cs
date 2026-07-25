@@ -1,6 +1,7 @@
-using Rvt.Monitor.Common.Storage;
+using Rvt.Storage;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
+using Svantek.Api.Storage;
 using Svantek.Model.Http;
 
 namespace Svantek.Api.UseCases;
@@ -11,18 +12,20 @@ public sealed class CheckForSoundRecordingsHandler
     private readonly ISvantekNotificationQueries notificationQueries;
     private readonly ISvantekOperationalCommands operationalCommands;
     private readonly SvantekHttpGateway gateway;
-    private readonly IBlobStorageService blobStorage;
+    private readonly IObjectStorageClient storage;
 
     public CheckForSoundRecordingsHandler(
         ISvantekNotificationQueries notificationQueries,
         ISvantekOperationalCommands operationalCommands,
         SvantekHttpGateway gateway,
-        IBlobStorageService blobStorage)
+        IObjectStorageClientFactory storageFactory)
     {
         this.notificationQueries = notificationQueries;
         this.operationalCommands = operationalCommands;
         this.gateway = gateway;
-        this.blobStorage = blobStorage;
+        ArgumentNullException.ThrowIfNull(storageFactory);
+        storage = storageFactory.GetRequiredClient(
+            SvantekStorageComposition.SoundRecordingsResource);
     }
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
@@ -64,8 +67,12 @@ public sealed class CheckForSoundRecordingsHandler
                     audioFile.filename,
                     cancellationToken).ConfigureAwait(false);
                 var fileName = $"{alert.NotificationId}.wav";
-                await blobStorage.WriteAsync(
-                    new BlobStorageWriteRequest(fileName, content, "audio/wav"),
+                await using var stream = new MemoryStream(content, writable: false);
+                await storage.WriteAsync(
+                    new StorageWriteRequest(
+                        StorageObjectKey.Parse(fileName),
+                        stream,
+                        "audio/wav"),
                     cancellationToken).ConfigureAwait(false);
                 await operationalCommands.WriteSoundFileAsync(
                     alert.NotificationId,

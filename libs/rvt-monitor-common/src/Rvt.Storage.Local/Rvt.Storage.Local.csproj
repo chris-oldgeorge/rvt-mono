@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Rvt.Storage.Local</AssemblyName>
+    <RootNamespace>Rvt.Storage.Local</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Rvt.Storage.Local</PackageId>
+    <Description>Local filesystem object storage adapter for RVT applications.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

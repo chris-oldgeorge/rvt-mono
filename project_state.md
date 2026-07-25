@@ -1,5 +1,43 @@
 # Project State
 
+## Storage provider Task 2 - Local filesystem adapter - 2026-07-25 (complete)
+
+- Worktree: `.worktrees/release-platform-hardening`; Task 2 starts from Task 1
+  commit `da0dfd2`. `Rvt.Storage.Local` is now a separate packable net10
+  provider project referencing `Rvt.Storage.Abstractions`; the legacy
+  `Rvt.Monitor.Common` storage implementation remains present and unchanged for
+  Task 8.
+- `LocalStorageOptions` preserves the local defaults and provider-neutral,
+  `RVT:`, literal `RVT__`, audio-folder, and reporting-container aliases.
+  `AddRvtLocalStorage` registers a named keyed singleton client, one named
+  registration, the shared client factory, and startup validation through
+  `IHostedService`.
+- `LocalObjectStorageClient` streams request content into same-directory
+  create-new temporary files, flushes before atomic overwrite, removes
+  temporary files on success/failure, and stores optional content type in an
+  adjacent atomically replaced metadata file. Reads return async sequential
+  file streams; delete reports existence and removes metadata.
+- Local filesystem access retains rooted containment and pre/post-create
+  reparse-point checks for object and metadata paths. Real-filesystem tests
+  cover unsafe container/prefix values, traversal rejection at the validated
+  key boundary, directory and target-file symlinks, failed-copy preservation,
+  overwrite, cleanup, missing reads, idempotent delete, and cancellation before
+  mutation.
+- Strict TDD evidence: options/registration first failed compilation because
+  `Rvt.Storage.Local` was absent, then passed 11/11. Client behavior then failed
+  18/20 on the deliberate unimplemented operation shell (the two key-boundary
+  rows already passed), then passed 20/20. The complete Local filter passed
+  31/31.
+- The required Microsoft.Extensions `10.0.9` central versions already existed
+  and were not duplicated or changed. Locked restore added only the new Local
+  project lock and the Local project edge in the storage test lock.
+- Tasks 3-10 remain pending. Portal blob unification, the independent
+  `services/reporting` Azure adapter, all communication release/lock work, and
+  every other previously documented future-pending item remain excluded and
+  unchanged.
+- Full Task 2 evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-2-report.md`.
+
 ## Storage provider Task 1 - provider-neutral streaming contracts - 2026-07-25 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; base before Task 1 was

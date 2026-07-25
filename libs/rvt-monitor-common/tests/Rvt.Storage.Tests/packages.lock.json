@@ -115,6 +115,12 @@
       },
       "rvt.storage.abstractions": {
         "type": "Project"
+      },
+      "rvt.storage.local": {
+        "type": "Project",
+        "dependencies": {
+          "Rvt.Storage.Abstractions": "[0.2.0-rc.1, )"
+        }
       }
     }
   }

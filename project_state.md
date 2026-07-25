@@ -1,5 +1,38 @@
 # Project State
 
+## Storage provider Task 5 - contract parity and dependency isolation - 2026-07-25 (complete)
+
+- Worktree: `.worktrees/release-platform-hardening`; Task 5 starts from Task 4
+  commit `65608a4`. The storage test project now has one reusable eight-case
+  `IObjectStorageClient` contract inherited by real Local, Azure Blob, and S3
+  provider fixtures.
+- The Local contract fixture uses a unique real temporary filesystem root.
+  Azure and S3 instantiate the concrete provider clients and use strict,
+  stateful SDK-boundary doubles backed by ordinal in-memory object
+  dictionaries; no client under test is replaced and no network is used.
+- Shared parity covers non-seekable writes and normalized returned keys,
+  streamed bytes/content type/content length, missing reads, overwrite,
+  idempotent delete, and pre-cancelled write/read/delete. Each cancellation
+  case performs a later uncancelled read to prove the original provider object
+  did not mutate.
+- Dependency guards parse the four storage project files and scan only their
+  production C# sources, explicitly excluding `obj`/`bin`. They keep
+  Abstractions provider/framework/filesystem independent, Local cloud-SDK
+  independent, Azure limited to its Azure SDK dependencies, S3 limited to its
+  AWS SDK dependency, and all providers directly referenced only to
+  Abstractions.
+- Test-first evidence: the shared fixture shells failed 24/24 before their
+  real implementations and then passed 24/24. The boundary snapshot shell
+  failed 4/4 before implementation and then passed 4/4. The complete storage
+  suite passed 137/137 and `git diff --check` passed.
+- No real provider inconsistency surfaced, so no production code, package
+  version, or lock file changed. Tasks 6-10 remain pending: consumer
+  migrations, legacy Common storage removal, solution/packaging integration,
+  and final verification/documentation. Portal storage and the independent
+  `services/reporting` Azure adapter remain future work.
+- Full Task 5 evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-5-report.md`.
+
 ## Storage provider Task 4 - S3 adapter - 2026-07-25 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; Task 4 starts from Task 3

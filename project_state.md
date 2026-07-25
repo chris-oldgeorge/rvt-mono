@@ -1,5 +1,40 @@
 # Project State
 
+## Storage provider split merge-blocker fix - 2026-07-26 (complete)
+
+- Resume instruction: start a future session with
+  `Read project_state.md to get up to speed`.
+- This corrective scope starts from storage final-review commit `7804962`.
+  Microsoft Graph large-attachment upload chunks now distinguish caller
+  cancellation from provider/HTTP timeouts exactly like authenticated Graph
+  requests: a cancelled caller token still propagates cancellation, while an
+  `OperationCanceledException` with an active caller token becomes the
+  secret-safe `EmailDeliveryException("MicrosoftGraph",
+  DeliveryFailureKind.Transient, "Timeout")`.
+- Strict Graph TDD evidence:
+  - corrected RED ran the two upload-chunk cases with production unchanged:
+    caller cancellation passed and the timeout test failed because exact
+    `EmailDeliveryException` was expected but raw
+    `OperationCanceledException` escaped;
+  - after the single non-caller cancellation catch, the identical two-test
+    slice passed 2/2;
+  - the complete Microsoft Graph adapter project passed 37/37 and the bounded
+    neutral Communication project passed 31/31.
+  Test variables are `providerMessage`, `cancellation`, and `attachment`;
+  `UploadChunkCancellationHandler` reaches the real PUT chunk boundary after
+  draft and upload-session creation.
+- The dependency license table now classifies
+  `Microsoft.Extensions.Configuration.Abstractions` 10.0.9 as direct. Its
+  version, approval, license metadata, and the 101-pair inventory are
+  unchanged.
+- No package policy, project file, or lock changed. All unrelated untracked
+  files remain preserved. The first corrected RED retry inside the restricted
+  sandbox was aborted because vstest could not bind its local communication
+  socket; the bounded rerun outside that restriction produced the required
+  1-pass/1-fail RED evidence.
+- Full evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/merge-blocker-fix-report.md`.
+
 ## Storage provider split final review fix - 2026-07-26 (complete)
 
 - Resume instruction: start a future session with

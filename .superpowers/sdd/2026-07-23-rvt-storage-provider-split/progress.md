@@ -49,3 +49,12 @@ catalog/reference are removed; the package-free dependency boundary passes
 and the 101-pair license inventory is exact. The four repository guards pass.
 The refreshed vulnerability audit remains DNS-blocked, and the external Graph
 upload-chunk non-caller timeout translation remains the merge blocker.
+Final merge-blocker fix: complete. A real large-attachment flow reaches the
+upload PUT boundary and proves that non-caller `OperationCanceledException`
+now maps to the safe transient MicrosoftGraph `Timeout` delivery failure,
+while upload-chunk caller cancellation still propagates. Corrected strict RED
+was 1 passed/1 failed (raw cancellation escaped); identical focused GREEN was
+2/2, the Graph adapter project passed 37/37, and bounded Communication passed
+31/31. The Configuration.Abstractions 10.0.9 license row is corrected from
+transitive to direct with version and 101-pair inventory unchanged. No package
+policy or lock changed; the carry-forward merge blocker is resolved.

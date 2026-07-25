@@ -277,6 +277,13 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         {
             throw;
         }
+        catch (OperationCanceledException)
+        {
+            throw new EmailDeliveryException(
+                "MicrosoftGraph",
+                DeliveryFailureKind.Transient,
+                "Timeout");
+        }
         catch (HttpRequestException)
         {
             throw new EmailDeliveryException(

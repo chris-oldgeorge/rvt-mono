@@ -293,6 +293,75 @@ public sealed class MicrosoftGraphEmailAdapterTests
     }
 
     [TestMethod]
+    public async Task SendAsync_UploadChunkTimeoutIsTransientAndSafe()
+    {
+        const string providerMessage = "raw upload timeout secret";
+        using var cancellation = new CancellationTokenSource();
+        using var handler = new UploadChunkCancellationHandler(
+            _ => new OperationCanceledException(providerMessage));
+        using var httpClient = new HttpClient(handler);
+        var adapter = new MicrosoftGraphEmailAdapter(
+            httpClient,
+            new RecordingTokenProvider("token"),
+            Options());
+        var attachment = new EmailAttachment(
+            "large.bin",
+            "application/octet-stream",
+            new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit]);
+
+        var exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+            adapter.SendAsync(
+                new EmailDeliveryRequest(
+                    "ops@example.test",
+                    "subject",
+                    "plain",
+                    "<p>html</p>",
+                    [attachment]),
+                cancellation.Token));
+
+        Assert.AreEqual("MicrosoftGraph", exception.Provider);
+        Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
+        Assert.AreEqual("Timeout", exception.Code);
+        Assert.DoesNotContain(providerMessage, exception.ToString());
+        Assert.IsFalse(cancellation.IsCancellationRequested);
+        Assert.AreEqual(1, handler.UploadChunkCalls);
+    }
+
+    [TestMethod]
+    public async Task SendAsync_UploadChunkCallerCancellationPropagates()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var handler = new UploadChunkCancellationHandler(token =>
+        {
+            cancellation.Cancel();
+            return new OperationCanceledException(token);
+        });
+        using var httpClient = new HttpClient(handler);
+        var adapter = new MicrosoftGraphEmailAdapter(
+            httpClient,
+            new RecordingTokenProvider("token"),
+            Options());
+        var attachment = new EmailAttachment(
+            "large.bin",
+            "application/octet-stream",
+            new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit]);
+
+        var exception = await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            adapter.SendAsync(
+                new EmailDeliveryRequest(
+                    "ops@example.test",
+                    "subject",
+                    "plain",
+                    "<p>html</p>",
+                    [attachment]),
+                cancellation.Token));
+
+        Assert.AreEqual(cancellation.Token, exception.CancellationToken);
+        Assert.IsTrue(cancellation.IsCancellationRequested);
+        Assert.AreEqual(1, handler.UploadChunkCalls);
+    }
+
+    [TestMethod]
     public async Task SendAsync_MixedSmallAndLargeAttachmentsUsesBothAttachmentPaths()
     {
         using var handler = new LargeFlowHandler();
@@ -562,6 +631,44 @@ public sealed class MicrosoftGraphEmailAdapterTests
             configureHeaders?.Invoke(response.Headers);
             return response;
         }
+    }
+
+    private sealed class UploadChunkCancellationHandler(
+        Func<CancellationToken, OperationCanceledException> cancellationFactory) : HttpMessageHandler
+    {
+        internal int UploadChunkCalls { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.Method == HttpMethod.Post &&
+                request.RequestUri!.AbsolutePath.EndsWith("/messages", StringComparison.Ordinal))
+            {
+                return Task.FromResult(Json(HttpStatusCode.Created, """{"id":"draft-id"}"""));
+            }
+
+            if (request.RequestUri!.AbsolutePath.EndsWith("/createUploadSession", StringComparison.Ordinal))
+            {
+                return Task.FromResult(Json(
+                    HttpStatusCode.OK,
+                    """{"uploadUrl":"https://upload.example/session-token"}"""));
+            }
+
+            if (request.Method == HttpMethod.Put)
+            {
+                UploadChunkCalls++;
+                return Task.FromException<HttpResponseMessage>(
+                    cancellationFactory(cancellationToken));
+            }
+
+            throw new InvalidOperationException("Unexpected Graph test request.");
+        }
+
+        private static HttpResponseMessage Json(HttpStatusCode status, string json) => new(status)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
     }
 
     private sealed class ThrowingHandler(Exception exception) : HttpMessageHandler

@@ -83,7 +83,7 @@ repository and framework facilities.
 | `Microsoft.Extensions.Caching.Abstractions` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Caching.Memory` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Configuration` | `10.0.9` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
-| `Microsoft.Extensions.Configuration.Abstractions` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.Configuration.Abstractions` | `10.0.9` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Configuration.Binder` | `10.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Configuration.Binder` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.DependencyInjection` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |

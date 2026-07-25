@@ -2,6 +2,11 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ "${RVT_ENFORCE_POSTGRESQL_ONLY:-0}" == "1" ]]; then
+  bash scripts/verify-postgresql-only.sh .
+fi
+
 package_feed="${RVT_PACKAGE_FEED_DIR:-${repo_root}/artifacts/packages}"
 nuget_packages="${repo_root}/artifacts/nuget-packages"
 validation_locks="${repo_root}/artifacts/validation-locks"

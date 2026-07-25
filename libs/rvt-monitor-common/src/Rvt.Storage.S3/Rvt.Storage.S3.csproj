@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Rvt.Storage.S3</AssemblyName>
+    <RootNamespace>Rvt.Storage.S3</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Rvt.Storage.S3</PackageId>
+    <Description>Amazon S3-compatible object storage adapter for RVT applications.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.S3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

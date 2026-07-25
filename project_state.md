@@ -1,5 +1,54 @@
 # Project State
 
+## Storage provider Task 4 - S3 adapter - 2026-07-25 (complete)
+
+- Worktree: `.worktrees/release-platform-hardening`; Task 4 starts from Task 3
+  commit `e7e6e5b`. `Rvt.Storage.S3` is now a separate packable net10 provider
+  project referencing `Rvt.Storage.Abstractions`; the legacy
+  `Rvt.Monitor.Common` S3 implementation remains present and unchanged for
+  Task 8.
+- `S3StorageOptions` binds `Bucket`, `Prefix`, `Region`, `ServiceUrl`, and
+  `ForcePathStyle` from the current provider-neutral, `RVT:`, and literal
+  `RVT__` aliases. `Bucket` is required when the named client resolves;
+  prefixes use the shared traversal-safe key normalization; service URLs must
+  be absolute. No access-key, secret-key, credential, or token option exists.
+- `S3ObjectStorageClient` constructs `AmazonS3Config` with the current exact
+  endpoint behavior: region-only configuration sets `RegionEndpoint`;
+  compatible-S3 configuration sets normalized `ServiceURL` and, when supplied,
+  trimmed `AuthenticationRegion`. It uses `new AmazonS3Client(config)` so the
+  SDK default credential chain remains in effect.
+- `AddRvtS3Storage` registers one keyed singleton client, one named
+  `ObjectStorageClientRegistration`, the shared client factory, and startup
+  validation through `IHostedService`, matching the Local and Azure provider
+  composition pattern.
+- Writes pass the original request stream to `PutObjectAsync` with
+  `AutoCloseStream = false`, copy optional content type, and prefix provider
+  keys. Reads return the raw `GetObjectResponse.ResponseStream`, content type,
+  and length without buffering and retain the response as the shared disposal
+  lease. Deletes probe metadata first, return `false` for `NoSuchKey` or 404,
+  and otherwise delete the same bucket/key and return `true`.
+- S3 failures classify 403 as `AccessDenied`, 409 as `Conflict`, 408, 429, and
+  5xx as `Unavailable`, other 4xx as `InvalidRequest`, and the remainder as
+  `Unknown`. Caller cancellation propagates. Shared messages omit provider
+  response and inner exception text. Provider URIs escape each prefix/key path
+  segment independently.
+- Strict TDD evidence: options/registration first failed compilation because
+  the S3 provider was absent, then passed 18/18. Client behavior then failed
+  13/15 on the deliberate unimplemented operation shell (URI and disposal
+  behavior already passed), then passed 15/15. The complete S3 filter passed
+  33/33, the complete storage project passed 109/109, and the provider built
+  with zero warnings and errors. All AWS operation tests use strict
+  `IAmazonS3` doubles and no network.
+- Existing central `AWSSDK.S3` 4.0.100.3 and Microsoft.Extensions 10.0.9
+  versions were reused unchanged. Locked restore added only the new S3
+  provider lock and the S3 project/AWS SDK graph in the storage test lock.
+- Tasks 5-10 remain pending. Provider parity and dependency-boundary tests,
+  consumer migrations, legacy Common storage removal, solution/packaging work,
+  Portal storage, the independent `services/reporting` Azure adapter, and all
+  other future-pending work remain excluded and unchanged.
+- Full Task 4 evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/task-4-report.md`.
+
 ## Storage provider Task 3 - Azure Blob adapter - 2026-07-25 (complete)
 
 - Worktree: `.worktrees/release-platform-hardening`; Task 3 starts from Task 2

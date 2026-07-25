@@ -16,5 +16,6 @@
     <ProjectReference Include="../../src/Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj" />
     <ProjectReference Include="../../src/Rvt.Storage.AzureBlob/Rvt.Storage.AzureBlob.csproj" />
     <ProjectReference Include="../../src/Rvt.Storage.Local/Rvt.Storage.Local.csproj" />
+    <ProjectReference Include="../../src/Rvt.Storage.S3/Rvt.Storage.S3.csproj" />
   </ItemGroup>
 </Project>

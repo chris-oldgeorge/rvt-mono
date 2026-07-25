@@ -77,6 +77,10 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         {
             throw;
         }
+        catch (OperationCanceledException exception)
+        {
+            throw TranslateCancellation(exception, request.Key);
+        }
         catch (AmazonS3Exception exception)
         {
             throw TranslateFailure(exception, request.Key);
@@ -107,6 +111,10 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (OperationCanceledException exception)
+        {
+            throw TranslateCancellation(exception, key);
         }
         catch (AmazonS3Exception exception) when (IsMissing(exception))
         {
@@ -146,6 +154,10 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (OperationCanceledException exception)
+        {
+            throw TranslateCancellation(exception, key);
         }
         catch (AmazonS3Exception exception) when (IsMissing(exception))
         {
@@ -212,6 +224,15 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         StorageObjectKey key) =>
         new(
             ClassifyFailure(exception.StatusCode),
+            resourceName,
+            key,
+            exception);
+
+    private ObjectStorageException TranslateCancellation(
+        OperationCanceledException exception,
+        StorageObjectKey key) =>
+        new(
+            StorageFailureKind.Unavailable,
             resourceName,
             key,
             exception);

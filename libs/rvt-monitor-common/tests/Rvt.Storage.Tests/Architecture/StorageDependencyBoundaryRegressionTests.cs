@@ -1,7 +1,5 @@
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Rvt.Storage.Tests.Architecture;
 
@@ -225,10 +223,24 @@ internal sealed class CSharpDependencyAnalysis(
 
 internal static class CSharpDependencyAnalyzer
 {
-    private const string ImplicitUsingsPath = "__RvtStorageImplicitUsings.g.cs";
+    private static readonly Regex AliasUsingPattern = new(
+        @"(?m)^[ \t]*(?<global>global[ \t]+)?using[ \t]+(?<alias>[A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(?:global::)?(?<target>[A-Za-z_][A-Za-z0-9_]*(?:[ \t]*\.[ \t]*[A-Za-z_][A-Za-z0-9_]*)*)[ \t]*;",
+        RegexOptions.CultureInvariant);
 
-    private static readonly Lazy<IReadOnlyCollection<MetadataReference>>
-        MetadataReferences = new(CreateMetadataReferences);
+    private static readonly Regex NamespaceUsingPattern = new(
+        @"(?m)^[ \t]*(?:global[ \t]+)?using[ \t]+(?:global::)?(?<target>[A-Za-z_][A-Za-z0-9_]*(?:[ \t]*\.[ \t]*[A-Za-z_][A-Za-z0-9_]*)*)[ \t]*;",
+        RegexOptions.CultureInvariant);
+
+    private static readonly Regex QualifiedNamePattern = new(
+        @"(?<![A-Za-z0-9_])(?:global::)?(?<name>[A-Za-z_][A-Za-z0-9_]*(?:[ \t\r\n]*\.[ \t\r\n]*[A-Za-z_][A-Za-z0-9_]*)+)",
+        RegexOptions.CultureInvariant);
+
+    private static readonly Regex DeclaredTypePattern = new(
+        @"\b(?:class|struct|interface|enum|record(?:[ \t]+(?:class|struct))?|delegate)[ \t]+(?<name>[A-Za-z_][A-Za-z0-9_]*)\b",
+        RegexOptions.CultureInvariant);
+
+    private static readonly string[] ImplicitSystemIoTypes =
+        ["File", "Directory", "FileStream"];
 
     public static CSharpDependencyAnalysis Analyze(string source) =>
         AnalyzeProject(new Dictionary<string, string>(StringComparer.Ordinal)
@@ -240,59 +252,85 @@ internal static class CSharpDependencyAnalyzer
         IReadOnlyDictionary<string, string> sources)
     {
         ArgumentNullException.ThrowIfNull(sources);
-        var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(
-            LanguageVersion.Preview);
-        var sourceTrees = sources
+        var sanitizedSources = sources
             .OrderBy(source => source.Key, StringComparer.Ordinal)
-            .Select(source => CSharpSyntaxTree.ParseText(
-                source.Value,
-                parseOptions,
-                source.Key))
+            .ToDictionary(
+                source => source.Key,
+                source => Sanitize(source.Value),
+                StringComparer.Ordinal);
+        var aliases = sanitizedSources
+            .SelectMany(source => AliasUsingPattern
+                .Matches(source.Value)
+                .Select(match => new AliasDefinition(
+                    match.Groups["alias"].Value,
+                    NormalizeName(match.Groups["target"].Value),
+                    match.Groups["global"].Success,
+                    source.Key)))
             .ToArray();
-        var implicitUsings = CSharpSyntaxTree.ParseText(
-            """
-            global using System;
-            global using System.Collections.Generic;
-            global using System.IO;
-            global using System.Linq;
-            global using System.Threading;
-            global using System.Threading.Tasks;
-            """,
-            parseOptions,
-            ImplicitUsingsPath);
-        var compilation = CSharpCompilation.Create(
-            $"RvtStorageDependencyAnalysis_{Guid.NewGuid():N}",
-            sourceTrees.Append(implicitUsings),
-            MetadataReferences.Value,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        var globalAliases = aliases
+            .Where(alias => alias.IsGlobal)
+            .ToDictionary(
+                alias => alias.Name,
+                alias => alias.Target,
+                StringComparer.Ordinal);
+        var declaredTypes = sanitizedSources.Values
+            .SelectMany(source => DeclaredTypePattern
+                .Matches(source)
+                .Select(match => match.Groups["name"].Value))
+            .ToHashSet(StringComparer.Ordinal);
         var filesByDependency = new Dictionary<string, HashSet<string>>(
             StringComparer.Ordinal);
 
-        foreach (var syntaxTree in sourceTrees)
+        foreach (var source in sanitizedSources)
         {
-            var semanticModel = compilation.GetSemanticModel(
-                syntaxTree,
-                ignoreAccessibility: true);
-            var root = syntaxTree.GetRoot();
-            foreach (var name in root.DescendantNodes().OfType<NameSyntax>())
+            var sourceAliases = new Dictionary<string, string>(
+                globalAliases,
+                StringComparer.Ordinal);
+            foreach (var alias in aliases.Where(alias =>
+                         alias.SourcePath.Equals(
+                             source.Key,
+                             StringComparison.Ordinal)))
             {
-                if (name is IdentifierNameSyntax identifier)
+                sourceAliases[alias.Name] = alias.Target;
+                RecordDependency(alias.Target, source.Key, filesByDependency);
+            }
+
+            foreach (Match match in NamespaceUsingPattern.Matches(source.Value))
+            {
+                RecordDependency(
+                    NormalizeName(match.Groups["target"].Value),
+                    source.Key,
+                    filesByDependency);
+            }
+
+            foreach (Match match in QualifiedNamePattern.Matches(source.Value))
+            {
+                var dependency = NormalizeName(match.Groups["name"].Value);
+                var separator = dependency.IndexOf('.');
+                if (separator > 0
+                    && sourceAliases.TryGetValue(
+                        dependency[..separator],
+                        out var aliasTarget))
                 {
-                    RecordSymbol(
-                        semanticModel.GetAliasInfo(identifier)?.Target,
-                        syntaxTree.FilePath,
-                        filesByDependency);
+                    dependency = aliasTarget + dependency[separator..];
                 }
 
-                var symbolInfo = semanticModel.GetSymbolInfo(name);
-                RecordSymbol(
-                    symbolInfo.Symbol ?? symbolInfo.CandidateSymbols.FirstOrDefault(),
-                    syntaxTree.FilePath,
-                    filesByDependency);
-                RecordSymbol(
-                    semanticModel.GetTypeInfo(name).Type,
-                    syntaxTree.FilePath,
-                    filesByDependency);
+                RecordDependency(dependency, source.Key, filesByDependency);
+            }
+
+            foreach (var implicitType in ImplicitSystemIoTypes)
+            {
+                if (!declaredTypes.Contains(implicitType)
+                    && Regex.IsMatch(
+                        source.Value,
+                        $@"\b{Regex.Escape(implicitType)}\b",
+                        RegexOptions.CultureInvariant))
+                {
+                    RecordDependency(
+                        $"System.IO.{implicitType}",
+                        source.Key,
+                        filesByDependency);
+                }
             }
         }
 
@@ -303,34 +341,12 @@ internal static class CSharpDependencyAnalyzer
                 StringComparer.Ordinal));
     }
 
-    private static void RecordSymbol(
-        ISymbol? symbol,
+    private static void RecordDependency(
+        string dependency,
         string sourcePath,
         IDictionary<string, HashSet<string>> filesByDependency)
     {
-        var dependencySymbol = symbol switch
-        {
-            IAliasSymbol alias => alias.Target,
-            INamespaceSymbol namespaceSymbol => namespaceSymbol,
-            INamedTypeSymbol namedType => namedType.OriginalDefinition,
-            IMethodSymbol method => method.ContainingType,
-            IPropertySymbol property => property.ContainingType,
-            IFieldSymbol field => field.ContainingType,
-            IEventSymbol eventSymbol => eventSymbol.ContainingType,
-            ILocalSymbol local => local.Type,
-            IParameterSymbol parameter => parameter.Type,
-            _ => null,
-        };
-
-        if (dependencySymbol is null)
-        {
-            return;
-        }
-
-        var dependency = dependencySymbol
-            .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-            .Replace("global::", string.Empty, StringComparison.Ordinal);
-        if (dependency.Length == 0 || dependency == "<global namespace>")
+        if (dependency.Length == 0)
         {
             return;
         }
@@ -344,46 +360,333 @@ internal static class CSharpDependencyAnalyzer
         sourceFiles.Add(sourcePath);
     }
 
-    private static IReadOnlyCollection<MetadataReference> CreateMetadataReferences()
+    private static string NormalizeName(string value) =>
+        Regex.Replace(
+                value,
+                @"[ \t\r\n]",
+                string.Empty,
+                RegexOptions.CultureInvariant)
+            .Replace("global::", string.Empty, StringComparison.Ordinal);
+
+    private static string Sanitize(string source)
     {
-        var assemblyPaths = new HashSet<string>(
-            StringComparer.OrdinalIgnoreCase);
-        if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string
-            trustedPlatformAssemblies)
-        {
-            foreach (var path in trustedPlatformAssemblies.Split(
-                         Path.PathSeparator,
-                         StringSplitOptions.RemoveEmptyEntries))
-            {
-                assemblyPaths.Add(path);
-            }
-        }
-
-        foreach (var path in Directory.EnumerateFiles(
-                     AppContext.BaseDirectory,
-                     "*.dll",
-                     SearchOption.TopDirectoryOnly))
-        {
-            assemblyPaths.Add(path);
-        }
-
-        var references = new List<MetadataReference>();
-        foreach (var path in assemblyPaths.OrderBy(
-                     path => path,
-                     StringComparer.OrdinalIgnoreCase))
-        {
-            try
-            {
-                references.Add(MetadataReference.CreateFromFile(path));
-            }
-            catch (BadImageFormatException)
-            {
-            }
-            catch (FileLoadException)
-            {
-            }
-        }
-
-        return references;
+        var sanitized = source.ToCharArray();
+        SanitizeCode(source, sanitized, 0, stopAtClosingBrace: false);
+        return new string(sanitized);
     }
+
+    private static int SanitizeCode(
+        string source,
+        char[] sanitized,
+        int start,
+        bool stopAtClosingBrace)
+    {
+        var braceDepth = 0;
+        for (var index = start; index < source.Length;)
+        {
+            if (stopAtClosingBrace && source[index] == '}')
+            {
+                if (braceDepth == 0)
+                {
+                    return index;
+                }
+
+                braceDepth--;
+                index++;
+                continue;
+            }
+
+            if (stopAtClosingBrace && source[index] == '{')
+            {
+                braceDepth++;
+                index++;
+                continue;
+            }
+
+            if (source[index] == '/'
+                && index + 1 < source.Length
+                && source[index + 1] == '/')
+            {
+                var end = source.IndexOf('\n', index + 2);
+                end = end < 0 ? source.Length : end;
+                Blank(sanitized, index, end);
+                index = end;
+                continue;
+            }
+
+            if (source[index] == '/'
+                && index + 1 < source.Length
+                && source[index + 1] == '*')
+            {
+                var end = source.IndexOf(
+                    "*/",
+                    index + 2,
+                    StringComparison.Ordinal);
+                end = end < 0 ? source.Length : end + 2;
+                Blank(sanitized, index, end);
+                index = end;
+                continue;
+            }
+
+            if (TryGetStringStart(
+                    source,
+                    index,
+                    out var quoteIndex,
+                    out var verbatim,
+                    out var interpolated,
+                    out var quoteCount))
+            {
+                index = interpolated && quoteCount == 1
+                    ? SanitizeInterpolatedString(
+                        source,
+                        sanitized,
+                        index,
+                        quoteIndex,
+                        verbatim)
+                    : SanitizeString(
+                        source,
+                        sanitized,
+                        index,
+                        quoteIndex,
+                        verbatim,
+                        quoteCount);
+                continue;
+            }
+
+            if (source[index] == '\'')
+            {
+                index = SanitizeCharacter(source, sanitized, index);
+                continue;
+            }
+
+            index++;
+        }
+
+        return source.Length;
+    }
+
+    private static int SanitizeInterpolatedString(
+        string source,
+        char[] sanitized,
+        int start,
+        int quoteIndex,
+        bool verbatim)
+    {
+        Blank(sanitized, start, quoteIndex + 1);
+        for (var index = quoteIndex + 1; index < source.Length;)
+        {
+            if (!verbatim && source[index] == '\\')
+            {
+                var end = Math.Min(index + 2, source.Length);
+                Blank(sanitized, index, end);
+                index = end;
+                continue;
+            }
+
+            if (source[index] == '"')
+            {
+                if (verbatim
+                    && index + 1 < source.Length
+                    && source[index + 1] == '"')
+                {
+                    Blank(sanitized, index, index + 2);
+                    index += 2;
+                    continue;
+                }
+
+                Blank(sanitized, index, index + 1);
+                return index + 1;
+            }
+
+            if (source[index] == '{')
+            {
+                if (index + 1 < source.Length && source[index + 1] == '{')
+                {
+                    Blank(sanitized, index, index + 2);
+                    index += 2;
+                    continue;
+                }
+
+                Blank(sanitized, index, index + 1);
+                var closingBrace = SanitizeCode(
+                    source,
+                    sanitized,
+                    index + 1,
+                    stopAtClosingBrace: true);
+                if (closingBrace >= source.Length)
+                {
+                    return source.Length;
+                }
+
+                Blank(sanitized, closingBrace, closingBrace + 1);
+                index = closingBrace + 1;
+                continue;
+            }
+
+            if (source[index] == '}'
+                && index + 1 < source.Length
+                && source[index + 1] == '}')
+            {
+                Blank(sanitized, index, index + 2);
+                index += 2;
+                continue;
+            }
+
+            Blank(sanitized, index, index + 1);
+            index++;
+        }
+
+        return source.Length;
+    }
+
+    private static int SanitizeString(
+        string source,
+        char[] sanitized,
+        int start,
+        int quoteIndex,
+        bool verbatim,
+        int quoteCount)
+    {
+        if (quoteCount >= 3)
+        {
+            var terminator = new string('"', quoteCount);
+            var closing = source.IndexOf(
+                terminator,
+                quoteIndex + quoteCount,
+                StringComparison.Ordinal);
+            var end = closing < 0
+                ? source.Length
+                : closing + quoteCount;
+            Blank(sanitized, start, end);
+            return end;
+        }
+
+        for (var index = quoteIndex + 1; index < source.Length; index++)
+        {
+            if (!verbatim && source[index] == '\\')
+            {
+                index++;
+                continue;
+            }
+
+            if (source[index] != '"')
+            {
+                continue;
+            }
+
+            if (verbatim
+                && index + 1 < source.Length
+                && source[index + 1] == '"')
+            {
+                index++;
+                continue;
+            }
+
+            var end = index + 1;
+            Blank(sanitized, start, end);
+            return end;
+        }
+
+        Blank(sanitized, start, source.Length);
+        return source.Length;
+    }
+
+    private static int SanitizeCharacter(
+        string source,
+        char[] sanitized,
+        int start)
+    {
+        for (var index = start + 1; index < source.Length; index++)
+        {
+            if (source[index] == '\\')
+            {
+                index++;
+                continue;
+            }
+
+            if (source[index] == '\'')
+            {
+                var end = index + 1;
+                Blank(sanitized, start, end);
+                return end;
+            }
+        }
+
+        Blank(sanitized, start, source.Length);
+        return source.Length;
+    }
+
+    private static bool TryGetStringStart(
+        string source,
+        int index,
+        out int quoteIndex,
+        out bool verbatim,
+        out bool interpolated,
+        out int quoteCount)
+    {
+        quoteIndex = -1;
+        verbatim = false;
+        interpolated = false;
+        quoteCount = 0;
+
+        if (source[index] == '"')
+        {
+            quoteIndex = index;
+        }
+        else if (source[index] == '@'
+                 && index + 1 < source.Length
+                 && source[index + 1] == '"')
+        {
+            quoteIndex = index + 1;
+            verbatim = true;
+        }
+        else if (source[index] == '$'
+                 && index + 1 < source.Length
+                 && source[index + 1] == '"')
+        {
+            quoteIndex = index + 1;
+            interpolated = true;
+        }
+        else if (index + 2 < source.Length
+                 && ((source[index] == '$'
+                      && source[index + 1] == '@')
+                     || (source[index] == '@'
+                         && source[index + 1] == '$'))
+                 && source[index + 2] == '"')
+        {
+            quoteIndex = index + 2;
+            verbatim = true;
+            interpolated = true;
+        }
+
+        if (quoteIndex < 0)
+        {
+            return false;
+        }
+
+        while (quoteIndex + quoteCount < source.Length
+               && source[quoteIndex + quoteCount] == '"')
+        {
+            quoteCount++;
+        }
+
+        return true;
+    }
+
+    private static void Blank(char[] value, int start, int end)
+    {
+        for (var index = start; index < end; index++)
+        {
+            if (value[index] is not ('\r' or '\n'))
+            {
+                value[index] = ' ';
+            }
+        }
+    }
+
+    private sealed record AliasDefinition(
+        string Name,
+        string Target,
+        bool IsGlobal,
+        string SourcePath);
 }

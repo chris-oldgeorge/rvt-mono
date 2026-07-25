@@ -42,6 +42,30 @@ public sealed class S3ObjectStorageClientTests
     }
 
     [TestMethod]
+    public async Task WriteAsync_WhenProviderCancelsWithoutCallerCancellation_TranslatesUnavailable()
+    {
+        const string providerMessage = "configured-provider-timeout";
+        var content = new MemoryStream([1], writable: false);
+        var key = StorageObjectKey.Parse("sample.wav");
+        using var cancellation = new CancellationTokenSource();
+        var s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        s3.Setup(client => client.PutObjectAsync(
+                It.IsAny<PutObjectRequest>(),
+                cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(providerMessage));
+        var client = CreateClient(s3);
+
+        await AssertUnavailableProviderCancellationAsync(
+            () => client.WriteAsync(
+                new StorageWriteRequest(key, content),
+                cancellation.Token),
+            key,
+            providerMessage);
+
+        s3.VerifyAll();
+    }
+
+    [TestMethod]
     public async Task OpenReadAsync_ReturnsStreamingContentMetadataAndResponseLease()
     {
         var content = new DisposeCountingStream([4, 5, 6]);
@@ -111,6 +135,27 @@ public sealed class S3ObjectStorageClientTests
     }
 
     [TestMethod]
+    public async Task OpenReadAsync_WhenProviderCancelsWithoutCallerCancellation_TranslatesUnavailable()
+    {
+        const string providerMessage = "configured-provider-timeout";
+        var key = StorageObjectKey.Parse("sample.wav");
+        using var cancellation = new CancellationTokenSource();
+        var s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        s3.Setup(client => client.GetObjectAsync(
+                It.IsAny<GetObjectRequest>(),
+                cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(providerMessage));
+        var client = CreateClient(s3);
+
+        await AssertUnavailableProviderCancellationAsync(
+            () => client.OpenReadAsync(key, cancellation.Token),
+            key,
+            providerMessage);
+
+        s3.VerifyAll();
+    }
+
+    [TestMethod]
     public async Task DeleteIfExistsAsync_WhenMetadataIsMissing_ReturnsFalseWithoutDelete()
     {
         var key = StorageObjectKey.Parse("missing.wav");
@@ -157,6 +202,34 @@ public sealed class S3ObjectStorageClientTests
         var deleted = await client.DeleteIfExistsAsync(key, cancellationToken);
 
         Assert.IsTrue(deleted);
+        s3.VerifyAll();
+    }
+
+    [TestMethod]
+    public async Task DeleteIfExistsAsync_WhenProviderCancelsWithoutCallerCancellation_TranslatesUnavailable()
+    {
+        const string providerMessage = "configured-provider-timeout";
+        var key = StorageObjectKey.Parse("sample.wav");
+        using var cancellation = new CancellationTokenSource();
+        var s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        var sequence = new MockSequence();
+        s3.InSequence(sequence)
+            .Setup(client => client.GetObjectMetadataAsync(
+                It.IsAny<GetObjectMetadataRequest>(),
+                cancellation.Token))
+            .ReturnsAsync(new GetObjectMetadataResponse());
+        s3.InSequence(sequence)
+            .Setup(client => client.DeleteObjectAsync(
+                It.IsAny<DeleteObjectRequest>(),
+                cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(providerMessage));
+        var client = CreateClient(s3);
+
+        await AssertUnavailableProviderCancellationAsync(
+            () => client.DeleteIfExistsAsync(key, cancellation.Token),
+            key,
+            providerMessage);
+
         s3.VerifyAll();
     }
 
@@ -245,6 +318,22 @@ public sealed class S3ObjectStorageClientTests
         Mock<IAmazonS3> s3,
         string prefix = "") =>
         new("recordings-resource", s3.Object, "recordings", prefix);
+
+    private static async Task AssertUnavailableProviderCancellationAsync(
+        Func<Task> operation,
+        StorageObjectKey expectedKey,
+        string providerMessage)
+    {
+        var exception =
+            await Assert.ThrowsExactlyAsync<ObjectStorageException>(operation);
+
+        Assert.AreEqual(StorageFailureKind.Unavailable, exception.Kind);
+        Assert.AreEqual("recordings-resource", exception.ResourceName);
+        Assert.AreSame(expectedKey, exception.Key);
+        Assert.IsInstanceOfType<OperationCanceledException>(
+            exception.InnerException);
+        Assert.DoesNotContain(providerMessage, exception.Message);
+    }
 
     private static AmazonS3Exception CreateException(
         HttpStatusCode status,

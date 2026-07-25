@@ -70,6 +70,10 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         {
             throw;
         }
+        catch (OperationCanceledException exception)
+        {
+            throw TranslateCancellation(exception, request.Key);
+        }
         catch (RequestFailedException exception)
         {
             throw TranslateFailure(exception, request.Key);
@@ -97,6 +101,10 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         {
             throw;
         }
+        catch (OperationCanceledException exception)
+        {
+            throw TranslateCancellation(exception, key);
+        }
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
             return null;
@@ -122,6 +130,10 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (OperationCanceledException exception)
+        {
+            throw TranslateCancellation(exception, key);
         }
         catch (RequestFailedException exception)
         {
@@ -175,6 +187,15 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         StorageObjectKey key) =>
         new(
             ClassifyFailure(exception.Status),
+            resourceName,
+            key,
+            exception);
+
+    private ObjectStorageException TranslateCancellation(
+        OperationCanceledException exception,
+        StorageObjectKey key) =>
+        new(
+            StorageFailureKind.Unavailable,
             resourceName,
             key,
             exception);

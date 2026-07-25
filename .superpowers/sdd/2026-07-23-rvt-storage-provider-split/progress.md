@@ -40,3 +40,12 @@ explicitly pending.
 Task 10 review fix round 1/5: complete. ReportingMonitor documentation now
 attributes normalized-key return to the named `IObjectStorageClient` and
 provider-URI construction/persistence to `IReportObjectUriResolver`.
+Final whole-plan review fix: complete. Azure/S3 non-caller cancellation now
+maps to neutral Unavailable failures after the caller-cancellation filter
+(strict RED 6/6; focused GREEN 8/8 including caller controls; storage
+154/154). The five source-split storage locks and the CodeAnalysis
+catalog/reference are removed; the package-free dependency boundary passes
+13/13. A serial temporary-lock restore covers all 20 Common solution projects,
+and the 101-pair license inventory is exact. The four repository guards pass.
+The refreshed vulnerability audit remains DNS-blocked, and the external Graph
+upload-chunk non-caller timeout translation remains the merge blocker.

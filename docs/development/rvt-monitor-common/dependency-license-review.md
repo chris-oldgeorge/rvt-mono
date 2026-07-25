@@ -1,34 +1,51 @@
 # Dependency license review
 
-Reviewed: 2026-07-16; storage ownership updated: 2026-07-26
+Reviewed: 2026-07-16; 20-project inventory and storage ownership refreshed:
+2026-07-26
 
 ## Scope and method
 
-This review covers every distinct direct and transitive package/version pair resolved by the seven projects in `rvt-common.sln`. The inventory was generated with:
+This review covers all 101 distinct direct and transitive package/version pairs
+resolved by the 20 projects currently listed in `rvt-common.sln`. The inventory
+was refreshed after a bounded restore redirected every generated lock to an
+isolated temporary directory:
 
 ```bash
+dotnet restore rvt-common.sln \
+  -p:RestorePackagesWithLockFile=true \
+  -p:RestoreLockedMode=false \
+  -p:NuGetLockFilePath="${TEMP_LOCK_ROOT}/\$(MSBuildProjectName).packages.lock.json"
 dotnet list rvt-common.sln package --include-transitive --format json --no-restore \
   > /private/tmp/rvt-reporting-dependency-inventory.json
 ```
 
-The `--no-restore` form uses the checked-in lock files and existing restored assets. For each row below, the license and source values were read from the exact resolved package's cached `.nuspec`; no license was inferred from a package name. A package is marked direct if any solution project references that exact package/version directly, otherwise it is marked transitive.
+The temporary restore is verification-only: it neither creates nor modifies a
+tracked lock. For each row below, the license and source values were read from
+the exact resolved package's cached `.nuspec`; no license was inferred from a
+package name. A package is marked direct if any solution project references
+that exact package/version directly, otherwise it is marked transitive.
 
-The NuGet vulnerability audit was run against NuGet.org and the private RVT GitHub Packages feed:
+The refreshed NuGet vulnerability audit was attempted with:
 
 ```bash
-dotnet list rvt-common.sln package --vulnerable --include-transitive --no-restore
+dotnet list rvt-common.sln package --vulnerable --include-transitive \
+  --no-restore
 ```
 
-It completed successfully and reported no vulnerable packages for all seven solution projects.
+The bounded attempt exited before producing an audit result because sandbox DNS
+could not resolve `api.nuget.org`. No current 20-project vulnerability result is
+claimed; rerun the command in a network-enabled release environment.
 
-The later storage provider split changes package ownership, not the recorded
-license decisions. `Rvt.Monitor.Common` no longer references any Azure or AWS
-storage SDK. `AWSSDK.S3` is direct only in `Rvt.Storage.S3`, with
-`AWSSDK.Core` transitive through that provider. `Azure.Identity` and
-`Azure.Storage.Blobs` are direct only in `Rvt.Storage.AzureBlob`, with
-`Azure.Core`, `Azure.Storage.Common`, and `System.ClientModel` transitive
-through that provider. `Rvt.Storage.Abstractions` and `Rvt.Storage.Local` own
-no cloud-provider SDK dependency.
+The storage provider split changes package ownership, not the recorded license
+decisions. `Rvt.Monitor.Common` no longer references any Azure or AWS storage
+SDK. `AWSSDK.S3` is direct only in `Rvt.Storage.S3`, with `AWSSDK.Core`
+transitive through that provider. `Azure.Identity` and `Azure.Storage.Blobs`
+are direct only in `Rvt.Storage.AzureBlob`, with `Azure.Core`,
+`Azure.Storage.Common`, and `System.ClientModel` transitive through that
+provider. `Rvt.Storage.Abstractions` and `Rvt.Storage.Local` own no
+cloud-provider SDK dependency. The refreshed final graph contains no
+CodeAnalysis compiler package; the storage dependency guard uses only
+repository and framework facilities.
 
 `Microsoft.Data.SqlClient.SNI.runtime` declares a packaged license file rather than an SPDX expression. Its resolved `LICENSE.txt` was inspected directly and contains Microsoft Software License Terms permitting object-code distribution as part of an application subject to the stated conditions. It is approved for this package use on that recorded basis. All other decisions below are based on the exact license expression or license URL recorded in the resolved `.nuspec`.
 
@@ -68,21 +85,27 @@ no cloud-provider SDK dependency.
 | `Microsoft.Extensions.Configuration` | `10.0.9` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Configuration.Abstractions` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Configuration.Binder` | `10.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.Configuration.Binder` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.DependencyInjection` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
-| `Microsoft.Extensions.DependencyInjection.Abstractions` | `10.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
-| `Microsoft.Extensions.DependencyInjection.Abstractions` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
-| `Microsoft.Extensions.Diagnostics.Abstractions` | `10.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
-| `Microsoft.Extensions.FileProviders.Abstractions` | `10.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
-| `Microsoft.Extensions.Hosting.Abstractions` | `10.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.DependencyInjection` | `10.0.9` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.DependencyInjection.Abstractions` | `10.0.9` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.Diagnostics` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.Diagnostics.Abstractions` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.FileProviders.Abstractions` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.Hosting.Abstractions` | `10.0.9` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.Http` | `10.0.9` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Logging` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.Logging` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Logging.Abstractions` | `10.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
-| `Microsoft.Extensions.Logging.Abstractions` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.Logging.Abstractions` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Logging.Configuration` | `10.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
-| `Microsoft.Extensions.Options` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.Options` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Options.ConfigurationExtensions` | `10.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
+| `Microsoft.Extensions.Options.ConfigurationExtensions` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Primitives` | `10.0.9` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Identity.Client` | `4.73.1` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/AzureAD/microsoft-authentication-library-for-dotnet> | Approved |
 | `Microsoft.Identity.Client.Extensions.Msal` | `4.73.1` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/AzureAD/microsoft-authentication-library-for-dotnet> | Approved |
+| `Microsoft.IdentityModel.Abstractions` | `6.35.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet> | Approved |
 | `Microsoft.IdentityModel.Abstractions` | `8.16.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet> | Approved |
 | `Microsoft.IdentityModel.JsonWebTokens` | `8.16.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet> | Approved |
 | `Microsoft.IdentityModel.Logging` | `8.16.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet> | Approved |
@@ -121,11 +144,13 @@ no cloud-provider SDK dependency.
 | `SendGrid` | `9.29.3` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/sendgrid/sendgrid-csharp.git> | Approved |
 | `System.ClientModel` | `1.5.1` | transitive via `Rvt.Storage.AzureBlob` | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/Azure/azure-sdk-for-net> | Approved |
 | `System.Configuration.ConfigurationManager` | `9.0.13` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |
+| `System.Diagnostics.EventLog` | `6.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |
 | `System.Diagnostics.EventLog` | `9.0.13` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |
 | `System.IO.Hashing` | `8.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |
 | `System.IdentityModel.Tokens.Jwt` | `8.16.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet> | Approved |
 | `System.Memory.Data` | `8.0.1` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |
 | `System.Security.Cryptography.Pkcs` | `9.0.13` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |
+| `System.Security.Cryptography.ProtectedData` | `4.5.0` | transitive | License URL: <https://github.com/dotnet/corefx/blob/master/LICENSE.TXT> | Project/source: <https://github.com/dotnet/corefx> | Approved |
 | `System.Security.Cryptography.ProtectedData` | `9.0.13` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |
 | `coverlet.collector` | `6.0.2` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/coverlet-coverage/coverlet.git> | Approved |
 | `starkbank-ecdsa` | `1.3.3` | transitive | URL: <https://opensource.org/licenses/MIT> | Project/source: <https://github.com/starkbank/ecdsa-dotnet> | Approved |

@@ -8,7 +8,6 @@
     <PackageVersion Include="Azure.Identity" Version="1.15.0" />
     <PackageVersion Include="Azure.Storage.Blobs" Version="12.25.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" Condition="'$(MSBuildProjectName)' == 'Rvt.Storage.Tests'" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" Condition="'$(MSBuildProjectName)' == 'Rvt.CommunicationTests'" />

@@ -92,6 +92,44 @@ public sealed class AzureBlobObjectStorageClientTests
     }
 
     [TestMethod]
+    public async Task WriteAsync_WhenProviderCancelsWithoutCallerCancellation_TranslatesUnavailable()
+    {
+        const string providerMessage = "configured-provider-timeout";
+        var content = new MemoryStream([1], writable: false);
+        var key = StorageObjectKey.Parse("sample.wav");
+        using var cancellation = new CancellationTokenSource();
+        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        container
+            .Setup(client => client.GetBlobClient("sample.wav"))
+            .Returns(blob.Object);
+        container
+            .Setup(client => client.CreateIfNotExistsAsync(
+                PublicAccessType.None,
+                null,
+                null,
+                cancellation.Token))
+            .ReturnsAsync((Response<BlobContainerInfo>)null!);
+        blob
+            .Setup(client => client.UploadAsync(
+                content,
+                It.IsAny<BlobUploadOptions>(),
+                cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(providerMessage));
+        var client = CreateClient(container);
+
+        await AssertUnavailableProviderCancellationAsync(
+            () => client.WriteAsync(
+                new StorageWriteRequest(key, content),
+                cancellation.Token),
+            key,
+            providerMessage);
+
+        container.VerifyAll();
+        blob.VerifyAll();
+    }
+
+    [TestMethod]
     public async Task OpenReadAsync_ReturnsStreamingContentMetadataAndResponseLease()
     {
         var content = new MemoryStream([4, 5, 6], writable: false);
@@ -152,6 +190,33 @@ public sealed class AzureBlobObjectStorageClientTests
     }
 
     [TestMethod]
+    public async Task OpenReadAsync_WhenProviderCancelsWithoutCallerCancellation_TranslatesUnavailable()
+    {
+        const string providerMessage = "configured-provider-timeout";
+        var key = StorageObjectKey.Parse("sample.wav");
+        using var cancellation = new CancellationTokenSource();
+        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        container
+            .Setup(client => client.GetBlobClient("sample.wav"))
+            .Returns(blob.Object);
+        blob
+            .Setup(client => client.DownloadStreamingAsync(
+                It.IsAny<BlobDownloadOptions>(),
+                cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(providerMessage));
+        var client = CreateClient(container);
+
+        await AssertUnavailableProviderCancellationAsync(
+            () => client.OpenReadAsync(key, cancellation.Token),
+            key,
+            providerMessage);
+
+        container.VerifyAll();
+        blob.VerifyAll();
+    }
+
+    [TestMethod]
     public async Task DeleteIfExistsAsync_ReturnsAzureResult()
     {
         var key = StorageObjectKey.Parse("sample.wav");
@@ -173,6 +238,34 @@ public sealed class AzureBlobObjectStorageClientTests
         var deleted = await client.DeleteIfExistsAsync(key);
 
         Assert.IsTrue(deleted);
+        container.VerifyAll();
+        blob.VerifyAll();
+    }
+
+    [TestMethod]
+    public async Task DeleteIfExistsAsync_WhenProviderCancelsWithoutCallerCancellation_TranslatesUnavailable()
+    {
+        const string providerMessage = "configured-provider-timeout";
+        var key = StorageObjectKey.Parse("sample.wav");
+        using var cancellation = new CancellationTokenSource();
+        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        container
+            .Setup(client => client.GetBlobClient("sample.wav"))
+            .Returns(blob.Object);
+        blob
+            .Setup(client => client.DeleteIfExistsAsync(
+                DeleteSnapshotsOption.None,
+                null,
+                cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(providerMessage));
+        var client = CreateClient(container);
+
+        await AssertUnavailableProviderCancellationAsync(
+            () => client.DeleteIfExistsAsync(key, cancellation.Token),
+            key,
+            providerMessage);
+
         container.VerifyAll();
         blob.VerifyAll();
     }
@@ -273,4 +366,20 @@ public sealed class AzureBlobObjectStorageClientTests
         Mock<BlobContainerClient> container,
         string prefix = "") =>
         new("recordings", container.Object, prefix);
+
+    private static async Task AssertUnavailableProviderCancellationAsync(
+        Func<Task> operation,
+        StorageObjectKey expectedKey,
+        string providerMessage)
+    {
+        var exception =
+            await Assert.ThrowsExactlyAsync<ObjectStorageException>(operation);
+
+        Assert.AreEqual(StorageFailureKind.Unavailable, exception.Kind);
+        Assert.AreEqual("recordings", exception.ResourceName);
+        Assert.AreSame(expectedKey, exception.Key);
+        Assert.IsInstanceOfType<OperationCanceledException>(
+            exception.InnerException);
+        Assert.DoesNotContain(providerMessage, exception.Message);
+    }
 }

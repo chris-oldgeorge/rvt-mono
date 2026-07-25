@@ -1,5 +1,72 @@
 # Project State
 
+## Storage provider split final review fix - 2026-07-26 (complete)
+
+- Resume instruction: start a future session with
+  `Read project_state.md to get up to speed`.
+- This corrective scope starts from reviewed storage documentation head
+  `0539691`. It resolves the whole-plan findings for Azure/S3 non-caller
+  cancellation, source-split lock/catalog scope, and the 20-project dependency
+  inventory. It does not push or expand any Future Pending Work.
+- `AzureBlobObjectStorageClient` and `S3ObjectStorageClient` now translate a
+  provider-thrown `OperationCanceledException` to the secret-safe neutral
+  `ObjectStorageException` with `StorageFailureKind.Unavailable`, the configured
+  resource name, the requested `StorageObjectKey`, and the provider exception
+  retained only as `InnerException`. The existing first catch filter still
+  rethrows cancellation unchanged when the supplied caller token is cancelled.
+  Status classification, not-found handling, streaming leases, and S3
+  disposal are unchanged.
+- Strict provider TDD evidence:
+  - focused RED compiled and failed all 6 new Azure/S3
+    `WriteAsync`/`OpenReadAsync`/`DeleteIfExistsAsync` cases because exact
+    `ObjectStorageException` was expected and raw
+    `OperationCanceledException` escaped;
+  - after the minimal catches, the same 6 cases plus both existing
+    caller-cancellation controls passed 8/8;
+  - the full storage suite passed 154/154.
+  Test variables are `providerMessage`, `cancellation`, and `expectedKey`.
+- Source-split scope is restored: the five locks formerly tracked under
+  `Rvt.Storage.Abstractions`, `Rvt.Storage.Local`,
+  `Rvt.Storage.AzureBlob`, `Rvt.Storage.S3`, and `Rvt.Storage.Tests` are
+  deleted. No other repository lock is modified. Complete atomic lock
+  regeneration remains delegated to the provider-package release migration.
+- The conditional `Microsoft.CodeAnalysis.CSharp` catalog entry and private
+  storage-test reference are removed. The package-free boundary analyzer uses
+  BCL regular expressions and a lexical sanitizer to discard comments and
+  literal text, retain executable interpolation holes, resolve local/global
+  aliases across source files, distinguish the covered user-defined
+  filesystem lookalikes, and report source paths for real dependencies.
+  Existing dependency-boundary regressions all remain and the focused boundary
+  slice passes 13/13. Analyzer variables are `AliasUsingPattern`,
+  `NamespaceUsingPattern`, `QualifiedNamePattern`, `DeclaredTypePattern`,
+  `ImplicitSystemIoTypes`, `sanitizedSources`, `aliases`, and
+  `filesByDependency`.
+- Temporary restore classification:
+  - the planned `RestorePackagesWithLockFile=false` solution attempt was
+    bounded and failed immediately with `NU1005`, because .NET 10 rejects that
+    setting while other solution projects retain checked-in locks;
+  - a serial retry with `RestorePackagesWithLockFile=true`,
+    `RestoreLockedMode=false`, and `NuGetLockFilePath` redirected to the
+    isolated `/private/tmp/rvt-storage-final-fix-locks.ks9vR8` location
+    restored all 20 projects without a tracked lock write;
+  - refreshed assets contain 101 distinct package/version pairs and no
+    CodeAnalysis compiler package.
+- `dependency-license-review.md` now exactly matches those 101 pairs and
+  attributes Azure/AWS dependencies to `Rvt.Storage.AzureBlob` and
+  `Rvt.Storage.S3`. The refreshed vulnerability-audit attempt was bounded but
+  DNS-blocked before a result because `api.nuget.org` was unavailable; no
+  current audit-clean claim is made.
+- Repository verification passes mono layout, mono solution, RVT common source
+  boundary, and its mutation regression companion. No storage lock exists in
+  the working tree, no `Microsoft.CodeAnalysis.CSharp` occurrence remains in
+  project/package catalog source, and `git diff --check` is clean.
+- Existing MSTest analyzer warnings remain outside this correction.
+  Microsoft Graph large-attachment upload-chunk non-caller timeout translation
+  remains the external carry-forward merge blocker; this storage fix does not
+  make the overall provider branch merge-ready.
+- Full evidence is in
+  `.superpowers/sdd/2026-07-23-rvt-storage-provider-split/final-review-fix-report.md`.
+
 ## Storage provider Task 10 - final verification and documentation - 2026-07-26 (complete)
 
 - Storage operator documentation now names the provider-neutral

@@ -7,9 +7,12 @@
   `verify-rvt-common-source-boundary.sh` guard incorrectly retained its former
   `Rvt.Monitor.Common` requirement.
 - The guard now requires the Abstractions project and rejects a Common project
-  reference. Its isolated behavioral regression first failed only on the stale
-  Common requirement, then passed after the correction; the normal
-  source-boundary test also passes.
+  reference. Review fix round 1 also rejects Local, Azure Blob, and S3 provider
+  references, enforcing that Reporting Storage depends only on Abstractions for
+  storage. Its isolated behavioral regression first failed on the stale Common
+  requirement, then on the missing Local-provider rejection, and now passes all
+  four forbidden-reference mutations; the normal source-boundary test also
+  passes.
 - This corrective guard/test-only change does not alter Task 10's four pending
   documentation edits, consumer source, package policy, locks, or future
   pending work. The Graph upload-chunk timeout translation remains the

@@ -13,6 +13,9 @@ sendgrid_mail_project="libs/rvt-monitor-common/src/Rvt.Communication.SendGridMai
 microsoft_graph_mail_project="libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj"
 transmit_sms_project="libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj"
 storage_abstractions_project="libs/rvt-monitor-common/src/Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj"
+storage_local_project="libs/rvt-monitor-common/src/Rvt.Storage.Local/Rvt.Storage.Local.csproj"
+storage_azure_blob_project="libs/rvt-monitor-common/src/Rvt.Storage.AzureBlob/Rvt.Storage.AzureBlob.csproj"
+storage_s3_project="libs/rvt-monitor-common/src/Rvt.Storage.S3/Rvt.Storage.S3.csproj"
 integration_testing_project="libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj"
 
 failures=0
@@ -155,6 +158,14 @@ require_project_reference \
 reject_project_reference \
   apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj \
   "${common_project}"
+for project in \
+  "${storage_local_project}" \
+  "${storage_azure_blob_project}" \
+  "${storage_s3_project}"; do
+  reject_project_reference \
+    apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj \
+    "${project}"
+done
 
 require_project_reference apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj "${common_project}"
 require_project_reference apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj "${integration_testing_project}"

@@ -11,9 +11,11 @@ versions and locks remain owned by the later release/lock plan.
 Carry-forward merge blocker: Graph large-attachment upload-chunk non-caller
 timeouts still need safe transient translation. No storage task depends on it;
 the final overall review must resolve it before merge.
-Task 7 boundary-guard follow-up: complete (pending commit; regression now
-requires `Rvt.Reporting.Storage` to reference `Rvt.Storage.Abstractions` and
-rejects `Rvt.Monitor.Common`).
+Task 7 boundary-guard follow-up: fix round 1/5 complete (base `d134bc0`;
+pending commit). The regression now requires `Rvt.Reporting.Storage` to
+reference `Rvt.Storage.Abstractions` and rejects `Rvt.Monitor.Common`,
+`Rvt.Storage.Local`, `Rvt.Storage.AzureBlob`, and `Rvt.Storage.S3`; both
+temporary roots are cleanup-trapped.
 Task 1: complete (commit `da0dfd2`, review clean).
 Task 2: complete (commit `406f057`, review clean).
 Task 3: complete (commit `e7e6e5b`, review clean).

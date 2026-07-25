@@ -5,7 +5,15 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fixture_root="${repo_root}/tests/fixtures/rvt-common-source-boundary"
 test_root="$(mktemp -d)"
 test_root="$(cd -P "${test_root}" && pwd)"
-trap 'rm -rf "${test_root}"' EXIT
+boundary_root=""
+
+cleanup() {
+  rm -rf "${test_root}"
+  if [[ -n "${boundary_root}" ]]; then
+    rm -rf "${boundary_root}"
+  fi
+}
+trap cleanup EXIT
 
 cp -R "${fixture_root}/." "${test_root}"
 mkdir -p "${test_root}/scripts"
@@ -41,9 +49,6 @@ grep -Fq \
   "${test_root}/output"
 
 boundary_root="$(mktemp -d /private/tmp/rvt-common-source-boundary.XXXXXX)"
-cleanup() {
-  rm -rf "${test_root}" "${boundary_root}"
-}
 
 copy_project() {
   local project="$1"
@@ -91,6 +96,35 @@ if ! "${boundary_root}/scripts/verify-rvt-common-source-boundary.sh" >"${boundar
   cat "${boundary_root}/output" >&2
   exit 1
 fi
+
+storage_project="${boundary_root}/apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj"
+storage_project_baseline="${storage_project}.baseline"
+cp "${storage_project}" "${storage_project_baseline}"
+
+add_storage_provider_reference() {
+  local provider_project="$1"
+  sed '$d' "${storage_project}" > "${storage_project}.next"
+  printf '  <ItemGroup>\n    <ProjectReference Include="../../../../libs/rvt-monitor-common/src/%s/%s.csproj" />\n  </ItemGroup>\n</Project>\n' \
+    "${provider_project}" "${provider_project}" >> "${storage_project}.next"
+  mv "${storage_project}.next" "${storage_project}"
+}
+
+for provider_project in Rvt.Storage.Local Rvt.Storage.AzureBlob Rvt.Storage.S3; do
+  cp "${storage_project_baseline}" "${storage_project}"
+  add_storage_provider_reference "${provider_project}"
+
+  if "${boundary_root}/scripts/verify-rvt-common-source-boundary.sh" >"${boundary_root}/output" 2>&1; then
+    printf 'Expected the guard to reject Reporting Storage reference to %s.\n' "${provider_project}" >&2
+    exit 1
+  fi
+
+  grep -Fq \
+    "apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj must not reference libs/rvt-monitor-common/src/${provider_project}/${provider_project}.csproj" \
+    "${boundary_root}/output"
+done
+
+cp "${storage_project_baseline}" "${storage_project}"
+rm "${storage_project_baseline}"
 
 sed -i.bak \
   's#Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj#Rvt.Monitor.Common/Rvt.Monitor.Common.csproj#' \

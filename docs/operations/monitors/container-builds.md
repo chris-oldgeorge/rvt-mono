@@ -1,33 +1,61 @@
-# Local Container Builds
+# Monitor Build Status
 
-Use the monorepo monitor module for local Docker work:
-
-```sh
-cd /Users/oldgeorge/Documents/rvt-mono/apps/monitors
-```
-
-The monitor API containers compile the in-repository Common projects through
-`ProjectReference`. The build context must therefore be the monorepo monitor
-context used by the root Compose file. Build normally:
+Use the monorepo for source builds:
 
 ```sh
-docker compose build
+cd /Users/oldgeorge/Documents/rvt-mono
+scripts/build-mono.sh
 ```
+
+Active .NET monitor projects compile Common, Common Infrastructure, and
+integration-test support through `ProjectReference` entries into the root
+`libs/rvt-monitor-common` tree. Ordinary project and solution restores use the
+checked-in per-project `packages.lock.json` files.
 
 `apps/monitors/NuGet.config` has nuget.org as its only source, for third-party
-dependencies. Container restore requires no additional feed, package token, or
-package inventory check.
+dependencies. Active source consumers do not restore Common packages and must
+not fall back to a package feed.
 
-Package artifact verification is a different workflow under
-`libs/rvt-monitor-common/package-validation`. Its consumers alone restore the
-locally built `0.2.0-rc.1` packages from
-`libs/rvt-monitor-common/artifacts/packages` and enforce their checked-in
-artifact lock files. Do not substitute that package workflow for the active
-monitor container build.
+## Package artifact validation
+
+`scripts/build-mono.sh` separately packs
+`Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and
+`Rvt.Monitor.IntegrationTesting` at exact version `0.2.0-rc.1` into the local
+`artifacts/packages` feed. Only the two consumers under
+`libs/rvt-monitor-common/package-validation` restore those artifacts.
+
+The script sets `RvtUseArtifactValidationLocks=true`, which redirects those
+consumers to generated, ignored
+`artifacts/validation-locks/RuntimeConsumer.packages.lock.json` and
+`artifacts/validation-locks/TestConsumer.packages.lock.json`. Repacking the same
+prerelease version can change archive hashes, so artifact validation generates
+these isolated locks instead of overwriting or relying on the checked-in
+source-project locks.
+
+## Container build limitation
+
+The checked-in container path is currently not supported or green:
+
+- every build `context: .` in `apps/monitors/docker-compose.yml` resolves to
+  `apps/monitors`;
+- every monitor Dockerfile runs `COPY . .`;
+- the active project references resolve outside that context into the
+  repository-root `libs/rvt-monitor-common`.
+
+An ordinary `docker compose build` therefore cannot resolve the active Common
+source projects. Compose and the Dockerfiles also retain obsolete
+`nuget_credentials` secret plumbing, but active source consumers do not need
+that credential.
+
+Before container builds can be claimed supported, follow-up work must use a
+monorepo-root build context, realign Dockerfile project paths, remove the
+obsolete secret plumbing, and verify clean image builds. Do not use a package
+feed or package-consumer fallback as a workaround.
 
 Do not build from the retired Parallels Windows C: share paths (`/Volumes/[C] Windows 11/...` or `/private/tmp/win11c/...`). Those mounted workspaces generated macOS SMB AppleDouble `._*` sidecars that could break Docker build-context packaging. The native clone avoids that class of failure, so the old filtered tar build workaround is no longer the default process.
 
-The root `docker-compose.yml` sets API mode at container level with environment variables:
+The checked-in `docker-compose.yml` describes the intended API-mode runtime
+environment after that build-path follow-up:
 
 ```sh
 Infrastructure=local
@@ -58,13 +86,9 @@ services:
     ports: ["127.0.0.1:8081:8080"]
 ```
 
-To run one API container locally:
-
-```sh
-docker compose up airqmonitor-api
-```
-
-For ReportingMonitor, use `docker compose up reportingmonitor-api`. The base service intentionally starts with the API enabled and Quartz disabled; enable the scheduler only in an explicit deployment configuration.
+The ReportingMonitor service definition starts with the API enabled and Quartz
+disabled; enable the scheduler only in an explicit deployment configuration
+after a supported image is available.
 
 Svantek uses local blob storage by default in the Compose setup. The named `svantek-audiofiles` volume is mounted at `/data/rvt/blobs` and persists sound recordings across container recreation. Remove the volume explicitly when the stored recordings should be deleted.
 

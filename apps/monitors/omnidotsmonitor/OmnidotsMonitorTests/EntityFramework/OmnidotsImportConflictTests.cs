@@ -20,19 +20,4 @@ public sealed class OmnidotsImportConflictTests
         Assert.IsFalse(DBClient.IsRetryablePostgreSqlState("P0001"));
     }
 
-    [TestMethod]
-    [DataRow(1205)]
-    [DataRow(3960)]
-    [DataRow(2601)]
-    [DataRow(2627)]
-    public void SqlServerSerializationDeadlockAndUniqueNumbers_AreRetryable(int errorNumber)
-    {
-        Assert.IsTrue(DBClient.IsRetryableSqlServerErrorNumber(errorNumber));
-    }
-
-    [TestMethod]
-    public void SqlServerOtherNumber_IsNotRetryable()
-    {
-        Assert.IsFalse(DBClient.IsRetryableSqlServerErrorNumber(50000));
-    }
 }

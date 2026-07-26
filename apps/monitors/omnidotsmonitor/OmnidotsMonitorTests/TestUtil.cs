@@ -32,7 +32,6 @@ namespace OmnidotsAdapterTests
                 new OmnidotsMonitorContextFactory(
                     "Host=localhost;Database=omnidots-tests;Username=omnidots-tests;Password=omnidots-tests",
                     new MonitorDbOptions(
-                        MonitorDatabaseProvider.PostgreSql,
                         new Dictionary<string, string>()))));
         }
 

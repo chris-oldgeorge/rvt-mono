@@ -11,93 +11,180 @@ namespace OmnidotsMonitorTests.EntityFramework;
 [TestClass]
 public sealed class OmnidotsModelMappingTests
 {
-    private const string SqlServerSeriesConstraintSql =
-        "([Series] COLLATE Latin1_General_100_BIN2 = N'Peak' AND DATALENGTH([Series]) = DATALENGTH(N'Peak')) OR " +
-        "([Series] COLLATE Latin1_General_100_BIN2 = N'Veff' AND DATALENGTH([Series]) = DATALENGTH(N'Veff')) OR " +
-        "([Series] COLLATE Latin1_General_100_BIN2 = N'Vdv' AND DATALENGTH([Series]) = DATALENGTH(N'Vdv'))";
-
     [TestMethod]
-    [DataRow(typeof(OmnidotsMonitorStatusEntity), "OmnidotsMonitorStatus", "omnidots_monitor_status")]
-    [DataRow(typeof(OmnidotsSensorEntity), "OmnidotsSensors", "omnidots_sensor")]
-    [DataRow(typeof(OmnidotsPeakLevelEntity), "OmnidotsPeakLevels", "omnidots_peak_level")]
-    [DataRow(typeof(OmnidotsVeffLevelEntity), "OmnidotsVeffLevels", "omnidots_veff_level")]
-    [DataRow(typeof(OmnidotsVdvLevelEntity), "OmnidotsVdvLevels", "omnidots_vdv_level")]
-    [DataRow(typeof(OmnidotsTraceIndexEntity), "OmnidotsTracesIndex", "omnidots_trace_index")]
-    [DataRow(typeof(OmnidotsTraceEntity), "OmnidotsTraces", "omnidots_trace")]
-    public void OmnidotsContext_MapsMonitorTables(Type entityClrType, string sqlServerTable, string postgreSqlTable)
+    [DataRow(typeof(OmnidotsMonitorStatusEntity), "omnidots_monitor_status")]
+    [DataRow(typeof(OmnidotsSensorEntity), "omnidots_sensor")]
+    [DataRow(typeof(OmnidotsPeakLevelEntity), "omnidots_peak_level")]
+    [DataRow(typeof(OmnidotsVeffLevelEntity), "omnidots_veff_level")]
+    [DataRow(typeof(OmnidotsVdvLevelEntity), "omnidots_vdv_level")]
+    [DataRow(typeof(OmnidotsErrorMessageEntity), "omnidots_error_message")]
+    [DataRow(typeof(OmnidotsTraceIndexEntity), "omnidots_trace_index")]
+    [DataRow(typeof(OmnidotsImportCursorEntity), "omnidots_import_cursor")]
+    [DataRow(typeof(OmnidotsTraceEntity), "omnidots_trace")]
+    public void OmnidotsContext_MapsCanonicalMonitorTablesWithoutSchemas(Type entityClrType, string tableName)
     {
-        using var sqlServerContext = CreateContext(MonitorDatabaseProvider.SqlServer);
-        using var postgreSqlContext = CreateContext(MonitorDatabaseProvider.PostgreSql);
+        using var context = CreateContext();
+        var entity = context.Model.FindEntityType(entityClrType);
 
-        var sqlServerEntity = sqlServerContext.Model.FindEntityType(entityClrType);
-        var postgreSqlEntity = postgreSqlContext.Model.FindEntityType(entityClrType);
-
-        Assert.IsNotNull(sqlServerEntity);
-        Assert.IsNotNull(postgreSqlEntity);
-        Assert.AreEqual(sqlServerTable, sqlServerEntity.GetTableName());
-        Assert.AreEqual("dbo", sqlServerEntity.GetSchema());
-        Assert.AreEqual(postgreSqlTable, postgreSqlEntity.GetTableName());
-        Assert.IsNull(postgreSqlEntity.GetSchema());
+        Assert.IsNotNull(entity);
+        Assert.AreEqual(tableName, entity.GetTableName());
+        Assert.IsNull(entity.GetSchema());
     }
 
     [TestMethod]
-    public void OmnidotsContext_MapsRepresentativeColumns()
+    public void OmnidotsContext_MapsCanonicalColumnsAndTimestampTypes()
     {
-        using var sqlServerContext = CreateContext(MonitorDatabaseProvider.SqlServer);
-        using var postgreSqlContext = CreateContext(MonitorDatabaseProvider.PostgreSql);
+        using var context = CreateContext();
 
-        var sqlServerPeak = sqlServerContext.Model.FindEntityType(typeof(OmnidotsPeakLevelEntity));
-        var postgreSqlPeak = postgreSqlContext.Model.FindEntityType(typeof(OmnidotsPeakLevelEntity));
-        var sqlServerTrace = sqlServerContext.Model.FindEntityType(typeof(OmnidotsTraceEntity));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(OmnidotsMonitorStatusEntity))!,
+            ("Id", "id"),
+            ("SerialId", "serial_id"),
+            ("MeasurementDuration", "measurement_duration"),
+            ("DataSaveLevel", "data_save_level"),
+            ("VdvEnabled", "vdv_enabled"),
+            ("VdvX", "vdv_x"),
+            ("VdvY", "vdv_y"),
+            ("VdvZ", "vdv_z"),
+            ("VdvPeriod", "vdv_period"),
+            ("TraceSaveLevel", "trace_save_level"),
+            ("TracePreTrigger", "trace_pre_trigger"),
+            ("TracePostTrigger", "trace_post_trigger"),
+            ("AlarmValue", "alarm_value"),
+            ("FlatLevel", "flat_level"),
+            ("DisableLed", "disable_led"),
+            ("LogFlushInterval", "log_flush_interval"),
+            ("GuideLine", "guide_line"),
+            ("BuildingLevel", "building_level"),
+            ("VectorEnabled", "vector_enabled"),
+            ("AtopEnabled", "atop_enabled"),
+            ("VtopEnabled", "vtop_enabled"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(OmnidotsSensorEntity))!,
+            ("Id", "id"),
+            ("SerialId", "serial_id"),
+            ("Name", "name"),
+            ("Lastseen", "lastseen"),
+            ("BatteryCharge", "battery_charge"),
+            ("ConnectedUsing", "connected_using"),
+            ("Online", "online"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(OmnidotsPeakLevelEntity))!,
+            ("SerialId", "serial_id"),
+            ("SampleTime", "sample_time"),
+            ("XFdom", "x_fdom"),
+            ("XVtop", "x_vtop"),
+            ("XVtopOverflow", "x_vtop_overflow"),
+            ("YFdom", "y_fdom"),
+            ("YVtop", "y_vtop"),
+            ("YVtopOverflow", "y_vtop_overflow"),
+            ("ZFdom", "z_fdom"),
+            ("ZVtop", "z_vtop"),
+            ("ZVtopOverflow", "z_vtop_overflow"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(OmnidotsVeffLevelEntity))!,
+            ("SerialId", "serial_id"),
+            ("SampleTime", "sample_time"),
+            ("X", "x"),
+            ("Y", "y"),
+            ("Z", "z"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(OmnidotsVdvLevelEntity))!,
+            ("SerialId", "serial_id"),
+            ("SampleTime", "sample_time"),
+            ("X", "x"),
+            ("Y", "y"),
+            ("Z", "z"),
+            ("VdvX", "vdv_x"),
+            ("VdvY", "vdv_y"),
+            ("VdvZ", "vdv_z"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(OmnidotsErrorMessageEntity))!,
+            ("Tag", "tag"),
+            ("Error", "error"),
+            ("ErrorTime", "error_time"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(OmnidotsTraceIndexEntity))!,
+            ("Id", "id"),
+            ("SerialId", "serial_id"),
+            ("StartTime", "start_time"),
+            ("EndTime", "end_time"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(OmnidotsImportCursorEntity))!,
+            ("SerialId", "serial_id"),
+            ("Series", "series"),
+            ("LastSampleAt", "last_sample_at"),
+            ("UpdatedAt", "updated_at"));
+        AssertColumns(
+            context.Model.FindEntityType(typeof(OmnidotsTraceEntity))!,
+            ("TraceId", "trace_id"),
+            ("SampleIndex", "sample_index"),
+            ("X", "x"),
+            ("Y", "y"),
+            ("Z", "z"));
 
-        Assert.IsNotNull(sqlServerPeak);
-        Assert.IsNotNull(postgreSqlPeak);
-        Assert.IsNotNull(sqlServerTrace);
-        Assert.AreEqual("XFdom", sqlServerPeak.FindProperty(nameof(OmnidotsPeakLevelEntity.XFdom))!.GetColumnName());
-        Assert.AreEqual("x_fdom", postgreSqlPeak.FindProperty(nameof(OmnidotsPeakLevelEntity.XFdom))!.GetColumnName());
-        Assert.AreEqual("TraceId", sqlServerTrace.FindProperty(nameof(OmnidotsTraceEntity.TraceId))!.GetColumnName());
-        Assert.AreEqual("trace_id", postgreSqlContext.Model.FindEntityType(typeof(OmnidotsTraceEntity))!
-            .FindProperty(nameof(OmnidotsTraceEntity.TraceId))!.GetColumnName());
+        AssertTimestamp(context, typeof(OmnidotsSensorEntity), nameof(OmnidotsSensorEntity.Lastseen));
+        AssertTimestamp(context, typeof(OmnidotsPeakLevelEntity), nameof(OmnidotsPeakLevelEntity.SampleTime));
+        AssertTimestamp(context, typeof(OmnidotsVeffLevelEntity), nameof(OmnidotsVeffLevelEntity.SampleTime));
+        AssertTimestamp(context, typeof(OmnidotsVdvLevelEntity), nameof(OmnidotsVdvLevelEntity.SampleTime));
+        AssertTimestamp(context, typeof(OmnidotsErrorMessageEntity), nameof(OmnidotsErrorMessageEntity.ErrorTime));
+        AssertTimestamp(context, typeof(OmnidotsTraceIndexEntity), nameof(OmnidotsTraceIndexEntity.StartTime));
+        AssertTimestamp(context, typeof(OmnidotsTraceIndexEntity), nameof(OmnidotsTraceIndexEntity.EndTime));
+        AssertTimestamp(context, typeof(OmnidotsImportCursorEntity), nameof(OmnidotsImportCursorEntity.LastSampleAt));
+        AssertTimestamp(context, typeof(OmnidotsImportCursorEntity), nameof(OmnidotsImportCursorEntity.UpdatedAt));
     }
 
     [TestMethod]
-    public void OmnidotsContext_MapsImportCursorToProviderMigrationShape()
+    public void OmnidotsContext_PreservesKeysAndCanonicalIndexes()
     {
-        using var sqlServerContext = CreateContext(MonitorDatabaseProvider.SqlServer);
-        using var postgreSqlContext = CreateContext(MonitorDatabaseProvider.PostgreSql);
+        using var context = CreateContext();
 
-        var sqlServerCursor = sqlServerContext.Model.FindEntityType(typeof(OmnidotsImportCursorEntity));
-        var postgreSqlCursor = postgreSqlContext.Model.FindEntityType(typeof(OmnidotsImportCursorEntity));
+        AssertKey(context, typeof(OmnidotsMonitorStatusEntity), "Id");
+        AssertKey(context, typeof(OmnidotsSensorEntity), "Id");
+        AssertKey(context, typeof(OmnidotsPeakLevelEntity), "SerialId", "SampleTime");
+        AssertKey(context, typeof(OmnidotsVeffLevelEntity), "SerialId", "SampleTime");
+        AssertKey(context, typeof(OmnidotsVdvLevelEntity), "SerialId", "SampleTime");
+        AssertKey(context, typeof(OmnidotsErrorMessageEntity), "Tag", "ErrorTime", "Error");
+        AssertKey(context, typeof(OmnidotsTraceIndexEntity), "Id");
+        AssertKey(context, typeof(OmnidotsImportCursorEntity), "SerialId", "Series");
+        AssertKey(context, typeof(OmnidotsTraceEntity), "TraceId", "SampleIndex");
 
-        Assert.IsNotNull(sqlServerCursor);
-        Assert.IsNotNull(postgreSqlCursor);
-        Assert.AreEqual("OmnidotsImportCursor", sqlServerCursor.GetTableName());
-        Assert.AreEqual("dbo", sqlServerCursor.GetSchema());
-        Assert.AreEqual("omnidots_import_cursor", postgreSqlCursor.GetTableName());
-        Assert.IsNull(postgreSqlCursor.GetSchema());
+        AssertIndex(
+            context.Model.FindEntityType(typeof(OmnidotsMonitorStatusEntity))!,
+            "ix_omnidots_monitor_status_serial_id",
+            false,
+            "SerialId");
+        AssertIndex(
+            context.Model.FindEntityType(typeof(OmnidotsSensorEntity))!,
+            "ix_omnidots_sensor_serial_id",
+            false,
+            "SerialId");
+        AssertIndex(
+            context.Model.FindEntityType(typeof(MonitorEntity))!,
+            "ix_monitor_serial_id_type_of_monitor",
+            false,
+            "SerialId",
+            "TypeOfMonitor");
+    }
 
-        AssertColumn(sqlServerCursor, nameof(OmnidotsImportCursorEntity.SerialId), "SerialId", "nvarchar(128)");
-        AssertColumn(sqlServerCursor, nameof(OmnidotsImportCursorEntity.Series), "Series", "nvarchar(16)");
-        AssertColumn(sqlServerCursor, nameof(OmnidotsImportCursorEntity.LastSampleAt), "LastSampleAt", "datetime2");
-        AssertColumn(sqlServerCursor, nameof(OmnidotsImportCursorEntity.UpdatedAt), "UpdatedAt", "datetime2");
-        AssertColumn(postgreSqlCursor, nameof(OmnidotsImportCursorEntity.SerialId), "serial_id", "text");
-        AssertColumn(postgreSqlCursor, nameof(OmnidotsImportCursorEntity.Series), "series", "text");
-        AssertColumn(postgreSqlCursor, nameof(OmnidotsImportCursorEntity.LastSampleAt), "last_sample_at", "timestamp with time zone");
-        AssertColumn(postgreSqlCursor, nameof(OmnidotsImportCursorEntity.UpdatedAt), "updated_at", "timestamp with time zone");
+    [TestMethod]
+    public void OmnidotsContext_MapsImportCursorToCanonicalMigrationShape()
+    {
+        using var context = CreateContext();
+        var cursor = context.Model.FindEntityType(typeof(OmnidotsImportCursorEntity));
 
+        Assert.IsNotNull(cursor);
+        Assert.AreEqual("omnidots_import_cursor", cursor.GetTableName());
+        Assert.IsNull(cursor.GetSchema());
+        AssertColumn(cursor, nameof(OmnidotsImportCursorEntity.SerialId), "serial_id", "text");
+        AssertColumn(cursor, nameof(OmnidotsImportCursorEntity.Series), "series", "text");
+        AssertColumn(cursor, nameof(OmnidotsImportCursorEntity.LastSampleAt), "last_sample_at", "timestamp with time zone");
+        AssertColumn(cursor, nameof(OmnidotsImportCursorEntity.UpdatedAt), "updated_at", "timestamp with time zone");
         CollectionAssert.AreEqual(
             new[] { nameof(OmnidotsImportCursorEntity.SerialId), nameof(OmnidotsImportCursorEntity.Series) },
-            sqlServerCursor.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
-        CollectionAssert.AreEqual(
-            new[] { nameof(OmnidotsImportCursorEntity.SerialId), nameof(OmnidotsImportCursorEntity.Series) },
-            postgreSqlCursor.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
-
+            cursor.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
         AssertSeriesConstraint(
-            sqlServerContext.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(OmnidotsImportCursorEntity))!,
-            "CK_OmnidotsImportCursor_Series",
-            SqlServerSeriesConstraintSql);
-        AssertSeriesConstraint(
-            postgreSqlContext.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(OmnidotsImportCursorEntity))!,
+            context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(OmnidotsImportCursorEntity))!,
             "ck_omnidots_import_cursor_series",
             "\"series\" IN ('Peak', 'Veff', 'Vdv')");
     }
@@ -105,8 +192,7 @@ public sealed class OmnidotsModelMappingTests
     [TestMethod]
     public void OmnidotsContext_MapsCursorTimestampsWithSymmetricUtcSemantics()
     {
-        using var sqlServerContext = CreateContext(MonitorDatabaseProvider.SqlServer);
-        using var postgreSqlContext = CreateContext(MonitorDatabaseProvider.PostgreSql);
+        using var context = CreateContext();
 
         var utcValue = new DateTime(2026, 7, 14, 9, 30, 0, DateTimeKind.Utc);
         var values = new[]
@@ -116,100 +202,80 @@ public sealed class OmnidotsModelMappingTests
             DateTime.SpecifyKind(utcValue, DateTimeKind.Unspecified)
         };
 
-        foreach (var context in new[] { sqlServerContext, postgreSqlContext })
+        var cursor = context.Model.FindEntityType(typeof(OmnidotsImportCursorEntity));
+        Assert.IsNotNull(cursor);
+
+        foreach (var propertyName in new[]
+                 {
+                     nameof(OmnidotsImportCursorEntity.LastSampleAt),
+                     nameof(OmnidotsImportCursorEntity.UpdatedAt)
+                 })
         {
-            var cursor = context.Model.FindEntityType(typeof(OmnidotsImportCursorEntity));
-            Assert.IsNotNull(cursor);
+            var converter = cursor.FindProperty(propertyName)!.GetValueConverter();
+            Assert.IsNotNull(converter, $"{propertyName} must normalize database values to UTC.");
 
-            foreach (var propertyName in new[]
-                     {
-                         nameof(OmnidotsImportCursorEntity.LastSampleAt),
-                         nameof(OmnidotsImportCursorEntity.UpdatedAt)
-                     })
+            foreach (var value in values)
             {
-                var converter = cursor.FindProperty(propertyName)!.GetValueConverter();
-                Assert.IsNotNull(converter, $"{propertyName} must normalize database values to UTC.");
+                var expected = NormalizeUtc(value);
+                var providerValue = (DateTime)converter.ConvertToProvider(value)!;
+                var materializedValue = (DateTime)converter.ConvertFromProvider(value)!;
 
-                foreach (var value in values)
-                {
-                    var expected = NormalizeUtc(value);
-                    var providerValue = (DateTime)converter.ConvertToProvider(value)!;
-                    var materializedValue = (DateTime)converter.ConvertFromProvider(value)!;
-
-                    AssertUtcValue(expected, providerValue, cursor.GetTableName()!, propertyName, value.Kind, "write");
-                    AssertUtcValue(expected, materializedValue, cursor.GetTableName()!, propertyName, value.Kind, "read");
-                }
+                AssertUtcValue(expected, providerValue, cursor.GetTableName()!, propertyName, value.Kind, "write");
+                AssertUtcValue(expected, materializedValue, cursor.GetTableName()!, propertyName, value.Kind, "read");
             }
         }
     }
 
     [TestMethod]
-    public void OmnidotsContext_MapsTraceSampleIndexAndCompositeKeyForEachProvider()
+    public void OmnidotsContext_MapsTraceSampleIndexAndCompositeKey()
     {
-        using var sqlServerContext = CreateContext(MonitorDatabaseProvider.SqlServer);
-        using var postgreSqlContext = CreateContext(MonitorDatabaseProvider.PostgreSql);
+        using var context = CreateContext();
+        var trace = context.Model.FindEntityType(typeof(OmnidotsTraceEntity));
 
-        var sqlServerTrace = sqlServerContext.Model.FindEntityType(typeof(OmnidotsTraceEntity));
-        var postgreSqlTrace = postgreSqlContext.Model.FindEntityType(typeof(OmnidotsTraceEntity));
-
-        Assert.IsNotNull(sqlServerTrace);
-        Assert.IsNotNull(postgreSqlTrace);
-        AssertColumn(sqlServerTrace, nameof(OmnidotsTraceEntity.SampleIndex), "SampleIndex", "int");
-        AssertColumn(postgreSqlTrace, nameof(OmnidotsTraceEntity.SampleIndex), "sample_index", "integer");
+        Assert.IsNotNull(trace);
+        AssertColumn(trace, nameof(OmnidotsTraceEntity.SampleIndex), "sample_index", "integer");
         CollectionAssert.AreEqual(
             new[] { nameof(OmnidotsTraceEntity.TraceId), nameof(OmnidotsTraceEntity.SampleIndex) },
-            sqlServerTrace.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
-        CollectionAssert.AreEqual(
-            new[] { nameof(OmnidotsTraceEntity.TraceId), nameof(OmnidotsTraceEntity.SampleIndex) },
-            postgreSqlTrace.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
+            trace.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
     }
 
     [TestMethod]
-    public void SharedAlertEntities_MapToBothProviderShapes()
+    public void SharedAlertEntities_MapToCanonicalPostgreSqlShape()
     {
-        using var sqlServer = CreateContext(MonitorDatabaseProvider.SqlServer);
-        using var postgreSql = CreateContext(MonitorDatabaseProvider.PostgreSql);
+        using var context = CreateContext();
 
-        AssertAlertOccurrence(sqlServer, "AlertOccurrences", "dbo", "SourceKeyHash", "binary(32)");
-        AssertAlertOccurrence(postgreSql, "alert_occurrence", null, "source_key_hash", "bytea");
-        AssertAlertOutbox(sqlServer, "AlertDeliveryOutbox", "dbo", "LeaseId", "uniqueidentifier");
-        AssertAlertOutbox(postgreSql, "alert_delivery_outbox", null, "lease_id", "uuid");
+        AssertAlertOccurrence(context);
+        AssertAlertOutbox(context);
     }
 
-    private static void AssertAlertOccurrence(
-        MonitorDbContextBase context,
-        string table,
-        string? schema,
-        string sourceKeyHashColumn,
-        string sourceKeyHashType)
+    private static void AssertAlertOccurrence(MonitorDbContextBase context)
     {
         var entity = context.Model.FindEntityType(typeof(AlertOccurrenceEntity));
         Assert.IsNotNull(entity);
-        Assert.AreEqual(table, entity.GetTableName());
-        Assert.AreEqual(schema, entity.GetSchema());
+        Assert.AreEqual("alert_occurrence", entity.GetTableName());
+        Assert.IsNull(entity.GetSchema());
         CollectionAssert.AreEqual(
             new[] { nameof(AlertOccurrenceEntity.Id) },
             entity.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
 
-        var postgreSql = schema is null;
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.Id), postgreSql ? "id" : "Id", postgreSql ? "uuid" : "uniqueidentifier", false);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.Source), postgreSql ? "source" : "Source", postgreSql ? "varchar(128)" : "nvarchar(128)", false, 128);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.SourceKeyHash), sourceKeyHashColumn, sourceKeyHashType, false, 32);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.NotificationId), postgreSql ? "notification_id" : "NotificationId", postgreSql ? "uuid" : "uniqueidentifier", true);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.MonitorId), postgreSql ? "monitor_id" : "MonitorId", postgreSql ? "uuid" : "uniqueidentifier", false);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.SerialId), postgreSql ? "serial_id" : "SerialId", postgreSql ? "varchar(128)" : "nvarchar(128)", false, 128);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.EventTime), postgreSql ? "event_time" : "EventTime", postgreSql ? "timestamp with time zone" : "datetime2", false);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.AlertType), postgreSql ? "alert_type" : "AlertType", postgreSql ? "integer" : "int", false);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.AlertField), postgreSql ? "alert_field" : "AlertField", postgreSql ? "varchar(128)" : "nvarchar(128)", false, 128);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.Level), postgreSql ? "level" : "Level", postgreSql ? "double precision" : "float", false);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.LimitOn), postgreSql ? "limit_on" : "LimitOn", postgreSql ? "double precision" : "float", false);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.AveragingPeriod), postgreSql ? "averaging_period" : "AveragingPeriod", postgreSql ? "integer" : "int", false);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.Outcome), postgreSql ? "outcome" : "Outcome", postgreSql ? "varchar(32)" : "nvarchar(32)", false, 32);
-        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.CreatedAt), postgreSql ? "created_at" : "CreatedAt", postgreSql ? "timestamp with time zone" : "datetime2", false);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.Id), "id", "uuid", false);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.Source), "source", "varchar(128)", false, 128);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.SourceKeyHash), "source_key_hash", "bytea", false, 32);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.NotificationId), "notification_id", "uuid", true);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.MonitorId), "monitor_id", "uuid", false);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.SerialId), "serial_id", "varchar(128)", false, 128);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.EventTime), "event_time", "timestamp with time zone", false);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.AlertType), "alert_type", "integer", false);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.AlertField), "alert_field", "varchar(128)", false, 128);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.Level), "level", "double precision", false);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.LimitOn), "limit_on", "double precision", false);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.AveragingPeriod), "averaging_period", "integer", false);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.Outcome), "outcome", "varchar(32)", false, 32);
+        AssertAlertColumn(entity, nameof(AlertOccurrenceEntity.CreatedAt), "created_at", "timestamp with time zone", false);
 
         AssertIndex(
             entity,
-            postgreSql ? "uq_alert_occurrence_source_key" : "UQ_AlertOccurrences_SourceKey",
+            "uq_alert_occurrence_source_key",
             true,
             nameof(AlertOccurrenceEntity.Source),
             nameof(AlertOccurrenceEntity.SourceKeyHash));
@@ -217,45 +283,39 @@ public sealed class OmnidotsModelMappingTests
         AssertForeignKey(entity, typeof(NotificationEntity), DeleteBehavior.Restrict, true, nameof(AlertOccurrenceEntity.NotificationId));
     }
 
-    private static void AssertAlertOutbox(
-        MonitorDbContextBase context,
-        string table,
-        string? schema,
-        string leaseIdColumn,
-        string leaseIdType)
+    private static void AssertAlertOutbox(MonitorDbContextBase context)
     {
         var entity = context.Model.FindEntityType(typeof(AlertDeliveryOutboxEntity));
         Assert.IsNotNull(entity);
-        Assert.AreEqual(table, entity.GetTableName());
-        Assert.AreEqual(schema, entity.GetSchema());
+        Assert.AreEqual("alert_delivery_outbox", entity.GetTableName());
+        Assert.IsNull(entity.GetSchema());
         CollectionAssert.AreEqual(
             new[] { nameof(AlertDeliveryOutboxEntity.Id) },
             entity.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
 
-        var postgreSql = schema is null;
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.Id), postgreSql ? "id" : "Id", postgreSql ? "uuid" : "uniqueidentifier", false);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.OccurrenceId), postgreSql ? "occurrence_id" : "OccurrenceId", postgreSql ? "uuid" : "uniqueidentifier", false);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.DeliveryKey), postgreSql ? "delivery_key" : "DeliveryKey", postgreSql ? "varchar(64)" : "nvarchar(64)", false, 64);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.Kind), postgreSql ? "kind" : "Kind", postgreSql ? "varchar(32)" : "nvarchar(32)", false, 32);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.Destination), postgreSql ? "destination" : "Destination", postgreSql ? "varchar(512)" : "nvarchar(512)", false, 512);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.Payload), postgreSql ? "payload" : "Payload", postgreSql ? "varchar(8192)" : "nvarchar(max)", false, 8192);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.Status), postgreSql ? "status" : "Status", postgreSql ? "varchar(32)" : "nvarchar(32)", false, 32);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.AttemptCount), postgreSql ? "attempt_count" : "AttemptCount", postgreSql ? "integer" : "int", false);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.NextAttemptAt), postgreSql ? "next_attempt_at" : "NextAttemptAt", postgreSql ? "timestamp with time zone" : "datetime2", false);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.LeaseId), leaseIdColumn, leaseIdType, true);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.LeaseUntil), postgreSql ? "lease_until" : "LeaseUntil", postgreSql ? "timestamp with time zone" : "datetime2", true);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.CompletedAt), postgreSql ? "completed_at" : "CompletedAt", postgreSql ? "timestamp with time zone" : "datetime2", true);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.LastError), postgreSql ? "last_error" : "LastError", postgreSql ? "varchar(256)" : "nvarchar(256)", true, 256);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.CreatedAt), postgreSql ? "created_at" : "CreatedAt", postgreSql ? "timestamp with time zone" : "datetime2", false);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.Id), "id", "uuid", false);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.OccurrenceId), "occurrence_id", "uuid", false);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.DeliveryKey), "delivery_key", "varchar(64)", false, 64);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.Kind), "kind", "varchar(32)", false, 32);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.Destination), "destination", "varchar(512)", false, 512);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.Payload), "payload", "varchar(8192)", false, 8192);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.Status), "status", "varchar(32)", false, 32);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.AttemptCount), "attempt_count", "integer", false);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.NextAttemptAt), "next_attempt_at", "timestamp with time zone", false);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.LeaseId), "lease_id", "uuid", true);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.LeaseUntil), "lease_until", "timestamp with time zone", true);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.CompletedAt), "completed_at", "timestamp with time zone", true);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.LastError), "last_error", "varchar(256)", true, 256);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.CreatedAt), "created_at", "timestamp with time zone", false);
 
         AssertIndex(
             entity,
-            postgreSql ? "uq_alert_delivery_outbox_delivery_key" : "UQ_AlertDeliveryOutbox_DeliveryKey",
+            "uq_alert_delivery_outbox_delivery_key",
             true,
             nameof(AlertDeliveryOutboxEntity.DeliveryKey));
         AssertIndex(
             entity,
-            postgreSql ? "ix_alert_delivery_outbox_due" : "IX_AlertDeliveryOutbox_Due",
+            "ix_alert_delivery_outbox_due",
             false,
             nameof(AlertDeliveryOutboxEntity.Status),
             nameof(AlertDeliveryOutboxEntity.NextAttemptAt),
@@ -278,6 +338,44 @@ public sealed class OmnidotsModelMappingTests
         Assert.AreEqual(columnType, property.FindAnnotation(RelationalAnnotationNames.ColumnType)?.Value);
         Assert.AreEqual(nullable, property.IsNullable);
         Assert.AreEqual(maxLength, property.GetMaxLength());
+    }
+
+    private static void AssertColumns(
+        IReadOnlyEntityType entityType,
+        params (string Property, string Column)[] expectedColumns)
+    {
+        Assert.HasCount(expectedColumns.Length, entityType.GetProperties());
+        foreach (var expected in expectedColumns)
+        {
+            Assert.AreEqual(
+                expected.Column,
+                entityType.FindProperty(expected.Property)!.GetColumnName(),
+                expected.Property);
+        }
+    }
+
+    private static void AssertTimestamp(
+        OmnidotsMonitorContext context,
+        Type entityClrType,
+        string propertyName)
+    {
+        var property = context.Model.FindEntityType(entityClrType)!.FindProperty(propertyName);
+        Assert.IsNotNull(property);
+        Assert.AreEqual("timestamp with time zone", property.GetRelationalTypeMapping().StoreType);
+    }
+
+    private static void AssertKey(
+        OmnidotsMonitorContext context,
+        Type entityClrType,
+        params string[] expectedProperties)
+    {
+        var keyProperties = context.Model
+            .FindEntityType(entityClrType)!
+            .FindPrimaryKey()!
+            .Properties
+            .Select(property => property.Name)
+            .ToArray();
+        CollectionAssert.AreEqual(expectedProperties, keyProperties);
     }
 
     private static void AssertIndex(IEntityType entity, string name, bool unique, params string[] properties)
@@ -347,11 +445,11 @@ public sealed class OmnidotsModelMappingTests
             $"{tableName} {propertyName} {direction} conversion from {sourceKind} did not return UTC.");
     }
 
-    private static OmnidotsMonitorContext CreateContext(MonitorDatabaseProvider provider)
+    private static OmnidotsMonitorContext CreateContext()
     {
-        var options = new MonitorDbOptions(provider, new Dictionary<string, string>());
+        var options = new MonitorDbOptions(new Dictionary<string, string>());
         var dbOptions = new DbContextOptionsBuilder<OmnidotsMonitorContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata")
             .Options;
 
         return new OmnidotsMonitorContext(dbOptions, options);

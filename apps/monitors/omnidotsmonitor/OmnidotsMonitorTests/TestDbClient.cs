@@ -21,7 +21,7 @@ namespace OmnidotsAdapterTests
 
     // Summary: Exercises Omnidots PostgreSQL database persistence against a scoped fixture.
     // Major updates:
-    // - 2026-06-18 Test fixture hardening: aligned vibration timestamp read helpers with SQL Server DateTime round-trips.
+    // - 2026-06-18 Test fixture hardening: aligned vibration timestamp read helpers with PostgreSQL UTC round-trips.
     [TestClass]
     [TestCategory("PostgreSqlIntegration")]
     public class TestDBClient
@@ -650,8 +650,7 @@ namespace OmnidotsAdapterTests
                 TAG,
                 AdapterException.Of(MESSAGE),
                 "OmnidotsMonitorTests",
-                "test",
-                new MonitorDbOptions(MonitorDatabaseProvider.PostgreSql, new Dictionary<string, string>()));
+                "test");
 
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();

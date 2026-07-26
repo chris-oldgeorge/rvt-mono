@@ -62,7 +62,6 @@ public sealed class OmnidotsAlertCommitStoreTests
         await SeedContactGraphAsync();
 
         var monitorOptions = new MonitorDbOptions(
-            MonitorDatabaseProvider.PostgreSql,
             new Dictionary<string, string>());
         store = new EfAlertCommitStore<OmnidotsMonitorContext>(
             new OmnidotsMonitorContextFactory(database.ConnectionString, monitorOptions),
@@ -344,7 +343,6 @@ public sealed class OmnidotsAlertCommitStoreTests
             ApplicationName = applicationName
         }.ConnectionString;
         var monitorOptions = new MonitorDbOptions(
-            MonitorDatabaseProvider.PostgreSql,
             new Dictionary<string, string>());
         var concurrentStore = new EfAlertCommitStore<OmnidotsMonitorContext>(
             new OmnidotsMonitorContextFactory(connectionString, monitorOptions),

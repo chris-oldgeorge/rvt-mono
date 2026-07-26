@@ -30,12 +30,8 @@
 	<ItemGroup>
 		<None Include="..\OmnidotsMonitor\postgres\2026-07-14-add-import-cursors-and-trace-order.sql" Link="postgres\2026-07-14-add-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\OmnidotsMonitor\postgres\2026-07-14-rollback-import-cursors-and-trace-order.sql" Link="postgres\2026-07-14-rollback-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
-		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-14-add-import-cursors-and-trace-order.sql" Link="sqlserver\2026-07-14-add-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
-		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-14-rollback-import-cursors-and-trace-order.sql" Link="sqlserver\2026-07-14-rollback-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\OmnidotsMonitor\postgres\2026-07-15-add-common-durable-alerts.sql" Link="postgres\2026-07-15-add-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\OmnidotsMonitor\postgres\2026-07-15-rollback-common-durable-alerts.sql" Link="postgres\2026-07-15-rollback-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
-		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-15-add-common-durable-alerts.sql" Link="sqlserver\2026-07-15-add-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
-		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-15-rollback-common-durable-alerts.sql" Link="sqlserver\2026-07-15-rollback-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 	<ItemGroup>
 		<None Remove="manualtest\" />

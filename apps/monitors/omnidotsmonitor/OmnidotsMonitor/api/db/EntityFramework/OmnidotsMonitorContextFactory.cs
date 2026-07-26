@@ -22,8 +22,7 @@ public sealed class OmnidotsMonitorContextFactory : IMonitorDbContextFactory<Omn
     public OmnidotsMonitorContext CreateDbContext()
     {
         var options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(
-            connectionString,
-            monitorOptions);
+            connectionString);
         return new OmnidotsMonitorContext(options, monitorOptions);
     }
 }

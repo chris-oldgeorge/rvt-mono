@@ -10,6 +10,9 @@ This repository contains four imported RVT modules:
 Start with the [documentation index](docs/index.md) for architecture,
 development, operations, release, database, module, and historical guidance.
 
+Run the manual SonarQube Cloud workflow only from its dedicated trusted-code
+self-hosted runner; see the [operator guide](docs/operations/github-actions/self-hosted-sonar-runner.md).
+
 Run the repository guards from the root:
 
 ```bash

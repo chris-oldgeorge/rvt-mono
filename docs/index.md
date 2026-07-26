@@ -18,6 +18,7 @@ lives here under `docs/`.
 
 ## Operations
 
+- [Self-hosted SonarQube runner](operations/github-actions/self-hosted-sonar-runner.md)
 - [Monitor container builds](operations/monitors/container-builds.md)
 - [Portal development secrets reference](operations/portal/dev-secrets-reference.md)
 - [Reporting container app](operations/reporting/container-app/README.md)

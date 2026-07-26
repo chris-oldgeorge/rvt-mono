@@ -6,19 +6,23 @@ self-hosted runners must be restricted to private repositories and trusted code:
 workflow code executes on the machine that hosts the runner. Keep this
 repository private and run only a trusted ref.
 
-## Register and start
+## Bootstrap and start
 
 1. Confirm that the repository remains private and Docker Desktop is running.
 2. In GitHub, open **Settings → Actions → Runners → New self-hosted runner**
    and copy the short-lived registration token.
-3. From the repository root, start the stack without writing the token to disk:
+3. From the repository root, bootstrap registration in a transient container:
 
    ```bash
    read -rsp "Short-lived runner registration token: " RUNNER_REGISTRATION_TOKEN
    echo
    export RUNNER_REGISTRATION_TOKEN
-   docker compose -f .github/runner/docker-compose.yml up -d --build
+   docker compose -f .github/runner/docker-compose.yml run --rm \
+     -e RUNNER_BOOTSTRAP_ONLY=true \
+     -e RUNNER_REGISTRATION_TOKEN \
+     rvt-sonar-runner
    unset RUNNER_REGISTRATION_TOKEN
+   docker compose -f .github/runner/docker-compose.yml up -d
    ```
 
 4. Confirm that runner `rvt-sonar-dev` is online and has the `rvt-sonar` label.
@@ -26,9 +30,13 @@ repository private and run only a trusted ref.
 
 The development machine and Docker Desktop must remain awake while the workflow
 runs. `SONAR_TOKEN` stays in GitHub repository secrets; never provide it to the
-runner registration command or store it in this repository.
+runner registration command or store it in this repository. The registration
+token is not stored in repository files, shell history, or the persistent runner
+container configuration; it exists transiently in the auto-removed bootstrap
+container. Docker may write its normal transient-container metadata while that
+bootstrap container exists.
 
-## Inspect and stop
+## Inspect, stop, and restart
 
 Inspect runner and database logs with:
 
@@ -42,6 +50,50 @@ Stop the stack without deleting registration state with:
 docker compose -f .github/runner/docker-compose.yml stop
 ```
 
-The runner registration is persisted in the named `runner-state` volume. If
-that volume is removed, obtain a new short-lived registration token and repeat
-the registration and start steps.
+Restart it normally, with no registration token:
+
+```bash
+docker compose -f .github/runner/docker-compose.yml up -d
+```
+
+The persistent runner service has no registration-token environment variable.
+It restores its registration files from the named volume and starts the
+listener.
+
+## Replace a runner
+
+Use this procedure when intentionally replacing `rvt-sonar-dev` (for example,
+after changing the runner identity). It invalidates the local registration and
+the old GitHub-side runner record.
+
+1. Stop and remove the local persistent runner container:
+
+   ```bash
+   docker compose -f .github/runner/docker-compose.yml stop rvt-sonar-runner
+   docker compose -f .github/runner/docker-compose.yml rm -f rvt-sonar-runner
+   ```
+
+2. In GitHub, open **Settings → Actions → Runners**, select the stale
+   `rvt-sonar-dev` record, and remove it.
+3. Delete only the runner registration volume:
+
+   ```bash
+   docker volume rm rvt-sonar-runner_runner-state
+   ```
+
+4. Obtain a fresh short-lived registration token, repeat the **Bootstrap and
+   start** command above, then confirm the replacement runner is online.
+
+Deleting `rvt-sonar-runner_runner-state` is destructive only to the three
+persisted GitHub runner registration files. It does not remove the database
+volume or repository files, but it makes the local runner unable to connect
+until it is registered again with a fresh token.
+
+## Recover damaged or permanently offline state
+
+If the runner state is damaged, or GitHub shows the runner permanently offline,
+treat it as a replacement: stop and remove the persistent runner container,
+remove the stale GitHub runner record, delete only
+`rvt-sonar-runner_runner-state`, obtain a fresh token, bootstrap in the
+transient container, and start the stack. Do not reuse the old token or delete
+unrelated Compose volumes.

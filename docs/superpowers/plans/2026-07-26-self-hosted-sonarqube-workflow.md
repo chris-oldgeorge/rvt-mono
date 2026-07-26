@@ -29,7 +29,8 @@ Vitest LCOV, Bash.
 - Scanner authentication comes only from `secrets.SONAR_TOKEN`.
 - Runner selection is `[self-hosted, linux, ARM64, rvt-sonar]`.
 - Do not mount the development source tree or `/var/run/docker.sock`.
-- Persist only runner registration/runtime state in a Docker named volume.
+- Persist only the three GitHub runner registration files in a Docker named
+  volume.
 - Bootstrap runner version `2.334.0` with Linux ARM64 SHA-256
   `f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4`.
 - Use `timescale/timescaledb:2.28.3-pg17` as the sibling database.
@@ -52,8 +53,8 @@ Vitest LCOV, Bash.
 - Create: `tests/verify-sonar-runner-stack.test.sh`
 
 **Interfaces:**
-- Consumes: shell variable `RUNNER_REGISTRATION_TOKEN` supplied only while a
-  runner is first registered or replaced.
+- Consumes: shell variable `RUNNER_REGISTRATION_TOKEN` supplied only to a
+  transient bootstrap container while a runner is first registered or replaced.
 - Produces: runner labels `self-hosted`, `linux`, `ARM64`, `rvt-sonar`;
   network hostname `rvt-sonar-db`; database `rvt_sonar_ci`; named volume
   `runner-state`.
@@ -72,11 +73,12 @@ must:
   overridable `RUNNER_DIST_ROOT`, `RUNNER_HOME`, `RUNNER_STATE_ROOT`, and
   `RUNNER_USER` values plus a fake `gosu` on `PATH`;
 - prove that a first start without `RUNNER_REGISTRATION_TOKEN` fails;
-- prove that a first start with a token invokes fake registration, moves only
-  `.runner`, `.credentials`, and `.credentials_rsaparams` into state, restores
-  symlinks, unsets the token before the fake listener, and reaches the listener;
-- prove that a second start reuses persisted state without invoking
-  registration;
+- prove that a bootstrap-only first registration with a token invokes fake
+  registration, moves only `.runner`, `.credentials`, and
+  `.credentials_rsaparams` into state, restores symlinks, and exits without
+  reaching the listener;
+- prove that a normal second start with no token reuses persisted state,
+  restores symlinks, and reaches the listener without invoking registration;
 - retain only the minimal source assertions needed for the pinned runner
   version/checksum and the absence of Docker installation in the Dockerfile.
 
@@ -125,8 +127,10 @@ Do not install Docker inside the image.
 
 Create `.github/runner/entrypoint.sh`. Persist only the three GitHub registration
 files in `/runner-state`, require the short-lived registration token only when
-that state is absent, and run the listener as `runner`. Production defaults are
-fixed, while path/user variables may be overridden by the behavior test:
+that state is absent, and run the listener as `runner`. `RUNNER_BOOTSTRAP_ONLY`
+defaults to `false`; when it is `true`, registration persists the files and the
+entrypoint exits before `run.sh`. Production defaults are fixed, while path/user
+variables may be overridden by the behavior test:
 
 ```bash
 #!/usr/bin/env bash
@@ -136,6 +140,7 @@ runner_dist_root="${RUNNER_DIST_ROOT:-/opt/actions-runner-dist}"
 runner_home="${RUNNER_HOME:-/home/runner/actions-runner}"
 runner_state="${RUNNER_STATE_ROOT:-/runner-state}"
 runner_user="${RUNNER_USER:-runner}"
+bootstrap_only="${RUNNER_BOOTSTRAP_ONLY:-false}"
 registration_files=(.runner .credentials .credentials_rsaparams)
 mkdir -p "${runner_home}" "${runner_state}"
 
@@ -166,6 +171,11 @@ if [[ ! -f "${runner_state}/.runner" ]]; then
     mv "${runner_home}/${registration_file}" "${runner_state}/${registration_file}"
     ln -s "${runner_state}/${registration_file}" "${runner_home}/${registration_file}"
   done
+fi
+
+if [[ "${bootstrap_only}" == "true" ]]; then
+  unset RUNNER_REGISTRATION_TOKEN
+  exit 0
 fi
 
 unset RUNNER_REGISTRATION_TOKEN
@@ -201,7 +211,6 @@ services:
       RUNNER_URL: https://github.com/chris-oldgeorge/rvt-mono
       RUNNER_NAME: rvt-sonar-dev
       RUNNER_LABELS: rvt-sonar
-      RUNNER_REGISTRATION_TOKEN: ${RUNNER_REGISTRATION_TOKEN:-}
     volumes:
       - runner-state:/runner-state
     depends_on:
@@ -449,14 +458,19 @@ operator steps:
 1. Confirm the repository remains private and Docker Desktop is running.
 2. Open repository **Settings → Actions → Runners → New self-hosted runner** and
    copy the short-lived registration token.
-3. Start the stack without writing the token to disk:
+3. Bootstrap registration in a transient container without writing the token to
+   disk or placing it in persistent runner configuration:
 
    ```bash
    read -rsp "Short-lived runner registration token: " RUNNER_REGISTRATION_TOKEN
    echo
    export RUNNER_REGISTRATION_TOKEN
-   docker compose -f .github/runner/docker-compose.yml up -d --build
+   docker compose -f .github/runner/docker-compose.yml run --rm \
+     -e RUNNER_BOOTSTRAP_ONLY=true \
+     -e RUNNER_REGISTRATION_TOKEN \
+     rvt-sonar-runner
    unset RUNNER_REGISTRATION_TOKEN
+   docker compose -f .github/runner/docker-compose.yml up -d
    ```
 
 4. Confirm runner `rvt-sonar-dev` is online with label `rvt-sonar`.
@@ -473,9 +487,11 @@ operator steps:
    docker compose -f .github/runner/docker-compose.yml stop
    ```
 
-8. Explain that Docker Desktop and the development machine must remain awake,
-   the `SONAR_TOKEN` stays in GitHub repository secrets, and removing the named
-   volume requires re-registration.
+8. Explain normal restart, safe runner replacement and recovery: stop/remove
+   the local persistent runner, remove its stale GitHub record, delete only the
+   `rvt-sonar-runner_runner-state` named volume, obtain a fresh token, bootstrap
+   again, and start the stack. Document that deleting this one volume removes
+   only runner registration state and requires re-registration.
 
 Include GitHub's warning that self-hosted runners are restricted to private
 repositories and trusted code.

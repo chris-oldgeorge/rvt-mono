@@ -21,7 +21,6 @@ services:
       RUNNER_URL: https://github.com/chris-oldgeorge/rvt-mono
       RUNNER_NAME: rvt-sonar-dev
       RUNNER_LABELS: rvt-sonar
-      RUNNER_REGISTRATION_TOKEN: ${RUNNER_REGISTRATION_TOKEN:-}
     volumes:
       - runner-state:/runner-state
     depends_on:

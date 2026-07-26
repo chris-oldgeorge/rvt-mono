@@ -5,6 +5,7 @@ runner_dist_root="${RUNNER_DIST_ROOT:-/opt/actions-runner-dist}"
 runner_home="${RUNNER_HOME:-/home/runner/actions-runner}"
 runner_state="${RUNNER_STATE_ROOT:-/runner-state}"
 runner_user="${RUNNER_USER:-runner}"
+bootstrap_only="${RUNNER_BOOTSTRAP_ONLY:-false}"
 registration_files=(.runner .credentials .credentials_rsaparams)
 mkdir -p "${runner_home}" "${runner_state}"
 
@@ -35,6 +36,11 @@ if [[ ! -f "${runner_state}/.runner" ]]; then
     mv "${runner_home}/${registration_file}" "${runner_state}/${registration_file}"
     ln -s "${runner_state}/${registration_file}" "${runner_home}/${registration_file}"
   done
+fi
+
+if [[ "${bootstrap_only}" == "true" ]]; then
+  unset RUNNER_REGISTRATION_TOKEN
+  exit 0
 fi
 
 unset RUNNER_REGISTRATION_TOKEN

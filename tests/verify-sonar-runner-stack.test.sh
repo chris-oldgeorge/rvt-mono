@@ -39,6 +39,7 @@ environment = runner.get("environment", {})
 if isinstance(environment, list):
     environment = dict(item.split("=", 1) for item in environment)
 assert environment.get("RUNNER_LABELS") == "rvt-sonar", "runner must provide the rvt-sonar label"
+assert "RUNNER_REGISTRATION_TOKEN" not in environment, "persistent runner service must not receive a registration token"
 
 depends_on = runner.get("depends_on", {})
 assert depends_on.get("rvt-sonar-db", {}).get("condition") == "service_healthy", "runner must wait for the database health check"
@@ -128,10 +129,10 @@ if env -u RUNNER_REGISTRATION_TOKEN "${runner_environment[@]}" "${entrypoint}" >
 fi
 grep -Fq 'Set a short-lived repository runner registration token for first start.' "${test_root}/missing-token.err"
 
-env RUNNER_REGISTRATION_TOKEN=temporary-token "${runner_environment[@]}" "${entrypoint}"
+env RUNNER_BOOTSTRAP_ONLY=true RUNNER_REGISTRATION_TOKEN=temporary-token "${runner_environment[@]}" "${entrypoint}"
 [[ "$(wc -l <"${test_log}/config-arguments" | tr -d ' ')" == 1 ]]
 grep -Fq -- '--token temporary-token' "${test_log}/config-arguments"
-[[ "$(wc -l <"${test_log}/listener" | tr -d ' ')" == 1 ]]
+[[ ! -e "${test_log}/listener" ]]
 
 persisted_files="$(find "${runner_state}" -type f -exec basename {} \; | sort)"
 expected_files=(.credentials .credentials_rsaparams .runner)
@@ -147,7 +148,7 @@ done
 rm -rf "${runner_home}"
 env -u RUNNER_REGISTRATION_TOKEN "${runner_environment[@]}" "${entrypoint}"
 [[ "$(wc -l <"${test_log}/config-arguments" | tr -d ' ')" == 1 ]]
-[[ "$(wc -l <"${test_log}/listener" | tr -d ' ')" == 2 ]]
+[[ "$(wc -l <"${test_log}/listener" | tr -d ' ')" == 1 ]]
 for registration_file in "${expected_files[@]}"; do
   [[ -L "${runner_home}/${registration_file}" ]]
   [[ "$(readlink "${runner_home}/${registration_file}")" == "${runner_state}/${registration_file}" ]]

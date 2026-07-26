@@ -2870,12 +2870,16 @@ TimescaleDB extensions where the schema requires them.
   It has no published ports, bind mounts, privileged services, or Docker socket
   mount. `runner-state` is the only persisted named volume.
 - Runner variables are `RUNNER_URL=https://github.com/chris-oldgeorge/rvt-mono`,
-  `RUNNER_NAME=rvt-sonar-dev`, `RUNNER_LABELS=rvt-sonar`, and the short-lived
-  `RUNNER_REGISTRATION_TOKEN` used only for first registration. The entrypoint
-  accepts `RUNNER_DIST_ROOT`, `RUNNER_HOME`, `RUNNER_STATE_ROOT`, and
+  `RUNNER_NAME=rvt-sonar-dev`, `RUNNER_LABELS=rvt-sonar`, and
+  `RUNNER_BOOTSTRAP_ONLY=false` by default. The persistent Compose service has
+  no `RUNNER_REGISTRATION_TOKEN`. A transient `docker compose run --rm`
+  bootstrap container receives the short-lived token and
+  `RUNNER_BOOTSTRAP_ONLY=true` only for first registration or replacement. The
+  entrypoint accepts `RUNNER_DIST_ROOT`, `RUNNER_HOME`, `RUNNER_STATE_ROOT`, and
   `RUNNER_USER` overrides; it persists only `.runner`, `.credentials`, and
-  `.credentials_rsaparams`, unsets the registration token, and then starts the
-  listener.
+  `.credentials_rsaparams`, then exits in bootstrap-only mode. With persisted
+  state and bootstrap-only false, it restores the symlinks, unsets any token,
+  and starts the listener.
 - `.github/workflows/sonarqube.yml` is named `SonarQube`, has
   `workflow_dispatch` as its only trigger, uses
   `[self-hosted, linux, ARM64, rvt-sonar]`, permits only `contents: read`, and
@@ -2896,16 +2900,22 @@ TimescaleDB extensions where the schema requires them.
 - Operator instructions are in
   `docs/operations/github-actions/self-hosted-sonar-runner.md`, indexed from
   `docs/index.md` and linked concisely from the root `README.md`. The guide
-  keeps the registration token out of files, documents log inspection and
-  non-destructive stop, and explains that deleting `runner-state` requires a
-  new registration.
-- Validated after documentation completion:
+  keeps the registration token out of repository files, shell history, and the
+  persistent runner container configuration; it exists transiently in the
+  auto-removed bootstrap container. It documents log inspection, normal stop
+  and restart, and replacement/recovery: remove the local persistent runner and
+  stale GitHub record, then delete only `rvt-sonar-runner_runner-state`, obtain
+  a fresh token, bootstrap, and start again. That named volume contains only
+  runner registration state; deleting it requires re-registration.
+- Validated after the bootstrap-token repair:
   `tests/verify-sonar-runner-stack.test.sh` PASS;
   `tests/verify-manual-sonarqube-workflow.test.sh` PASS; every
   `tests/verify-*.test.sh` PASS (documentation layout, PostgreSQL-only,
   RVT source-boundary, direct-project-reference, runner-stack, and workflow
   guards); `docker compose -f .github/runner/docker-compose.yml config --quiet`
-  PASS; and `git diff --check` PASS with no whitespace errors.
+  PASS; `bash -n .github/runner/entrypoint.sh
+  tests/verify-sonar-runner-stack.test.sh` PASS; and `git diff --check` PASS
+  with no whitespace errors.
 - Docker Desktop was unavailable (`docker info` could not connect to the local
   daemon), so the optional
   `docker compose -f .github/runner/docker-compose.yml build rvt-sonar-runner`

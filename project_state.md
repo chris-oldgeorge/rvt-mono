@@ -2851,4 +2851,23 @@ TimescaleDB extensions where the schema requires them.
   duplicate Portal source/design files, and restore-generated untracked storage
   lock files unless they are handled in a separately scoped change.
 
+## Manual SonarQube workflow design - 2026-07-26
+
+- Approved design:
+  `docs/superpowers/specs/2026-07-26-manual-sonarqube-workflow-design.md`.
+- Target: SonarQube Cloud EU project `aileron-forward_rvt-mono` in organization
+  `aileron-forward`, authenticated only by the repository secret
+  `SONAR_TOKEN`.
+- Required trigger boundary: root `.github/workflows/sonarqube.yml` with
+  `workflow_dispatch` only. No push, pull-request, tag, or schedule trigger.
+- Approved analysis scope: complete `Rvt.Mono.slnx` Release build, every .NET
+  test under `dotnet-coverage`, Portal Vitest LCOV coverage, PostgreSQL 17 /
+  TimescaleDB service, and both `RVT_TEST_POSTGRES_CONNECTION` and
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`.
+- The design waits for the Sonar quality gate and fails closed on missing
+  credentials, unhealthy database, build/test/coverage failures, upload
+  failures, and red or timed-out quality gates.
+- Implementation has not started. The written specification must be reviewed
+  before creating the implementation plan.
+
 Next-session instruction: Read project_state.md to get up to speed

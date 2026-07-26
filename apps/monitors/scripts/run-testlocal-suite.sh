@@ -41,7 +41,6 @@ run_job() {
     -w /app \
     -e testlocal=true \
     -e "RVT__MONITOR_JOB=$job" \
-    -e RVT__DATABASE_PROVIDER=PostgreSql \
     -e "ConnectionStrings__DefaultConnection=$connection_string" \
     "$container" \
     dotnet "$dll"
@@ -62,7 +61,6 @@ run_airq_job() {
     -e testlocal=true \
     -e "AirQ__TestLocal__SerialId=$serial_id" \
     -e "RVT__MONITOR_JOB=$job" \
-    -e RVT__DATABASE_PROVIDER=PostgreSql \
     -e "ConnectionStrings__DefaultConnection=$connection_string" \
     "rvt-monitors-airqmonitor-api-1" \
     dotnet AirQMonitor.dll

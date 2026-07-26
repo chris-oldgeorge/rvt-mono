@@ -52,7 +52,6 @@ namespace SvantekMonitorTests
         [ClassInitialize]
         public static async Task TestFixtureSetup(TestContext context)
         {
-            Environment.SetEnvironmentVariable("RVT__DATABASE_PROVIDER", "PostgreSql");
             var setupSql = TestUtil.ReadTextFromFile("testdata/create.postgres.sql");
             var resetSql = TestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
             database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql);

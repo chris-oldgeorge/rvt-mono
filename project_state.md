@@ -1494,10 +1494,13 @@ TimescaleDB extensions where the schema requires them.
   `b0d0ecb55f22308cb5e81a3ecc716b3c6dba7e60`.
 - Design base:
   `a07f6019fc492531a2f7d67294dd17ace47058db`.
-- The final handoff commit is the commit containing this section, with subject
-  `chore: enforce PostgreSQL-only solution`. A file cannot contain its own
-  final hash; the exact hash is recorded after commit in the ignored
-  `.superpowers/sdd/2026-07-25-postgresql-only/task-13-report.md`.
+- Task 13 enforcement commit:
+  `12c0efbf98eac9d5d702d9eb3e76c5558fcc5270`
+  (`chore: enforce PostgreSQL-only solution`).
+- The final-review handoff commit is the commit containing this amended
+  section, with subject `fix: close PostgreSQL-only review gaps`. A file cannot
+  contain its own final hash; the exact hash is recorded after commit in the
+  ignored `.superpowers/sdd/2026-07-25-postgresql-only/task-13-report.md`.
 - `Rvt.Mono.slnx` contains 40 projects: 14 under `apps/monitors`, 9 under
   `apps/portal`, 9 under `libs/rvt-monitor-common`, and 8 under
   `services/reporting`.
@@ -1510,7 +1513,7 @@ TimescaleDB extensions where the schema requires them.
     support, tests, and the two package-validation consumers;
   - `services/reporting`: PostgreSQL reporting core/data/messaging/PDF/storage,
     service host, and tests.
-- Compared with the design base, 75 tracked paths were deleted. This includes
+- Compared with the design base, 76 tracked paths were deleted. This includes
   all 36 retired-provider-named paths, the complete
   `apps/portal/database/sqlserver/` tree, the Omnidots `sqlserver/` tree,
   MyATM/shared `*.sqlserver.sql` migrations and rollbacks, the Portal provider
@@ -1530,8 +1533,11 @@ TimescaleDB extensions where the schema requires them.
 - `RVT.SchemaDeploy` owns canonical PostgreSQL/TimescaleDB schema objects that
   EF does not own. Active SQL uses canonical PostgreSQL identifiers and
   syntax. The site-write uniqueness migration is unconditional canonical
-  PostgreSQL SQL; provider-conditional EF migrations are now rejected by the
-  repository guard.
+  PostgreSQL SQL. The repository guard rejects `ActiveProvider`,
+  `ProviderName`, `IsNpgsql`, or `IsSqlServer` selection code in every tracked
+  Portal `**/Migrations/*.cs` history, including domain, search, and Identity.
+  Its script contract requires both exact unique indexes after deduplication
+  and the site-state update.
 - Shared monitor persistence creates only `NpgsqlConnection`/
   `NpgsqlParameter`, uses PostgreSQL binary `COPY`, and maps canonical
   PostgreSQL tables, columns, constraints, and indexes. Runtime T-SQL
@@ -1543,9 +1549,10 @@ TimescaleDB extensions where the schema requires them.
   `libs/rvt-monitor-common/package-validation/{RuntimeConsumer,TestConsumer}`
   consume the locally packed `0.2.0-rc.1` packages.
 - There are 23 tracked package locks. The supported aggregate path generates
-  ignored validation locks under `artifacts/validation-locks`; verification
-  leaves all tracked locks unchanged. Neither project files nor locks contain
-  the retired provider packages.
+  ignored validation locks under `artifacts/validation-locks`. Relative to the
+  design base, 17 intentional Task 11 lock changes remain; there is zero
+  unexpected post-Task11 verification lock drift. Neither project files nor
+  locks contain the retired provider packages.
 
 ### Configuration contract
 
@@ -1565,10 +1572,11 @@ TimescaleDB extensions where the schema requires them.
   `bash scripts/verify-postgresql-only.sh .` unconditionally.
 - `Database:Provider`, `RvtDatabase:Provider`, `RVT__DATABASE_PROVIDER`,
   `DatabaseProvider`, and the equivalent `RVT:DATABASE_PROVIDER` configuration
-  form are retired as selection keys. They may be omitted. During transition,
-  explicit PostgreSQL/Npgsql/Timescale aliases are accepted only by a
-  compatibility validator; any other value fails fast and cannot select a
-  different provider.
+  form are retired as selection keys and must be omitted from new deployment
+  manifests, scripts, and examples. During transition, raw compatibility
+  validators may still read a stale setting, accept only explicit
+  PostgreSQL/Npgsql/Timescale aliases, and reject any other value before it can
+  select a different provider.
 - Real credentials remain outside Git in user secrets or the deployment secret
   store. Presence-only verification found `RVT_EF_CONNECTION`,
   `RVT_TEST_POSTGRES_CONNECTION`,
@@ -1612,13 +1620,16 @@ TimescaleDB extensions where the schema requires them.
   - `Rvt.Reporting.Core.Tests`: 26 passed, 0 failed, 0 skipped;
   - `Rvt.Reporting.Service.Tests`: 7 passed, 0 failed, 0 skipped;
   - focused `SchemaDeployTests`: 17 passed, 0 failed, 0 skipped;
-  - post-review `CutoverReadinessTests`: 13 passed, 0 failed, 0 skipped.
+  - post-review `CutoverReadinessTests`: 13 passed, 0 failed, 0 skipped;
+  - generated uniqueness-migration script contract: 1 passed, 0 failed,
+    0 skipped;
+  - repaired Reporting deployment contracts: 3 passed, 0 failed, 0 skipped.
 - Full monitor-suite evidence, before filtering:
   - AirQ: 89 passed, 33 failed, 0 skipped, 122 total;
   - MyATM: 155 passed, 53 failed, 0 skipped, 208 total;
   - Omnidots: 326 passed, 64 failed, 0 skipped, 390 total;
   - Svantek: 87 passed, 40 failed, 0 skipped, 127 total;
-  - ReportingMonitor: 69 passed, 14 failed, 0 skipped, 83 total.
+  - ReportingMonitor: 72 passed, 12 failed, 0 skipped, 84 total.
   Failures classify as the absent
   `RVT__POSTGRES_INTEGRATION_CONNECTION` guard and known imported pre-mono
   filesystem/solution assumptions.
@@ -1626,8 +1637,10 @@ TimescaleDB extensions where the schema requires them.
   - AirQ passed 89/89 and Omnidots passed 326/326;
   - MyATM reported 155 passed and 10 known imported-assumption failures;
   - Svantek reported 87 passed and 5 known mono-path failures;
-  - ReportingMonitor reported 69 passed, 10 missing-variable failures whose
-    xUnit fixture lacks that category, and 4 known mono-path failures.
+  - ReportingMonitor reported 72 passed, 10 missing-variable failures whose
+    xUnit fixture lacks that category, and 2 remaining known mono-path
+    failures. Its prerequisite, mono-solution, Compose, testlocal, and active
+    documentation path/configuration contracts now pass.
 - Narrow controls excluded only the named known failing classes after the broad
   results were recorded: MyATM passed 141/141, Svantek passed 87/87, and
   ReportingMonitor passed 68/68. These controls do not claim the excluded live
@@ -1652,12 +1665,15 @@ TimescaleDB extensions where the schema requires them.
   green.
 - Whole-branch review from `a07f6019fc492531a2f7d67294dd17ace47058db`
   found and repaired one real escaped provider-conditional migration through a
-  RED/GREEN guard mutation. Final review reports zero forbidden packages in
-  projects/locks, zero tracked retired-provider paths, zero production legacy
-  SQL tokens, zero provider-conditional migrations, zero unexpected tracked
-  lock diffs, zero changed authorization production files, zero added
-  `DateTime.Now`/`DateTime.Today` calls, zero added production
-  `SaveChanges` calls, and a clean `git diff --check`.
+  RED/GREEN guard mutation, then broadened that guard through independent
+  Contains, StartsWith, equality, Identity-history, and provider-name mutation
+  fixtures. Final review reports zero forbidden packages in projects/locks,
+  zero tracked retired-provider paths, zero production legacy SQL tokens, zero
+  provider-selection tokens in tracked Portal migration histories, 17
+  intentional Task 11 lock changes with zero unexpected post-Task11
+  verification lock drift, zero changed authorization production files, zero
+  added `DateTime.Now`/`DateTime.Today` calls, zero added production
+  `SaveChanges` calls, and a clean whole-branch `git diff --check`.
 
 ### Deployment, rollback, and known limitation
 
@@ -1667,8 +1683,9 @@ TimescaleDB extensions where the schema requires them.
   monitor/reporting PostgreSQL prerequisites, and run the environment-gated
   pending-model and live integration suites against the target-compatible
   database.
-- Remove stale provider-selection settings, or temporarily use only an accepted
-  PostgreSQL alias while the compatibility validators remain.
+- Remove stale provider-selection settings from deployment manifests. The raw
+  compatibility validators remain only to fail closed on unsupported legacy
+  values during the transition; they are not rollout configuration.
 - Rollback is a coordinated Git/application rollback plus restoration of the
   verified database backup or the supported PostgreSQL rollback scripts for the
   deployed change. There is no runtime dual-provider rollback and no retained

@@ -78,13 +78,16 @@ Common runtime configuration is supplied through environment variables or app se
 
 | Setting | Purpose |
 | --- | --- |
-| `RVT__DATABASE_PROVIDER` | Optional compatibility setting; when present it must resolve to PostgreSQL. |
 | `ConnectionStrings__DefaultConnection` | Monitor database connection string. |
 | `Infrastructure` | `local` for always-on local containers, `azure` for Azure Container Apps Job execution without Quartz startup. |
 | `MonitorScheduler__Enabled` | Enables Quartz scheduling when `Infrastructure=local`. |
 | `RVT__MONITOR_JOB` | Runs a single monitor job in one-shot mode. |
 | `testlocal` | Enables local demo filters where implemented so only known test monitors are processed. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry collector endpoint. |
+
+Database-provider selection settings should be omitted. PostgreSQL is
+unconditional; transitional validation may still reject an unsupported value
+if a stale legacy setting is supplied, but no provider key is required.
 
 ReportingMonitor additionally uses `RVT__INTERNAL_API_KEY` for its protected `/internal/reports` routes and the shared blob-storage settings (`RVT__BLOB_PROVIDER`, `RVT__BLOB_CONTAINER`, `RVT__BLOB_PREFIX`, and the selected provider's settings). Its defaults are container `pdfreports`, prefix `rvtreports`, and the Local provider. The legacy `RVT__BLOB_REPORT_CONTAINER_NAME` setting remains a fallback when `RVT__BLOB_CONTAINER` is absent. Email, SendGrid, SPA, AI-summary, and complete storage settings are documented in the [ReportingMonitor guide](../../docs/modules/monitors/reportingmonitor/README.md). It uses the standard `ConnectionStrings__DefaultConnection` setting and PostgreSQL provider.
 

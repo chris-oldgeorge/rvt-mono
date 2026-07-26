@@ -1,8 +1,8 @@
 # PostgreSQL-Only Solution Design
 
-**Date:** 2026-07-25  
-**Status:** Approved  
-**Branch:** `codex/postgresql-only`  
+**Date:** 2026-07-25
+**Status:** Approved
+**Branch:** `codex/postgresql-only`
 **Base:** `a07f6019fc492531a2f7d67294dd17ace47058db`
 
 ## Decision

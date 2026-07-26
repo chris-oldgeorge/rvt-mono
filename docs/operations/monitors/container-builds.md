@@ -70,7 +70,7 @@ Local API ports:
 - Svantek: `http://localhost:8084/liveness`
 - Reporting: `http://localhost:8085/liveness` (and `http://localhost:8085/readiness` for database readiness)
 
-The root Compose definition does not create a database container. Provide the shared PostgreSQL connection string and reporting secrets through an untracked override or the deployment secret store. ReportingMonitor requires `ConnectionStrings__DefaultConnection`, `RVT__DATABASE_PROVIDER=PostgreSql`, and a target database with `reportingmonitor/database/postgres/reporting_service_prerequisites_20260625.sql` already applied. Its protected `/internal/reports` endpoints use `X-RVT-Internal-Key` when `RVT__INTERNAL_API_KEY` is configured.
+The root Compose definition does not create a database container. Provide the shared PostgreSQL connection string and reporting secrets through an untracked override or the deployment secret store. ReportingMonitor requires `ConnectionStrings__DefaultConnection` and a target database with `reportingmonitor/database/postgres/reporting_service_prerequisites_20260625.sql` already applied. Omit database-provider selection settings: PostgreSQL is unconditional, although transitional validation still rejects unsupported stale legacy values. Its protected `/internal/reports` endpoints use `X-RVT-Internal-Key` when `RVT__INTERNAL_API_KEY` is configured.
 
 AirQ's import API is not published to the host by the base Compose file. Set
 `RVT__MONITOR_API_KEY` through a secret mechanism before enabling `MonitorApi`.
@@ -156,7 +156,7 @@ The Svantek monitor reads its API key from `RVT__SVANTEK_API_KEY`. For local dev
 dotnet user-secrets set RVT__SVANTEK_API_KEY <redacted> --project svantekmonitor/SvantekMonitor/SvantekMonitor.csproj
 ```
 
-For the single-monitor local demo container, pass the key through a local, untracked env file together with `testlocal=true`, `RVT__MONITOR_JOB=StoreNoiseLevels`, `RVT__DATABASE_PROVIDER=PostgreSql`, and `ConnectionStrings__DefaultConnection`. Standalone `docker run` reads these values from `--env-file`; Docker swarm secrets require the Docker daemon to be initialized as a swarm manager first.
+For the single-monitor local demo container, pass the key through a local, untracked env file together with `testlocal=true`, `RVT__MONITOR_JOB=StoreNoiseLevels`, and `ConnectionStrings__DefaultConnection`. Standalone `docker run` reads these values from `--env-file`; Docker swarm secrets require the Docker daemon to be initialized as a swarm manager first.
 
 ## Omnidots Vibration Local Demo
 
@@ -186,6 +186,6 @@ Implementation notes:
 - The same filter narrows database monitor reads by serial `21972` and fleet `R6025V`.
 - StoreDust, StoreAccessoryInfo, offline checks, clear-offline, and serial-specific ProcessDustLevels rules are constrained to the demo monitor when `testlocal=true`.
 
-For an authenticated one-shot local demo container, pass an untracked env file containing `RVT__MYATM_TOKEN`, `testlocal=true`, `RVT__MONITOR_JOB=StoreMonitors`, `RVT__DATABASE_PROVIDER=PostgreSql`, and `ConnectionStrings__DefaultConnection`. The local Timescale smoke run can share the database container network with `--network container:rvt-timescaledb` and use `Host=127.0.0.1` in the connection string.
+For an authenticated one-shot local demo container, pass an untracked env file containing `RVT__MYATM_TOKEN`, `testlocal=true`, `RVT__MONITOR_JOB=StoreMonitors`, and `ConnectionStrings__DefaultConnection`. The local Timescale smoke run can share the database container network with `--network container:rvt-timescaledb` and use `Host=127.0.0.1` in the connection string.
 
 Do not set `testlocal=true` for normal MyAtm runs; it deliberately excludes every dust monitor except `21972` / `R6025V`.

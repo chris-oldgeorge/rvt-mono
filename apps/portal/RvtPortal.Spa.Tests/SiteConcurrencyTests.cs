@@ -221,12 +221,18 @@ public sealed class SiteConcurrencyTests
         var siteUpdate = script.IndexOf(
             "UPDATE public.site AS sites",
             StringComparison.Ordinal);
+        const string ArchiveUniqueIndex =
+            "CREATE UNIQUE INDEX ix_site_archived_site_id "
+            + "ON site_archived (site_id);";
+        const string NotificationUniqueIndex =
+            "CREATE UNIQUE INDEX ix_notification_setting_site_user_id "
+            + "ON notification_setting (site_user_id);";
         var archiveIndex = script.IndexOf(
-            "ix_site_archived_site_id",
+            ArchiveUniqueIndex,
             siteUpdate,
             StringComparison.Ordinal);
         var notificationIndex = script.IndexOf(
-            "ix_notification_setting_site_user_id",
+            NotificationUniqueIndex,
             siteUpdate,
             StringComparison.Ordinal);
 
@@ -240,6 +246,14 @@ public sealed class SiteConcurrencyTests
             () => Assert.True(siteUpdate > archiveDelete),
             () => Assert.True(archiveIndex > siteUpdate),
             () => Assert.True(notificationIndex > siteUpdate),
+            () => Assert.Contains(
+                ArchiveUniqueIndex,
+                script,
+                StringComparison.Ordinal),
+            () => Assert.Contains(
+                NotificationUniqueIndex,
+                script,
+                StringComparison.Ordinal),
             () => Assert.DoesNotContain("[dbo]", script, StringComparison.Ordinal),
             () => Assert.DoesNotContain("PRAGMA", script, StringComparison.Ordinal));
     }

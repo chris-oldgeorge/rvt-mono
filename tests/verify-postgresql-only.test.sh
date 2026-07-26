@@ -113,9 +113,29 @@ assert_rejected \
   src/appsettings.json \
   "{ \"Database\": { \"Provider\": \"${retired_engine}\" } }"
 assert_rejected \
-  provider-conditional-migration \
+  provider-conditional-migration-contains \
   apps/portal/RVT.DataAccess/Migrations/LegacyMigration.cs \
   "if (ActiveProvider.Contains(\"Npgsql\")) { }" \
+  "provider-conditional EF migration"
+assert_rejected \
+  provider-conditional-migration-starts-with \
+  apps/portal/RVT.DataAccess/Migrations/StartsWithMigration.cs \
+  "if (ActiveProvider.StartsWith(\"Npgsql\")) { }" \
+  "provider-conditional EF migration"
+assert_rejected \
+  provider-conditional-migration-equality \
+  apps/portal/RVT.DataAccess/Migrations/EqualityMigration.cs \
+  "if (ActiveProvider == \"Npgsql\") { }" \
+  "provider-conditional EF migration"
+assert_rejected \
+  provider-conditional-identity-migration \
+  apps/portal/RvtPortal.Spa/Data/Migrations/IdentityMigration.cs \
+  "if (ActiveProvider.Contains(\"Npgsql\")) { }" \
+  "provider-conditional EF migration"
+assert_rejected \
+  provider-name-migration-access \
+  apps/portal/RVT.DataAccess/Migrations/ProviderNameMigration.cs \
+  "var provider = database.ProviderName;" \
   "provider-conditional EF migration"
 assert_rejected \
   prose \

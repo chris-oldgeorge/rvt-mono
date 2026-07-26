@@ -27,7 +27,6 @@ services:
       Infrastructure: local
       MonitorApi__Enabled: "true"
       MonitorScheduler__Enabled: "false"
-      RVT__DATABASE_PROVIDER: PostgreSql
   myatmmonitor-api:
     image: rvt/myatmmonitor:local
     build:
@@ -41,7 +40,6 @@ services:
       Infrastructure: local
       MonitorApi__Enabled: "true"
       MonitorScheduler__Enabled: "false"
-      RVT__DATABASE_PROVIDER: PostgreSql
     ports:
       - "8082:8080"
 
@@ -58,7 +56,6 @@ services:
       Infrastructure: local
       MonitorApi__Enabled: "true"
       MonitorScheduler__Enabled: "false"
-      RVT__DATABASE_PROVIDER: PostgreSql
       RVT__OMNIDOTS_MONITORING_ALERT_TO: ${RVT__OMNIDOTS_MONITORING_ALERT_TO:-}
     ports:
       - "8083:8080"
@@ -76,7 +73,6 @@ services:
       Infrastructure: local
       MonitorApi__Enabled: "true"
       MonitorScheduler__Enabled: "false"
-      RVT__DATABASE_PROVIDER: PostgreSql
     volumes:
       - svantek-audiofiles:/data/rvt/blobs
     ports:
@@ -95,7 +91,6 @@ services:
       Infrastructure: local
       MonitorApi__Enabled: "true"
       MonitorScheduler__Enabled: "false"
-      RVT__DATABASE_PROVIDER: PostgreSql
       RVT__EMAIL_TEST_MODE: ${RVT__EMAIL_TEST_MODE:-false}
       RVT__EMAIL_TEST_REPORT_TO_EMAIL: ${RVT__EMAIL_TEST_REPORT_TO_EMAIL:-}
     volumes:

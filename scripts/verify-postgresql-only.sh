@@ -87,9 +87,10 @@ report_content_matches \
 while IFS= read -r -d '' path; do
   report_finding "${path}" "provider-conditional EF migration"
 done < <(
-  git -C "${repo_root}" grep -I -l -z -F \
-    -e "ActiveProvider.Contains" -- \
-    'apps/portal/RVT.DataAccess/Migrations/*.cs' || true
+  git -C "${repo_root}" grep -I -l -z -E \
+    -e 'ActiveProvider|ProviderName|IsNpgsql|IsSqlServer' -- \
+    ':(glob)apps/portal/**/Migrations/*.cs' \
+    ':(glob)apps/portal/**/Migrations/**/*.cs' || true
 )
 
 if (( failures > 0 )); then

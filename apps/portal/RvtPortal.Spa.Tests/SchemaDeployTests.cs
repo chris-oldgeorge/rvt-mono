@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using RVT.SchemaDeploy;
+using RvtPortal.Spa.Tests.Support;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -92,6 +93,33 @@ public class SchemaDeployTests
                 path,
                 "restore_unmapped_column_defaults.sql",
                 StringComparison.Ordinal));
+    }
+
+    [RequiresPostgresFact]
+    // Function summary: Verifies the connection-owning deploy path supplies the transaction required by LOCK TABLE.
+    public async Task Run_WithOwnedConnection_ExecutesLockingScriptInsideTransaction()
+    {
+        using var fixture = TemporaryDirectory.Create();
+        var postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
+        File.WriteAllText(
+            Path.Combine(fixture.Path, "create_unmapped_schema.sql"),
+            "CREATE TEMP TABLE schema_deploy_lock_target (id integer);");
+        File.WriteAllText(Path.Combine(fixture.Path, "restore_unmapped_column_defaults.sql"), "SELECT 1;");
+        File.WriteAllText(
+            Path.Combine(postLoad, "01_lock.sql"),
+            "LOCK TABLE pg_temp.schema_deploy_lock_target IN SHARE ROW EXCLUSIVE MODE;");
+
+        var runner = new ScriptRunner(new DeployOptions
+        {
+            ConnectionString =
+                Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!,
+            ScriptRoot = fixture.Path,
+            DryRun = false
+        });
+
+        var count = await runner.RunAsync();
+
+        Assert.Equal(3, count);
     }
 
     [Theory]

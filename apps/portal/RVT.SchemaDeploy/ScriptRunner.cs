@@ -41,7 +41,10 @@ public sealed class ScriptRunner
             throw new DeployException($"Could not connect to the database: {exception.Message}", exception);
         }
 
-        return await ApplyResolvedScriptsAsync(connection, scripts, cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var applied = await ApplyResolvedScriptsAsync(connection, transaction, scripts, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return applied;
     }
 
     /// <summary>
@@ -71,19 +74,20 @@ public sealed class ScriptRunner
             throw new DeployException("The supplied PostgreSQL connection must already be open.");
         }
 
-        return await ApplyResolvedScriptsAsync(connection, scripts, cancellationToken);
+        return await ApplyResolvedScriptsAsync(connection, transaction: null, scripts, cancellationToken);
     }
 
     // Function summary: Applies one already-resolved list to the supplied open PostgreSQL connection.
     private static async Task<int> ApplyResolvedScriptsAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
         IReadOnlyList<string> scripts,
         CancellationToken cancellationToken)
     {
-        await RequireTimescaleAsync(connection, cancellationToken);
+        await RequireTimescaleAsync(connection, transaction, cancellationToken);
         foreach (var script in scripts)
         {
-            await ApplyAsync(connection, script, cancellationToken);
+            await ApplyAsync(connection, transaction, script, cancellationToken);
         }
 
         return scripts.Count;
@@ -152,11 +156,15 @@ public sealed class ScriptRunner
     /// here is not an option - it needs privileges this tool should not assume - so the check fails early with
     /// the statement to run, rather than half-applying the schema and failing in the middle.
     /// </summary>
-    private static async Task RequireTimescaleAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
+    private static async Task RequireTimescaleAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        CancellationToken cancellationToken)
     {
         await using var command = new NpgsqlCommand(
             "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'timescaledb')",
-            connection);
+            connection,
+            transaction);
 
         var installed = await command.ExecuteScalarAsync(cancellationToken) as bool? ?? false;
         if (!installed)
@@ -170,12 +178,14 @@ public sealed class ScriptRunner
     }
 
     /// <summary>
-    /// Each file is sent as one command. PostgreSQL wraps a multi-statement simple query in an implicit
-    /// transaction, so a script either applies whole or not at all - which matters most for post-load/03, where
-    /// every view is dropped before it is recreated.
+    /// Each file is sent as one command inside the deploy transaction. The connection-owning entry point wraps
+    /// the complete ordered list in one transaction, while the open-connection entry point participates in the
+    /// caller's active transaction. This keeps the deployment atomic and supplies the transaction block required
+    /// by post-load scripts that use LOCK TABLE.
     /// </summary>
     private static async Task ApplyAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
         string path,
         CancellationToken cancellationToken)
     {
@@ -183,7 +193,7 @@ public sealed class ScriptRunner
 
         var sql = await File.ReadAllTextAsync(path, cancellationToken);
 
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.CommandTimeout = 0;
 
         try

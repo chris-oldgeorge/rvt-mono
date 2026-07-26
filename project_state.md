@@ -2966,5 +2966,27 @@ TimescaleDB extensions where the schema requires them.
   `10.0.9` and covers both Reporting Messaging and Storage for Options. With no
   nested ReportingMonitor override, the exact SDK `10.0.302` serial restore and
   Release single-node build passed in the Linux ARM64 runner with zero errors.
+- Runs `30196184422` and `30197086817` were abandoned after independent
+  GitHub runner transport/session failures during SDK download and job-lease
+  renewal. Restarting only the persistent runner service restored its existing
+  registration; the database service and runner-state volume were preserved.
+- Run `30198150365` then proved the repaired setup, clean restore, and complete
+  Release build in the real workflow. All three Portal EF migration chains
+  passed, but `RVT.SchemaDeploy` failed on
+  `post-load/06_site_write_uniqueness.sql` with PostgreSQL `25P01` because
+  `LOCK TABLE` was executed without an explicit transaction block. Its
+  always-on run-database cleanup passed.
+- `ScriptRunner.RunAsync()` now opens one explicit transaction for the complete
+  ordered deploy, commits only after every script succeeds, and passes that
+  transaction explicitly to its Npgsql commands. The already-open connection
+  overload still participates in the caller-owned transaction used by existing
+  rollback-based integration tests.
+- Regression
+  `Run_WithOwnedConnection_ExecutesLockingScriptInsideTransaction` uses a
+  temporary table and minimal deploy fixture against real TimescaleDB. Before
+  the repair it failed at the intended boundary with `25P01`; after the repair
+  the identical test passed 1/1 without mutating the Portal schema. The focused
+  Release build passed with zero errors; the five existing
+  `System.Security.Cryptography.Xml` 10.0.7 `NU1903` advisories remain.
 
 Next-session instruction: Read project_state.md to get up to speed

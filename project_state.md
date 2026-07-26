@@ -2871,8 +2871,9 @@ TimescaleDB extensions where the schema requires them.
   `rvt-sonar-runner`. `rvt_sonar_ci` is the Compose seed/admin database; it is
   not a test target. The hostname is `rvt-sonar-db` and the credentials are
   `postgres` / `postgres`. It has no published ports, bind mounts, privileged
-  services, Docker socket mount, or database volume. `runner-state` is the only
-  persisted named volume.
+  services or Docker socket mount. `runner-state` is the only Compose-declared
+  named volume; the TimescaleDB base image may use Docker-managed anonymous
+  storage, but each analysis creates and drops its own run-scoped database.
 - Runner variables are `RUNNER_URL=https://github.com/chris-oldgeorge/rvt-mono`,
   `RUNNER_NAME=rvt-sonar-dev`, `RUNNER_LABELS=rvt-sonar`, and
   `RUNNER_BOOTSTRAP_ONLY=false` by default. The persistent Compose service has

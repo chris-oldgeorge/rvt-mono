@@ -215,8 +215,12 @@ extension_only_source = workflow_source
   .sub("          DROP DATABASE IF EXISTS :\"database_name\";\n", "")
   .sub("          CREATE DATABASE :\"database_name\";\n", "")
 missing_schema_deploy_source = workflow_source.sub(
-  /\n      - name: Deploy Portal database.*?\n      - name: Collect \.NET coverage/m,
-  "\n      - name: Collect .NET coverage"
+  <<'SCHEMA_DEPLOY',
+          dotnet run --project apps/portal/RVT.SchemaDeploy/RVT.SchemaDeploy.csproj \
+            --configuration Release --no-build -- \
+            --connection "${RVT_DEPLOY_CONNECTION}"
+SCHEMA_DEPLOY
+  ""
 )
 [[extension_only_source, "extension-only database preparation"], [missing_schema_deploy_source, "missing schema deployment"]].each do |source, label|
   begin

@@ -67,10 +67,7 @@ runner_labels = sequence(analyze.fetch("runs-on"), "runs-on").map { |node| scala
 assert(runner_labels == ["self-hosted", "linux", "ARM64", "rvt-sonar"], "unexpected self-hosted runner labels")
 assert(scalar(analyze.fetch("timeout-minutes"), "timeout-minutes") == "120", "analysis timeout must be 120 minutes")
 
-job_environment = mapping(analyze.fetch("env"), "analyze job env")
-expected_connection = "Host=rvt-sonar-db;Port=5432;Database=rvt_sonar_ci;Username=postgres;Password=postgres"
-assert(scalar(job_environment.fetch("RVT_TEST_POSTGRES_CONNECTION"), "test PostgreSQL connection") == expected_connection, "unexpected test PostgreSQL connection")
-assert(scalar(job_environment.fetch("RVT__POSTGRES_INTEGRATION_CONNECTION"), "integration PostgreSQL connection") == expected_connection, "unexpected integration PostgreSQL connection")
+assert(!analyze.key?("env"), "database connections must be exported after a unique per-run database is created")
 
 steps = sequence(analyze.fetch("steps"), "analyze steps").map { |node| mapping(node, "step") }
 uses_steps = steps.select { |step| step.key?("uses") }
@@ -99,15 +96,76 @@ run = lambda do |name|
   scalar(step.fetch("run"), "#{name} run command")
 end
 
-database_setup = run.call("Prepare integration database")
-assert(database_setup.include?("pg_isready -h rvt-sonar-db -U postgres -d rvt_sonar_ci"), "database setup must wait for rvt-sonar-db")
-assert(database_setup.include?("psql -h rvt-sonar-db -U postgres -d rvt_sonar_ci -v ON_ERROR_STOP=1"), "database setup must fail closed")
-assert(database_setup.include?("CREATE EXTENSION IF NOT EXISTS timescaledb;"), "database setup must create timescaledb")
-assert(database_setup.include?("CREATE EXTENSION IF NOT EXISTS pgcrypto;"), "database setup must create pgcrypto")
+def workflow_steps(source)
+  root = mapping(Psych.parse(source).root, "workflow root")
+  jobs = mapping(root.fetch("jobs"), "jobs")
+  analyze = mapping(jobs.fetch("analyze"), "analyze job")
+  sequence(analyze.fetch("steps"), "analyze steps").map { |node| mapping(node, "step") }
+end
+
+def assert_database_lifecycle(steps)
+  named_step = lambda do |name|
+    steps.find { |step| step.key?("name") && scalar(step.fetch("name"), "step name") == name }
+  end
+  run = lambda do |name|
+    step = named_step.call(name)
+    assert(step, "missing #{name} step")
+    scalar(step.fetch("run"), "#{name} run command")
+  end
+
+  database_setup = run.call("Prepare integration database")
+  database_identity = 'database_name="rvt_sonar_${{ github.run_id }}_${{ github.run_attempt }}"'
+  assert(database_setup.include?(database_identity), "database setup must derive a unique database name from the run identity")
+  assert(database_setup.include?("pg_isready -h rvt-sonar-db -U postgres -d postgres"), "database setup must wait for rvt-sonar-db through the admin database")
+  assert(database_setup.include?('DROP DATABASE IF EXISTS :"database_name";'), "database setup must force-drop a stale job database")
+  assert(database_setup.include?('CREATE DATABASE :"database_name";'), "database setup must create the job database")
+  assert(database_setup.include?("CREATE EXTENSION IF NOT EXISTS timescaledb;"), "database setup must create timescaledb")
+  assert(database_setup.include?("CREATE EXTENSION IF NOT EXISTS pgcrypto;"), "database setup must create pgcrypto")
+  ["RVT_TEST_POSTGRES_CONNECTION", "RVT__POSTGRES_INTEGRATION_CONNECTION", "RVT_EF_CONNECTION", "RVT_DEPLOY_CONNECTION"].each do |variable|
+    assert(database_setup.include?("#{variable}=Host=rvt-sonar-db;Port=5432;Database=${database_name};Username=postgres;Password=postgres"), "database setup must export #{variable}")
+  end
+
+  deploy = run.call("Deploy Portal database")
+  expected_migrations = [
+    ["RVTDbContext", "apps/portal/RVT.DataAccess/RVT.DataAccess.csproj", "apps/portal/RVT.DataAccess/RVT.DataAccess.csproj"],
+    ["RVTSearchContext", "apps/portal/RVT.DataAccess/RVT.DataAccess.csproj", "apps/portal/RVT.DataAccess/RVT.DataAccess.csproj"],
+    ["ApplicationDbContext", "apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj", "apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj"]
+  ]
+  migration_commands = deploy.scan(%r{\./\.sonar/dotnet-ef database update.*?(?=\./\.sonar/dotnet-ef database update|dotnet run|\z)}m)
+  assert(migration_commands.length == 3, "database deployment must run exactly three EF migration commands")
+  actual_migrations = migration_commands.map do |command|
+    [
+      command[/--context\s+(\S+)/, 1],
+      command[/--project\s+(\S+)/, 1],
+      command[/--startup-project\s+(\S+)/, 1]
+    ]
+  end
+  assert(actual_migrations == expected_migrations, "database deployment must use the canonical EF contexts, projects, and startup projects")
+  assert(migration_commands.all? { |command| command.include?("--no-build --configuration Release") }, "database deployment must use the job-local EF tool")
+  assert(deploy.include?("dotnet run --project apps/portal/RVT.SchemaDeploy/RVT.SchemaDeploy.csproj"), "database deployment must run RVT.SchemaDeploy")
+  assert(deploy.include?("--connection \"${RVT_DEPLOY_CONNECTION}\""), "database deployment must pass the deployment connection explicitly")
+
+  cleanup = named_step.call("Drop integration database")
+  assert(cleanup, "missing Drop integration database step")
+  assert(scalar(cleanup.fetch("if"), "Drop integration database condition") == "always()", "database cleanup must run unconditionally")
+  cleanup_run = scalar(cleanup.fetch("run"), "Drop integration database run command")
+  assert(cleanup_run.include?(database_identity), "database cleanup must target the job-specific database")
+  assert(cleanup_run.include?('DROP DATABASE IF EXISTS :"database_name";'), "database cleanup must force-drop the job database")
+  assert(!cleanup_run.match?(/\bdocker\b/i), "database cleanup must not invoke Docker")
+
+  begin_index = steps.index(named_step.call("Begin SonarQube analysis"))
+  build_index = steps.index(named_step.call("Restore and build monorepo"))
+  deploy_index = steps.index(named_step.call("Deploy Portal database"))
+  coverage_index = steps.index(named_step.call("Collect .NET coverage"))
+  assert(begin_index < build_index && build_index < deploy_index && deploy_index < coverage_index, "database deployment must occur after scanner begin and build, before .NET coverage")
+end
+
+assert_database_lifecycle(steps)
 
 install_tools = run.call("Install analysis tools")
 assert(install_tools.include?("dotnet-sonarscanner --tool-path .sonar --version 11.2.1"), "scanner version must be pinned")
 assert(install_tools.include?("dotnet-coverage --tool-path .sonar --version 18.9.0"), "coverage tool version must be pinned")
+assert(install_tools.include?("dotnet-ef --tool-path .sonar --version 10.0.7"), "EF tool version must be pinned")
 
 begin_step = step_named.call("Begin SonarQube analysis")
 assert(begin_step, "missing Begin SonarQube analysis step")
@@ -151,6 +209,23 @@ assert(scalar(end_step.fetch("run"), "End SonarQube analysis run command").inclu
 step_text = steps.flat_map { |step| step.values.flat_map { |node| text_values(node) } }.join("\n")
 assert(!step_text.match?(/docker\.sock/i), "workflow steps must not reference the Docker socket")
 assert(!step_text.match?(/\bdocker\b/i), "workflow steps must not invoke Docker")
+
+workflow_source = File.read(workflow_path, encoding: "utf-8")
+extension_only_source = workflow_source
+  .sub("          DROP DATABASE IF EXISTS :\"database_name\";\n", "")
+  .sub("          CREATE DATABASE :\"database_name\";\n", "")
+missing_schema_deploy_source = workflow_source.sub(
+  /\n      - name: Deploy Portal database.*?\n      - name: Collect \.NET coverage/m,
+  "\n      - name: Collect .NET coverage"
+)
+[[extension_only_source, "extension-only database preparation"], [missing_schema_deploy_source, "missing schema deployment"]].each do |source, label|
+  begin
+    assert_database_lifecycle(workflow_steps(source))
+  rescue RuntimeError
+    next
+  end
+  raise "#{label} mutation was accepted"
+end
 
 puts "verify-manual-sonarqube-workflow: PASS"
 RUBY

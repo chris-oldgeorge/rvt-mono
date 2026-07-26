@@ -56,6 +56,9 @@ container and is cleaned by the checkout action between trusted manual jobs.
 The runner image pins GitHub Actions Runner `2.334.0` and verifies the Linux
 ARM64 archive with SHA-256
 `f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4`.
+Its Ubuntu Noble ARM64 runtime contract includes `libssl3t64`,
+`liblttng-ust1t64`, `libkrb5-3`, and `libgssapi-krb5-2`; it must not use the
+retired Noble-incompatible `libssl3` package.
 It runs the listener as a non-root user. GitHub runner auto-updates remain
 enabled so GitHub does not stop scheduling jobs when the pinned bootstrap
 version ages out.
@@ -66,14 +69,22 @@ needed while initially registering or replacing the persisted runner state;
 no long-lived GitHub personal access token is stored in the container.
 
 The database container exposes port 5432 only on the private Compose network
-and creates database `rvt_sonar_ci` with the job-local `postgres` superuser and
-password `postgres`. Both live-test contracts point to host `rvt-sonar-db`:
+and creates `rvt_sonar_ci` with the job-local `postgres` superuser and password
+`postgres`. That Compose seed database is only the service/admin database; the
+workflow derives `rvt_sonar_${{ github.run_id }}_${{ github.run_attempt }}`
+for each analysis, terminates stale connections, force-drops any prior database
+with that identity, creates it, and drops it in an unconditional final cleanup.
+There is no database named volume: the database uses the container writable
+layer. The workflow exports the job-specific connection through `GITHUB_ENV` as
+all four contracts:
 
 - `RVT_TEST_POSTGRES_CONNECTION` for Portal tests; and
 - `RVT__POSTGRES_INTEGRATION_CONNECTION` for Common and monitor tests.
+- `RVT_EF_CONNECTION` for the three EF migration commands; and
+- `RVT_DEPLOY_CONNECTION` for `RVT.SchemaDeploy`.
 
-The runner waits for the database health check and explicitly ensures the
-TimescaleDB and `pgcrypto` extensions exist before analysis.
+The runner waits for the database health check and explicitly creates the
+TimescaleDB and `pgcrypto` extensions in that job database before analysis.
 
 Docker Desktop must be running and the development machine must be awake for
 the runner to accept work. Jobs remain queued while the runner is offline. The
@@ -86,7 +97,8 @@ Within the job, pinned GitHub setup actions configure:
 - JDK 17 for the SonarScanner;
 - Node.js 24 with the Portal client package-lock cache; and
 - job-local SonarScanner for .NET `11.2.1` and `dotnet-coverage` `18.9.0`
-  installations.
+  installations; and
+- job-local `dotnet-ef` `10.0.7`, matching the Portal migration projects.
 
 The workflow checks out full Git history for correct SonarQube Cloud
 attribution.
@@ -95,19 +107,22 @@ attribution.
 
 The job executes these stages in order:
 
-1. Verify the PostgreSQL-only repository boundary.
-2. Install the pinned scanner and coverage tools under a job-local directory.
+1. Create the isolated job database, extensions, and `GITHUB_ENV` connections.
+2. Install the pinned scanner, coverage, and EF tools under a job-local directory.
 3. Begin analysis for `aileron-forward_rvt-mono`.
 4. Restore `Rvt.Mono.slnx` serially.
 5. Build the complete solution in Release mode, without incremental
    compilation and with single-node MSBuild ordering.
-6. Run every .NET test project under `dotnet-coverage`, producing one Visual
+6. Apply `RVTDbContext`, `RVTSearchContext`, and `ApplicationDbContext`
+   migrations, then run `RVT.SchemaDeploy` against the same database.
+7. Run every .NET test project under `dotnet-coverage`, producing one Visual
    Studio coverage XML report.
-7. Install Portal client dependencies with `npm ci`.
-8. Run the Portal Vitest coverage command, producing LCOV coverage.
-9. End analysis and upload the results to SonarQube Cloud.
-10. Wait for the project's quality-gate result and fail the manual run if the
+8. Install Portal client dependencies with `npm ci`.
+9. Run the Portal Vitest coverage command, producing LCOV coverage.
+10. End analysis and upload the results to SonarQube Cloud.
+11. Wait for the project's quality-gate result and fail the manual run if the
     gate fails or times out.
+12. Always terminate connections to, and force-drop, only the job database.
 
 Browser end-to-end tests are outside this workflow. They require a deployed
 application/browser topology and do not contribute the unit/integration
@@ -139,6 +154,9 @@ The workflow fails closed when:
 - either coverage report is missing;
 - analysis upload fails; or
 - the quality gate fails or exceeds its timeout.
+
+The final cleanup still drops only the scoped job database after any of these
+failures.
 
 The scanner end step runs only after successful build and coverage collection;
 an incomplete analysis is not presented as successful.

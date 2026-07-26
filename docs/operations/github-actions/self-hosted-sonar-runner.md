@@ -60,6 +60,19 @@ The persistent runner service has no registration-token environment variable.
 It restores its registration files from the named volume and starts the
 listener.
 
+## Per-analysis database isolation
+
+Compose persists only `runner-state`. It has no database volume: the
+`rvt-sonar-db` data is a container writable layer, and `rvt_sonar_ci` is only
+the Compose seed/admin database. Each manual workflow derives a database name
+from its GitHub run ID and attempt, force-drops a stale database with that name,
+creates it, installs `timescaledb` and `pgcrypto`, and exports the four
+job-scoped test/deployment connections. After the Release build it applies the
+three EF migration contexts (`RVTDbContext`, `RVTSearchContext`, and
+`ApplicationDbContext`) with job-local `dotnet-ef` `10.0.7`, then runs
+`RVT.SchemaDeploy` before coverage. The final `always()` workflow step removes
+only that job database; it does not use Docker.
+
 ## Replace a runner
 
 Use this procedure when intentionally replacing `rvt-sonar-dev` (for example,
@@ -86,8 +99,8 @@ the old GitHub-side runner record.
 
 Deleting `rvt-sonar-runner_runner-state` is destructive only to the three
 persisted GitHub runner registration files. It does not remove the database
-volume or repository files, but it makes the local runner unable to connect
-until it is registered again with a fresh token.
+container writable layer or repository files, but it makes the local runner
+unable to connect until it is registered again with a fresh token.
 
 ## Recover damaged or permanently offline state
 

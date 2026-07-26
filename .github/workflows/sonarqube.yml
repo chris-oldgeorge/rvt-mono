@@ -13,9 +13,6 @@ jobs:
   analyze:
     runs-on: [self-hosted, linux, ARM64, rvt-sonar]
     timeout-minutes: 120
-    env:
-      RVT_TEST_POSTGRES_CONNECTION: Host=rvt-sonar-db;Port=5432;Database=rvt_sonar_ci;Username=postgres;Password=postgres
-      RVT__POSTGRES_INTEGRATION_CONNECTION: Host=rvt-sonar-db;Port=5432;Database=rvt_sonar_ci;Username=postgres;Password=postgres
     steps:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -45,18 +42,33 @@ jobs:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          until pg_isready -h rvt-sonar-db -U postgres -d rvt_sonar_ci; do
+          database_name="rvt_sonar_${{ github.run_id }}_${{ github.run_attempt }}"
+          until pg_isready -h rvt-sonar-db -U postgres -d postgres; do
             sleep 2
           done
-          psql -h rvt-sonar-db -U postgres -d rvt_sonar_ci -v ON_ERROR_STOP=1 <<'SQL'
+          psql -h rvt-sonar-db -U postgres -d postgres -v ON_ERROR_STOP=1 -v database_name="${database_name}" <<'SQL'
+          SELECT pg_terminate_backend(pid)
+          FROM pg_stat_activity
+          WHERE datname = :'database_name' AND pid <> pg_backend_pid();
+          DROP DATABASE IF EXISTS :"database_name";
+          CREATE DATABASE :"database_name";
+          SQL
+          psql -h rvt-sonar-db -U postgres -d "${database_name}" -v ON_ERROR_STOP=1 <<'SQL'
           CREATE EXTENSION IF NOT EXISTS timescaledb;
           CREATE EXTENSION IF NOT EXISTS pgcrypto;
           SQL
+          {
+            echo "RVT_TEST_POSTGRES_CONNECTION=Host=rvt-sonar-db;Port=5432;Database=${database_name};Username=postgres;Password=postgres"
+            echo "RVT__POSTGRES_INTEGRATION_CONNECTION=Host=rvt-sonar-db;Port=5432;Database=${database_name};Username=postgres;Password=postgres"
+            echo "RVT_EF_CONNECTION=Host=rvt-sonar-db;Port=5432;Database=${database_name};Username=postgres;Password=postgres"
+            echo "RVT_DEPLOY_CONNECTION=Host=rvt-sonar-db;Port=5432;Database=${database_name};Username=postgres;Password=postgres"
+          } >>"${GITHUB_ENV}"
 
       - name: Install analysis tools
         run: |
           dotnet tool install dotnet-sonarscanner --tool-path .sonar --version 11.2.1
           dotnet tool install dotnet-coverage --tool-path .sonar --version 18.9.0
+          dotnet tool install dotnet-ef --tool-path .sonar --version 10.0.7
 
       - name: Begin SonarQube analysis
         env:
@@ -81,6 +93,25 @@ jobs:
           dotnet restore Rvt.Mono.slnx --disable-parallel
           dotnet build Rvt.Mono.slnx --configuration Release --no-restore --no-incremental --nologo -m:1
 
+      - name: Deploy Portal database
+        run: |
+          set -euo pipefail
+          ./.sonar/dotnet-ef database update --no-build --configuration Release \
+            --context RVTDbContext \
+            --project apps/portal/RVT.DataAccess/RVT.DataAccess.csproj \
+            --startup-project apps/portal/RVT.DataAccess/RVT.DataAccess.csproj
+          ./.sonar/dotnet-ef database update --no-build --configuration Release \
+            --context RVTSearchContext \
+            --project apps/portal/RVT.DataAccess/RVT.DataAccess.csproj \
+            --startup-project apps/portal/RVT.DataAccess/RVT.DataAccess.csproj
+          ./.sonar/dotnet-ef database update --no-build --configuration Release \
+            --context ApplicationDbContext \
+            --project apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj \
+            --startup-project apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj
+          dotnet run --project apps/portal/RVT.SchemaDeploy/RVT.SchemaDeploy.csproj \
+            --configuration Release --no-build -- \
+            --connection "${RVT_DEPLOY_CONNECTION}"
+
       - name: Collect .NET coverage
         run: |
           mkdir -p artifacts/coverage
@@ -101,3 +132,20 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: ./.sonar/dotnet-sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+
+      - name: Drop integration database
+        if: always()
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          database_name="rvt_sonar_${{ github.run_id }}_${{ github.run_attempt }}"
+          until pg_isready -h rvt-sonar-db -U postgres -d postgres; do
+            sleep 2
+          done
+          psql -h rvt-sonar-db -U postgres -d postgres -v ON_ERROR_STOP=1 -v database_name="${database_name}" <<'SQL'
+          SELECT pg_terminate_backend(pid)
+          FROM pg_stat_activity
+          WHERE datname = :'database_name' AND pid <> pg_backend_pid();
+          DROP DATABASE IF EXISTS :"database_name";
+          SQL

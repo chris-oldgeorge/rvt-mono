@@ -5,8 +5,8 @@ ARG RUNNER_SHA256=f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-       ca-certificates curl git gosu jq libicu74 libssl3 postgresql-client \
-       tar gzip unzip xz-utils zlib1g \
+       ca-certificates curl git gosu jq libgssapi-krb5-2 libicu74 libkrb5-3 \
+       liblttng-ust1t64 libssl3t64 postgresql-client tar gzip unzip xz-utils zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --uid 1001 --shell /bin/bash runner

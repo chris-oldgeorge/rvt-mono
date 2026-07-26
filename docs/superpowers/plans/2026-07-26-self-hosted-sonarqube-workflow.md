@@ -41,6 +41,9 @@ Vitest LCOV, Bash.
 - Import one `dotnet-coverage` XML report and Portal Vitest LCOV.
 - Wait at most 600 seconds for the Sonar quality gate.
 - Preserve all unrelated untracked files listed in `project_state.md`.
+- On Ubuntu Noble ARM64, use `libssl3t64` and `liblttng-ust1t64`, not `libssl3`.
+- Each analysis must create, migrate, deploy, and unconditionally drop only its
+  run-ID/attempt-scoped database; `rvt_sonar_ci` is not a test target.
 
 ---
 
@@ -122,6 +125,11 @@ ENTRYPOINT ["/usr/local/bin/runner-entrypoint"]
 ```
 
 Do not install Docker inside the image.
+
+**Final repair addendum:** Ubuntu 24.04 ARM64 uses `libssl3t64`, not `libssl3`.
+The pinned runner runtime also requires `liblttng-ust1t64`, `libkrb5-3`, and
+`libgssapi-krb5-2`. The runner-stack guard must fail if these contract packages
+are removed or `libssl3` returns.
 
 - [ ] **Step 4: Add non-root registration and startup**
 
@@ -543,6 +551,26 @@ docker compose -f .github/runner/docker-compose.yml build rvt-sonar-runner
 Expected: the runner archive checksum validates and the Linux ARM64 image
 builds. Do not start/register the runner without a short-lived registration
 token.
+
+### Final repair addendum: Noble runtime and isolated database lifecycle
+
+The earlier Dockerfile and workflow snippets in this plan are superseded where
+they name `libssl3` or run tests against `rvt_sonar_ci`. Keep that Compose
+database only for container initialization and administration. The repair must:
+
+- install `libssl3t64`, `liblttng-ust1t64`, `libkrb5-3`, and
+  `libgssapi-krb5-2` in the Noble ARM64 runner image;
+- derive `rvt_sonar_${{ github.run_id }}_${{ github.run_attempt }}`, wait for
+  the service through `postgres`, terminate stale connections, force-drop and
+  create that database, add both extensions, and export all four scoped
+  connections through `GITHUB_ENV`;
+- install job-local `dotnet-ef` `10.0.7`; after scanner begin and the Release
+  build, apply `RVTDbContext`, `RVTSearchContext`, and
+  `ApplicationDbContext` with the canonical project/startup paths, then run
+  `RVT.SchemaDeploy` before .NET coverage; and
+- run an `if: always()` cleanup that force-drops only the job database without
+  Docker. The workflow guard must reject extension-only setup and missing
+  schema deployment mutations.
 
 - [ ] **Step 5: Commit documentation and state**
 

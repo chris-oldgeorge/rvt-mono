@@ -35,28 +35,61 @@ They target pre-monorepo projects and are not root GitHub Actions entry points.
 
 ## Runner and Database
 
-The job runs on `ubuntu-latest` and checks out full Git history for correct
-SonarQube Cloud attribution.
+The job runs on a dedicated containerized self-hosted runner on the ARM64
+development machine. GitHub routes the job with:
 
-It configures:
+```yaml
+runs-on: [self-hosted, linux, ARM64, rvt-sonar]
+```
 
-- .NET SDK 10;
-- JDK 17 for the SonarScanner;
-- Node.js 24 with the Portal client package-lock cache;
-- a `timescale/timescaledb:latest-pg17` service; and
-- job-local SonarScanner for .NET `11.2.1` and `dotnet-coverage` `18.9.0`
-  installations.
+Docker Compose owns two containers on one private network:
 
-The disposable service exposes port 5432 and creates database `rvt_sonar_ci`
-with the job-local `postgres` superuser and password `postgres`. Both live-test
-contracts point to that database:
+- `rvt-sonar-runner`: a Linux ARM64 GitHub Actions runner with the custom
+  `rvt-sonar` label; and
+- `rvt-sonar-db`: `timescale/timescaledb:2.28.3-pg17`.
+
+The runner container does not mount the development machine's source tree or
+Docker socket. It receives no inbound host port. The runner state is stored in
+a Docker named volume; the checked-out work directory remains inside the
+container and is cleaned by the checkout action between trusted manual jobs.
+
+The runner image pins GitHub Actions Runner `2.334.0` and verifies the Linux
+ARM64 archive with SHA-256
+`f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4`.
+It runs the listener as a non-root user. GitHub runner auto-updates remain
+enabled so GitHub does not stop scheduling jobs when the pinned bootstrap
+version ages out.
+
+The first start accepts a short-lived repository runner registration token
+through `RUNNER_REGISTRATION_TOKEN`. The token is never committed. It is only
+needed while initially registering or replacing the persisted runner state;
+no long-lived GitHub personal access token is stored in the container.
+
+The database container exposes port 5432 only on the private Compose network
+and creates database `rvt_sonar_ci` with the job-local `postgres` superuser and
+password `postgres`. Both live-test contracts point to host `rvt-sonar-db`:
 
 - `RVT_TEST_POSTGRES_CONNECTION` for Portal tests; and
 - `RVT__POSTGRES_INTEGRATION_CONNECTION` for Common and monitor tests.
 
-The database service must be healthy before analysis begins and must support
-the TimescaleDB and `pgcrypto` extension requirements exercised by the schema
-and reporting suites.
+The runner waits for the database health check and explicitly ensures the
+TimescaleDB and `pgcrypto` extensions exist before analysis.
+
+Docker Desktop must be running and the development machine must be awake for
+the runner to accept work. Jobs remain queued while the runner is offline. The
+runner is approved only for this private repository and manually selected,
+trusted refs.
+
+Within the job, pinned GitHub setup actions configure:
+
+- .NET SDK 10;
+- JDK 17 for the SonarScanner;
+- Node.js 24 with the Portal client package-lock cache; and
+- job-local SonarScanner for .NET `11.2.1` and `dotnet-coverage` `18.9.0`
+  installations.
+
+The workflow checks out full Git history for correct SonarQube Cloud
+attribution.
 
 ## Analysis Sequence
 
@@ -124,6 +157,9 @@ Repository verification will prove:
 - existing source-boundary and PostgreSQL guards remain green.
 
 Because a local checkout cannot access repository secrets or impersonate the
-GitHub-hosted service-container network exactly, the final end-to-end
-verification is one manual run from the GitHub Actions interface after the
-workflow is pushed.
+self-hosted GitHub job exactly, final end-to-end verification requires:
+
+1. building and starting the Docker Compose runner stack with a short-lived
+   registration token;
+2. confirming the `rvt-sonar` runner is online in repository settings; and
+3. starting one manual workflow run after the workflow is pushed.

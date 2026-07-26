@@ -2864,6 +2864,16 @@ TimescaleDB extensions where the schema requires them.
   test under `dotnet-coverage`, Portal Vitest LCOV coverage, PostgreSQL 17 /
   TimescaleDB service, and both `RVT_TEST_POSTGRES_CONNECTION` and
   `RVT__POSTGRES_INTEGRATION_CONNECTION`.
+- Runner revision approved: use a dedicated Docker Compose stack on the ARM64
+  development machine with a Linux ARM64 GitHub Actions runner labeled
+  `rvt-sonar` and sibling `timescale/timescaledb:2.28.3-pg17`. Do not mount the
+  development source tree or host Docker socket. Persist only runner
+  registration state in a Docker named volume.
+- Bootstrap GitHub Actions Runner `2.334.0` with the verified Linux ARM64
+  archive SHA-256
+  `f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4`.
+  Use only a short-lived `RUNNER_REGISTRATION_TOKEN` for initial registration;
+  do not store a PAT.
 - The design waits for the Sonar quality gate and fails closed on missing
   credentials, unhealthy database, build/test/coverage failures, upload
   failures, and red or timed-out quality gates.

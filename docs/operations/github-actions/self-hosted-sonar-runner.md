@@ -36,6 +36,11 @@ container configuration; it exists transiently in the auto-removed bootstrap
 container. Docker may write its normal transient-container metadata while that
 bootstrap container exists.
 
+The runner listener operates as the unprivileged `runner` user. The workflow
+therefore sets `DOTNET_INSTALL_DIR` to `${{ runner.temp }}/dotnet` for
+`actions/setup-dotnet`; its Linux default, `/usr/share/dotnet`, is not writable
+by this runner and must not be restored.
+
 ## Inspect, stop, and restart
 
 Inspect runner and database logs with:

@@ -2935,16 +2935,24 @@ TimescaleDB extensions where the schema requires them.
   PASS; `bash -n .github/runner/entrypoint.sh
   tests/verify-sonar-runner-stack.test.sh` PASS; and `git diff --check` PASS
   with no whitespace errors.
-- Docker Desktop was subsequently started for token-free image validation.
+- Docker Desktop was started for image and live-run validation.
   `docker info --format '{{.Architecture}} {{.ServerVersion}}'` reported
   `aarch64 29.4.3`;
   `docker compose -f .github/runner/docker-compose.yml build
   rvt-sonar-runner` completed successfully, including the pinned archive
   checksum; and a one-shot container running as UID/GID `1001` reported
-  `Runner.Listener --version` as `2.334.0`. No runner was registered or started.
-- Remaining external integration step: obtain a short-lived repository runner
-  registration token, register/start `rvt-sonar-dev`, and execute the first
-  trusted-ref manual `SonarQube` workflow. That remote run is the final
-  end-to-end validation.
+  `Runner.Listener --version` as `2.334.0`.
+- The repository runner `rvt-sonar-dev` is registered, online, and uses labels
+  `self-hosted`, `Linux`, `ARM64`, and `rvt-sonar`. GitHub automatically updated
+  the listener from `2.334.0` to `2.336.0`; the persistent runner and TimescaleDB
+  containers remain running without a registration token.
+- The first manual run, GitHub Actions run `30194905575`, reached the runner and
+  always-on database cleanup, then failed at `Set up .NET 10` because
+  `actions/setup-dotnet` defaults to `/usr/share/dotnet` on Linux while the
+  listener deliberately runs as the unprivileged `runner` user. The workflow
+  now sets `DOTNET_INSTALL_DIR=${{ runner.temp }}/dotnet` on that setup step.
+  The regression guard fails when the override is absent, passes with the
+  repair, and a live non-root write check against the runner temporary
+  directory passed.
 
 Next-session instruction: Read project_state.md to get up to speed

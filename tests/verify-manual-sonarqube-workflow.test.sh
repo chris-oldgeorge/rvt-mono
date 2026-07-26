@@ -87,6 +87,16 @@ expected_actions.each do |action_name, commit|
   assert(uses_steps.any? { |step| scalar(step.fetch("uses"), "action reference") == "#{action_name}@#{commit}" }, "missing pinned #{action_name} action")
 end
 
+dotnet_setup = uses_steps.find do |step|
+  scalar(step.fetch("uses"), "action reference").start_with?("actions/setup-dotnet@")
+end
+dotnet_environment = mapping(dotnet_setup.fetch("env"), "Set up .NET 10 env")
+assert(dotnet_environment.keys == ["DOTNET_INSTALL_DIR"], "Set up .NET 10 must only override the install directory")
+assert(
+  scalar(dotnet_environment.fetch("DOTNET_INSTALL_DIR"), "DOTNET_INSTALL_DIR") == "${{ runner.temp }}/dotnet",
+  "Set up .NET 10 must install into the runner-owned temporary directory"
+)
+
 step_named = lambda do |name|
   steps.find { |step| step.key?("name") && scalar(step.fetch("name"), "step name") == name }
 end

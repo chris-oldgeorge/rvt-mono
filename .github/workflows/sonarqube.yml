@@ -1,0 +1,103 @@
+name: SonarQube
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: [self-hosted, linux, ARM64, rvt-sonar]
+    timeout-minutes: 120
+    env:
+      RVT_TEST_POSTGRES_CONNECTION: Host=rvt-sonar-db;Port=5432;Database=rvt_sonar_ci;Username=postgres;Password=postgres
+      RVT__POSTGRES_INTEGRATION_CONNECTION: Host=rvt-sonar-db;Port=5432;Database=rvt_sonar_ci;Username=postgres;Password=postgres
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9
+        with:
+          java-version: 17
+          distribution: zulu
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: apps/portal/RvtPortal.Client/package-lock.json
+
+      - name: Prepare integration database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          until pg_isready -h rvt-sonar-db -U postgres -d rvt_sonar_ci; do
+            sleep 2
+          done
+          psql -h rvt-sonar-db -U postgres -d rvt_sonar_ci -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS timescaledb;
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          SQL
+
+      - name: Install analysis tools
+        run: |
+          dotnet tool install dotnet-sonarscanner --tool-path .sonar --version 11.2.1
+          dotnet tool install dotnet-coverage --tool-path .sonar --version 18.9.0
+
+      - name: Begin SonarQube analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          set -euo pipefail
+          ./.sonar/dotnet-sonarscanner begin \
+            /k:aileron-forward_rvt-mono \
+            /o:aileron-forward \
+            /d:sonar.host.url=https://sonarcloud.io \
+            /d:sonar.token="${SONAR_TOKEN}" \
+            /d:sonar.cs.vscoveragexml.reportsPaths=artifacts/coverage/coverage.xml \
+            /d:sonar.javascript.lcov.reportPaths=apps/portal/RvtPortal.Client/coverage/lcov.info \
+            /d:sonar.scanner.scanAll=true \
+            '/d:sonar.cpd.exclusions=apps/portal/database/**,apps/portal/RVT.DataAccess/Migrations/**,apps/portal/RVT.DataAccess/EntityModels/Models/**,apps/portal/RvtPortal.Client/dist/**,apps/portal/RvtPortal.Client/coverage/**,apps/portal/RvtPortal.Client/src/api/schema.d.ts,**/bin/**,**/obj/**' \
+            '/d:sonar.coverage.exclusions=apps/portal/database/**,apps/portal/RVT.DataAccess/Migrations/**,apps/portal/RVT.DataAccess/EntityModels/Models/**,apps/portal/RvtPortal.Client/dist/**,apps/portal/RvtPortal.Client/coverage/**,apps/portal/RvtPortal.Client/src/api/schema.d.ts,**/bin/**,**/obj/**' \
+            /d:sonar.qualitygate.wait=true \
+            /d:sonar.qualitygate.timeout=600
+
+      - name: Restore and build monorepo
+        run: |
+          dotnet restore Rvt.Mono.slnx --disable-parallel
+          dotnet build Rvt.Mono.slnx --configuration Release --no-restore --no-incremental --nologo -m:1
+
+      - name: Collect .NET coverage
+        run: |
+          mkdir -p artifacts/coverage
+          ./.sonar/dotnet-coverage collect \
+            "dotnet test Rvt.Mono.slnx --configuration Release --no-build --no-restore --nologo -m:1" \
+            -f xml \
+            -o artifacts/coverage/coverage.xml
+          test -s artifacts/coverage/coverage.xml
+
+      - name: Collect Portal client coverage
+        working-directory: apps/portal/RvtPortal.Client
+        run: |
+          npm ci
+          npm run test:coverage
+          test -s coverage/lcov.info
+
+      - name: End SonarQube analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./.sonar/dotnet-sonarscanner end /d:sonar.token="${SONAR_TOKEN}"

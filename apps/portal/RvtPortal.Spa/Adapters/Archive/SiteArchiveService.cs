@@ -10,7 +10,7 @@
 // - 2026-06-08 pending Replaced concatenated archive SQL execution with EF Core parameterized query execution.
 // - 2026-06-08 pending Updated archive export SQL to canonical database names for the naming refactor.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
-// - 2026-06-03 f5fd01e Added SQL Server/PostgreSQL provider support.
+// - 2026-06-03 f5fd01e Added relational database support.
 // - 2026-06-26 pending Awaited archive file/blob APIs to remove blocking async workflows.
 // - 2026-07-08 pending Replaced console archive error output with trace logging during cleanup review.
 

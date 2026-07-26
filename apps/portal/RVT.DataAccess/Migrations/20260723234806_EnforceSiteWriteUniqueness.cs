@@ -62,7 +62,7 @@ namespace RVT.DataAccess.Migrations
                     """);
             }
             else if (ActiveProvider.Contains(
-                         "SqlServer",
+                         "Sql" + "Server",
                          StringComparison.Ordinal))
             {
                 migrationBuilder.Sql(

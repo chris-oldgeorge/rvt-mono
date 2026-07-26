@@ -32,6 +32,5 @@ This repository is the RVT Portal SPA alpha worktree. Use the workspace-level `.
 
 ## Compatibility Boundaries
 
-- Temporary old-name views may exist only in the `legacy` schema and only through the approved compatibility scripts.
-- New application, migrator, and monitor code must not query the `legacy` schema.
-- Keep compatibility objects documented with ownership and removal status in `../../docs/database/portal/legacy-compatibility-deprecation.md`.
+- Compatibility views are retired; new application, migration, monitor, and reporting code must use canonical objects in `public`.
+- No code may query or recreate a `legacy` compatibility schema.

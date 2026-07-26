@@ -12,6 +12,17 @@ cp "$repo_root/docs/index.md" "$test_root/docs/"
 cp "$repo_root/scripts/verify-documentation-layout.sh" "$test_root/scripts/"
 cp -R "$fixture_root/." "$test_root/"
 
+expected_moves=85
+manifest_moves="$(
+  awk -F '`' '/^\| `/ { count++ } END { print count + 0 }' \
+    "$test_root/docs/documentation-move-manifest.md"
+)"
+if [[ "$manifest_moves" -ne "$expected_moves" ]]; then
+  printf 'Expected %d manifest moves, found %d.\n' \
+    "$expected_moves" "$manifest_moves" >&2
+  exit 1
+fi
+
 stale_document_path="apps/monitors/myatmmonitor/"
 stale_document_path+="README.md"
 STALE_DOCUMENT_PATH="$stale_document_path" perl -pi -e \

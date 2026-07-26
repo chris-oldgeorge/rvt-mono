@@ -1,6 +1,6 @@
 ﻿// File summary: Covers canonical database naming rules used by the database refactor.
 // Major updates:
-// - 2026-07-25 pending Removed SQL Server metadata cases and retained canonical Npgsql model coverage.
+// - 2026-07-25 pending Removed retired-provider metadata cases and retained canonical Npgsql model coverage.
 // - 2026-06-25 pending Returned concrete CSV field lists for CA1859 analyzer cleanup.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-06-08 pending Added database naming convention guardrails for the canonical schema refactor.
@@ -10,7 +10,7 @@
 // - 2026-06-08 pending Added ASP.NET Identity exclusion guardrails for the database naming refactor.
 // - 2026-06-09 pending Added canonical routine-name conversion checks for stored procedure porting.
 // - 2026-06-09 pending Added provider-specific live context mapping checks after the development Postgres cutover.
-// - 2026-06-09 pending Updated live context guardrails for canonical SQL Server and PostgreSQL schemas.
+// - 2026-06-09 pending Updated live context guardrails for the canonical PostgreSQL schema.
 // - 2026-06-09 pending Added search-context canonical mapping checks after monitor detail runtime failures.
 // - 2026-06-09 pending Added whole-search-model canonical guardrail for tables, views, and columns.
 

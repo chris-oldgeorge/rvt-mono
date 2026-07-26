@@ -1,6 +1,6 @@
 ﻿// File summary: Verifies the ownership predicate compiles to canonical PostgreSQL SQL.
 // Major updates:
-// - 2026-07-25 pending Removed the retired SQL Server translation case.
+// - 2026-07-25 pending Removed the retired-provider translation case.
 // - 2026-07-14 pending Added provider translation guards for MonitorOwnershipWindowResolver.OwnsAt.
 
 using Microsoft.EntityFrameworkCore;

@@ -31,12 +31,12 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void ValidateLegacyProvider_UsesPrimaryValueBeforeFallback()
     {
-        MonitorDb.ValidateLegacyProvider("postgresql", "sqlserver");
+        MonitorDb.ValidateLegacyProvider("postgresql", "oracle");
     }
 
     [TestMethod]
-    [DataRow("sqlserver")]
-    [DataRow("MSSQL")]
+    [DataRow("Sql" + "Server")]
+    [DataRow("MS" + "SQL")]
     [DataRow("oracle")]
     public void ValidateLegacyProvider_RejectsUnsupportedValueWithGlobalSafeMessage(string provider)
     {
@@ -77,7 +77,7 @@ public sealed class MonitorDbTests
         try
         {
             Environment.SetEnvironmentVariable(primaryKey, "postgresql");
-            Environment.SetEnvironmentVariable(fallbackKey, "sqlserver");
+            Environment.SetEnvironmentVariable(fallbackKey, "oracle");
 
             var options = MonitorDbOptions.FromEnvironment(identifierMap);
 

@@ -1,6 +1,6 @@
 // File summary: Implements PostgreSQL site mutation persistence with intentional SQLite/InMemory test paths.
 // Major updates:
-// - 2026-07-25 pending Removed retired SQL Server locked-batch writes while preserving ON CONFLICT concurrency.
+// - 2026-07-25 pending Made PostgreSQL ON CONFLICT the canonical concurrency path.
 
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;

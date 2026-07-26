@@ -1,6 +1,6 @@
 # RVT Database Naming Onboarding
 
-This guide explains the database naming rules developers must follow while the RVT Portal moves from SQL Server naming conventions to PostgreSQL/TimescaleDB-ready canonical names.
+This guide explains the PostgreSQL/TimescaleDB naming rules for RVT Portal database work.
 
 ## Core Rules
 
@@ -23,16 +23,11 @@ ASP.NET Identity objects are excluded from the physical database refactor. Table
 When a database name changes, update the relevant registry before updating scripts or code:
 
 - `docs/database/database-name-registry.csv`
-- `docs/database/sqlserver-name-registry.csv`
-- `docs/database/database-name-equivalents-for-migrator-sqlserver.csv`
 - `docs/database/database-constraint-index-name-registry.csv`
-
-The migrator depends on `database-name-equivalents-for-migrator-sqlserver.csv` to map SQL Server source names into canonical PostgreSQL target names.
 
 ## Migration And Script Expectations
 
 - New application-owned migrations should create canonical names directly.
-- SQL Server scripts may use `[dbo]`, but object names inside them should still be lowercase snake_case for application-owned objects.
 - PostgreSQL scripts should avoid quoted mixed-case identifiers for RVT-owned objects.
 - Rollback scripts must be kept alongside forward scripts.
 - Rehearsal evidence belongs in `docs/database/portal/database-refactor-inventory.md` and the relevant rehearsal document.
@@ -47,9 +42,7 @@ Use `RVTDbContextDesignTimeFactory` for design-time scaffolding. Do not reintrod
 
 The `legacy` schema is temporary and exists only to protect old external/reporting consumers during cutover. It is not a development target.
 
-- Compatibility SQL lives under `database/postgres/legacy_compatibility_views.sql` and `database/sqlserver/legacy_compatibility_views.sql`.
-- Ownership and removal status lives in `docs/database/portal/legacy-compatibility-deprecation.md`.
-- New application, migrator, and monitor code must not query the `legacy` schema.
+- Compatibility objects are retired. New application, migration, and monitor code must use canonical `public` objects.
 
 ## Developer Checklist
 

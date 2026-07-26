@@ -119,12 +119,9 @@ Problem Details and operational logs use fixed safe messages. They do not includ
 
 ## Durable alert migration, dispatch, and cleanup
 
-Apply the provider-specific durable-alert forward migration before deploying this application version:
+Apply `OmnidotsMonitor/postgres/2026-07-15-add-common-durable-alerts.sql` before deploying this application version.
 
-- PostgreSQL: `OmnidotsMonitor/postgres/2026-07-15-add-common-durable-alerts.sql`
-- SQL Server: `OmnidotsMonitor/sqlserver/2026-07-15-add-common-durable-alerts.sql`
-
-The matching `2026-07-15-rollback-common-durable-alerts.sql` assets remove the shared delivery outbox and permanent occurrence records. Before an application rollback, stop or disable every webhook writer and every dispatcher, including the API worker, Quartz `DispatchAlerts`, and one-shot backlog drains. Roll back the application first; run schema rollback only after no deployed version can read or write the shared tables. Dropping occurrence rows removes exact-body replay protection.
+The matching PostgreSQL `2026-07-15-rollback-common-durable-alerts.sql` asset remove the shared delivery outbox and permanent occurrence records. Before an application rollback, stop or disable every webhook writer and every dispatcher, including the API worker, Quartz `DispatchAlerts`, and one-shot backlog drains. Roll back the application first; run schema rollback only after no deployed version can read or write the shared tables. Dropping occurrence rows removes exact-body replay protection.
 
 Dispatch is available in these mutually exclusive in-process modes:
 
@@ -151,12 +148,9 @@ The same two-hour lookback is supplied by one-shot and Quartz dispatch because b
 
 ## Import cursors and database migration
 
-Apply the provider-specific forward migration before deploying this application version:
+Apply `OmnidotsMonitor/postgres/2026-07-14-add-import-cursors-and-trace-order.sql` before deploying this application version.
 
-- PostgreSQL: `OmnidotsMonitor/postgres/2026-07-14-add-import-cursors-and-trace-order.sql`
-- SQL Server: `OmnidotsMonitor/sqlserver/2026-07-14-add-import-cursors-and-trace-order.sql`
-
-The migration creates one import cursor per monitor serial and series (`Peak`, `Veff`, or `Vdv`) and adds the trace-sample ordinal used by the `(TraceId, SampleIndex)` key. The matching `2026-07-14-rollback-import-cursors-and-trace-order.sql` file in each provider directory is the rollback asset. Do not run the rollback while this application version is active because the runtime depends on both the cursor table and ordered trace key.
+The migration creates one import cursor per monitor serial and series (`Peak`, `Veff`, or `Vdv`) and adds the trace-sample ordinal used by the `(TraceId, SampleIndex)` key. The matching PostgreSQL `2026-07-14-rollback-import-cursors-and-trace-order.sql` file is the rollback asset. Do not run the rollback while this application version is active because the runtime depends on both the cursor table and ordered trace key.
 
 Each measurement page and its cursor advance commit in one database transaction. Cursors never move backward, a replay cannot duplicate an existing sample, and the three measurement series advance independently. Peak alone continues to update the compatibility `LastDataTime1Min` field. Each trace index and its ordered sample collection also commit atomically; failed sample persistence leaves neither an orphaned index nor a partial trace.
 
@@ -222,7 +216,7 @@ Freshness comparisons use complete UTC instants; timezone conversion is used onl
 
 - `Utc` timestamps are used unchanged.
 - `Local` timestamps are converted to UTC.
-- `Unspecified` timestamps retain their ticks and are explicitly treated as UTC, matching SQL Server `datetime` materialization of stored UTC values.
+- `Unspecified` timestamps retain their ticks and are explicitly treated as UTC at the monitor boundary.
 - A null newest timestamp is stale.
 
 The monitoring job does nothing outside the configured local window or for an empty fleet. Inside the window it sends one no-data warning when the newest fleet timestamp is null or older than `StaleAfter`. The checked-in Quartz trigger is `0 0/30 9-17 ? * MON-FRI` in UTC; the handler's `Europe/London` window check supplies the GMT/BST policy.

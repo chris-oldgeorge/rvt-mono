@@ -1,6 +1,6 @@
 -- File summary: Creates the tables and columns of the physical schema that no EF Core model maps (PostgreSQL).
 -- Major updates:
--- - 2026-07-14 pending Added so a database can be built from code without a SQL Server source.
+-- - 2026-07-14 pending Added so a database can be built from code without an external source schema.
 --
 -- WHY THIS SCRIPT EXISTS
 --
@@ -11,13 +11,12 @@
 -- ingestion pipelines and read through the views in database/postgres/post-load/03_views_and_routines.sql.
 -- Some of those views select monitor.offline, so without the columns below the views cannot even be created.
 --
--- Until this script existed, the only thing that could produce any of it was RVT.DatabaseMigrator, copying a
--- SQL Server source schema - which made a SQL Server database a hard prerequisite for standing up a PostgreSQL
+-- Until this script existed, the only thing that could produce any of it was RVT.DatabaseMigrator, copying an
+-- external source schema - which made another database a hard prerequisite for standing up a PostgreSQL
 -- one. This script is the half EF cannot build, so the two together produce a complete database from the
 -- repository alone. That is what allowed the migrator to be retired on 2026-07-14.
 --
--- The DDL is a faithful dump of the cutover schema, not a hand-transcription. The one place it departs from the
--- SQL Server source is deliberate: it restores the two default constraints the PostgreSQL port dropped (see the
+-- The DDL is a faithful dump of the cutover schema, not a hand-transcription. The deliberate repair relative to the imported schema it restores the two default constraints the PostgreSQL port dropped (see the
 -- ADD COLUMN section below), without which every EF insert into rvt_alert_rule fails.
 --
 -- WHERE IT FITS in a from-scratch build - see docs/database/portal/ef-migrations.md:
@@ -444,10 +443,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_svantek_noise_level_serial_id_sample_time O
 -- Each one is invisible to EF: it is never read into an entity and never supplied on insert.
 --
 -- Two of them are NOT NULL - monitor.battery_status and rvt_alert_rule.created - so EF, which never supplies
--- them, can only insert if the database fills them in. SQL Server does: both columns carry a default constraint
--- there (df_monitor_battery_status and df_rvt_alert_rule_created). The PostgreSQL port dropped both, which is
--- what made every EF insert into rvt_alert_rule fail with "23502: null value in column created". The defaults
--- below restore the SQL Server behaviour; see docs/database/portal/ef-migrations.md ("Columns no EF model maps").
+-- them, can only insert if the database fills them in. An earlier schema port omitted both defaults,
+-- which made every EF insert into rvt_alert_rule fail with "23502: null value in column created". The defaults
+-- below enforce the PostgreSQL contract; see docs/database/portal/ef-migrations.md ("Columns no EF model maps").
 
 ALTER TABLE public.monitor
     ADD COLUMN IF NOT EXISTS offline boolean,

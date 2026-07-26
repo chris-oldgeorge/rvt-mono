@@ -235,8 +235,8 @@ public sealed class SiteArchiveServiceSecurityTests
     }
 
     [Fact]
-    // Function summary: Verifies both atomic site writes use ON CONFLICT and no SQL Server locked batch remains.
-    public void EfSiteWriteAdapter_UsesOnConflictWithoutSqlServerLockedBatches()
+    // Function summary: Verifies both atomic site writes use PostgreSQL ON CONFLICT.
+    public void EfSiteWriteAdapter_UsesPostgreSqlOnConflict()
     {
         var source = File.ReadAllText(Path.Combine(
             AppContext.BaseDirectory,

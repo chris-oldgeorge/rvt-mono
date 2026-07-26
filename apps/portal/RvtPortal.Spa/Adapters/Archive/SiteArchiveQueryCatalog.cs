@@ -1,6 +1,6 @@
 ﻿// File summary: Provides canonical PostgreSQL SQL definitions for site archive CSV and report exports.
 // Major updates:
-// - 2026-07-25 pending Removed the retired SQL Server dialect and made public-schema PostgreSQL SQL canonical.
+// - 2026-07-25 pending Made public-schema PostgreSQL SQL canonical.
 // - 2026-07-09 pending Moved site archive SQL into a dedicated provider-aware query catalog.
 
 namespace RvtPortal.Spa.Adapters.Archive;

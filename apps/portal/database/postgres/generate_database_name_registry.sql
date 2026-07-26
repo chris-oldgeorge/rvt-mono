@@ -1,5 +1,5 @@
 -- Generates the database naming registry used by the canonical naming refactor
--- and the SQL Server-to-Postgres migrator update.
+-- for PostgreSQL deployments.
 --
 -- Output inside the container:
 --   /tmp/database-name-registry.csv

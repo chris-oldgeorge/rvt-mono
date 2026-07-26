@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 manifest_path="$repo_root/docs/documentation-move-manifest.md"
-expected_manifest_entries=122
+expected_manifest_entries=85
 failures=0
 
 report_failure() {
@@ -108,7 +108,7 @@ index_targets=(
   "release/monitors/client-release-runbook.md"
   "database/monitors/monitor-data-access-migration.md"
   "modules/monitors/monitor-timer-triggers.md"
-  "history/monitors/project_state.md"
+  "history/monitors/evidence/2026-07-17-rvt-common-monitor-source-removal.md"
   "imports/source-manifest.md"
 )
 

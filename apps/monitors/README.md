@@ -26,7 +26,7 @@ Shared runtime, infrastructure, and test support come from the private `Rvt.Moni
 
 ## Architecture Summary
 
-The monitor applications are ASP.NET Core/.NET services that can run in one-shot job mode, local always-on container mode, or Azure Container Apps Job mode. PostgreSQL/Timescale is the default database target, with SQL Server compatibility retained for legacy tests and selected migration paths.
+The monitor applications are ASP.NET Core/.NET services that can run in one-shot job mode, local always-on container mode, or Azure Container Apps Job mode. PostgreSQL/TimescaleDB is the sole database target for runtime, migrations, and tests.
 
 Each monitor app uses an EF Core-backed data access layer and narrow query/command interfaces over the legacy `IDBClient` compatibility facade. Simple DTO/entity mapping is handled inside monitor app projects with Mapperly, while shared database and runtime infrastructure is consumed from the exact private packages owned by `RVT-Group-LTD/rvt-reporting`.
 
@@ -60,7 +60,7 @@ Common runtime configuration is supplied through environment variables or app se
 
 | Setting | Purpose |
 | --- | --- |
-| `RVT__DATABASE_PROVIDER` | Database provider. Defaults to `PostgreSql`; `SqlServer` is still supported for tests and legacy compatibility. |
+| `RVT__DATABASE_PROVIDER` | Optional compatibility setting; when present it must resolve to PostgreSQL. |
 | `ConnectionStrings__DefaultConnection` | Monitor database connection string. |
 | `Infrastructure` | `local` for always-on local containers, `azure` for Azure Container Apps Job execution without Quartz startup. |
 | `MonitorScheduler__Enabled` | Enables Quartz scheduling when `Infrastructure=local`. |

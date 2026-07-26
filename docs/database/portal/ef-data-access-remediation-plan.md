@@ -22,9 +22,8 @@ PR as the behavior they guard.
 **Goal:** transient DB faults retry instead of surfacing as 500s; the three-context save is
 atomic in every branch, and the invariant that makes it possible is asserted.
 
-1. **Add retry + timeout to the provider switch** in
+1. **Add retry + timeout to the Npgsql registration** in
    `RVT.DataAccess/Configuration/RvtDatabaseServiceCollectionExtensions.cs`:
-   - `UseSqlServer(..., sql => sql.EnableRetryOnFailure().CommandTimeout(120))`
    - `UseNpgsql(..., npgsql => npgsql.EnableRetryOnFailure().CommandTimeout(120))`
    - Apply to both overloads (connection-string and shared-`DbConnection`).
    - Pick the timeout from the slowest legitimate aggregate view; make it a

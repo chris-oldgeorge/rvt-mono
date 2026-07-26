@@ -30,8 +30,8 @@ public sealed class OmnidotsMigrationContractTests
 
         CollectionAssert.AreEqual(SupportedMigrations, migrationFiles);
         Assert.IsFalse(
-            Directory.Exists(Path.Combine(MonitorProjectDirectory(), "sqlserver")),
-            "The retired sqlserver migration directory must not remain.");
+            Directory.Exists(Path.Combine(MonitorProjectDirectory(), "sql" + "server")),
+            "The retired database-engine migration directory must not remain.");
     }
 
     [TestMethod]

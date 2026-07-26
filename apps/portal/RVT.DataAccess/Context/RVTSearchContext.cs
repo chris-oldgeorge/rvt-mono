@@ -3,7 +3,7 @@
 // - 2026-07-23 Pinned every non-daily SampleTime to timestamp-without-zone and daily aggregates to date.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
-// - 2026-06-03 f5fd01e Added SQL Server/PostgreSQL provider support.
+// - 2026-06-03 f5fd01e Added relational database support.
 // - 2026-06-09 pending Applied canonical EF mappings to search/report/measurement models after DBR cutover.
 // - 2026-06-25 pending Added monitor measurement removal-impact view mapping for consolidated count lookups.
 

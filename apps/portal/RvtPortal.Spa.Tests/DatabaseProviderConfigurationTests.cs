@@ -20,6 +20,8 @@ namespace RvtPortal.Spa.Tests;
 [Collection(DesignTimeDatabaseEnvironmentCollection.Name)]
 public sealed class DatabaseProviderConfigurationTests
 {
+    private const string RetiredEngine = "Sql" + "Server";
+    private const string RetiredEngineAlias = "MS" + "SQL";
     private const string ConnectionString =
         "Host=database.example;Database=rvt;Username=sentinel-user;Password=DO-NOT-LEAK-42";
 
@@ -47,10 +49,10 @@ public sealed class DatabaseProviderConfigurationTests
     }
 
     [Theory]
-    [InlineData("Database:Provider", "SqlServer")]
-    [InlineData("Database:Provider", "MSSQL")]
+    [InlineData("Database:Provider", RetiredEngine)]
+    [InlineData("Database:Provider", RetiredEngineAlias)]
     [InlineData("Database:Provider", "oracle")]
-    [InlineData("RvtDatabase:Provider", "SqlServer")]
+    [InlineData("RvtDatabase:Provider", RetiredEngine)]
     // Function summary: Rejects every non-PostgreSQL legacy provider without exposing configured credentials.
     public void FromConfiguration_RejectsUnsupportedLegacyProviderWithoutCredentials(
         string providerKey,

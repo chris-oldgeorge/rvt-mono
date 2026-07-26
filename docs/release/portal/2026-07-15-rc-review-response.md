@@ -56,7 +56,7 @@ With those two ports in place, `RVT.BusinessLogic` now holds **no `IHttpClientFa
 
 *Note on the email adapter (updated 2026-07-17):* email delivery is now served by the shared **`Rvt.Monitor.Common.Infrastructure` (rvt-common) 0.2.0-rc.1** package (PR #42). It was first built locally behind the core-owned `IEmailDelivery` port with the rvt-common swap documented as a seam — and the seam proved out exactly as designed: adopting the shared adapter touched **only the adapter and DI registration**. `IEmailDelivery`, `AccountMessageCatalog`, `AccountMessenger`, and the auth/user-account workflows were unchanged, because the port is owned by the core rather than by the package.
 
-*What adopting the shared package costs, stated plainly:* it is restored from the **private `RVT-Group-LTD` GitHub Packages feed**, so the build now needs feed access. Credentials are read from the environment (`RVT_PACKAGES_USER` / `RVT_PACKAGES_TOKEN`) and **no token is committed** — a guardrail fails the build if one ever is — but CI does now require a `read:packages` secret, where previously it needed none. The package also pulls heavy transitive dependencies (AWS S3, MQTT, Quartz, OpenTelemetry, SQL Server/Npgsql drivers) into the **host**. That weight stops at the adapter boundary: `RVT.BusinessLogic` gains nothing from it and cannot reference the package, which is exactly what the boundary tests assert. The portal's own `EmailConfiguration` keys were mapped onto the package's `CommunicationsOptions` at startup, so **deployed configuration is unchanged**.
+*What adopting the shared package costs, stated plainly:* it is restored from the **private `RVT-Group-LTD` GitHub Packages feed**, so the build now needs feed access. Credentials are read from the environment (`RVT_PACKAGES_USER` / `RVT_PACKAGES_TOKEN`) and **no token is committed** — a guardrail fails the build if one ever is — but CI does now require a `read:packages` secret, where previously it needed none. The package also pulls heavy transitive dependencies (AWS S3, MQTT, Quartz, OpenTelemetry, and Npgsql) into the **host**. That weight stops at the adapter boundary: `RVT.BusinessLogic` gains nothing from it and cannot reference the package, which is exactly what the boundary tests assert. The portal's own `EmailConfiguration` keys were mapped onto the package's `CommunicationsOptions` at startup, so **deployed configuration is unchanged**.
 
 The remaining rvt-common opportunity is storage: re-pointing `SiteArchiveService` at rvt-common's `IBlobStorageService` (existing TODO), which is the same one-adapter swap.
 
@@ -149,7 +149,7 @@ flowchart LR
     end
 
     subgraph DRIVEN["Driven side (outbound adapters)"]
-        EF["EF Core repositories + contexts<br/>RVT.DataAccess<br/>(SQL Server / Postgres)"]
+        EF["EF Core repositories + contexts<br/>RVT.DataAccess<br/>(PostgreSQL)"]
         UOW["EfCoreUnitOfWork<br/>(shared DbConnection across<br/>domain / search / Identity contexts)"]
         STOR["Storage adapters<br/>Adapters.Storage<br/>(App_Data / Azure Blob)"]
         REP["Reporting gateway<br/>Adapters.Reporting<br/>(containerized report service)"]

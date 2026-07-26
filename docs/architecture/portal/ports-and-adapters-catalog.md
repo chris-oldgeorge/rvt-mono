@@ -41,7 +41,7 @@ This catalog records the current pragmatic "hexagonal at the edges" structure. T
 |---|---|---|
 | EF contexts | `RVT.DataAccess/Context` | `RVTDbContext`, `RVTSearchContext`, and `ApplicationDbContext` remain the persistence adapters. The portal host registers one scoped provider `DbConnection` for these contexts so database-backed command handlers can share a transaction. |
 | Unit of Work | `RvtPortal.Spa/Application/Common/EfCoreUnitOfWork.cs` | Implements both the legacy host `IUnitOfWork` and application-owned `IApplicationUnitOfWork`. It coordinates domain, search, and Identity persistence over the existing scoped provider connection. Non-database side effects stay outside this transaction and need compensation or post-commit dispatch. |
-| Provider selection | `RVT.DataAccess/Configuration` | `RvtDatabaseProvider`, shared-connection EF options, `IRvtDatabaseConnectionFactory`, and related provider options keep SQL Server/Postgres differences outside controllers. |
+| Provider selection | `RVT.DataAccess/Configuration` | Shared-connection Npgsql EF options, `IRvtDatabaseConnectionFactory`, and related database options keep PostgreSQL infrastructure outside controllers. |
 | Repositories/search projections | `RVT.DataAccess` | Existing repository interfaces are still registered by `InitBusinessLogic`. Future work should avoid adding new controller-owned persistence queries where a business use case already exists. |
 
 ## Current Dependency Direction

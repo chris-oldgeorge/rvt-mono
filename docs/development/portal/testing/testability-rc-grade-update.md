@@ -60,7 +60,6 @@ Results:
 
 The GitHub Actions Sonar scanner now defines `sonar.coverage.exclusions` for generated or non-runtime artifacts:
 
-- `database/sqlserver/**`
 - `RVT.DatabaseMigrator/post-load/**`
 - `RVT.DataAccess/Migrations/**`
 - `RVT.DataAccess/EntityModels/Models/**`

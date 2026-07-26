@@ -1,6 +1,6 @@
 # Monitor Data Access Migration
 
-The monitor apps now use EF Core database-first-style mappings as the primary direction for data access while keeping SQL Server and PostgreSQL/Timescale provider support.
+The monitor apps use EF Core database-first-style mappings against PostgreSQL/TimescaleDB as the sole data-access path.
 
 ## Current State
 
@@ -63,10 +63,9 @@ Work items created and linked to the cycle:
    - Use `MonitorDb.RequireMappedSqlIdentifier` for any unavoidable identifier substitution.
    - Add negative tests for unsupported and injected identifiers.
 
-5. `RVTGR-397` `[MMH.5] Add provider selection and connection-string runbook`
-   - Document how each monitor selects SQL Server versus PostgreSQL/Timescale.
-   - Include local, container, and production configuration examples without secrets.
-   - Include rollback notes for switching providers.
+5. `RVTGR-397` `[MMH.5] Maintain the PostgreSQL connection-string runbook`
+   - Document local, container, and production configuration examples without secrets.
+   - Include rollback notes for application and schema releases.
 
 6. `RVTGR-398` `[MMH.6] Run full solution and container verification`
    - Run all monitor solution tests.

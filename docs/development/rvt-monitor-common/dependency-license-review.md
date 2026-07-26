@@ -21,8 +21,6 @@ dotnet list rvt-common.sln package --vulnerable --include-transitive --no-restor
 
 It completed successfully and reported no vulnerable packages for all seven solution projects.
 
-`Microsoft.Data.SqlClient.SNI.runtime` declares a packaged license file rather than an SPDX expression. Its resolved `LICENSE.txt` was inspected directly and contains Microsoft Software License Terms permitting object-code distribution as part of an application subject to the stated conditions. It is approved for this package use on that recorded basis. All other decisions below are based on the exact license expression or license URL recorded in the resolved `.nuspec`.
-
 ## Reviewed inventory
 
 | Package ID | Resolved version | Relationship | License expression or URL | Repository/source URL | Decision |
@@ -44,16 +42,11 @@ It completed successfully and reported no vulnerable packages for all seven solu
 | `Microsoft.Bcl.Cryptography` | `9.0.13` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/runtime> | Approved |
 | `Microsoft.Build.Tasks.Git` | `8.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/sourcelink> | Approved |
 | `Microsoft.CodeCoverage` | `18.0.1` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/microsoft/vstest> | Approved |
-| `Microsoft.Data.SqlClient` | `7.0.1` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/sqlclient> | Approved |
-| `Microsoft.Data.SqlClient.Extensions.Abstractions` | `1.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/SqlClient> | Approved |
-| `Microsoft.Data.SqlClient.Internal.Logging` | `1.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/SqlClient> | Approved |
-| `Microsoft.Data.SqlClient.SNI.runtime` | `6.0.2` | transitive | Package file: `LICENSE.txt` (Microsoft Software License Terms); URL: <https://aka.ms/deprecateLicenseUrl> | Project/source: <https://aka.ms/sqlclientproject> | Approved |
 | `Microsoft.EntityFrameworkCore` | `10.0.4` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.EntityFrameworkCore.Abstractions` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.EntityFrameworkCore.Analyzers` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.EntityFrameworkCore.InMemory` | `10.0.4` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.EntityFrameworkCore.Relational` | `10.0.4` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
-| `Microsoft.EntityFrameworkCore.SqlServer` | `10.0.4` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Caching.Abstractions` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Caching.Memory` | `10.0.4` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
 | `Microsoft.Extensions.Configuration` | `10.0.9` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/dotnet> | Approved |
@@ -83,8 +76,6 @@ It completed successfully and reported no vulnerable packages for all seven solu
 | `Microsoft.NET.Test.Sdk` | `18.0.1` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/microsoft/vstest> | Approved |
 | `Microsoft.SourceLink.Common` | `8.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/sourcelink> | Approved |
 | `Microsoft.SourceLink.GitHub` | `8.0.0` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/sourcelink> | Approved |
-| `Microsoft.SqlServer.Server` | `1.0.0` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/dotnet/sqlclient> | Approved |
-| `Microsoft.SqlServer.TransactSql.ScriptDom` | `180.37.3` | direct | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/microsoft/SqlScriptDOM> | Approved |
 | `Microsoft.TestPlatform.AdapterUtilities` | `18.0.1` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/microsoft/vstest> | Approved |
 | `Microsoft.TestPlatform.ObjectModel` | `18.0.1` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/microsoft/vstest> | Approved |
 | `Microsoft.TestPlatform.TestHost` | `18.0.1` | transitive | Expression: `MIT`; URL: <https://licenses.nuget.org/MIT> | Repository: <https://github.com/microsoft/vstest> | Approved |

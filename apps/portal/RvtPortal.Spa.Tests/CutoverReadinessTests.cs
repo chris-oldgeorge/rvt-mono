@@ -88,12 +88,12 @@ public partial class CutoverReadinessTests
     }
 
     [Fact]
-    // Function summary: Verifies canonical PostgreSQL view SQL has no active SQL Server dialect leftovers.
-    public void PostLoadViews_AvoidSqlServerDialect()
+    // Function summary: Verifies canonical PostgreSQL view SQL has no active retired database dialect dialect leftovers.
+    public void PostLoadViews_AvoidRetiredDialect()
     {
         var root = FindRepositoryRoot();
         var postLoadSql = StripSqlComments(File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql")));
-        var sqlServerOnlyTokens = new[]
+        var retiredDialectTokens = new[]
         {
             "[dbo]",
             "dbo.",
@@ -107,7 +107,7 @@ public partial class CutoverReadinessTests
             " AS bit"
         };
 
-        foreach (var token in sqlServerOnlyTokens)
+        foreach (var token in retiredDialectTokens)
         {
             Assert.DoesNotContain(token, postLoadSql, StringComparison.OrdinalIgnoreCase);
         }
@@ -184,7 +184,7 @@ public partial class CutoverReadinessTests
     }
 
     [Fact]
-    // Function summary: Verifies exported SQL Server routines have canonical PostgreSQL post-load definitions.
+    // Function summary: Verifies exported retired database dialect routines have canonical PostgreSQL post-load definitions.
     public void PostLoadScripts_DeployCanonicalRoutines()
     {
         var root = FindRepositoryRoot();
@@ -200,7 +200,7 @@ public partial class CutoverReadinessTests
             "peak_record_breach_and_alerts",
             "user_actions_history_insert"
         };
-        var sqlServerOnlyTokens = new[]
+        var retiredDialectTokens = new[]
         {
             "[dbo]",
             "dbo.",
@@ -235,7 +235,7 @@ public partial class CutoverReadinessTests
         Assert.Contains("notification_id uuid", routineSql, StringComparison.Ordinal);
         Assert.DoesNotContain("RETURNS TABLE(\"", routineSql, StringComparison.Ordinal);
 
-        foreach (var token in sqlServerOnlyTokens)
+        foreach (var token in retiredDialectTokens)
         {
             Assert.DoesNotContain(token, routineSql, StringComparison.OrdinalIgnoreCase);
         }

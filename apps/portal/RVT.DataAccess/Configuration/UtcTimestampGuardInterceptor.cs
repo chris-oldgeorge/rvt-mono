@@ -16,8 +16,7 @@ namespace RVT.DataAccess.Configuration;
 /// context saves.
 ///
 /// It guards only timestamptz columns, so it is inert on <c>timestamp without time zone</c> columns (which
-/// require Unspecified and are written by the ingestion layer) and on SQL Server, where DateTime maps to
-/// <c>datetime2</c> and Kind carries no meaning. The rule it enforces: the domain layer stores UTC.
+/// require Unspecified and are written by the ingestion layer). The rule it enforces: the domain layer stores UTC.
 /// </summary>
 public sealed class UtcTimestampGuardInterceptor : SaveChangesInterceptor
 {

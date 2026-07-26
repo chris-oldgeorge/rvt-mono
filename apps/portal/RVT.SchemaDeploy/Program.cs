@@ -12,7 +12,7 @@ using RVT.SchemaDeploy;
 //   4. post-load/*.sql                        (hypertables, continuous aggregates, views, routines)
 //
 // This tool is steps 2 through 4. It exists because the only thing that ever ran them was RVT.DatabaseMigrator,
-// which could not run them on their own: it required a live SQL Server source and always dropped the target
+// which could not run them on their own: it required a retired source system and always dropped the target
 // schema and re-copied every row first. Once the cutover finished that made it unusable, so post-load changes
 // were applied by hand - which is how the monitor_measurement_removal_impact view came to be dropped and never
 // recreated. This tool does only the harmless half: it creates and replaces, and never drops a table or data.

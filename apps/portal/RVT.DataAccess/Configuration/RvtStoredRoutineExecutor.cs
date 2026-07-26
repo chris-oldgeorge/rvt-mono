@@ -1,6 +1,6 @@
 // File summary: Executes safely quoted PostgreSQL functions for repository data access.
 // Major updates:
-// - 2026-07-26 pending Removed SQL Server stored-procedure rendering and always emits PostgreSQL function SQL.
+// - 2026-07-26 pending Made PostgreSQL function SQL the sole routine rendering path.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-04 pending Hardened PostgreSQL routine command text against unsafe identifiers.

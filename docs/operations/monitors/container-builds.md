@@ -90,7 +90,7 @@ Keep credentials out of tracked files and supply them through the deployment sec
 
 Local scheduler containers should set `Infrastructure=local`, `MonitorScheduler__Enabled=true`, and normally leave `MonitorApi__Enabled=false` unless a combined API plus scheduler process is intentional. Azure Container Apps Jobs should instead set `Infrastructure=azure` and run a single job with `RVT__MONITOR_JOB=<job-name>` or `--job <job-name>`; they do not initialize Quartz.
 
-Before deploying the current Omnidots image, apply its provider-specific `2026-07-14-add-import-cursors-and-trace-order.sql` from `omnidotsmonitor/OmnidotsMonitor/postgres/` or `omnidotsmonitor/OmnidotsMonitor/sqlserver/`. The application requires the independent import-cursor table and ordered trace-sample key. Keep the matching rollback script available, but stop or roll back the application before removing that schema.
+Before deploying the current Omnidots image, apply `omnidotsmonitor/OmnidotsMonitor/postgres/2026-07-14-add-import-cursors-and-trace-order.sql`. The application requires the independent import-cursor table and ordered trace-sample key. Keep the matching rollback script available, but stop or roll back the application before removing that schema.
 
 ## MQTT Client Certificates
 

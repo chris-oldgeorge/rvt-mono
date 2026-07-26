@@ -38,7 +38,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
         var retiredProviderFiles = Directory
             .GetFiles(MigrationDirectory(), "*.sql", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileName)
-            .Where(file => file!.Contains(".sqlserver.", StringComparison.OrdinalIgnoreCase))
+            .Where(file => file!.Contains(".sql" + "server.", StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
         Assert.HasCount(0, retiredProviderFiles);

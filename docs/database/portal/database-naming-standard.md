@@ -45,11 +45,7 @@ Temporary old-name compatibility objects may be created only in a dedicated comp
 
 The current generated compatibility scripts are:
 
-- `database/postgres/legacy_compatibility_views.sql`
-- `database/sqlserver/legacy_compatibility_views.sql`
-- `docs/database/portal/legacy-compatibility-deprecation.md`
-
-Compatibility views are read-only by default. PostgreSQL revokes insert/update/delete privileges on the `legacy` schema, and SQL Server denies insert/update/delete on `SCHEMA::[legacy]`. If an external consumer needs write compatibility, that exception must be approved explicitly and implemented as a separate tracked change.
+Compatibility views are retired. New application, migration, monitor, and reporting code must use canonical objects in the `public` schema.
 
 ## Compliance Checks
 
@@ -76,7 +72,7 @@ This convention is a migration aid, not a runtime default yet. Enable it only in
 
 ## Developer Onboarding
 
-New developers should read `docs/development/portal/onboarding/DATABASE_NAMING_ONBOARDING.md` before changing migrations, raw SQL, reports, archive SQL, compatibility views, or the SQL Server-to-Postgres migrator. Repo-local `AGENTS.md` also records the required database naming rules for future coding agents.
+New developers should read `docs/development/portal/onboarding/DATABASE_NAMING_ONBOARDING.md` before changing migrations, raw SQL, reports, archive SQL, or SchemaDeploy assets. Repo-local `AGENTS.md` also records the required database naming rules for future coding agents.
 
 ## Constraint And Index Naming
 
@@ -88,4 +84,4 @@ Generated constraint and index names should use:
 - `ck_{relation}_{purpose}` for check constraints.
 - `ix_{relation}_{column}` for non-constraint indexes.
 
-The generated mapping lives in `docs/database/database-constraint-index-name-registry.csv`, and the provider-specific rename scripts live under `database/postgres` and `database/sqlserver`.
+The generated mapping lives in `docs/database/database-constraint-index-name-registry.csv`, and PostgreSQL rename scripts live under `database/postgres`.

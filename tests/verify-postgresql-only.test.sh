@@ -12,18 +12,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-sql_server="Sql""Server"
-sql_server_upper="SQL ""Server"
-sql_server_lower="sql""server"
-sql_server_hyphen="SQL-""Server"
-sql_server_underscore="SQL_""Server"
-sql_server_double_space="SQL  ""Server"
-sql_client="Sql""Client"
-sql_connection="Sql""Connection"
-sql_bulk_copy="Sql""BulkCopy"
-ef_provider_package="Microsoft.EntityFrameworkCore.${sql_server}"
-data_client_package="Microsoft.Data.${sql_client}"
-use_provider="Use${sql_server}"
+retired_engine="Sql""Server"
+retired_engine_upper="SQL ""Server"
+retired_engine_lower="sql""server"
+retired_engine_hyphen="SQL-""Server"
+retired_engine_underscore="SQL_""Server"
+retired_engine_double_space="SQL  ""Server"
+retired_client="Sql""Client"
+retired_connection="Sql""Connection"
+retired_bulk_copy="Sql""BulkCopy"
+ef_provider_package="Microsoft.EntityFrameworkCore.${retired_engine}"
+data_client_package="Microsoft.Data.${retired_client}"
+use_provider="Use${retired_engine}"
 
 create_fixture() {
   local fixture="$1"
@@ -103,40 +103,40 @@ assert_rejected \
 assert_rejected \
   csharp-api-connection \
   src/LegacyConnection.cs \
-  "var connection = new ${sql_connection}(connectionString);"
+  "var connection = new ${retired_connection}(connectionString);"
 assert_rejected \
   csharp-api-bulk-copy \
   src/LegacyBulkCopy.cs \
-  "using var bulkCopy = new ${sql_bulk_copy}(connectionString);"
+  "using var bulkCopy = new ${retired_bulk_copy}(connectionString);"
 assert_rejected \
   provider-configuration \
   src/appsettings.json \
-  "{ \"Database\": { \"Provider\": \"${sql_server}\" } }"
+  "{ \"Database\": { \"Provider\": \"${retired_engine}\" } }"
 assert_rejected \
   prose \
   docs/legacy.md \
-  "Use ${sql_server_upper} for production deployments."
+  "Use ${retired_engine_upper} for production deployments."
 assert_rejected \
   prose-hyphen \
   docs/legacy-hyphen.md \
-  "Use ${sql_server_hyphen} for production deployments."
+  "Use ${retired_engine_hyphen} for production deployments."
 assert_rejected \
   prose-underscore \
   docs/legacy-underscore.md \
-  "Use ${sql_server_underscore} for production deployments."
+  "Use ${retired_engine_underscore} for production deployments."
 assert_rejected \
   prose-double-space \
   docs/legacy-double-space.md \
-  "Use ${sql_server_double_space} for production deployments."
+  "Use ${retired_engine_double_space} for production deployments."
 assert_rejected \
-  retired-sqlserver-directory \
-  "apps/portal/database/${sql_server_lower}/legacy.sql" \
+  retired-engine-directory \
+  "apps/portal/database/${retired_engine_lower}/legacy.sql" \
   'select 1;' \
-  "retired database/sqlserver path"
+  "retired database/${retired_engine_lower} path"
 assert_rejected \
-  retired-sqlserver-script \
-  "database/legacy.schema.${sql_server_lower}.sql" \
+  retired-engine-script \
+  "database/legacy.schema.${retired_engine_lower}.sql" \
   'select 1;' \
-  "retired .sqlserver.sql script path"
+  "retired .${retired_engine_lower}.sql script path"
 
 printf 'PostgreSQL-only guard fixtures verified.\n'

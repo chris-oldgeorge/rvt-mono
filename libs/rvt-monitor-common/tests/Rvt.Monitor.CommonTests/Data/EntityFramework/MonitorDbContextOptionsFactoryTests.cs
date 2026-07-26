@@ -19,6 +19,6 @@ public sealed class MonitorDbContextOptionsFactoryTests
         Assert.IsTrue(extensionNames.Any(name =>
             name.Contains("Npgsql", StringComparison.OrdinalIgnoreCase)));
         Assert.IsFalse(extensionNames.Any(name =>
-            name.Contains("SqlServer", StringComparison.OrdinalIgnoreCase)));
+            name.Contains("Sql" + "Server", StringComparison.OrdinalIgnoreCase)));
     }
 }

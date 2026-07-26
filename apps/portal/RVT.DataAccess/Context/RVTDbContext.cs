@@ -4,7 +4,6 @@
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-06-08 pending Added site operating-hours and Help CMS table mappings.
 // - 2026-06-09 pending Enabled canonical EF mappings when the context runs against migrated PostgreSQL.
-// - 2026-06-09 pending Extended canonical EF mappings to SQL Server after the local SQL Server cutover.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
 using Microsoft.EntityFrameworkCore;

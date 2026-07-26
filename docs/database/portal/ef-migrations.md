@@ -52,7 +52,6 @@ hypertables and continuous aggregates are Timescale objects that belong in SQL. 
 `RVT.SchemaDeploy` applies them. Run it after the EF migrations:
 
 ```
-export RVT_EF_PROVIDER=postgres
 export RVT_EF_CONNECTION='Host=...;Database=...;Username=...;Password=...'
 
 dotnet ef database update --context RVTDbContext         --project RVT.DataAccess/RVT.DataAccess.csproj --startup-project RVT.DataAccess/RVT.DataAccess.csproj
@@ -163,7 +162,6 @@ The design-time factory reads the connection from the environment; there is no c
 repository.
 
 ```
-export RVT_EF_PROVIDER=postgres
 export RVT_EF_CONNECTION='Host=...;Database=...;Username=...;Password=...'
 
 dotnet ef migrations add <Name> \

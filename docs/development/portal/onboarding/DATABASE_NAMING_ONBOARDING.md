@@ -38,11 +38,11 @@ The EF Core baseline migration id `20231024072158_dataaccess` has been replaced 
 
 Use `RVTDbContextDesignTimeFactory` for design-time scaffolding. Do not reintroduce the retired legacy baseline names into `RVTDbContextModelSnapshot.cs`; the cutover readiness tests check for this.
 
-## Legacy Compatibility
+## Compatibility Policy
 
-The `legacy` schema is temporary and exists only to protect old external/reporting consumers during cutover. It is not a development target.
-
-- Compatibility objects are retired. New application, migration, and monitor code must use canonical `public` objects.
+Old-name schemas, views, aliases, and other compatibility objects are not part
+of the supported database shape and must not be recreated. New application,
+migration, monitor, and reporting code must use canonical `public` objects.
 
 ## Developer Checklist
 

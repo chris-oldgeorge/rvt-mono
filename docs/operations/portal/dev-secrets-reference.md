@@ -36,7 +36,6 @@ dotnet user-secrets list --project RvtPortal.Spa\RvtPortal.Spa.csproj |
 
 | Key | Purpose | Sensitive |
 | --- | --- | --- |
-| `Database:Provider` | Optional compatibility key; if set, it must be `Postgres`. | No |
 | `Database:ConnectionStringName` | Name of the connection-strings entry to use (`DefaultConnection`). | No |
 | `Database:ConnectionString` | The database connection string the data layer reads. | **Yes** |
 | `Database:PostgresRoutineSchema` | Schema that holds PostgreSQL stored routines (`public`). | No |

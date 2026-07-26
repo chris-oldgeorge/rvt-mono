@@ -4,14 +4,29 @@ The monitor apps use EF Core database-first-style mappings against PostgreSQL/Ti
 
 ## Current State
 
-Merged into local `main`:
+Current monorepo state:
 
-- Shared EF Core infrastructure supplied by the private `Rvt.Monitor.Common` and `Rvt.Monitor.Common.Infrastructure` packages at exact version `0.2.0-rc.1`.
-- Shared entity mappings for common monitor tables supplied by `Rvt.Monitor.Common`.
-- Authoritative shared package implementation and tests in the private `RVT-Group-LTD/rvt-reporting` repository.
+- Shared EF Core infrastructure is compiled through `ProjectReference` entries
+  to `libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure`.
+- Shared entity mappings for common monitor tables are compiled through
+  `ProjectReference` entries to
+  `libs/rvt-monitor-common/src/Rvt.Monitor.Common`.
+- Monitor integration tests reference
+  `libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting` directly.
+- `apps/monitors/NuGet.config` restores only third-party dependencies from
+  nuget.org. Active monitor applications and tests do not consume Common
+  packages.
 - Monitor-specific EF contexts, entities, and aggregate metadata for MyAtm, AirQ, Omnidots, and Svantek.
 - EF metadata tests for the common model and each monitor-specific model.
 - SQL identifier whitelisting for temporary raw SQL paths that remain during the transition.
+
+The package path is a separate artifact contract. Only the fixtures under
+`libs/rvt-monitor-common/package-validation` consume
+`Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and
+`Rvt.Monitor.IntegrationTesting` as packages. They default to exact version
+`0.2.0-rc.1`, restore from `libs/rvt-monitor-common/artifacts/packages`, and
+use artifact-specific lock files. This validation must not be described as the
+active monitor dependency model.
 
 The existing monitor `IDBClient` contracts remain stable. The EF changes are implemented behind those contracts so callers do not need to change at the same time as the data layer.
 

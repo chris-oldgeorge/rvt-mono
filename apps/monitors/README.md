@@ -18,17 +18,31 @@ Detailed monitor documentation is centralized in the
 | [`../../docs/index.md#monitors`](../../docs/index.md#monitors) | Central monitor architecture, development, operations, release, database, module, and history documentation. |
 | `scripts/` | Operational scripts for local testlocal monitor runs and SonarQube/SonarCloud analysis. |
 | `docker-compose.yml` | Local PostgreSQL/Timescale and monitor API container composition. |
-| `rvt-monitors.sln` | Root .NET solution containing 14 private-package consumer projects across the monitor applications and tests. |
+| `rvt-monitors.sln` | Root .NET solution for the monitor applications, shared-source references, and tests. |
 
 This release package intentionally excludes agent memory, internal planning notes, and local development state files such as `AGENTS.md`, `project_state.md`, `docs/superpowers/**`, `docs/database/monitors/monitor-data-access-migration.md`, `docs/release/**`, `.codegraph/**`, and release-export tooling.
 
-Shared runtime, infrastructure, and test support come from the private `Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and `Rvt.Monitor.IntegrationTesting` packages at the exact version `0.2.0-rc.1`. `NuGet.config` maps `Rvt.Monitor.*` exclusively to GitHub Packages, and `Directory.Packages.props` centrally pins the version. Authentication must be supplied only to the running restore or container-build process; never write a package credential into source, NuGet configuration, build arguments, image layers, or committed environment files.
+Active monitor projects compile shared runtime, infrastructure, and test support
+directly from this monorepo through `ProjectReference` entries into
+`libs/rvt-monitor-common`. `apps/monitors/NuGet.config` uses nuget.org only for
+third-party dependencies; monitor restore and container builds require no
+additional source or package credential.
+
+Package-consumer validation is deliberately isolated under
+`libs/rvt-monitor-common/package-validation`. Those fixtures alone consume the
+three locally built packages at exact version `0.2.0-rc.1`, restore them from
+`libs/rvt-monitor-common/artifacts/packages`, and use their checked-in lock
+files to validate the produced artifacts.
 
 ## Architecture Summary
 
 The monitor applications are ASP.NET Core/.NET services that can run in one-shot job mode, local always-on container mode, or Azure Container Apps Job mode. PostgreSQL/TimescaleDB is the sole database target for runtime, migrations, and tests.
 
-Each monitor app uses an EF Core-backed data access layer and narrow query/command interfaces over the legacy `IDBClient` compatibility facade. Simple DTO/entity mapping is handled inside monitor app projects with Mapperly, while shared database and runtime infrastructure is consumed from the exact private packages owned by `RVT-Group-LTD/rvt-reporting`.
+Each monitor app uses an EF Core-backed data access layer and narrow
+query/command interfaces over the retained `IDBClient` facade. Simple
+DTO/entity mapping is handled inside monitor app projects with Mapperly, while
+shared database and runtime infrastructure is compiled from the in-repository
+Common projects.
 
 OpenTelemetry is wired for traces, metrics, and logs. The local observability stack receives OTLP from the monitor containers through the collector and exposes dashboards in Grafana.
 
@@ -153,24 +167,17 @@ RVT__POSTGRES_INTEGRATION_CONNECTION='<runtime-only connection string>' \
 
 ## Local Containers
 
-The container build restores private `Rvt.Monitor.*` packages through an ephemeral
-BuildKit secret. Export the NuGet credential for the current shell, then build or start
-the local monitor API containers:
+The container build copies the monorepo build context so project references can
+resolve the in-repository Common source. Restore uses
+`apps/monitors/NuGet.config`, whose only source is nuget.org:
 
 ```bash
-export NuGetPackageSourceCredentials_rvt="Username=$GITHUB_USER;Password=$GITHUB_PACKAGES_TOKEN;ValidAuthenticationTypes=Basic"
 docker compose build
-```
-
-```bash
-export NuGetPackageSourceCredentials_rvt="Username=$GITHUB_USER;Password=$GITHUB_PACKAGES_TOKEN;ValidAuthenticationTypes=Basic"
 docker compose up -d --build
 ```
 
-BuildKit reads this variable only for the package restore/publish step. It is not a
-runtime application secret and is not stored in the Dockerfiles, image environment,
-image layers, build arguments, repository files, or a committed `.env` file. CI uses
-`github.actor` with the repository's authorized `GITHUB_TOKEN` supplied by GitHub Actions.
+No package-feed credential is part of this workflow. Continue to keep runtime
+database and vendor credentials in deployment secrets or ignored local files.
 
 Start the local observability stack:
 

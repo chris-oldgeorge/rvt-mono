@@ -12,6 +12,7 @@ lives here under `docs/`.
 ## Development
 
 - [Portal development guidelines](development/portal/development-guidelines.md)
+- [Active Portal remediation plan](superpowers/plans/2026-07-22-rvt-portal-review-remediation.md)
 - [Monitor SonarQube guidance](development/monitors/sonarqube.md)
 - [Shared-library dependency license review](development/rvt-monitor-common/dependency-license-review.md)
 

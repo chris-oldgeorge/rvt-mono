@@ -87,6 +87,7 @@ are intentionally absent from this table.
 | `apps/portal/docs/superpowers/plans/2026-07-08-hexagonal-edges.md` | `docs/history/portal/plans/2026-07-08-hexagonal-edges.md` |
 | `apps/portal/docs/superpowers/plans/2026-07-09-controller-read-boundary-cleanup.md` | `docs/history/portal/plans/2026-07-09-controller-read-boundary-cleanup.md` |
 | `apps/portal/docs/superpowers/plans/2026-07-09-controller-write-orchestration-cleanup.md` | `docs/history/portal/plans/2026-07-09-controller-write-orchestration-cleanup.md` |
+| `apps/portal/docs/review/2026-07-22-rvt-portal-review-remediation.md` | `docs/superpowers/plans/2026-07-22-rvt-portal-review-remediation.md` |
 | `apps/portal/docs/testing/testability-rc-grade-update.md` | `docs/development/portal/testing/testability-rc-grade-update.md` |
 | `libs/rvt-monitor-common/.github/pull_request_template.md` | `docs/modules/rvt-monitor-common/pull-request-template.md` |
 | `libs/rvt-monitor-common/database/migrations/README.md` | `docs/database/rvt-monitor-common/migrations/README.md` |

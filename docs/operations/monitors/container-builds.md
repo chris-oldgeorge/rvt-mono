@@ -1,30 +1,29 @@
 # Local Container Builds
 
-Use the native macOS clone for local Docker work:
+Use the monorepo monitor module for local Docker work:
 
 ```sh
-cd /Users/oldgeorge/Documents/rvt-monitors/rvt-monitors
+cd /Users/oldgeorge/Documents/rvt-mono/apps/monitors
 ```
 
-The monitor API containers restore private `Rvt.Monitor.*` packages during their build.
-Supply the GitHub Packages credential to BuildKit through the current process only:
+The monitor API containers compile the in-repository Common projects through
+`ProjectReference`. The build context must therefore be the monorepo monitor
+context used by the root Compose file. Build normally:
 
 ```sh
-export NuGetPackageSourceCredentials_rvt="Username=$GITHUB_USER;Password=$GITHUB_PACKAGES_TOKEN;ValidAuthenticationTypes=Basic"
 docker compose build
 ```
 
-The root Compose file exposes this value only as the `nuget_credentials` BuildKit
-secret for the publish step. It is not a runtime application secret and must not be
-placed in a Dockerfile, build argument, image environment, committed `.env` file, or
-other repository file. The personal mirror CI constructs the same value from the
-`RVT_PACKAGES_READ_USER` and `RVT_PACKAGES_READ_TOKEN` repository secrets. The token
-must be a classic personal access token limited to `read:packages`, owned by an account
-that can read all three organization packages. An organization-owned consumer repository
-may instead use its `GITHUB_TOKEN` only after every package explicitly grants that
-repository GitHub Actions read access.
+`apps/monitors/NuGet.config` has nuget.org as its only source, for third-party
+dependencies. Container restore requires no additional feed, package token, or
+package inventory check.
 
-Docker builds restore Common exclusively from the private package feed and contain no local Common source fallback. After building, run `scripts/report-rvt-package-inventory.sh`; every image must report `0.2.0-rc.1` for both `Rvt.Monitor.Common` and `Rvt.Monitor.Common.Infrastructure`.
+Package artifact verification is a different workflow under
+`libs/rvt-monitor-common/package-validation`. Its consumers alone restore the
+locally built `0.2.0-rc.1` packages from
+`libs/rvt-monitor-common/artifacts/packages` and enforce their checked-in
+artifact lock files. Do not substitute that package workflow for the active
+monitor container build.
 
 Do not build from the retired Parallels Windows C: share paths (`/Volumes/[C] Windows 11/...` or `/private/tmp/win11c/...`). Those mounted workspaces generated macOS SMB AppleDouble `._*` sidecars that could break Docker build-context packaging. The native clone avoids that class of failure, so the old filtered tar build workaround is no longer the default process.
 

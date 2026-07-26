@@ -20,7 +20,7 @@ This standard defines the canonical naming style for the RVT database refactor. 
 - Database identifiers are physical lowercase snake_case names.
 - API JSON and TypeScript-facing models should remain camelCase.
 - C# type names remain PascalCase under .NET conventions, while EF Core maps them to the canonical database names.
-- The EF Core canonical mapping convention is currently opt-in and should be enabled for live contexts only during the reviewed rename rehearsal/cutover. This avoids pointing the application at canonical table names before the physical database has been renamed.
+- The EF Core canonical mapping convention is the live contract. Runtime contexts, migrations, and SQL assets target the canonical physical names.
 
 ## Examples
 
@@ -39,13 +39,11 @@ This standard defines the canonical naming style for the RVT database refactor. 
 | `OperatingVolumeFlowTimestamp` | `operating_volume_flow_time` | Removes type-name wording while preserving measurement meaning. |
 | `Timestamtp` | `logged_at` | Correct spelling and avoid type-name wording. |
 
-## Temporary Compatibility
+## Compatibility Policy
 
-Temporary old-name compatibility objects may be created only in a dedicated compatibility schema such as `legacy`. These objects must be documented with an owner and removal date. They are not canonical database objects and must not be used by new code.
-
-The current generated compatibility scripts are:
-
-Compatibility views are retired. New application, migration, monitor, and reporting code must use canonical objects in the `public` schema.
+Old-name schemas, views, aliases, and other compatibility objects are absent from
+the supported database shape. Do not recreate them. Application, migration,
+monitor, and reporting code must use canonical objects in the `public` schema.
 
 ## Compliance Checks
 
@@ -68,7 +66,9 @@ The canonical EF convention lives in `RVT.DataAccess/Configuration/RvtCanonicalM
 - Foreign keys to `{referenced_table}_id`.
 - Other scalar properties through `DatabaseNamingRules.ToCanonicalColumnName`.
 
-This convention is a migration aid, not a runtime default yet. Enable it only in controlled rehearsals or after the canonical rename migration is applied.
+This convention is the runtime and migration default. A database that does not
+match it must be brought to the canonical PostgreSQL schema before the
+application receives traffic.
 
 ## Developer Onboarding
 

@@ -124,7 +124,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         builder.Services.Replace(ServiceDescriptor.Singleton<IMonitorDbContextFactory<OmnidotsMonitorContext>>(
             new OmnidotsMonitorContextFactory(
                 database!.ConnectionString,
-                new MonitorDbOptions(MonitorDatabaseProvider.PostgreSql, new Dictionary<string, string>()))));
+                new MonitorDbOptions(new Dictionary<string, string>()))));
         builder.Services.PostConfigure<DurableAlertOptions>(options =>
             options.PortalBaseUrl = "https://portal.example.test/");
 

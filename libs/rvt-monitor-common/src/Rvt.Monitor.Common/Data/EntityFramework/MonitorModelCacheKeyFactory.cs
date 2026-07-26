@@ -8,7 +8,7 @@ public sealed class MonitorModelCacheKeyFactory : IModelCacheKeyFactory
     public object Create(DbContext context, bool designTime)
     {
         return context is MonitorDbContextBase monitorContext
-            ? (context.GetType(), monitorContext.ModelCacheProvider, IdentifierMapKey(monitorContext), designTime)
+            ? (context.GetType(), IdentifierMapKey(monitorContext), designTime)
             : (context.GetType(), designTime);
     }
 

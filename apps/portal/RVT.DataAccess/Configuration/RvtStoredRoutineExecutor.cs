@@ -1,11 +1,10 @@
-// File summary: Configures provider-neutral SQL Server/PostgreSQL database access for repositories and EF Core contexts.
+// File summary: Executes safely quoted PostgreSQL functions for repository data access.
 // Major updates:
+// - 2026-07-26 pending Made PostgreSQL function SQL the sole routine rendering path.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
-// - 2026-06-03 f5fd01e Added SQL Server/PostgreSQL provider support.
 // - 2026-06-04 pending Hardened PostgreSQL routine command text against unsafe identifiers.
 // - 2026-06-09 pending Mapped legacy routine names to canonical PostgreSQL function names.
-// - 2026-06-09 pending Mapped SQL Server stored procedure calls to canonical procedure names after the SQL Server cutover.
 
 using System.Data;
 using System.Data.Common;
@@ -60,47 +59,16 @@ public sealed class RvtStoredRoutineExecutor : IRvtStoredRoutineExecutor
         return rows;
     }
 
-    // Function summary: Configures command text and parameters for the selected database provider.
+    // Function summary: Configures PostgreSQL function text and parameters.
     private void ConfigureCommand(
         DbCommand command,
         string routineName,
         IReadOnlyCollection<RvtRoutineParameter> parameters)
     {
-        if (connectionFactory.Provider == RvtDatabaseProvider.SqlServer)
-        {
-            command.CommandText = BuildSqlServerRoutineName(routineName);
-            command.CommandType = CommandType.StoredProcedure;
-            return;
-        }
-
         var argumentList = string.Join(", ", parameters.Select(parameter => NormalizeParameterName(parameter.Name)));
         var safeRoutineName = BuildPostgresRoutineName(routineName);
         command.CommandText = string.Concat("select * from ", safeRoutineName, "(", argumentList, ")");
         command.CommandType = CommandType.Text;
-    }
-
-    // Function summary: Builds a SQL Server stored-procedure identifier after validating and canonicalizing the routine name.
-    private string BuildSqlServerRoutineName(string routineName)
-    {
-        var parts = routineName.Split('.', StringSplitOptions.None);
-        if (parts.Length is < 1 or > 2 || parts.Any(part => !IsSafeIdentifier(part)))
-        {
-            throw new ArgumentException("Routine name must be an unqualified identifier or schema-qualified identifier.", nameof(routineName));
-        }
-
-        var canonicalRoutineName = DatabaseNamingRules.ToCanonicalRoutineName(parts[^1]);
-        ValidateIdentifier(canonicalRoutineName, nameof(routineName));
-
-        if (parts.Length == 2)
-        {
-            ValidateIdentifier(parts[0], nameof(routineName));
-            return string.Join(
-                ".",
-                connectionFactory.DelimitIdentifier(parts[0]),
-                connectionFactory.DelimitIdentifier(canonicalRoutineName));
-        }
-
-        return connectionFactory.DelimitIdentifier(canonicalRoutineName);
     }
 
     // Function summary: Builds a schema-qualified PostgreSQL routine name after validating and canonicalizing each identifier part.

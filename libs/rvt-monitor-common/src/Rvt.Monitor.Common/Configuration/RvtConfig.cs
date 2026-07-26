@@ -182,7 +182,6 @@ public sealed class RvtConfig
     public static readonly bool SMS_ENABLED = GetBoolSetting("RVT__SMS_ENABLED");
     public static readonly bool EMAIL_ENABLED = GetBoolSetting("RVT__EMAIL_ENABLED");
     public static readonly string DB_CONNECTION_STRING = GetSetting("ConnectionStrings__DefaultConnection");
-    public static readonly string DATABASE_PROVIDER = GetSetting("RVT__DATABASE_PROVIDER", "PostgreSql");
     public static readonly bool TESTLOCAL = GetBoolSetting("testlocal");
     public static string PORTAL_BASE_URL => GetSetting("RVT__PORTAL_BASE_URL", Defaults.PortalBaseUrl);
     public static string BASE_URL => GetSetting("RVT__BASE_URL", Defaults.BaseUrl);

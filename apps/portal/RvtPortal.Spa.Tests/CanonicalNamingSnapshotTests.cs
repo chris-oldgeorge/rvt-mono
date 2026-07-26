@@ -1,5 +1,6 @@
 // File summary: Pins every canonical table/column name the EF model produces so schema mapping cannot drift.
 // Major updates:
+// - 2026-07-25 pending Switched relational metadata snapshots to the canonical Npgsql provider.
 // - 2026-07-14 pending Replaced the spot checks with a full approved snapshot ahead of the naming-map swap.
 // - 2026-07-14 pending Added a snapshot of the canonical naming rules ahead of replacing the heuristics with a map.
 
@@ -70,9 +71,9 @@ public sealed class CanonicalNamingSnapshotTests
 
         // A relational provider is required to resolve table/column names; no connection is ever opened.
         using var domain = new RVTDbContext(new DbContextOptionsBuilder<RVTDbContext>()
-            .UseSqlServer("Server=unused;Database=unused;Trusted_Connection=True;").Options);
+            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused").Options);
         using var search = new RVTSearchContext(new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseSqlServer("Server=unused;Database=unused;Trusted_Connection=True;").Options);
+            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused").Options);
 
         foreach (var context in new DbContext[] { domain, search })
         {

@@ -1,6 +1,6 @@
 ﻿-- File summary: Deploys canonical PostgreSQL views after data load so the migrator can rebuild search, dashboard, report, and aggregate read models.
 -- Deploy canonical PostgreSQL views, functions, and procedures after data load.
--- Generated from database/sqlserver/canonical_view_module_rewrite.sql during the DBR canonical schema gate.
+-- Retained as the canonical DBR post-load view and routine asset.
 -- Keep this file and sibling post-load scripts in canonical lowercase names.
 -- ASP.NET Identity objects are intentionally excluded from the database naming refactor.
 -- Major updates:

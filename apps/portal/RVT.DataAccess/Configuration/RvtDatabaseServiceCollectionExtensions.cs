@@ -1,14 +1,13 @@
-// File summary: Configures provider-neutral SQL Server/PostgreSQL database access for repositories and EF Core contexts.
+// File summary: Configures PostgreSQL database access for repositories and EF Core contexts.
 // Major updates:
+// - 2026-07-26 pending Collapsed Portal registration and shared connections to Npgsql.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
-// - 2026-06-03 f5fd01e Added SQL Server/PostgreSQL provider support.
 // - 2026-07-08 pending Added shared DbConnection creation for cross-context transaction boundaries.
 
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -20,7 +19,7 @@ namespace RVT.DataAccess.Configuration;
 
 public static class RvtDatabaseServiceCollectionExtensions
 {
-    // Function summary: Registers RVT database provider for the current workflow.
+    // Function summary: Registers PostgreSQL database options and supporting services.
     public static RvtDatabaseOptions AddRvtDatabaseProvider(this IServiceCollection services, IConfiguration configuration)
     {
         var options = RvtDatabaseOptions.FromConfiguration(configuration);
@@ -48,7 +47,7 @@ public static class RvtDatabaseServiceCollectionExtensions
     /// </summary>
     public const string IdentityMigrationsHistoryTable = "__EFMigrationsHistoryIdentity";
 
-    // Function summary: Applies RVT database provider to the current configuration.
+    // Function summary: Applies PostgreSQL using the connection string in RVT database options.
     public static DbContextOptionsBuilder UseRvtDatabaseProvider(
         this DbContextOptionsBuilder optionsBuilder,
         RvtDatabaseOptions options,
@@ -56,23 +55,16 @@ public static class RvtDatabaseServiceCollectionExtensions
     {
         options.Validate();
 
-        // Guards writes of non-UTC DateTime values to PostgreSQL timestamptz columns; inert on SQL Server and on
+        // Guards writes of non-UTC DateTime values to PostgreSQL timestamptz columns and is inert on
         // timestamp-without-time-zone columns (see UtcTimestampGuardInterceptor).
         optionsBuilder.AddInterceptors(UtcTimestampGuardInterceptor.Instance);
 
-        return options.Provider switch
-        {
-            RvtDatabaseProvider.SqlServer => optionsBuilder.UseSqlServer(
-                options.ConnectionString,
-                sql => ConfigureSqlServer(sql, options, migrationsHistoryTable)),
-            RvtDatabaseProvider.Postgres => optionsBuilder.UseNpgsql(
-                options.ConnectionString,
-                npgsql => ConfigureNpgsql(npgsql, options, migrationsHistoryTable)),
-            _ => throw new InvalidOperationException($"Unsupported database provider '{options.Provider}'.")
-        };
+        return optionsBuilder.UseNpgsql(
+            options.ConnectionString,
+            npgsql => ConfigureNpgsql(npgsql, options, migrationsHistoryTable));
     }
 
-    // Function summary: Applies RVT database provider to a caller-owned connection shared across EF contexts.
+    // Function summary: Applies PostgreSQL to a caller-owned connection shared across EF contexts.
     public static DbContextOptionsBuilder UseRvtDatabaseProvider(
         this DbContextOptionsBuilder optionsBuilder,
         RvtDatabaseOptions options,
@@ -81,39 +73,13 @@ public static class RvtDatabaseServiceCollectionExtensions
     {
         options.Validate();
 
-        // Guards writes of non-UTC DateTime values to PostgreSQL timestamptz columns; inert on SQL Server and on
+        // Guards writes of non-UTC DateTime values to PostgreSQL timestamptz columns and is inert on
         // timestamp-without-time-zone columns (see UtcTimestampGuardInterceptor).
         optionsBuilder.AddInterceptors(UtcTimestampGuardInterceptor.Instance);
 
-        return options.Provider switch
-        {
-            RvtDatabaseProvider.SqlServer => optionsBuilder.UseSqlServer(
-                connection,
-                sql => ConfigureSqlServer(sql, options, migrationsHistoryTable)),
-            RvtDatabaseProvider.Postgres => optionsBuilder.UseNpgsql(
-                connection,
-                npgsql => ConfigureNpgsql(npgsql, options, migrationsHistoryTable)),
-            _ => throw new InvalidOperationException($"Unsupported database provider '{options.Provider}'.")
-        };
-    }
-
-    // Function summary: Applies shared resiliency and timeout settings to the SQL Server provider.
-    private static void ConfigureSqlServer(
-        SqlServerDbContextOptionsBuilder sql,
-        RvtDatabaseOptions options,
-        string? migrationsHistoryTable)
-    {
-        if (options.EnableRetryOnFailure)
-        {
-            sql.EnableRetryOnFailure(options.MaxRetryCount);
-        }
-
-        if (!string.IsNullOrWhiteSpace(migrationsHistoryTable))
-        {
-            sql.MigrationsHistoryTable(migrationsHistoryTable);
-        }
-
-        sql.CommandTimeout(options.CommandTimeoutSeconds);
+        return optionsBuilder.UseNpgsql(
+            connection,
+            npgsql => ConfigureNpgsql(npgsql, options, migrationsHistoryTable));
     }
 
     // Function summary: Applies shared resiliency and timeout settings to the PostgreSQL provider.
@@ -135,16 +101,11 @@ public static class RvtDatabaseServiceCollectionExtensions
         npgsql.CommandTimeout(options.CommandTimeoutSeconds);
     }
 
-    // Function summary: Creates the provider-specific connection used by the portal's scoped EF contexts.
+    // Function summary: Creates the Npgsql connection used by the portal's scoped EF contexts.
     public static DbConnection CreateDbConnection(this RvtDatabaseOptions options)
     {
         options.Validate();
 
-        return options.Provider switch
-        {
-            RvtDatabaseProvider.SqlServer => new SqlConnection(options.ConnectionString),
-            RvtDatabaseProvider.Postgres => new NpgsqlConnection(options.ConnectionString),
-            _ => throw new InvalidOperationException($"Unsupported database provider '{options.Provider}'.")
-        };
+        return new NpgsqlConnection(options.ConnectionString);
     }
 }

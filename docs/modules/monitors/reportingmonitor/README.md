@@ -23,7 +23,6 @@ Run the container API at `http://localhost:8085` with `docker compose up reporti
 The host binds these environment-variable names without storing values in source control:
 
 - `ConnectionStrings__DefaultConnection`
-- `RVT__DATABASE_PROVIDER` (must be `PostgreSql`)
 - `RVT__INTERNAL_API_KEY`
 - `RVT__BLOB_PROVIDER` (`Local`, `AzureBlob`, or `S3`; defaults to `Local`)
 - `RVT__BLOB_CONTAINER` (defaults to `pdfreports`)
@@ -48,6 +47,10 @@ The host binds these environment-variable names without storing values in source
 - `RVT__AI_SUMMARY_BASE_URL`
 - `RVT__AI_SUMMARY_MODEL`
 - `RVT__AI_SUMMARY_TIMEOUT_SECONDS`
+
+Omit database-provider selection settings. ReportingMonitor always uses
+PostgreSQL; transitional validation may reject an unsupported value from a
+stale legacy deployment setting, but no provider key is required.
 
 `RVT__BLOB_REPORT_CONTAINER_NAME` remains a legacy fallback for the report container when `RVT__BLOB_CONTAINER` is not configured. New deployments should use the common `RVT__BLOB_*` settings. The default Local provider writes PDFs below `/data/rvt/blobs/pdfreports/rvtreports/`; Docker Compose mounts the `reporting-reportfiles` named volume at `/data/rvt/blobs`. The named storage client returns the normalized object key; ReportingMonitor's `IReportObjectUriResolver` converts that key to the provider URI persisted in `report.report_link`.
 

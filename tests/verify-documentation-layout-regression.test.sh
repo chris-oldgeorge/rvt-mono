@@ -12,6 +12,17 @@ cp "$repo_root/docs/index.md" "$test_root/docs/"
 cp "$repo_root/scripts/verify-documentation-layout.sh" "$test_root/scripts/"
 cp -R "$fixture_root/." "$test_root/"
 
+expected_moves=86
+manifest_moves="$(
+  awk -F '`' '/^\| `/ { count++ } END { print count + 0 }' \
+    "$test_root/docs/documentation-move-manifest.md"
+)"
+if [[ "$manifest_moves" -ne "$expected_moves" ]]; then
+  printf 'Expected %d manifest moves, found %d.\n' \
+    "$expected_moves" "$manifest_moves" >&2
+  exit 1
+fi
+
 stale_document_path="apps/monitors/myatmmonitor/"
 stale_document_path+="README.md"
 STALE_DOCUMENT_PATH="$stale_document_path" perl -pi -e \
@@ -45,6 +56,9 @@ done
 git -C "$test_root" init --quiet
 git -C "$test_root" add .
 
+mkdir -p "$test_root/apps/.nuget-packages/example.package/1.0.0"
+touch "$test_root/apps/.nuget-packages/example.package/1.0.0/README.md"
+
 if "$test_root/scripts/verify-documentation-layout.sh" >"$test_root/output" 2>&1; then
   printf 'Expected the guard to reject the stale source-code reference.\n' >&2
   exit 1
@@ -57,3 +71,8 @@ grep -Fq \
   "ERROR: stale module-relative reference uses old document path: $stale_module_relative_path" \
   "$test_root/output"
 grep -Fq 'ERROR: 2 stale old-document reference(s) remain' "$test_root/output"
+
+if grep -Fq 'apps/.nuget-packages/' "$test_root/output"; then
+  printf 'Generated apps/.nuget-packages documentation must not pollute layout discovery.\n' >&2
+  exit 1
+fi

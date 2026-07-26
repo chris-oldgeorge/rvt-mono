@@ -1,6 +1,6 @@
-// File summary: Guards PostgreSQL and SQL Server database deployment scripts from drifting apart.
+// File summary: Guards PostgreSQL monitor natural-key deployment scripts and their database invariants.
 // Major updates:
-// - 2026-06-18 pending Added monitor natural-key mirror checks for PostgreSQL and SQL Server.
+// - 2026-07-26 current Removed retired-provider mirror checks while retaining PostgreSQL deployment coverage.
 
 using System.Text.RegularExpressions;
 
@@ -27,75 +27,61 @@ public sealed class DatabaseBackendMirrorTests
     ];
 
     [Fact]
-    // Function summary: Verifies monitor natural-key deployment scripts exist for both database providers.
-    public void MonitorNaturalKeyDeploymentScripts_ExistForBothProviders()
+    // Function summary: Verifies the PostgreSQL monitor natural-key deployment script exists.
+    public void MonitorNaturalKeyDeploymentScript_ExistsForPostgres()
     {
-        foreach (var relativePath in NaturalKeyScriptPaths())
-        {
-            var path = Path.Combine(FindRepositoryRoot(), relativePath);
-            Assert.True(File.Exists(path), $"Missing database deployment script: {relativePath}");
-        }
+        const string relativePath = "database/postgres/monitor_natural_key_changes_20260618.sql";
+        var path = Path.Combine(FindRepositoryRoot(), relativePath);
+
+        Assert.True(File.Exists(path), $"Missing database deployment script: {relativePath}");
     }
 
     [Fact]
-    // Function summary: Verifies PostgreSQL and SQL Server scripts define the same monitor natural-key unique indexes.
-    public void MonitorNaturalKeyDeploymentScripts_DefineSameUniqueIndexes()
+    // Function summary: Verifies the PostgreSQL script defines monitor natural-key unique indexes.
+    public void MonitorNaturalKeyDeploymentScript_DefinesUniqueIndexes()
     {
         var postgresSql = NormalizeSql(ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql"));
-        var sqlServerSql = NormalizeSql(ReadRepositoryFile("database/sqlserver/monitor_natural_key_changes_20260618.sql"));
 
         foreach (var index in NaturalKeyIndexes)
         {
             var postgresColumns = string.Join(", ", index.Columns);
-            var sqlServerColumns = string.Join(", ", index.Columns.Select(column => $"[{column}]"));
 
             Assert.Contains($"CREATE UNIQUE INDEX IF NOT EXISTS {index.IndexName}", postgresSql, StringComparison.Ordinal);
             Assert.Contains($"ON {index.Table} ({postgresColumns})", postgresSql, StringComparison.Ordinal);
-
-            Assert.Contains($"CREATE UNIQUE INDEX [{index.IndexName}]", sqlServerSql, StringComparison.Ordinal);
-            Assert.Contains($"ON dbo.[{index.Table}] ({sqlServerColumns})", sqlServerSql, StringComparison.Ordinal);
         }
     }
 
     [Fact]
-    // Function summary: Verifies provider scripts populate the AirQ natural-key column before enforcing uniqueness.
-    public void MonitorNaturalKeyDeploymentScripts_BackfillAirQStatusSerialId()
+    // Function summary: Verifies the PostgreSQL script populates the AirQ natural-key column before enforcing uniqueness.
+    public void MonitorNaturalKeyDeploymentScript_BackfillsAirQStatusSerialId()
     {
         var postgresSql = NormalizeSql(ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql"));
-        var sqlServerSql = NormalizeSql(ReadRepositoryFile("database/sqlserver/monitor_natural_key_changes_20260618.sql"));
 
         Assert.Contains("ALTER TABLE air_q_monitor_status ADD COLUMN IF NOT EXISTS serial_id varchar(64)", postgresSql, StringComparison.Ordinal);
         Assert.Contains("UPDATE air_q_monitor_status SET serial_id = id WHERE serial_id IS NULL AND id IS NOT NULL", postgresSql, StringComparison.Ordinal);
-
-        Assert.Contains("ALTER TABLE dbo.[air_q_monitor_status] ADD [serial_id] nvarchar(64) NULL", sqlServerSql, StringComparison.Ordinal);
-        Assert.Contains("UPDATE dbo.[air_q_monitor_status] SET [serial_id] = CONVERT(nvarchar(64), [id]) WHERE [serial_id] IS NULL AND [id] IS NOT NULL", sqlServerSql, StringComparison.Ordinal);
     }
 
     [Fact]
-    // Function summary: Verifies both provider scripts audit the same monitor natural keys before unique indexes are applied.
-    public void MonitorNaturalKeyAuditScripts_CheckSameNaturalKeys()
+    // Function summary: Verifies the PostgreSQL script audits monitor natural keys before unique indexes are applied.
+    public void MonitorNaturalKeyDeploymentScript_AuditsNaturalKeys()
     {
         var postgresSql = ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql");
-        var sqlServerSql = ReadRepositoryFile("database/sqlserver/monitor_natural_key_changes_20260618.sql");
 
         foreach (var index in NaturalKeyIndexes)
         {
             Assert.Contains(index.Table, postgresSql, StringComparison.Ordinal);
-            Assert.Contains(index.Table, sqlServerSql, StringComparison.Ordinal);
 
             foreach (var column in index.Columns)
             {
                 Assert.Contains(column, postgresSql, StringComparison.Ordinal);
-                Assert.Contains(column, sqlServerSql, StringComparison.Ordinal);
             }
         }
     }
 
     [Theory]
     [InlineData("database/postgres/monitor_natural_key_changes_20260618.sql")]
-    [InlineData("database/sqlserver/monitor_natural_key_changes_20260618.sql")]
-    // Function summary: Verifies scripts preserve removed duplicate rows before enforcing monitor natural keys.
-    public void MonitorNaturalKeyDeploymentScripts_QuarantineKnownDuplicateTables(string relativePath)
+    // Function summary: Verifies the PostgreSQL script preserves removed duplicate rows before enforcing monitor natural keys.
+    public void MonitorNaturalKeyDeploymentScript_QuarantinesKnownDuplicateTables(string relativePath)
     {
         var sql = ReadRepositoryFile(relativePath);
         var quarantineTables = new[]
@@ -109,12 +95,6 @@ public sealed class DatabaseBackendMirrorTests
         {
             Assert.Contains(quarantineTable, sql, StringComparison.Ordinal);
         }
-    }
-
-    private static IEnumerable<string> NaturalKeyScriptPaths()
-    {
-        yield return "database/postgres/monitor_natural_key_changes_20260618.sql";
-        yield return "database/sqlserver/monitor_natural_key_changes_20260618.sql";
     }
 
     private static string ReadRepositoryFile(string relativePath)

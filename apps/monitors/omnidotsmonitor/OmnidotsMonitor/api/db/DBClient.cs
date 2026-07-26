@@ -1,5 +1,4 @@
 using System.Data;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -43,7 +42,9 @@ namespace Omnidots.Api.Db
             string connectionString,
             Action<OmnidotsMeasurementSeries, int>? beforeImportSave)
         {
-            MonitorDatabaseProviderGuard.EnsureSupported();
+            MonitorDb.ValidateLegacyProvider(
+                Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
+                Environment.GetEnvironmentVariable("DatabaseProvider"));
             ConnectionString = connectionString;
             BeforeImportSave = beforeImportSave;
         }
@@ -684,7 +685,7 @@ namespace Omnidots.Api.Db
         private OmnidotsMonitorContext CreateContext()
         {
             var monitorOptions = OmnidotsMonitorDbOptions.Current;
-            var options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(ConnectionString, monitorOptions);
+            var options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(ConnectionString);
             return new OmnidotsMonitorContext(options, monitorOptions);
         }
 
@@ -775,11 +776,6 @@ namespace Omnidots.Api.Db
                     return true;
                 }
 
-                if (current is SqlException sqlException &&
-                    IsRetryableSqlServerErrorNumber(sqlException.Number))
-                {
-                    return true;
-                }
             }
 
             return false;
@@ -787,9 +783,6 @@ namespace Omnidots.Api.Db
 
         internal static bool IsRetryablePostgreSqlState(string sqlState) =>
             sqlState is "40001" or "40P01" or "23505";
-
-        internal static bool IsRetryableSqlServerErrorNumber(int errorNumber) =>
-            errorNumber is 1205 or 3960 or 2601 or 2627;
 
         private static DateTime ValidatePeakImport(
             string serialId,

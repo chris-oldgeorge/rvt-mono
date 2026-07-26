@@ -34,7 +34,7 @@ This log records the incremental ports-and-adapters refactor for the RVT Portal 
   - Centralized legacy synchronous lookup repository reads behind one helper and removed stale lookup comment/semicolon noise.
   - Removed console prompts and async-without-await warnings from the legacy blob utility.
 - Transaction-boundary pass:
-  - Added `docs/history/portal/plans/2026-07-08-transaction-boundaries.md`.
+  - Added the transaction-boundary implementation plan; Git history retains the retired planning artifact.
   - Extended `EfCoreUnitOfWork` to coordinate `RVTDbContext`, `RVTSearchContext`, and `ApplicationDbContext`.
   - Registered one scoped provider `DbConnection` for the portal EF contexts so Identity/domain/search writes can share a relational transaction.
   - Added relational SQLite tests that prove normal saves persist all three contexts and immediate Identity/search writes roll back when a later domain save fails.
@@ -64,3 +64,46 @@ Verification so far:
 - Green check: `dotnet test RvtPortal.Spa.Tests\RvtPortal.Spa.Tests.csproj --no-build` passed 237/237.
 - Green check: `dotnet list RvtPortal.Spa.sln package --vulnerable --include-transitive` found no vulnerable packages.
 - Green check: `npm run test:run` in `RvtPortal.Client` passed 66/66; existing React `act(...)` warnings remain in `src/App.test.tsx`.
+
+## 2026-07-23 - Sites Application Boundary
+
+- Added BCL-only `RvtPortal.Application` and `RvtPortal.Application.Tests`.
+- Moved the complete Sites use-case surface behind application-owned ports.
+- Kept controller routes/payloads and EF SQL-side paging/projection unchanged.
+- Retained `EfCoreUnitOfWork` and the shared three-context transaction adapter.
+- Removed the duplicate host Sites service/MediatR command implementations.
+- Added application, adapter, architecture, and HTTP compatibility tests.
+- Established the Sites dependency rule:
+  `SitesController -> ISiteApplicationService -> application-owned read, write,
+  unit-of-work, user-directory, archive, and logo ports -> host adapters`.
+  `RvtPortal.Application` remains BCL-only; EF Core, Identity, archive export,
+  and customer-logo storage remain in the SPA host.
+- Kept `RVT.BusinessLogic` as the legacy boundary for slices not yet extracted.
+  Future slices must move deliberately and incrementally rather than as
+  opportunistic cleanup during unrelated changes.
+- Approved one retained Task 6 variance:
+  `RvtPortal.Spa.Application.Sites.ActiveSiteAssignment` remains for seven live
+  EF-expression consumers in notification, dashboard, monitor, and alert-level
+  slices. Moving those consumers is outside this extraction; the application
+  boundary owns the equivalent pure Sites assignment policy, and both retain
+  the same explicit-UTC inclusive window.
+
+## 2026-07-24 - Sites Archive Authorization Repair
+
+- Closed the validated application-boundary review finding in accepted commit
+  `8bf2f18afa0c33e3bf2749cbb4e8f01e097e90c4`.
+- `SiteApplicationService.ArchiveAsync` now applies
+  `SiteAuthorizationPolicy.CanManage` before archive-state reads, archive
+  export, transaction entry, archive writes, saves, or detail/logo enrichment.
+- Added a direct non-manager application regression that requires `Forbidden`
+  and zero archive-state, detail, logo-existence, export, transaction, write,
+  save, and workflow-event activity.
+- Preserved the authorized workflow's export-before-transaction ordering and
+  its established HTTP behavior.
+- The exact repair diff received an accepted review with no Critical,
+  Important, or Minor findings. The final whole-branch review remains a
+  separate root closeout step.
+- Fresh post-repair evidence is 32/32 application tests, 382 SPA passes with
+  eight explicitly PostgreSQL-gated skips, a zero-error solution build with
+  five existing NU1903 advisories, 68/68 client tests, and a successful client
+  production build.

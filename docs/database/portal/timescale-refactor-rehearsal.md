@@ -91,15 +91,14 @@ Chunk counts after rename:
 Rollback finding and fix:
 
 - The first rollback attempt exposed an ordering defect in `canonical_database_naming_rollback.sql`: relation names were restored before columns, so column rollback statements no longer targeted the canonical relation names.
-- The Postgres and SQL Server rollback scripts were reordered so columns are restored first and relations last.
-- `DatabaseNamingConventionTests` now includes a guardrail that verifies both provider rollback scripts keep column renames before relation renames.
+- The PostgreSQL rollback script was reordered so columns are restored first and relations last.
+- `DatabaseNamingConventionTests` verifies that the PostgreSQL rollback script keeps column renames before relation renames.
 - The corrected Postgres rollback restored legacy relation, column, and selected PK names on the clone before the final forward pass was re-applied.
 
 ## Current Open Items
 
 - Constraint/index scripts still need human registry review before production use.
 - Registry exceptions still need review, especially natural primary keys and measurement acronyms.
-- The old SQL Server-to-Postgres migrator must be updated to use the saved name-equivalence CSV before writing into a renamed Postgres schema.
 - Repeat the same rehearsal against a full production backup, or another 400M-row-equivalent data set, before any later production-scale historical import/cutover.
 
 ## PostgreSQL Routine Rehearsal - 2026-06-09

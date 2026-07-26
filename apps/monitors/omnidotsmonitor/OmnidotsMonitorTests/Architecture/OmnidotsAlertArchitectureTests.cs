@@ -39,7 +39,7 @@ public sealed class OmnidotsAlertArchitectureTests
         services.Replace(ServiceDescriptor.Singleton<IMonitorDbContextFactory<OmnidotsMonitorContext>>(
             new OmnidotsMonitorContextFactory(
                 "Host=localhost;Database=composition;Username=composition;Password=composition",
-                new MonitorDbOptions(MonitorDatabaseProvider.PostgreSql, new Dictionary<string, string>()))));
+                new MonitorDbOptions(new Dictionary<string, string>()))));
 
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -164,7 +164,7 @@ public sealed class OmnidotsAlertArchitectureTests
         builder.Services.Replace(ServiceDescriptor.Singleton<IMonitorDbContextFactory<OmnidotsMonitorContext>>(
             new OmnidotsMonitorContextFactory(
                 "Host=localhost;Database=composition;Username=composition;Password=composition",
-                new MonitorDbOptions(MonitorDatabaseProvider.PostgreSql, new Dictionary<string, string>()))));
+                new MonitorDbOptions(new Dictionary<string, string>()))));
         return builder.Build();
     }
 

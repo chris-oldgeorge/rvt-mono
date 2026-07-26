@@ -14,12 +14,11 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RVT.BusinessLogic.Application;
 using RVT.BusinessLogic.Application.Paging;
-using RVT.BusinessLogic.Ports.Storage;
-using RVT.BusinessLogic.Sites;
-using RvtPortal.Spa.Application.Sites;
-using RvtPortal.Spa.Adapters.Storage;
+using RvtPortal.Application.Common;
+using RvtPortal.Application.Identity;
+using RvtPortal.Application.Sites;
+using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Data;
 namespace RvtPortal.Spa.Api;
@@ -32,19 +31,16 @@ public class SitesController : ControllerBase
     private readonly ISiteApplicationService sites;
     private readonly ICurrentUserContextFactory currentUserContextFactory;
     private readonly IApiResultMapper resultMapper;
-    private readonly ICustomerLogoStorage customerLogoStorage;
 
-    // Function summary: Initializes this HTTP adapter with site use cases and storage ports.
+    // Function summary: Initializes this HTTP adapter with site use cases and HTTP mappers.
     public SitesController(
         ISiteApplicationService sites,
         ICurrentUserContextFactory currentUserContextFactory,
-        IApiResultMapper resultMapper,
-        ICustomerLogoStorage customerLogoStorage)
+        IApiResultMapper resultMapper)
     {
         this.sites = sites;
         this.currentUserContextFactory = currentUserContextFactory;
         this.resultMapper = resultMapper;
-        this.customerLogoStorage = customerLogoStorage;
     }
     [HttpGet]
     [ProducesResponseType(typeof(QuerySitesResponse), StatusCodes.Status200OK)]
@@ -61,7 +57,10 @@ public class SitesController : ControllerBase
         var user = await currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
         var result = await sites.QueryAsync(
             user,
-            new SiteQuery(request.CompanyId, request.IncludeArchived, page),
+            new SiteQuery(
+                request.CompanyId,
+                request.IncludeArchived,
+                SiteApiMapper.ToApplicationPage(page)),
             HttpContext.RequestAborted);
         return resultMapper.ToActionResult(
             this,
@@ -106,28 +105,35 @@ public class SitesController : ControllerBase
 
         if (logo == null)
         {
-            return BadRequest(new ProblemDetails { Title = "Customer logo required", Detail = "Choose a logo image before uploading." });
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Customer logo required",
+                Detail = "Choose a logo image before uploading."
+            });
         }
 
-        try
+        await using var content = logo.OpenReadStream();
+        var result = await sites.SaveCustomerLogoAsync(
+            user,
+            id,
+            new SiteLogoUpload(
+                content,
+                logo.Length,
+                logo.ContentType,
+                logo.FileName),
+            cancellationToken);
+        if (result.Kind == UseCaseResultKind.Validation)
         {
-            await customerLogoStorage.SaveAsync(id, new FormFileUpload(logo), cancellationToken);
-        }
-        catch (StorageValidationException ex)
-        {
-            return BadRequest(new ProblemDetails { Title = "Invalid customer logo", Detail = ex.Message });
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid customer logo",
+                Detail = result.Errors.Count > 0
+                    ? result.Errors[0].Message
+                    : "The customer logo is invalid."
+            });
         }
 
-        var detail = await ReadSiteDetailAsync(id, user, cancellationToken);
-        if (detail == null)
-        {
-            return SiteNotFound(id);
-        }
-
-        return new EntityResponse<SiteDetailResponse>
-        {
-            Item = detail
-        };
+        return resultMapper.ToActionResult(this, result, ToSiteDetailEntity);
     }
 
     [HttpDelete("{id:guid}/customer-logo")]
@@ -137,23 +143,16 @@ public class SitesController : ControllerBase
     // Function summary: Deletes the customer logo used by reports for a site.
     public async Task<ActionResult<EntityResponse<SiteDetailResponse>>> DeleteCustomerLogo(Guid id, CancellationToken cancellationToken)
     {
-        var user = await CreateUserContextAsync();
-        if (!await sites.CanManageSiteAsync(user, id, cancellationToken))
+        var result = await sites.DeleteCustomerLogoAsync(
+            await CreateUserContextAsync(),
+            id,
+            cancellationToken);
+        if (result.Kind == UseCaseResultKind.NotFound)
         {
             return SiteNotFound(id);
         }
 
-        await customerLogoStorage.DeleteAsync(id, cancellationToken);
-        var detail = await ReadSiteDetailAsync(id, user, cancellationToken);
-        if (detail == null)
-        {
-            return SiteNotFound(id);
-        }
-
-        return new EntityResponse<SiteDetailResponse>
-        {
-            Item = detail
-        };
+        return resultMapper.ToActionResult(this, result, ToSiteDetailEntity);
     }
 
     [HttpGet("{id:guid}/customer-logo")]
@@ -162,15 +161,11 @@ public class SitesController : ControllerBase
     // Function summary: Streams a protected customer logo to users who can read the site.
     public async Task<IActionResult> CustomerLogo(Guid id, CancellationToken cancellationToken)
     {
-        if (!await sites.CanReadSiteAsync(await CreateUserContextAsync(), id, cancellationToken))
-        {
-            return SiteNotFound(id);
-        }
-
-        var logo = await customerLogoStorage.OpenReadAsync(id, cancellationToken);
-        return logo == null
-            ? SiteNotFound(id)
-            : File(logo.Stream, logo.ContentType, logo.FileName);
+        var result = await sites.OpenCustomerLogoAsync(
+            await CreateUserContextAsync(),
+            id,
+            cancellationToken);
+        return ToLogoActionResult(id, result);
     }
 
     [HttpPost]
@@ -184,7 +179,7 @@ public class SitesController : ControllerBase
             await CreateUserContextAsync(),
             SiteApiMapper.ToMutation(request),
             HttpContext.RequestAborted);
-        if (result.Kind != ApplicationResultKind.Success || result.Value == null)
+        if (result.Kind != UseCaseResultKind.Success || result.Value == null)
         {
             return resultMapper.ToActionResult(this, result, ToSiteDetailEntity);
         }
@@ -274,7 +269,7 @@ public class SitesController : ControllerBase
             });
     }
     // Function summary: Normalizes site list query paging and sorting for the business-layer use case.
-    private static PageRequest BuildSitePageRequest(QuerySitesRequest request)
+    private static RVT.BusinessLogic.Application.Paging.PageRequest BuildSitePageRequest(QuerySitesRequest request)
     {
         return PageRequestFactory.Create(
             request.SearchText,
@@ -287,9 +282,9 @@ public class SitesController : ControllerBase
     }
 
     // Function summary: Normalizes fixed-sort site panel paging while preserving legacy sort-field behavior.
-    private static PageRequest BuildFixedSortPageRequest(PagedQueryRequest request, string sort)
+    private static RvtPortal.Application.Common.PageRequest BuildFixedSortPageRequest(PagedQueryRequest request, string sort)
     {
-        return new PageRequest(
+        return new RvtPortal.Application.Common.PageRequest(
             request.SearchText,
             request.GetNormalizedPage(),
             request.GetNormalizedPageSize(),
@@ -303,27 +298,46 @@ public class SitesController : ControllerBase
         return currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
     }
 
-    // Function summary: Reads a site detail model through the application service and maps it to the existing API DTO.
-    private async Task<SiteDetailResponse?> ReadSiteDetailAsync(Guid id, PortalUserContext? user = null, CancellationToken cancellationToken = default)
+    // Function summary: Maps an application site detail model while adding the protected customer-logo link owned by the HTTP adapter.
+    private static SiteDetailResponse ToSiteDetailResponse(SiteDetailModel model)
     {
-        var currentUser = user ?? await CreateUserContextAsync();
-        var result = await sites.GetAsync(
-            currentUser,
-            id,
-            cancellationToken == default ? HttpContext.RequestAborted : cancellationToken);
-        return result.Value == null ? null : ToSiteDetailResponse(result.Value);
+        var customerLogoUrl = model.HasCustomerLogo
+            ? $"/api/sites/{model.Id}/customer-logo"
+            : null;
+        return SiteApiMapper.ToDetailResponse(model, customerLogoUrl);
     }
 
-    // Function summary: Maps a business-layer site detail model while adding the protected customer-logo link owned by the HTTP adapter.
-    private SiteDetailResponse ToSiteDetailResponse(SiteDetailModel model)
-    {
-        return SiteApiMapper.ToDetailResponse(model, customerLogoStorage.BuildProtectedLink(model.Id));
-    }
-
-    // Function summary: Maps a business-layer site detail model to the existing entity response envelope.
-    private EntityResponse<SiteDetailResponse> ToSiteDetailEntity(SiteDetailModel model)
+    // Function summary: Maps an application site detail model to the existing entity response envelope.
+    private static EntityResponse<SiteDetailResponse> ToSiteDetailEntity(SiteDetailModel model)
     {
         return new EntityResponse<SiteDetailResponse> { Item = ToSiteDetailResponse(model) };
+    }
+
+    // Function summary: Streams successful logo reads and preserves masked not-found semantics at the HTTP edge.
+    private IActionResult ToLogoActionResult(
+        Guid siteId,
+        UseCaseResult<SiteLogoFile> result)
+    {
+        if (result.Kind == UseCaseResultKind.Success && result.Value is not null)
+        {
+            return File(
+                result.Value.Content,
+                result.Value.ContentType,
+                result.Value.FileName);
+        }
+
+        return result.Kind switch
+        {
+            UseCaseResultKind.NotFound => SiteNotFound(siteId),
+            UseCaseResultKind.Forbidden => Forbid(),
+            _ => StatusCode(
+                StatusCodes.Status500InternalServerError,
+                ApiProblems.Create(
+                    HttpContext,
+                    StatusCodes.Status500InternalServerError,
+                    "Unexpected application result.",
+                    "The customer logo could not be read."))
+        };
     }
 
     // Function summary: Builds the existing invalid-sort problem response for site endpoints.

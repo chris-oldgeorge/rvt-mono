@@ -1,5 +1,6 @@
-// File summary: Verifies the monitor list projection compiles to real SQL on every supported provider.
+// File summary: Verifies the monitor list projection compiles to canonical PostgreSQL SQL.
 // Major updates:
+// - 2026-07-25 pending Removed the retired-provider translation case.
 // - 2026-07-14 pending Added provider translation guards after collapsing the repeated latest-deployment subquery.
 
 using Microsoft.EntityFrameworkCore;
@@ -11,25 +12,16 @@ namespace RvtPortal.Spa.Tests;
 /// <summary>
 /// The rest of the suite runs on the EF InMemory provider, which evaluates projections client-side and so
 /// cannot tell a translatable query from an untranslatable one. ToQueryString() compiles the query against a
-/// real relational provider without opening a connection, so a monitor list projection that SQL Server or
-/// PostgreSQL could not translate fails here instead of in production.
+/// real relational provider without opening a connection, so a monitor list projection that PostgreSQL could
+/// not translate fails here instead of in production.
 /// </summary>
 public sealed class MonitorListReaderSqlTests
 {
     [Fact]
-    // Function summary: Verifies the monitor list projection translates to SQL Server SQL.
-    public void BuildBaseRows_TranslatesOnSqlServer()
-    {
-        var sql = BaseRowsSql("Server=unused;Database=unused;Trusted_Connection=True;", sqlServer: true);
-
-        Assert.Contains("SELECT", sql, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     // Function summary: Verifies the monitor list projection translates to PostgreSQL SQL.
     public void BuildBaseRows_TranslatesOnPostgres()
     {
-        var sql = BaseRowsSql("Host=unused;Database=unused;Username=unused;Password=unused", sqlServer: false);
+        var sql = BaseRowsSql();
 
         Assert.Contains("SELECT", sql, StringComparison.OrdinalIgnoreCase);
     }
@@ -38,11 +30,11 @@ public sealed class MonitorListReaderSqlTests
     // Function summary: Verifies the current deployment is resolved once rather than once per projected column.
     public void BuildBaseRows_ResolvesCurrentDeploymentOnce()
     {
-        var sql = BaseRowsSql("Server=unused;Database=unused;Trusted_Connection=True;", sqlServer: true);
+        var sql = BaseRowsSql();
 
         // Every projected deployment column used to repeat this ORDER BY, once per column. Collapsing the
         // subquery should leave at most one ordering over the deployment start date in the generated SQL.
-        var orderings = CountOccurrences(sql, "start_date] DESC");
+        var orderings = CountOccurrences(sql, "start_date\" DESC");
 
         Assert.True(
             orderings <= 1,
@@ -50,12 +42,10 @@ public sealed class MonitorListReaderSqlTests
     }
 
     // Function summary: Compiles the monitor list projection to SQL without executing it.
-    private static string BaseRowsSql(string connectionString, bool sqlServer)
+    private static string BaseRowsSql()
     {
-        var builder = new DbContextOptionsBuilder<RVTDbContext>();
-        _ = sqlServer
-            ? builder.UseSqlServer(connectionString)
-            : builder.UseNpgsql(connectionString);
+        var builder = new DbContextOptionsBuilder<RVTDbContext>()
+            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused");
 
         using var context = new RVTDbContext(builder.Options);
         var reader = new MonitorListReader(context);

@@ -1,4 +1,4 @@
-﻿-- File summary: Deploys reviewed PostgreSQL routine ports for SQL Server stored procedures.
+﻿-- File summary: Deploys reviewed canonical PostgreSQL routines.
 -- Major updates:
 -- - 2026-07-09 pending Dropped legacy PascalCase PostgreSQL routine names and canonicalized routine result aliases.
 -- - 2026-06-09 pending Added canonical PostgreSQL routines for the DBR stored procedure porting gate.

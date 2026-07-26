@@ -1,5 +1,6 @@
 // File summary: Verifies the model-vs-database comparison that guards against silent mapping drift.
 // Major updates:
+// - 2026-07-25 pending Switched provider-neutral relational metadata coverage to Npgsql.
 // - 2026-07-14 pending Added coverage for RvtSchemaValidator.Compare.
 
 using Microsoft.EntityFrameworkCore;
@@ -105,7 +106,7 @@ public sealed class SchemaValidatorTests
     private static RVTDbContext RelationalContext()
     {
         return new RVTDbContext(new DbContextOptionsBuilder<RVTDbContext>()
-            .UseSqlServer("Server=unused;Database=unused;Trusted_Connection=True;")
+            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
             .Options);
     }
 }

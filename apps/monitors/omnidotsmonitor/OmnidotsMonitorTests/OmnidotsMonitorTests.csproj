@@ -11,7 +11,6 @@
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 		<PackageReference Include="Microsoft.AspNetCore.TestHost" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
-		<PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" />
 		<PackageReference Include="Microsoft.NET.Test.Sdk" />
 		<PackageReference Include="Moq" />
 		<PackageReference Include="MSTest.TestAdapter" />
@@ -30,12 +29,8 @@
 	<ItemGroup>
 		<None Include="..\OmnidotsMonitor\postgres\2026-07-14-add-import-cursors-and-trace-order.sql" Link="postgres\2026-07-14-add-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\OmnidotsMonitor\postgres\2026-07-14-rollback-import-cursors-and-trace-order.sql" Link="postgres\2026-07-14-rollback-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
-		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-14-add-import-cursors-and-trace-order.sql" Link="sqlserver\2026-07-14-add-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
-		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-14-rollback-import-cursors-and-trace-order.sql" Link="sqlserver\2026-07-14-rollback-import-cursors-and-trace-order.sql" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\OmnidotsMonitor\postgres\2026-07-15-add-common-durable-alerts.sql" Link="postgres\2026-07-15-add-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\OmnidotsMonitor\postgres\2026-07-15-rollback-common-durable-alerts.sql" Link="postgres\2026-07-15-rollback-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
-		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-15-add-common-durable-alerts.sql" Link="sqlserver\2026-07-15-add-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
-		<None Include="..\OmnidotsMonitor\sqlserver\2026-07-15-rollback-common-durable-alerts.sql" Link="sqlserver\2026-07-15-rollback-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 	<ItemGroup>
 		<None Remove="manualtest\" />

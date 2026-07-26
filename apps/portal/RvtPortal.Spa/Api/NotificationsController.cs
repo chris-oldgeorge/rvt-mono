@@ -12,6 +12,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RVT.BusinessLogic.Application;
+using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Application.Notifications;
 using RvtPortal.Spa.Data;

@@ -106,7 +106,6 @@ namespace MyAtmMonitorTests
         [ClassInitialize]
         public static async Task TestFixtureSetup(TestContext context)
         {
-            Environment.SetEnvironmentVariable("RVT__DATABASE_PROVIDER", "PostgreSql");
             var setupSql = TestUtil.ReadTextFromFile("testdata/create.postgres.sql");
             var resetSql = TestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
             database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql);
@@ -350,17 +349,13 @@ namespace MyAtmMonitorTests
             var TAG = "MyTestError";
             var MESSAGE = "bang";
 
-            var monitorOptions = new MonitorDbOptions(
-                MonitorDatabaseProvider.PostgreSql,
-                new Dictionary<string, string>());
             var beforeWrite = DateTime.UtcNow;
             MonitorDb.WriteException(
                 connectionString,
                 TAG,
                 AdapterException.Of(MESSAGE),
                 "MyAtmMonitorTests",
-                "1.0",
-                monitorOptions);
+                "1.0");
             var afterWrite = DateTime.UtcNow;
 
             using var connection = new NpgsqlConnection(connectionString);

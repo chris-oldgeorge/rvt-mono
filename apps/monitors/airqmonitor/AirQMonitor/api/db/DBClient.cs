@@ -26,7 +26,9 @@ namespace AirQ.Api.Db
 
         public DBClient(string connectionString)
         {
-            MonitorDatabaseProviderGuard.EnsureSupported();
+            MonitorDb.ValidateLegacyProvider(
+                Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
+                Environment.GetEnvironmentVariable("DatabaseProvider"));
             ConnectionString = connectionString;
         }
 
@@ -414,11 +416,6 @@ namespace AirQ.Api.Db
             var existing = context.Noise8HourAverages.FirstOrDefault(row =>
                 row.SerialId == serialId &&
                 row.SampleTime == SampleTime);
-            if (existing != null && !AirQMonitorDbOptions.Current.IsPostgreSql)
-            {
-                return;
-            }
-
             var samples = context.NoiseLevels
                 .Where(row => row.SerialId == serialId)
                 .Where(row => row.SampleTime > SampleTime.AddHours(-8) && row.SampleTime <= SampleTime);
@@ -459,7 +456,7 @@ namespace AirQ.Api.Db
         private AirQMonitorContext CreateContext()
         {
             var monitorOptions = AirQMonitorDbOptions.Current;
-            var options = MonitorDbContextOptionsFactory.CreateOptions<AirQMonitorContext>(ConnectionString, monitorOptions);
+            var options = MonitorDbContextOptionsFactory.CreateOptions<AirQMonitorContext>(ConnectionString);
             return new AirQMonitorContext(options, monitorOptions);
         }
 

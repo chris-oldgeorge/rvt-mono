@@ -1,11 +1,10 @@
-// File summary: Defines Entity Framework Core context configuration for RVT domain and search data.
+// File summary: Defines Entity Framework Core context configuration for RVT domain data on PostgreSQL.
 // Major updates:
+// - 2026-07-26 pending Removed the provider-selecting constructor and made string construction PostgreSQL-only.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-06-08 pending Added site operating-hours and Help CMS table mappings.
 // - 2026-06-09 pending Enabled canonical EF mappings when the context runs against migrated PostgreSQL.
-// - 2026-06-09 pending Extended canonical EF mappings to SQL Server after the local SQL Server cutover.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
-// - 2026-06-03 f5fd01e Added SQL Server/PostgreSQL provider support.
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -23,16 +22,9 @@ namespace RVT.DataAccess.Context
 
         // Function summary: Initializes this type with the dependencies required by its workflow.
         public RVTDbContext(string connectionString)
-            : this(connectionString, RvtDatabaseProvider.SqlServer)
-        {
-        }
-
-        // Function summary: Initializes this type with the dependencies required by its workflow.
-        public RVTDbContext(string connectionString, RvtDatabaseProvider provider)
             : base(new DbContextOptionsBuilder<RVTDbContext>()
                 .UseRvtDatabaseProvider(new RvtDatabaseOptions
                 {
-                    Provider = provider,
                     ConnectionString = connectionString
                 })
                 .Options)
@@ -72,6 +64,16 @@ namespace RVT.DataAccess.Context
                     .WithMany(site => site.OperatingHours)
                     .HasForeignKey(hours => hours.SiteId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<RVT.Entities.SiteArchived>(entity =>
+            {
+                entity.HasIndex(archive => archive.SiteId).IsUnique();
+            });
+
+            modelBuilder.Entity<RVT.Entities.NotificationSettings>(entity =>
+            {
+                entity.HasIndex(settings => settings.SiteUserId).IsUnique();
             });
 
             modelBuilder.Entity<RVT.Entities.HelpSection>(entity =>

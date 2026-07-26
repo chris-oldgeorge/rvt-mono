@@ -52,7 +52,6 @@ hypertables and continuous aggregates are Timescale objects that belong in SQL. 
 `RVT.SchemaDeploy` applies them. Run it after the EF migrations:
 
 ```
-export RVT_EF_PROVIDER=postgres
 export RVT_EF_CONNECTION='Host=...;Database=...;Username=...;Password=...'
 
 dotnet ef database update --context RVTDbContext         --project RVT.DataAccess/RVT.DataAccess.csproj --startup-project RVT.DataAccess/RVT.DataAccess.csproj
@@ -73,26 +72,9 @@ The SQL ships next to its executable, so a published build works on a host with 
 This was verified on 2026-07-14 against a `rvt` database built by `RVT.DatabaseMigrator`: the from-scratch build
 produced the same 56 tables and 38 views, with no missing relation and no missing column.
 
-## RVT.DatabaseMigrator is gone
+## Retired bulk migrator
 
-That verification is what allowed the migrator to be **retired on 2026-07-14**. It was the one-way SQL Server →
-PostgreSQL cutover tool: it dropped the target schema, recreated it by introspecting a SQL Server source, copied
-the data across, and then ran the post-load scripts. Everything except the data copy is now done by the steps
-above, and the cutover is finished, so the data copy has no remaining caller.
-
-The post-load scripts it used to run were **not** deleted with it - they moved to `database/postgres/post-load/`
-and are still the view, hypertable, aggregate and routine layer. What replaced the migrator as their *runner* is
-`RVT.SchemaDeploy`.
-
-That distinction mattered more than it looks. The migrator could not apply post-load on its own: it needed
-`MSSQL_HOST`/`MSSQL_USER`/`MSSQL_PASSWORD` and always dropped the target schema and re-copied every row first. So
-once the cutover finished, re-applying a changed view meant wiping the database and re-importing from a SQL
-Server source - which is why the `monitor_measurement_removal_impact` view was dropped by a migrator run and
-never came back, and why post-load edits have been applied by hand since. `RVT.SchemaDeploy` is the tool that
-part of the job never had.
-
-If the SQL Server cutover ever has to be re-run, the project is in git history on the commit that removed it, and
-a working copy was archived outside the repository at `../rvt-databasemigrator-archive/`.
+The one-way cutover utility was retired on 2026-07-14 after row-count, canonical-name, view, routine, and hypertable verification completed. It is not a deployment tool and must not be restored as an operational dependency. EF migrations plus `RVT.SchemaDeploy` are the only supported schema path; Git history retains the removed utility for audit purposes.
 
 ## Columns no EF model maps
 
@@ -102,9 +84,7 @@ Thirteen columns exist physically but are in no EF model, so EF neither reads th
 `svantek_monitor_status`. `create_unmapped_schema.sql` adds them.
 
 Two of them are **NOT NULL**, so EF — which never names them in an INSERT — can only insert if the database
-fills them in. In SQL Server both did: each carried a default constraint (`df_rvt_alert_rule_created`,
-`df_monitor_battery_status`, renamed in `database/sqlserver/canonical_constraint_index_naming.sql`). **The
-PostgreSQL port dropped both defaults**, which turned them into a live defect:
+fills them in. An earlier PostgreSQL schema port omitted both defaults, which created a live defect:
 
 - `rvt_alert_rule.created` — `AlertLevelCommands` does `domainContext.RvtAlertRules.Add(level)` (and monitor
   creation seeds default alert levels the same way), and EF's INSERT omits `created`, so on PostgreSQL the
@@ -113,7 +93,7 @@ PostgreSQL port dropped both defaults**, which turned them into a live defect:
 - `monitor.battery_status` — same shape. No EF code path inserts a `monitor` today (monitors arrive through
   ingestion), so this one never fired, but it was the same landmine.
 
-**The fix restores the SQL Server behaviour**: `create_unmapped_schema.sql` now gives both columns a database
+**The fix enforces the PostgreSQL contract**: `create_unmapped_schema.sql` now gives both columns a database
 default — `DEFAULT (now() AT TIME ZONE 'utc')` for `created`, `DEFAULT 0` for `battery_status`. They stay
 unmapped by EF; the database supplies the value. Databases that already have the columns (where the idempotent
 `ADD COLUMN IF NOT EXISTS` is a no-op and cannot add a default) are repaired by
@@ -135,7 +115,7 @@ To adopt one:
 
 1. Bring the schema up to date with the current release. For a database that predates the column rename:
    ```
-   database/{postgres|sqlserver}/rename_mangled_columns.sql
+   database/postgres/rename_mangled_columns.sql
    database/postgres/post-load/03_views_and_routines.sql
    database/postgres/post-load/04_routines.sql
    ```
@@ -182,7 +162,6 @@ The design-time factory reads the connection from the environment; there is no c
 repository.
 
 ```
-export RVT_EF_PROVIDER=postgres
 export RVT_EF_CONNECTION='Host=...;Database=...;Username=...;Password=...'
 
 dotnet ef migrations add <Name> \

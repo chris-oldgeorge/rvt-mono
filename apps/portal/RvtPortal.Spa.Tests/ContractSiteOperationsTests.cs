@@ -9,6 +9,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -280,8 +281,10 @@ public class ContractSiteOperationsTests
                 })
                 .ToList()
         });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         var created = await create.Content.ReadFromJsonAsync<EntityResponse<SiteDetailResponse>>();
         var siteId = created!.Item!.Id;
+        Assert.Equal($"/api/sites/{siteId}", create.Headers.Location?.AbsolutePath);
         var update = await client.PutAsJsonAsync($"/api/sites/{siteId}", new SiteMutationRequest
         {
             SiteName = updatedSiteName,
@@ -296,7 +299,6 @@ public class ContractSiteOperationsTests
 
         Assert.Equal(HttpStatusCode.BadRequest, missingContract.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, invalidTimes.StatusCode);
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         Assert.Contains(created.Item.ContractList, contract => contract.Id == contractId);
         // The submitted schedule round-trips verbatim, including named days and closed days.
         Assert.Equal(
@@ -309,6 +311,352 @@ public class ContractSiteOperationsTests
         Assert.Equal(HttpStatusCode.OK, archive.StatusCode);
         Assert.True(archived?.Item?.Archived);
         Assert.NotNull(archived?.Item?.Archive);
+    }
+
+    [Fact]
+    public async Task SiteUpdate_MalformedMissingSite_ReturnsMaskedNotFound()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var missingSiteId = Guid.NewGuid();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/sites/{missingSiteId}",
+            new SiteMutationRequest
+            {
+                SiteName = "",
+                CompanyId = Guid.NewGuid(),
+                EndTime = "not-a-time"
+            });
+        using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("Resource not found.", problem.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            $"Site '{missingSiteId}' was not found.",
+            problem.RootElement.GetProperty("detail").GetString());
+    }
+
+    [Fact]
+    public async Task SiteUpdate_MalformedExistingSite_ReturnsExactValidationProblem()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var siteId = Guid.NewGuid();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        await factory.SeedDomainEntitiesAsync(
+            new Site
+            {
+                Id = siteId,
+                SiteName = "Existing Malformed Update Site",
+                CreateDate = DateTime.UtcNow,
+                Contracts = []
+            });
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/sites/{siteId}",
+            new SiteMutationRequest
+            {
+                SiteName = "Existing Malformed Update Site",
+                CompanyId = Guid.NewGuid(),
+                StartTime = "08:00",
+                EndTime = "not-a-time"
+            });
+        var errors = await ReadValidationErrorsAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(2, errors.Count);
+        Assert.Equal(
+            ["Time values must use HH:mm format."],
+            errors[nameof(SiteMutationRequest.EndTime)]);
+        Assert.Equal(
+            ["You need to set both start and end time"],
+            errors[nameof(SiteMutationRequest.StartTime)]);
+    }
+
+    [Fact]
+    public async Task NotificationSetting_InvalidTimeMissingSite_ReturnsMaskedNotFound()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/sites/{Guid.NewGuid()}/notification-settings/{Guid.NewGuid()}",
+            new SiteNotificationSettingMutationRequest
+            {
+                Email = true,
+                Sms = false,
+                StartTime = "08:00",
+                EndTime = "not-a-time"
+            });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task NotificationSetting_InvalidTimeMissingTarget_ReturnsMaskedNotFound()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var siteId = Guid.NewGuid();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        await factory.SeedDomainEntitiesAsync(
+            new Site
+            {
+                Id = siteId,
+                SiteName = "Missing Notification Target",
+                CreateDate = DateTime.UtcNow,
+                Contracts = []
+            });
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/sites/{siteId}/notification-settings/{Guid.NewGuid()}",
+            new SiteNotificationSettingMutationRequest
+            {
+                Email = true,
+                Sms = false,
+                StartTime = "08:00",
+                EndTime = "not-a-time"
+            });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task NotificationSetting_InvalidTimeExpiredAssignment_ReturnsMaskedNotFound()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var companyId = Guid.NewGuid();
+        var siteId = Guid.NewGuid();
+        var siteUserId = Guid.NewGuid();
+        var companyUser = await factory.SeedUserAsync(
+            CompanyUserEmail,
+            Password,
+            RoleNames.CompanyUser,
+            companyId: companyId);
+        await factory.SeedDomainEntitiesAsync(
+            new Company
+            {
+                Id = companyId,
+                CompanyName = "Expired Notification Company",
+                Contracts = []
+            },
+            new Site
+            {
+                Id = siteId,
+                SiteName = "Expired Notification Site",
+                CreateDate = DateTime.UtcNow.AddDays(-30),
+                Contracts = []
+            },
+            new SiteUsers
+            {
+                Id = siteUserId,
+                SiteId = siteId,
+                UserId = Guid.Parse(companyUser.Id),
+                StartDate = DateTime.UtcNow.AddDays(-10),
+                EndDate = DateTime.UtcNow.AddDays(-1)
+            });
+        var client = CreateClient(factory);
+        await LoginAsync(client, CompanyUserEmail, Password);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/sites/{siteId}/notification-settings/{siteUserId}",
+            new SiteNotificationSettingMutationRequest
+            {
+                Email = true,
+                Sms = false,
+                StartTime = "08:00",
+                EndTime = "not-a-time"
+            });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task NotificationSetting_InvalidTimeForeignTarget_ReturnsForbidden()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var companyId = Guid.NewGuid();
+        var siteId = Guid.NewGuid();
+        var ownSiteUserId = Guid.NewGuid();
+        var foreignSiteUserId = Guid.NewGuid();
+        var companyUser = await factory.SeedUserAsync(
+            CompanyUserEmail,
+            Password,
+            RoleNames.CompanyUser,
+            companyId: companyId);
+        var foreignUser = await factory.SeedUserAsync(
+            "contracts.foreign@rvt.test",
+            Password,
+            RoleNames.CompanyUser,
+            companyId: companyId);
+        await factory.SeedDomainEntitiesAsync(
+            new Company
+            {
+                Id = companyId,
+                CompanyName = "Foreign Notification Company",
+                Contracts = []
+            },
+            new Site
+            {
+                Id = siteId,
+                SiteName = "Foreign Notification Site",
+                CreateDate = DateTime.UtcNow.AddDays(-30),
+                Contracts = []
+            },
+            TestData.SiteUser(
+                siteId: siteId,
+                userId: Guid.Parse(companyUser.Id),
+                id: ownSiteUserId,
+                startDate: DateTime.UtcNow.AddDays(-1)),
+            TestData.SiteUser(
+                siteId: siteId,
+                userId: Guid.Parse(foreignUser.Id),
+                id: foreignSiteUserId,
+                startDate: DateTime.UtcNow.AddDays(-1)));
+        var client = CreateClient(factory);
+        await LoginAsync(client, CompanyUserEmail, Password);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/sites/{siteId}/notification-settings/{foreignSiteUserId}",
+            new SiteNotificationSettingMutationRequest
+            {
+                Email = true,
+                Sms = false,
+                StartTime = "08:00",
+                EndTime = "not-a-time"
+            });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(nameof(SiteMutationRequest.EndTime), nameof(SiteMutationRequest.StartTime))]
+    [InlineData(nameof(SiteMutationRequest.SatEndTime), nameof(SiteMutationRequest.SatStartTime))]
+    [InlineData(nameof(SiteMutationRequest.SunEndTime), nameof(SiteMutationRequest.SunStartTime))]
+    public async Task SiteValidation_MalformedLegacyEndTimeSerializesExactFieldKeys(
+        string endField,
+        string startField)
+    {
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+        var request = new SiteMutationRequest
+        {
+            SiteName = "Malformed End Time Site",
+            CompanyId = Guid.NewGuid(),
+            ContractId = Guid.NewGuid()
+        };
+        switch (endField)
+        {
+            case nameof(SiteMutationRequest.EndTime):
+                request.StartTime = "08:00";
+                request.EndTime = "not-a-time";
+                break;
+            case nameof(SiteMutationRequest.SatEndTime):
+                request.SatStartTime = "08:00";
+                request.SatEndTime = "not-a-time";
+                break;
+            case nameof(SiteMutationRequest.SunEndTime):
+                request.SunStartTime = "08:00";
+                request.SunEndTime = "not-a-time";
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(endField));
+        }
+
+        var response = await client.PostAsJsonAsync("/api/sites", request);
+        var errors = await ReadValidationErrorsAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(2, errors.Count);
+        Assert.Equal(
+            ["Time values must use HH:mm format."],
+            errors[endField]);
+        Assert.Equal(
+            ["You need to set both start and end time"],
+            errors[startField]);
+    }
+
+    [Fact]
+    public async Task SiteValidation_ReversedLegacyWeekdayPairSerializesOneStartTimeError()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/sites",
+            new SiteMutationRequest
+            {
+                SiteName = "Reversed Weekday Site",
+                CompanyId = Guid.NewGuid(),
+                ContractId = Guid.NewGuid(),
+                StartTime = "17:00",
+                EndTime = "08:00"
+            });
+        var errors = await ReadValidationErrorsAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = Assert.Single(errors);
+        Assert.Equal(nameof(SiteMutationRequest.StartTime), error.Key);
+        Assert.Equal(
+            ["Start time needs to be before end time"],
+            error.Value);
+    }
+
+    [Fact]
+    public async Task NotificationSetting_MalformedEndTimeSerializesExactFieldKeys()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var siteId = Guid.NewGuid();
+        var siteUserId = Guid.NewGuid();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        await factory.SeedDomainEntitiesAsync(
+            new Site
+            {
+                Id = siteId,
+                SiteName = "Notification Validation Site",
+                CreateDate = DateTime.UtcNow,
+                Contracts = []
+            },
+            new SiteUsers
+            {
+                Id = siteUserId,
+                SiteId = siteId,
+                UserId = Guid.NewGuid(),
+                StartDate = DateTime.UtcNow.AddDays(-1)
+            });
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/sites/{siteId}/notification-settings/{siteUserId}",
+            new SiteNotificationSettingMutationRequest
+            {
+                Email = true,
+                Sms = false,
+                StartTime = "08:00",
+                EndTime = "not-a-time"
+            });
+        var errors = await ReadValidationErrorsAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(2, errors.Count);
+        Assert.Equal(
+            ["Time values must use HH:mm format."],
+            errors[nameof(SiteNotificationSettingMutationRequest.EndTime)]);
+        Assert.Equal(
+            ["You need to set both start and end time"],
+            errors[nameof(SiteNotificationSettingMutationRequest.StartTime)]);
     }
 
     [Fact]
@@ -410,9 +758,58 @@ public class ContractSiteOperationsTests
         using var form = new MultipartFormDataContent();
         form.Add(new ByteArrayContent(Encoding.UTF8.GetBytes("<svg onload=alert(1)>not really an image</svg>")), "logo", "customer-logo.png");
         var upload = await client.PostAsync($"/api/sites/{siteId}/customer-logo", form);
+        using var problem = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.BadRequest, upload.StatusCode);
+        Assert.Equal("Invalid customer logo", problem.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            "Customer logos must be valid PNG, JPEG, or WebP images.",
+            problem.RootElement.GetProperty("detail").GetString());
+        Assert.False(problem.RootElement.TryGetProperty("errors", out _));
     }
+
+    [Fact]
+    // Function summary: Preserves masked site-not-found ordering before missing-logo validation.
+    public async Task SiteCustomerLogo_MissingSiteWithoutFile_ReturnsMaskedNotFound()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var missingSiteId = Guid.NewGuid();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("ignored"), "unrelated");
+        var upload = await client.PostAsync($"/api/sites/{missingSiteId}/customer-logo", form);
+        using var problem = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound, upload.StatusCode);
+        Assert.Equal("Site not found", problem.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            $"Site '{missingSiteId}' was not found.",
+            problem.RootElement.GetProperty("detail").GetString());
+    }
+
+    [Fact]
+    // Function summary: Preserves the legacy site-not-found payload when deleting a logo for a missing site.
+    public async Task SiteCustomerLogo_DeleteMissingSite_ReturnsLegacyNotFound()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var missingSiteId = Guid.NewGuid();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        var delete = await client.DeleteAsync($"/api/sites/{missingSiteId}/customer-logo");
+        using var problem = JsonDocument.Parse(await delete.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+        Assert.Equal("Site not found", problem.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            $"Site '{missingSiteId}' was not found.",
+            problem.RootElement.GetProperty("detail").GetString());
+    }
+
     [Fact]
     // Function summary: Handles the company user site access is scoped and can update own notification settings workflow for this module.
     public async Task CompanyUserSiteAccess_IsScopedAndCanUpdateOwnNotificationSettings()
@@ -537,6 +934,23 @@ public class ContractSiteOperationsTests
         Assert.Equal(activeSiteId, Assert.Single(list!.Results).Id);
         Assert.DoesNotContain(list.Results, site => site.Id == futureSiteId);
     }
+
+    private static async Task<Dictionary<string, string[]>> ReadValidationErrorsAsync(
+        HttpResponseMessage response)
+    {
+        using var problem = JsonDocument.Parse(
+            await response.Content.ReadAsStringAsync());
+        return problem.RootElement
+            .GetProperty("errors")
+            .EnumerateObject()
+            .ToDictionary(
+                property => property.Name,
+                property => property.Value
+                    .EnumerateArray()
+                    .Select(message => message.GetString()!)
+                    .ToArray());
+    }
+
     // Function summary: Creates client data for the current workflow.
     private static HttpClient CreateClient(WebApplicationFactory<Program> factory)
     {

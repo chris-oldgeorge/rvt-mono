@@ -1,5 +1,6 @@
 ﻿// File summary: Supports the ASP.NET Core host that serves the RVT React portal and backend API.
 // Major updates:
+// - 2026-07-23 Registered the application-owned Sites read port and EF adapter.
 // - 2026-07-22 Registered the framework time provider required by report-generation clients.
 // - 2026-07-09 pending Bound TimeZones configuration to the injectable business date-time provider.
 // - 2026-07-08 pending Registered hexagonal edge ports, adapters, and report-rule application services.
@@ -35,21 +36,22 @@ using Microsoft.Extensions.Configuration;
 using Rvt.Communication.Abstractions;
 using Rvt.Communication.SendGridMail;
 using RVT.BusinessLogic;
-using RVT.BusinessLogic.Application.Users;
 using RVT.DataAccess;
 using RVT.Entities.Ports.Persistence;
+using RvtPortal.Application.Identity;
+using RvtPortal.Application.Common;
+using RvtPortal.Application.Sites.Ports;
 using RVT.BusinessLogic.Notifications;
 using RVT.BusinessLogic.Ports.Notifications;
 using RVT.BusinessLogic.Ports.Storage;
 using RVT.BusinessLogic.Ports.Vendors;
 using RVT.BusinessLogic.Reports;
-using RVT.BusinessLogic.Sites;
-using RvtPortal.Spa.Application.Sites;
 using RvtPortal.Spa.Adapters.Notifications;
 using RvtPortal.Spa.Adapters.Reporting;
 using RvtPortal.Spa.Adapters.Storage;
 using RvtPortal.Spa.Adapters.Vendors;
 using RvtPortal.Spa.Adapters.Archive;
+using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Application.AlertLevels;
 using RvtPortal.Spa.Application.Auth;
 using RvtPortal.Spa.Application.Companies;
@@ -78,7 +80,11 @@ public static class ServiceCollectionExtensions
         services.AddHttpContextAccessor();
         services.AddMediatR(configuration => configuration.RegisterServicesFromAssemblyContaining<Program>());
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(TransactionPipelineBehavior<,>));
-        services.AddScoped<IUnitOfWork, EfCoreUnitOfWork>();
+        services.AddScoped<EfCoreUnitOfWork>();
+        services.AddScoped<IUnitOfWork>(
+            provider => provider.GetRequiredService<EfCoreUnitOfWork>());
+        services.AddScoped<IApplicationUnitOfWork>(
+            provider => provider.GetRequiredService<EfCoreUnitOfWork>());
         services.AddScoped<ILookupService, LookupService>();
         services.AddScoped<ICompanyService, CompanyService>();
         services.AddScoped<IMonitorService, MonitorService>();
@@ -107,7 +113,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IApiResultMapper, ApiResultMapper>();
         services.AddScoped<ICurrentUserContextFactory, CurrentUserContextFactory>();
         services.AddScoped<IPortalUserDirectory, PortalUserDirectory>();
-        services.AddScoped<ISiteApplicationService, SiteApplicationService>();
+        services.AddScoped<
+            RvtPortal.Application.Sites.ISiteApplicationService,
+            RvtPortal.Application.Sites.SiteApplicationService>();
+        services.AddScoped<ISiteReadPort, EfSiteReadAdapter>();
+        services.AddScoped<ISiteWritePort, EfSiteWriteAdapter>();
+        services.AddScoped<ISiteArchivePort, SiteArchiveAdapter>();
+        services.AddScoped<ISiteLogoPort, SiteLogoAdapter>();
         services.AddScoped<IReportRuleApplicationService, ReportRuleApplicationService>();
         services.AddScoped<IUserAdministrationReadService, UserAdministrationReadService>();
         services.AddScoped<IUserListApplicationService, UserListApplicationService>();

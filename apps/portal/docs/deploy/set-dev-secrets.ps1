@@ -19,7 +19,7 @@ See docs/operations/portal/dev-secrets-reference.md for what every key does.
 .\docs\deploy\set-dev-secrets.ps1
 
 .EXAMPLE
-.\docs\deploy\set-dev-secrets.ps1 -DatabaseProvider Postgres -ConfigureOmnidots -ConfigureWhat3Words
+.\docs\deploy\set-dev-secrets.ps1 -ConfigureOmnidots -ConfigureWhat3Words
 
 .EXAMPLE
 .\docs\deploy\set-dev-secrets.ps1 -ConfigureReporting
@@ -30,9 +30,6 @@ See docs/operations/portal/dev-secrets-reference.md for what every key does.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$ProjectPath,
-
-    [ValidateSet("SqlServer", "Postgres")]
-    [string]$DatabaseProvider,
 
     [string]$ConnectionString,
     [string]$SeedMasterAdminPassword,
@@ -306,12 +303,6 @@ $script:DotNetPath = $dotnet.Source
 
 Ensure-UserSecretsInitialized
 
-$DatabaseProvider = Read-PlainSetting `
-    -Prompt "Database provider (SqlServer or Postgres)" `
-    -CurrentValue $DatabaseProvider `
-    -DefaultValue "SqlServer" `
-    -Required $true
-
 $ConnectionString = Read-SecretSetting `
     -Prompt "Database connection string for ConnectionStrings:DefaultConnection" `
     -CurrentValue $ConnectionString `
@@ -324,7 +315,6 @@ if ($ConfigureOutboundEmail) {
     $skipPasswordResetEmail = "false"
 }
 
-Set-DevSecret -Name "Database:Provider" -Value $DatabaseProvider
 Set-DevSecret -Name "Database:ConnectionStringName" -Value "DefaultConnection"
 Set-DevSecret -Name "Database:ConnectionString" -Value $ConnectionString -Sensitive
 Set-DevSecret -Name "Database:PostgresRoutineSchema" -Value $PostgresRoutineSchema

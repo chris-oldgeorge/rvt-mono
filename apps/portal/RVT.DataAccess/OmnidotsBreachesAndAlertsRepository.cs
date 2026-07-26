@@ -3,7 +3,7 @@
 // - 2026-07-09 pending Read canonical PostgreSQL routine result aliases with legacy fallback.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
-// - 2026-06-03 f5fd01e Added SQL Server/PostgreSQL provider support.
+// - 2026-06-03 f5fd01e Added relational database support.
 // - 2026-06-09 pending Documented PostgreSQL canonical routine-name mapping for breach/alert calls.
 
 using RVT.DataAccess.Configuration;

@@ -56,7 +56,6 @@ public sealed class OmnidotsAlertOutboxStoreTests
         await SeedAlertGraphAsync();
 
         var monitorOptions = new MonitorDbOptions(
-            MonitorDatabaseProvider.PostgreSql,
             new Dictionary<string, string>());
         store = new EfAlertOutboxStore<OmnidotsMonitorContext>(
             new OmnidotsMonitorContextFactory(database.ConnectionString, monitorOptions));

@@ -3,8 +3,7 @@
 -- - 2026-07-14 pending Added to fix EF inserts into rvt_alert_rule failing with 23502.
 --
 -- rvt_alert_rule.created and monitor.battery_status are NOT NULL and are mapped by no EF model, so EF never
--- supplies them on insert. In SQL Server that is survivable, because both columns carry a default constraint
--- there (df_rvt_alert_rule_created, df_monitor_battery_status). The PostgreSQL port did not carry those
+-- supplies them on insert. An earlier schema port did not carry the required database defaults for those
 -- defaults over, so on PostgreSQL the columns are NOT NULL with nothing to fill them, and EF's INSERT fails:
 --
 --   23502: null value in column "created" of relation "rvt_alert_rule" violates not-null constraint

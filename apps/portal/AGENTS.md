@@ -26,15 +26,11 @@ This repository is the RVT Portal SPA alpha worktree. Use the workspace-level `.
 ## DBR Artifacts To Keep Current
 
 - Update `docs/database/database-name-registry.csv` when table, view, or column names change.
-- Update `docs/database/sqlserver-name-registry.csv` when SQL Server source mappings change.
-- Update `docs/database/database-name-equivalents-for-migrator-sqlserver.csv` when the SQL Server-to-Postgres migrator needs new name mappings.
 - Update `docs/database/database-constraint-index-name-registry.csv` when constraints or indexes change.
-- The SQL Server-to-Postgres migrator (`RVT.DatabaseMigrator`) was retired on 2026-07-14. A database is built
-  from EF migrations (three contexts) plus `RVT.SchemaDeploy`, which applies the SQL under
+- A database is built from EF migrations (three contexts) plus `RVT.SchemaDeploy`, which applies the scripts under
   `database/postgres/`. See `../../docs/database/portal/ef-migrations.md`.
 
 ## Compatibility Boundaries
 
-- Temporary old-name views may exist only in the `legacy` schema and only through the approved compatibility scripts.
-- New application, migrator, and monitor code must not query the `legacy` schema.
-- Keep compatibility objects documented with ownership and removal status in `../../docs/database/portal/legacy-compatibility-deprecation.md`.
+- Compatibility views are retired; new application, migration, monitor, and reporting code must use canonical objects in `public`.
+- No code may query or recreate a `legacy` compatibility schema.

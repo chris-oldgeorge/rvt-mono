@@ -1,8 +1,8 @@
-﻿// File summary: Configures provider-neutral SQL Server/PostgreSQL database access for repositories and EF Core contexts.
+﻿// File summary: Configures PostgreSQL database access for repositories and EF Core contexts.
 // Major updates:
+// - 2026-07-26 pending Removed runtime provider selection while validating legacy provider settings.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
-// - 2026-06-03 f5fd01e Added SQL Server/PostgreSQL provider support.
 
 using Microsoft.Extensions.Configuration;
 
@@ -16,8 +16,6 @@ public sealed class RvtDatabaseOptions
     public const int DefaultMaxRetryCount = 6;
     public const int DefaultCommandTimeoutSeconds = 120;
     public const bool DefaultValidateSchemaOnStartup = true;
-
-    public RvtDatabaseProvider Provider { get; set; } = RvtDatabaseProvider.SqlServer;
 
     public string ConnectionStringName { get; set; } = DefaultConnectionStringName;
 
@@ -49,9 +47,12 @@ public sealed class RvtDatabaseOptions
     // Function summary: Handles the from configuration workflow for this module.
     public static RvtDatabaseOptions FromConfiguration(IConfiguration configuration)
     {
+        ValidateLegacyProvider(
+            configuration[$"{SectionName}:Provider"] ??
+            configuration["RvtDatabase:Provider"]);
+
         var options = new RvtDatabaseOptions
         {
-            Provider = ParseProvider(configuration[$"{SectionName}:Provider"] ?? configuration["RvtDatabase:Provider"]),
             ConnectionStringName = ReadValue(configuration, "ConnectionStringName", DefaultConnectionStringName),
             PostgresRoutineSchema = ReadValue(configuration, "PostgresRoutineSchema", "public"),
             EnableRetryOnFailure = ReadBool(configuration, nameof(EnableRetryOnFailure), DefaultEnableRetryOnFailure),
@@ -68,26 +69,26 @@ public sealed class RvtDatabaseOptions
         return options;
     }
 
-    // Function summary: Handles the parse provider workflow for this module.
-    public static RvtDatabaseProvider ParseProvider(string? value)
+    // Function summary: Rejects legacy provider settings that would select a non-PostgreSQL database.
+    public static void ValidateLegacyProvider(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return RvtDatabaseProvider.SqlServer;
+            return;
         }
 
-        var normalized = value.Trim()
-            .Replace("-", string.Empty, StringComparison.Ordinal)
-            .Replace("_", string.Empty, StringComparison.Ordinal)
-            .Replace(" ", string.Empty, StringComparison.Ordinal)
-            .ToUpperInvariant();
-
-        return normalized switch
+        var normalized = value.Trim().ToLowerInvariant();
+        if (normalized is
+            "postgres" or
+            "postgresql" or
+            "npgsql" or
+            "timescale" or
+            "timescaledb")
         {
-            "SQL" or "MSSQL" or "SQLSERVER" => RvtDatabaseProvider.SqlServer,
-            "PG" or "POSTGRES" or "POSTGRESQL" or "NPGSQL" => RvtDatabaseProvider.Postgres,
-            _ => throw new InvalidOperationException($"Unsupported database provider '{value}'. Use 'SqlServer' or 'Postgres'.")
-        };
+            return;
+        }
+
+        throw new InvalidOperationException("PostgreSQL is the only supported database provider");
     }
 
     // Function summary: Evaluates validate for the current decision point.

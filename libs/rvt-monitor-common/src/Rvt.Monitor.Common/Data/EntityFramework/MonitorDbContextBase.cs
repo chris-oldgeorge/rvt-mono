@@ -14,7 +14,6 @@ public abstract class MonitorDbContextBase : DbContext
 
     protected MonitorDbOptions MonitorOptions { get; }
 
-    internal MonitorDatabaseProvider ModelCacheProvider => MonitorOptions.Provider;
     internal IReadOnlyDictionary<string, string> ModelCacheIdentifierMap => MonitorOptions.IdentifierMap;
 
     public DbSet<MonitorEntity> Monitors => Set<MonitorEntity>();

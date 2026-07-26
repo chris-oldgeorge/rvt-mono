@@ -1,10 +1,12 @@
 // File summary: Implements the application Unit of Work abstraction using the portal's coordinated EF Core contexts.
 // Major updates:
+// - 2026-07-25 pending Preserved primary transaction failures across rollback and reverse-order disposal faults.
 // - 2026-06-25 pending Added EF Core transaction coordination for MediatR command handlers.
 // - 2026-06-26 pending Included RVTSearchContext persistence for transactional command handlers.
 // - 2026-07-08 pending Included ASP.NET Identity context enlistment so user/domain/search writes share one boundary.
 
 using System.Data.Common;
+using System.Runtime.ExceptionServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using RVT.DataAccess.Context;
@@ -12,8 +14,13 @@ using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Application.Common;
 
-public sealed class EfCoreUnitOfWork : IUnitOfWork
+public sealed class EfCoreUnitOfWork :
+    IUnitOfWork,
+    RvtPortal.Application.Common.IApplicationUnitOfWork
 {
+    internal const string SecondaryTransactionFailuresDataKey =
+        "RvtPortal.Spa.EfCoreUnitOfWork.SecondaryTransactionFailures";
+
     private readonly ApplicationDbContext applicationContext;
     private readonly RVTDbContext domainContext;
     private readonly RVTSearchContext searchContext;
@@ -78,37 +85,124 @@ public sealed class EfCoreUnitOfWork : IUnitOfWork
                     applicationContext.ChangeTracker.Clear();
                 }
 
-                await using var transaction = await domainContext.Database.BeginTransactionAsync(executionToken);
-                await using var searchTransaction = await searchContext.Database.UseTransactionAsync(
-                    transaction.GetDbTransaction(),
-                    executionToken);
-                await using var applicationTransaction = await applicationContext.Database.UseTransactionAsync(
-                    transaction.GetDbTransaction(),
-                    executionToken);
+                IDbContextTransaction? domainTransaction = null;
+                IDbContextTransaction? searchTransaction = null;
+                IDbContextTransaction? applicationTransaction = null;
+                ExceptionDispatchInfo? primaryFailure = null;
+                List<Exception>? secondaryFailures = null;
+                var response = default(TResponse)!;
+
                 try
                 {
-                    var response = await operation(executionToken);
+                    domainTransaction = await domainContext.Database
+                        .BeginTransactionAsync(executionToken);
+                    searchTransaction = await searchContext.Database
+                        .UseTransactionAsync(
+                            domainTransaction.GetDbTransaction(),
+                            executionToken);
+                    applicationTransaction = await applicationContext.Database
+                        .UseTransactionAsync(
+                            domainTransaction.GetDbTransaction(),
+                            executionToken);
+                    response = await operation(executionToken);
 
                     // A handler signals failure by returning a result (not throwing); committing its staged
                     // writes anyway is how a partial delete/update gets persisted. Roll back instead.
                     if (response is ITransactionOutcome { ShouldCommit: false })
                     {
-                        await transaction.RollbackAsync(executionToken);
+                        await domainTransaction.RollbackAsync(executionToken);
                     }
                     else
                     {
-                        await transaction.CommitAsync(executionToken);
+                        await domainTransaction.CommitAsync(executionToken);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    // Rollback and wrapper cleanup are best-effort diagnostics once an operation or commit has
+                    // failed. They must never change the exception identity/type the execution strategy sees.
+                    primaryFailure = ExceptionDispatchInfo.Capture(exception);
+                    if (domainTransaction is not null)
+                    {
+                        try
+                        {
+                            await domainTransaction.RollbackAsync(
+                                CancellationToken.None);
+                        }
+                        catch (Exception rollbackFailure)
+                        {
+                            (secondaryFailures ??= []).Add(rollbackFailure);
+                        }
+                    }
+                }
+
+                // Dispose every wrapper in the reverse order in which it was created, even if one dispose fails.
+                await DisposeTransactionAsync(applicationTransaction);
+                await DisposeTransactionAsync(searchTransaction);
+                await DisposeTransactionAsync(domainTransaction);
+
+                if (primaryFailure is not null)
+                {
+                    if (secondaryFailures is { Count: > 0 })
+                    {
+                        TryAttachSecondaryFailures(
+                            primaryFailure.SourceException,
+                            secondaryFailures);
                     }
 
-                    return response;
+                    primaryFailure.Throw();
                 }
-                catch
+
+                return response;
+
+                async Task DisposeTransactionAsync(
+                    IDbContextTransaction? transaction)
                 {
-                    await transaction.RollbackAsync(CancellationToken.None);
-                    throw;
+                    if (transaction is null)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        await transaction.DisposeAsync();
+                    }
+                    catch (Exception disposeFailure)
+                    {
+                        if (primaryFailure is null)
+                        {
+                            // A disposal failure is primary only when the operation and commit/rollback path
+                            // completed without another exception. Capture it before continuing reverse cleanup.
+                            primaryFailure =
+                                ExceptionDispatchInfo.Capture(disposeFailure);
+                        }
+                        else
+                        {
+                            (secondaryFailures ??= []).Add(disposeFailure);
+                        }
+                    }
                 }
             },
             cancellationToken);
+    }
+
+    // Function summary: Retains cleanup faults when the primary exception supports diagnostics without risking replacement.
+    private static void TryAttachSecondaryFailures(
+        Exception primaryFailure,
+        IReadOnlyCollection<Exception> secondaryFailures)
+    {
+        try
+        {
+            primaryFailure.Data[SecondaryTransactionFailuresDataKey] =
+                new AggregateException(
+                    "Secondary failures occurred while rolling back or disposing the coordinated transaction.",
+                    secondaryFailures);
+        }
+        catch (Exception)
+        {
+            // Exception.Data is virtual and may reject reads or writes. Diagnostics are best-effort only;
+            // preserving the original operation/commit exception remains the correctness boundary.
+        }
     }
 
     // Function summary: Enlists any not-yet-enlisted context in the caller's transaction and runs the operation.
@@ -120,27 +214,90 @@ public sealed class EfCoreUnitOfWork : IUnitOfWork
             ?? searchContext.Database.CurrentTransaction
             ?? applicationContext.Database.CurrentTransaction;
         var ambientTransaction = ambient!.GetDbTransaction();
+        IDbContextTransaction? domainEnlistment = null;
+        IDbContextTransaction? searchEnlistment = null;
+        IDbContextTransaction? applicationEnlistment = null;
+        ExceptionDispatchInfo? primaryFailure = null;
+        List<Exception>? secondaryFailures = null;
+        var response = default(TResponse)!;
 
-        // Commit/rollback stays with whoever opened the transaction; we only widen its reach.
-        await using var domainEnlistment = await EnlistAsync(domainContext, ambientTransaction, cancellationToken);
-        await using var searchEnlistment = await EnlistAsync(searchContext, ambientTransaction, cancellationToken);
-        await using var applicationEnlistment = await EnlistAsync(applicationContext, ambientTransaction, cancellationToken);
-
-        var response = await operation(cancellationToken);
-
-        // Commit/rollback of an ambient transaction belongs to whoever opened it, so this method cannot roll it
-        // back on a should-not-commit result. That path is currently unreachable - no command handler sends
-        // another transactional command, so nothing runs inside a pre-existing transaction. If nesting is ever
-        // introduced, fail loudly here rather than let the outer boundary commit a partial write.
-        if (response is ITransactionOutcome { ShouldCommit: false })
+        try
         {
-            throw new InvalidOperationException(
-                "A transactional command returned a should-not-commit result while running inside a caller-owned " +
-                "transaction. Nested transactional commands are not supported; the outer transaction would " +
-                "otherwise commit the partial write. See EfCoreUnitOfWork.ExecuteInAmbientTransactionAsync.");
+            // Commit/rollback stays with whoever opened the transaction; we only widen its reach.
+            domainEnlistment = await EnlistAsync(
+                domainContext,
+                ambientTransaction,
+                cancellationToken);
+            searchEnlistment = await EnlistAsync(
+                searchContext,
+                ambientTransaction,
+                cancellationToken);
+            applicationEnlistment = await EnlistAsync(
+                applicationContext,
+                ambientTransaction,
+                cancellationToken);
+            response = await operation(cancellationToken);
+
+            // Commit/rollback of an ambient transaction belongs to whoever opened it, so this method cannot roll it
+            // back on a should-not-commit result. That path is currently unreachable - no command handler sends
+            // another transactional command, so nothing runs inside a pre-existing transaction. If nesting is ever
+            // introduced, fail loudly here rather than let the outer boundary commit a partial write.
+            if (response is ITransactionOutcome { ShouldCommit: false })
+            {
+                throw new InvalidOperationException(
+                    "A transactional command returned a should-not-commit result while running inside a caller-owned " +
+                    "transaction. Nested transactional commands are not supported; the outer transaction would " +
+                    "otherwise commit the partial write. See EfCoreUnitOfWork.ExecuteInAmbientTransactionAsync.");
+            }
+        }
+        catch (Exception exception)
+        {
+            primaryFailure = ExceptionDispatchInfo.Capture(exception);
+        }
+
+        await DisposeEnlistmentAsync(applicationEnlistment);
+        await DisposeEnlistmentAsync(searchEnlistment);
+        await DisposeEnlistmentAsync(domainEnlistment);
+
+        if (primaryFailure is not null)
+        {
+            if (secondaryFailures is { Count: > 0 })
+            {
+                TryAttachSecondaryFailures(
+                    primaryFailure.SourceException,
+                    secondaryFailures);
+            }
+
+            primaryFailure.Throw();
         }
 
         return response;
+
+        async Task DisposeEnlistmentAsync(
+            IDbContextTransaction? enlistment)
+        {
+            if (enlistment is null)
+            {
+                return;
+            }
+
+            try
+            {
+                await enlistment.DisposeAsync();
+            }
+            catch (Exception disposeFailure)
+            {
+                if (primaryFailure is null)
+                {
+                    primaryFailure =
+                        ExceptionDispatchInfo.Capture(disposeFailure);
+                }
+                else
+                {
+                    (secondaryFailures ??= []).Add(disposeFailure);
+                }
+            }
+        }
     }
 
     // Function summary: Enlists one context in an existing transaction, or does nothing if it is already enlisted.

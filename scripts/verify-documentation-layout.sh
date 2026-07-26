@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 manifest_path="$repo_root/docs/documentation-move-manifest.md"
-expected_manifest_entries=122
+expected_manifest_entries=86
 failures=0
 
 report_failure() {
@@ -108,7 +108,7 @@ index_targets=(
   "release/monitors/client-release-runbook.md"
   "database/monitors/monitor-data-access-migration.md"
   "modules/monitors/monitor-timer-triggers.md"
-  "history/monitors/project_state.md"
+  "history/monitors/evidence/2026-07-17-rvt-common-monitor-source-removal.md"
   "imports/source-manifest.md"
 )
 
@@ -147,7 +147,8 @@ while IFS= read -r markdown_path; do
   fi
 done < <(
   cd "$repo_root"
-  git ls-files --cached --others --exclude-standard |
+  git ls-files --cached --others --exclude-standard -- \
+    . ':(exclude)apps/.nuget-packages/**' |
     awk 'tolower($0) ~ /\.md$/ && $0 ~ /^(apps|libs|services)\// { print }' |
     sort
 )
@@ -206,6 +207,7 @@ for source in "${missing_sources[@]}"; do
     rg --hidden --quiet --fixed-strings \
       --glob '!.git/**' \
       --glob '!.superpowers/sdd/**' \
+      --glob '!apps/.nuget-packages/**' \
       --glob '!docs/documentation-move-manifest.md' \
       -- "$source" .
   ); then
@@ -220,6 +222,7 @@ for module_relative_source in "${missing_module_relative_sources[@]}"; do
     git grep --quiet --fixed-strings -I \
       -e "$module_relative_source" -- . \
       ':(exclude).superpowers/sdd/**' \
+      ':(exclude)apps/.nuget-packages/**' \
       ':(exclude)docs/documentation-move-manifest.md' \
       ':(exclude)docs/history/**'
   ); then
@@ -258,6 +261,7 @@ done < <(
     --glob '*.md' --glob '*.MD' \
     --glob '!.git/**' \
     --glob '!.superpowers/sdd/**' \
+    --glob '!apps/.nuget-packages/**' \
     --glob '!docs/documentation-move-manifest.md' \
     '\]\([^)]*\.md(#[^)]*)?\)' . || true
 )

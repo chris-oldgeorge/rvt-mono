@@ -53,7 +53,6 @@ namespace AirQMonitorTests
         [ClassInitialize]
         public static async Task TestFixtureSetup(TestContext context)
         {
-            Environment.SetEnvironmentVariable("RVT__DATABASE_PROVIDER", "PostgreSql");
             var setupSql = TestUtil.ReadTextFromFile("testdata/create.postgres.sql");
             var resetSql = TestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
             database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql);
@@ -165,8 +164,7 @@ namespace AirQMonitorTests
                 TAG,
                 AdapterException.Of(MESSAGE),
                 "AirQMonitorTests",
-                "1.0",
-                new MonitorDbOptions(MonitorDatabaseProvider.PostgreSql, new Dictionary<string, string>()));
+                "1.0");
 
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();

@@ -3,6 +3,7 @@
 // - 2026-07-14 pending Added with RVT.SchemaDeploy, which replaces the post-load half of RVT.DatabaseMigrator.
 
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using RVT.SchemaDeploy;
 
@@ -236,6 +237,80 @@ public class SchemaDeployTests
                 $"Post-load script '{script}' must start with a two-digit order prefix, e.g. 06_something.sql, " +
                 "because RVT.SchemaDeploy applies them in filename order and that order is a dependency order.");
         }
+    }
+
+    [Fact]
+    // Function summary: Guards rerunnable deployment against data deletion and requires duplicate detection before index repair.
+    public void SiteWriteUniquenessScript_DetectsDuplicatesBeforeNonDestructiveIndexRepair()
+    {
+        var root = FindRepositoryRoot();
+        var path = Path.Combine(
+            root,
+            "database",
+            "postgres",
+            "post-load",
+            "06_site_write_uniqueness.sql");
+        Assert.True(
+            File.Exists(path),
+            "The PostgreSQL deployment sequence must include 06_site_write_uniqueness.sql.");
+        var source = File.ReadAllText(path);
+        var executableSql = Regex.Replace(
+            source,
+            @"--[^\r\n]*(?:\r?\n|$)|/\*.*?\*/",
+            " ",
+            RegexOptions.Singleline,
+            TimeSpan.FromSeconds(1));
+        var normalizedSql = Regex.Replace(
+            executableSql,
+            @"\s+",
+            " ",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(1));
+
+        var guardBlockStart = normalizedSql.IndexOf(
+            "DO $$",
+            StringComparison.OrdinalIgnoreCase);
+        var guardBlockEnd = normalizedSql.IndexOf(
+            "END $$;",
+            StringComparison.OrdinalIgnoreCase);
+        var archiveDuplicateGuard = normalizedSql.IndexOf(
+            "FROM public.site_archived GROUP BY site_id HAVING COUNT(*) > 1",
+            StringComparison.OrdinalIgnoreCase);
+        var notificationDuplicateGuard = normalizedSql.IndexOf(
+            "FROM public.notification_setting GROUP BY site_user_id HAVING COUNT(*) > 1",
+            StringComparison.OrdinalIgnoreCase);
+        var raiseException = normalizedSql.IndexOf(
+            "RAISE EXCEPTION",
+            StringComparison.OrdinalIgnoreCase);
+        var migrationReference = normalizedSql.IndexOf(
+            "20260723234806_EnforceSiteWriteUniqueness",
+            StringComparison.Ordinal);
+        var archiveIndexRepair = normalizedSql.IndexOf(
+            "CREATE UNIQUE INDEX ix_site_archived_site_id",
+            StringComparison.OrdinalIgnoreCase);
+        var notificationIndexRepair = normalizedSql.IndexOf(
+            "CREATE UNIQUE INDEX ix_notification_setting_site_user_id",
+            StringComparison.OrdinalIgnoreCase);
+        var hasProhibitedMutation = Regex.IsMatch(
+            normalizedSql,
+            @"\b(?:DELETE\s+FROM|UPDATE|INSERT\s+INTO|MERGE\s+INTO|TRUNCATE(?:\s+TABLE)?|DROP\s+(?:TABLE|SCHEMA|VIEW)|ALTER\s+TABLE)\b",
+            RegexOptions.IgnoreCase,
+            TimeSpan.FromSeconds(1));
+
+        Assert.False(
+            hasProhibitedMutation,
+            "The rerunnable post-load script must not insert, update, delete, truncate, or destructively alter row data.");
+        Assert.True(guardBlockStart >= 0 && guardBlockEnd > guardBlockStart);
+        Assert.True(archiveDuplicateGuard > guardBlockStart && archiveDuplicateGuard < guardBlockEnd);
+        Assert.True(notificationDuplicateGuard > guardBlockStart && notificationDuplicateGuard < guardBlockEnd);
+        Assert.True(raiseException > guardBlockStart && raiseException < guardBlockEnd);
+        Assert.True(migrationReference > guardBlockStart && migrationReference < guardBlockEnd);
+        Assert.True(archiveDuplicateGuard < archiveIndexRepair);
+        Assert.True(archiveDuplicateGuard < notificationIndexRepair);
+        Assert.True(notificationDuplicateGuard < archiveIndexRepair);
+        Assert.True(notificationDuplicateGuard < notificationIndexRepair);
+        Assert.True(guardBlockEnd < archiveIndexRepair);
+        Assert.True(guardBlockEnd < notificationIndexRepair);
     }
 
     // Function summary: Walks up from the test assembly to the repository root.

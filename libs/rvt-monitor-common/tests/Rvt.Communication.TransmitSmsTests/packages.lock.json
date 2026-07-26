@@ -139,7 +139,7 @@
       "rvt.communication.transmitsms": {
         "type": "Project",
         "dependencies": {
-          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
+          "Rvt.Communication.Abstractions": "[1.0.0-rc.1, )"
         }
       }
     }

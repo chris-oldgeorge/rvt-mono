@@ -1,6 +1,5 @@
 using System.Data;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
@@ -35,14 +34,12 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
         var leaseId = Guid.NewGuid();
         var leaseUntil = utcNow.Add(lease);
         await using var context = contextFactory.CreateDbContext();
-        var provider = ResolveProvider(context);
         await using var transaction = await context.Database.BeginTransactionAsync(
-            AlertOutboxClaimSql.IsolationLevelFor(provider),
+            AlertOutboxClaimSql.IsolationLevel,
             cancellationToken);
         var claimed = await ExecuteClaimAsync(
             context,
             transaction,
-            provider,
             utcNow,
             leaseId,
             leaseUntil,
@@ -149,7 +146,6 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
     private static async Task<ClaimedAlertDelivery?> ExecuteClaimAsync(
         TContext context,
         IDbContextTransaction transaction,
-        MonitorDatabaseProvider provider,
         DateTime utcNow,
         Guid leaseId,
         DateTime leaseUntil,
@@ -157,10 +153,10 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
     {
         await using var command = context.Database.GetDbConnection().CreateCommand();
         command.Transaction = transaction.GetDbTransaction();
-        command.CommandText = AlertOutboxClaimSql.For(provider);
-        AddInstantParameter(command, "@now", provider, utcNow);
+        command.CommandText = AlertOutboxClaimSql.Statement;
+        AddInstantParameter(command, "@now", utcNow);
         AddParameter(command, "@leaseId", DbType.Guid, leaseId);
-        AddInstantParameter(command, "@leaseUntil", provider, leaseUntil);
+        AddInstantParameter(command, "@leaseUntil", leaseUntil);
 
         ClaimedAlertDelivery claimed;
         await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
@@ -170,7 +166,7 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
                 return null;
             }
 
-            claimed = Materialize(reader, provider);
+            claimed = Materialize(reader);
         }
 
         var notificationId = await context.AlertOccurrences
@@ -181,11 +177,9 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
         return claimed with { NotificationId = notificationId };
     }
 
-    private static ClaimedAlertDelivery Materialize(DbDataReader reader, MonitorDatabaseProvider provider)
+    private static ClaimedAlertDelivery Materialize(DbDataReader reader)
     {
-        var names = provider == MonitorDatabaseProvider.PostgreSql
-            ? PostgreSqlColumns.Instance
-            : SqlServerColumns.Instance;
+        var names = PostgreSqlColumns.Instance;
         return new ClaimedAlertDelivery(
             reader.GetGuid(reader.GetOrdinal(names.Id)),
             reader.GetGuid(reader.GetOrdinal(names.OccurrenceId)),
@@ -196,20 +190,12 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
             reader.GetString(reader.GetOrdinal(names.Payload)),
             reader.GetString(reader.GetOrdinal(names.Status)),
             reader.GetInt32(reader.GetOrdinal(names.AttemptCount)),
-            AlertOutboxClaimDateTime.Normalize(
-                reader.GetDateTime(reader.GetOrdinal(names.NextAttemptAt)),
-                provider),
+            reader.GetDateTime(reader.GetOrdinal(names.NextAttemptAt)),
             reader.GetGuid(reader.GetOrdinal(names.LeaseId)),
-            AlertOutboxClaimDateTime.Normalize(
-                reader.GetDateTime(reader.GetOrdinal(names.LeaseUntil)),
-                provider),
-            AlertOutboxClaimDateTime.Normalize(
-                ReadNullableDateTime(reader, names.CompletedAt),
-                provider),
+            reader.GetDateTime(reader.GetOrdinal(names.LeaseUntil)),
+            ReadNullableDateTime(reader, names.CompletedAt),
             ReadNullableString(reader, names.LastError),
-            AlertOutboxClaimDateTime.Normalize(
-                reader.GetDateTime(reader.GetOrdinal(names.CreatedAt)),
-                provider));
+            reader.GetDateTime(reader.GetOrdinal(names.CreatedAt)));
     }
 
     private static void AddAudit(TContext context, AlertDeliveryAudit audit)
@@ -236,25 +222,18 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
     private static void AddInstantParameter(
         DbCommand command,
         string name,
-        MonitorDatabaseProvider provider,
         DateTime value)
     {
         var parameter = command.CreateParameter();
         parameter.ParameterName = name;
         parameter.Value = value;
-        switch (provider)
+        if (parameter is not NpgsqlParameter postgreSqlParameter)
         {
-            case MonitorDatabaseProvider.PostgreSql when parameter is NpgsqlParameter postgreSqlParameter:
-                postgreSqlParameter.NpgsqlDbType = NpgsqlDbType.TimestampTz;
-                break;
-            case MonitorDatabaseProvider.SqlServer when parameter is SqlParameter sqlServerParameter:
-                sqlServerParameter.SqlDbType = SqlDbType.DateTime2;
-                break;
-            default:
-                throw new NotSupportedException(
-                    "The database provider does not support durable alert claims.");
+            throw new NotSupportedException(
+                "The database provider does not support durable alert claims.");
         }
 
+        postgreSqlParameter.NpgsqlDbType = NpgsqlDbType.TimestampTz;
         command.Parameters.Add(parameter);
     }
 
@@ -268,22 +247,6 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
     {
         var ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
-    }
-
-    private static MonitorDatabaseProvider ResolveProvider(TContext context)
-    {
-        if (context.Database.IsNpgsql())
-        {
-            return MonitorDatabaseProvider.PostgreSql;
-        }
-
-        if (context.Database.IsSqlServer())
-        {
-            return MonitorDatabaseProvider.SqlServer;
-        }
-
-        throw new NotSupportedException(
-            "The database provider does not support durable alert claims.");
     }
 
     private sealed record ClaimColumns(
@@ -321,33 +284,4 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
             "created_at");
     }
 
-    private static class SqlServerColumns
-    {
-        public static ClaimColumns Instance { get; } = new(
-            "Id",
-            "OccurrenceId",
-            "DeliveryKey",
-            "Kind",
-            "Destination",
-            "Payload",
-            "Status",
-            "AttemptCount",
-            "NextAttemptAt",
-            "LeaseId",
-            "LeaseUntil",
-            "CompletedAt",
-            "LastError",
-            "CreatedAt");
-    }
-}
-
-internal static class AlertOutboxClaimDateTime
-{
-    internal static DateTime Normalize(DateTime value, MonitorDatabaseProvider provider) =>
-        provider == MonitorDatabaseProvider.SqlServer
-            ? DateTime.SpecifyKind(value, DateTimeKind.Utc)
-            : value;
-
-    internal static DateTime? Normalize(DateTime? value, MonitorDatabaseProvider provider) =>
-        value is { } timestamp ? Normalize(timestamp, provider) : null;
 }

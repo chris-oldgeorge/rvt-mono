@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using RVT.BusinessLogic.Ports.Storage;
+using RvtPortal.Application.Sites.Ports;
+using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Adapters.Storage;
 
 namespace RvtPortal.Spa.Tests;
@@ -28,6 +30,38 @@ public sealed class StorageAdapterTests
 
         Assert.NotNull(container);
         Assert.EndsWith("/site-archives", container.Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SiteLogoAdapter_MapsStorageContractsAndValidation()
+    {
+        var storage = new RecordingCustomerLogoStorage();
+        var adapter = new SiteLogoAdapter(storage);
+        var siteId = Guid.NewGuid();
+        await using var content = new MemoryStream(PngPayload(1, 2, 3));
+
+        var invalid = await adapter.SaveAsync(
+            siteId,
+            new SiteLogoUpload(
+                content,
+                content.Length,
+                "image/png",
+                "customer-logo.png"),
+            CancellationToken.None);
+
+        Assert.Equal(SiteLogoSaveOutcome.Invalid, invalid.Outcome);
+        Assert.Equal("invalid image", invalid.Message);
+        Assert.NotNull(storage.UploadStream);
+        Assert.Equal(0x89, storage.UploadStream.ReadByte());
+        storage.UploadStream.Dispose();
+        Assert.True(content.CanRead);
+        Assert.True(await adapter.ExistsAsync(siteId, CancellationToken.None));
+
+        var file = await adapter.OpenReadAsync(siteId, CancellationToken.None);
+        Assert.NotNull(file);
+        Assert.Same(storage.StoredStream, file.Content);
+        Assert.Equal("image/png", file.ContentType);
+        Assert.Equal("stored-logo.png", file.FileName);
     }
 
     [Fact]
@@ -144,5 +178,34 @@ public sealed class StorageAdapterTests
         public string EnvironmentName { get; set; } = "Testing";
         public IFileProvider WebRootFileProvider { get; set; }
         public string WebRootPath { get; set; }
+    }
+
+    private sealed class RecordingCustomerLogoStorage : ICustomerLogoStorage
+    {
+        public Stream? UploadStream { get; private set; }
+        public Stream StoredStream { get; } = new MemoryStream(PngHeader);
+
+        public Task SaveAsync(
+            Guid siteId,
+            IUploadedContent logo,
+            CancellationToken cancellationToken)
+        {
+            UploadStream = logo.OpenReadStream();
+            throw new StorageValidationException("invalid image");
+        }
+
+        public Task<StoredContentFile?> OpenReadAsync(
+            Guid siteId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<StoredContentFile?>(
+                new(StoredStream, "image/png", "stored-logo.png"));
+
+        public Task DeleteAsync(
+            Guid siteId,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public string? BuildProtectedLink(Guid siteId) =>
+            $"/api/sites/{siteId}/customer-logo";
     }
 }

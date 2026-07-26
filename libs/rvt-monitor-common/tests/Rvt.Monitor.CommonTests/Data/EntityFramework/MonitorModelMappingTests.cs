@@ -11,245 +11,325 @@ namespace Rvt.Monitor.CommonTests.Data.EntityFramework;
 [TestClass]
 public sealed class MonitorModelMappingTests
 {
-    private sealed record OutboxPropertyExpectation(
+    private sealed record PropertyExpectation(
         string PropertyName,
-        string SqlServerColumn,
-        string PostgreSqlColumn,
+        string Column,
         Type ClrType,
         bool IsNullable,
-        string SqlServerStoreType,
-        string PostgreSqlStoreType,
-        int? SqlServerMaxLength = null);
+        string StoreType,
+        int? MaxLength = null);
 
-    private sealed class TestMonitorContext(DbContextOptions<TestMonitorContext> options, MonitorDbOptions monitorOptions)
+    private sealed class TestMonitorContext(
+        DbContextOptions<TestMonitorContext> options,
+        MonitorDbOptions monitorOptions)
         : MonitorDbContextBase(options, monitorOptions)
     {
     }
 
     [TestMethod]
-    public void SharedModel_MapsSqlServerMonitorTable()
+    [DataRow(typeof(MonitorEntity), "monitor")]
+    [DataRow(typeof(RvtAlertRuleEntity), "rvt_alert_rule")]
+    [DataRow(typeof(NotificationEntity), "notification")]
+    [DataRow(typeof(MonitorDeliveryOutboxEntity), "monitor_delivery_outbox")]
+    [DataRow(typeof(NotificationSentEntity), "notification_sent")]
+    [DataRow(typeof(DeploymentEntity), "deployment")]
+    [DataRow(typeof(ContractEntity), "contract")]
+    [DataRow(typeof(SiteEntity), "site")]
+    [DataRow(typeof(SiteUserEntity), "site_user")]
+    [DataRow(typeof(NotificationSettingEntity), "notification_setting")]
+    [DataRow(typeof(AspNetUserEntity), "AspNetUsers")]
+    [DataRow(typeof(SiteAverageEntity), "site_average")]
+    [DataRow(typeof(ErrorMessageEntity), "error_log")]
+    [DataRow(typeof(AlertOccurrenceEntity), "alert_occurrence")]
+    [DataRow(typeof(AlertDeliveryOutboxEntity), "alert_delivery_outbox")]
+    public void SharedModel_MapsFixedCanonicalTablesWithoutSchemas(Type entityClrType, string table)
     {
-        using var context = CreateContext(MonitorDatabaseProvider.SqlServer);
-        var entityType = context.Model.FindEntityType(typeof(MonitorEntity));
+        using var context = CreateContext();
+        var entity = context.Model.FindEntityType(entityClrType);
 
-        Assert.IsNotNull(entityType);
-        Assert.AreEqual("MonitorsList", entityType.GetTableName());
-        Assert.AreEqual("dbo", entityType.GetSchema());
-        Assert.AreEqual("SerialId", entityType.FindProperty(nameof(MonitorEntity.SerialId))!.GetColumnName());
+        Assert.IsNotNull(entity);
+        Assert.AreEqual(table, entity.GetTableName());
+        Assert.IsNull(entity.GetSchema());
     }
 
     [TestMethod]
-    public void SharedModel_MapsPostgreSqlMonitorTable()
+    public void SharedModel_MapsCanonicalMonitorColumnsTypesAndIndex()
     {
-        using var context = CreateContext(MonitorDatabaseProvider.PostgreSql);
-        var entityType = context.Model.FindEntityType(typeof(MonitorEntity));
+        using var context = CreateContext();
+        var entity = context.Model.FindEntityType(typeof(MonitorEntity));
 
-        Assert.IsNotNull(entityType);
-        Assert.AreEqual("monitor", entityType.GetTableName());
-        Assert.IsNull(entityType.GetSchema());
-        Assert.AreEqual("serial_id", entityType.FindProperty(nameof(MonitorEntity.SerialId))!.GetColumnName());
-    }
-
-    [TestMethod]
-    [DataRow(typeof(RvtAlertRuleEntity), "RvtAlertRules", "rvt_alert_rule")]
-    [DataRow(typeof(NotificationEntity), "Notifications", "notification")]
-    [DataRow(typeof(NotificationSentEntity), "NotificationsSent", "notification_sent")]
-    [DataRow(typeof(DeploymentEntity), "Deployments", "deployment")]
-    [DataRow(typeof(ContractEntity), "Contracts", "contract")]
-    [DataRow(typeof(SiteEntity), "Sites", "site")]
-    [DataRow(typeof(SiteUserEntity), "SiteUsers", "site_user")]
-    [DataRow(typeof(NotificationSettingEntity), "NotificationSettings", "notification_setting")]
-    [DataRow(typeof(AspNetUserEntity), "AspNetUsers", "AspNetUsers")]
-    [DataRow(typeof(SiteAverageEntity), "SiteAverages", "site_average")]
-    [DataRow(typeof(ErrorMessageEntity), "ErrorMessages", "error_log")]
-    [DataRow(typeof(AlertOccurrenceEntity), "AlertOccurrences", "alert_occurrence")]
-    [DataRow(typeof(AlertDeliveryOutboxEntity), "AlertDeliveryOutbox", "alert_delivery_outbox")]
-    public void SharedModel_MapsCommonTableNames(Type entityClrType, string sqlServerTable, string postgreSqlTable)
-    {
-        using var sqlServerContext = CreateContext(MonitorDatabaseProvider.SqlServer);
-        using var postgreSqlContext = CreateContext(MonitorDatabaseProvider.PostgreSql);
-
-        var sqlServerEntity = sqlServerContext.Model.FindEntityType(entityClrType);
-        var postgreSqlEntity = postgreSqlContext.Model.FindEntityType(entityClrType);
-
-        Assert.IsNotNull(sqlServerEntity);
-        Assert.IsNotNull(postgreSqlEntity);
-        Assert.AreEqual(sqlServerTable, sqlServerEntity.GetTableName());
-        Assert.AreEqual("dbo", sqlServerEntity.GetSchema());
-        Assert.AreEqual(postgreSqlTable, postgreSqlEntity.GetTableName());
-        Assert.IsNull(postgreSqlEntity.GetSchema());
+        Assert.IsNotNull(entity);
+        AssertProperty(entity, nameof(MonitorEntity.Id), "id", "uuid");
+        AssertProperty(entity, nameof(MonitorEntity.FleetNr), "fleet_row_count", "text");
+        AssertProperty(entity, nameof(MonitorEntity.SerialId), "serial_id", "text");
+        AssertProperty(entity, nameof(MonitorEntity.ListedAtTime), "listed_at_time", "timestamp with time zone");
+        AssertProperty(entity, nameof(MonitorEntity.Offline), "offline", "boolean");
+        Assert.AreEqual(
+            "ix_monitor_serial_id_type_of_monitor",
+            entity.GetIndexes().Single().GetDatabaseName());
     }
 
     [TestMethod]
     public void SharedContext_ExposesDurableAlertSetsAndFactoryBoundary()
     {
-        using var context = CreateContext(MonitorDatabaseProvider.PostgreSql);
+        using var context = CreateContext();
 
         Assert.AreSame(context.Set<AlertOccurrenceEntity>(), context.AlertOccurrences);
         Assert.AreSame(context.Set<AlertDeliveryOutboxEntity>(), context.AlertDeliveryOutbox);
-        Assert.IsTrue(typeof(IMonitorDbContextFactory<TestMonitorContext>).IsAssignableFrom(typeof(TestContextFactory)));
+        Assert.IsTrue(typeof(IMonitorDbContextFactory<TestMonitorContext>)
+            .IsAssignableFrom(typeof(TestContextFactory)));
+    }
+
+    [TestMethod]
+    public void SharedModel_AppliesSharedMonitorTableOverridesAcrossCachedModels()
+    {
+        using var firstContext = CreateContext(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["MonitorsList"] = "first_monitor"
+        });
+        using var secondContext = CreateContext(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["MonitorsList"] = "second_monitor"
+        });
+
+        Assert.AreEqual(
+            "first_monitor",
+            firstContext.Model.FindEntityType(typeof(MonitorEntity))!.GetTableName());
+        Assert.AreEqual(
+            "second_monitor",
+            secondContext.Model.FindEntityType(typeof(MonitorEntity))!.GetTableName());
+        Assert.AreNotSame(firstContext.Model, secondContext.Model);
+    }
+
+    [TestMethod]
+    public void SharedModel_RejectsUnsafeSharedTableOverride()
+    {
+        using var context = CreateContext(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["MonitorsList"] = "monitor; DROP TABLE notification;--"
+        });
+
+        var exception = Assert.ThrowsExactly<InvalidOperationException>(() => _ = context.Model);
+
+        StringAssert.Contains(exception.Message, "Unsafe SQL identifier");
+    }
+
+    [TestMethod]
+    public void SharedModel_MapsDeliveryOutboxCanonicalContract()
+    {
+        using var context = CreateContext();
+        var entity = context.Model.FindEntityType(typeof(MonitorDeliveryOutboxEntity));
+
+        Assert.IsNotNull(entity);
+        Assert.AreEqual("monitor_delivery_outbox", entity.GetTableName());
+        Assert.IsNull(entity.GetSchema());
+        AssertProperties(
+            entity,
+            new PropertyExpectation("Id", "id", typeof(Guid), false, "uuid"),
+            new PropertyExpectation("Producer", "producer", typeof(string), false, "text", 64),
+            new PropertyExpectation("NotificationId", "notification_id", typeof(Guid?), true, "uuid"),
+            new PropertyExpectation("CorrelationKey", "correlation_key", typeof(string), true, "text", 450),
+            new PropertyExpectation("DeliveryKey", "delivery_key", typeof(string), false, "text", 450),
+            new PropertyExpectation("Kind", "kind", typeof(MonitorDeliveryKind), false, "text", 64),
+            new PropertyExpectation("Destination", "destination", typeof(string), false, "text", 512),
+            new PropertyExpectation("PayloadVersion", "payload_version", typeof(int), false, "integer"),
+            new PropertyExpectation("Payload", "payload", typeof(string), false, "text"),
+            new PropertyExpectation("Status", "status", typeof(string), false, "text", 32),
+            new PropertyExpectation("AttemptCount", "attempt_count", typeof(int), false, "integer"),
+            new PropertyExpectation("NextAttemptAt", "next_attempt_at", typeof(DateTime), false, "timestamp with time zone"),
+            new PropertyExpectation("LeaseId", "lease_id", typeof(Guid?), true, "uuid"),
+            new PropertyExpectation("LeaseUntil", "lease_until", typeof(DateTime?), true, "timestamp with time zone"),
+            new PropertyExpectation("CompletedAt", "completed_at", typeof(DateTime?), true, "timestamp with time zone"),
+            new PropertyExpectation("DeadLetteredAt", "dead_lettered_at", typeof(DateTime?), true, "timestamp with time zone"),
+            new PropertyExpectation("LastError", "last_error", typeof(string), true, "text", 1024),
+            new PropertyExpectation("CreatedAt", "created_at", typeof(DateTime), false, "timestamp with time zone"));
+
+        Assert.IsNull(context.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(MonitorDeliveryOutboxEntity))!
+            .FindProperty(nameof(MonitorDeliveryOutboxEntity.DeliveryKey))!
+            .GetCollation());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "ix_monitor_delivery_outbox_due",
+                "ix_monitor_delivery_outbox_notification_id",
+                "uq_monitor_delivery_outbox_producer_delivery_key"
+            },
+            entity.GetIndexes()
+                .Select(index => index.GetDatabaseName())
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+        Assert.IsTrue(entity.GetIndexes().Single(index =>
+            index.GetDatabaseName() == "uq_monitor_delivery_outbox_producer_delivery_key").IsUnique);
+
+        var notificationForeignKey = entity.GetForeignKeys().Single();
+        Assert.AreEqual(typeof(NotificationEntity), notificationForeignKey.PrincipalEntityType.ClrType);
+        Assert.AreEqual(DeleteBehavior.SetNull, notificationForeignKey.DeleteBehavior);
+    }
+
+    [TestMethod]
+    public void SharedModel_MapsAlertOccurrenceCanonicalConstraintsAndIndex()
+    {
+        using var context = CreateContext();
+        var entity = context.Model.FindEntityType(typeof(AlertOccurrenceEntity));
+
+        Assert.IsNotNull(entity);
+        AssertProperties(
+            entity,
+            new PropertyExpectation("Id", "id", typeof(Guid), false, "uuid"),
+            new PropertyExpectation("Source", "source", typeof(string), false, "varchar(128)", 128),
+            new PropertyExpectation("SourceKeyHash", "source_key_hash", typeof(byte[]), false, "bytea", 32),
+            new PropertyExpectation("NotificationId", "notification_id", typeof(Guid?), true, "uuid"),
+            new PropertyExpectation("MonitorId", "monitor_id", typeof(Guid), false, "uuid"),
+            new PropertyExpectation("SerialId", "serial_id", typeof(string), false, "varchar(128)", 128),
+            new PropertyExpectation("EventTime", "event_time", typeof(DateTime), false, "timestamp with time zone"),
+            new PropertyExpectation("AlertType", "alert_type", typeof(int), false, "integer"),
+            new PropertyExpectation("AlertField", "alert_field", typeof(string), false, "varchar(128)", 128),
+            new PropertyExpectation("Level", "level", typeof(double), false, "double precision"),
+            new PropertyExpectation("LimitOn", "limit_on", typeof(double), false, "double precision"),
+            new PropertyExpectation("AveragingPeriod", "averaging_period", typeof(int), false, "integer"),
+            new PropertyExpectation("Outcome", "outcome", typeof(string), false, "varchar(32)", 32),
+            new PropertyExpectation("CreatedAt", "created_at", typeof(DateTime), false, "timestamp with time zone"));
+
+        var designTimeEntity = context.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(AlertOccurrenceEntity))!;
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "ck_alert_occurrence_outcome",
+                "ck_alert_occurrence_source_key_hash"
+            },
+            designTimeEntity.GetCheckConstraints()
+                .Select(constraint => constraint.Name)
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+        Assert.AreEqual(
+            "octet_length(\"source_key_hash\") = 32",
+            designTimeEntity.GetCheckConstraints().Single(constraint =>
+                constraint.Name == "ck_alert_occurrence_source_key_hash").Sql);
+        Assert.AreEqual(
+            "\"outcome\" IN ('Accepted','Ignored','Suppressed')",
+            designTimeEntity.GetCheckConstraints().Single(constraint =>
+                constraint.Name == "ck_alert_occurrence_outcome").Sql);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "ix_alert_occurrence_monitor_id",
+                "ix_alert_occurrence_notification_id",
+                "uq_alert_occurrence_source_key"
+            },
+            entity.GetIndexes()
+                .Select(index => index.GetDatabaseName())
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+    }
+
+    [TestMethod]
+    public void SharedModel_MapsAlertDeliveryOutboxCanonicalConstraintsAndIndexes()
+    {
+        using var context = CreateContext();
+        var entity = context.Model.FindEntityType(typeof(AlertDeliveryOutboxEntity));
+
+        Assert.IsNotNull(entity);
+        AssertProperties(
+            entity,
+            new PropertyExpectation("Id", "id", typeof(Guid), false, "uuid"),
+            new PropertyExpectation("OccurrenceId", "occurrence_id", typeof(Guid), false, "uuid"),
+            new PropertyExpectation("DeliveryKey", "delivery_key", typeof(string), false, "varchar(64)", 64),
+            new PropertyExpectation("Kind", "kind", typeof(string), false, "varchar(32)", 32),
+            new PropertyExpectation("Destination", "destination", typeof(string), false, "varchar(512)", 512),
+            new PropertyExpectation("Payload", "payload", typeof(string), false, "varchar(8192)", 8192),
+            new PropertyExpectation("Status", "status", typeof(string), false, "varchar(32)", 32),
+            new PropertyExpectation("AttemptCount", "attempt_count", typeof(int), false, "integer"),
+            new PropertyExpectation("NextAttemptAt", "next_attempt_at", typeof(DateTime), false, "timestamp with time zone"),
+            new PropertyExpectation("LeaseId", "lease_id", typeof(Guid?), true, "uuid"),
+            new PropertyExpectation("LeaseUntil", "lease_until", typeof(DateTime?), true, "timestamp with time zone"),
+            new PropertyExpectation("CompletedAt", "completed_at", typeof(DateTime?), true, "timestamp with time zone"),
+            new PropertyExpectation("LastError", "last_error", typeof(string), true, "varchar(256)", 256),
+            new PropertyExpectation("CreatedAt", "created_at", typeof(DateTime), false, "timestamp with time zone"));
+
+        var designTimeEntity = context.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(AlertDeliveryOutboxEntity))!;
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "ck_alert_delivery_outbox_kind",
+                "ck_alert_delivery_outbox_status"
+            },
+            designTimeEntity.GetCheckConstraints()
+                .Select(constraint => constraint.Name)
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+        Assert.AreEqual(
+            "\"kind\" IN ('MqttAlert','Email','Sms')",
+            designTimeEntity.GetCheckConstraints().Single(constraint =>
+                constraint.Name == "ck_alert_delivery_outbox_kind").Sql);
+        Assert.AreEqual(
+            "\"status\" IN ('Pending','Leased','Completed','DeadLetter')",
+            designTimeEntity.GetCheckConstraints().Single(constraint =>
+                constraint.Name == "ck_alert_delivery_outbox_status").Sql);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "ix_alert_delivery_outbox_due",
+                "ix_alert_delivery_outbox_occurrence_id",
+                "uq_alert_delivery_outbox_delivery_key"
+            },
+            entity.GetIndexes()
+                .Select(index => index.GetDatabaseName())
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+    }
+
+    private static void AssertProperty(
+        IReadOnlyEntityType entity,
+        string propertyName,
+        string column,
+        string storeType)
+    {
+        var property = entity.FindProperty(propertyName);
+        Assert.IsNotNull(property);
+        Assert.AreEqual(column, property.GetColumnName());
+        Assert.AreEqual(storeType, property.GetRelationalTypeMapping().StoreType);
+    }
+
+    private static void AssertProperties(
+        IReadOnlyEntityType entity,
+        params PropertyExpectation[] expectedProperties)
+    {
+        Assert.HasCount(expectedProperties.Length, entity.GetProperties());
+        foreach (var expected in expectedProperties)
+        {
+            var property = entity.FindProperty(expected.PropertyName);
+            Assert.IsNotNull(property, $"Missing property {expected.PropertyName}.");
+            Assert.AreEqual(expected.Column, property.GetColumnName(), expected.PropertyName);
+            Assert.AreEqual(expected.ClrType, property.ClrType, expected.PropertyName);
+            Assert.AreEqual(expected.IsNullable, property.IsNullable, expected.PropertyName);
+            Assert.AreEqual(
+                expected.StoreType,
+                property.GetRelationalTypeMapping().StoreType,
+                expected.PropertyName);
+            Assert.AreEqual(expected.MaxLength, property.GetMaxLength(), expected.PropertyName);
+        }
+    }
+
+    private static TestMonitorContext CreateContext(
+        IReadOnlyDictionary<string, string>? identifierMap = null)
+    {
+        var monitorOptions = new MonitorDbOptions(
+            identifierMap ?? new Dictionary<string, string>(StringComparer.Ordinal));
+        var dbOptions = new DbContextOptionsBuilder<TestMonitorContext>()
+            .UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata")
+            .Options;
+        return new TestMonitorContext(dbOptions, monitorOptions);
     }
 
     private sealed class TestContextFactory(TestMonitorContext context)
         : IMonitorDbContextFactory<TestMonitorContext>
     {
         public TestMonitorContext CreateDbContext() => context;
-    }
-
-    [TestMethod]
-    public void SharedModel_CachesPostgreSqlModelsByIdentifierMap()
-    {
-        using var firstContext = CreateContext(
-            MonitorDatabaseProvider.PostgreSql,
-            new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["MonitorsList"] = "first_monitor"
-            });
-        using var secondContext = CreateContext(
-            MonitorDatabaseProvider.PostgreSql,
-            new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["MonitorsList"] = "second_monitor"
-            });
-
-        var firstEntityType = firstContext.Model.FindEntityType(typeof(MonitorEntity));
-        var secondEntityType = secondContext.Model.FindEntityType(typeof(MonitorEntity));
-
-        Assert.IsNotNull(firstEntityType);
-        Assert.IsNotNull(secondEntityType);
-        Assert.AreEqual("first_monitor", firstEntityType.GetTableName());
-        Assert.AreEqual("second_monitor", secondEntityType.GetTableName());
-    }
-
-    [DataTestMethod]
-    [DataRow(MonitorDatabaseProvider.PostgreSql, "monitor_delivery_outbox", null, "producer")]
-    [DataRow(MonitorDatabaseProvider.SqlServer, "MonitorDeliveryOutbox", "dbo", "Producer")]
-    public void SharedModel_MapsDeliveryOutbox(
-        MonitorDatabaseProvider provider,
-        string table,
-        string? schema,
-        string producerColumn)
-    {
-        using var context = CreateContext(provider);
-        var entity = context.Model.FindEntityType(typeof(MonitorDeliveryOutboxEntity));
-
-        Assert.IsNotNull(entity);
-        Assert.AreEqual(table, entity.GetTableName());
-        Assert.AreEqual(schema, entity.GetSchema());
-        Assert.AreEqual(producerColumn, entity.FindProperty(nameof(MonitorDeliveryOutboxEntity.Producer))!.GetColumnName());
-        AssertDeliveryOutboxPropertyParity(entity, provider);
-        var designTimeEntity = context.GetService<IDesignTimeModel>()
-            .Model
-            .FindEntityType(typeof(MonitorDeliveryOutboxEntity));
-        Assert.IsNotNull(designTimeEntity);
-        Assert.AreEqual(
-            provider == MonitorDatabaseProvider.SqlServer ? "Latin1_General_100_BIN2" : null,
-            designTimeEntity.FindProperty(nameof(MonitorDeliveryOutboxEntity.DeliveryKey))!.GetCollation());
-        CollectionAssert.AreEqual(
-            new[] { nameof(MonitorDeliveryOutboxEntity.Id) },
-            entity.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
-
-        var uniqueDeliveryIndex = entity.GetIndexes().Single(index => index.IsUnique);
-        CollectionAssert.AreEqual(
-            new[]
-            {
-                nameof(MonitorDeliveryOutboxEntity.Producer),
-                nameof(MonitorDeliveryOutboxEntity.DeliveryKey)
-            },
-            uniqueDeliveryIndex.Properties.Select(property => property.Name).ToArray());
-        Assert.IsTrue(entity.GetIndexes().Any(index => index.Properties.Select(property => property.Name)
-            .SequenceEqual(new[]
-            {
-                nameof(MonitorDeliveryOutboxEntity.Producer),
-                nameof(MonitorDeliveryOutboxEntity.Status),
-                nameof(MonitorDeliveryOutboxEntity.NextAttemptAt)
-            })));
-
-        var notificationForeignKey = entity.GetForeignKeys().Single();
-        Assert.AreEqual(typeof(NotificationEntity), notificationForeignKey.PrincipalEntityType.ClrType);
-        CollectionAssert.AreEqual(
-            new[] { nameof(MonitorDeliveryOutboxEntity.NotificationId) },
-            notificationForeignKey.Properties.Select(property => property.Name).ToArray());
-        Assert.AreEqual(DeleteBehavior.SetNull, notificationForeignKey.DeleteBehavior);
-
-        var kindProperty = entity.FindProperty(nameof(MonitorDeliveryOutboxEntity.Kind));
-        Assert.IsNotNull(kindProperty);
-        var kindConverter = kindProperty.GetTypeMapping().Converter;
-        Assert.IsNotNull(kindConverter);
-        Assert.AreEqual(
-            nameof(MonitorDeliveryKind.Email),
-            kindConverter.ConvertToProvider(MonitorDeliveryKind.Email));
-    }
-
-    private static void AssertDeliveryOutboxPropertyParity(
-        IReadOnlyEntityType entity,
-        MonitorDatabaseProvider provider)
-    {
-        var expectedProperties = new[]
-        {
-            new OutboxPropertyExpectation("Id", "Id", "id", typeof(Guid), false, "uniqueidentifier", "uuid"),
-            new OutboxPropertyExpectation("Producer", "Producer", "producer", typeof(string), false, "nvarchar(64)", "text", 64),
-            new OutboxPropertyExpectation("NotificationId", "NotificationId", "notification_id", typeof(Guid?), true, "uniqueidentifier", "uuid"),
-            new OutboxPropertyExpectation("CorrelationKey", "CorrelationKey", "correlation_key", typeof(string), true, "nvarchar(450)", "text", 450),
-            new OutboxPropertyExpectation("DeliveryKey", "DeliveryKey", "delivery_key", typeof(string), false, "nvarchar(450)", "text", 450),
-            new OutboxPropertyExpectation("Kind", "Kind", "kind", typeof(MonitorDeliveryKind), false, "nvarchar(64)", "text", 64),
-            new OutboxPropertyExpectation("Destination", "Destination", "destination", typeof(string), false, "nvarchar(512)", "text", 512),
-            new OutboxPropertyExpectation("PayloadVersion", "PayloadVersion", "payload_version", typeof(int), false, "int", "integer"),
-            new OutboxPropertyExpectation("Payload", "Payload", "payload", typeof(string), false, "nvarchar(max)", "text"),
-            new OutboxPropertyExpectation("Status", "Status", "status", typeof(string), false, "nvarchar(32)", "text", 32),
-            new OutboxPropertyExpectation("AttemptCount", "AttemptCount", "attempt_count", typeof(int), false, "int", "integer"),
-            new OutboxPropertyExpectation("NextAttemptAt", "NextAttemptAt", "next_attempt_at", typeof(DateTime), false, "datetime2", "timestamp with time zone"),
-            new OutboxPropertyExpectation("LeaseId", "LeaseId", "lease_id", typeof(Guid?), true, "uniqueidentifier", "uuid"),
-            new OutboxPropertyExpectation("LeaseUntil", "LeaseUntil", "lease_until", typeof(DateTime?), true, "datetime2", "timestamp with time zone"),
-            new OutboxPropertyExpectation("CompletedAt", "CompletedAt", "completed_at", typeof(DateTime?), true, "datetime2", "timestamp with time zone"),
-            new OutboxPropertyExpectation("DeadLetteredAt", "DeadLetteredAt", "dead_lettered_at", typeof(DateTime?), true, "datetime2", "timestamp with time zone"),
-            new OutboxPropertyExpectation("LastError", "LastError", "last_error", typeof(string), true, "nvarchar(1024)", "text", 1024),
-            new OutboxPropertyExpectation("CreatedAt", "CreatedAt", "created_at", typeof(DateTime), false, "datetime2", "timestamp with time zone")
-        };
-
-        Assert.HasCount(expectedProperties.Length, entity.GetProperties());
-        foreach (var expected in expectedProperties)
-        {
-            var property = entity.FindProperty(expected.PropertyName);
-            Assert.IsNotNull(property, $"Missing property {expected.PropertyName}.");
-            Assert.AreEqual(
-                provider == MonitorDatabaseProvider.PostgreSql ? expected.PostgreSqlColumn : expected.SqlServerColumn,
-                property.GetColumnName(),
-                $"Unexpected column name for {expected.PropertyName}.");
-            Assert.AreEqual(expected.ClrType, property.ClrType, $"Unexpected CLR type for {expected.PropertyName}.");
-            Assert.AreEqual(expected.IsNullable, property.IsNullable, $"Unexpected nullability for {expected.PropertyName}.");
-            Assert.AreEqual(
-                provider == MonitorDatabaseProvider.PostgreSql ? expected.PostgreSqlStoreType : expected.SqlServerStoreType,
-                property.GetRelationalTypeMapping().StoreType,
-                $"Unexpected store type for {expected.PropertyName}.");
-            Assert.AreEqual(
-                provider == MonitorDatabaseProvider.PostgreSql ? null : expected.SqlServerMaxLength,
-                property.GetMaxLength(),
-                $"Unexpected max length for {expected.PropertyName}.");
-        }
-    }
-
-    private static TestMonitorContext CreateContext(MonitorDatabaseProvider provider)
-    {
-        return CreateContext(provider, new Dictionary<string, string>(StringComparer.Ordinal));
-    }
-
-    private static TestMonitorContext CreateContext(
-        MonitorDatabaseProvider provider,
-        IReadOnlyDictionary<string, string> identifierMap)
-    {
-        var monitorOptions = new MonitorDbOptions(provider, identifierMap);
-        var dbOptionsBuilder = new DbContextOptionsBuilder<TestMonitorContext>();
-        if (provider == MonitorDatabaseProvider.PostgreSql)
-        {
-            dbOptionsBuilder.UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata");
-        }
-        else
-        {
-            dbOptionsBuilder.UseSqlServer(
-                "Server=localhost;Database=metadata;User Id=metadata;Password=metadata;TrustServerCertificate=true");
-        }
-
-        return new TestMonitorContext(dbOptionsBuilder.Options, monitorOptions);
     }
 }

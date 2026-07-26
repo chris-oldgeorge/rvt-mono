@@ -7,7 +7,7 @@ namespace Rvt.Reporting.Data.Postgres;
 
 /// <summary>
 /// Postgres/Timescale implementation of the reporting repository using parameterized canonical SQL.
-/// Major updates: 2026-06-24 initial SQL Server-to-Postgres reporting port; 2026-06-25 loads alert rules with report-period triggered counts; 2026-06-25 hydrates report-period average graph points; 2026-06-25 hydrates report-period notifications and closed alert notes; 2026-06-26 scopes monitor-bound report data to effective contract windows.
+/// Major updates: 2026-06-24 initial PostgreSQL reporting repository; 2026-06-25 loads alert rules with report-period triggered counts; 2026-06-25 hydrates report-period average graph points; 2026-06-25 hydrates report-period notifications and closed alert notes; 2026-06-26 scopes monitor-bound report data to effective contract windows.
 /// </summary>
 public sealed class PostgresReportingRepository : IReportingRepository
 {

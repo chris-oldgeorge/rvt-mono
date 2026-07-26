@@ -1229,6 +1229,118 @@
   `git diff --check` is clean. The obsolete untracked suffixed C# copy was
   subsequently removed, leaving the tracked boundary test as the sole copy.
 
+## Sites Application Boundary Task 3 - 2026-07-23
+
+- Current state: the BCL-only `RvtPortal.Application` project owns common
+  use-case results and paging primitives, the complete transport-neutral Sites
+  contract set, the Sites read facade, and the materialized `ISiteReadPort`.
+- Application structure:
+  - `Common/UseCaseResult.cs`, `PageRequest.cs`, and `PagedResult.cs` define the
+    application-owned result and paging types.
+  - `Sites/SiteContracts.cs`, `ISiteApplicationService.cs`,
+    `Ports/ISiteReadPort.cs`, and `SiteApplicationService.cs` define the read
+    use cases and their persistence-neutral boundary.
+  - `Sites/SiteApplicationService.cs` creates one UTC
+    `SiteAuthorizationPolicy.ReadScope` per user-facing read, masks invisible
+    sites as not found, joins materialized notification assignments with
+    `IPortalUserDirectory`, and restricts company users to their own settings.
+- Host adapter: `RvtPortal.Spa/Adapters/Sites/EfSiteReadAdapter.cs` owns the
+  extracted EF Core read queries. Filtering, counts, sorting, paging, monitor
+  and notification projections, options, details, operating hours, and
+  notification-setting materialization remain database-side where they were
+  before extraction.
+
+## Sites Application Boundary Task 4 - 2026-07-23
+
+- Current state: transactional site create, update, and notification-setting
+  mutations are implemented in the BCL-only `RvtPortal.Application` boundary.
+  Archive and customer-logo workflows remain in the host, and controllers
+  still use the legacy host service pending their separate cutover task.
+- Application structure:
+  - `Common/IApplicationUnitOfWork.cs` defines transaction execution and the
+    one-save command boundary.
+  - `Sites/Ports/ISiteWritePort.cs` defines explicit staging operations for
+    site create, site update, notification-setting upsert, and a conditional
+    contract claim.
+  - `Sites/SiteMutationValidator.cs` owns request-shape validation, exact
+    `HH:mm` parsing, optional text normalization, legacy/seven-day operating
+    hours normalization, and database-fact validation.
+  - `Sites/SiteApplicationService.cs` validates shape before transaction
+    entry, reads name/company/contract/ownership facts inside the transaction,
+    authorizes inside the transaction before business reads, stages one
+    mutation, saves once, and re-materializes the response.
+  - Update preserves legacy site-not-found precedence by materializing site
+    existence after its in-transaction management gate and before mutation-fact
+    validation. A false write-adapter update still maps to not-found for the
+    delete race between the existence read and entity materialization.
+- Materialized read contracts added to `ISiteReadPort`:
+  `SiteMutationValidationData` reports duplicate-name, company, and contract
+  facts; `SiteNotificationSettingTarget` reports only assignment ownership
+  identifiers. No EF, HTTP, host, vendor, or queryable types cross the port.
+- Host adapters:
+  - `EfSiteReadAdapter` supplies the focused mutation validation and
+    notification-target lookups.
+  - `EfSiteWriteAdapter` stages entities without parsing or validating. Create
+    stages the site and seven operating-hour rows; after the unit-of-work save,
+    `TryClaimContractAsync` issues one relational conditional update constrained
+    by contract id, company id, and an unassigned `SiteiD`. Update replaces
+    mutable values and operating-hour rows; notification writes upsert the
+    settings row.
+  - `EfCoreUnitOfWork` implements both the existing host `IUnitOfWork` and the
+    application-owned `IApplicationUnitOfWork`. DI registers one concrete
+    scoped instance and maps both interfaces to it.
+- Time variables: mutation use cases receive `TimeProvider`; create passes
+  `timeProvider.GetUtcNow().UtcDateTime` to the write port, and the EF adapter
+  persists it with `DateTimeKind.Utc`.
+- Authorization variables: create/update call
+  `SiteAuthorizationPolicy.CanManage(user)` inside their transaction before
+  any business read or write. Notification updates construct
+  `SiteAuthorizationPolicy.ReadScope(user, timeProvider.GetUtcNow().UtcDateTime)`
+  inside the transaction and call `ISiteReadPort.ExistsAsync` before resolving
+  a notification target or evaluating ownership, so expired, future, and
+  otherwise invisible assignments are masked as site-not-found.
+- Atomic-claim variables: `contractId`, `companyId`, and the staged `siteId`
+  form the compare-and-set predicate. A zero-row claim throws within the
+  shared transaction, rolling back the saved candidate site and hours; the
+  application catches that private signal outside the unit of work and returns
+  the existing contract-assigned validation error.
+- Verification: focused application mutation tests pass 18/18; focused
+  relational write-adapter and existing unit-of-work tests pass 11/11; all
+  application tests pass 24/24; application-boundary, site-read-adapter,
+  site-write-adapter, unit-of-work, and CQRS regressions pass 42/42; the SPA
+  host build succeeds with
+  zero warnings and zero errors. The existing `System.Security.Cryptography.Xml`
+  NU1903 advisories remain outside this task.
+- DI state: `ISiteReadPort` resolves to scoped `EfSiteReadAdapter`. The legacy
+  `RvtPortal.Spa.Application.Sites.ISiteApplicationService` remains registered
+  for controllers; HTTP cutover is deferred to Task 6.
+- Access variables: `VisibleSites` supports `All`, inclusive-window `Assigned`,
+  and empty `None` scopes. Assignment comparisons use `scope.NowUtc`.
+- Sort variables: `DefaultSort = "createDate"`,
+  `MonitorSort = "fleetNumber"`, and
+  `NotificationSort = "notificationTime"`. Open-notification pages and
+  site-detail notification rows retain the existing limit of 20.
+- Detail facts: `CanManage` is enriched by the application service;
+  `HasCustomerLogo` remains false until Task 5 adds the storage port.
+- Tests:
+  - `SiteReadUseCaseTests` verifies assigned-scope masking and exact materialized
+    query forwarding with a reusable, extensible `FakeSiteReadPort`.
+  - `SiteReadAdapterTests` resolves the adapter through DI and verifies inclusive
+    active and expired assignment windows for existence and paged visibility.
+  - `SiteMutationUseCaseTests` verifies create/update manage gates, notification
+    visibility-before-ownership masking for expired/future assignments, and
+    stale-claim result mapping.
+  - `SiteWriteAdapterTests` uses relational SQLite and the real shared
+    `EfCoreUnitOfWork` to prove a stale conditional claim rolls back the
+    candidate site and its seven operating-hour rows without replacing the
+    existing contract assignment.
+  - Application boundary architecture checks continue to prove
+    `RvtPortal.Application` has no package/project references or forbidden
+    framework/adapter imports.
+- Known environment concern: portal builds continue to report the pre-existing
+  NU1903 high-severity advisories for `System.Security.Cryptography.Xml` 10.0.7.
+  No dependency versions changed in this task.
+
 ## Immediate Blockers Task 2 - 2026-07-22
 
 - Portal startup now explicitly registers `TimeProvider.System`, satisfying
@@ -1825,3 +1937,875 @@
   duplicate `* 2.cs` files. Blob client/service unification and every other
   storage, compatibility, plugin, database, MQTT, scheduling, observability,
   notification, API, and persisted-record item remain future pending work.
+## Sites Application Boundary Plan - 2026-07-23
+
+- The approved design is expanded into
+  `docs/superpowers/plans/2026-07-23-rvtportal-sites-application-boundary.md`.
+- The plan contains seven independently reviewable tasks: compile-time
+  scaffold, shared identity/UTC policies, read extraction, transactional
+  writes, archive/logo workflows, controller cutover, and documentation/full
+  verification.
+- Key planned types are `UseCaseResult<T>`, `PortalUserContext`,
+  `SiteAccessScope`, `ISiteApplicationService`, `ISiteReadPort`,
+  `ISiteWritePort`, `ISiteArchivePort`, `ISiteLogoPort`, and
+  `IApplicationUnitOfWork`.
+- The application project remains BCL-only. Host adapters keep EF Core,
+  Identity, archive, logo storage, and the existing shared-connection unit of
+  work.
+- No production implementation has started. The next action is selecting
+  subagent-driven or inline plan execution.
+
+## Sites Application Boundary Task 2 - 2026-07-23
+
+- Active branch: `codex/sites-application-boundary`; Task 1 scaffold commit is
+  `5246c4390aa0c73072c98afbe6bb8867da60b8c4`.
+- `RvtPortal.Application.Identity` now owns the six-fact
+  `PortalUserContext`, `PortalRoleNames`, `PortalUserProfile`, and
+  `IPortalUserDirectory`. The superseded BusinessLogic identity files are
+  removed, and all SPA host consumers resolve the application-owned types.
+- `RvtPortal.Application.Sites` now owns `SiteAccessScopeKind`,
+  `SiteAccessScope`, `SiteAssignmentWindow`, `ActiveSiteAssignment`, and
+  `SiteAuthorizationPolicy`. Site access timestamps and assignment comparison
+  timestamps must have `DateTimeKind.Utc`; assignment windows use inclusive
+  start and end bounds.
+- Policy variables and facts: `NowUtc` in the focused tests is
+  `2026-07-23T12:00:00Z`; `SiteAccessScope.UserId` is populated only for
+  `Assigned`; admins receive `All`; company users with a user id receive
+  `Assigned`; all other users receive `None`.
+- Focused verification passes: 4/4 application policy tests and 30/30 SPA
+  CQRS/company-user site-access compatibility tests. The SPA restore continues
+  to report existing high-severity NU1903 advisories for
+  `System.Security.Cryptography.Xml` 10.0.7.
+- Generated untracked `.codegraph/` and `apps/.nuget-packages/` remain
+  untouched and excluded from the task commit. Task 3 Sites read extraction
+  has not started.
+
+## Sites Application Boundary Task 5 - 2026-07-23
+
+- Active branch: `codex/sites-application-boundary`; Task 5 started from the
+  accepted Task 4 commit `1e8a261753440162d2b9d02c1b6f1e992898b9be`.
+- `RvtPortal.Application.Sites.Ports` now owns `ISiteArchivePort`,
+  `SiteArchiveExportResult`, `ISiteLogoPort`, `SiteLogoUpload`,
+  `SiteLogoFile`, `SiteLogoSaveOutcome`, `SiteLogoSaveResult`, and
+  `SiteArchiveState`. The logo upload/download records intentionally use only
+  BCL `Stream` payloads; the application project still has no package or
+  project references and no host, HTTP, EF, configuration, or vendor SDK
+  types.
+- `ISiteApplicationService` and `SiteApplicationService` now cover archive,
+  logo save/delete, and protected logo reads. Archive export completes before
+  `IApplicationUnitOfWork.ExecuteInTransactionAsync`; an export failure opens
+  no transaction and writes no archive state. Successful archive metadata uses
+  `timeProvider.GetUtcNow().UtcDateTime`.
+- Logo save/delete call storage only after `CanManageSiteAsync`; protected
+  reads call storage only after `CanReadSiteAsync`. Inaccessible sites remain
+  masked as not found, and storage validation messages are returned as the
+  `logo` validation error.
+- All successful detail reads now pass through `ReadDetailAsync`, which sets
+  `SiteDetailModel.CanManage` and obtains `HasCustomerLogo` from
+  `ISiteLogoPort.ExistsAsync`. `HasCustomerLogo` is mutable only so the
+  application orchestration can enrich materialized EF projections.
+- Host adapter structure added under
+  `apps/portal/RvtPortal.Spa/Adapters/Sites`: `SiteArchiveAdapter` wraps
+  `ISiteArchiveService`, maps non-cancellation failures to the compatible
+  archive error, and rethrows cancellation; `SiteLogoAdapter` wraps
+  `ICustomerLogoStorage` and maps BCL streams through an `IUploadedContent`
+  implementation without disposing the caller-owned upload stream.
+- `EfSiteReadAdapter.GetArchiveStateAsync` materializes only site id/archive
+  state. `EfSiteWriteAdapter.MarkArchivedAsync` marks the tracked site and
+  stages UTC `SiteArchived` metadata. DI now registers the four
+  application-facing read, write, archive, and logo ports; controller cutover
+  remains Task 6.
+- Recording-test variables include `Events` (`export`, `transaction`,
+  `archive`), `TransactionCount`, `ArchiveCount`, `ExportCount`, `SaveCount`,
+  `DeleteCount`, `OpenReadCount`, `ArchiveUrl`, `ArchivedUtc`, and logo
+  `Exists`/`SaveResult`. The fixed application clock is
+  `2026-07-23T12:00:00Z`.
+- TDD evidence: the first RED failed on the absent archive/logo contracts; the
+  second RED failed on the absent use cases and seven-argument service
+  constructor. The adapter/EF RED failed because the host did not implement
+  `GetArchiveStateAsync` or `MarkArchivedAsync`. GREEN verification passes
+  7/7 focused application workflow tests, 8/8 prescribed archive/storage
+  tests, 4/4 focused adapter/EF additions, all 31 application tests, and 16/16
+  application-boundary/read/write/unit-of-work regressions.
+- The existing `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories
+  remain outside Task 5. Generated `.codegraph/` and
+  `apps/.nuget-packages/` remain untracked and must not be staged.
+
+## Sites Application Boundary Task 6 - 2026-07-23
+
+- Active branch: `codex/sites-application-boundary`; Task 6 started from the
+  accepted Task 5 commit `7235e3d9ea5dc3ed9c5d3c08ffd4524722410bd7`.
+- `SitesController` now depends on
+  `RvtPortal.Application.Sites.ISiteApplicationService`,
+  `ICurrentUserContextFactory`, and `IApiResultMapper` only. Its route,
+  authorization, request-size, and response metadata are byte-for-byte
+  unchanged from the Task 5 base.
+- `SiteApiMapper` consumes the application-owned Sites contracts. The
+  `ToApplicationPage` boundary copies the host-normalized legacy `PageRequest`
+  fields (`SearchText`, `Page`, `PageSize`, `Sort`, and `SortDir`) into the
+  application-owned page contract. Fixed-sort panels still use
+  `GetNormalizedPage`, `GetNormalizedPageSize`, and `GetNormalizedSortDir`.
+- `IApiResultMapper` retains its legacy `ApplicationResult<T>` overload and
+  adds the six-kind `UseCaseResult<T>` mapping. `SitesController` keeps
+  `CreatedAtAction` for create, maps `HasCustomerLogo` to
+  `/api/sites/{id}/customer-logo` at the HTTP edge, and returns successful logo
+  reads with `File(...)` so streams are never JSON-wrapped.
+- DI now maps the application-owned `ISiteApplicationService` to the
+  application-owned `SiteApplicationService`. The duplicate host
+  `SiteApplicationService`, host `SiteCommands`, and
+  `RVT.BusinessLogic.Sites` application models are removed.
+- Intentional brief variance: the host
+  `Application/Sites/ActiveSiteAssignment.cs` remains. The prescribed
+  namespace scan found seven live non-Sites consumers in notification,
+  dashboard, monitor, and alert-level slices. Repointing or relocating those
+  EF expression consumers is outside Task 6, so deleting the helper would
+  break accepted behavior. Current live variables remain `userId`/`nowUtc`,
+  and the inclusive `StartDate <= nowUtc` plus nullable `EndDate >= nowUtc`
+  assignment window is unchanged.
+- Boundary-drift fix: the host contract suite uses EF InMemory, which does not
+  implement `ExecuteUpdateAsync`. `EfSiteWriteAdapter.TryClaimContractAsync`
+  now uses a conditional tracked claim plus `SaveChangesAsync` only when
+  `Database.IsRelational()` is false. Relational providers retain the accepted
+  atomic conditional `ExecuteUpdateAsync`; its `affected == 1` result is
+  unchanged.
+- TDD evidence: the architecture RED failed because the constructor exposed
+  the legacy Sites service and `ICustomerLogoStorage`; its GREEN passed 1/1.
+  The first compatibility run passed 35, skipped one PostgreSQL-gated test,
+  and failed two create flows. Detailed logs traced both failures to the
+  unsupported InMemory `ExecuteUpdateAsync` call. After the provider-specific
+  compatibility branch, the prescribed architecture/contract slice passes
+  38 with one PostgreSQL-gated skip, `SiteWriteAdapterTests` passes 4/4, and
+  the complete SPA host suite passes 381 with eight provider-gated skips.
+- Contract assertions explicitly preserve create `Location` as
+  `/api/sites/{siteId}` and the protected post-delete logo response as 404.
+  Independent-review regressions additionally preserve the legacy customer-logo
+  upload failure ordering: current-user creation and masked site-manage
+  visibility/existence precede null-logo validation, so a missing site with no
+  logo returns the endpoint's `Site not found` 404 response. Invalid logo
+  application validation is handled only at this HTTP edge as plain
+  ProblemDetails with title `Invalid customer logo`, the storage error in
+  `detail`, HTTP 400, and no ValidationProblemDetails `errors` member. The
+  generic `IApiResultMapper` remains unchanged.
+- Delete-logo missing-site translation is also endpoint-specific:
+  `DeleteCustomerLogo` returns the controller's legacy `SiteNotFound(id)`
+  ProblemDetails for `UseCaseResultKind.NotFound` before delegating all other
+  result kinds to `IApiResultMapper`. The regression asserts HTTP 404, title
+  `Site not found`, and detail `Site '{id}' was not found.`.
+- Independent-review TDD RED failed both contracts with the former HTTP 400
+  null-logo ordering and generic ValidationProblemDetails title. GREEN passes
+  both regressions. The delete-logo re-review RED received HTTP 404 but exposed
+  the generic mapper title `Resource not found.`; its GREEN passes. The
+  architecture/contract slice now passes 39 with one PostgreSQL-gated skip,
+  and the full SPA host suite passes 382 with eight provider-gated skips. The
+  complete `SitesController` action-attribute sequence still has an empty
+  metadata diff against Task 5 base
+  `7235e3d9ea5dc3ed9c5d3c08ffd4524722410bd7`.
+  Existing `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories remain
+  outside Task 6. Generated `.codegraph/` and `apps/.nuget-packages/` remain
+  untracked and excluded from the task commit.
+
+## Sites Application Boundary Task 7 - 2026-07-23
+
+- Active branch: `codex/sites-application-boundary`. The accepted application
+  slice ends at Task 6 commit
+  `13aa5ff4c678df3a70c9576ae73fccc067f56ac7`; the initial Task 7 documentation
+  commit is `52e5a83d03132a96e80f50d29c651d4c93abd29a`
+  (`docs: record sites application extraction`), and the accepted archive
+  authorization repair is
+  `8bf2f18afa0c33e3bf2749cbb4e8f01e097e90c4`
+  (`fix: enforce archive management authorization`).
+- Extraction decision: the Sites slice moved incrementally into the BCL-only
+  `apps/portal/RvtPortal.Application` project. `RVT.BusinessLogic` remains the
+  legacy application boundary for slices not yet extracted and must not be
+  moved opportunistically during unrelated work.
+- New ownership:
+  - `RvtPortal.Application/Common` owns `UseCaseResult<T>`, `PageRequest`,
+    `PagedResult<T>`, and the unit-of-work port.
+  - `RvtPortal.Application/Identity` owns transport-neutral portal user facts,
+    role names, profiles, and the user-directory port.
+  - `RvtPortal.Application/Sites` owns the complete Sites contracts, pure UTC
+    authorization policy, validation, application service, and focused ports.
+  - `RvtPortal.Application.Tests` owns pure application use-case and policy
+    tests. `RvtPortal.Spa.Tests` owns the executable filesystem architecture
+    guards plus host adapter and HTTP compatibility coverage.
+  - `RvtPortal.Spa/Adapters/Sites` owns the EF read/write, archive-export, and
+    customer-logo adapters. `SitesController` and `SiteApiMapper` remain the
+    HTTP/DTO edge.
+- Composition registrations:
+  - application `ISiteApplicationService` resolves to application
+    `SiteApplicationService`;
+  - `ISiteReadPort` resolves to `EfSiteReadAdapter`;
+  - `ISiteWritePort` resolves to `EfSiteWriteAdapter`;
+  - `ISiteArchivePort` resolves to `SiteArchiveAdapter`;
+  - `ISiteLogoPort` resolves to `SiteLogoAdapter`;
+  - `IPortalUserDirectory` resolves to the host `PortalUserDirectory`;
+  - `IApplicationUnitOfWork` and the legacy host `IUnitOfWork` both resolve to
+    the same scoped `EfCoreUnitOfWork`, retaining the shared domain, search,
+    and Identity transaction.
+- Public application boundary interfaces are
+  `ISiteApplicationService`, `ISiteReadPort`, `ISiteWritePort`,
+  `ISiteArchivePort`, `ISiteLogoPort`, `IApplicationUnitOfWork`, and
+  `IPortalUserDirectory`.
+- Approved Task 6 variance: the host
+  `RvtPortal.Spa.Application.Sites.ActiveSiteAssignment` remains for seven live
+  EF-expression consumers in notification close authorization, dashboard
+  visibility, monitor list/read authorization, two monitor-administration
+  queries, and alert-level authorization. Relocating those consumers is not
+  part of the Sites extraction. The host helper and the application-owned pure
+  policy retain explicit UTC input and inclusive start/end semantics.
+- Final verification:
+  - `RvtPortal.Application.Tests`: 32 passed, 0 failed, 0 skipped.
+  - `RvtPortal.Spa.Tests`: 382 passed, 0 failed, 8 skipped, 390 total.
+    Every skip is explicitly gated on real PostgreSQL/TimescaleDB:
+    contract calendar-date persistence, UTC site insert, three search
+    timestamp/view checks, dashboard-breach `timestamptz`, and two schema
+    deploy/default checks.
+  - `RVT_TEST_POSTGRES_CONNECTION` was unset. The eight provider tests were
+    discovered but not executed, so provider closure is not claimed.
+  - `RvtPortal.Spa.sln` built with 0 errors and 5 known NU1903 warnings.
+  - `RvtPortal.Client` passed 68/68 tests and its production build completed.
+  - Mono-solution, mono-layout, and RVT common-source boundary guards passed.
+  - The ordinary documentation-layout run was polluted solely by the
+    pre-existing untracked `apps/.nuget-packages/` cache and reported 180
+    package-owned Markdown files in two issue groups. A clean isolated clone
+    containing the exact tracked tree plus the Task 7 documentation
+    finalization diff
+    passed with 122 moves and 7 retained entry points; the cache was not moved,
+    deleted, edited, or staged.
+  - `git diff --check` completed with no output.
+- Known advisories: `System.Security.Cryptography.Xml` 10.0.7 continues to
+  report five existing high-severity NU1903 advisories:
+  `GHSA-23rf-6693-g89p`, `GHSA-8q5v-6pqq-x66h`,
+  `GHSA-cvvh-rhrc-wg4q`, `GHSA-g8r8-53c2-pm3f`, and
+  `GHSA-mmjf-rqrv-855v`. No dependency version changed in this extraction.
+- Remaining slice candidates, without selecting the next one, include monitor,
+  report/report-rule, company/user, contract, notification, dashboard, and
+  alert-level boundaries. Each requires its own behavior-preserving design and
+  verification scope.
+- Independent full-branch review of
+  `1eeb6c71922b98dd7928330879a6813247c0a7e8..4a1f5e8f4360b2b24a0ab44719d00bec9e99bfe2`
+  found no Critical issues and one validated Important authorization defect:
+  `SiteApplicationService.ArchiveAsync` read archive state, exported, and
+  persisted archive metadata without first applying
+  `SiteAuthorizationPolicy.CanManage(user)`. The repair now places that policy
+  check before every archive-state, export, transaction, write, save, or detail
+  operation and returns the established `Forbidden` result for a direct
+  non-manager application caller. The focused regression records zero archive
+  state reads, detail-enrichment reads, logo-existence reads, exports,
+  transactions, archive writes, saves, and workflow events. Authorized callers
+  retain export-before-transaction ordering. Root final reviews and the
+  implementation-plan review checkbox remain open, so this branch is not yet
+  declared merge-ready.
+- Authorization-repair TDD evidence: the focused RED failed 0/1 with expected
+  `Forbidden` and actual `Success`; focused GREEN passed 1/1; the complete
+  external-workflow slice passed 8/8; all application tests passed 32/32; and
+  the complete SPA host suite passed 382 with eight PostgreSQL-gated skips.
+  `RvtPortal.Spa.sln` built with 0 errors and the same five known NU1903
+  warnings. The Task 7 ownership wording remains accurate: application tests
+  own application use-case/policy coverage, while SPA tests own executable
+  filesystem architecture guards plus host adapter and HTTP compatibility
+  coverage. Review-hardening variables are `ArchiveStateReadCount`,
+  `DetailReadCount`, `ExistsReadCount`, and `Events`; the mutation run without
+  the management guard fails the focused control on all three read counters and
+  the nonempty workflow event log.
+- The exact accepted repair diff
+  `52e5a83d03132a96e80f50d29c651d4c93abd29a..8bf2f18afa0c33e3bf2749cbb4e8f01e097e90c4`
+  received a read-only review with no Critical, Important, or Minor findings.
+  This closes the previously validated archive-authorization blocker only.
+  Task 7 implementation-plan Step 7 remains unchecked because root still owns
+  the final independent whole-branch review from `main` through the
+  documentation-finalized head; merge or push readiness is not claimed here.
+- Generated `.codegraph/`, `apps/.nuget-packages/`, and the progress ledger
+  remain unmodified and excluded from the Task 7 commit.
+
+## Sites Application Boundary Final Review Compatibility Repair - 2026-07-24
+
+- This final-review repair started from
+  `78d6addd70c851e4c845b1ae7b2629edd47f2baf` on
+  `codex/sites-application-boundary`. Its scope is limited to validation and
+  authorization precedence, validation-response compatibility, regression
+  coverage, and restoration of an unrelated tracked report. Archive and
+  notification-upsert concurrency, UTC-constructor hardening, and unrelated
+  refactors remain outside this repair.
+- `SiteApplicationService.UpdateAsync` still computes the pure `shape` result
+  before opening the transaction, but now returns shape errors only after
+  `SiteAuthorizationPolicy.CanManage(user)` and the scoped materialized
+  `ExistsAsync` check. Shape errors therefore cannot displace direct-caller
+  `Forbidden` or masked missing-site `NotFound`, while they still precede
+  `GetMutationValidationDataAsync`, `UpdateAsync`, and `SaveChangesAsync`.
+  The adapter's false update result remains the delete-race `NotFound` path.
+- `UpdateNotificationSettingAsync` similarly computes `timePair` before the
+  transaction but returns its errors only after scoped site visibility,
+  `GetNotificationSettingTargetAsync`, and target-ownership authorization.
+  Missing/inaccessible sites and missing targets stay masked as `NotFound`;
+  foreign targets remain `Forbidden`; every rejected combination records zero
+  notification writes and saves.
+- `SiteMutationValidator.ValidateTimePair` now takes distinct `startField` and
+  `endField` parameters. Parsing uses the corresponding field, while missing
+  pair members and reversed-order errors remain on `startField`. Explicit
+  daily operating-hour rows pass the same indexed key for both fields,
+  preserving that legacy contract.
+- When `SiteMutation.OperatingHours` is absent or empty, the validator no
+  longer reparses synthesized rows. The already parsed `weekday`, `saturday`,
+  and `sunday` results are passed to `LegacyOperatingHours` and expanded into
+  seven `ValidatedSiteOperatingHours` rows. `parsedByDay` and `seenDays` are
+  now used only for explicitly supplied daily rows.
+- Application test structure:
+  - `Sites/SiteMutationUseCaseTests.cs` covers malformed update precedence and
+    invalid notification times combined with missing, inaccessible,
+    expired/future, missing-target, and foreign-target resources. The fixture
+    counters `ExistsCallCount`, `MutationValidationReadCount`,
+    `NotificationTargetReadCount`, `UpdateCount`,
+    `NotificationSettingCount`, and `SaveCount` establish the exact gate and
+    zero-write behavior.
+  - New `Sites/SiteMutationValidatorTests.cs` uses the theory variables
+    `endField` and `startField` to assert exact legacy error field, message,
+    order, and count for `EndTime`, `SatEndTime`, and `SunEndTime`, plus the
+    single `StartTime` error for a reversed legacy weekday pair.
+- `ContractSiteOperationsTests` adds host-level masking and
+  `ValidationProblemDetails` compatibility coverage. The local `errors`
+  dictionary materializes the serialized `errors` object so tests assert exact
+  property counts and arrays for site and notification end fields, and prove
+  that reversed weekday input emits no synthesized `OperatingHours[*]` keys.
+- Strict TDD evidence:
+  - precedence application RED: 8 failed, 0 passed; every failure expected
+    `NotFound`/`Forbidden` and received `Validation`;
+  - precedence HTTP RED: 5 failed, 0 passed; every failure expected
+    `NotFound`/`Forbidden` and received `BadRequest`;
+  - precedence GREEN: application 8/8 and HTTP 5/5;
+  - validator application RED: 5 failed, 0 passed, exposing start-field end
+    parse errors, synthesized-row duplicates, and six reversed-weekday errors;
+  - validator HTTP RED: 5 failed, 0 passed, exposing missing end-field keys and
+    serialized key counts of six instead of the legacy one or two;
+  - validator GREEN: application 5/5 and HTTP 5/5;
+  - independent-review coverage control: the authorized existing-site
+    malformed-update test failed 1/1 against the pre-fix early-return mutation
+    (`TransactionCount` expected one and was zero), then passed 1/1 after the
+    repaired ordering was restored; its exact HTTP validation-body
+    characterization passed 1/1.
+- Fresh broad verification passes:
+  - `RvtPortal.Application.Tests`: 40 passed, 0 failed, 0 skipped;
+  - `RvtPortal.Spa.Tests`: 393 passed, 0 failed, 8 provider-gated skipped,
+    401 total;
+  - `RvtPortal.Spa.sln`: build succeeded with 0 errors and the five existing
+    `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories.
+  The client and API DTO/contract files are unchanged, so the conditional
+  client gate was not triggered.
+- `.superpowers/sdd/task-6-report.md` is restored byte-for-byte from
+  `1eeb6c71922b98dd7928330879a6813247c0a7e8`; the exact historical diff is
+  empty. The displaced Sites Task 6 report is retained only at ignored,
+  unstaged `.superpowers/sdd/sites-application-task-6-report.md`.
+- `RVT_TEST_POSTGRES_CONNECTION` remains unavailable, so the same eight
+  explicitly provider-gated PostgreSQL/TimescaleDB tests were discovered but
+  not executed. Generated `.codegraph/`, `apps/.nuget-packages/`, and
+  `.superpowers/sdd/progress.md` remain outside the repair commit.
+
+## Site Write Concurrency Repair - 2026-07-25
+
+- Resume instruction: start a future session with
+  `Read project_state.md to get up to speed`.
+- Active branch: `codex/sites-application-boundary`. This repair started from
+  and was verified against base
+  `19e8dbe0e98664b4bb05c2dd571dfca7c41abf5e`. Its required single commit is
+  named `fix: serialize site archive and notification writes`. The later root
+  whole-branch review and any push remain separate; merge or deployment
+  readiness is not claimed here.
+- Public Sites HTTP routes, response envelopes, authorization behavior, and the
+  one-archive-per-site domain contract are unchanged.
+  `RvtPortal.Application` remains BCL-only.
+- Approved design and implementation plan:
+  - `docs/superpowers/specs/2026-07-24-site-write-concurrency-repair-design.md`;
+  - `docs/superpowers/plans/2026-07-24-site-write-concurrency-repair.md`.
+- Repair file structure:
+  - `apps/portal/RVT.DataAccess/Context/RVTDbContext.cs`,
+    `Migrations/20260723234806_EnforceSiteWriteUniqueness.cs`,
+    its generated `.Designer.cs`, and `RVTDbContextModelSnapshot.cs` own the
+    relational uniqueness model and one-time duplicate cleanup;
+  - `apps/portal/RvtPortal.Application/Sites/Ports/ISiteReadPort.cs`,
+    `ISiteWritePort.cs`, `ISiteArchivePort.cs`, and
+    `Sites/SiteApplicationService.cs` own canonical archive state, atomic
+    claim results, cleanup outcomes, and unknown-commit orchestration;
+  - `apps/portal/RvtPortal.Spa/Adapters/Sites/EfSiteReadAdapter.cs`,
+    `EfSiteWriteAdapter.cs`, and `SiteArchiveAdapter.cs`, plus
+    `Adapters/Archive/SiteArchiveService.cs` and
+    `SiteArchiveWorkspaceFactory.cs`, own materialized canonical URL reads,
+    provider-native DML, guarded blob reconciliation, and archive workspaces;
+  - `apps/portal/database/postgres/post-load/06_site_write_uniqueness.sql`
+    owns the rerunnable, non-destructive PostgreSQL duplicate guard and unique
+    index repair;
+  - application coverage is in `SiteExternalWorkflowTests.cs`,
+    `SiteMutationUseCaseTests.cs`, and `SiteTestDoubles.cs`; host/provider
+    coverage is in `SchemaDeployTests.cs`,
+    `SiteArchiveServiceSecurityTests.cs`,
+    `SiteArchiveWorkspaceFactoryTests.cs`, `SiteConcurrencyTests.cs`,
+    `SiteConcurrencyPostgresTests.cs`, `SiteReadAdapterTests.cs`,
+    `SiteWriteAdapterTests.cs`, and `SpaTestApplicationFactory.cs`.
+- New application state and port signatures:
+  - `SiteArchiveState(Guid SiteId, bool Archived, string? ArchiveUrl)`;
+  - `SiteArchiveClaimResult(bool Claimed, string? DurableArchiveUrl)` returned
+    by `ISiteWritePort.TryClaimArchiveAsync(...)`;
+  - `SiteArchiveCleanupResult(bool Succeeded, string? ErrorMessage)` returned
+    by `ISiteArchivePort.CleanupSupersededAsync(Guid siteId,
+    string durableArchiveUrl, CancellationToken)`;
+  - the host archive boundary exposes
+    `ISiteArchiveService.DeleteSupersededAsync(Guid siteId,
+    string durableArchiveUrl, CancellationToken)`.
+- Archive exports retain a unique local `archiveId` for `RootPath` and
+  `ZipPath`, but every new export for one site uses the deterministic blob key
+  exactly `<site-id-N>/site-archive.zip`. Concurrent new exporters therefore
+  share one overwriteable candidate while relational archive metadata remains
+  canonical. Existing legacy URLs remain valid and are not renamed.
+- `EfSiteReadAdapter.GetArchiveStateAsync` is a no-tracking projection that
+  returns the site's archived flag and the single canonical
+  `site_archived.picture_link`. Relational archive claims use provider-native
+  conflict handling and return the durable URL for either winner or loser.
+- Archive cleanup is retryable. An already archived request reconciles the
+  derived stable candidate before returning detail, so a failed loser cleanup
+  is rediscovered without a second export. Cleanup failure maps to the existing
+  external-service-unavailable result.
+- Blob reconciliation fails closed before any delete unless the durable URL is
+  an absolute HTTP(S) URL without credentials or a fragment and identifies the
+  configured archive scheme, host, port, account, and container. If durable
+  metadata identifies the stable candidate, cleanup returns without a storage
+  delete. If verified legacy metadata identifies a different blob, cleanup
+  deletes only the derived stable candidate with snapshots included. No path
+  deletes the canonical URL.
+- Unknown transaction outcomes are verified with
+  `GetArchiveStateAsync(id, CancellationToken.None)`. A matching canonical URL
+  proves durable success and retains the candidate. A different canonical URL
+  is treated as a losing claim and reconciles only the stable candidate. When
+  canonical metadata is absent or verification fails, the candidate is
+  retained and the original persistence exception is rethrown with its stack.
+- Notification writes now converge on one complete row per `site_user_id`.
+  PostgreSQL and SQLite use `INSERT ... ON CONFLICT ... DO UPDATE`; SQL Server
+  uses a locked `UPDATE WITH (UPDLOCK, HOLDLOCK)` followed by a conditional
+  insert. Archive claims similarly use PostgreSQL/SQLite conflict handling or a
+  SQL Server locked existence check. EF InMemory keeps its tracked
+  compatibility path, and unknown relational providers fail explicitly.
+- PostgreSQL/Npgsql is the canonical checked-in EF migration, designer, model
+  snapshot, and generated-script provider. Migration
+  `20260723234806_EnforceSiteWriteUniqueness` locks the owner tables, retains
+  the smallest notification-setting UUID, retains the newest archive by
+  `create_date DESC, id DESC`, reconciles `site.archived = true`, and then
+  creates unique indexes on `notification_setting.site_user_id` and
+  `site_archived.site_id`. Its down path relaxes uniqueness without restoring
+  discarded duplicates.
+- Deterministic row deletion occurs only in that one-time migration.
+  Rerunnable `RVT.SchemaDeploy` SQL locks the same tables, rejects duplicate
+  owner groups with an actionable migration hint, and repairs only the two
+  named indexes on clean data. It performs no table-data insertion, update,
+  deletion, merge, or truncation.
+- SQL Server runtime DML is structurally covered, but a canonical SQL Server
+  migration chain/snapshot and live migration deployment were not generated or
+  validated. SQL Server migration-deployment closure remains separate work.
+  Historical blob URLs discarded by relational deduplication also remain an
+  operator/lifecycle audit item because database migration has no storage
+  credentials.
+- Fresh final integration verification:
+  - `RvtPortal.Application.Tests`: 48 passed, 0 failed, 0 skipped;
+  - `RvtPortal.Spa.Tests`: 408 passed, 0 failed, 9 skipped, 417 total;
+  - `RvtPortal.Spa.sln`: build succeeded with 0 errors and the five existing
+    `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories;
+  - PostgreSQL `dotnet ef migrations has-pending-model-changes` reported no
+    model changes since the last migration;
+  - `git diff --check` completed with no output.
+- `RVT_TEST_POSTGRES_CONNECTION` was unset. The new
+  `SiteConcurrencyPostgresTests.AtomicSiteWrites_ConcurrentRequestsKeepOneValidRowPerOwner`
+  case and the existing eight PostgreSQL/TimescaleDB cases were discovered but
+  skipped, so live PostgreSQL concurrency/deployed-schema closure is not
+  claimed. The UTC-midnight notification fixture did not fail during this run,
+  so no baseline-only exception was applied.
+- Existing NU1903 advisories remain
+  `GHSA-23rf-6693-g89p`, `GHSA-8q5v-6pqq-x66h`,
+  `GHSA-cvvh-rhrc-wg4q`, `GHSA-g8r8-53c2-pm3f`, and
+  `GHSA-mmjf-rqrv-855v`; dependency versions are unchanged.
+- `.superpowers/sdd/task-6-report.md` remains byte-identical to merge-base
+  `1eeb6c71922b98dd7928330879a6813247c0a7e8`. Generated `.codegraph/`,
+  `apps/.nuget-packages/`, `.superpowers/sdd/progress.md`, this plan's ignored
+  SDD workspace, and historical reports remain outside the repair commit.
+
+## Site Write Concurrency Final Review Fix - 2026-07-25
+
+- The final review fix started from reviewed commit
+  `c9295f0ff087275b8129e18bfeeb99357f430a1a`; its parent remains
+  `19e8dbe0e98664b4bb05c2dd571dfca7c41abf5e`, and the concurrency repair
+  remains one amended commit named
+  `fix: serialize site archive and notification writes`.
+- `EfCoreUnitOfWork.ExecuteInTransactionAsync` now captures the primary
+  operation/commit exception with `ExceptionDispatchInfo`, attempts rollback
+  with `CancellationToken.None`, and explicitly disposes application, search,
+  and domain transaction wrappers in reverse creation order. Rollback and
+  disposal faults are secondary; when possible they are retained under
+  `Exception.Data` as an `AggregateException`, and diagnostic attachment itself
+  is best-effort so it cannot replace the primary. The same primary-preservation
+  and reverse-cleanup rules now cover caller-owned ambient enlistments.
+  A disposal fault remains primary when the operation/commit path succeeded.
+- `EfCoreUnitOfWorkTests` uses a real shared SQLite relational transaction and
+  EF transaction interceptor. Its commit interceptor throws a stable exception
+  instance and cancels the live request token; rollback then throws a distinct
+  instance while proving cleanup received `CancellationToken.None`. The test
+  asserts primary identity and stack plus retained secondary diagnostics.
+  A second fault test proves a primary exception whose virtual `Data` getter
+  throws still escapes unchanged.
+- New `SiteSqlServerDmlTests.cs` constructs `RVTDbContext` with
+  `UseSqlServer`, suppresses connection opening and async non-query execution,
+  and records the real provider-generated `SqlCommand` and `SqlParameter`
+  values without a live SQL Server. Archive coverage asserts the complete
+  metadata insert, site-owner predicate, `NOT EXISTS`,
+  `UPDLOCK, HOLDLOCK`, and winner-only site archived update. Notification
+  coverage asserts the locked complete update, `site_user_id` predicate,
+  `@@ROWCOUNT` gate, and complete conditional insert.
+- The SQL Server archive claim is now one batch: after the locked conditional
+  metadata insert, `IF @@ROWCOUNT > 0` performs a parameterized
+  `[site].[archived]` update for the same site. A winner therefore needs no
+  follow-up site read; the zero-row loser path still reads and returns the
+  canonical durable archive URL. This is runtime DML coverage only. A canonical
+  SQL Server migration chain and live migration deployment remain separate and
+  unclosed.
+- `SiteArchiveServiceSecurityTests` now explicitly prove that a percent-encoded
+  stable blob name and a stable URL carrying query/SAS parameters are equivalent
+  to the candidate and cause no delete. The same configured account/container
+  on a wrong effective port fails closed, and a loopback observer proves no
+  delete request is sent.
+- Strict RED/GREEN controls:
+  - original UoW RED: 1 failed/1 total because rollback's exception replaced
+    the exact commit exception; GREEN passed 1/1;
+  - EDI mutation RED: 1 failed/1 total because a normal throw erased the commit
+    interceptor stack; restored EDI GREEN passed 1/1;
+  - throwing-`Data` RED: 1 failed/1 total because diagnostic attachment
+    replaced the commit exception; the guarded attachment joined the focused
+    UoW GREEN at 10/10;
+  - SQL Server initial RED: notification passed, while archive failed 1/2 on
+    the unsuppressed follow-up reader; compound archive DML GREEN passed 2/2.
+    Removing `HOLDLOCK` from both runtime branches then failed 2/2, and the
+    restored lock hints passed 2/2. Swapping archive owner/URL and notification
+    email/SMS bindings then failed 2/2 on exact placeholder-to-column
+    assertions before restoration;
+  - URL mutation RED failed 3/3 by attempting deletes for encoded/query
+    equivalents and accepting the wrong port; restored production passed 3/3.
+- The final read-only re-review reported no remaining Critical, Important, or
+  Minor findings.
+- Fresh final verification:
+  - combined UoW, SQL Server DML, and archive-security slice: 28 passed,
+    0 failed, 0 skipped;
+  - `RvtPortal.Application.Tests`: 48 passed, 0 failed, 0 skipped;
+  - `RvtPortal.Spa.Tests`: 415 passed, 0 failed, 9 provider-gated skipped,
+    424 total;
+  - `RvtPortal.Spa.sln`: build succeeded with 0 errors and the five existing
+    `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories;
+  - canonical PostgreSQL
+    `dotnet ef migrations has-pending-model-changes` reported no model changes
+    since the last migration;
+  - `git diff --check` completed with no output.
+- `RVT_TEST_POSTGRES_CONNECTION` remains unset, so the nine explicit
+  PostgreSQL/TimescaleDB cases were discovered but not executed. Live
+  PostgreSQL concurrency and deployed-schema closure are not claimed. Live SQL
+  Server execution and SQL Server migration deployment are also not claimed.
+  Generated `.codegraph/`, `apps/.nuget-packages/`, SDD ledgers/workspaces,
+  old progress files, and historical reports remain outside the amended commit;
+  only the required ignored final-fix report is written in the SDD task folder.
+
+## Sites Application Boundary Final Whole-Branch Review - 2026-07-25
+
+- Resume instruction: start a future session with
+  `Read project_state.md to get up to speed`.
+- Current branch is `codex/sites-application-boundary`; its merge base with
+  `main` is `1eeb6c71922b98dd7928330879a6813247c0a7e8`. The reviewed implementation
+  head was `e3dba33d203180496b790ca0302749c86bbf4f58`.
+- The independent read-only review of
+  `1eeb6c71922b98dd7928330879a6813247c0a7e8..e3dba33d203180496b790ca0302749c86bbf4f58`
+  reported no Critical or Important findings and assessed the branch as ready
+  to merge.
+- One Minor follow-up remains: the public positional constructors and `with`
+  support on `SiteAccessScope` and `SiteAssignmentWindow` can bypass their UTC
+  naming/invariants. `ActiveSiteAssignment.IsActive` checks `nowUtc` but not
+  assignment bounds. Production scope construction currently flows through
+  `SiteAuthorizationPolicy.ReadScope` and the validated factories, while the
+  application assignment helper currently has test-only callers. A future
+  slice should replace the positional records with immutable validated
+  construction, enforce valid scope kind/user combinations and UTC assignment
+  bounds, and add bypass regression tests.
+- Fresh release verification on the reviewed tree:
+  - `RvtPortal.Application.Tests`: 48 passed, 0 failed, 0 skipped;
+  - `RvtPortal.Spa.Tests`: 415 passed, 0 failed, 9 provider-gated skipped,
+    424 total;
+  - `RvtPortal.Client`: 68 passed, 0 failed, and the production Vite build
+    succeeded;
+  - `RvtPortal.Spa.sln`: build succeeded with 0 errors and the five existing
+    `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories;
+  - PostgreSQL `dotnet ef migrations has-pending-model-changes` reported no
+    changes;
+  - mono-solution, mono-layout, and RVT common-source boundary guards passed;
+  - the documentation-layout guard passed against a clean archive of the
+    tracked tree with 122 moves and 7 retained entry points;
+  - `git diff --check` completed with no output.
+- The ordinary documentation-layout run remains polluted only by the generated,
+  untracked `apps/.nuget-packages/` cache. That cache and `.codegraph/` remain
+  untouched and outside Git.
+- `RVT_TEST_POSTGRES_CONNECTION` is unset, so the nine live
+  PostgreSQL/TimescaleDB tests remain explicit skips. Live SQL Server DML and
+  SQL Server migration deployment also remain unclosed. These are deployment
+  verification gaps, not hidden merge claims.
+
+## PostgreSQL-Only Final Handoff - 2026-07-26
+
+This section supersedes every earlier current-state or compatibility statement
+in this file. Earlier dual-provider descriptions are retained only as
+historical audit evidence. The current solution has no runtime dual-provider
+fallback: PostgreSQL is the only supported relational database, with
+TimescaleDB extensions where the schema requires them.
+
+### Branch, handoff identity, and structure
+
+- Worktree:
+  `/Users/oldgeorge/Documents/rvt-mono/.worktrees/postgresql-only`.
+- Branch: `codex/postgresql-only`.
+- Verified Tasks 1-12 pre-state head:
+  `b0d0ecb55f22308cb5e81a3ecc716b3c6dba7e60`.
+- Design base:
+  `a07f6019fc492531a2f7d67294dd17ace47058db`.
+- Task 13 enforcement commit:
+  `12c0efbf98eac9d5d702d9eb3e76c5558fcc5270`
+  (`chore: enforce PostgreSQL-only solution`).
+- The final-review handoff commit is the commit containing this amended
+  section, with subject `fix: close PostgreSQL-only review gaps`. A file cannot
+  contain its own final hash; the exact hash is recorded after commit in the
+  ignored `.superpowers/sdd/2026-07-25-postgresql-only/task-13-report.md`.
+- `Rvt.Mono.slnx` contains 40 projects: 14 under `apps/monitors`, 9 under
+  `apps/portal`, 9 under `libs/rvt-monitor-common`, and 8 under
+  `services/reporting`.
+- The four primary module roots remain:
+  - `apps/monitors`: AirQ, MyATM, Omnidots, ReportingMonitor, and Svantek
+    applications and tests;
+  - `apps/portal`: the application, Npgsql data access, schema deployer, host,
+    tests, and the `RvtPortal.Client` Vite client;
+  - `libs/rvt-monitor-common`: shared Common, Infrastructure, integration-test
+    support, tests, and the two package-validation consumers;
+  - `services/reporting`: PostgreSQL reporting core/data/messaging/PDF/storage,
+    service host, and tests.
+- Compared with the design base, 76 tracked paths were deleted. This includes
+  all 36 retired-provider-named paths, the complete
+  `apps/portal/database/sqlserver/` tree, the Omnidots `sqlserver/` tree,
+  MyATM/shared `*.sqlserver.sql` migrations and rollbacks, the Portal provider
+  package/assets/registries, the retired DML test, and 34 obsolete
+  `docs/history/` documents. Git history is the audit source for deleted
+  artifacts.
+
+### Canonical architecture and package boundary
+
+- Portal configures `RVTDbContext`, `RVTSearchContext`, and
+  `ApplicationDbContext` only with Npgsql. Their migration histories remain
+  separate: the domain default, `__EFMigrationsHistorySearch`, and
+  `__EFMigrationsHistoryIdentity`.
+- `UtcTimestampGuardInterceptor` remains active for `timestamptz` writes.
+  Domain persistence stays UTC; search/telemetry plain `timestamp` mappings
+  retain their intentional `DateTimeKind.Unspecified` contract.
+- `RVT.SchemaDeploy` owns canonical PostgreSQL/TimescaleDB schema objects that
+  EF does not own. Active SQL uses canonical PostgreSQL identifiers and
+  syntax. The site-write uniqueness migration is unconditional canonical
+  PostgreSQL SQL. The repository guard rejects `ActiveProvider`,
+  `ProviderName`, `IsNpgsql`, or `IsSqlServer` selection code in every tracked
+  Portal `**/Migrations/*.cs` history, including domain, search, and Identity.
+  Its script contract requires both exact unique indexes after deduplication
+  and the site-state update.
+- Shared monitor persistence creates only `NpgsqlConnection`/
+  `NpgsqlParameter`, uses PostgreSQL binary `COPY`, and maps canonical
+  PostgreSQL tables, columns, constraints, and indexes. Runtime T-SQL
+  rewriting and provider enums are deleted.
+- AirQ, MyATM, Omnidots, Svantek, ReportingMonitor, and
+  `services/reporting` use PostgreSQL/TimescaleDB only.
+- Active application consumers use `ProjectReference` entries to the shared
+  RVT source projects. Only
+  `libs/rvt-monitor-common/package-validation/{RuntimeConsumer,TestConsumer}`
+  consume the locally packed `0.2.0-rc.1` packages.
+- There are 23 tracked package locks. The supported aggregate path generates
+  ignored validation locks under `artifacts/validation-locks`. Relative to the
+  design base, 17 intentional Task 11 lock changes remain; there is zero
+  unexpected post-Task11 verification lock drift. Neither project files nor
+  locks contain the retired provider packages.
+
+### Configuration contract
+
+- Portal runtime connection: `ConnectionStrings:DefaultConnection` or
+  `Database:ConnectionString`.
+- Monitor runtime connection:
+  `ConnectionStrings__DefaultConnection`.
+- Reporting service runtime connection:
+  `ConnectionStrings:ReportingDatabase`.
+- Portal design-time EF connection: `RVT_EF_CONNECTION`.
+- Portal live verification: `RVT_TEST_POSTGRES_CONNECTION`.
+- Monitor/TimescaleDB live verification:
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`.
+- `RVT_EF_PROVIDER` is retired and removed.
+- `RVT_ENFORCE_POSTGRESQL_ONLY` is retired and removed; every
+  `scripts/build-mono.sh` run now executes
+  `bash scripts/verify-postgresql-only.sh .` unconditionally.
+- `Database:Provider`, `RvtDatabase:Provider`, `RVT__DATABASE_PROVIDER`,
+  `DatabaseProvider`, and the equivalent `RVT:DATABASE_PROVIDER` configuration
+  form are retired as selection keys and must be omitted from new deployment
+  manifests, scripts, and examples. During transition, raw compatibility
+  validators may still read a stale setting, accept only explicit
+  PostgreSQL/Npgsql/Timescale aliases, and reject any other value before it can
+  select a different provider.
+- Real credentials remain outside Git in user secrets or the deployment secret
+  store. Presence-only verification found `RVT_EF_CONNECTION`,
+  `RVT_TEST_POSTGRES_CONNECTION`,
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`, checked OpenAI/GitHub/NuGet secret
+  variables, monitor API/vendor keys, and the checked default connection
+  environment variable absent. No values were printed or recorded.
+
+### Fresh Task 13 verification
+
+- All 12 repository commands passed: PostgreSQL-only script/fixture,
+  mono-layout script/fixture, mono-solution script/fixture, RVT common
+  source-boundary script/fixture/regression, and documentation-layout
+  script/fixture/regression.
+- The documentation commands ran with normal Git config and the untouched
+  untracked `apps/.nuget-packages/` cache. The initial guard reproduced 185
+  generated Markdown discoveries and two issue groups. A focused regression
+  now proves only that exact cache is pruned; the real guard passes with 86
+  moves and 7 retained entry points.
+- Plain `dotnet restore Rvt.Mono.slnx --locked-mode` was run once and exited 1.
+  Before the supported repack, stale same-version local packages produced
+  `NU1403` content-hash failures for `Rvt.Monitor.Common`,
+  `Rvt.Monitor.Common.Infrastructure`, and
+  `Rvt.Monitor.IntegrationTesting`, plus `NU1101` for two retired transitive
+  dependencies carried by the stale local artifacts. No committed lock was
+  changed.
+- The supported restore with `RvtUseArtifactValidationLocks=true` passed.
+  The final 40-project no-incremental build passed with 0 errors and 66
+  warnings: 5 `NU1903`, 2 `MSTEST0001`, 3 `MSTEST0032`, 8 `MSTEST0037`,
+  47 `MSTEST0044`, and 1 `MSTEST0052`.
+- The five existing `System.Security.Cryptography.Xml` 10.0.7 high-severity
+  advisories reproduced unchanged:
+  `GHSA-23rf-6693-g89p`, `GHSA-8q5v-6pqq-x66h`,
+  `GHSA-cvvh-rhrc-wg4q`, `GHSA-g8r8-53c2-pm3f`, and
+  `GHSA-mmjf-rqrv-855v`.
+- Individually green .NET suites:
+  - `RvtPortal.Application.Tests`: 48 passed, 0 failed, 0 skipped;
+  - `RvtPortal.Spa.Tests`: 414 passed, 0 failed, 9 live skips, 423 total;
+  - `Rvt.Monitor.CommonTests`: 423 passed, 0 failed, 0 skipped;
+  - `Rvt.Monitor.Common.InfrastructureTests`: 64 passed, 0 failed, 0 skipped;
+  - `Rvt.Monitor.PackageValidationTests`: 8 passed, 0 failed, 0 skipped;
+  - `Rvt.Reporting.Core.Tests`: 26 passed, 0 failed, 0 skipped;
+  - `Rvt.Reporting.Service.Tests`: 7 passed, 0 failed, 0 skipped;
+  - focused `SchemaDeployTests`: 17 passed, 0 failed, 0 skipped;
+  - post-review `CutoverReadinessTests`: 13 passed, 0 failed, 0 skipped;
+  - generated uniqueness-migration script contract: 1 passed, 0 failed,
+    0 skipped;
+  - repaired Reporting deployment contracts: 3 passed, 0 failed, 0 skipped.
+- Full monitor-suite evidence, before filtering:
+  - AirQ: 89 passed, 33 failed, 0 skipped, 122 total;
+  - MyATM: 155 passed, 53 failed, 0 skipped, 208 total;
+  - Omnidots: 326 passed, 64 failed, 0 skipped, 390 total;
+  - Svantek: 87 passed, 40 failed, 0 skipped, 127 total;
+  - ReportingMonitor: 72 passed, 12 failed, 0 skipped, 84 total.
+  Failures classify as the absent
+  `RVT__POSTGRES_INTEGRATION_CONNECTION` guard and known imported pre-mono
+  filesystem/solution assumptions.
+- With only `TestCategory!=PostgreSqlIntegration` excluded:
+  - AirQ passed 89/89 and Omnidots passed 326/326;
+  - MyATM reported 155 passed and 10 known imported-assumption failures;
+  - Svantek reported 87 passed and 5 known mono-path failures;
+  - ReportingMonitor reported 72 passed, 10 missing-variable failures whose
+    xUnit fixture lacks that category, and 2 remaining known mono-path
+    failures. Its prerequisite, mono-solution, Compose, testlocal, and active
+    documentation path/configuration contracts now pass.
+- Narrow controls excluded only the named known failing classes after the broad
+  results were recorded: MyATM passed 141/141, Svantek passed 87/87, and
+  ReportingMonitor passed 68/68. These controls do not claim the excluded live
+  or imported-path cases passed.
+- The plan's obsolete `apps/portal/RvtPortal.Spa/ClientApp` prefix does not
+  exist and both prescribed npm commands exit 254 with `ENOENT`. At the tracked
+  `apps/portal/RvtPortal.Client` path, `test:run` passed 68/68 across 8 files
+  and the production build succeeded after transforming 1,605 modules.
+- `RVT_EF_CONNECTION` was absent, so the three EF
+  `has-pending-model-changes` checks were not run.
+  `RVT_TEST_POSTGRES_CONNECTION` was absent, so the 9 Portal live cases were
+  discovered as skips rather than executed.
+  `RVT__POSTGRES_INTEGRATION_CONNECTION` was absent, so live monitor suites and
+  `Rvt.Monitor.IntegrationTesting.Tests` were not run as live verification.
+- The final aggregate `scripts/build-mono.sh` run passed its unconditional
+  guard, package repack, artifact-validation restore, and build (5 warnings,
+  the five advisories above; 0 errors), then exited 1 at its unfiltered test
+  stage with the same monitor missing-variable/mono-path totals recorded
+  individually above. The three integration-test-support cases also failed
+  closed because `RVT__POSTGRES_INTEGRATION_CONNECTION` was absent. Portal,
+  Common, package-validation, and reporting-service aggregate results remained
+  green.
+- Whole-branch review from `a07f6019fc492531a2f7d67294dd17ace47058db`
+  found and repaired one real escaped provider-conditional migration through a
+  RED/GREEN guard mutation, then broadened that guard through independent
+  Contains, StartsWith, equality, Identity-history, and provider-name mutation
+  fixtures. Final review reports zero forbidden packages in projects/locks,
+  zero tracked retired-provider paths, zero production legacy SQL tokens, zero
+  provider-selection tokens in tracked Portal migration histories, 17
+  intentional Task 11 lock changes with zero unexpected post-Task11
+  verification lock drift, zero changed authorization production files, zero
+  added `DateTime.Now`/`DateTime.Today` calls, zero added production
+  `SaveChanges` calls, and a clean whole-branch `git diff --check`.
+
+### Deployment, rollback, and known limitation
+
+- Before deployment, take and verify a PostgreSQL/TimescaleDB backup, provision
+  extensions and privileges, configure secret-store connections, apply all
+  three Portal EF migration chains plus `RVT.SchemaDeploy`, apply the required
+  monitor/reporting PostgreSQL prerequisites, and run the environment-gated
+  pending-model and live integration suites against the target-compatible
+  database.
+- Remove stale provider-selection settings from deployment manifests. The raw
+  compatibility validators remain only to fail closed on unsupported legacy
+  values during the transition; they are not rollout configuration.
+- Rollback is a coordinated Git/application rollback plus restoration of the
+  verified database backup or the supported PostgreSQL rollback scripts for the
+  deployed change. There is no runtime dual-provider rollback and no retained
+  reader/conversion path for the retired database.
+- Monitor source builds are supported. Checked-in monitor container builds are
+  currently unsupported: their `apps/monitors` build context cannot reach
+  repository-root shared source projects, and obsolete package-feed secret
+  plumbing remains. A monorepo-root context, realigned Dockerfile paths, secret
+  cleanup, and verified clean image builds are required before container
+  support can be claimed.
+
+## PostgreSQL-only main integration - 2026-07-26
+
+- `main` at `d86c82bc6fb4e8808e328e9d09e062e0e2ed2868` was merged with
+  `codex/postgresql-only` at
+  `adf732af4bd03318645a452092f0631773f38afb` using an explicit merge commit.
+  The integration preserves the Sites application boundary, PostgreSQL-only
+  database contract, communication provider split, storage provider split, and
+  eleven-package release catalog.
+- Conflict resolution keeps `RvtPortal.Application`, Portal's explicit
+  Abstractions/SendGrid host references, the removed legacy Infrastructure
+  project, PostgreSQL test connections, SendGrid test settings, and allowed
+  host filtering. Shared Common owns neither database-provider packages nor
+  Azure/AWS storage SDKs.
+- Merge repairs route superseded site-archive cleanup through
+  `IBlobStorageClientFactory`, preserve Azure blob URL validation, pass
+  `IConfiguration` into ReportingMonitor composition, and use monorepo-root
+  path resolution in Common and ReportingMonitor architecture tests.
+- Temporary package validation now matches the seven packages actually emitted
+  by `scripts/build-mono.sh`: Common, IntegrationTesting, Abstractions,
+  Communication, MicrosoftGraphMail, SendGridMail, and TransmitSms. The release
+  catalog remains the source of truth for the incremental eleven-package
+  `1.0.0-rc.1` train.
+- All 12 PostgreSQL/layout/solution/source-boundary/documentation commands
+  pass. The full tracked solution builds with zero errors; five existing
+  `System.Security.Cryptography.Xml` 10.0.7 `NU1903` advisories remain.
+- Green merged suites: Application 48/48; Portal 425/425 with 9 live
+  PostgreSQL skips; Common 340/340; Storage 154/154; Communication 133/133;
+  package validation 17/17; ReportingMonitor non-live 83/83; reporting
+  core/service 40/40.
+- Local verification used
+  `/private/tmp/rvt-exclude-untracked-duplicates.targets` only to exclude the
+  preserved untracked duplicate Portal `* 2.cs` files from compilation. No
+  tracked build rule was weakened. Generated obsolete Infrastructure package
+  artifacts were removed from the ignored `artifacts/packages` output.
+- Preserved untracked state includes `.codegraph/`, `apps/.nuget-packages/`,
+  `apps/monitors/reportingmonitor/Directory.Packages.props`, the two duplicate
+  Portal C# files, `localDate 2.ts`, and the duplicate Sites design Markdown
+  file. Restore also generated untracked `packages.lock.json` files for the
+  four Storage provider projects and `Rvt.Storage.Tests`; their lock migration
+  remains delegated to the eleven-package release plan.
+
+Next-session instruction: Read project_state.md to get up to speed

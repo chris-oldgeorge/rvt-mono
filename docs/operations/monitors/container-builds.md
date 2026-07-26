@@ -1,34 +1,61 @@
-# Local Container Builds
+# Monitor Build Status
 
-Use the native macOS clone for local Docker work:
-
-```sh
-cd /Users/oldgeorge/Documents/rvt-monitors/rvt-monitors
-```
-
-The monitor API containers restore private `Rvt.Monitor.*` packages during their build.
-Supply the GitHub Packages credential to BuildKit through the current process only:
+Use the monorepo for source builds:
 
 ```sh
-export NuGetPackageSourceCredentials_rvt="Username=$GITHUB_USER;Password=$GITHUB_PACKAGES_TOKEN;ValidAuthenticationTypes=Basic"
-docker compose build
+cd /Users/oldgeorge/Documents/rvt-mono
+scripts/build-mono.sh
 ```
 
-The root Compose file exposes this value only as the `nuget_credentials` BuildKit
-secret for the publish step. It is not a runtime application secret and must not be
-placed in a Dockerfile, build argument, image environment, committed `.env` file, or
-other repository file. The personal mirror CI constructs the same value from the
-`RVT_PACKAGES_READ_USER` and `RVT_PACKAGES_READ_TOKEN` repository secrets. The token
-must be a classic personal access token limited to `read:packages`, owned by an account
-that can read all three organization packages. An organization-owned consumer repository
-may instead use its `GITHUB_TOKEN` only after every package explicitly grants that
-repository GitHub Actions read access.
+Active .NET monitor projects compile Common, Common Infrastructure, and
+integration-test support through `ProjectReference` entries into the root
+`libs/rvt-monitor-common` tree. Ordinary project and solution restores use the
+checked-in per-project `packages.lock.json` files.
 
-Docker builds restore Common exclusively from the private package feed and contain no local Common source fallback. After building, run `scripts/report-rvt-package-inventory.sh`; every image must report `0.2.0-rc.1` for both `Rvt.Monitor.Common` and `Rvt.Monitor.Common.Infrastructure`.
+`apps/monitors/NuGet.config` has nuget.org as its only source, for third-party
+dependencies. Active source consumers do not restore Common packages and must
+not fall back to a package feed.
+
+## Package artifact validation
+
+`scripts/build-mono.sh` separately packs
+`Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and
+`Rvt.Monitor.IntegrationTesting` at exact version `0.2.0-rc.1` into the local
+`artifacts/packages` feed. Only the two consumers under
+`libs/rvt-monitor-common/package-validation` restore those artifacts.
+
+The script sets `RvtUseArtifactValidationLocks=true`, which redirects those
+consumers to generated, ignored
+`artifacts/validation-locks/RuntimeConsumer.packages.lock.json` and
+`artifacts/validation-locks/TestConsumer.packages.lock.json`. Repacking the same
+prerelease version can change archive hashes, so artifact validation generates
+these isolated locks instead of overwriting or relying on the checked-in
+source-project locks.
+
+## Container build limitation
+
+The checked-in container path is currently not supported or green:
+
+- every build `context: .` in `apps/monitors/docker-compose.yml` resolves to
+  `apps/monitors`;
+- every monitor Dockerfile runs `COPY . .`;
+- the active project references resolve outside that context into the
+  repository-root `libs/rvt-monitor-common`.
+
+An ordinary `docker compose build` therefore cannot resolve the active Common
+source projects. Compose and the Dockerfiles also retain obsolete
+`nuget_credentials` secret plumbing, but active source consumers do not need
+that credential.
+
+Before container builds can be claimed supported, follow-up work must use a
+monorepo-root build context, realign Dockerfile project paths, remove the
+obsolete secret plumbing, and verify clean image builds. Do not use a package
+feed or package-consumer fallback as a workaround.
 
 Do not build from the retired Parallels Windows C: share paths (`/Volumes/[C] Windows 11/...` or `/private/tmp/win11c/...`). Those mounted workspaces generated macOS SMB AppleDouble `._*` sidecars that could break Docker build-context packaging. The native clone avoids that class of failure, so the old filtered tar build workaround is no longer the default process.
 
-The root `docker-compose.yml` sets API mode at container level with environment variables:
+The checked-in `docker-compose.yml` describes the intended API-mode runtime
+environment after that build-path follow-up:
 
 ```sh
 Infrastructure=local
@@ -43,7 +70,7 @@ Local API ports:
 - Svantek: `http://localhost:8084/liveness`
 - Reporting: `http://localhost:8085/liveness` (and `http://localhost:8085/readiness` for database readiness)
 
-The root Compose definition does not create a database container. Provide the shared PostgreSQL connection string and reporting secrets through an untracked override or the deployment secret store. ReportingMonitor requires `ConnectionStrings__DefaultConnection`, `RVT__DATABASE_PROVIDER=PostgreSql`, and a target database with `reportingmonitor/database/postgres/reporting_service_prerequisites_20260625.sql` already applied. Its protected `/internal/reports` endpoints use `X-RVT-Internal-Key` when `RVT__INTERNAL_API_KEY` is configured.
+The root Compose definition does not create a database container. Provide the shared PostgreSQL connection string and reporting secrets through an untracked override or the deployment secret store. ReportingMonitor requires `ConnectionStrings__DefaultConnection` and a target database with `reportingmonitor/database/postgres/reporting_service_prerequisites_20260625.sql` already applied. Omit database-provider selection settings: PostgreSQL is unconditional, although transitional validation still rejects unsupported stale legacy values. Its protected `/internal/reports` endpoints use `X-RVT-Internal-Key` when `RVT__INTERNAL_API_KEY` is configured.
 
 AirQ's import API is not published to the host by the base Compose file. Set
 `RVT__MONITOR_API_KEY` through a secret mechanism before enabling `MonitorApi`.
@@ -59,13 +86,9 @@ services:
     ports: ["127.0.0.1:8081:8080"]
 ```
 
-To run one API container locally:
-
-```sh
-docker compose up airqmonitor-api
-```
-
-For ReportingMonitor, use `docker compose up reportingmonitor-api`. The base service intentionally starts with the API enabled and Quartz disabled; enable the scheduler only in an explicit deployment configuration.
+The ReportingMonitor service definition starts with the API enabled and Quartz
+disabled; enable the scheduler only in an explicit deployment configuration
+after a supported image is available.
 
 ## Object Storage Provider Composition
 
@@ -122,7 +145,7 @@ Keep credentials out of tracked files and supply them through the deployment sec
 
 Local scheduler containers should set `Infrastructure=local`, `MonitorScheduler__Enabled=true`, and normally leave `MonitorApi__Enabled=false` unless a combined API plus scheduler process is intentional. Azure Container Apps Jobs should instead set `Infrastructure=azure` and run a single job with `RVT__MONITOR_JOB=<job-name>` or `--job <job-name>`; they do not initialize Quartz.
 
-Before deploying the current Omnidots image, apply its provider-specific `2026-07-14-add-import-cursors-and-trace-order.sql` from `omnidotsmonitor/OmnidotsMonitor/postgres/` or `omnidotsmonitor/OmnidotsMonitor/sqlserver/`. The application requires the independent import-cursor table and ordered trace-sample key. Keep the matching rollback script available, but stop or roll back the application before removing that schema.
+Before deploying the current Omnidots image, apply `omnidotsmonitor/OmnidotsMonitor/postgres/2026-07-14-add-import-cursors-and-trace-order.sql`. The application requires the independent import-cursor table and ordered trace-sample key. Keep the matching rollback script available, but stop or roll back the application before removing that schema.
 
 ## MQTT Client Certificates
 
@@ -165,7 +188,7 @@ The Svantek monitor reads its API key from `RVT__SVANTEK_API_KEY`. For local dev
 dotnet user-secrets set RVT__SVANTEK_API_KEY <redacted> --project svantekmonitor/SvantekMonitor/SvantekMonitor.csproj
 ```
 
-For the single-monitor local demo container, pass the key through a local, untracked env file together with `testlocal=true`, `RVT__MONITOR_JOB=StoreNoiseLevels`, `RVT__DATABASE_PROVIDER=PostgreSql`, and `ConnectionStrings__DefaultConnection`. Standalone `docker run` reads these values from `--env-file`; Docker swarm secrets require the Docker daemon to be initialized as a swarm manager first.
+For the single-monitor local demo container, pass the key through a local, untracked env file together with `testlocal=true`, `RVT__MONITOR_JOB=StoreNoiseLevels`, and `ConnectionStrings__DefaultConnection`. Standalone `docker run` reads these values from `--env-file`; Docker swarm secrets require the Docker daemon to be initialized as a swarm manager first.
 
 ## Omnidots Vibration Local Demo
 
@@ -195,6 +218,6 @@ Implementation notes:
 - The same filter narrows database monitor reads by serial `21972` and fleet `R6025V`.
 - StoreDust, StoreAccessoryInfo, offline checks, clear-offline, and serial-specific ProcessDustLevels rules are constrained to the demo monitor when `testlocal=true`.
 
-For an authenticated one-shot local demo container, pass an untracked env file containing `RVT__MYATM_TOKEN`, `testlocal=true`, `RVT__MONITOR_JOB=StoreMonitors`, `RVT__DATABASE_PROVIDER=PostgreSql`, and `ConnectionStrings__DefaultConnection`. The local Timescale smoke run can share the database container network with `--network container:rvt-timescaledb` and use `Host=127.0.0.1` in the connection string.
+For an authenticated one-shot local demo container, pass an untracked env file containing `RVT__MYATM_TOKEN`, `testlocal=true`, `RVT__MONITOR_JOB=StoreMonitors`, and `ConnectionStrings__DefaultConnection`. The local Timescale smoke run can share the database container network with `--network container:rvt-timescaledb` and use `Host=127.0.0.1` in the connection string.
 
 Do not set `testlocal=true` for normal MyAtm runs; it deliberately excludes every dust monitor except `21972` / `R6025V`.

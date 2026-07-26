@@ -154,7 +154,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.9, )",
-          "Rvt.Communication.Abstractions": "[0.2.0-rc.1, )"
+          "Rvt.Communication.Abstractions": "[1.0.0-rc.1, )"
         }
       },
       "rvt.communication.abstractions": {

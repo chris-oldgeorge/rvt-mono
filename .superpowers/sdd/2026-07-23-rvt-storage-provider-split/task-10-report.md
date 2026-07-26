@@ -90,7 +90,7 @@ that restriction is the fresh 148/148 result above.
 The existing full-suite evidence remains applicable and was not retried merely
 to reproduce known environmental failures:
 
-- Common: 340 passed, two failed because the retained SQL Server/PostgreSQL
+- Common: 340 passed, two failed because the retained legacy dual-provider
   monitor-delivery migration files are absent.
 - Svantek: 93 passed, 40 failed because PostgreSQL is unavailable and retained
   schema/boundary fixtures are repository-root sensitive.

@@ -1,6 +1,6 @@
 # RVT Monitors
 
-RVT Monitors contains the container-ready monitor services used to import environmental monitoring data into the RVT PostgreSQL/Timescale database and generate customer reports. The codebase includes four vendor monitor applications, a reporting monitor, shared monitor runtime projects, local Docker orchestration, and an OpenTelemetry/Grafana observability stack.
+RVT Monitors contains the monitor services used to import environmental monitoring data into the RVT PostgreSQL/Timescale database and generate customer reports. The codebase includes four vendor monitor applications, a reporting monitor, shared runtime and provider projects, Docker definitions pending monorepo-context realignment, and an OpenTelemetry/Grafana observability stack.
 
 Detailed monitor documentation is centralized in the
 [repository documentation index](../../docs/index.md#monitors).
@@ -17,8 +17,8 @@ Detailed monitor documentation is centralized in the
 | `observability/` | Local OpenTelemetry Collector, Grafana, Prometheus, Tempo, and Loki configuration plus provisioned RVT dashboards. |
 | [`../../docs/index.md#monitors`](../../docs/index.md#monitors) | Central monitor architecture, development, operations, release, database, module, and history documentation. |
 | `scripts/` | Operational scripts for local testlocal monitor runs and SonarQube/SonarCloud analysis. |
-| `docker-compose.yml` | Local PostgreSQL/Timescale and monitor API container composition. |
-| `rvt-monitors.sln` | Root .NET solution containing 14 private-package consumer projects across the monitor applications and tests. |
+| `docker-compose.yml` | Monitor API runtime composition; its build contexts require the follow-up described under Local Containers. |
+| `rvt-monitors.sln` | Root .NET solution for the monitor applications, shared-source references, and tests. |
 
 This release package intentionally excludes agent memory, internal planning notes, and local development state files such as `AGENTS.md`, `project_state.md`, `docs/superpowers/**`, `docs/database/monitors/monitor-data-access-migration.md`, `docs/release/**`, `.codegraph/**`, and release-export tooling.
 
@@ -29,18 +29,31 @@ The active mono-repository graph source-references `Rvt.Monitor.Common`,
 Storage is likewise split into the provider-neutral
 `Rvt.Storage.Abstractions` package and the explicit `Rvt.Storage.Local`,
 `Rvt.Storage.AzureBlob`, and `Rvt.Storage.S3` adapter packages.
-Retained package locks and the `0.2.0-rc.1` package-validation assets have not
-yet been migrated to this graph; that work belongs to the dedicated
-eleven-package release plan. Authentication must be supplied only to the
-running restore or container-build process; never write a package credential
-into source, NuGet configuration, build arguments, image layers, or committed
-environment files.
+
+Package-consumer validation is deliberately isolated under
+`libs/rvt-monitor-common/package-validation`. The fixtures consume the locally
+packed Common and IntegrationTesting entry packages at exact version
+`0.2.0-rc.1`; the current monorepo build packs the seven Common,
+IntegrationTesting, and Communication packages into `artifacts/packages` and sets
+`RvtUseArtifactValidationLocks=true`. That redirects the two package consumers
+to generated, ignored `artifacts/validation-locks/*` files: rebuilding archives
+at the same prerelease version changes their hashes, so the committed
+source-project locks cannot be reused as artifact locks.
+The migration to the catalogued eleven-package `1.0.0-rc.1` release train,
+including all four Storage packages, remains incremental. Authentication must
+be supplied only to the running restore or container-build process; never write
+a package credential into source, NuGet configuration, build arguments, image
+layers, or committed environment files.
 
 ## Architecture Summary
 
-The monitor applications are ASP.NET Core/.NET services that can run in one-shot job mode, local always-on container mode, or Azure Container Apps Job mode. PostgreSQL/Timescale is the default database target, with SQL Server compatibility retained for legacy tests and selected migration paths.
+The monitor applications are ASP.NET Core/.NET services that can run in one-shot job mode, local always-on container mode, or Azure Container Apps Job mode. PostgreSQL/TimescaleDB is the sole database target for runtime, migrations, and tests.
 
-Each monitor app uses an EF Core-backed data access layer and narrow query/command interfaces over the legacy `IDBClient` compatibility facade. Simple DTO/entity mapping is handled inside monitor app projects with Mapperly, while shared database and runtime infrastructure is consumed from the exact private packages owned by `RVT-Group-LTD/rvt-reporting`.
+Each monitor app uses an EF Core-backed data access layer and narrow
+query/command interfaces over the retained `IDBClient` facade. Simple
+DTO/entity mapping is handled inside monitor app projects with Mapperly, while
+shared database and runtime infrastructure is compiled from the in-repository
+Common projects.
 
 OpenTelemetry is wired for traces, metrics, and logs. The local observability stack receives OTLP from the monitor containers through the collector and exposes dashboards in Grafana.
 
@@ -72,13 +85,16 @@ Common runtime configuration is supplied through environment variables or app se
 
 | Setting | Purpose |
 | --- | --- |
-| `RVT__DATABASE_PROVIDER` | Database provider. Defaults to `PostgreSql`; `SqlServer` is still supported for tests and legacy compatibility. |
 | `ConnectionStrings__DefaultConnection` | Monitor database connection string. |
 | `Infrastructure` | `local` for always-on local containers, `azure` for Azure Container Apps Job execution without Quartz startup. |
 | `MonitorScheduler__Enabled` | Enables Quartz scheduling when `Infrastructure=local`. |
 | `RVT__MONITOR_JOB` | Runs a single monitor job in one-shot mode. |
 | `testlocal` | Enables local demo filters where implemented so only known test monitors are processed. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry collector endpoint. |
+
+Database-provider selection settings should be omitted. PostgreSQL is
+unconditional; transitional validation may still reject an unsupported value
+if a stale legacy setting is supplied, but no provider key is required.
 
 ReportingMonitor additionally uses `RVT__INTERNAL_API_KEY` for its protected `/internal/reports` routes and the provider-neutral object-storage settings (`RVT__BLOB_PROVIDER`, `RVT__BLOB_CONTAINER`, `RVT__BLOB_PREFIX`, and the selected provider's settings). Its defaults are container `pdfreports`, prefix `rvtreports`, and the Local provider. The legacy `RVT__BLOB_REPORT_CONTAINER_NAME` setting remains a fallback when `RVT__BLOB_CONTAINER` is absent. Email, SendGrid, SPA, AI-summary, and complete storage settings are documented in the [ReportingMonitor guide](../../docs/modules/monitors/reportingmonitor/README.md). It uses the standard `ConnectionStrings__DefaultConnection` setting and PostgreSQL provider.
 
@@ -196,6 +212,13 @@ dotnet restore rvt-monitors.sln
 dotnet build rvt-monitors.sln
 ```
 
+The solution projects use their checked-in per-project `packages.lock.json`
+files. To run the full monorepo build, including the separate package artifact
+contract, run `scripts/build-mono.sh` from the repository root. It packs
+`Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and
+`Rvt.Monitor.IntegrationTesting` at `0.2.0-rc.1`, then generates isolated
+artifact-validation locks as described above.
+
 PostgreSQL integration tests can read local settings from the ignored
 `.rvt/rvt-integration.appsettings.Development.json` file at the repository root. Create
 that file locally when the runtime environment variable is not used; do not commit database
@@ -236,24 +259,21 @@ RVT__POSTGRES_INTEGRATION_CONNECTION='<runtime-only connection string>' \
 
 ## Local Containers
 
-The container build restores private `Rvt.Monitor.*` packages through an ephemeral
-BuildKit secret. Export the NuGet credential for the current shell, then build or start
-the local monitor API containers:
+The current Compose/Docker build path is not supported or green. Active monitor
+projects reference Common source under the repository-root
+`libs/rvt-monitor-common`, but every build context in
+`apps/monitors/docker-compose.yml` is `apps/monitors` and each Dockerfile runs
+`COPY . .`. The resulting build context cannot contain those root source
+projects, so an ordinary Compose build cannot resolve the project references.
 
-```bash
-export NuGetPackageSourceCredentials_rvt="Username=$GITHUB_USER;Password=$GITHUB_PACKAGES_TOKEN;ValidAuthenticationTypes=Basic"
-docker compose build
-```
+Compose and the Dockerfiles still contain obsolete `nuget_credentials` secret
+plumbing. Active source consumers do not need it. Before container builds can
+be claimed supported, follow-up work must realign the build contexts and
+Dockerfile paths to the monorepo root and remove that secret plumbing. A package
+feed or package-consumer fallback is not a supported workaround.
 
-```bash
-export NuGetPackageSourceCredentials_rvt="Username=$GITHUB_USER;Password=$GITHUB_PACKAGES_TOKEN;ValidAuthenticationTypes=Basic"
-docker compose up -d --build
-```
-
-BuildKit reads this variable only for the package restore/publish step. It is not a
-runtime application secret and is not stored in the Dockerfiles, image environment,
-image layers, build arguments, repository files, or a committed `.env` file. CI uses
-`github.actor` with the repository's authorized `GITHUB_TOKEN` supplied by GitHub Actions.
+Continue to keep runtime database and vendor credentials in deployment secrets
+or ignored local files.
 
 Start the local observability stack:
 
@@ -263,19 +283,23 @@ docker compose --project-directory . \
   up -d
 ```
 
-Start monitor containers with the observability overrides:
-
-```bash
-docker compose --project-directory . \
-  -f docker-compose.yml \
-  -f observability/docker-compose.observability.yml \
-  -f observability/docker-compose.monitors-observed.yml \
-  up -d --build
-```
+The monitor-container observability override remains blocked by the same build
+context issue. Do not use it as release evidence until the follow-up is merged
+and a clean root-context image build is verified.
 
 Grafana is available at `http://localhost:3000` when the observability stack is running.
 
-ReportingMonitor is available at `http://localhost:8085/liveness`; its database-backed readiness endpoint is `http://localhost:8085/readiness`. Its `/internal/reports` endpoints require `X-RVT-Internal-Key` when `RVT__INTERNAL_API_KEY` is configured (and always outside Development when it is absent). With the default Local object-storage provider, generated PDFs persist in the `reporting-reportfiles` named volume under `/data/rvt/blobs/pdfreports/rvtreports/`. Supply the database connection and all reporting vendor credentials through an untracked Compose override or deployment secret store; the base Compose file deliberately declares no database service.
+Once a supported image build path exists, ReportingMonitor's intended local
+routes are `http://localhost:8085/liveness` and
+`http://localhost:8085/readiness`. Its `/internal/reports` endpoints require
+`X-RVT-Internal-Key` when `RVT__INTERNAL_API_KEY` is configured (and always
+outside Development when it is absent). With the default Local object-storage
+provider,
+generated PDFs use the `reporting-reportfiles` named volume under
+`/data/rvt/blobs/pdfreports/rvtreports/`. Supply the database connection and
+all reporting vendor credentials through an untracked Compose override or
+deployment secret store; the base Compose file deliberately declares no
+database service.
 
 AirQ's import API is not published to the host by the base Compose file. Set
 `RVT__MONITOR_API_KEY` through a secret mechanism before enabling `MonitorApi`.

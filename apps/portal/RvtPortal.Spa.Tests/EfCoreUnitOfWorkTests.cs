@@ -1,5 +1,6 @@
 // File summary: Verifies real EF Core transaction behavior across RVT domain, search, and Identity contexts.
 // Major updates:
+// - 2026-07-25 pending Added fault-path coverage that preserves commit failures when rollback also fails.
 // - 2026-07-08 pending Added relational Unit of Work tests for multi-context saves and rollback of immediate writes.
 
 using Microsoft.Data.Sqlite;
@@ -224,6 +225,106 @@ public sealed class EfCoreUnitOfWorkTests
     }
 
     [Fact]
+    // Function summary: Verifies a rollback fault cannot replace the commit fault that caused cleanup to begin.
+    public async Task ExecuteInTransactionAsync_CommitFailureRemainsPrimaryWhenRollbackAlsoFails()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var commitFailure = new CommitFailureException();
+        var rollbackFailure = new RollbackFailureException();
+        using var requestCancellation = new CancellationTokenSource();
+        var interceptor = new FailingCommitAndRollbackInterceptor(
+            commitFailure,
+            rollbackFailure,
+            requestCancellation);
+        var domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(interceptor)
+            .Options;
+        var searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseSqlite(connection)
+            .Options;
+        var applicationOptions =
+            new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseSqlite(connection)
+                .Options;
+
+        await using var domainContext = new RVTDbContext(domainOptions);
+        await using var searchContext = new RVTSearchContext(searchOptions);
+        await using var applicationContext =
+            new ApplicationDbContext(applicationOptions);
+        var unitOfWork = new EfCoreUnitOfWork(
+            domainContext,
+            searchContext,
+            applicationContext);
+
+        var escaped = await Record.ExceptionAsync(
+            () => unitOfWork.ExecuteInTransactionAsync(
+                _ => Task.FromResult(new TestOutcome(ShouldCommit: true)),
+                requestCancellation.Token));
+
+        Assert.Multiple(
+            () => Assert.Same(commitFailure, escaped),
+            () => Assert.Equal(1, interceptor.CommitAttempts),
+            () => Assert.Equal(1, interceptor.RollbackAttempts),
+            () => Assert.True(requestCancellation.IsCancellationRequested),
+            () => Assert.False(interceptor.RollbackToken.CanBeCanceled),
+            () => Assert.Contains(
+                nameof(FailingCommitAndRollbackInterceptor
+                    .TransactionCommittingAsync),
+                commitFailure.StackTrace,
+                StringComparison.Ordinal));
+        var diagnostics = Assert.IsType<AggregateException>(
+            commitFailure.Data[
+                EfCoreUnitOfWork.SecondaryTransactionFailuresDataKey]);
+        Assert.Contains(rollbackFailure, diagnostics.InnerExceptions);
+    }
+
+    [Fact]
+    // Function summary: Verifies best-effort secondary diagnostics cannot mask a primary exception with unusable Data.
+    public async Task ExecuteInTransactionAsync_CommitFailureRemainsPrimaryWhenDiagnosticsCannotBeAttached()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var commitFailure =
+            new CommitFailureWithThrowingDataException();
+        var rollbackFailure = new RollbackFailureException();
+        var interceptor = new FailingCommitAndRollbackInterceptor(
+            commitFailure,
+            rollbackFailure);
+        var domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(interceptor)
+            .Options;
+        var searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
+            .UseSqlite(connection)
+            .Options;
+        var applicationOptions =
+            new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseSqlite(connection)
+                .Options;
+
+        await using var domainContext = new RVTDbContext(domainOptions);
+        await using var searchContext = new RVTSearchContext(searchOptions);
+        await using var applicationContext =
+            new ApplicationDbContext(applicationOptions);
+        var unitOfWork = new EfCoreUnitOfWork(
+            domainContext,
+            searchContext,
+            applicationContext);
+
+        var escaped = await Record.ExceptionAsync(
+            () => unitOfWork.ExecuteInTransactionAsync(
+                _ => Task.FromResult(new TestOutcome(ShouldCommit: true)),
+                CancellationToken.None));
+
+        Assert.Multiple(
+            () => Assert.Same(commitFailure, escaped),
+            () => Assert.Equal(1, interceptor.CommitAttempts),
+            () => Assert.Equal(1, interceptor.RollbackAttempts));
+    }
+
+    [Fact]
     // Function summary: Verifies a retried operation does not re-stage the previous attempt's writes as duplicates.
     public async Task ExecuteInTransactionAsync_ClearsChangeTrackerBetweenRetries()
     {
@@ -265,6 +366,57 @@ public sealed class EfCoreUnitOfWorkTests
 
     // A minimal ITransactionOutcome so the gate can be exercised without depending on a specific command result.
     private sealed record TestOutcome(bool ShouldCommit) : ITransactionOutcome;
+
+    private sealed class CommitFailureException : Exception;
+
+    private sealed class CommitFailureWithThrowingDataException : Exception
+    {
+        public override System.Collections.IDictionary Data =>
+            throw new InvalidOperationException(
+                "Diagnostics cannot be attached to this exception.");
+    }
+
+    private sealed class RollbackFailureException : Exception;
+
+    // Throws distinct commit and rollback instances so the escaped exception identity and cleanup diagnostics are observable.
+    private sealed class FailingCommitAndRollbackInterceptor(
+        Exception commitFailure,
+        Exception rollbackFailure,
+        CancellationTokenSource? requestCancellation = null)
+        : Microsoft.EntityFrameworkCore.Diagnostics.DbTransactionInterceptor
+    {
+        public int CommitAttempts { get; private set; }
+
+        public int RollbackAttempts { get; private set; }
+
+        public CancellationToken RollbackToken { get; private set; }
+
+        public override ValueTask<
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult>
+            TransactionCommittingAsync(
+                System.Data.Common.DbTransaction transaction,
+                Microsoft.EntityFrameworkCore.Diagnostics.TransactionEventData eventData,
+                Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult result,
+                CancellationToken cancellationToken = default)
+        {
+            CommitAttempts++;
+            requestCancellation?.Cancel();
+            throw commitFailure;
+        }
+
+        public override ValueTask<
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult>
+            TransactionRollingBackAsync(
+                System.Data.Common.DbTransaction transaction,
+                Microsoft.EntityFrameworkCore.Diagnostics.TransactionEventData eventData,
+                Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult result,
+                CancellationToken cancellationToken = default)
+        {
+            RollbackAttempts++;
+            RollbackToken = cancellationToken;
+            throw rollbackFailure;
+        }
+    }
 
     // Marks the one designated "transient" failure the retry strategy below is willing to retry.
     private sealed class TransientMarkerException : Exception;

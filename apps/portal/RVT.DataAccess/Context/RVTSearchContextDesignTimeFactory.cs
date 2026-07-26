@@ -11,7 +11,7 @@ namespace RVT.DataAccess.Context;
 /// <summary>
 /// Design-time factory for <see cref="RVTSearchContext"/>.
 ///
-/// It reads the same RVT_EF_PROVIDER / RVT_EF_CONNECTION environment variables as
+/// It reads the same required RVT_EF_CONNECTION environment variable as
 /// <see cref="RVTDbContextDesignTimeFactory"/> - see docs/database/portal/ef-migrations.md - and differs from it in one
 /// respect: it points the context at its own migrations-history table, because both contexts migrate disjoint
 /// halves of a single database.

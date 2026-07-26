@@ -1,8 +1,7 @@
-﻿// File summary: Provides provider-aware SQL definitions for site archive CSV and report exports.
+﻿// File summary: Provides canonical PostgreSQL SQL definitions for site archive CSV and report exports.
 // Major updates:
+// - 2026-07-25 pending Made public-schema PostgreSQL SQL canonical.
 // - 2026-07-09 pending Moved site archive SQL into a dedicated provider-aware query catalog.
-
-using RVT.DataAccess.Configuration;
 
 namespace RvtPortal.Spa.Adapters.Archive;
 
@@ -45,12 +44,9 @@ internal sealed record ArchiveCsvExport<T>(string ExportFileName, string ExportS
 
 internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
 {
-    private readonly SiteArchiveSqlDialect sql;
-
-    // Function summary: Initializes archive SQL definitions for the configured database provider.
-    public SiteArchiveQueryCatalog(IRvtDatabaseConnectionFactory connectionFactory)
+    // Function summary: Initializes the canonical PostgreSQL archive SQL definitions.
+    public SiteArchiveQueryCatalog()
     {
-        sql = SiteArchiveSqlDialect.For(connectionFactory.Provider);
         CsvExports =
         [
             Export<MonitorArchiveRow>("Monitors.csv", MonitorSql()),
@@ -62,7 +58,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
             Export<TraceListArchiveRow>("TraceList.csv", TraceListSql()),
             Export<TraceDataArchiveRow>("TraceData.csv", TraceDataSql())
         ];
-        ReportLinksSql = $"SELECT report_link as \"ReportLink\" FROM {sql.Table("report")} WHERE site_id = @SiteId";
+        ReportLinksSql = $"SELECT report_link as \"ReportLink\" FROM {Table("report")} WHERE site_id = @SiteId";
     }
 
     public IReadOnlyList<ArchiveCsvExport> CsvExports { get; }
@@ -77,7 +73,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
     }
 
     // Function summary: Builds the monitor metadata archive query.
-    private string MonitorSql()
+    private static string MonitorSql()
     {
         return $"""
             SELECT m.fleet_nr as "Monitor",
@@ -89,16 +85,16 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    c.contract_number as "ContractNumber",
                    c.on_hire_date as "OnHireDate",
                    c.off_hire_date as "OffHireDate"
-            FROM {sql.Table("deployment")} d
-            LEFT JOIN {sql.Table("contract")} c ON c.id = d.contract_id
-            LEFT JOIN {sql.Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {sql.Table("monitor")} m ON m.id = d.monitor_id
+            FROM {Table("deployment")} d
+            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            LEFT JOIN {Table("site")} s ON s.id = c.site_id
+            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
             WHERE s.id = @SiteId
             """;
     }
 
     // Function summary: Builds the breach and caution archive query.
-    private string BreachSql()
+    private static string BreachSql()
     {
         return $"""
             SELECT m.fleet_nr as "Monitor",
@@ -113,11 +109,11 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    n.closed_time as "ClosedTime",
                    n.closed_by_user as "ClosedByUser",
                    n.closed_note as "ClosedNote"
-            FROM {sql.Table("deployment")} d
-            LEFT JOIN {sql.Table("contract")} c ON c.id = d.contract_id
-            LEFT JOIN {sql.Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {sql.Table("monitor")} m ON m.id = d.monitor_id
-            LEFT JOIN {sql.Table("notification")} n ON n.monitor_id = d.monitor_id
+            FROM {Table("deployment")} d
+            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            LEFT JOIN {Table("site")} s ON s.id = c.site_id
+            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            LEFT JOIN {Table("notification")} n ON n.monitor_id = d.monitor_id
                 AND n.notification_time >= {EffectiveStartExpression()}
                 AND n.notification_time < {EffectiveEndExpression()}
             WHERE n.alert_type < 2 AND s.id = @SiteId
@@ -125,7 +121,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
     }
 
     // Function summary: Builds the dust measurement archive query.
-    private string DustSql()
+    private static string DustSql()
     {
         return $"""
             SELECT m.fleet_nr as "Monitor",
@@ -136,11 +132,11 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    l.pm_2_5 as "Pm2_5",
                    l.pm_10 as "Pm10",
                    l.pm_total as "PmTotal"
-            FROM {sql.Table("deployment")} d
-            LEFT JOIN {sql.Table("contract")} c ON c.id = d.contract_id
-            LEFT JOIN {sql.Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {sql.Table("monitor")} m ON m.id = d.monitor_id
-            RIGHT JOIN {sql.Table("my_atm_dust_level")} l ON l.serial_id = m.serial_id
+            FROM {Table("deployment")} d
+            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            LEFT JOIN {Table("site")} s ON s.id = c.site_id
+            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            RIGHT JOIN {Table("my_atm_dust_level")} l ON l.serial_id = m.serial_id
                 AND l.sample_time >= {EffectiveStartExpression()}
                 AND l.sample_time < {EffectiveEndExpression()}
             WHERE s.id = @SiteId
@@ -149,7 +145,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
     }
 
     // Function summary: Builds an AirQ/Svantek noise measurement archive query.
-    private string NoiseSql(string tableName)
+    private static string NoiseSql(string tableName)
     {
         return $"""
             SELECT m.fleet_nr as "Monitor",
@@ -163,11 +159,11 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    l.lcmax as "LCmax",
                    l.lc_90 as "LC90",
                    l.lc_10 as "LC10"
-            FROM {sql.Table("deployment")} d
-            LEFT JOIN {sql.Table("contract")} c ON c.id = d.contract_id
-            LEFT JOIN {sql.Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {sql.Table("monitor")} m ON m.id = d.monitor_id
-            RIGHT JOIN {sql.Table(tableName)} l ON l.serial_id = m.serial_id
+            FROM {Table("deployment")} d
+            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            LEFT JOIN {Table("site")} s ON s.id = c.site_id
+            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            RIGHT JOIN {Table(tableName)} l ON l.serial_id = m.serial_id
                 AND l.sample_time >= {EffectiveStartExpression()}
                 AND l.sample_time < {EffectiveEndExpression()}
             WHERE s.id = @SiteId
@@ -176,7 +172,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
     }
 
     // Function summary: Builds the vibration peak archive query.
-    private string VibrationSql()
+    private static string VibrationSql()
     {
         return $"""
             SELECT m.fleet_nr as "Monitor",
@@ -191,11 +187,11 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    l.z_fdom as "ZFdom",
                    l.z_vtop as "ZVtop",
                    l.z_vtop_overflow as "ZVtopOverflow"
-            FROM {sql.Table("deployment")} d
-            LEFT JOIN {sql.Table("contract")} c ON c.id = d.contract_id
-            LEFT JOIN {sql.Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {sql.Table("monitor")} m ON m.id = d.monitor_id
-            RIGHT JOIN {sql.Table("omnidots_peak_level")} l ON l.serial_id = m.serial_id
+            FROM {Table("deployment")} d
+            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            LEFT JOIN {Table("site")} s ON s.id = c.site_id
+            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            RIGHT JOIN {Table("omnidots_peak_level")} l ON l.serial_id = m.serial_id
                 AND l.sample_time >= {EffectiveStartExpression()}
                 AND l.sample_time < {EffectiveEndExpression()}
             WHERE s.id = @SiteId
@@ -204,7 +200,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
     }
 
     // Function summary: Builds the vibration trace index archive query.
-    private string TraceListSql()
+    private static string TraceListSql()
     {
         return $"""
             SELECT m.fleet_nr as "Monitor",
@@ -212,11 +208,11 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    l.id as "TraceId",
                    l.start_time as "StartTime",
                    l.end_time as "EndTime"
-            FROM {sql.Table("deployment")} d
-            LEFT JOIN {sql.Table("contract")} c ON c.id = d.contract_id
-            LEFT JOIN {sql.Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {sql.Table("monitor")} m ON m.id = d.monitor_id
-            RIGHT JOIN {sql.Table("omnidots_trace_index")} l ON l.serial_id = m.serial_id
+            FROM {Table("deployment")} d
+            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            LEFT JOIN {Table("site")} s ON s.id = c.site_id
+            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            RIGHT JOIN {Table("omnidots_trace_index")} l ON l.serial_id = m.serial_id
                 AND l.start_time >= {EffectiveStartExpression()}
                 AND l.start_time < {EffectiveEndExpression()}
             WHERE s.id = @SiteId
@@ -225,21 +221,21 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
     }
 
     // Function summary: Builds the vibration trace samples archive query.
-    private string TraceDataSql()
+    private static string TraceDataSql()
     {
         return $"""
             SELECT t.omnidots_trace_index_id as "TraceId",
                    t.x as "X",
                    t.y as "Y",
                    t.z as "Z"
-            FROM {sql.Table("omnidots_trace")} t
+            FROM {Table("omnidots_trace")} t
             WHERE t.omnidots_trace_index_id IN (
                 SELECT l.id
-                FROM {sql.Table("deployment")} d
-                LEFT JOIN {sql.Table("contract")} c ON c.id = d.contract_id
-                LEFT JOIN {sql.Table("site")} s ON s.id = c.site_id
-                LEFT JOIN {sql.Table("monitor")} m ON m.id = d.monitor_id
-                RIGHT JOIN {sql.Table("omnidots_trace_index")} l ON l.serial_id = m.serial_id
+                FROM {Table("deployment")} d
+                LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+                LEFT JOIN {Table("site")} s ON s.id = c.site_id
+                LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+                RIGHT JOIN {Table("omnidots_trace_index")} l ON l.serial_id = m.serial_id
                     AND l.start_time >= {EffectiveStartExpression()}
                     AND l.start_time < {EffectiveEndExpression()}
                 WHERE s.id = @SiteId
@@ -266,39 +262,14 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
     }
 
     // Function summary: Returns the effective monitor ownership end expression.
-    private string EffectiveEndExpression()
+    private static string EffectiveEndExpression()
     {
-        return $"CASE WHEN d.end_date IS NULL AND c.off_hire_date IS NULL THEN {sql.CurrentTimestamp} WHEN d.end_date IS NULL THEN c.off_hire_date WHEN c.off_hire_date IS NULL THEN d.end_date WHEN d.end_date < c.off_hire_date THEN d.end_date ELSE c.off_hire_date END";
-    }
-}
-
-internal sealed class SiteArchiveSqlDialect
-{
-    private readonly RvtDatabaseProvider provider;
-
-    // Function summary: Initializes provider-specific SQL rendering rules.
-    private SiteArchiveSqlDialect(RvtDatabaseProvider provider)
-    {
-        this.provider = provider;
+        return "CASE WHEN d.end_date IS NULL AND c.off_hire_date IS NULL THEN now() WHEN d.end_date IS NULL THEN c.off_hire_date WHEN c.off_hire_date IS NULL THEN d.end_date WHEN d.end_date < c.off_hire_date THEN d.end_date ELSE c.off_hire_date END";
     }
 
-    public string CurrentTimestamp => provider == RvtDatabaseProvider.Postgres ? "now()" : "getdate()";
-
-    // Function summary: Creates a SQL dialect for the configured database provider.
-    public static SiteArchiveSqlDialect For(RvtDatabaseProvider provider)
+    // Function summary: Returns a quoted public-schema PostgreSQL table reference.
+    private static string Table(string name)
     {
-        return provider switch
-        {
-            RvtDatabaseProvider.SqlServer or RvtDatabaseProvider.Postgres => new SiteArchiveSqlDialect(provider),
-            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'.")
-        };
-    }
-
-    // Function summary: Returns a provider-specific table reference for canonical RVT archive SQL.
-    public string Table(string name)
-    {
-        return provider == RvtDatabaseProvider.Postgres
-            ? $"public.{name}"
-            : $"dbo.{name}";
+        return $"\"public\".\"{name}\"";
     }
 }

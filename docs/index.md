@@ -12,6 +12,7 @@ lives here under `docs/`.
 ## Development
 
 - [Portal development guidelines](development/portal/development-guidelines.md)
+- [Active Portal remediation plan](superpowers/plans/2026-07-22-rvt-portal-review-remediation.md)
 - [Monitor SonarQube guidance](development/monitors/sonarqube.md)
 - [Shared-library dependency license review](development/rvt-monitor-common/dependency-license-review.md)
 
@@ -59,8 +60,8 @@ lives here under `docs/`.
 
 ## History
 
-- [Monitor project state at import](history/monitors/project_state.md)
-- [Monitor plans](history/monitors/plans/2026-07-16-rvt-common-private-nuget-migration.md)
+- [Monitor source-removal evidence](history/monitors/evidence/2026-07-17-rvt-common-monitor-source-removal.md)
+- [Monitor plans](history/monitors/plans/2026-07-16-common-communications-ports-and-adapters.md)
 - [Portal plans](history/portal/plans/2026-07-08-hexagonal-edges.md)
 - [Reporting plans](history/reporting/plans/2026-06-25-report-graphs-daily-frequency-plan.md)
 

@@ -1,9 +1,8 @@
-// File summary: Bootstraps the RVT Portal API host, service registration, middleware pipeline, and seed-data startup path.
+// File summary: Bootstraps the PostgreSQL-backed RVT Portal API host, services, middleware, and seed data.
 // Major updates:
+// - 2026-07-26 pending Removed database provider selection while preserving the shared scoped connection.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
-// - 2026-06-03 f5fd01e Added SQL Server/PostgreSQL provider support.
-// - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 // - 2026-06-09 pending Blocked public monitor-picture static routes in favor of authorized API streaming.
 // - 2026-06-25 pending Added security-headers middleware and per-IP rate limiting for anonymous auth endpoints.
 // - 2026-06-25 pending Hardened auth cookie (HttpOnly/Secure outside dev) and fail-fast data-protection key persistence.

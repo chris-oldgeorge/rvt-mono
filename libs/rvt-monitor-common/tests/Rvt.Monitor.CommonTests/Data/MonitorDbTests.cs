@@ -1,120 +1,158 @@
+using System.Data;
+using System.Data.Common;
+using System.Reflection;
+using Npgsql;
 using Rvt.Monitor.Common.Data;
 
 [assembly: Parallelize(Scope = ExecutionScope.MethodLevel)]
 
 namespace Rvt.Monitor.CommonTests.Data;
 
-// Summary: Verifies shared monitor database provider selection and PostgreSQL SQL rewriting behavior.
-// Major updates:
-// - 2026-06-18 Canonical Timescale pass: added coverage for bracketed SQL Server syntax, canonical columns, booleans, DATEPART, and Identity alias preservation.
 [TestClass]
 public sealed class MonitorDbTests
 {
-    [TestMethod]
-    public void ResolveProvider_DefaultsToPostgreSql()
-    {
-        Assert.AreEqual(MonitorDatabaseProvider.PostgreSql, MonitorDb.ResolveProvider(null, null));
-    }
+    private static readonly IReadOnlyDictionary<string, string> EmptyIdentifierMap =
+        new Dictionary<string, string>(StringComparer.Ordinal);
 
     [TestMethod]
+    [DataRow(null)]
+    [DataRow("")]
+    [DataRow("   ")]
     [DataRow("postgres")]
-    [DataRow("postgresql")]
+    [DataRow(" POSTGRESQL ")]
+    [DataRow("NPGSQL")]
     [DataRow("timescale")]
-    [DataRow("timescaledb")]
-    public void ResolveProvider_AcceptsPostgreSqlAliases(string provider)
+    [DataRow("TimescaleDB")]
+    public void ValidateLegacyProvider_AcceptsOmittedAndPostgreSqlAliases(string? provider)
     {
-        Assert.AreEqual(MonitorDatabaseProvider.PostgreSql, MonitorDb.ResolveProvider(provider, null));
+        MonitorDb.ValidateLegacyProvider(provider, null);
     }
 
     [TestMethod]
-    public void ResolveProvider_RejectsUnsupportedProvider()
+    public void ValidateLegacyProvider_UsesPrimaryValueBeforeFallback()
     {
-        var exception = Assert.ThrowsExactly<NotSupportedException>(() => MonitorDb.ResolveProvider("oracle", null));
-        Assert.Contains("Unsupported monitor database provider", exception.Message);
+        MonitorDb.ValidateLegacyProvider("postgresql", "oracle");
     }
 
     [TestMethod]
-    public void RewriteSql_UsesMonitorSpecificMapForPostgreSql()
+    [DataRow("Sql" + "Server")]
+    [DataRow("MS" + "SQL")]
+    [DataRow("oracle")]
+    public void ValidateLegacyProvider_RejectsUnsupportedValueWithGlobalSafeMessage(string provider)
     {
-        var options = new MonitorDbOptions(
-            MonitorDatabaseProvider.PostgreSql,
-            new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["MonitorsList"] = "monitor",
-                ["AirQNoiseLevels"] = "air_q_noise_level",
-                ["AspNetUsers"] = "\"AspNetUsers\""
-            });
+        var exception = Assert.ThrowsExactly<InvalidOperationException>(
+            () => MonitorDb.ValidateLegacyProvider(provider, null));
 
-        var sql = MonitorDb.RewriteSql(
-            "SELECT * FROM dbo.MonitorsList m JOIN dbo.AirQNoiseLevels n ON n.SerialId = m.SerialId JOIN dbo.AspNetUsers u ON u.Id = m.UserId",
-            options);
-
-        Assert.AreEqual(
-            "SELECT * FROM monitor m JOIN air_q_noise_level n ON n.serial_id = m.serial_id JOIN \"AspNetUsers\" u ON u.Id = m.user_id",
-            sql);
+        Assert.AreEqual("PostgreSQL is the only supported database provider", exception.Message);
+        Assert.DoesNotContain(provider, exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [TestMethod]
-    public void RewriteSql_RewritesBracketedSchemaAndCommonColumnsForPostgreSql()
+    public void MonitorDbOptions_StoresOnlyIdentifierMap()
     {
-        var options = new MonitorDbOptions(
-            MonitorDatabaseProvider.PostgreSql,
-            new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["MonitorsList"] = "monitor",
-                ["Deployments"] = "deployment",
-                ["Contracts"] = "contract",
-                ["Sites"] = "site"
-            });
+        var options = new MonitorDbOptions(EmptyIdentifierMap);
 
-        var sql = MonitorDb.RewriteSql(
-            @"SELECT M.[Id], [FleetNr], [SerialId], [TypeOfMonitor], M.Offline, SiteiD, SiteName
-                FROM [dbo].[MonitorsList] M
-                INNER JOIN [dbo].[Deployments] D ON D.MonitorId = M.Id AND D.EndDate IS NULL
-                LEFT JOIN [dbo].[Contracts] C ON C.Id = D.ContractId
-                LEFT JOIN [dbo].[Sites] S ON S.Id = C.SiteiD
-               WHERE M.TypeOfMonitor = @TypeOfMonitor
-                 AND LastDataTime15Min >= @LastDataTime
-                 AND Offline = 0
-                 AND DATEPART(dw,@day) = 7",
-            options);
-
-        Assert.AreEqual(
-            @"SELECT M.id, fleet_row_count, serial_id, type_of_monitor, M.offline, site_id, site_name
-                FROM monitor M
-                INNER JOIN deployment D ON D.monitor_id = M.id AND D.end_date IS NULL
-                LEFT JOIN contract C ON C.id = D.contract_id
-                LEFT JOIN site S ON S.id = C.site_id
-               WHERE M.type_of_monitor = @TypeOfMonitor
-                 AND last_data_time_15_min >= @LastDataTime
-                 AND offline = FALSE
-                 AND (EXTRACT(DOW FROM @day) + 1) = 7",
-            sql);
+        Assert.AreSame(EmptyIdentifierMap, options.IdentifierMap);
+        CollectionAssert.AreEquivalent(
+            new[] { nameof(MonitorDbOptions.IdentifierMap) },
+            typeof(MonitorDbOptions)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .ToArray());
     }
 
     [TestMethod]
-    public void RewriteSql_LeavesSqlServerTextUnchanged()
+    [DoNotParallelize]
+    public void FromEnvironment_ValidatesPrimaryThenFallbackAndStoresOnlyIdentifiers()
     {
-        var options = new MonitorDbOptions(MonitorDatabaseProvider.SqlServer, new Dictionary<string, string>());
-        const string sql = "SELECT * FROM dbo.MonitorsList";
+        const string primaryKey = "RVT__DATABASE_PROVIDER";
+        const string fallbackKey = "DatabaseProvider";
+        var previousPrimary = Environment.GetEnvironmentVariable(primaryKey);
+        var previousFallback = Environment.GetEnvironmentVariable(fallbackKey);
+        var identifierMap = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["measurements"] = "air_q_noise_level"
+        };
 
-        Assert.AreEqual(sql, MonitorDb.RewriteSql(sql, options));
+        try
+        {
+            Environment.SetEnvironmentVariable(primaryKey, "postgresql");
+            Environment.SetEnvironmentVariable(fallbackKey, "oracle");
+
+            var options = MonitorDbOptions.FromEnvironment(identifierMap);
+
+            Assert.AreSame(identifierMap, options.IdentifierMap);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(primaryKey, previousPrimary);
+            Environment.SetEnvironmentVariable(fallbackKey, previousFallback);
+        }
     }
 
     [TestMethod]
-    public void SelectProviderSql_ReturnsPostgreSqlTextForTimescale()
+    public void OpenConnection_UsesNpgsql()
     {
-        var options = new MonitorDbOptions(MonitorDatabaseProvider.PostgreSql, new Dictionary<string, string>());
+        var exception = Assert.ThrowsExactly<NpgsqlException>(() =>
+            MonitorDb.OpenConnection(
+                "Host=127.0.0.1;Port=1;Database=unreachable;Username=test;Password=test;Timeout=1"));
 
-        Assert.AreEqual("postgres", MonitorDb.SelectProviderSql("sqlserver", "postgres", options));
+        Assert.IsNotNull(exception);
     }
 
     [TestMethod]
-    public void SelectProviderSql_ReturnsSqlServerTextForSqlServer()
+    public void CreateCommand_PreservesCanonicalSqlUnchanged()
     {
-        var options = new MonitorDbOptions(MonitorDatabaseProvider.SqlServer, new Dictionary<string, string>());
+        const string sql = """
+            SELECT id, offline
+            FROM monitor
+            WHERE offline = FALSE
+              AND EXTRACT(DOW FROM @day) = 6;
+            """;
+        using DbConnection connection = new NpgsqlConnection();
+        using var command = MonitorDb.CreateCommand(sql, connection);
 
-        Assert.AreEqual("sqlserver", MonitorDb.SelectProviderSql("sqlserver", "postgres", options));
+        Assert.IsInstanceOfType<NpgsqlCommand>(command);
+        Assert.AreEqual(sql, command.CommandText);
+    }
+
+    [TestMethod]
+    public void AddWithValue_CreatesNpgsqlParameter()
+    {
+        using DbCommand command = new NpgsqlCommand();
+
+        var parameter = command.Parameters.AddWithValue("@value", null);
+
+        Assert.IsInstanceOfType<NpgsqlParameter>(parameter);
+        Assert.AreEqual(DBNull.Value, parameter.Value);
+    }
+
+    [TestMethod]
+    public void BulkInsert_RejectsUnsafeMappedTableBeforeOpeningConnection()
+    {
+        var options = new MonitorDbOptions(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["measurements"] = "air_q_noise_level; DROP TABLE monitor;--"
+        });
+        var table = new DataTable();
+        table.Columns.Add("serial_id", typeof(string));
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            MonitorDb.BulkInsert("not a connection string", "measurements", table, options));
+    }
+
+    [TestMethod]
+    public void BulkInsert_RejectsUnsafeColumnBeforeOpeningConnection()
+    {
+        var options = new MonitorDbOptions(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["measurements"] = "air_q_noise_level"
+        });
+        var table = new DataTable();
+        table.Columns.Add("serial_id; DROP TABLE monitor;--", typeof(string));
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            MonitorDb.BulkInsert("not a connection string", "measurements", table, options));
     }
 
     [TestMethod]
@@ -122,53 +160,68 @@ public sealed class MonitorDbTests
     {
         var allowed = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["LAeq"] = "LAeq",
-            ["PeakLevels"] = "[dbo].[OmnidotsPeakLevels]"
+            ["noise"] = "air_q_noise_level",
+            ["identity"] = "\"AspNetUsers\""
         };
 
-        Assert.AreEqual("LAeq", MonitorDb.RequireMappedSqlIdentifier("LAeq", allowed, "noise column"));
-        Assert.AreEqual("[dbo].[OmnidotsPeakLevels]", MonitorDb.RequireMappedSqlIdentifier("PeakLevels", allowed, "peak table"));
+        Assert.AreEqual(
+            "air_q_noise_level",
+            MonitorDb.RequireMappedSqlIdentifier("noise", allowed, "noise table"));
+        Assert.AreEqual(
+            "\"AspNetUsers\"",
+            MonitorDb.RequireMappedSqlIdentifier("identity", allowed, "identity table"));
     }
 
     [TestMethod]
-    public void RequireMappedSqlIdentifier_RejectsUnknownOrInjectedKey()
+    public void RequireMappedSqlIdentifier_RejectsUnknownOrUnsafeMappedIdentifier()
     {
         var allowed = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["LAeq"] = "LAeq"
+            ["noise"] = "air_q_noise_level",
+            ["unsafe"] = "air_q_noise_level; DROP TABLE monitor;--"
         };
 
         Assert.ThrowsExactly<NotSupportedException>(
-            () => MonitorDb.RequireMappedSqlIdentifier("LAeq); DROP TABLE dbo.MonitorsList;--", allowed, "noise column"));
-        Assert.ThrowsExactly<NotSupportedException>(
-            () => MonitorDb.RequireMappedSqlIdentifier("NotAColumn", allowed, "noise column"));
-    }
-
-    [TestMethod]
-    public void RequireMappedSqlIdentifier_RejectsUnsafeMappedIdentifier()
-    {
-        var allowed = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["LAeq"] = "LAeq); DROP TABLE dbo.MonitorsList;--"
-        };
-
+            () => MonitorDb.RequireMappedSqlIdentifier("unknown", allowed, "noise table"));
         Assert.ThrowsExactly<InvalidOperationException>(
-            () => MonitorDb.RequireMappedSqlIdentifier("LAeq", allowed, "noise column"));
+            () => MonitorDb.RequireMappedSqlIdentifier("unsafe", allowed, "noise table"));
     }
 
     [TestMethod]
-    public void RequireSafeSqlIdentifier_AllowsSchemaQualifiedIdentifiers()
+    public void RequireSafeSqlIdentifier_AllowsCanonicalAndQuotedIdentifiers()
     {
-        Assert.AreEqual("dbo.MonitorsList", MonitorDb.RequireSafeSqlIdentifier("dbo.MonitorsList", "table"));
-        Assert.AreEqual("[dbo].[OmnidotsPeakLevels]", MonitorDb.RequireSafeSqlIdentifier("[dbo].[OmnidotsPeakLevels]", "table"));
+        Assert.AreEqual(
+            "air_q_noise_level",
+            MonitorDb.RequireSafeSqlIdentifier("air_q_noise_level", "table"));
+        Assert.AreEqual(
+            "\"AspNetUsers\"",
+            MonitorDb.RequireSafeSqlIdentifier("\"AspNetUsers\"", "table"));
+        Assert.AreEqual(
+            "monitoring.\"AspNetUsers\"",
+            MonitorDb.RequireSafeSqlIdentifier("monitoring.\"AspNetUsers\"", "table"));
     }
 
     [TestMethod]
     public void RequireSafeSqlIdentifier_RejectsMalformedOrInjectedIdentifiers()
     {
         Assert.ThrowsExactly<InvalidOperationException>(
-            () => MonitorDb.RequireSafeSqlIdentifier("[dbo.OmnidotsPeakLevels", "table"));
+            () => MonitorDb.RequireSafeSqlIdentifier("\"AspNetUsers", "table"));
         Assert.ThrowsExactly<InvalidOperationException>(
-            () => MonitorDb.RequireSafeSqlIdentifier("dbo.MonitorsList; DROP TABLE dbo.MonitorsList;--", "table"));
+            () => MonitorDb.RequireSafeSqlIdentifier("monitor; DROP TABLE monitor;--", "table"));
+    }
+
+    [TestMethod]
+    public void MonitorDb_ExposesNoRuntimeSqlRewriteEntryPoints()
+    {
+        var publicMethods = typeof(MonitorDb)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Select(method => method.Name)
+            .ToArray();
+
+        CollectionAssert.DoesNotContain(publicMethods, "ResolveProvider");
+        CollectionAssert.DoesNotContain(publicMethods, "SelectProviderSql");
+        CollectionAssert.DoesNotContain(publicMethods, "RewriteSql");
+        CollectionAssert.DoesNotContain(publicMethods, "RewriteTableName");
+        CollectionAssert.DoesNotContain(publicMethods, "RewriteIdentifier");
     }
 }

@@ -1,981 +1,313 @@
 # RVT Portal Review Remediation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+**Status:** Active. Restored for the PostgreSQL-only architecture on
+2026-07-26.
+
+**Goal:** Close the confirmed Portal cutover, security, correctness, client,
+deployment, and maintainability findings without a broad rewrite.
+
+**Architecture:** Stabilize observable behavior and executable release gates
+before restructuring. Preserve the three-context shared-transaction design and
+introduce application boundaries incrementally.
+
+**Stack:** .NET 10, ASP.NET Core, EF Core/Npgsql, PostgreSQL/TimescaleDB,
+React 19, TypeScript, Vite, Vitest, Testing Library, Playwright, Bash,
+PowerShell, and GitHub Actions.
+
+## How to read status
+
+- Tasks 2, 3, and 4 are complete.
+- Tasks 5 and 6 are implemented; their live PostgreSQL evidence remains open
+  until a suitable connection is available.
+- The database-provider portion of Task 16 is complete: PostgreSQL/Npgsql is
+  the sole contract and selection-era configuration is retired.
+- Task 15 is partial because the application project now exists, but the full
+  boundary extraction and dependency gates remain open.
+- Tasks 1 and 7 through 14 remain open.
+- Task 16's non-provider cleanup and client-contract work remain open.
+- A completed implementation does not close an unchecked release gate. Every
+  gate at the end of this plan remains unchecked until fresh evidence is
+  recorded.
+
+## Global constraints
+
+- Work from the monorepo root; Portal paths are rooted at `apps/portal/`.
+- Preserve the three `DbContext` split and single shared
+  `DbConnection`/unit-of-work transaction pipeline.
+- Keep active Common consumers source-referenced; package-consumer fixtures
+  remain isolated.
+- Treat `timestamp without time zone` telemetry as UTC by contract: use
+  `DateTimeKind.Unspecified` only at the Npgsql query boundary and restore UTC
+  before API serialization.
+- Treat contract hire fields as calendar dates and convert them to UTC midnight
+  only at persistence.
+- Every P0/P1 production fix needs a regression test that fails first.
+- Real PostgreSQL tests are mandatory for Npgsql time-kind, schema repair, and
+  schema-qualification behavior.
+- Cross-tenant resource reads return `404`. Forgot-password responses remain
+  indistinguishable for existing and nonexistent accounts.
+- Do not retry non-idempotent outbound operations automatically. Establish
+  timeouts and typed failure translation first.
+- Help Admin title-focus work stays deferred unless that temporary UI is
+  confirmed for release.
+- What3Words requires a product decision: remove it and its secret, or retain it
+  behind a typed outbound port with header-based authentication.
+
+## Normalized finding register
+
+### P0/P1
+
+| ID | Contract | Status |
+| --- | --- | --- |
+| R01 | Vibration traces query the mapped entity end to end. | Complete |
+| R02 | Search time bounds and serialized values honor the UTC telemetry contract. | Implemented; live PostgreSQL evidence open |
+| R03 | Installer monitor-picture reads enforce company ownership. | Complete |
+| R04 | `TimeProvider` is resolvable from dependency injection. | Complete |
+| R05 | Site access uses one inclusive active-assignment window. | Complete |
+| R06 | Public auth links use a validated configured SPA origin outside development. | Complete |
+| R07 | Contract date-only inputs persist as valid UTC instants. | Implemented; live PostgreSQL evidence open |
+| R08 | Existing-database column-default repair ships and executes safely. | Implemented; live PostgreSQL evidence open |
+| R09 | Monitor option lists are actor-scoped. | Complete |
+| R10 | Self-service email changes require a confirmation flow or are prohibited. | Complete |
+| R11 | Forgot-password failures remain publicly generic and internally observable. | Complete |
+| R12 | Liveness is process-only and readiness proves database access. | Open |
+| R13 | Trusted forwarded-header processing precedes origin, auth, and rate-limit use. | Complete |
+| R14 | Site archives use the shared storage client factory in every supported mode. | Open |
+| R15 | Schema validation keys metadata by schema, relation, and column. | Open |
+| R16 | Calendar padding cells send the full selected ISO date. | Open |
+| R17 | Local-day defaults use local calendar components rather than UTC conversion. | Open |
+| R18 | Client requests cannot apply stale responses. | Open |
+| R19 | Outbound clients have named timeouts and typed failure containment. | Open |
+| R20 | An active root workflow runs Portal static, PostgreSQL, and browser gates. | Open |
+
+### P2 and decision-gated work
+
+| Contract | Status |
+| --- | --- |
+| Development restore must propagate restore failure after destructive setup. | Open |
+| What3Words must be removed or moved behind a safe port after product decision. | Open |
+| Help Admin must use a stable key if retained for release. | Decision-gated |
+| All telemetry mappings must declare the intended PostgreSQL column type. | Implemented; live evidence open |
+| Unused blob and HTTP dependencies must be removed after caller proof. | Open |
+| Development-secret values must not be exposed as process arguments. | Open |
+| Million-row reads require bounded paging/streaming and deterministic order. | Open |
+| Sonar lifecycle findings need an explicit reviewed `npm ci` policy. | Open |
+
+Superseded observations remain closed: repository state is current, imported
+workspace debris is absent, SendGrid client construction is shared, and the
+runtime container user observation is obsolete. Existing release-export and
+architecture guards must be preserved.
+
+## Ordered action sequence and ownership
+
+Tasks are deliberately ordered. Owners are functional roles; a named delegate
+may implement a task, but the listed role owns acceptance evidence.
 
-**Goal:** Remove the confirmed cutover blockers and security defects identified in `RvTPortal AI Review.docx`, establish production-representative PostgreSQL/SPA gates, and then improve the portal's application boundary without a broad rewrite.
+### Task 1 — Activate root Portal CI with PostgreSQL evidence
 
-**Architecture:** Stabilize behavior before restructuring. The first phases add executable gates and repair runtime, authorization, time, deployment, and adapter boundaries in the existing projects; the final phase introduces a compile-time application-core boundary incrementally while retaining the three-context shared-transaction design.
-
-**Tech Stack:** .NET 10, ASP.NET Core, EF Core/Npgsql, PostgreSQL/TimescaleDB, React 19, TypeScript, Vite 6, Vitest, Testing Library, Playwright, Bash, PowerShell, GitHub Actions.
+**Status:** Open. **Owner:** Build/release.
 
-## Global Constraints
+- Add an active root workflow with `portal-static`, `portal-postgres`, and
+  `portal-client-e2e` jobs.
+- Give PostgreSQL tests an ephemeral supported service and a runtime-only
+  connection.
+- Produce TRX and fail if any required PostgreSQL test is skipped.
+- Run Vitest and a real Playwright Chromium journey.
+- Align the cutover runbook and mono-layout checks with the active workflow.
 
-- Work from the monorepo root `/Users/oldgeorge/Documents/rvt-mono`; portal paths are rooted at `apps/portal/`.
-- Preserve the three `DbContext` split and the single shared `DbConnection`/unit-of-work transaction pipeline.
-- Keep active RVT common consumers source-referenced; do not change the package-validation boundary.
-- Treat `timestamp without time zone` telemetry as UTC-by-contract: use `DateTimeKind.Unspecified` only at the Npgsql query boundary and restore `DateTimeKind.Utc` before API serialization.
-- Treat contract hire fields as calendar dates; convert them to UTC midnight only at the persistence boundary while the entity remains `DateTime`.
-- All P0/P1 fixes require a regression test that fails before the production change and passes afterward.
-- Real PostgreSQL tests are mandatory for Npgsql `DateTime.Kind`, schema-repair, and schema-qualification behavior; SQLite/InMemory results are not evidence for those cases.
-- Return `404` for cross-tenant resource reads and keep forgot-password responses indistinguishable for existing and nonexistent accounts.
-- Do not add automatic retries to non-idempotent outbound operations. Add timeouts and typed failure translation first; retry only a demonstrably idempotent operation.
-- Keep Help Admin title-focus remediation deferred unless the temporary UI is confirmed for release.
-- Resolve What3Words with a product decision: either remove the feature and its secret completely, or retain it behind a typed outbound port with header-based authentication. Do not leave the current query-string secret path in production.
+### Task 2 — Fix service wiring and vibration trace mapping
 
----
+**Status:** Complete. **Owner:** Portal backend.
 
-## Review Disposition
-
-### Confirmed P0/P1 findings in the current monorepo
-
-| ID | Finding | Current evidence | Disposition |
-|---|---|---|---|
-| R01 | Vibration trace query uses unmapped `OmnidotsTraces` | `MonitorService.cs` calls `Set<OmnidotsTraces>()`; only `OmnidotsTrace` is mapped by `RVTSearchContext` | Fix immediately |
-| R02 | Search timestamp read/query contract is inconsistent | UTC bounds are passed to `timestamp without time zone` filters; returned `DateTime` values reach JSON without a UTC kind | Prove on PostgreSQL, then fix as one boundary |
-| R03 | Installer monitor-picture IDOR | the controller allows installers and `CanReadMonitorAsync` accepts `row.IsAssigned` without matching `CompanyId` | Fix immediately; the comment dismissing it confuses upload policy with read authorization |
-| R04 | `TimeProvider` is absent from DI | `ReportingServiceReportGenerationClient` requires `TimeProvider`; registration adds only `IRvtDateTimeProvider` | Fix immediately |
-| R05 | Expired/future site assignments grant access | `CanReadSiteAsync` and `GetVisibleSitesQuery` check row existence only | Fix immediately with one reusable active-assignment predicate |
-| R06 | Password-reset links trust request host by default | `BuildClientUrl` falls back to request scheme/host and `AllowedHosts` is `*` | Require validated `Spa:PublicBaseUrl` in non-development |
-| R07 | Contract date-only input writes `Unspecified` to `timestamptz` | `request.OnHireDate.Date` and `OffHireDate?.Date` preserve `Unspecified` | Fix immediately |
-| R08 | Required existing-database repair is not deployed | `restore_unmapped_column_defaults.sql` exists, but `ScriptRunner`, the project content items, and publish output omit it | Fix immediately; the reviewer comment calling this a hallucination is contradicted by source |
-| R09 | Monitor options leak cross-tenant metadata | `OptionsAsync` has no actor parameter and returns every contract and non-archived site | Fix before cutover |
-| R10 | Self-service email change bypasses confirmation | `UpdateProfileAsync` directly replaces `Email` and `UserName` | Replace with change-email token flow or prohibit email changes in profile |
-| R11 | Forgot-password behavior can enumerate accounts during provider failures | existing confirmed accounts can return a detailed 500 while unknown accounts return generic 200 | Keep the public response generic; log provider failure internally |
-| R12 | Readiness health does not test the database | `/api/health` always returns 200 | Split liveness and readiness; gate deployment on readiness |
-| R13 | Forwarded headers are not configured | rate limiting and auth origin use connection/request values directly | Configure trusted proxies/networks before dependent middleware |
-| R14 | Managed-identity storage mode does not cover site archives | `SiteArchiveService` always builds `BlobServiceClient` from a connection string | Use the shared storage client factory for both modes |
-| R15 | Schema validation ignores schema names | `RvtSchemaValidator` keys only by `table_name` | Key by provider schema plus relation and column |
-| R16 | Calendar padding cells request the wrong month | `CalendarDayButton` sends only `dayNumber` | Send the complete ISO date |
-| R17 | Local-day defaults are derived through UTC | dashboard and contract defaults use `toISOString().slice(0, 10)` | Format local calendar components directly |
-| R18 | Client requests can apply stale responses | company/filter changes lack abort or generation guards | Add request cancellation/generation checks |
-| R19 | Outbound timeout/failure translation is incomplete | report and vendor clients do not consistently contain cancellation/URI/configuration failures | Add named-client timeouts and typed results |
-| R20 | The monorepo has no active root GitHub workflow | imported workflows remain under module `.github/` directories and therefore do not run for the root repository | Establish root CI first |
+- Resolve `TimeProvider.System` through dependency injection.
+- Use the mapped vibration trace entity throughout the service/data path.
+- Retain focused host and data-view regression tests.
 
-### Confirmed P2 or decision-gated findings
+### Task 3 — Close tenant and assignment authorization gaps
 
-- The destructive dev restore suppresses `pg_restore` failure with `|| true`; lower production impact does not justify a false success after dropping the target database.
-- What3Words puts its key in a logged URL. Product ownership must decide retain-or-remove before implementation.
-- Help Admin keys an asset row by editable title. The defect is real, but it remains deferred while that UI is explicitly temporary.
-- `NoiseLevel15minAvg.SampleTime` lacks the explicit provider column type; all telemetry mappings should be audited together.
-- `RVT.BusinessLogic.csproj` retains unused Azure Blob and HTTP packages, weakening architectural guards.
-- Secret values are passed to `dotnet user-secrets set` as process arguments in `set-dev-secrets.ps1`.
-- Some large reads use `Take(1000000)` and paging without a deterministic tie-break; address after correctness and security gates.
-- Sonar's lifecycle-script findings remain open for `npm ci`; the runtime container already uses `nginx-unprivileged`, so the old run-as-root observation is superseded.
+**Status:** Complete. **Owner:** Portal security/backend.
 
-### Superseded or partially resolved observations
+- Apply company ownership to installer detail, picture, and list reads.
+- Reuse one inclusive active-assignment predicate.
+- Pass the actor to monitor options and return only visible sites/contracts.
+- Preserve regression cases for cross-company, expired, and future access.
 
-- Root `project_state.md` exists and is current.
-- The monorepo is not on the reviewed SMB checkout; AppleDouble, Word lock, `.vs`, `TestResults`, and module artifact debris are absent.
-- SendGrid uses a singleton `ISendGridClientFactory`; the per-email client observation is obsolete.
-- `ReportingServiceReportGenerationClient` already translates `HttpRequestException`, but still needs a configured timeout and cancellation/configuration containment.
-- The release exporter and architecture guards remain strengths and should be preserved.
+### Task 4 — Harden public auth origins and account workflows
 
----
+**Status:** Complete. **Owner:** Identity/security.
 
-## Phase 1: Establish evidence and remove immediate cutover blockers
+- Require and validate the configured public SPA origin outside development.
+- Configure trusted forwarded headers before consumers.
+- Use a confirmation-token flow or prohibit direct profile email replacement.
+- Keep forgot-password output generic when outbound delivery fails.
 
-### Task 1: Activate root portal CI with PostgreSQL evidence
+### Task 5 — Enforce UTC search and calendar-date contracts
 
-**Files:**
-- Create: `.github/workflows/portal-verify.yml`
-- Create: `apps/portal/scripts/verify-postgres-integration.sh`
-- Modify: `apps/portal/scripts/verify-backend.sh`
-- Modify: `docs/release/portal/CUTOVER_RUNBOOK.md`
-- Test: `tests/verify-mono-layout.test.sh`
+**Status:** Implemented; live evidence open. **Owner:** Portal data.
 
-**Interfaces:**
-- Consumes: `RVT_TEST_POSTGRES_CONNECTION`, the portal solution, and existing `RequiresPostgresFact` tests.
-- Produces: an active root workflow with `portal-static`, `portal-postgres`, and `portal-client-e2e` jobs; no module-local workflow is treated as active.
+- Normalize query bounds only at the Npgsql boundary and restore UTC kind on
+  returned telemetry.
+- Persist hire/off-hire dates as UTC midnight while retaining calendar meaning.
+- Audit telemetry mappings for explicit PostgreSQL types.
+- Record real PostgreSQL/DST evidence before closing the task.
 
-- [ ] **Step 1: Add a failing repository-layout assertion for active workflows**
+### Task 6 — Make schema deployment complete and failure-aware
 
-Extend `tests/verify-mono-layout.test.sh` to require `.github/workflows/portal-verify.yml` and to reject documentation that describes `apps/portal/.github/workflows/build.yml` as active monorepo CI.
+**Status:** Implemented; live evidence open. **Owner:** Database/release.
 
-- [ ] **Step 2: Run the layout test and verify RED**
+- Ship existing-database repair assets in source, build, and publish output.
+- Execute scripts in deterministic order and fail without partial success.
+- Keep dry-run, idempotency, prerequisite, and rollback evidence.
+- Make destructive development restore propagate failure.
+- Rehearse twice on real PostgreSQL before closing the task.
 
-Run: `tests/verify-mono-layout.test.sh`
+### Task 7 — Split liveness from readiness
 
-Expected: FAIL naming the missing root portal workflow.
+**Status:** Open. **Owner:** Portal operations.
 
-- [ ] **Step 3: Add the root workflow**
+- Keep liveness process-only.
+- Make readiness prove the configured database is reachable with a bounded
+  timeout.
+- Return `503` while unavailable and `200` only when ready.
+- Gate deployment and traffic switching on readiness, not liveness.
 
-Use `working-directory: apps/portal` for module commands. Configure a `postgres:17-alpine` service with a health check, and set:
+### Task 8 — Harden storage and outbound integration boundaries
 
-```yaml
-env:
-  RVT_TEST_POSTGRES_CONNECTION: Host=localhost;Port=5432;Database=rvt_tests;Username=postgres;Password=postgres
-```
+**Status:** Open. **Owner:** Integrations/platform.
 
-The static job runs `./scripts/verify-backend.sh` and `./scripts/verify-frontend.sh`. The PostgreSQL job runs `./scripts/verify-postgres-integration.sh`. The client job installs Playwright Chromium and runs `npm run test:e2e` in addition to Vitest.
+- Route site archives through the shared storage client factory.
+- Give report and vendor clients named timeouts and typed
+  configuration/URI/cancellation/network failures.
+- Resolve What3Words through the retain-or-remove decision.
+- Prevent development-secret values from appearing in process arguments.
+- Add retries only where an operation is proven idempotent.
 
-- [ ] **Step 4: Make the PostgreSQL script fail if provider tests skip**
+### Task 9 — Correct client dates and stale-response behavior
 
-Implement `verify-postgres-integration.sh` with strict mode, database initialization, the filtered PostgreSQL test run, and a TRX result check that rejects any skipped `[RequiresPostgresFact]` test:
+**Status:** Open. **Owner:** Portal client.
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
+- Send a complete ISO date from every calendar cell, including padding days.
+- Build local-day defaults from local year/month/day components.
+- Cancel superseded requests or guard them with request generations.
+- Test month boundaries, time-zone boundaries, rapid filter changes, and
+  company switching.
 
-test -n "${RVT_TEST_POSTGRES_CONNECTION:-}"
-dotnet test RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
-  --configuration Release \
-  --filter 'FullyQualifiedName~UtcTimestampGuardTests|FullyQualifiedName~UnmappedColumnDefaultTests|FullyQualifiedName~DashboardBreachTimestamptzTests|FullyQualifiedName~SearchTimestampPostgresTests|FullyQualifiedName~SchemaValidationPostgresTests' \
-  --logger 'trx;LogFileName=postgres.trx' \
-  --results-directory artifacts/postgres-tests
-if rg -q 'outcome="NotExecuted"' artifacts/postgres-tests/postgres.trx; then
-  echo 'A required PostgreSQL test was skipped.' >&2
-  exit 1
-fi
-```
+### Task 10 — Resolve Help Admin identity and focus
 
-- [ ] **Step 5: Align the cutover runbook with the active gates**
+**Status:** Decision-gated. **Owner:** Product and Portal client.
 
-Document the root workflow path, `RVT_TEST_POSTGRES_CONNECTION`, real Playwright execution, and the distinction between liveness and readiness.
+- First decide whether the temporary UI ships.
+- If retained, key rows/assets by immutable ID rather than editable title.
+- Restore predictable focus after edit/create/delete without title lookup.
+- If removed, delete its route, assets, and dead client contracts together.
 
-- [ ] **Step 6: Verify GREEN**
+### Task 11 — Complete schema-safety and delete contracts
 
-Run:
+**Status:** Open. **Owner:** Database and Portal backend.
 
-```bash
-tests/verify-mono-layout.test.sh
-bash -n apps/portal/scripts/verify-backend.sh apps/portal/scripts/verify-postgres-integration.sh
-```
+- Validate metadata by schema plus relation plus column.
+- Reject same-named objects in an unintended schema.
+- Define delete behavior for referenced entities and test the full matrix.
+- Resolve model/database mismatches through generated migrations and reviewed
+  schema assets, never ad hoc startup mutation.
 
-Expected: both commands exit 0.
+### Task 12 — Bound and stabilize large reads
 
-- [ ] **Step 7: Commit**
+**Status:** Open. **Owner:** Portal backend/performance.
 
-```bash
-git add .github/workflows/portal-verify.yml apps/portal/scripts/verify-postgres-integration.sh apps/portal/scripts/verify-backend.sh docs/release/portal/CUTOVER_RUNBOOK.md tests/verify-mono-layout.test.sh
-git commit -m "ci: activate portal verification in monorepo"
-```
+- Replace `Take(1000000)` with explicit bounded paging, keyset paging, or
+  streaming according to the caller.
+- Add deterministic tie-break ordering to every paged query.
+- Carry page size, continuation, total/count semantics, cancellation, and safe
+  maximums through API and generated client contracts.
+- Test boundary sizes, ties, empty pages, cancellation, and query shape.
 
-### Task 2: Fix service wiring and the unmapped vibration trace query
+### Task 13 — Remove dead dependencies and strengthen guards
 
-**Files:**
-- Modify: `apps/portal/RvtPortal.Spa/ServiceCollectionExtensions.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Monitors/MonitorService.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Monitors/MonitorData.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Data/DataApplicationService.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/SpaHostSmokeTests.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/DataViewTests.cs`
+**Status:** Open. **Owner:** Architecture.
 
-**Interfaces:**
-- Consumes: mapped `OmnidotsTrace` rows and `TimeProvider.System`.
-- Produces: resolvable report-rule services and `SearchQueryResult<OmnidotsTrace>` throughout the vibration-trace path.
+- Prove no callers before removing unused blob and HTTP dependencies.
+- Remove dead registrations, wrappers, imports, and configuration as one
+  change.
+- Add architecture checks that prevent adapter dependencies leaking into the
+  application core.
+- Keep Common source-reference and package-validation boundaries intact.
 
-- [ ] **Step 1: Write failing DI and vibration tests**
+### Task 14 — Make release orchestration executable
 
-Add one host test that resolves `IReportGenerationClient` from a scope and one data-view test that exercises `GetVibrationTraces` against the EF model rather than a fake `IMonitorService`.
+**Status:** Open. **Owner:** Build/release.
 
-- [ ] **Step 2: Verify RED**
+- Make the root workflow the single authoritative Portal verification entry.
+- Produce versioned backend/client/schema artifacts with checksums and evidence.
+- Run real browser smoke coverage against a deployed candidate.
+- Document and enforce the reviewed lifecycle-script allowlist.
+- Require release notes, rollback assets, Sonar disposition, and zero skipped
+  required tests.
 
-Run:
+### Task 15 — Establish the application boundary incrementally
 
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~SpaHostSmokeTests|FullyQualifiedName~DataViewTests'
-```
+**Status:** Partial. **Owner:** Architecture and Portal backend.
 
-Expected: the DI test reports an unresolved `System.TimeProvider`; the vibration test reports that `OmnidotsTraces` is not in the model.
+- Keep the existing application project, then move Auth, Sites, and Monitors
+  use cases behind narrow ports in reviewable slices.
+- Keep domain/application code free of ASP.NET, EF, Npgsql, storage, email, and
+  vendor SDK dependencies.
+- Retain infrastructure adapters in outer projects.
+- Preserve the three-context shared unit-of-work transaction.
+- Add compile-time dependency tests before each extraction is accepted.
 
-- [ ] **Step 3: Register the framework time provider**
+### Task 16 — Finish scope cleanup and contract alignment
 
-Add exactly one singleton registration:
+**Status:** Provider portion complete; other work open.
+**Owner:** Cross-functional Portal.
 
-```csharp
-services.AddSingleton(TimeProvider.System);
-```
+- Preserve the sole PostgreSQL/Npgsql database contract and its configuration
+  guards.
+- Remove proven dead code only with caller and test evidence.
+- Align OpenAPI, generated TypeScript, DTO nullability, paging, cancellation,
+  and error contracts in one reviewed change.
+- Correct remaining display defects, development binding assumptions, and FFT
+  semantics with focused tests.
+- Re-run static, database, client, browser, architecture, and documentation
+  gates after the cleanup.
 
-- [ ] **Step 4: Use the mapped trace entity end-to-end**
+## Release, rollout, rollback, and evidence
 
-Change `IMonitorService.GetVibrationTraces`, `MonitorService.GetVibrationTraces`, `MonitorData.VibrationTraces`, and trace dataset mapping from `OmnidotsTraces` to `OmnidotsTrace`. Query through `searchContext.OmnidotsTraces` and remove the unmapped plural DTO from the execution path.
+1. Finish the relevant regression test before each production change.
+2. Run static and architecture gates, then real PostgreSQL gates, then client
+   and browser gates.
+3. Back up the target and retain the previous application and schema artifacts.
+4. Run SchemaDeploy dry-run and review its ordered output.
+5. Deploy application and required schema as one release unit.
+6. Check liveness, then database-backed readiness, before switching traffic.
+7. Observe authentication, tenant authorization, report delivery, error rate,
+   latency, and database health during progressive rollout.
+8. Roll back traffic and the application first. Apply only the reviewed
+   rollback asset for a reversible schema change; restore the backup when
+   rollback would otherwise lose data.
+9. Do not restore old-name compatibility objects as a rollback mechanism.
 
-- [ ] **Step 5: Verify GREEN**
+Each closed finding must link a regression test, implementation commit, command
+output, and operational evidence where applicable. Secrets and connection
+strings must never appear in logs or evidence files.
 
-Run the focused command from Step 2 and expect all selected tests to pass.
+## Final readiness gates
 
-- [ ] **Step 6: Commit**
-
-```bash
-git add apps/portal/RvtPortal.Spa apps/portal/RvtPortal.Spa.Tests
-git commit -m "fix: restore report and vibration runtime paths"
-```
-
-### Task 3: Close tenant and assignment authorization gaps
-
-**Files:**
-- Modify: `apps/portal/RvtPortal.Spa/Application/Monitors/MonitorAdministrationReadService.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Monitors/MonitorReadAuthorizationService.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Monitors/MonitorListReader.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Api/MonitorsController.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Sites/SiteApplicationService.cs`
-- Create: `apps/portal/RvtPortal.Spa/Application/Sites/ActiveSiteAssignment.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/MonitorWorkflowTests.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/ContractSiteOperationsTests.cs`
-
-**Interfaces:**
-- Consumes: `PortalUserContext.CompanyId`, monitor row `CompanyId`, and `SiteUsers.StartDate`/`EndDate`.
-- Produces: one active-assignment predicate used by list and detail queries, plus actor-scoped monitor options.
-
-- [ ] **Step 1: Add failing authorization tests**
-
-Cover all of these cases:
-
-```text
-installer company A GETs company B monitor picture -> 404
-company user with expired assignment GETs site -> 404
-company user with future assignment lists sites -> site absent
-installer/company user GETs monitor options -> only actor-visible contracts and sites
-```
-
-- [ ] **Step 2: Verify RED**
-
-Run:
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~MonitorWorkflowTests|FullyQualifiedName~ContractSiteOperationsTests'
-```
-
-Expected: the new cross-company and inactive-window assertions fail.
-
-- [ ] **Step 3: Centralize active assignment semantics**
-
-Create an expression helper whose inclusive window is:
-
-```csharp
-siteUser.StartDate <= nowUtc &&
-(!siteUser.EndDate.HasValue || siteUser.EndDate.Value >= nowUtc)
-```
-
-Inject `TimeProvider` into `SiteApplicationService` so tests can fix `nowUtc`.
-
-- [ ] **Step 4: Apply the company match to every installer read path**
-
-For installer reads require:
-
-```csharp
-row.IsAssigned &&
-row.CompanyId.HasValue &&
-actor.CompanyId.HasValue &&
-row.CompanyId.Value == actor.CompanyId.Value
-```
-
-Use the same rule for detail, picture, and list authorization.
-
-- [ ] **Step 5: Pass the actor into monitor options**
-
-Change `OptionsAsync(CancellationToken)` to `OptionsAsync(PortalUserContext actor, CancellationToken)` and filter contracts/sites with the same visibility rules used by inventory reads.
-
-- [ ] **Step 6: Verify GREEN**
-
-Run the focused test command from Step 2 and expect all selected tests to pass.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add apps/portal/RvtPortal.Spa apps/portal/RvtPortal.Spa.Tests
-git commit -m "fix: enforce active tenant authorization"
-```
-
-### Task 4: Harden public auth origins and account workflows
-
-**Files:**
-- Modify: `apps/portal/RvtPortal.Spa/Program.cs`
-- Modify: `apps/portal/RvtPortal.Spa/appsettings.json`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Auth/AuthApplicationService.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Api/AuthController.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/SecurityHardeningTests.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/SpaHostSmokeTests.cs`
-
-**Interfaces:**
-- Consumes: `Spa:PublicBaseUrl`, configured forwarded-header trust, Identity change-email tokens, internal logging.
-- Produces: host-independent auth links, proxy-correct request metadata, confirmed email changes, and indistinguishable forgot-password responses.
-
-- [ ] **Step 1: Write failing tests**
-
-Add tests proving:
-
-```text
-Production startup without Spa:PublicBaseUrl fails configuration validation.
-A malicious Host header never appears in a reset link.
-Changing profile email does not immediately change the confirmed login address.
-SendGrid failure returns the same public 200 body as an unknown account.
-Forwarded headers are honored only from configured proxies/networks.
-```
-
-- [ ] **Step 2: Verify RED**
-
-Run:
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~SecurityHardeningTests|FullyQualifiedName~SpaHostSmokeTests'
-```
-
-- [ ] **Step 3: Require a validated public base URI**
-
-Bind `Spa:PublicBaseUrl` to options and validate it as an absolute HTTPS URI outside Development/Testing. Remove the production request-host fallback from `BuildClientUrl`. Replace `AllowedHosts: "*"` with the exact externally accepted host names for each deployed environment.
-
-- [ ] **Step 4: Configure forwarded headers before rate limiting, HTTPS redirect, authentication, and CSRF checks**
-
-Clear the framework defaults and populate `KnownProxies`/`KnownNetworks` only from configuration. Do not enable unrestricted `ForwardedHeaders.XForwardedFor | XForwardedProto | XForwardedHost` trust.
-
-- [ ] **Step 5: Make email changes a confirmed workflow**
-
-If `request.Email` differs, generate a change-email token and send a confirmation link; leave `Email`, `UserName`, and `EmailConfirmed` unchanged until confirmation. Apply non-email profile fields independently.
-
-- [ ] **Step 6: Make forgot-password output uniform**
-
-Return `PasswordResetMessage()` for unknown, unconfirmed, and provider-failure paths. Log the provider exception with an internal correlation id; never place provider details in the anonymous response.
-
-- [ ] **Step 7: Verify GREEN and commit**
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~SecurityHardeningTests|FullyQualifiedName~SpaHostSmokeTests'
-git add apps/portal/RvtPortal.Spa apps/portal/RvtPortal.Spa.Tests
-git commit -m "fix: harden public authentication boundaries"
-```
-
-### Task 5: Establish one explicit UTC/search timestamp contract
-
-**Files:**
-- Create: `apps/portal/RvtPortal.Spa/Application/Monitors/SearchTimestampPolicy.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Monitors/MonitorService.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Data/DataApplicationService.cs`
-- Modify: `apps/portal/RVT.DataAccess/Context/RVTSearchContext.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Contracts/ContractCommands.cs`
-- Modify: `apps/portal/RvtPortal.Client/src/operations/DataViewPanels.tsx`
-- Test: `apps/portal/RvtPortal.Spa.Tests/DataViewTests.cs`
-- Create: `apps/portal/RvtPortal.Spa.Tests/SearchTimestampPostgresTests.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/ContractSiteOperationsTests.cs`
-- Test: `apps/portal/RvtPortal.Client/src/operations/DataViewPanels.test.tsx`
-
-**Interfaces:**
-- Consumes: UTC application instants, PostgreSQL `timestamp without time zone` telemetry, and date-only contract strings.
-- Produces: `SearchTimestampPolicy.ToDatabase(DateTime)` and `SearchTimestampPolicy.FromDatabase(DateTime?)` as the only conversion points.
-
-- [ ] **Step 1: Write PostgreSQL RED tests for the disputed behavior**
-
-The integration test must insert a known telemetry row at `2026-07-01 14:30:00`, query it with UTC bounds, and assert both query success and returned JSON `2026-07-01T14:30:00Z`. Add a separate contract command test that persists `2026-07-01` without triggering `UtcTimestampGuardInterceptor`.
-
-- [ ] **Step 2: Run against PostgreSQL and record RED**
-
-Run:
-
-```bash
-RVT_TEST_POSTGRES_CONNECTION="$RVT_TEST_POSTGRES_CONNECTION" \
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
-  --filter 'FullyQualifiedName~SearchTimestampPostgresTests|FullyQualifiedName~ContractSiteOperationsTests'
-```
-
-Expected: the query either throws Npgsql's UTC-to-`timestamp` error or the JSON assertion lacks `Z`; contract persistence rejects `Unspecified`.
-
-- [ ] **Step 3: Implement the boundary policy**
-
-```csharp
-internal static class SearchTimestampPolicy
-{
-    public static DateTime ToDatabase(DateTime value) =>
-        value.Kind == DateTimeKind.Utc
-            ? DateTime.SpecifyKind(value, DateTimeKind.Unspecified)
-            : throw new ArgumentException(
-                "Search timestamp bounds must be UTC.",
-                nameof(value));
-
-    public static DateTime? FromDatabase(DateTime? value) =>
-        value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null;
-}
-```
-
-Apply `ToDatabase` only to time-series `SampleTime` bounds. Apply `FromDatabase` while constructing API rows/graph points so JSON emits an unambiguous UTC timestamp.
-
-- [ ] **Step 4: Complete the EF telemetry type audit**
-
-Every non-date `SampleTime` in `RVTSearchContext` must use `dateTimeColumnType`; explicit daily aggregates remain `date`. Add a model test that enumerates every `SampleTime` property and compares its provider store type to the approved table.
-
-- [ ] **Step 5: Mark contract calendar dates as UTC midnight at persistence**
-
-Use one helper in `ContractCommandWorkflow`:
-
-```csharp
-private static DateTime AsUtcDate(DateTime value) =>
-    DateTime.SpecifyKind(value.Date, DateTimeKind.Utc);
-```
-
-Apply it to both create and update, including nullable `OffHireDate`.
-
-- [ ] **Step 6: Make the client test the API contract, not the workstation timezone**
-
-Keep `Intl.DateTimeFormat` for local presentation, but add tests under `TZ=Europe/London` and `TZ=UTC` proving the same UTC instant is interpreted correctly. Do not append `Z` in the client as a repair for ambiguous server output; the API owns that contract.
-
-- [ ] **Step 7: Verify GREEN and commit**
-
-```bash
-RVT_TEST_POSTGRES_CONNECTION="$RVT_TEST_POSTGRES_CONNECTION" dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~SearchTimestampPostgresTests|FullyQualifiedName~ContractSiteOperationsTests'
-cd apps/portal/RvtPortal.Client && TZ=Europe/London npm run test:run -- DataViewPanels.test.tsx
-git add apps/portal/RVT.DataAccess apps/portal/RvtPortal.Spa apps/portal/RvtPortal.Spa.Tests apps/portal/RvtPortal.Client
-git commit -m "fix: define portal timestamp boundaries"
-```
-
-### Task 6: Make schema deployment complete and failure-aware
-
-**Files:**
-- Modify: `apps/portal/RVT.SchemaDeploy/ScriptRunner.cs`
-- Modify: `apps/portal/RVT.SchemaDeploy/RVT.SchemaDeploy.csproj`
-- Modify: `apps/portal/RVT.SchemaDeploy/DeployOptions.cs`
-- Modify: `apps/portal/database/postgres/restore_unmapped_column_defaults.sql`
-- Test: `apps/portal/RvtPortal.Spa.Tests/SchemaDeployTests.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/UnmappedColumnDefaultTests.cs`
-- Modify: `apps/portal/docs/deploy/share-dev-database.sh`
-
-**Interfaces:**
-- Consumes: canonical SQL root and a PostgreSQL connection.
-- Produces: deterministic script order `create_unmapped_schema.sql` -> `restore_unmapped_column_defaults.sql` -> `post-load/*.sql`, including publish output.
-
-- [ ] **Step 1: Add failing deploy-order and publish tests**
-
-Assert that dry-run output contains the repair script exactly once between create and post-load scripts, and that `RVT.SchemaDeploy.csproj` publishes it as `sql/restore_unmapped_column_defaults.sql`.
-
-- [ ] **Step 2: Verify RED**
-
-Run:
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~SchemaDeployTests|FullyQualifiedName~UnmappedColumnDefaultTests'
-```
-
-Expected: the repair-order and published-content assertions fail.
-
-- [ ] **Step 3: Add the repair as an explicit script stage**
-
-In `ResolveScripts`, add:
-
-```csharp
-var repair = Path.Combine(options.ScriptRoot, "restore_unmapped_column_defaults.sql");
-if (File.Exists(repair))
-{
-    scripts.Add(repair);
-}
-```
-
-Place it after `create_unmapped_schema.sql` and before `post-load` enumeration. Add a matching `<Content>` item with `CopyToOutputDirectory="PreserveNewest"`.
-
-- [ ] **Step 4: Prove idempotency against real PostgreSQL**
-
-Run the deploy tool twice against the same fixture database and assert both runs succeed and the repaired defaults equal the canonical expressions. A second run must not mutate data or fail.
-
-- [ ] **Step 5: Stop suppressing destructive restore failures**
-
-Remove `|| true` from `pg_restore`. Capture its status before verification, exit nonzero on restore failure, and require the expected verification queries to return nonzero table counts before printing `Restore complete.`
-
-- [ ] **Step 6: Verify GREEN and commit**
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~SchemaDeployTests|FullyQualifiedName~UnmappedColumnDefaultTests'
-bash -n apps/portal/docs/deploy/share-dev-database.sh
-git add apps/portal/RVT.SchemaDeploy apps/portal/database/postgres apps/portal/RvtPortal.Spa.Tests apps/portal/docs/deploy/share-dev-database.sh
-git commit -m "fix: deploy required database repairs"
-```
-
-## Phase 2: Complete release-critical platform and client hardening
-
-### Task 7: Replace the false health gate with liveness and readiness
-
-**Files:**
-- Modify: `apps/portal/RvtPortal.Spa/Program.cs`
-- Replace: `apps/portal/RvtPortal.Spa/Api/HealthController.cs`
-- Modify: `apps/portal/RvtPortal.Spa/ServiceCollectionExtensions.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/SpaHostSmokeTests.cs`
-- Modify: `docs/release/portal/CUTOVER_RUNBOOK.md`
-
-**Interfaces:**
-- Consumes: ASP.NET Core health checks and all three portal database contexts.
-- Produces: `/api/health/live` for process liveness and `/api/health/ready` for database/schema readiness.
-
-- [ ] **Step 1: Add failing health tests**
-
-Prove that liveness remains 200 when the database is unavailable, readiness returns 503 when connection/schema validation fails, and readiness returns 200 only after the database is usable.
-
-- [ ] **Step 2: Verify RED**
-
-Run: `dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter FullyQualifiedName~SpaHostSmokeTests`
-
-- [ ] **Step 3: Register tagged checks and map explicit endpoints**
-
-Use `AddHealthChecks().AddDbContextCheck<...>()` for the contexts and one custom schema check. Map liveness with a predicate that selects no dependency checks, and readiness with the `ready` tag. Return JSON containing only status and check names; do not leak connection details.
-
-- [ ] **Step 4: Update deployment documentation**
-
-Replace all release gating references to `/api/health` with `/api/health/ready`; retain `/api/health/live` for container probes.
-
-- [ ] **Step 5: Verify GREEN and commit**
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter FullyQualifiedName~SpaHostSmokeTests
-git add apps/portal/RvtPortal.Spa apps/portal/RvtPortal.Spa.Tests docs/release/portal/CUTOVER_RUNBOOK.md
-git commit -m "feat: add portal readiness health gate"
-```
-
-### Task 8: Unify storage and outbound integration safety
-
-**Files:**
-- Create: `apps/portal/RVT.BusinessLogic/Ports/Geocoding/IWhat3WordsGateway.cs` only if What3Words is retained
-- Create: `apps/portal/RvtPortal.Spa/Adapters/Vendors/What3WordsGateway.cs` only if retained
-- Modify: `apps/portal/RvtPortal.Spa/Application/Installers/InstallerApplicationService.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Adapters/Vendors/OmnidotsVibrationGateway.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Adapters/Reporting/ReportGenerationClient.cs`
-- Modify: `apps/portal/RvtPortal.Spa/Adapters/Archive/SiteArchiveService.cs`
-- Modify: `apps/portal/RvtPortal.Spa/ServiceCollectionExtensions.cs`
-- Modify: `apps/portal/docs/deploy/set-dev-secrets.ps1`
-- Test: `apps/portal/RvtPortal.Spa.Tests/OmnidotsVibrationGatewayTests.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/ReportGenerationClientTests.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/SiteArchiveServiceSecurityTests.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/MonitorWorkflowTests.cs`
-
-**Interfaces:**
-- Consumes: named `HttpClient` instances, typed adapter options, shared blob-client construction, and cancellation tokens.
-- Produces: bounded external calls that return typed failures and support both connection-string and managed-identity storage.
-
-- [ ] **Step 1: Record the What3Words product decision**
-
-Add an ADR under `docs/architecture/portal/` with exactly one outcome:
-
-```text
-Retain: What3Words remains a supported installer workflow and must use X-Api-Key via IWhat3WordsGateway.
-Remove: delete endpoint, configuration, secret prompts, client calls, tests, and documentation as one change.
-```
-
-Do not start the adapter implementation until the ADR selects one outcome.
-
-- [ ] **Step 2: Write failing adapter tests**
-
-For retained integrations, cover configured timeout, caller cancellation, timeout translation, invalid/missing URL, non-success body truncation, and absence of secrets from exception/log messages. Add archive tests for both connection-string and `ServiceUri` modes.
-
-- [ ] **Step 3: Configure named clients**
-
-Set explicit timeouts in `ServiceCollectionExtensions.cs`:
-
-```csharp
-services.AddHttpClient<IReportGenerationClient, ReportingServiceReportGenerationClient>(client =>
-    client.Timeout = TimeSpan.FromSeconds(30));
-services.AddHttpClient<IVibrationVendorGateway, OmnidotsVibrationGateway>(client =>
-    client.Timeout = TimeSpan.FromSeconds(15));
-```
-
-Catch timeout-shaped `OperationCanceledException` only when the caller token was not cancelled, and translate it to the adapter's typed failure. Keep genuine caller cancellation cancellable.
-
-- [ ] **Step 4: Move What3Words out of the application service or remove it**
-
-If retained, send the key only in `X-Api-Key`; the application service calls `IWhat3WordsGateway` and no longer consumes raw `IConfiguration` or `IHttpClientFactory` for this integration.
-
-- [ ] **Step 5: Reuse the storage-client factory**
-
-Inject the existing storage client/factory used by monitor pictures into `SiteArchiveService`; never construct `BlobServiceClient` directly from `blobConnectionString` inside archive methods.
-
-- [ ] **Step 6: Avoid exposing secrets in process arguments**
-
-Change sensitive `dotnet user-secrets set` calls to pipe the value through standard input where supported, or write directly through a short-lived .NET configuration helper that reads `SecureString`/stdin. Ensure `Get-CimInstance Win32_Process` or `ps` cannot see the secret value.
-
-- [ ] **Step 7: Verify and commit**
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~OmnidotsVibrationGatewayTests|FullyQualifiedName~ReportGenerationClientTests|FullyQualifiedName~SiteArchiveServiceSecurityTests|FullyQualifiedName~MonitorWorkflowTests'
-git add apps/portal/RVT.BusinessLogic apps/portal/RvtPortal.Spa apps/portal/RvtPortal.Spa.Tests apps/portal/docs/deploy/set-dev-secrets.ps1 docs/architecture/portal
-git commit -m "fix: contain portal integration failures"
-```
-
-### Task 9: Repair calendar, local-date, and stale-response client behavior
-
-**Files:**
-- Modify: `apps/portal/RvtPortal.Client/src/operations/DashboardRoutePanels.tsx`
-- Modify: `apps/portal/RvtPortal.Client/src/operations/DashboardPanels.tsx`
-- Modify: `apps/portal/RvtPortal.Client/src/operations/ContractSitePanels.tsx`
-- Modify: affected API client functions under `apps/portal/RvtPortal.Client/src/api/`
-- Test: `apps/portal/RvtPortal.Client/src/operations/DashboardRoutePanels.test.tsx`
-- Test: `apps/portal/RvtPortal.Client/src/operations/DashboardPanels.test.tsx`
-- Test: `apps/portal/RvtPortal.Client/src/operations/ContractSitePanels.test.tsx`
-
-**Interfaces:**
-- Consumes: full `CalendarMonthDayItem.date`, local browser calendar fields, `AbortSignal` or monotonically increasing request generation.
-- Produces: exact-date selection and stale-safe client mutations.
-
-- [ ] **Step 1: Add RED tests**
-
-Cover clicking `30 April` in a May grid, local date defaults around midnight in `Pacific/Kiritimati` and `America/Los_Angeles`, and two out-of-order company/filter requests where the older response arrives last.
-
-- [ ] **Step 2: Verify RED**
-
-Run:
-
-```bash
-cd apps/portal/RvtPortal.Client
-TZ=Pacific/Kiritimati npm run test:run -- DashboardRoutePanels.test.tsx DashboardPanels.test.tsx ContractSitePanels.test.tsx
-```
-
-- [ ] **Step 3: Pass complete dates from the calendar**
-
-Change the callback contract to `onSelect(date: string)` and call `onSelect(day.date)`. Selection equality uses the complete ISO date, not the day number.
-
-- [ ] **Step 4: Format local date inputs without UTC conversion**
-
-Add one shared helper:
-
-```ts
-export function localDateInputValue(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-```
-
-Use it for dashboard and contract defaults. Preserve existing API date strings with `value.slice(0, 10)` instead of parsing and re-serializing date-only values.
-
-- [ ] **Step 5: Reject stale responses**
-
-Use `AbortController` where the API wrapper accepts a signal; otherwise capture an incrementing generation and apply results only when it equals the current generation. Abort on effect cleanup and on a new company/filter selection.
-
-- [ ] **Step 6: Verify GREEN and commit**
-
-```bash
-cd apps/portal/RvtPortal.Client
-npm run lint
-npm run test:run -- DashboardRoutePanels.test.tsx DashboardPanels.test.tsx ContractSitePanels.test.tsx
-git add src
-git commit -m "fix: stabilize portal date and request behavior"
-```
-
-### Task 10: Decide and, if needed, repair the temporary Help Admin key
-
-**Files:**
-- Modify only if retained: `apps/portal/RvtPortal.Client/src/admin/HelpAdminPanel.tsx`
-- Test only if retained: `apps/portal/RvtPortal.Client/src/admin/HelpAdminPanel.test.ts`
-- Modify: `docs/release/portal/FUNCTIONALITY_READINESS_MATRIX.md`
-
-**Interfaces:**
-- Consumes: product decision on whether Help Admin ships.
-- Produces: either a documented exclusion or a stable per-row client id.
-
-- [ ] **Step 1: Record ship/defer status in the readiness matrix**
-
-If deferred, state that Help Admin is excluded from the cutover surface and stop. If shipped, continue.
-
-- [ ] **Step 2: Add a failing typing test**
-
-Render an asset with title `A`, type `BC`, and assert typing `AB` leaves focus on the title input and preserves the second character.
-
-- [ ] **Step 3: Use a stable key**
-
-Add a client-only id when an asset form row is created and key by that id. Do not key by title, URL, or array index.
-
-- [ ] **Step 4: Verify and commit**
-
-```bash
-(cd apps/portal/RvtPortal.Client && npm run test:run -- HelpAdminPanel.test.ts)
-git add apps/portal/RvtPortal.Client/src/admin/HelpAdminPanel.tsx apps/portal/RvtPortal.Client/src/admin/HelpAdminPanel.test.ts docs/release/portal/FUNCTIONALITY_READINESS_MATRIX.md
-git commit -m "fix: stabilize help asset editing"
-```
-
-## Phase 3: Data governance, performance, and release completion
-
-### Task 11: Qualify schema validation and protect destructive relationships
-
-**Files:**
-- Modify: `apps/portal/RVT.DataAccess/Configuration/RvtSchemaValidator.cs`
-- Modify: `apps/portal/RVT.DataAccess/Context/RVTDbContext.cs`
-- Create: provider migration files only for confirmed delete-behavior changes under `apps/portal/RVT.DataAccess/Migrations/`
-- Test: `apps/portal/RvtPortal.Spa.Tests/DatabaseNamingConventionTests.cs`
-- Create: `apps/portal/RvtPortal.Spa.Tests/SchemaValidationPostgresTests.cs`
-- Create: `apps/portal/RvtPortal.Spa.Tests/DeleteBehaviorTests.cs`
-
-**Interfaces:**
-- Consumes: EF schema/table/column metadata and the database's `table_schema`, `table_name`, `column_name` rows.
-- Produces: schema-qualified validation and an explicitly approved delete-behavior matrix.
-
-- [ ] **Step 1: Add a failing wrong-schema test**
-
-Create identical relation names in two schemas, omit a required column from the mapped schema, and assert validation fails even when the other schema contains that column.
-
-- [ ] **Step 2: Key schema observations by a value object**
-
-Use:
-
-```csharp
-internal readonly record struct DatabaseRelation(string Schema, string Name);
-```
-
-Read all three information-schema columns and compare with the model's resolved schema and relation name using provider-appropriate case rules.
-
-- [ ] **Step 3: Inventory delete behavior before changing it**
-
-Generate an approved test matrix for every relationship that owns notification/breach/audit history. Require `Restrict` or `NoAction` for historical records and allow `Cascade` only for true owned children such as Help assets.
-
-- [ ] **Step 4: Add migrations only for matrix mismatches**
-
-Do not globally disable cascade deletes. Change only relationships whose deletion would erase required history, and include forward/rollback validation.
-
-- [ ] **Step 5: Verify against PostgreSQL and commit**
-
-```bash
-RVT_TEST_POSTGRES_CONNECTION="$RVT_TEST_POSTGRES_CONNECTION" dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~SchemaValidationPostgresTests|FullyQualifiedName~DeleteBehaviorTests|FullyQualifiedName~DatabaseNamingConventionTests'
-git add apps/portal/RVT.DataAccess apps/portal/RvtPortal.Spa.Tests
-git commit -m "fix: enforce schema and history boundaries"
-```
-
-### Task 12: Bound large reads and make paging deterministic
-
-**Files:**
-- Modify: `apps/portal/RvtPortal.Spa/Application/Monitors/MonitorService.cs`
-- Modify: query helpers under `apps/portal/RVT.Entities/Querying/`
-- Test: `apps/portal/RvtPortal.Spa.Tests/DataViewTests.cs`
-- Create: `apps/portal/RvtPortal.Spa.Tests/QueryPagingTests.cs`
-
-**Interfaces:**
-- Consumes: explicit maximum export size, page size, and stable unique tie-break fields.
-- Produces: bounded reads and deterministic order for every `Skip`/`Take` query.
-
-- [ ] **Step 1: Write failing size and tie-break tests**
-
-Assert API page size above the approved maximum returns validation failure, export paths use streaming, and equal primary sort values are ordered by a unique secondary key.
-
-- [ ] **Step 2: Remove `Take(1000000)` from request paths**
-
-Use bounded paging for UI calls and `IAsyncEnumerable` streaming for CSV/export. Keep an explicit hard safety ceiling only for operations that cannot stream.
-
-- [ ] **Step 3: Add stable secondary ordering**
-
-After the requested sort, append `ThenBy` on the entity's stable key; for keyless telemetry use `SampleTime` plus the natural sensor/trace identity available to that dataset.
-
-- [ ] **Step 4: Verify and commit**
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~DataViewTests|FullyQualifiedName~QueryPagingTests'
-git add apps/portal/RvtPortal.Spa apps/portal/RVT.Entities apps/portal/RvtPortal.Spa.Tests
-git commit -m "perf: bound and stabilize portal queries"
-```
-
-### Task 13: Remove dead dependencies and close architecture-guard holes
-
-**Files:**
-- Modify: `apps/portal/RVT.BusinessLogic/RVT.BusinessLogic.csproj`
-- Modify: `apps/portal/RvtPortal.Spa.Tests/CqrsArchitectureTests.cs`
-- Modify: `docs/architecture/portal/ports-and-adapters-catalog.md`
-- Test: `apps/portal/RvtPortal.Spa.Tests/RvtCommonDependencyBoundaryTests.cs`
-
-**Interfaces:**
-- Consumes: current project references and package usage.
-- Produces: an inner business project with no Azure Blob or HTTP implementation packages and executable package/project dependency rules.
-
-- [ ] **Step 1: Add a failing project-file guard**
-
-Assert `RVT.BusinessLogic.csproj` does not reference `Azure.Storage.Blobs` or `Microsoft.Extensions.Http`, and that no inner project references the SPA host or DataAccess.
-
-- [ ] **Step 2: Verify RED**
-
-Run: `dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~CqrsArchitectureTests|FullyQualifiedName~RvtCommonDependencyBoundaryTests'`
-
-- [ ] **Step 3: Remove unused dependencies**
-
-Delete the two package references only after `rg` and compilation prove no source consumer remains. Update the ports/adapters catalog to describe the enforced project graph accurately.
-
-- [ ] **Step 4: Verify GREEN and commit**
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~CqrsArchitectureTests|FullyQualifiedName~RvtCommonDependencyBoundaryTests'
-git add apps/portal/RVT.BusinessLogic/RVT.BusinessLogic.csproj apps/portal/RvtPortal.Spa.Tests docs/architecture/portal/ports-and-adapters-catalog.md
-git commit -m "refactor: enforce portal core dependencies"
-```
-
-### Task 14: Complete release orchestration and Sonar CI fixes
-
-**Files:**
-- Modify: `.github/workflows/portal-verify.yml`
-- Modify: `apps/portal/scripts/verify-backend.sh`
-- Modify: `apps/portal/scripts/verify-frontend.sh`
-- Modify: `apps/portal/RvtPortal.Client/Dockerfile`
-- Create: `apps/portal/scripts/verify-release-artifact.sh`
-- Modify: `docs/release/portal/CUTOVER_RUNBOOK.md`
-
-**Interfaces:**
-- Consumes: tested SPA host, three EF migration chains, schema-deploy artifact, Playwright results, npm dependency policy.
-- Produces: one release artifact/gate that proves application and schema can be deployed together.
-
-- [ ] **Step 1: Add a failing release-artifact test**
-
-Require the staged release directory to contain the SPA publish output, `RVT.SchemaDeploy.dll`, the complete `sql/` tree including the repair script, and a manifest that records the application commit.
-
-- [ ] **Step 2: Publish both application and schema deployer**
-
-`verify-backend.sh` must publish `RvtPortal.Spa` and `RVT.SchemaDeploy` into separate subdirectories of one release root. `verify-release-artifact.sh` validates required files and runs the schema deployer in `--dry-run` mode.
-
-- [ ] **Step 3: Make Playwright a real CI gate**
-
-Run `npm run test:e2e` in the active root workflow. Keep mocked component tests, but add at least one deployed-stack smoke that uses the real API health/readiness endpoint rather than mocking every request.
-
-- [ ] **Step 4: Resolve npm lifecycle findings deliberately**
-
-Run `npm query ':attr(scripts)'` and record the allowlist. Use `npm ci --ignore-scripts`, then run only required trusted package rebuilds by exact package name. Apply the same policy in `verify-frontend.sh` and the Docker build stage. The final image remains `nginx-unprivileged`.
-
-- [ ] **Step 5: Verify the full portal gate**
-
-```bash
-cd apps/portal
-./scripts/verify-backend.sh
-./scripts/verify-frontend.sh
-./scripts/verify-release-artifact.sh
-```
-
-Expected: backend, PostgreSQL integration, frontend unit/lint/build, Playwright, container smoke, schema dry-run, and artifact manifest all pass.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add .github/workflows/portal-verify.yml apps/portal/scripts apps/portal/RvtPortal.Client/Dockerfile docs/release/portal/CUTOVER_RUNBOOK.md
-git commit -m "ci: gate complete portal releases"
-```
-
-## Phase 4: Incremental application-core extraction after cutover blockers are green
-
-### Task 15: Introduce a compile-time `RvtPortal.Application` boundary
-
-**Files:**
-- Create: `apps/portal/RvtPortal.Application/RvtPortal.Application.csproj`
-- Create: `apps/portal/RvtPortal.Application/Users/PortalUserContext.cs`
-- Create: `apps/portal/RvtPortal.Application/Ports/` with focused application-owned port interfaces
-- Move incrementally: use-case contracts currently under `apps/portal/RvtPortal.Spa/Application/`
-- Modify: `apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj`
-- Modify: `apps/portal/RvtPortal.Spa.Tests/CqrsArchitectureTests.cs`
-- Modify: `Rvt.Mono.slnx`
-- Modify: `docs/architecture/portal/ports-and-adapters-catalog.md`
-- Modify: `docs/architecture/portal/hexagonal-edges-change-log.md`
-- Test: `tests/verify-mono-solution.test.sh`
-
-**Interfaces:**
-- Consumes: transport-neutral request/result models and focused ports proven by prior tasks.
-- Produces: a project that may reference `RVT.Entities` and abstraction packages only; it may not reference ASP.NET Core, `RvtPortal.Spa`, `RVT.DataAccess`, Azure/SendGrid/vendor SDKs, raw `IConfiguration`, or `IHttpClientFactory`.
-
-- [ ] **Step 1: Add a failing project-graph test before creating the project**
-
-The architecture test requires `RvtPortal.Application.csproj`, asserts its allowed project/package set, and rejects forbidden namespaces/packages. `tests/verify-mono-solution.test.sh` must require the new project in the portal solution folder.
-
-- [ ] **Step 2: Verify RED**
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter FullyQualifiedName~CqrsArchitectureTests
-tests/verify-mono-solution.test.sh
-```
-
-- [ ] **Step 3: Create the minimal project and move policies first**
-
-Start with `PortalUserContext`, active-assignment policy, auth/use-case interfaces, and outbound port contracts already detached by earlier tasks. Do not move EF query implementations yet.
-
-- [ ] **Step 4: Move one vertical slice at a time**
-
-For each slice:
-
-```text
-move application request/result/interface into RvtPortal.Application
-keep controller/API DTO mapping in RvtPortal.Spa
-keep EF implementation in an adapter project or the host temporarily
-add a focused read/write port without IQueryable leakage
-run slice tests and architecture tests
-commit the slice
-```
-
-Begin with Auth, then Sites, then Monitors. Keep direct EF projections where valuable, but hide them behind focused read ports.
-
-- [ ] **Step 5: Keep the transaction adapter intact**
-
-Define command-side persistence/unit-of-work interfaces inward; retain the existing `EfCoreUnitOfWork` and three-context shared transaction as the adapter implementation. Do not replace it with generic repositories.
-
-- [ ] **Step 6: Map API DTOs only at controllers**
-
-Application requests/results must not import `RvtPortal.Spa.Api`. Add a guard that scans the application project for ASP.NET/HTTP/API namespaces.
-
-- [ ] **Step 7: Verify the aggregate solution**
-
-```bash
-tests/verify-mono-solution.test.sh
-dotnet restore Rvt.Mono.slnx
-dotnet build Rvt.Mono.slnx --no-restore --nologo
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --no-build
-```
-
-- [ ] **Step 8: Commit**
-
-```bash
-git add apps/portal/RvtPortal.Application apps/portal/RvtPortal.Spa apps/portal/RvtPortal.Spa.Tests Rvt.Mono.slnx docs/architecture/portal
-git commit -m "refactor: establish portal application boundary"
-```
-
-## Phase 5: Close the explicitly low-priority review backlog
-
-### Task 16: Resolve provider scope, dead code, DTO drift, and display-only defects
-
-**Files:**
-- Create: `docs/architecture/portal/database-provider-support.md`
-- Modify or remove after the decision: SQL Server-specific paths under `apps/portal/database/` and provider branches under `apps/portal/RVT.DataAccess/`
-- Modify: `apps/portal/RvtPortal.Spa/Application/Monitors/MonitorData.cs`
-- Modify: `apps/portal/RvtPortal.Client/vite.config.ts`
-- Modify: `apps/portal/RvtPortal.Client/package.json`
-- Remove only after caller proof: dead Azure blob service/AForge code identified by `rg` and compiler analysis
-- Test: `apps/portal/RvtPortal.Spa.Tests/DataViewTests.cs`
-- Test: `apps/portal/RvtPortal.Spa.Tests/CutoverReadinessTests.cs`
-- Test: `apps/portal/RvtPortal.Client/src/operations/DataViewPanels.test.tsx`
-
-**Interfaces:**
-- Consumes: an explicit supported-database decision, OpenAPI source schema, and vibration FFT display requirements.
-- Produces: one documented provider policy, generated client contract drift detection, safe local dev binding, and no retained dead implementation.
-
-- [ ] **Step 1: Decide the database-provider contract**
-
-The ADR must select one of two executable policies:
-
-```text
-PostgreSQL-only: remove SQL Server release/tooling claims and unsupported branches, retaining historical migration evidence only under docs/history.
-Dual-provider: add a SQL Server CI job that applies its migrations and passes the same behavioral contract tests as PostgreSQL where semantics are intended to match.
-```
-
-Do not continue advertising a provider that has no green deployment path.
-
-- [ ] **Step 2: Add client-contract drift detection**
-
-Regenerate the OpenAPI TypeScript schema in CI and fail when `git diff --exit-code -- RvtPortal.Client/src/api/schema.d.ts` is nonzero. Replace hand-written Help/report DTOs with generated types or add explicit mapper contract tests where their shape intentionally differs.
-
-- [ ] **Step 3: Make the dev server local by default**
-
-Bind Vite to `127.0.0.1` unless a deliberate `RVT_DEV_SERVER_HOST` override is supplied. Keep insecure proxy behavior development-only and test that production builds cannot enable it.
-
-- [ ] **Step 4: Define and test FFT display normalization**
-
-Add a fixture with the same physical signal across two query-window lengths. Either normalize magnitudes by sample count/window gain or label the values as raw window-dependent magnitude. The test must encode the selected product meaning.
-
-- [ ] **Step 5: Remove dead code only after caller proof**
-
-Use `rg`, solution build, and coverage to prove the old `AzureBlobService` and vendored AForge complex-scalar paths have no callers. Delete the dead classes and their exclusive package references in the same commit; do not repair unreachable behavior.
-
-- [ ] **Step 6: Verify and commit**
-
-```bash
-dotnet test apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj --filter 'FullyQualifiedName~DataViewTests|FullyQualifiedName~CutoverReadinessTests'
-(cd apps/portal/RvtPortal.Client && npm run lint && npm run test:run -- DataViewPanels.test.tsx)
-git diff --exit-code -- apps/portal/RvtPortal.Client/src/api/schema.d.ts
-git add apps/portal docs/architecture/portal/database-provider-support.md
-git commit -m "chore: close portal review backlog"
-```
-
----
-
-## Final Release Gate
-
-- [ ] Every P0/P1 row in the Review Disposition table has a linked regression test and closed implementation commit.
-- [ ] The active root GitHub workflow is green on `main`; module-local workflows are removed or explicitly archived as historical evidence.
-- [ ] Required PostgreSQL tests execute with zero skips.
-- [ ] Cross-company picture, expired assignment, and monitor-options tests return `404` or scoped results as specified.
-- [ ] Password-reset URLs come only from validated configuration; public forgot-password responses are indistinguishable.
-- [ ] Telemetry query and JSON timestamp tests pass in UTC and Europe/London, including a DST date.
-- [ ] Contract create/update passes against real PostgreSQL.
-- [ ] Schema deploy dry-run lists the repair script and a repeated live run is idempotent.
-- [ ] Readiness returns 503 on database/schema failure and 200 only when the deployment is usable.
-- [ ] Vitest, Playwright, backend tests, release artifact validation, Sonar, and documentation guards pass.
-- [ ] `git diff --check`, `tests/verify-mono-layout.test.sh`, `tests/verify-mono-solution.test.sh`, `tests/verify-rvt-common-source-boundary.test.sh`, and both documentation-layout tests pass.
-- [ ] The cutover runbook and functionality-readiness matrix reflect the real automated gates and no longer cite pre-monorepo paths.
+- [ ] Every P0/P1 register row links its test and implementation commit.
+- [ ] The active root workflow is green on the release candidate.
+- [ ] Required PostgreSQL tests report zero skipped/not-executed results.
+- [ ] Cross-tenant, expired-assignment, and future-assignment cases pass.
+- [ ] Public auth links, email change, and forgot-password cases pass.
+- [ ] UTC, London/DST, calendar-date, and serialization cases pass.
+- [ ] Contract and search behavior passes against real PostgreSQL.
+- [ ] Schema dry-run, repair, schema qualification, and second-run idempotency
+  evidence is recorded.
+- [ ] Liveness and readiness demonstrate the expected `200`/`503` transitions.
+- [ ] Vitest, Playwright, backend, release-export, Sonar, and documentation
+  gates pass.
+- [ ] Mono layout, solution membership, Common boundary, application boundary,
+  local-link, and documentation-layout checks pass.
+- [ ] Paging is bounded and deterministically ordered; generated client
+  contracts match the API.
+- [ ] Cutover, rollout, rollback, and evidence runbooks describe real,
+  executable gates.

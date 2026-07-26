@@ -34,7 +34,9 @@ namespace MyAtm.Api.Db
 
         public DBClient(string connectionString)
         {
-            MonitorDatabaseProviderGuard.EnsureSupported();
+            MonitorDb.ValidateLegacyProvider(
+                Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
+                Environment.GetEnvironmentVariable("DatabaseProvider"));
             ConnectionString = connectionString;
         }
 
@@ -976,7 +978,7 @@ namespace MyAtm.Api.Db
         private MyAtmMonitorContext CreateContext()
         {
             var monitorOptions = MyAtmMonitorDbOptions.Current;
-            var options = MonitorDbContextOptionsFactory.CreateOptions<MyAtmMonitorContext>(ConnectionString, monitorOptions);
+            var options = MonitorDbContextOptionsFactory.CreateOptions<MyAtmMonitorContext>(ConnectionString);
             return new MyAtmMonitorContext(options, monitorOptions);
         }
 

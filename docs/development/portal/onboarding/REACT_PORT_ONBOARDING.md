@@ -2,8 +2,8 @@
 This guide is for developers joining the RVT Portal SPA work. Read it with the repository `README.md`, then use the release docs when you need detailed parity evidence.
 ## 1. Project Purpose
 RVT Portal SPA is the React/Vite port of the RVT Monitoring portal. The goal is to preserve the existing RVT business workflows while replacing the legacy ASP.NET MVC page experience with a modern single-page application.
-The port is not a complete backend rewrite. It keeps the existing RVT domain model, many service/repository concepts, ASP.NET Identity, and SQL Server data access while moving the user experience into React and exposing workflows through API controllers.
-Future architecture documents may describe AKS, PostgreSQL, and TimescaleDB plans. This alpha repository still uses the current SQL Server-oriented application code.
+The port is not a complete backend rewrite. It keeps the existing RVT domain model, many service/repository concepts, ASP.NET Identity, and PostgreSQL data access while moving the user experience into React and exposing workflows through API controllers.
+PostgreSQL/TimescaleDB is the sole database runtime.
 ## 2. What Changed From MVC
 - Legacy MVC views and retired demo/debug projects are not part of this repository.
 - React owns the browser shell, navigation, forms, panels, route rendering, and client-side API calls.
@@ -20,7 +20,7 @@ flowchart LR
     Host --> Controllers["/api controllers"]
     Controllers --> Business["RVT.BusinessLogic"]
     Business --> Data["RVT.DataAccess"]
-    Data --> Db["SQL Server<br/>current codebase"]
+    Data --> Db["PostgreSQL / TimescaleDB"]
     Host --> Static["Published SPA static files"]
 ```
 ## 4. Repository Map
@@ -107,7 +107,7 @@ Use these files to understand cutover readiness:
 - Open `RvtPortal.Spa.sln` and confirm the solution builds.
 - Run the API and React client locally.
 - Read `README.md`, this guide, `RvtPortal.Spa/AUTHORIZATION.md`, and the readiness matrix.
-- Read `docs/development/portal/onboarding/DATABASE_NAMING_ONBOARDING.md` before touching migrations, raw SQL, reports, archive SQL, or the SQL Server-to-Postgres migrator.
+- Read `docs/development/portal/onboarding/DATABASE_NAMING_ONBOARDING.md` before touching migrations, raw SQL, reports, archive SQL, or SchemaDeploy assets.
 - Trace one admin workflow and one company/installer workflow from React panel to API controller.
 - Make a small first change that includes both frontend and backend tests where relevant.
 - Keep local credentials in user secrets, environment variables, or ignored local overrides.

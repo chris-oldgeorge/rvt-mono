@@ -1,10 +1,12 @@
-// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
+// File summary: Provides the Portal test host with isolated in-memory contexts and explicit local host filtering.
 // Major updates:
+// - 2026-07-26 pending Removed the obsolete provider-selection setting from test database options.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 // - 2026-06-24 pending Added report-content shared-key test configuration.
 // - 2026-06-25 pending Removed EF Core options configuration callbacks when replacing contexts with in-memory stores.
+// - 2026-07-25 pending Replaced WebApplicationFactory's wildcard host default with the portal's explicit local test hosts.
 
 using System.Data.Common;
 using System.Globalization;
@@ -51,6 +53,7 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
         builder.UseEnvironment(environment);
         builder.UseSetting("EmailConfiguration:SENDGRID_API_KEY", "test-sendgrid-api-key");
         builder.UseSetting("EmailConfiguration:Sending_Email_Address", "portal-tests@example.test");
+        builder.UseSetting("AllowedHosts", "localhost;127.0.0.1");
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -88,7 +91,6 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
                 options.UseInMemoryDatabase($"{databaseName}-search").UseInternalServiceProvider(databaseProvider));
             services.AddSingleton<IOptions<RvtDatabaseOptions>>(Options.Create(new RvtDatabaseOptions
             {
-                Provider = RvtDatabaseProvider.SqlServer,
                 ConnectionString = "Testing"
             }));
             services.AddSingleton<IRvtDatabaseConnectionFactory, RvtDatabaseConnectionFactory>();
@@ -115,6 +117,12 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
         {
             return Task.FromResult($"https://tests.local/site-archives/{siteId:N}.zip");
         }
+
+        public Task DeleteSupersededAsync(
+            Guid siteId,
+            string durableArchiveUrl,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     // Simulates the blob-backed export being unavailable, so the caller's failure handling can be exercised.
@@ -124,6 +132,12 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
         {
             throw new InvalidOperationException("Blob storage is unavailable in this test.");
         }
+
+        public Task DeleteSupersededAsync(
+            Guid siteId,
+            string durableArchiveUrl,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Blob storage is unavailable in this test.");
     }
 
     // Function summary: Initializes user state required by the application.

@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
-using Microsoft.SqlServer.TransactSql.ScriptDom;
 using Npgsql;
 using Rvt.Monitor.IntegrationTesting;
 
@@ -50,43 +49,6 @@ public sealed class OmnidotsAlertMigrationContractTests
             "DROP TABLE IF EXISTS alert_occurrence",
             "COMMIT;");
         StringAssert.Contains(rawScript, "WARNING: Dropping alert_occurrence removes permanent webhook replay protection.");
-    }
-
-    [TestMethod]
-    public void SqlServerForward_IsTransactionalIdempotentAndCaseExact()
-    {
-        var script = NormalizeSql(RemoveComments(ReadScript("sqlserver", ForwardScript)));
-
-        StringAssert.Contains(script, "SET XACT_ABORT ON;");
-        AssertAppearsInOrder(script, "BEGIN TRY", "BEGIN TRANSACTION;", "CREATE TABLE dbo.AlertOccurrences", "CREATE TABLE dbo.AlertDeliveryOutbox", "COMMIT TRANSACTION;", "END TRY", "BEGIN CATCH");
-        StringAssert.Contains(script, "CONSTRAINT UQ_AlertOccurrences_SourceKey UNIQUE (Source, SourceKeyHash)");
-        StringAssert.Contains(script, "CONSTRAINT UQ_AlertDeliveryOutbox_DeliveryKey UNIQUE (DeliveryKey)");
-        StringAssert.Contains(script, "CREATE INDEX IX_AlertDeliveryOutbox_Due ON dbo.AlertDeliveryOutbox (Status, NextAttemptAt, LeaseUntil, CreatedAt)");
-        StringAssert.Contains(script, "SourceKeyHash binary(32) NOT NULL");
-
-        foreach (var literal in new[] { "Accepted", "Ignored", "Suppressed", "MqttAlert", "Email", "Sms", "Pending", "Leased", "Completed", "DeadLetter" })
-        {
-            StringAssert.Contains(script, $"COLLATE Latin1_General_100_BIN2 = N'{literal}'");
-            StringAssert.Contains(script, $"DATALENGTH(N'{literal}')");
-        }
-    }
-
-    [TestMethod]
-    public void SqlServerRollback_IsTransactionalIdempotentAndDropsDependentsFirst()
-    {
-        var rawScript = ReadScript("sqlserver", RollbackScript);
-        var script = NormalizeSql(RemoveComments(rawScript));
-
-        StringAssert.Contains(script, "SET XACT_ABORT ON;");
-        AssertAppearsInOrder(script, "BEGIN TRY", "BEGIN TRANSACTION;", "DROP TABLE dbo.AlertDeliveryOutbox", "DROP TABLE dbo.AlertOccurrences", "COMMIT TRANSACTION;", "END TRY", "BEGIN CATCH");
-        StringAssert.Contains(rawScript, "WARNING: Dropping AlertOccurrences removes permanent webhook replay protection.");
-    }
-
-    [TestMethod]
-    public void SqlServerScripts_ParseWithMicrosoftScriptDom()
-    {
-        AssertValidTransactSql(ReadScript("sqlserver", ForwardScript));
-        AssertValidTransactSql(ReadScript("sqlserver", RollbackScript));
     }
 
     [TestMethod]
@@ -148,14 +110,6 @@ public sealed class OmnidotsAlertMigrationContractTests
             Assert.IsGreaterThan(lastIndex, index, $"Expected '{statement}' after the preceding migration operation.");
             lastIndex = index;
         }
-    }
-
-    private static void AssertValidTransactSql(string script)
-    {
-        var parser = new TSql180Parser(initialQuotedIdentifiers: true);
-        using var reader = new StringReader(script);
-        _ = parser.Parse(reader, out var errors);
-        Assert.HasCount(0, errors, string.Join(Environment.NewLine, errors.Select(error => $"Line {error.Line}, column {error.Column}: {error.Message}")));
     }
 
     private static async Task ExecutePostgreSqlAsync(PostgreSqlIntegrationDatabase database, string script, CancellationToken cancellationToken)

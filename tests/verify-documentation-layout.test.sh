@@ -2,5 +2,10 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+expected_moves=86
 
-"$repo_root/scripts/verify-documentation-layout.sh"
+output="$("$repo_root/scripts/verify-documentation-layout.sh")"
+printf '%s\n' "$output"
+grep -Fqx \
+  "Documentation layout verification passed ($expected_moves moves, 7 retained entry points)." \
+  <<<"$output"

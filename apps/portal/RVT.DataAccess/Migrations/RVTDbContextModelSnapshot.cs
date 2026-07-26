@@ -585,6 +585,10 @@ namespace RVT.DataAccess.Migrations
                     b.HasKey("Id")
                         .HasName("pk_notification_setting");
 
+                    b.HasIndex("SiteUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notification_setting_site_user_id");
+
                     b.ToTable("notification_setting", (string)null);
                 });
 
@@ -692,6 +696,7 @@ namespace RVT.DataAccess.Migrations
                         .HasName("pk_site_archived");
 
                     b.HasIndex("SiteId")
+                        .IsUnique()
                         .HasDatabaseName("ix_site_archived_site_id");
 
                     b.ToTable("site_archived", (string)null);

@@ -1,17 +1,32 @@
 # Monitor Data Access Migration
 
-The monitor apps now use EF Core database-first-style mappings as the primary direction for data access while keeping SQL Server and PostgreSQL/Timescale provider support.
+The monitor apps use EF Core database-first-style mappings against PostgreSQL/TimescaleDB as the sole data-access path.
 
 ## Current State
 
-Merged into local `main`:
+Current monorepo state:
 
-- Shared EF Core infrastructure supplied by the private `Rvt.Monitor.Common` and `Rvt.Monitor.Common.Infrastructure` packages at exact version `0.2.0-rc.1`.
-- Shared entity mappings for common monitor tables supplied by `Rvt.Monitor.Common`.
-- Authoritative shared package implementation and tests in the private `RVT-Group-LTD/rvt-reporting` repository.
+- Shared EF Core infrastructure is compiled through `ProjectReference` entries
+  to `libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure`.
+- Shared entity mappings for common monitor tables are compiled through
+  `ProjectReference` entries to
+  `libs/rvt-monitor-common/src/Rvt.Monitor.Common`.
+- Monitor integration tests reference
+  `libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting` directly.
+- `apps/monitors/NuGet.config` restores only third-party dependencies from
+  nuget.org. Active monitor applications and tests do not consume Common
+  packages.
 - Monitor-specific EF contexts, entities, and aggregate metadata for MyAtm, AirQ, Omnidots, and Svantek.
 - EF metadata tests for the common model and each monitor-specific model.
 - SQL identifier whitelisting for temporary raw SQL paths that remain during the transition.
+
+The package path is a separate artifact contract. Only the fixtures under
+`libs/rvt-monitor-common/package-validation` consume
+`Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and
+`Rvt.Monitor.IntegrationTesting` as packages. They default to exact version
+`0.2.0-rc.1`, restore from `libs/rvt-monitor-common/artifacts/packages`, and
+use artifact-specific lock files. This validation must not be described as the
+active monitor dependency model.
 
 The existing monitor `IDBClient` contracts remain stable. The EF changes are implemented behind those contracts so callers do not need to change at the same time as the data layer.
 
@@ -63,10 +78,9 @@ Work items created and linked to the cycle:
    - Use `MonitorDb.RequireMappedSqlIdentifier` for any unavoidable identifier substitution.
    - Add negative tests for unsupported and injected identifiers.
 
-5. `RVTGR-397` `[MMH.5] Add provider selection and connection-string runbook`
-   - Document how each monitor selects SQL Server versus PostgreSQL/Timescale.
-   - Include local, container, and production configuration examples without secrets.
-   - Include rollback notes for switching providers.
+5. `RVTGR-397` `[MMH.5] Maintain the PostgreSQL connection-string runbook`
+   - Document local, container, and production configuration examples without secrets.
+   - Include rollback notes for application and schema releases.
 
 6. `RVTGR-398` `[MMH.6] Run full solution and container verification`
    - Run all monitor solution tests.

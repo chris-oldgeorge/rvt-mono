@@ -93,7 +93,7 @@ after that hardening. The complete storage suite also remained green.
 
 - Complete `Rvt.Storage.Tests`: 148 passed, 0 failed.
 - Complete `Rvt.Monitor.CommonTests`: 340 passed, 2 failed. Both failures are
-  pre-existing repository-layout assertions for missing SQL Server/PostgreSQL
+  pre-existing repository-layout assertions for the missing legacy dual-provider
   monitor-delivery migration files. Excluding only
   `MonitorDeliveryMigrationContractTests` passes 340/340.
 - Complete `SvantekMonitorTests`: 93 passed, 40 failed. Failures are the known

@@ -11,7 +11,13 @@ public sealed class ReportingIntegrationContractTests
     [Fact]
     public void PrerequisiteSql_IsIdempotentAndDocumentsHiddenOneTimeRuleIndex()
     {
-        var sql = File.ReadAllText(RepositoryPath("reportingmonitor", "database", "postgres", "reporting_service_prerequisites_20260625.sql"));
+        var sql = File.ReadAllText(RepositoryPath(
+            "apps",
+            "monitors",
+            "reportingmonitor",
+            "database",
+            "postgres",
+            "reporting_service_prerequisites_20260625.sql"));
 
         Assert.Contains("create extension if not exists pgcrypto", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("add column if not exists is_hidden_system_rule", sql, StringComparison.OrdinalIgnoreCase);
@@ -21,11 +27,20 @@ public sealed class ReportingIntegrationContractTests
     [Fact]
     public void RootSolutionAndCompose_IntegrateReportingMonitorWithPostgreSql()
     {
-        var solution = File.ReadAllText(RepositoryPath("rvt-monitors.sln"));
-        var compose = File.ReadAllText(RepositoryPath("docker-compose.yml"));
+        var solution = File.ReadAllText(RepositoryPath("Rvt.Mono.slnx"));
+        var compose = File.ReadAllText(RepositoryPath(
+            "apps",
+            "monitors",
+            "docker-compose.yml"));
 
-        Assert.Contains("reportingmonitor\\ReportingMonitor\\ReportingMonitor.csproj", solution, StringComparison.Ordinal);
-        Assert.Contains("reportingmonitor\\ReportingMonitorTests\\ReportingMonitorTests.csproj", solution, StringComparison.Ordinal);
+        Assert.Contains(
+            "apps/monitors/reportingmonitor/ReportingMonitor/ReportingMonitor.csproj",
+            solution,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj",
+            solution,
+            StringComparison.Ordinal);
         Assert.Contains("reportingmonitor-api:", compose, StringComparison.Ordinal);
         Assert.Contains("reportingmonitor/ReportingMonitor/Dockerfile", compose, StringComparison.Ordinal);
         Assert.Contains("8085:8080", compose, StringComparison.Ordinal);
@@ -33,7 +48,26 @@ public sealed class ReportingIntegrationContractTests
         Assert.Contains("Infrastructure: local", compose, StringComparison.Ordinal);
         Assert.Contains("MonitorApi__Enabled: \"true\"", compose, StringComparison.Ordinal);
         Assert.Contains("MonitorScheduler__Enabled: \"false\"", compose, StringComparison.Ordinal);
-        Assert.Contains("RVT__DATABASE_PROVIDER: PostgreSql", compose, StringComparison.Ordinal);
+        Assert.DoesNotContain("RVT__DATABASE_PROVIDER", compose, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeploymentExamples_OmitDatabaseProviderSelection()
+    {
+        var paths = new[]
+        {
+            RepositoryPath("apps", "monitors", "scripts", "run-testlocal-suite.sh"),
+            RepositoryPath("apps", "monitors", "README.md"),
+            RepositoryPath("docs", "operations", "monitors", "container-builds.md"),
+            RepositoryPath("docs", "modules", "monitors", "reportingmonitor", "README.md")
+        };
+
+        Assert.All(
+            paths,
+            path => Assert.DoesNotContain(
+                "RVT__DATABASE_PROVIDER",
+                File.ReadAllText(path),
+                StringComparison.Ordinal));
     }
 
     private static string RepositoryPath(params string[] segments)
@@ -44,8 +78,7 @@ public sealed class ReportingIntegrationContractTests
             var gitPath = Path.Combine(directory.FullName, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
-                return Path.Combine(
-                    [directory.FullName, "apps", "monitors", .. segments]);
+                return Path.Combine([directory.FullName, .. segments]);
             }
 
             directory = directory.Parent;
@@ -64,7 +97,6 @@ internal static class ReportingServiceProviderFactory
         var settings = new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=reporting_monitor_tests;Username=reporting",
-            ["RVT:DATABASE_PROVIDER"] = "PostgreSql",
             ["RVT:EMAIL_ENABLED"] = "false"
         };
         if (configurationValues is not null)

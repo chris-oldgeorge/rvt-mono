@@ -1,5 +1,6 @@
 ﻿// File summary: Covers canonical database naming rules used by the database refactor.
 // Major updates:
+// - 2026-07-25 pending Removed retired-provider metadata cases and retained canonical Npgsql model coverage.
 // - 2026-06-25 pending Returned concrete CSV field lists for CA1859 analyzer cleanup.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-06-08 pending Added database naming convention guardrails for the canonical schema refactor.
@@ -9,7 +10,7 @@
 // - 2026-06-08 pending Added ASP.NET Identity exclusion guardrails for the database naming refactor.
 // - 2026-06-09 pending Added canonical routine-name conversion checks for stored procedure porting.
 // - 2026-06-09 pending Added provider-specific live context mapping checks after the development Postgres cutover.
-// - 2026-06-09 pending Updated live context guardrails for canonical SQL Server and PostgreSQL schemas.
+// - 2026-06-09 pending Updated live context guardrails for the canonical PostgreSQL schema.
 // - 2026-06-09 pending Added search-context canonical mapping checks after monitor detail runtime failures.
 // - 2026-06-09 pending Added whole-search-model canonical guardrail for tables, views, and columns.
 
@@ -165,29 +166,7 @@ public sealed class DatabaseNamingConventionTests
         var optionsBuilder = new DbContextOptionsBuilder<RVTDbContext>();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
-            Provider = RvtDatabaseProvider.Postgres,
             ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
-        });
-        using var context = new RVTDbContext(optionsBuilder.Options);
-
-        var company = context.Model.FindEntityType(typeof(Company)) ?? throw new InvalidOperationException("Company entity missing.");
-        var monitor = context.Model.FindEntityType(typeof(RVT.Entities.Monitor)) ?? throw new InvalidOperationException("Monitor entity missing.");
-
-        Assert.Equal("company", company.GetTableName());
-        Assert.Equal("company_name", company.FindProperty(nameof(Company.CompanyName))?.GetColumnName());
-        Assert.Equal("monitor", monitor.GetTableName());
-        Assert.Equal("serial_id", monitor.FindProperty(nameof(RVT.Entities.Monitor.SerialId))?.GetColumnName());
-    }
-
-    [Fact]
-    // Function summary: Verifies the live SQL Server context maps to the physically migrated canonical development schema.
-    public void RvtDbContext_UsesCanonicalNamesForSqlServerProvider()
-    {
-        var optionsBuilder = new DbContextOptionsBuilder<RVTDbContext>();
-        optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
-        {
-            Provider = RvtDatabaseProvider.SqlServer,
-            ConnectionString = "Server=localhost;Database=rvt;User Id=sa;Password=Password1!;TrustServerCertificate=True"
         });
         using var context = new RVTDbContext(optionsBuilder.Options);
 
@@ -207,8 +186,7 @@ public sealed class DatabaseNamingConventionTests
         var optionsBuilder = new DbContextOptionsBuilder<RVTSearchContext>();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
-            Provider = RvtDatabaseProvider.SqlServer,
-            ConnectionString = "Server=localhost;Database=rvt;User Id=sa;Password=Password1!;TrustServerCertificate=True"
+            ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
         using var context = new RVTSearchContext(optionsBuilder.Options);
 
@@ -235,8 +213,7 @@ public sealed class DatabaseNamingConventionTests
         var optionsBuilder = new DbContextOptionsBuilder<RVTSearchContext>();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
-            Provider = RvtDatabaseProvider.SqlServer,
-            ConnectionString = "Server=localhost;Database=rvt;User Id=sa;Password=Password1!;TrustServerCertificate=True"
+            ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
         using var context = new RVTSearchContext(optionsBuilder.Options);
 

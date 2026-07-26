@@ -9,7 +9,6 @@ SonarCloud should continue to analyze application code for maintainability, reli
 The SonarQube workflow ignores these SQL-only maintainability rules:
 
 - `plsql:S1192` for duplicated literals in `*.sql` files.
-- `plsql:LiteralsNonPrintableCharactersCheck` for embedded SQL Server dynamic-module rewrite scripts under `database/sqlserver/canonical_*_rewrite*.sql`.
 
 These findings are intentionally scoped because the affected files are generated or cutover/rehearsal artifacts where repeated object names and embedded module definitions are expected.
 
@@ -17,7 +16,6 @@ These findings are intentionally scoped because the affected files are generated
 
 SQL changes must still be validated through the database-specific checks that apply to the changed artifact:
 
-- SQL Server scripts must be rehearsed against a cloned SQL Server database before production use.
 - PostgreSQL/Timescale scripts must be run against the local Timescale/Postgres container or a clone matching the target schema.
 - Database naming changes must keep the registries under `docs/database` current.
 - Post-load scripts live in `database/postgres/post-load/` and are applied by `RVT.SchemaDeploy`.

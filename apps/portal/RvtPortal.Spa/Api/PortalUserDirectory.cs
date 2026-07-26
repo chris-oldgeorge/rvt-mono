@@ -4,7 +4,7 @@
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic.Application.Users;
+using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Api;

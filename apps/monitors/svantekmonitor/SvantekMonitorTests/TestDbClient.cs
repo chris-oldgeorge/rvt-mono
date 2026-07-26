@@ -52,7 +52,6 @@ namespace SvantekMonitorTests
         [ClassInitialize]
         public static async Task TestFixtureSetup(TestContext context)
         {
-            Environment.SetEnvironmentVariable("RVT__DATABASE_PROVIDER", "PostgreSql");
             var setupSql = TestUtil.ReadTextFromFile("testdata/create.postgres.sql");
             var resetSql = TestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
             database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql);
@@ -161,16 +160,12 @@ namespace SvantekMonitorTests
             var TAG = "MyTestError";
             var MESSAGE = "bang";
 
-            var monitorOptions = new MonitorDbOptions(
-                MonitorDatabaseProvider.PostgreSql,
-                new Dictionary<string, string>());
             MonitorDb.WriteException(
                 connectionString,
                 TAG,
                 AdapterException.Of(MESSAGE),
                 "SvantekMonitorTests",
-                "1.0",
-                monitorOptions);
+                "1.0");
 
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();

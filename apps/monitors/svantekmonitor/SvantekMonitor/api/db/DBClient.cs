@@ -27,7 +27,9 @@ namespace Svantek.Api.Db
 
         public DBClient(string connectionString)
         {
-            MonitorDatabaseProviderGuard.EnsureSupported();
+            MonitorDb.ValidateLegacyProvider(
+                Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
+                Environment.GetEnvironmentVariable("DatabaseProvider"));
             ConnectionString = connectionString;
         }
 
@@ -228,7 +230,7 @@ namespace Svantek.Api.Db
 
         public void WriteLatestTimestamp(string serialId, DateTime lastDataTime)
         {
-            var normalizedLastDataTime = NormalizeSampleTimeForCurrentProvider(lastDataTime);
+            var normalizedLastDataTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(lastDataTime);
             using var context = CreateContext();
             var monitor = context.Monitors.FirstOrDefault(row =>
                 row.SerialId == serialId &&
@@ -247,7 +249,7 @@ namespace Svantek.Api.Db
             DateTime lastDataTime,
             CancellationToken cancellationToken = default)
         {
-            var normalizedLastDataTime = NormalizeSampleTimeForCurrentProvider(lastDataTime);
+            var normalizedLastDataTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(lastDataTime);
             await using var context = CreateContext();
             var monitor = await context.Monitors.FirstOrDefaultAsync(row =>
                 row.SerialId == serialId &&
@@ -383,8 +385,8 @@ namespace Svantek.Api.Db
         {
             using var context = CreateContext();
             var field = SvantekAggregateFields.Resolve(columnName);
-            var normalizedStart = NormalizeSampleTimeForCurrentProvider(start);
-            var normalizedEnd = NormalizeSampleTimeForCurrentProvider(end);
+            var normalizedStart = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(start);
+            var normalizedEnd = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(end);
             var query = context.NoiseLevels
                 .Where(row => row.SerialId == serialNumber)
                 .Where(row => row.SampleTime > normalizedStart && row.SampleTime <= normalizedEnd);
@@ -619,7 +621,7 @@ namespace Svantek.Api.Db
 
         public void Create8hourAverage(string serialId, DateTime SampleTime)
         {
-            var normalizedSampleTime = NormalizeSampleTimeForCurrentProvider(SampleTime);
+            var normalizedSampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(SampleTime);
             using var context = CreateContext();
 
             var exists = context.Noise8HourAverages.Any(row =>
@@ -662,7 +664,7 @@ namespace Svantek.Api.Db
             DateTime sampleTime,
             CancellationToken cancellationToken = default)
         {
-            var normalizedSampleTime = NormalizeSampleTimeForCurrentProvider(sampleTime);
+            var normalizedSampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(sampleTime);
             await using var context = CreateContext();
 
             var exists = await context.Noise8HourAverages.AnyAsync(row =>
@@ -834,7 +836,7 @@ namespace Svantek.Api.Db
         private SvantekMonitorContext CreateContext()
         {
             var monitorOptions = SvantekMonitorDbOptions.Current;
-            var options = MonitorDbContextOptionsFactory.CreateOptions<SvantekMonitorContext>(ConnectionString, monitorOptions);
+            var options = MonitorDbContextOptionsFactory.CreateOptions<SvantekMonitorContext>(ConnectionString);
             return new SvantekMonitorContext(options, monitorOptions);
         }
 
@@ -862,7 +864,7 @@ namespace Svantek.Api.Db
 
             foreach (var dto in dtos)
             {
-                var sampleTime = NormalizeSampleTimeForCurrentProvider(dto.SampleTime);
+                var sampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(dto.SampleTime);
                 if (!seen.Add((dto.SerialId, sampleTime)))
                 {
                     continue;
@@ -892,7 +894,7 @@ namespace Svantek.Api.Db
             foreach (var dto in dtos)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var sampleTime = NormalizeSampleTimeForCurrentProvider(dto.SampleTime);
+                var sampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(dto.SampleTime);
                 if (!seen.Add((dto.SerialId, sampleTime)))
                 {
                     continue;
@@ -911,13 +913,6 @@ namespace Svantek.Api.Db
                 entity.SampleTime = sampleTime;
                 context.NoiseLevels.Add(entity);
             }
-        }
-
-        private static DateTime NormalizeSampleTimeForCurrentProvider(DateTime sampleTime)
-        {
-            return SvantekMonitorDbOptions.Current.IsPostgreSql
-                ? SvantekDbMapper.NormalizeSampleTimeForPostgreSql(sampleTime)
-                : sampleTime;
         }
 
         private static RvtAlertRuleDto ToRuleDto(RvtAlertRuleEntity rule, string? serialId)

@@ -250,11 +250,10 @@ public class ReportWorkflowTests
     }
 
     [Fact]
-    // Function summary: Verifies report recipient performance indexes are present in both database providers and the registry.
-    public void ReportRecipientPerformanceIndexes_AreDocumentedForPostgresAndSqlServer()
+    // Function summary: Verifies report recipient performance indexes are present in the PostgreSQL script and registry.
+    public void ReportRecipientPerformanceIndexes_AreDocumentedForPostgres()
     {
         var postgresScript = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../database/postgres/performance_indexes_20260609.sql"));
-        var sqlServerScript = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../database/sqlserver/performance_indexes_20260609.sql"));
         var registry = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../docs/database/database-constraint-index-name-registry.csv"));
         var expectedIndexNames = new[]
         {
@@ -267,7 +266,6 @@ public class ReportWorkflowTests
         foreach (var expectedIndexName in expectedIndexNames)
         {
             Assert.Contains(expectedIndexName, postgresScript, StringComparison.Ordinal);
-            Assert.Contains(expectedIndexName, sqlServerScript, StringComparison.Ordinal);
             Assert.Contains(expectedIndexName, registry, StringComparison.Ordinal);
         }
     }

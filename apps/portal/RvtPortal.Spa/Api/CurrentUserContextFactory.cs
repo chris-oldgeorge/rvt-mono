@@ -4,8 +4,8 @@
 
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
-using RVT.BusinessLogic.Application;
 using RVT.Entities;
+using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Api;

@@ -1,0 +1,33 @@
+name: rvt-sonar-runner
+
+services:
+  rvt-sonar-db:
+    image: timescale/timescaledb:2.28.3-pg17
+    environment:
+      POSTGRES_DB: rvt_sonar_ci
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      TIMESCALEDB_TELEMETRY: "off"
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres -d rvt_sonar_ci]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  rvt-sonar-runner:
+    build:
+      context: .
+    environment:
+      RUNNER_URL: https://github.com/chris-oldgeorge/rvt-mono
+      RUNNER_NAME: rvt-sonar-dev
+      RUNNER_LABELS: rvt-sonar
+      RUNNER_REGISTRATION_TOKEN: ${RUNNER_REGISTRATION_TOKEN:-}
+    volumes:
+      - runner-state:/runner-state
+    depends_on:
+      rvt-sonar-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  runner-state:

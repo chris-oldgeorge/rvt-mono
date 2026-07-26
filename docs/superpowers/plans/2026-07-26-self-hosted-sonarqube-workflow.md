@@ -10,9 +10,10 @@ TimescaleDB companion hosted in Docker on the development machine.
 repository-scoped runner and database on a private network. A root
 `workflow_dispatch` workflow targets the runner's `rvt-sonar` label, builds
 `Rvt.Mono.slnx`, collects .NET and Portal client coverage, and waits for the
-SonarQube Cloud quality gate. Structural shell tests prevent automatic triggers,
-host mounts, Docker socket access, credential drift, or loss of coverage and
-database requirements.
+SonarQube Cloud quality gate. Behavior-oriented shell tests execute the runner
+bootstrap against fixtures and inspect parsed Compose/workflow configuration to
+prevent automatic triggers, host mounts, Docker socket access, credential drift,
+or loss of coverage and database requirements.
 
 **Tech Stack:** GitHub Actions, GitHub Actions Runner 2.334.0, Docker Compose,
 Ubuntu 24.04 Linux ARM64, TimescaleDB 2.28.3/PostgreSQL 17, .NET 10,
@@ -57,43 +58,27 @@ Vitest LCOV, Bash.
   network hostname `rvt-sonar-db`; database `rvt_sonar_ci`; named volume
   `runner-state`.
 
-- [ ] **Step 1: Write the failing runner-stack structural test**
+- [ ] **Step 1: Write the failing runner-stack behavior test**
 
 Create `tests/verify-sonar-runner-stack.test.sh` as an executable Bash test. It
-must require the four exact properties below and reject host access:
+must:
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-dockerfile="${repo_root}/.github/runner/Dockerfile"
-entrypoint="${repo_root}/.github/runner/entrypoint.sh"
-compose="${repo_root}/.github/runner/docker-compose.yml"
-
-for required in "${dockerfile}" "${entrypoint}" "${compose}"; do
-  [[ -f "${required}" ]] || {
-    printf 'Missing self-hosted runner file: %s\n' "${required#${repo_root}/}" >&2
-    exit 1
-  }
-done
-
-grep -Fq 'ARG RUNNER_VERSION=2.334.0' "${dockerfile}"
-grep -Fq 'f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4' "${dockerfile}"
-grep -Fq 'timescale/timescaledb:2.28.3-pg17' "${compose}"
-grep -Fq 'RUNNER_LABELS: rvt-sonar' "${compose}"
-grep -Fq 'runner-state:/runner-state' "${compose}"
-grep -Fq 'rvt-sonar-db' "${compose}"
-
-if grep -Eq '/var/run/docker\.sock|/Users/|[[:space:]-]\.\.?/[^:]+' "${compose}"; then
-  echo 'Runner stack must not mount the Docker socket or repository paths.' >&2
-  exit 1
-fi
-
-grep -Fq 'gosu runner' "${entrypoint}"
-grep -Fq 'RUNNER_REGISTRATION_TOKEN' "${entrypoint}"
-echo 'Self-hosted Sonar runner stack verified.'
-```
+- fail clearly if any of the three runner-stack files are absent;
+- run `docker compose config --format json` and use a standard-library JSON
+  parser to assert the resolved service image, runner labels, database
+  hostname, named-volume mount, dependency, and absence of bind mounts,
+  published ports, privileged mode, and Docker socket access;
+- execute `entrypoint.sh` against a temporary fake runner distribution using
+  overridable `RUNNER_DIST_ROOT`, `RUNNER_HOME`, `RUNNER_STATE_ROOT`, and
+  `RUNNER_USER` values plus a fake `gosu` on `PATH`;
+- prove that a first start without `RUNNER_REGISTRATION_TOKEN` fails;
+- prove that a first start with a token invokes fake registration, moves only
+  `.runner`, `.credentials`, and `.credentials_rsaparams` into state, restores
+  symlinks, unsets the token before the fake listener, and reaches the listener;
+- prove that a second start reuses persisted state without invoking
+  registration;
+- retain only the minimal source assertions needed for the pinned runner
+  version/checksum and the absence of Docker installation in the Dockerfile.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -140,21 +125,24 @@ Do not install Docker inside the image.
 
 Create `.github/runner/entrypoint.sh`. Persist only the three GitHub registration
 files in `/runner-state`, require the short-lived registration token only when
-that state is absent, and run the listener as `runner`:
+that state is absent, and run the listener as `runner`. Production defaults are
+fixed, while path/user variables may be overridden by the behavior test:
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
-runner_home=/home/runner/actions-runner
-runner_state=/runner-state
+runner_dist_root="${RUNNER_DIST_ROOT:-/opt/actions-runner-dist}"
+runner_home="${RUNNER_HOME:-/home/runner/actions-runner}"
+runner_state="${RUNNER_STATE_ROOT:-/runner-state}"
+runner_user="${RUNNER_USER:-runner}"
 registration_files=(.runner .credentials .credentials_rsaparams)
 mkdir -p "${runner_home}" "${runner_state}"
 
 if [[ ! -x "${runner_home}/bin/Runner.Listener" ]]; then
-  cp -a /opt/actions-runner-dist/. "${runner_home}/"
+  cp -a "${runner_dist_root}/." "${runner_home}/"
 fi
-chown -R runner:runner "${runner_home}" "${runner_state}"
+chown -R "${runner_user}" "${runner_home}" "${runner_state}"
 
 cd "${runner_home}"
 for registration_file in "${registration_files[@]}"; do
@@ -165,7 +153,7 @@ done
 
 if [[ ! -f "${runner_state}/.runner" ]]; then
   : "${RUNNER_REGISTRATION_TOKEN:?Set a short-lived repository runner registration token for first start.}"
-  gosu runner ./config.sh \
+  gosu "${runner_user}" ./config.sh \
     --unattended \
     --url "${RUNNER_URL}" \
     --token "${RUNNER_REGISTRATION_TOKEN}" \
@@ -181,7 +169,7 @@ if [[ ! -f "${runner_state}/.runner" ]]; then
 fi
 
 unset RUNNER_REGISTRATION_TOKEN
-exec gosu runner ./run.sh
+exec gosu "${runner_user}" ./run.sh
 ```
 
 - [ ] **Step 5: Add the isolated Compose topology**
@@ -235,7 +223,7 @@ tests/verify-sonar-runner-stack.test.sh
 docker compose -f .github/runner/docker-compose.yml config --quiet
 ```
 
-Expected: structural test PASS and Compose configuration exit 0.
+Expected: behavior test PASS and Compose configuration exit 0.
 
 - [ ] **Step 7: Commit the runner stack**
 
@@ -259,53 +247,22 @@ git commit -m "Add isolated self-hosted Sonar runner"
 
 - [ ] **Step 1: Write the failing workflow boundary test**
 
-Create executable `tests/verify-manual-sonarqube-workflow.test.sh`. Require an
-exact manual trigger and fail on every automatic event:
+Create executable `tests/verify-manual-sonarqube-workflow.test.sh`. Use Ruby's
+standard-library Psych syntax tree (not YAML 1.1 object coercion) to parse the
+workflow and assert:
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
+- the only event is the scalar `workflow_dispatch`;
+- the analyze job selects exactly
+  `[self-hosted, linux, ARM64, rvt-sonar]`;
+- permissions, timeout, both PostgreSQL variables, and the absence of
+  `services` are represented in the parsed job;
+- the parsed steps use pinned action commit SHAs and contain the required
+  scanner identity, secret, solution, coverage paths, quality-gate settings,
+  database preparation, and test commands;
+- no step references the Docker socket or invokes Docker.
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-workflow="${repo_root}/.github/workflows/sonarqube.yml"
-[[ -f "${workflow}" ]] || {
-  echo 'Missing .github/workflows/sonarqube.yml' >&2
-  exit 1
-}
-
-grep -Fxq 'on: workflow_dispatch' "${workflow}"
-if grep -Eq '(^|[[:space:]])(push|pull_request|schedule):|on:.*(push|pull_request|schedule)' "${workflow}"; then
-  echo 'SonarQube workflow must be manual-only.' >&2
-  exit 1
-fi
-
-for required in \
-  'runs-on: [self-hosted, linux, ARM64, rvt-sonar]' \
-  'aileron-forward_rvt-mono' \
-  'aileron-forward' \
-  'secrets.SONAR_TOKEN' \
-  'RVT_TEST_POSTGRES_CONNECTION' \
-  'RVT__POSTGRES_INTEGRATION_CONNECTION' \
-  'Rvt.Mono.slnx' \
-  'sonar.cs.vscoveragexml.reportsPaths=artifacts/coverage/coverage.xml' \
-  'sonar.javascript.lcov.reportPaths=apps/portal/RvtPortal.Client/coverage/lcov.info' \
-  'sonar.qualitygate.wait=true' \
-  'sonar.qualitygate.timeout=600' \
-  'dotnet-coverage collect' \
-  'npm run test:coverage'; do
-  grep -Fq "${required}" "${workflow}" || {
-    printf 'Missing workflow contract: %s\n' "${required}" >&2
-    exit 1
-  }
-done
-
-if grep -Fq '/var/run/docker.sock' "${workflow}" || grep -Eq '^[[:space:]]+services:' "${workflow}"; then
-  echo 'Workflow must use the isolated sibling database without Docker access.' >&2
-  exit 1
-fi
-
-echo 'Manual SonarQube workflow verified.'
-```
+Minimal scalar-content assertions are acceptable for embedded multi-line shell
+programs because GitHub interprets those programs outside the YAML data model.
 
 - [ ] **Step 2: Run the workflow test to verify it fails**
 
@@ -451,7 +408,7 @@ identity and report paths, then build serially:
         run: ./.sonar/dotnet-sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
 ```
 
-- [ ] **Step 8: Run workflow structural validation**
+- [ ] **Step 8: Run parsed workflow validation**
 
 Run:
 
@@ -558,7 +515,8 @@ docker compose -f .github/runner/docker-compose.yml config --quiet
 git diff --check
 ```
 
-Expected: all shell tests PASS, Compose parses, and no whitespace errors.
+Expected: all behavior/semantic shell tests PASS, Compose parses, and no
+whitespace errors.
 
 If Docker Desktop is running, also run:
 

@@ -2853,22 +2853,26 @@ TimescaleDB extensions where the schema requires them.
 
 ## Self-hosted SonarQube workflow implementation - 2026-07-26
 
-- Branch: `codex/direct-project-references`, based on
-  `2e47b5c703dca0a5c2e0de75ab0096373c20f347` (`Add manual monorepo SonarQube
-  workflow`). The runner stack was introduced by `29a1805` (`Add isolated
-  self-hosted Sonar runner`); the approved design remains
+- Branch: `codex/direct-project-references`; final repair implementation commit
+  `e1c8def` (`Repair isolated Sonar runner workflow`) is based on
+  `4ba98ae1532dee6c9ab1551ee28f1e972eceb7e0`. The runner stack was introduced
+  by `29a1805` (`Add isolated self-hosted Sonar runner`); the approved design
+  remains
   `docs/superpowers/specs/2026-07-26-manual-sonarqube-workflow-design.md`.
 - `.github/runner/` contains `Dockerfile`, `entrypoint.sh`, and
   `docker-compose.yml`. The Dockerfile builds Ubuntu 24.04 with GitHub Actions
   Runner `2.334.0` for Linux ARM64 and verifies archive SHA-256
   `f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4` before
-  extraction. It does not install Docker.
+  extraction. Noble uses `libssl3t64` and `liblttng-ust1t64`, with
+  `libkrb5-3` and `libgssapi-krb5-2`; it does not retain `libssl3` or install
+  Docker.
 - `docker-compose.yml` defines the `rvt-sonar-runner` project with
   `rvt-sonar-db` (`timescale/timescaledb:2.28.3-pg17`) and
-  `rvt-sonar-runner`. The database hostname is `rvt-sonar-db`, database name is
-  `rvt_sonar_ci`, and the database credentials are `postgres` / `postgres`.
-  It has no published ports, bind mounts, privileged services, or Docker socket
-  mount. `runner-state` is the only persisted named volume.
+  `rvt-sonar-runner`. `rvt_sonar_ci` is the Compose seed/admin database; it is
+  not a test target. The hostname is `rvt-sonar-db` and the credentials are
+  `postgres` / `postgres`. It has no published ports, bind mounts, privileged
+  services, Docker socket mount, or database volume. `runner-state` is the only
+  persisted named volume.
 - Runner variables are `RUNNER_URL=https://github.com/chris-oldgeorge/rvt-mono`,
   `RUNNER_NAME=rvt-sonar-dev`, `RUNNER_LABELS=rvt-sonar`, and
   `RUNNER_BOOTSTRAP_ONLY=false` by default. The persistent Compose service has
@@ -2883,20 +2887,27 @@ TimescaleDB extensions where the schema requires them.
 - `.github/workflows/sonarqube.yml` is named `SonarQube`, has
   `workflow_dispatch` as its only trigger, uses
   `[self-hosted, linux, ARM64, rvt-sonar]`, permits only `contents: read`, and
-  applies a non-cancelling `sonar-${{ github.ref }}` concurrency group. It
-  waits for the sibling PostgreSQL service through both
-  `RVT_TEST_POSTGRES_CONNECTION` and
-  `RVT__POSTGRES_INTEGRATION_CONNECTION`.
+  applies a non-cancelling `sonar-${{ github.ref }}` concurrency group. Each
+  run derives `rvt_sonar_${{ github.run_id }}_${{ github.run_attempt }}`, waits
+  for `rvt-sonar-db` through the `postgres` database, terminates stale
+  connections, force-drops/recreates that database, adds `timescaledb` and
+  `pgcrypto`, and exports `RVT_TEST_POSTGRES_CONNECTION`,
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`, `RVT_EF_CONNECTION`, and
+  `RVT_DEPLOY_CONNECTION` through `GITHUB_ENV`.
 - SonarQube Cloud identity is project `aileron-forward_rvt-mono` in organization
   `aileron-forward` at `https://sonarcloud.io`; `SONAR_TOKEN` remains a GitHub
   repository secret. The workflow installs JDK 17, .NET 10, Node.js 24,
-  `dotnet-sonarscanner` `11.2.1`, and `dotnet-coverage` `18.9.0`.
+  `dotnet-sonarscanner` `11.2.1`, `dotnet-coverage` `18.9.0`, and job-local
+  `dotnet-ef` `10.0.7`.
 - Analysis runs a Release `Rvt.Mono.slnx` restore/build/test and sends .NET XML
   coverage from `artifacts/coverage/coverage.xml` plus Portal Vitest LCOV from
-  `apps/portal/RvtPortal.Client/coverage/lcov.info`. It waits up to 600 seconds
-  for the Sonar quality gate and fails closed for missing credentials,
-  unhealthy database, build/test/coverage/upload failures, or a red/timed-out
-  gate.
+  `apps/portal/RvtPortal.Client/coverage/lcov.info`. Before .NET coverage it
+  applies the `RVTDbContext`, `RVTSearchContext`, and `ApplicationDbContext`
+  migrations with canonical paths, then runs `RVT.SchemaDeploy`. An
+  `if: always()` final step force-drops only the run-scoped database without
+  Docker. It waits up to 600 seconds for the Sonar quality gate and fails closed
+  for missing credentials, unhealthy database, build/test/coverage/upload
+  failures, or a red/timed-out gate.
 - Operator instructions are in
   `docs/operations/github-actions/self-hosted-sonar-runner.md`, indexed from
   `docs/index.md` and linked concisely from the root `README.md`. The guide
@@ -2907,7 +2918,14 @@ TimescaleDB extensions where the schema requires them.
   stale GitHub record, then delete only `rvt-sonar-runner_runner-state`, obtain
   a fresh token, bootstrap, and start again. That named volume contains only
   runner registration state; deleting it requires re-registration.
-- Validated after the bootstrap-token repair:
+- Strict repair TDD evidence: after adding the runner dependency contract, the
+  unchanged Dockerfile failed with `Ubuntu Noble runner image must install
+  libssl3t64`; after adding the job-database contract, the unchanged workflow
+  failed with `database connections must be exported after a unique per-run
+  database is created`. Both focused guards pass after the minimal repair. The
+  workflow guard also rejects extension-only preparation and missing
+  schema-deployment mutations.
+- Validated after the final repair:
   `tests/verify-sonar-runner-stack.test.sh` PASS;
   `tests/verify-manual-sonarqube-workflow.test.sh` PASS; every
   `tests/verify-*.test.sh` PASS (documentation layout, PostgreSQL-only,
@@ -2917,10 +2935,9 @@ TimescaleDB extensions where the schema requires them.
   tests/verify-sonar-runner-stack.test.sh` PASS; and `git diff --check` PASS
   with no whitespace errors.
 - Docker Desktop was unavailable (`docker info` could not connect to the local
-  daemon), so the optional
-  `docker compose -f .github/runner/docker-compose.yml build rvt-sonar-runner`
-  was not run. This is not a static-validation failure; do not start or
-  register the runner without a short-lived token.
+  daemon), so the required ARM64 image build and `Runner.Listener --version`
+  smoke test were not run. The controller must perform those external checks;
+  do not start or register the runner without a short-lived token.
 - Remaining external integration step: obtain a short-lived repository runner
   registration token, register/start `rvt-sonar-dev`, and execute the first
   trusted-ref manual `SonarQube` workflow. That remote run is the final

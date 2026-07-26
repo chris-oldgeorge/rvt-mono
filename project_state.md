@@ -2855,9 +2855,9 @@ TimescaleDB extensions where the schema requires them.
 
 - Branch: `codex/direct-project-references`; final repair implementation commit
   `e1c8def` (`Repair isolated Sonar runner workflow`) is based on
-  `4ba98ae1532dee6c9ab1551ee28f1e972eceb7e0`. The runner stack was introduced
-  by `29a1805` (`Add isolated self-hosted Sonar runner`); the approved design
-  remains
+  `4ba98ae1532dee6c9ab1551ee28f1e972eceb7e0`, and validation state was recorded
+  at `21963aa`. The runner stack was introduced by `29a1805` (`Add isolated
+  self-hosted Sonar runner`); the approved design remains
   `docs/superpowers/specs/2026-07-26-manual-sonarqube-workflow-design.md`.
 - `.github/runner/` contains `Dockerfile`, `entrypoint.sh`, and
   `docker-compose.yml`. The Dockerfile builds Ubuntu 24.04 with GitHub Actions
@@ -2934,10 +2934,13 @@ TimescaleDB extensions where the schema requires them.
   PASS; `bash -n .github/runner/entrypoint.sh
   tests/verify-sonar-runner-stack.test.sh` PASS; and `git diff --check` PASS
   with no whitespace errors.
-- Docker Desktop was unavailable (`docker info` could not connect to the local
-  daemon), so the required ARM64 image build and `Runner.Listener --version`
-  smoke test were not run. The controller must perform those external checks;
-  do not start or register the runner without a short-lived token.
+- Docker Desktop was subsequently started for token-free image validation.
+  `docker info --format '{{.Architecture}} {{.ServerVersion}}'` reported
+  `aarch64 29.4.3`;
+  `docker compose -f .github/runner/docker-compose.yml build
+  rvt-sonar-runner` completed successfully, including the pinned archive
+  checksum; and a one-shot container running as UID/GID `1001` reported
+  `Runner.Listener --version` as `2.334.0`. No runner was registered or started.
 - Remaining external integration step: obtain a short-lived repository runner
   registration token, register/start `rvt-sonar-dev`, and execute the first
   trusted-ref manual `SonarQube` workflow. That remote run is the final

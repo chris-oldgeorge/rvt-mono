@@ -24,25 +24,22 @@ PostgreSQL and TimescaleDB objects; monitors and reporting use the same
 PostgreSQL/TimescaleDB contract. Provider selection is retired, and the
 PostgreSQL-only guard runs automatically at the start of every aggregate build.
 
-Pack the shared RVT libraries, restore the aggregate solution, build it, and
-run its tests with:
+Restore the aggregate solution, build the complete project-reference graph,
+and run its tests with:
 
 ```bash
 scripts/build-mono.sh
 ```
 
-The script creates `0.2.0-rc.1` packages for `Rvt.Monitor.Common`,
-`Rvt.Monitor.Common.Infrastructure`, and `Rvt.Monitor.IntegrationTesting` in
-`artifacts/packages`. Active applications use source project references, while
-the projects under `libs/rvt-monitor-common/package-validation` intentionally
-remain package consumers and restore those locally built artifacts. The build
-does not require GitHub Packages credentials.
+All internal RVT dependencies use direct `ProjectReference` entries. The
+aggregate build does not pack, publish, or restore internal RVT NuGet packages
+and does not require package-feed credentials. NuGet remains in use only for
+third-party dependencies.
 
-Monitor source builds are supported from the mono-repository, but the checked-in
-monitor container build path is currently unsupported because its build context
-cannot reach the shared source projects. See
-[`docs/operations/monitors/container-builds.md`](docs/operations/monitors/container-builds.md)
-for the limitation and required follow-up.
+Monitor container definitions use the monorepo root as their build context so
+their direct references to `libs/rvt-monitor-common` resolve inside the image
+build. See
+[`docs/operations/monitors/container-builds.md`](docs/operations/monitors/container-builds.md).
 
 The nearest imported `AGENTS.md` governs work within a module. Before working
 in `apps/portal`, read

@@ -40,33 +40,19 @@ dotnet test tests/Rvt.Communication.MicrosoftGraphMailTests/Rvt.Communication.Mi
 dotnet test tests/Rvt.Communication.TransmitSmsTests/Rvt.Communication.TransmitSmsTests.csproj --no-restore --nologo
 ```
 
-The source-level communication split is verified, but packaging is not yet
-migrated. Retained monitor and package-validation locks still contain the
-removed Infrastructure identity, and the current package-validation assets do
-not represent the new package set. Do not publish from those retained assets.
-
-GitHub Packages authentication is supplied only at runtime. Do not store
-credentials in this repository:
-
-```bash
-export GITHUB_USER="your-github-user"
-export GITHUB_PACKAGES_TOKEN="your-runtime-token"
-export NuGetPackageSourceCredentials_rvt="Username=$GITHUB_USER;Password=$GITHUB_PACKAGES_TOKEN;ValidAuthenticationTypes=Basic"
-```
+Every internal consumer builds these projects through direct
+`ProjectReference` entries. The projects declare `IsPackable=false`; package
+validation, local package feeds, and package-release automation have been
+removed. NuGet restore is retained only for third-party dependencies.
 
 ## Releases and migrations
 
-The dedicated package-release plan must update the full eleven-package pack,
-package-consumer, lock, SBOM, vulnerability, release-manifest, and release-asset
-pipeline before the split can be released. That plan replaces the obsolete
-three-package assumptions and establishes the clean-split release baseline; it
-is pending, not complete.
-
-Release versions remain immutable. Consumers must use coordinated exact
-versions rather than floating versions or ranges, and a correction receives a
-new SemVer version rather than overwriting an existing package.
+Shared-library changes ship as part of the monorepo commit and the applications
+that reference them. There is no independent RVT Common package release train.
+Reintroducing independently versioned distribution requires a new architecture
+decision and a separate package pipeline.
 
 Database migration ownership remains with the designated application or
-shared-schema migration authority. Publishing packages does not apply
-migrations; the migration owner must provide forward and rollback artifacts
-and coordinate their application before dependent runtime changes are enabled.
+shared-schema migration authority. A source change does not apply migrations;
+the migration owner must provide forward and rollback artifacts and coordinate
+their application before dependent runtime changes are enabled.

@@ -8,10 +8,8 @@ TransmitSMS adapters, and active application composition roots choose the
 adapters directly. The removed `Rvt.Monitor.Common.Infrastructure` project is
 not retained as a facade or meta-package.
 
-This is not a release-green state. Storage extraction and the full
-eleven-package release/lock pipeline are separate pending work. In particular,
-retained lock snapshots and package-validation assets still describe parts of
-the old package graph.
+The monorepo now uses this graph directly. Internal RVT projects are not
+packable, and package validation/release assets have been removed.
 
 ## Verified source graph
 
@@ -110,27 +108,11 @@ gate.
   Abstractions, SourceLink, and SourceLink's build helpers.
 - Neither neutral project listing contained SendGrid, Azure Identity, Azure
   Storage, or AWS S3.
-- `tests/verify-rvt-common-source-boundary.test.sh` passed both the source
-  boundary and local package prerequisite checks.
+- `tests/verify-rvt-common-source-boundary.test.sh` verifies the source
+  boundary and direct project-reference build sequence.
 - `git diff --check` passed before documentation edits.
-- The bounded aggregate `Rvt.Mono.slnx --no-restore` build was **not green**:
-  it ended with 62 warnings and 3 errors. The errors were the ReportingMonitor
-  `NU1109` mismatch, `RuntimeConsumer` `NETSDK1064` for the not-yet-packed
-  `Rvt.Communication` 0.2.0-rc.1 artifact, and `TestConsumer` `CS0246` after its
-  retained package assets could not supply the expected RVT type.
-
-Five retained lock snapshots still contain
-`Rvt.Monitor.Common.Infrastructure`:
-
-- `apps/monitors/airqmonitor/AirQMonitorTests/packages.lock.json`
-- `apps/monitors/myatmmonitor/MyAtmMonitorTests/packages.lock.json`
-- `apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/packages.lock.json`
-- `apps/monitors/svantekmonitor/SvantekMonitorTests/packages.lock.json`
-- `libs/rvt-monitor-common/package-validation/RuntimeConsumer/packages.lock.json`
-
-Those locks, package artifacts, and the Logging.Abstractions alignment belong
-to the dedicated package-release plan. They were not changed in this
-documentation-only task.
+- The aggregate solution resolves internal RVT dependencies through project
+  references rather than a local or remote RVT package feed.
 
 ## Future pending work
 

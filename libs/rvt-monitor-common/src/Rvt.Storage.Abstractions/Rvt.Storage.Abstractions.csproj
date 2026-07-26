@@ -5,8 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Rvt.Storage.Abstractions</AssemblyName>
     <RootNamespace>Rvt.Storage</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>Rvt.Storage.Abstractions</PackageId>
+    <IsPackable>false</IsPackable>
     <Description>Provider-neutral streaming object storage contracts for RVT applications.</Description>
   </PropertyGroup>
 </Project>

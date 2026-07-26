@@ -2808,4 +2808,47 @@ TimescaleDB extensions where the schema requires them.
   four Storage provider projects and `Rvt.Storage.Tests`; their lock migration
   remains delegated to the eleven-package release plan.
 
+## Direct internal project references - 2026-07-26
+
+- Work is on `codex/direct-project-references`, based on merged `main`
+  `ef9fca4`. The shared Common, communication, storage, and integration-testing
+  projects remain separate projects under `libs/rvt-monitor-common`, but all
+  monorepo consumers now use direct `ProjectReference` dependencies.
+- The active architecture decision is
+  `docs/superpowers/specs/2026-07-22-rvt-common-source-reference-design.md`.
+  It supersedes internal package delivery while preserving provider/project
+  separation as a decision that may be reviewed later.
+- The root build sequence is now serial restore, single-node build, then test:
+  `dotnet restore Rvt.Mono.slnx --disable-parallel`,
+  `dotnet build Rvt.Mono.slnx --no-restore --nologo -m:1`, and
+  `dotnet test Rvt.Mono.slnx --no-build --nologo`.
+- All eleven internal shared projects have `IsPackable=false`; their internal
+  `PackageId` metadata has been removed. `NuGet.config` retains nuget.org only
+  for third-party dependencies. No internal feed, package version, or package
+  credential variable is part of the build contract.
+- Package-validation consumers/tests, package catalog, pack/release scripts,
+  package-oriented CI workflows, private-feed monitor scripts, and generated
+  internal package output directories were removed. The source-boundary guards
+  reject reintroduced `Rvt.*` `PackageReference` entries, packable shared
+  projects, internal feeds, package-validation directories, and Docker NuGet
+  credential plumbing.
+- Monitor containers build from the monorepo root. Compose uses `context: ../..`
+  and the five Dockerfiles publish projects through their full
+  `apps/monitors/...` paths, allowing shared source projects to remain within
+  the Docker context.
+- Verification completed during implementation: all seven repository shell
+  guard suites passed; Compose configuration validated; a clean serial restore
+  and full single-node solution build passed with zero errors; focused
+  source-boundary architecture tests passed; 627 non-live Common,
+  communication, and storage tests passed. The aggregate live provider suites
+  still require `RVT__POSTGRES_INTEGRATION_CONNECTION`; their failures without
+  that variable are environmental and unrelated to project references.
+- Local full-build verification used
+  `/private/tmp/rvt-exclude-untracked-duplicates.targets` only to exclude
+  preserved untracked Portal files named `* 2.cs`. No tracked compile rule was
+  weakened. Preserve the unrelated untracked `.codegraph/`,
+  `apps/.nuget-packages/`, ReportingMonitor `Directory.Packages.props`,
+  duplicate Portal source/design files, and restore-generated untracked storage
+  lock files unless they are handled in a separately scoped change.
+
 Next-session instruction: Read project_state.md to get up to speed

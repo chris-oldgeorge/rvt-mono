@@ -6,13 +6,16 @@ namespace MyAtmMonitorTests.Architecture;
 [TestClass]
 public sealed class CommonPackageBoundaryTests
 {
-    private const string ExpectedRvtVersion = "0.2.0-rc.1";
     private const string CommonProject = "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj";
     private const string CommunicationAbstractionsProject = "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj";
     private const string CommunicationProject = "libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj";
     private const string SendGridMailProject = "libs/rvt-monitor-common/src/Rvt.Communication.SendGridMail/Rvt.Communication.SendGridMail.csproj";
     private const string MicrosoftGraphMailProject = "libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj";
     private const string TransmitSmsProject = "libs/rvt-monitor-common/src/Rvt.Communication.TransmitSms/Rvt.Communication.TransmitSms.csproj";
+    private const string StorageAbstractionsProject = "libs/rvt-monitor-common/src/Rvt.Storage.Abstractions/Rvt.Storage.Abstractions.csproj";
+    private const string StorageLocalProject = "libs/rvt-monitor-common/src/Rvt.Storage.Local/Rvt.Storage.Local.csproj";
+    private const string StorageAzureBlobProject = "libs/rvt-monitor-common/src/Rvt.Storage.AzureBlob/Rvt.Storage.AzureBlob.csproj";
+    private const string StorageS3Project = "libs/rvt-monitor-common/src/Rvt.Storage.S3/Rvt.Storage.S3.csproj";
     private const string IntegrationTestingProject = "libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj";
 
     private static readonly string[] RvtPackageIds =
@@ -23,7 +26,11 @@ public sealed class CommonPackageBoundaryTests
         "Rvt.Communication.SendGridMail",
         "Rvt.Communication.MicrosoftGraphMail",
         "Rvt.Communication.TransmitSms",
-        "Rvt.Monitor.IntegrationTesting"
+        "Rvt.Monitor.IntegrationTesting",
+        "Rvt.Storage.Abstractions",
+        "Rvt.Storage.Local",
+        "Rvt.Storage.AzureBlob",
+        "Rvt.Storage.S3"
     ];
 
     private static readonly string[] MonitorCommunicationProjects =
@@ -35,10 +42,19 @@ public sealed class CommonPackageBoundaryTests
         TransmitSmsProject
     ];
 
+    private static readonly string[] MonitorStorageProjects =
+    [
+        StorageAbstractionsProject,
+        StorageLocalProject,
+        StorageAzureBlobProject,
+        StorageS3Project
+    ];
+
     private static readonly string[] RvtSourceProjects =
     [
         CommonProject,
         .. MonitorCommunicationProjects,
+        .. MonitorStorageProjects,
         IntegrationTestingProject
     ];
 
@@ -58,17 +74,17 @@ public sealed class CommonPackageBoundaryTests
             ["apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/OmnidotsMonitorTests.csproj"] =
                 [IntegrationTestingProject],
             ["apps/monitors/svantekmonitor/SvantekMonitor/SvantekMonitor.csproj"] =
-                [CommonProject, .. MonitorCommunicationProjects],
+                [CommonProject, .. MonitorCommunicationProjects, .. MonitorStorageProjects],
             ["apps/monitors/svantekmonitor/SvantekMonitorTests/SvantekMonitorTests.csproj"] =
                 [IntegrationTestingProject],
             ["apps/monitors/reportingmonitor/ReportingMonitor/ReportingMonitor.csproj"] =
-                [CommonProject, .. MonitorCommunicationProjects],
+                [CommonProject, .. MonitorCommunicationProjects, .. MonitorStorageProjects],
             ["apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj"] =
                 [CommonProject, IntegrationTestingProject],
             ["apps/monitors/reportingmonitor/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj"] =
                 [CommunicationAbstractionsProject],
             ["apps/monitors/reportingmonitor/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj"] =
-                [CommonProject],
+                [StorageAbstractionsProject],
             ["apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj"] =
                 [CommunicationAbstractionsProject, SendGridMailProject]
         };
@@ -114,17 +130,14 @@ public sealed class CommonPackageBoundaryTests
     }
 
     [TestMethod]
-    public void PackageValidationConsumers_RetainExactPackageBoundary()
+    public void InternalRvtProjects_AreSourceOnly()
     {
-        var expectations = new Dictionary<string, string[]>(StringComparer.Ordinal)
-        {
-            ["libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj"] =
-                ["Rvt.Monitor.Common"],
-            ["libs/rvt-monitor-common/package-validation/TestConsumer/TestConsumer.csproj"] =
-                ["Rvt.Monitor.IntegrationTesting"]
-        };
-        var violations = expectations
-            .SelectMany(pair => ValidatePackageValidationConsumer(pair.Key, pair.Value))
+        var violations = RvtSourceProjects
+            .Select(path => (Path: path, Project: XDocument.Load(Path.Combine(MonoRepositoryRoot(), path))))
+            .Where(item => !item.Project.Descendants()
+                .Any(element => element.Name.LocalName == "IsPackable" &&
+                    string.Equals(element.Value.Trim(), "false", StringComparison.OrdinalIgnoreCase)))
+            .Select(item => $"{item.Path}: internal RVT source projects must declare IsPackable=false.")
             .Order(StringComparer.Ordinal)
             .ToArray();
 
@@ -132,24 +145,24 @@ public sealed class CommonPackageBoundaryTests
     }
 
     [TestMethod]
-    public void NuGetConfiguration_UsesNuGetOrgAndLocalValidationFeedWithoutCredentials()
+    public void NuGetConfiguration_UsesOnlyNuGetOrgWithoutInternalFeedsOrCredentials()
     {
         var root = MonoRepositoryRoot();
-        foreach (var relative in new[] { "apps/monitors/NuGet.config", "apps/portal/NuGet.config" })
+        foreach (var relative in new[]
+                 {
+                     "apps/monitors/NuGet.config",
+                     "apps/portal/NuGet.config",
+                     "libs/rvt-monitor-common/NuGet.config"
+                 })
         {
             var contents = File.ReadAllText(Path.Combine(root, relative));
             Assert.Contains("nuget.org", contents, $"{relative} must preserve nuget.org.");
             Assert.DoesNotContain("github.com", contents, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("packageSourceCredentials", contents, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("local-rvt", contents, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("artifacts/packages", contents, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Rvt.*", contents, StringComparison.OrdinalIgnoreCase);
         }
-
-        var validationConfig = File.ReadAllText(Path.Combine(root, "libs/rvt-monitor-common/NuGet.config"));
-        Assert.Contains("nuget.org", validationConfig);
-        Assert.Contains("local-rvt", validationConfig);
-        Assert.Contains("../../artifacts/packages", validationConfig);
-        Assert.Contains("Rvt.*", validationConfig);
-        Assert.DoesNotContain("github.com", validationConfig, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("packageSourceCredentials", validationConfig, StringComparison.OrdinalIgnoreCase);
     }
 
     [TestMethod]
@@ -183,26 +196,6 @@ public sealed class CommonPackageBoundaryTests
         Assert.IsFalse(
             HasSingleUnconditionalTestProjectDeclaration(project),
             $"{fixtureName} must not satisfy the explicit test-project declaration policy.");
-    }
-
-    [TestMethod]
-    public void PackageInventoryScript_UsesPortableTemporaryDirectoryFallback()
-    {
-        var script = File.ReadAllText(
-            Path.Combine(MonoRepositoryRoot(), "apps/monitors/scripts/report-rvt-package-inventory.sh"));
-
-        Assert.Contains("${TMPDIR:-/tmp}", script);
-        Assert.DoesNotContain("${TMPDIR:-/private/tmp}", script);
-    }
-
-    [TestMethod]
-    public void PackageVerificationScript_UsesRunnerPortableSearchTools()
-    {
-        var script = File.ReadAllText(
-            Path.Combine(MonoRepositoryRoot(), "apps/monitors/scripts/verify-private-package-builds.sh"));
-
-        Assert.DoesNotContain("if rg ", script);
-        Assert.DoesNotContain("| rg ", script);
     }
 
     [TestMethod]
@@ -284,85 +277,6 @@ public sealed class CommonPackageBoundaryTests
             {
                 yield return
                     $"{relativeLockPath} ({framework.Name}): source consumer retains direct lock for {package.Name}.";
-            }
-        }
-    }
-
-    private static IEnumerable<string> ValidatePackageValidationConsumer(
-        string relativeProjectPath,
-        IReadOnlyCollection<string> expectedPackages)
-    {
-        var projectPath = Path.Combine(MonoRepositoryRoot(), relativeProjectPath);
-        var project = XDocument.Load(projectPath);
-        var version = project.Descendants()
-            .Single(element => element.Name.LocalName == "RvtPackageVersion")
-            .Value
-            .Trim();
-        if (!string.Equals(version, ExpectedRvtVersion, StringComparison.Ordinal))
-        {
-            yield return $"{relativeProjectPath}: RvtPackageVersion is {version}, expected {ExpectedRvtVersion}.";
-        }
-
-        var artifactLock = project.Descendants()
-            .SingleOrDefault(element => element.Name.LocalName == "NuGetLockFilePath");
-        if (artifactLock is null ||
-            !artifactLock.Value.Contains("artifacts/validation-locks/", StringComparison.Ordinal) ||
-            !((string?)artifactLock.Attribute("Condition") ?? string.Empty)
-                .Contains("RvtUseArtifactValidationLocks", StringComparison.Ordinal))
-        {
-            yield return
-                $"{relativeProjectPath}: must route opted-in restores to an artifact-scoped validation lock.";
-        }
-
-        var actualPackages = project.Descendants()
-            .Where(element => element.Name.LocalName == "PackageReference")
-            .Select(element => (Element: element, Id: (string?)element.Attribute("Include")))
-            .Where(reference => IsRvtPackageId(reference.Id))
-            .ToArray();
-        var actualIds = actualPackages.Select(reference => reference.Id!).Order(StringComparer.Ordinal).ToArray();
-        var expectedIds = expectedPackages.Order(StringComparer.Ordinal).ToArray();
-        if (!actualIds.SequenceEqual(expectedIds, StringComparer.Ordinal))
-        {
-            yield return
-                $"{relativeProjectPath}: expected package references [{string.Join(", ", expectedIds)}], actual [{string.Join(", ", actualIds)}].";
-        }
-
-        foreach (var reference in actualPackages.Where(reference =>
-                     !string.Equals(
-                         (string?)reference.Element.Attribute("Version"),
-                         "[$(RvtPackageVersion)]",
-                         StringComparison.Ordinal)))
-        {
-            yield return $"{relativeProjectPath}: {reference.Id} must use [$(RvtPackageVersion)].";
-        }
-
-        if (project.Descendants().Any(element => element.Name.LocalName == "ProjectReference" &&
-                RvtPackageIds.Any(id => ((string?)element.Attribute("Include") ?? string.Empty)
-                    .Contains(id, StringComparison.OrdinalIgnoreCase))))
-        {
-            yield return $"{relativeProjectPath}: package-validation consumer must not source-reference RVT common.";
-        }
-
-        var lockPath = Path.Combine(Path.GetDirectoryName(projectPath)!, "packages.lock.json");
-        using var lockDocument = JsonDocument.Parse(File.ReadAllText(lockPath));
-        foreach (var framework in lockDocument.RootElement.GetProperty("dependencies").EnumerateObject())
-        {
-            foreach (var expectedPackage in expectedPackages)
-            {
-                if (!framework.Value.TryGetProperty(expectedPackage, out var package))
-                {
-                    yield return $"{Relative(lockPath)} ({framework.Name}): missing {expectedPackage}.";
-                    continue;
-                }
-
-                var requested = package.GetProperty("requested").GetString();
-                var resolved = package.GetProperty("resolved").GetString();
-                if (!string.Equals(requested, $"[{ExpectedRvtVersion}, {ExpectedRvtVersion}]", StringComparison.Ordinal) ||
-                    !string.Equals(resolved, ExpectedRvtVersion, StringComparison.Ordinal))
-                {
-                    yield return
-                        $"{Relative(lockPath)} ({framework.Name}) {expectedPackage}: requested {requested}, resolved {resolved}.";
-                }
             }
         }
     }

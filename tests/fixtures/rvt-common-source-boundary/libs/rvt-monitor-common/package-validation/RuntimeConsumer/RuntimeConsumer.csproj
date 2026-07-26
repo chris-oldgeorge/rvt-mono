@@ -1,6 +1,0 @@
-<Project>
-  <ItemGroup>
-    <PackageReference Include="Rvt.Monitor.Common" />
-    <ProjectReference Include="../../testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj" />
-  </ItemGroup>
-</Project>

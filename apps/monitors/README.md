@@ -1,6 +1,6 @@
 # RVT Monitors
 
-RVT Monitors contains the monitor services used to import environmental monitoring data into the RVT PostgreSQL/Timescale database and generate customer reports. The codebase includes four vendor monitor applications, a reporting monitor, shared runtime and provider projects, Docker definitions pending monorepo-context realignment, and an OpenTelemetry/Grafana observability stack.
+RVT Monitors contains the monitor services used to import environmental monitoring data into the RVT PostgreSQL/Timescale database and generate customer reports. The codebase includes four vendor monitor applications, a reporting monitor, shared runtime and provider projects, monorepo-aware Docker definitions, and an OpenTelemetry/Grafana observability stack.
 
 Detailed monitor documentation is centralized in the
 [repository documentation index](../../docs/index.md#monitors).
@@ -17,7 +17,7 @@ Detailed monitor documentation is centralized in the
 | `observability/` | Local OpenTelemetry Collector, Grafana, Prometheus, Tempo, and Loki configuration plus provisioned RVT dashboards. |
 | [`../../docs/index.md#monitors`](../../docs/index.md#monitors) | Central monitor architecture, development, operations, release, database, module, and history documentation. |
 | `scripts/` | Operational scripts for local testlocal monitor runs and SonarQube/SonarCloud analysis. |
-| `docker-compose.yml` | Monitor API runtime composition; its build contexts require the follow-up described under Local Containers. |
+| `docker-compose.yml` | Monitor API runtime composition using the monorepo root as its source build context. |
 | `rvt-monitors.sln` | Root .NET solution for the monitor applications, shared-source references, and tests. |
 
 This release package intentionally excludes agent memory, internal planning notes, and local development state files such as `AGENTS.md`, `project_state.md`, `docs/superpowers/**`, `docs/database/monitors/monitor-data-access-migration.md`, `docs/release/**`, `.codegraph/**`, and release-export tooling.
@@ -27,23 +27,12 @@ The active mono-repository graph source-references `Rvt.Monitor.Common`,
 `Rvt.Communication`, and the three explicit provider projects.
 `Rvt.Monitor.Common.Infrastructure` has been removed and is not a facade.
 Storage is likewise split into the provider-neutral
-`Rvt.Storage.Abstractions` package and the explicit `Rvt.Storage.Local`,
-`Rvt.Storage.AzureBlob`, and `Rvt.Storage.S3` adapter packages.
+`Rvt.Storage.Abstractions` project and the explicit `Rvt.Storage.Local`,
+`Rvt.Storage.AzureBlob`, and `Rvt.Storage.S3` adapter projects.
 
-Package-consumer validation is deliberately isolated under
-`libs/rvt-monitor-common/package-validation`. The fixtures consume the locally
-packed Common and IntegrationTesting entry packages at exact version
-`0.2.0-rc.1`; the current monorepo build packs the seven Common,
-IntegrationTesting, and Communication packages into `artifacts/packages` and sets
-`RvtUseArtifactValidationLocks=true`. That redirects the two package consumers
-to generated, ignored `artifacts/validation-locks/*` files: rebuilding archives
-at the same prerelease version changes their hashes, so the committed
-source-project locks cannot be reused as artifact locks.
-The migration to the catalogued eleven-package `1.0.0-rc.1` release train,
-including all four Storage packages, remains incremental. Authentication must
-be supplied only to the running restore or container-build process; never write
-a package credential into source, NuGet configuration, build arguments, image
-layers, or committed environment files.
+All internal RVT dependencies are direct project references. Internal package
+production, package-consumer validation, local RVT feeds, and package-feed
+credentials are intentionally absent from the build chain.
 
 ## Architecture Summary
 
@@ -243,12 +232,8 @@ database setting and path-baseline migration, full-suite failures are expected
 and must not be reported as communication regressions. The focused
 `CommunicationsCompositionTests` are the provider-choice gate.
 
-The retained monitor/package-validation lock snapshots still name the removed
-Infrastructure project. ReportingMonitor restore is also blocked until the
-release/lock plan reconciles centrally pinned
-`Microsoft.Extensions.Logging.Abstractions` 10.0.4 with the provider graph's
-10.0.9 transitive requirement. Do not claim an aggregate or locked build is
-green until that dedicated plan completes.
+Package lock files describe third-party dependencies only. Internal RVT
+projects are resolved by MSBuild through the source graph.
 
 ReportingMonitor's database fixture creates an isolated generated schema. Supply its admin connection only to the test process; do not put it in app settings or source control:
 
@@ -259,18 +244,10 @@ RVT__POSTGRES_INTEGRATION_CONNECTION='<runtime-only connection string>' \
 
 ## Local Containers
 
-The current Compose/Docker build path is not supported or green. Active monitor
-projects reference Common source under the repository-root
-`libs/rvt-monitor-common`, but every build context in
-`apps/monitors/docker-compose.yml` is `apps/monitors` and each Dockerfile runs
-`COPY . .`. The resulting build context cannot contain those root source
-projects, so an ordinary Compose build cannot resolve the project references.
-
-Compose and the Dockerfiles still contain obsolete `nuget_credentials` secret
-plumbing. Active source consumers do not need it. Before container builds can
-be claimed supported, follow-up work must realign the build contexts and
-Dockerfile paths to the monorepo root and remove that secret plumbing. A package
-feed or package-consumer fallback is not a supported workaround.
+Compose uses the monorepo root as each monitor's build context. The Dockerfiles
+publish their `apps/monitors/...` project paths and resolve shared projects from
+`libs/rvt-monitor-common` directly. No internal package feed or NuGet
+credential mount is used.
 
 Continue to keep runtime database and vendor credentials in deployment secrets
 or ignored local files.

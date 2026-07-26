@@ -2,8 +2,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
-RUN --mount=type=secret,id=nuget_credentials,env=NuGetPackageSourceCredentials_rvt \
-    dotnet publish reportingmonitor/ReportingMonitor/ReportingMonitor.csproj -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish apps/monitors/reportingmonitor/ReportingMonitor/ReportingMonitor.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app

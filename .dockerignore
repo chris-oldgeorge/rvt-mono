@@ -1,0 +1,9 @@
+.git
+.worktrees
+.codegraph
+**/.nuget-packages
+**/bin
+**/obj
+**/TestResults
+**/node_modules
+artifacts

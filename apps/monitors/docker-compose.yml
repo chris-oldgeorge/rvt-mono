@@ -17,10 +17,8 @@ services:
   airqmonitor-api:
     image: rvt/airqmonitor:local
     build:
-      context: .
-      dockerfile: airqmonitor/AirQMonitor/Dockerfile
-      secrets:
-        - nuget_credentials
+      context: ../..
+      dockerfile: apps/monitors/airqmonitor/AirQMonitor/Dockerfile
     environment:
       <<: *communications-environment
       ASPNETCORE_URLS: http://+:8080
@@ -30,10 +28,8 @@ services:
   myatmmonitor-api:
     image: rvt/myatmmonitor:local
     build:
-      context: .
-      dockerfile: myatmmonitor/MyAtmMonitor/Dockerfile
-      secrets:
-        - nuget_credentials
+      context: ../..
+      dockerfile: apps/monitors/myatmmonitor/MyAtmMonitor/Dockerfile
     environment:
       <<: *communications-environment
       ASPNETCORE_URLS: http://+:8080
@@ -46,10 +42,8 @@ services:
   omnidotsmonitor-api:
     image: rvt/omnidotsmonitor:local
     build:
-      context: .
-      dockerfile: omnidotsmonitor/OmnidotsMonitor/Dockerfile
-      secrets:
-        - nuget_credentials
+      context: ../..
+      dockerfile: apps/monitors/omnidotsmonitor/OmnidotsMonitor/Dockerfile
     environment:
       <<: *communications-environment
       ASPNETCORE_URLS: http://+:8080
@@ -63,10 +57,8 @@ services:
   svantekmonitor-api:
     image: rvt/svantekmonitor:local
     build:
-      context: .
-      dockerfile: svantekmonitor/SvantekMonitor/Dockerfile
-      secrets:
-        - nuget_credentials
+      context: ../..
+      dockerfile: apps/monitors/svantekmonitor/SvantekMonitor/Dockerfile
     environment:
       <<: *communications-environment
       ASPNETCORE_URLS: http://+:8080
@@ -81,10 +73,8 @@ services:
   reportingmonitor-api:
     image: rvt/reportingmonitor:local
     build:
-      context: .
-      dockerfile: reportingmonitor/ReportingMonitor/Dockerfile
-      secrets:
-        - nuget_credentials
+      context: ../..
+      dockerfile: apps/monitors/reportingmonitor/ReportingMonitor/Dockerfile
     environment:
       <<: *communications-environment
       ASPNETCORE_URLS: http://+:8080
@@ -97,10 +87,6 @@ services:
       - reporting-reportfiles:/data/rvt/blobs
     ports:
       - "8085:8080"
-
-secrets:
-  nuget_credentials:
-    environment: NuGetPackageSourceCredentials_rvt
 
 volumes:
   svantek-audiofiles:

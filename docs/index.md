@@ -26,7 +26,7 @@ lives here under `docs/`.
 
 - [Monitor client release runbook](release/monitors/client-release-runbook.md)
 - [Portal cutover runbook](release/portal/CUTOVER_RUNBOOK.md)
-- [Shared-library release guidance](release/rvt-monitor-common/releasing.md)
+- [Shared-library source delivery decision](release/rvt-monitor-common/releasing.md)
 
 ## Database
 

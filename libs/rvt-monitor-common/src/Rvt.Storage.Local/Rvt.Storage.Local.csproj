@@ -5,8 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Rvt.Storage.Local</AssemblyName>
     <RootNamespace>Rvt.Storage.Local</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>Rvt.Storage.Local</PackageId>
+    <IsPackable>false</IsPackable>
     <Description>Local filesystem object storage adapter for RVT applications.</Description>
   </PropertyGroup>
   <ItemGroup>

@@ -5,8 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Rvt.Communication.SendGridMail</AssemblyName>
     <RootNamespace>Rvt.Communication.SendGridMail</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>Rvt.Communication.SendGridMail</PackageId>
+    <IsPackable>false</IsPackable>
     <Description>SendGrid email delivery adapter for RVT communication workflows.</Description>
   </PropertyGroup>
   <ItemGroup>

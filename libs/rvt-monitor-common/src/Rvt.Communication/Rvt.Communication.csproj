@@ -5,8 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Rvt.Communication</AssemblyName>
     <RootNamespace>Rvt.Communication</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>Rvt.Communication</PackageId>
+    <IsPackable>false</IsPackable>
     <Description>Provider-neutral communication workflow and composition for RVT applications.</Description>
   </PropertyGroup>
   <ItemGroup>

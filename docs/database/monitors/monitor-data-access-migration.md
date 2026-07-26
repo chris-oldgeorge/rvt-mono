@@ -6,8 +6,6 @@ The monitor apps use EF Core database-first-style mappings against PostgreSQL/Ti
 
 Current monorepo state:
 
-- Shared EF Core infrastructure is compiled through `ProjectReference` entries
-  to `libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure`.
 - Shared entity mappings for common monitor tables are compiled through
   `ProjectReference` entries to
   `libs/rvt-monitor-common/src/Rvt.Monitor.Common`.
@@ -20,13 +18,8 @@ Current monorepo state:
 - EF metadata tests for the common model and each monitor-specific model.
 - SQL identifier whitelisting for temporary raw SQL paths that remain during the transition.
 
-The package path is a separate artifact contract. Only the fixtures under
-`libs/rvt-monitor-common/package-validation` consume
-`Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and
-`Rvt.Monitor.IntegrationTesting` as packages. They default to exact version
-`0.2.0-rc.1`, restore from `libs/rvt-monitor-common/artifacts/packages`, and
-use artifact-specific lock files. This validation must not be described as the
-active monitor dependency model.
+There is no internal package path. Common, Communication, Storage, and
+IntegrationTesting are source projects in the aggregate solution.
 
 The existing monitor `IDBClient` contracts remain stable. The EF changes are implemented behind those contracts so callers do not need to change at the same time as the data layer.
 

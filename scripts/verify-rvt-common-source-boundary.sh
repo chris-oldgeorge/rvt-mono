@@ -73,7 +73,7 @@ has_package_reference() {
   grep -Eq "<PackageReference[[:space:]][^>]*Include=\"${package}\"" "${repo_root}/${project}"
 }
 
-reject_active_package_references() {
+reject_internal_package_references() {
   local package project
   for package in \
     Rvt.Monitor.Common \
@@ -83,7 +83,11 @@ reject_active_package_references() {
     Rvt.Communication.SendGridMail \
     Rvt.Communication.MicrosoftGraphMail \
     Rvt.Communication.TransmitSms \
-    Rvt.Monitor.IntegrationTesting; do
+    Rvt.Monitor.IntegrationTesting \
+    Rvt.Storage.Abstractions \
+    Rvt.Storage.Local \
+    Rvt.Storage.AzureBlob \
+    Rvt.Storage.S3; do
     while IFS= read -r -d '' project; do
       if grep -Eq "<PackageReference[[:space:]][^>]*Include=\"${package}\"" "${project}"; then
         fail "${project#"${repo_root}/"} must not reference ${package} as a package"
@@ -91,18 +95,11 @@ reject_active_package_references() {
     done < <(find \
       "${repo_root}/apps/monitors" \
       "${repo_root}/apps/portal" \
+      "${repo_root}/libs/rvt-monitor-common" \
       "${repo_root}/services/reporting" \
+      \( -path '*/bin' -o -path '*/obj' \) -prune -o \
       -name '*.csproj' -print0)
   done
-}
-
-require_package_reference() {
-  local project="$1"
-  local package="$2"
-  require_file "${project}" || return 0
-  if ! has_package_reference "${project}" "${package}"; then
-    fail "${project} must retain PackageReference to ${package}"
-  fi
 }
 
 reject_package_reference() {
@@ -111,15 +108,6 @@ reject_package_reference() {
   require_file "${project}" || return 0
   if has_package_reference "${project}" "${package}"; then
     fail "${project} must not reference package ${package}"
-  fi
-}
-
-reject_package_validation_source_references() {
-  local project="$1"
-  local target="$2"
-  require_file "${project}" || return 0
-  if has_project_reference "${project}" "${target}"; then
-    fail "${project} must not source-reference ${target}"
   fi
 }
 
@@ -191,27 +179,52 @@ reject_package_reference \
 require_project_reference \
   services/reporting/src/Rvt.Reporting.Service/Rvt.Reporting.Service.csproj \
   "${sendgrid_mail_project}"
-reject_active_package_references
+reject_internal_package_references
 
-runtime_consumer=libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj
-test_consumer=libs/rvt-monitor-common/package-validation/TestConsumer/TestConsumer.csproj
+if [[ -e "${repo_root}/libs/rvt-monitor-common/package-validation" ]]; then
+  fail "Package-validation consumers must be removed; internal RVT projects are source referenced."
+fi
 
-require_package_reference "${runtime_consumer}" Rvt.Monitor.Common
-require_package_reference "${test_consumer}" Rvt.Monitor.IntegrationTesting
-
-for project in "${runtime_consumer}" "${test_consumer}"; do
-  for target in \
-    "${common_project}" \
-    "${removed_infrastructure_project}" \
-    "${communication_abstractions_project}" \
-    "${communication_project}" \
-    "${sendgrid_mail_project}" \
-    "${microsoft_graph_mail_project}" \
-    "${transmit_sms_project}" \
-    "${integration_testing_project}"; do
-    reject_package_validation_source_references "${project}" "${target}"
-  done
+for project in \
+  "${common_project}" \
+  "${communication_abstractions_project}" \
+  "${communication_project}" \
+  "${sendgrid_mail_project}" \
+  "${microsoft_graph_mail_project}" \
+  "${transmit_sms_project}" \
+  "${storage_abstractions_project}" \
+  "${storage_local_project}" \
+  "${storage_azure_blob_project}" \
+  "${storage_s3_project}" \
+  "${integration_testing_project}"; do
+  if ! grep -Eq '<IsPackable>false</IsPackable>' "${repo_root}/${project}"; then
+    fail "${project} must declare IsPackable=false"
+  fi
 done
+
+if grep -Eq 'local-rvt|artifacts/packages|Rvt\.\*' "${repo_root}/libs/rvt-monitor-common/NuGet.config"; then
+  fail "libs/rvt-monitor-common/NuGet.config must not contain an internal RVT package feed."
+fi
+
+for dockerfile in \
+  apps/monitors/airqmonitor/AirQMonitor/Dockerfile \
+  apps/monitors/myatmmonitor/MyAtmMonitor/Dockerfile \
+  apps/monitors/omnidotsmonitor/OmnidotsMonitor/Dockerfile \
+  apps/monitors/svantekmonitor/SvantekMonitor/Dockerfile \
+  apps/monitors/reportingmonitor/ReportingMonitor/Dockerfile; do
+  if grep -Eq 'nuget_credentials|NuGetPackageSourceCredentials_rvt' "${repo_root}/${dockerfile}"; then
+    fail "${dockerfile} must not contain internal package-feed credential plumbing"
+  fi
+done
+
+compose="${repo_root}/apps/monitors/docker-compose.yml"
+if grep -Eq 'nuget_credentials|NuGetPackageSourceCredentials_rvt' "${compose}"; then
+  fail "apps/monitors/docker-compose.yml must not contain internal package-feed credential plumbing"
+fi
+if [[ "$(grep -Ec '^[[:space:]]+context: \.\./\.\.$' "${compose}")" -ne 5 ]] ||
+   [[ "$(grep -Ec '^[[:space:]]+dockerfile: apps/monitors/' "${compose}")" -ne 5 ]]; then
+  fail "apps/monitors/docker-compose.yml must use the monorepo source context for all five images"
+fi
 
 if (( failures > 0 )); then
   printf '%d source-boundary violation(s) found.\n' "${failures}" >&2

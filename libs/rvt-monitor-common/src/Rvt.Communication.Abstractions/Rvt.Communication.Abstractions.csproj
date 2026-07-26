@@ -5,8 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Rvt.Communication.Abstractions</AssemblyName>
     <RootNamespace>Rvt.Communication.Abstractions</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>Rvt.Communication.Abstractions</PackageId>
+    <IsPackable>false</IsPackable>
     <Description>Provider-neutral communication contracts and delivery failures for RVT applications.</Description>
   </PropertyGroup>
   <ItemGroup>

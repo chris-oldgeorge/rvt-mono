@@ -5,8 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Rvt.Monitor.Common</AssemblyName>
     <RootNamespace>Rvt.Monitor.Common</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>Rvt.Monitor.Common</PackageId>
+    <IsPackable>false</IsPackable>
     <Description>Shared monitor contracts, data helpers, storage, hosting, scheduling, observability, and compatibility runtime.</Description>
   </PropertyGroup>
   <ItemGroup>

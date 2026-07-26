@@ -5,8 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Rvt.Communication.TransmitSms</AssemblyName>
     <RootNamespace>Rvt.Communication.TransmitSms</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>Rvt.Communication.TransmitSms</PackageId>
+    <IsPackable>false</IsPackable>
     <Description>TransmitSMS delivery adapter for RVT communication workflows.</Description>
   </PropertyGroup>
   <ItemGroup>

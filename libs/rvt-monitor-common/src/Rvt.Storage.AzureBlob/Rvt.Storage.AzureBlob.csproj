@@ -5,8 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Rvt.Storage.AzureBlob</AssemblyName>
     <RootNamespace>Rvt.Storage.AzureBlob</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>Rvt.Storage.AzureBlob</PackageId>
+    <IsPackable>false</IsPackable>
     <Description>Azure Blob object storage adapter for RVT applications.</Description>
   </PropertyGroup>
   <ItemGroup>

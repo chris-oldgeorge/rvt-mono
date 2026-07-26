@@ -5,8 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Rvt.Storage.S3</AssemblyName>
     <RootNamespace>Rvt.Storage.S3</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>Rvt.Storage.S3</PackageId>
+    <IsPackable>false</IsPackable>
     <Description>Amazon S3-compatible object storage adapter for RVT applications.</Description>
   </PropertyGroup>
   <ItemGroup>

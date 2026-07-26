@@ -7,7 +7,7 @@ cd /Users/oldgeorge/Documents/rvt-mono
 scripts/build-mono.sh
 ```
 
-Active .NET monitor projects compile Common, Common Infrastructure, and
+Active .NET monitor projects compile Common, Communication, Storage, and
 integration-test support through `ProjectReference` entries into the root
 `libs/rvt-monitor-common` tree. Ordinary project and solution restores use the
 checked-in per-project `packages.lock.json` files.
@@ -16,41 +16,18 @@ checked-in per-project `packages.lock.json` files.
 dependencies. Active source consumers do not restore Common packages and must
 not fall back to a package feed.
 
-## Package artifact validation
+## Container build context
 
-`scripts/build-mono.sh` separately packs
-`Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and
-`Rvt.Monitor.IntegrationTesting` at exact version `0.2.0-rc.1` into the local
-`artifacts/packages` feed. Only the two consumers under
-`libs/rvt-monitor-common/package-validation` restore those artifacts.
+Every service in `apps/monitors/docker-compose.yml` uses `../..` as its build
+context, which resolves to the monorepo root. Each Dockerfile publishes its
+full `apps/monitors/...` project path, so `libs/rvt-monitor-common` is available
+to MSBuild inside the build. No package-feed secret is mounted.
 
-The script sets `RvtUseArtifactValidationLocks=true`, which redirects those
-consumers to generated, ignored
-`artifacts/validation-locks/RuntimeConsumer.packages.lock.json` and
-`artifacts/validation-locks/TestConsumer.packages.lock.json`. Repacking the same
-prerelease version can change archive hashes, so artifact validation generates
-these isolated locks instead of overwriting or relying on the checked-in
-source-project locks.
+Run the container build from `apps/monitors`:
 
-## Container build limitation
-
-The checked-in container path is currently not supported or green:
-
-- every build `context: .` in `apps/monitors/docker-compose.yml` resolves to
-  `apps/monitors`;
-- every monitor Dockerfile runs `COPY . .`;
-- the active project references resolve outside that context into the
-  repository-root `libs/rvt-monitor-common`.
-
-An ordinary `docker compose build` therefore cannot resolve the active Common
-source projects. Compose and the Dockerfiles also retain obsolete
-`nuget_credentials` secret plumbing, but active source consumers do not need
-that credential.
-
-Before container builds can be claimed supported, follow-up work must use a
-monorepo-root build context, realign Dockerfile project paths, remove the
-obsolete secret plumbing, and verify clean image builds. Do not use a package
-feed or package-consumer fallback as a workaround.
+```sh
+docker compose build
+```
 
 Do not build from the retired Parallels Windows C: share paths (`/Volumes/[C] Windows 11/...` or `/private/tmp/win11c/...`). Those mounted workspaces generated macOS SMB AppleDouble `._*` sidecars that could break Docker build-context packaging. The native clone avoids that class of failure, so the old filtered tar build workaround is no longer the default process.
 

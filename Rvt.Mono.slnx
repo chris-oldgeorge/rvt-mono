@@ -33,7 +33,6 @@
   </Folder>
   <Folder Name="/Libraries/" />
   <Folder Name="/Libraries/RVT Monitor Common/">
-    <Project Path="libs/rvt-monitor-common/package-validation/RuntimeConsumer/RuntimeConsumer.csproj" />
     <Project Path="libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj" />
     <Project Path="libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj" />
     <Project Path="libs/rvt-monitor-common/src/Rvt.Communication.MicrosoftGraphMail/Rvt.Communication.MicrosoftGraphMail.csproj" />
@@ -47,7 +46,6 @@
     <Project Path="libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj" />
   </Folder>
   <Folder Name="/Libraries/RVT Monitor Common/Tests/">
-    <Project Path="libs/rvt-monitor-common/package-validation/TestConsumer/TestConsumer.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Communication.AbstractionsTests/Rvt.Communication.AbstractionsTests.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.CommunicationTests/Rvt.CommunicationTests.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Communication.MicrosoftGraphMailTests/Rvt.Communication.MicrosoftGraphMailTests.csproj" />
@@ -55,7 +53,6 @@
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Communication.TransmitSmsTests/Rvt.Communication.TransmitSmsTests.csproj" />
     <Project Path="libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting.Tests/Rvt.Monitor.IntegrationTesting.Tests.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Monitor.CommonTests/Rvt.Monitor.CommonTests.csproj" />
-    <Project Path="libs/rvt-monitor-common/tests/Rvt.Monitor.PackageValidationTests/Rvt.Monitor.PackageValidationTests.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Storage.Tests/Rvt.Storage.Tests.csproj" />
   </Folder>
   <Folder Name="/Services/" />

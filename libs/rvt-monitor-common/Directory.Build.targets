@@ -1,22 +1,8 @@
 <Project>
-  <ItemGroup Condition="'$(IsPackable)' == 'true'">
-    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" />
-  </ItemGroup>
   <ItemGroup Condition="'$(IsTestProject)' == 'true' And Exists('$(MSBuildThisFileDirectory)testing/Rvt.Monitor.IntegrationTesting/appsettings.Development.json')">
     <None Include="$(MSBuildThisFileDirectory)testing/Rvt.Monitor.IntegrationTesting/appsettings.Development.json">
       <Link>rvt-integration.appsettings.Development.json</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <Target Name="PinSynchronizedRvtProjectReferenceVersions"
-          AfterTargets="_GetProjectReferenceVersions"
-          BeforeTargets="GenerateNuspec"
-          Condition="'$(IsPackable)' == 'true'">
-    <ItemGroup>
-      <_ProjectReferencesWithVersions Update="@(_ProjectReferencesWithVersions)"
-          Condition="$([System.String]::Copy('%(_ProjectReferencesWithVersions.Filename)').StartsWith('Rvt.'))">
-        <ProjectVersion>[$(PackageVersion)]</ProjectVersion>
-      </_ProjectReferencesWithVersions>
-    </ItemGroup>
-  </Target>
 </Project>

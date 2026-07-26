@@ -2,7 +2,10 @@
 
 Date: 2026-07-23
 
-Status: Approved architecture; implementation plans prepared for execution.
+Status: Approved architecture; implemented. The package-release portions of this
+design are superseded by the source-reference decision dated 2026-07-22, as amended
+2026-07-26. Provider projects remain separate, but monorepo consumers use direct
+`ProjectReference` dependencies and no internal NuGet release train is built.
 
 ## Objective
 
@@ -228,17 +231,17 @@ references one broad infrastructure package.
 1. Add communication abstractions and provider-neutral orchestration projects with
    tests, without moving adapters.
 2. Extract SendGrid, Graph, and TransmitSMS one at a time, moving each test suite and
-   adding package dependency guards.
+   adding dependency guards.
 3. Migrate all active composition roots and direct consumers.
-4. Remove `Rvt.Monitor.Common.Infrastructure` and update communication packaging,
-   locks, release scripts, and consumers.
+4. Remove `Rvt.Monitor.Common.Infrastructure` and update communication project
+   references, locks, build scripts, and consumers.
 5. Add storage abstractions and contract tests.
 6. Extract Local, Azure Blob, and S3 one at a time, moving their tests.
 7. Migrate active monitor/reporting storage consumers and remove the old storage
    implementations and SDK references from `Rvt.Monitor.Common`.
-8. Update the complete eleven-package release pipeline, SBOM, solutions, validation
-   consumers, documentation, and major-version release notes.
-9. Run the full monorepo, package-only, provider, audit, pack, and release-artifact
+8. Update the source-only build pipeline, SBOM, solutions, boundary validation,
+   documentation, and migration notes.
+9. Run the full monorepo, source-boundary, provider, audit, build, and test
    verification gates.
 10. Begin the separately reviewed Portal blob-unification follow-up.
 

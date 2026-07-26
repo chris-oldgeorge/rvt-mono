@@ -5,8 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Rvt.Communication.MicrosoftGraphMail</AssemblyName>
     <RootNamespace>Rvt.Communication.MicrosoftGraphMail</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>Rvt.Communication.MicrosoftGraphMail</PackageId>
+    <IsPackable>false</IsPackable>
     <Description>Microsoft Graph email delivery adapter for RVT communication workflows.</Description>
   </PropertyGroup>
   <ItemGroup>

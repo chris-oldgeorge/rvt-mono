@@ -147,7 +147,8 @@ while IFS= read -r markdown_path; do
   fi
 done < <(
   cd "$repo_root"
-  git ls-files --cached --others --exclude-standard |
+  git ls-files --cached --others --exclude-standard -- \
+    . ':(exclude)apps/.nuget-packages/**' |
     awk 'tolower($0) ~ /\.md$/ && $0 ~ /^(apps|libs|services)\// { print }' |
     sort
 )
@@ -206,6 +207,7 @@ for source in "${missing_sources[@]}"; do
     rg --hidden --quiet --fixed-strings \
       --glob '!.git/**' \
       --glob '!.superpowers/sdd/**' \
+      --glob '!apps/.nuget-packages/**' \
       --glob '!docs/documentation-move-manifest.md' \
       -- "$source" .
   ); then
@@ -220,6 +222,7 @@ for module_relative_source in "${missing_module_relative_sources[@]}"; do
     git grep --quiet --fixed-strings -I \
       -e "$module_relative_source" -- . \
       ':(exclude).superpowers/sdd/**' \
+      ':(exclude)apps/.nuget-packages/**' \
       ':(exclude)docs/documentation-move-manifest.md' \
       ':(exclude)docs/history/**'
   ); then
@@ -258,6 +261,7 @@ done < <(
     --glob '*.md' --glob '*.MD' \
     --glob '!.git/**' \
     --glob '!.superpowers/sdd/**' \
+    --glob '!apps/.nuget-packages/**' \
     --glob '!docs/documentation-move-manifest.md' \
     '\]\([^)]*\.md(#[^)]*)?\)' . || true
 )

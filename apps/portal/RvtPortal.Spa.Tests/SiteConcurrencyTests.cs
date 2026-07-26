@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -203,124 +202,46 @@ public sealed class SiteConcurrencyTests
     }
 
     [Fact]
-    public async Task UniquenessMigration_DeduplicatesExistingRowsBeforeCreatingIndexes()
+    public void UniquenessMigration_GeneratesPostgreSqlDeduplicationBeforeUniqueIndexes()
     {
-        var databasePath = Path.Combine(
-            Path.GetTempPath(),
-            $"rvt-site-migration-{Guid.NewGuid():N}.db");
-        try
-        {
-            var options = new DbContextOptionsBuilder<RVTDbContext>()
-                .UseSqlite($"Data Source={databasePath};Foreign Keys=True;Pooling=False")
-                .ConfigureWarnings(warnings => warnings.Ignore(
-                    RelationalEventId.PendingModelChangesWarning))
-                .Options;
-            var siteId = Guid.NewGuid();
-            var siteUserId = Guid.NewGuid();
-            var retainedNotificationId = Guid.Parse(
-                "00000000-0000-0000-0000-000000000001");
-            var discardedNotificationId = Guid.Parse(
-                "ffffffff-ffff-ffff-ffff-ffffffffffff");
-            var olderArchiveId = Guid.Parse(
-                "00000000-0000-0000-0000-000000000010");
-            var newerArchiveId = Guid.Parse(
-                "00000000-0000-0000-0000-000000000020");
+        var options = new DbContextOptionsBuilder<RVTDbContext>()
+            .UseNpgsql("Host=localhost;Database=rvt_migration_script;Username=rvt")
+            .Options;
+        using var context = new RVTDbContext(options);
+        var script = context.Database.GetService<IMigrator>().GenerateScript(
+            "20260714132042_CanonicalBaseline",
+            "20260723234806_EnforceSiteWriteUniqueness");
 
-            await using (var seed = new RVTDbContext(options))
-            {
-                await seed.Database.GetService<IMigrator>()
-                    .MigrateAsync("20260714132042_CanonicalBaseline");
-                seed.Sites.Add(new Site
-                {
-                    Id = siteId,
-                    SiteName = "Legacy Duplicate Site",
-                    CreateDate = DateTime.UtcNow,
-                    Archived = false,
-                    Contracts = []
-                });
-                seed.NotificationSettings.AddRange(
-                    new NotificationSettings
-                    {
-                        Id = retainedNotificationId,
-                        SiteUserId = siteUserId,
-                        Email = true,
-                        SMS = false
-                    },
-                    new NotificationSettings
-                    {
-                        Id = discardedNotificationId,
-                        SiteUserId = siteUserId,
-                        Email = false,
-                        SMS = true
-                    });
-                seed.SiteArchived.AddRange(
-                    new SiteArchived
-                    {
-                        Id = olderArchiveId,
-                        SiteId = siteId,
-                        CreatedBy = "older",
-                        PictureLink = "https://archive.example/older.zip",
-                        CreateDate = new DateTime(
-                            2026,
-                            7,
-                            20,
-                            12,
-                            0,
-                            0,
-                            DateTimeKind.Utc)
-                    },
-                    new SiteArchived
-                    {
-                        Id = newerArchiveId,
-                        SiteId = siteId,
-                        CreatedBy = "newer",
-                        PictureLink = "https://archive.example/newer.zip",
-                        CreateDate = new DateTime(
-                            2026,
-                            7,
-                            21,
-                            12,
-                            0,
-                            0,
-                            DateTimeKind.Utc)
-                    });
-                await seed.SaveChangesAsync();
-            }
+        var notificationDelete = script.IndexOf(
+            "DELETE FROM public.notification_setting",
+            StringComparison.Ordinal);
+        var archiveDelete = script.IndexOf(
+            "DELETE FROM public.site_archived",
+            StringComparison.Ordinal);
+        var siteUpdate = script.IndexOf(
+            "UPDATE public.site AS sites",
+            StringComparison.Ordinal);
+        var archiveIndex = script.IndexOf(
+            "ix_site_archived_site_id",
+            siteUpdate,
+            StringComparison.Ordinal);
+        var notificationIndex = script.IndexOf(
+            "ix_notification_setting_site_user_id",
+            siteUpdate,
+            StringComparison.Ordinal);
 
-            await using (var migrate = new RVTDbContext(options))
-            {
-                await migrate.Database.MigrateAsync();
-            }
-
-            await using var verification = new RVTDbContext(options);
-            var notification = await verification.NotificationSettings
-                .AsNoTracking()
-                .SingleAsync(item => item.SiteUserId == siteUserId);
-            var archive = await verification.SiteArchived
-                .AsNoTracking()
-                .SingleAsync(item => item.SiteId == siteId);
-            Assert.Multiple(
-                () => Assert.Equal(retainedNotificationId, notification.Id),
-                () => Assert.Equal(newerArchiveId, archive.Id),
-                () => Assert.True(verification.Sites
-                    .Where(item => item.Id == siteId)
-                    .Select(item => item.Archived)
-                    .Single()));
-
-            verification.NotificationSettings.Add(new NotificationSettings
-            {
-                SiteUserId = siteUserId
-            });
-            await Assert.ThrowsAsync<DbUpdateException>(
-                () => verification.SaveChangesAsync());
-        }
-        finally
-        {
-            if (File.Exists(databasePath))
-            {
-                File.Delete(databasePath);
-            }
-        }
+        Assert.Multiple(
+            () => Assert.Contains(
+                "LOCK TABLE public.notification_setting",
+                script,
+                StringComparison.Ordinal),
+            () => Assert.True(notificationDelete >= 0),
+            () => Assert.True(archiveDelete > notificationDelete),
+            () => Assert.True(siteUpdate > archiveDelete),
+            () => Assert.True(archiveIndex > siteUpdate),
+            () => Assert.True(notificationIndex > siteUpdate),
+            () => Assert.DoesNotContain("[dbo]", script, StringComparison.Ordinal),
+            () => Assert.DoesNotContain("PRAGMA", script, StringComparison.Ordinal));
     }
 
     private static SiteApplicationService CreateArchiveService(

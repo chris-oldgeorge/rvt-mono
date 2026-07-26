@@ -84,6 +84,14 @@ report_content_matches \
   "forbidden SQL Server provider or support text" \
   -i -E -e 'Sql([[:space:]]+|[-_])?Server|MSSQL'
 
+while IFS= read -r -d '' path; do
+  report_finding "${path}" "provider-conditional EF migration"
+done < <(
+  git -C "${repo_root}" grep -I -l -z -F \
+    -e "ActiveProvider.Contains" -- \
+    'apps/portal/RVT.DataAccess/Migrations/*.cs' || true
+)
+
 if (( failures > 0 )); then
   printf '%d PostgreSQL-only violation(s) found.\n' "${failures}" >&2
   exit 1

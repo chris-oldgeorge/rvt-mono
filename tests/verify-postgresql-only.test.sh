@@ -113,6 +113,11 @@ assert_rejected \
   src/appsettings.json \
   "{ \"Database\": { \"Provider\": \"${retired_engine}\" } }"
 assert_rejected \
+  provider-conditional-migration \
+  apps/portal/RVT.DataAccess/Migrations/LegacyMigration.cs \
+  "if (ActiveProvider.Contains(\"Npgsql\")) { }" \
+  "provider-conditional EF migration"
+assert_rejected \
   prose \
   docs/legacy.md \
   "Use ${retired_engine_upper} for production deployments."

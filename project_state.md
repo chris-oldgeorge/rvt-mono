@@ -1477,47 +1477,207 @@
   SQL Server migration deployment also remain unclosed. These are deployment
   verification gaps, not hidden merge claims.
 
-## PostgreSQL-Only Execution Checkpoint - 2026-07-25
+## PostgreSQL-Only Final Handoff - 2026-07-26
 
-- Resume instruction: start a future session with
-  `Read project_state.md to get up to speed`.
+This section supersedes every earlier current-state or compatibility statement
+in this file. Earlier dual-provider descriptions are retained only as
+historical audit evidence. The current solution has no runtime dual-provider
+fallback: PostgreSQL is the only supported relational database, with
+TimescaleDB extensions where the schema requires them.
+
+### Branch, handoff identity, and structure
+
 - Worktree:
   `/Users/oldgeorge/Documents/rvt-mono/.worktrees/postgresql-only`.
 - Branch: `codex/postgresql-only`.
-- Checkpoint implementation head before this state-only commit:
-  `8aa4a2c8b37fca60a1e86573ce39390095ad0be2`.
-- Approved design:
-  `docs/superpowers/specs/2026-07-25-postgresql-only-design.md`.
-- Committed implementation plan:
-  `docs/superpowers/plans/2026-07-25-postgresql-only.md`.
-- SDD recovery ledger:
-  `.superpowers/sdd/2026-07-25-postgresql-only/progress.md`.
-- Task 1 is complete and review-clean:
-  - `e9b1b8d` added `scripts/verify-postgresql-only.sh`,
-    `tests/verify-postgresql-only.test.sh`, and the temporary guarded
-    `scripts/build-mono.sh` integration.
-  - `efdfd0a` added spaced/hyphenated/underscored provider-name coverage plus
-    independent connection and bulk-copy API mutation cases.
-  - `8aa4a2c` restored one-or-more whitespace matching after scoped re-review.
-  - Fixture verification is green. The real repository is deliberately red
-    with 323 legacy findings until subsequent removal tasks complete.
-  - One deferred Minor review note remains: mutation fixtures assert a path
-    and generic rule marker rather than the exact expected rule category.
-- Execution order is intentionally Task 1, Task 3, Task 2, then Tasks 4-13.
-  Task 3 must remove the archive/write consumers of `RvtDatabaseProvider`
-  before Task 2 deletes that core provider type.
-- Task 3 has not changed source files. Its first implementer stopped before
-  edits when the required codegraph lookup and then the agent service returned
-  HTTP 503. Resume by dispatching a fresh Task 3 implementer from:
-  `.superpowers/sdd/2026-07-25-postgresql-only/task-3-brief.md`.
-- Current PostgreSQL-only execution variables:
-  - `RVT_ENFORCE_POSTGRESQL_ONLY=1` temporarily enables the repository guard
-    in `scripts/build-mono.sh`; Task 13 removes the gate and makes it
-    unconditional.
-  - `RVT_TEST_POSTGRES_CONNECTION` gates Portal live PostgreSQL tests.
-  - `RVT__POSTGRES_INTEGRATION_CONNECTION` gates monitor/TimescaleDB tests.
-  - `RVT_EF_CONNECTION` supplies Portal design-time EF access.
-  - `RVT_EF_PROVIDER` is still present in current code and is scheduled for
-    retirement in Task 2.
-- The main checkout's generated `.codegraph/` and
-  `apps/.nuget-packages/` remain untouched and untracked.
+- Verified Tasks 1-12 pre-state head:
+  `b0d0ecb55f22308cb5e81a3ecc716b3c6dba7e60`.
+- Design base:
+  `a07f6019fc492531a2f7d67294dd17ace47058db`.
+- The final handoff commit is the commit containing this section, with subject
+  `chore: enforce PostgreSQL-only solution`. A file cannot contain its own
+  final hash; the exact hash is recorded after commit in the ignored
+  `.superpowers/sdd/2026-07-25-postgresql-only/task-13-report.md`.
+- `Rvt.Mono.slnx` contains 40 projects: 14 under `apps/monitors`, 9 under
+  `apps/portal`, 9 under `libs/rvt-monitor-common`, and 8 under
+  `services/reporting`.
+- The four primary module roots remain:
+  - `apps/monitors`: AirQ, MyATM, Omnidots, ReportingMonitor, and Svantek
+    applications and tests;
+  - `apps/portal`: the application, Npgsql data access, schema deployer, host,
+    tests, and the `RvtPortal.Client` Vite client;
+  - `libs/rvt-monitor-common`: shared Common, Infrastructure, integration-test
+    support, tests, and the two package-validation consumers;
+  - `services/reporting`: PostgreSQL reporting core/data/messaging/PDF/storage,
+    service host, and tests.
+- Compared with the design base, 75 tracked paths were deleted. This includes
+  all 36 retired-provider-named paths, the complete
+  `apps/portal/database/sqlserver/` tree, the Omnidots `sqlserver/` tree,
+  MyATM/shared `*.sqlserver.sql` migrations and rollbacks, the Portal provider
+  package/assets/registries, the retired DML test, and 34 obsolete
+  `docs/history/` documents. Git history is the audit source for deleted
+  artifacts.
+
+### Canonical architecture and package boundary
+
+- Portal configures `RVTDbContext`, `RVTSearchContext`, and
+  `ApplicationDbContext` only with Npgsql. Their migration histories remain
+  separate: the domain default, `__EFMigrationsHistorySearch`, and
+  `__EFMigrationsHistoryIdentity`.
+- `UtcTimestampGuardInterceptor` remains active for `timestamptz` writes.
+  Domain persistence stays UTC; search/telemetry plain `timestamp` mappings
+  retain their intentional `DateTimeKind.Unspecified` contract.
+- `RVT.SchemaDeploy` owns canonical PostgreSQL/TimescaleDB schema objects that
+  EF does not own. Active SQL uses canonical PostgreSQL identifiers and
+  syntax. The site-write uniqueness migration is unconditional canonical
+  PostgreSQL SQL; provider-conditional EF migrations are now rejected by the
+  repository guard.
+- Shared monitor persistence creates only `NpgsqlConnection`/
+  `NpgsqlParameter`, uses PostgreSQL binary `COPY`, and maps canonical
+  PostgreSQL tables, columns, constraints, and indexes. Runtime T-SQL
+  rewriting and provider enums are deleted.
+- AirQ, MyATM, Omnidots, Svantek, ReportingMonitor, and
+  `services/reporting` use PostgreSQL/TimescaleDB only.
+- Active application consumers use `ProjectReference` entries to the shared
+  RVT source projects. Only
+  `libs/rvt-monitor-common/package-validation/{RuntimeConsumer,TestConsumer}`
+  consume the locally packed `0.2.0-rc.1` packages.
+- There are 23 tracked package locks. The supported aggregate path generates
+  ignored validation locks under `artifacts/validation-locks`; verification
+  leaves all tracked locks unchanged. Neither project files nor locks contain
+  the retired provider packages.
+
+### Configuration contract
+
+- Portal runtime connection: `ConnectionStrings:DefaultConnection` or
+  `Database:ConnectionString`.
+- Monitor runtime connection:
+  `ConnectionStrings__DefaultConnection`.
+- Reporting service runtime connection:
+  `ConnectionStrings:ReportingDatabase`.
+- Portal design-time EF connection: `RVT_EF_CONNECTION`.
+- Portal live verification: `RVT_TEST_POSTGRES_CONNECTION`.
+- Monitor/TimescaleDB live verification:
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`.
+- `RVT_EF_PROVIDER` is retired and removed.
+- `RVT_ENFORCE_POSTGRESQL_ONLY` is retired and removed; every
+  `scripts/build-mono.sh` run now executes
+  `bash scripts/verify-postgresql-only.sh .` unconditionally.
+- `Database:Provider`, `RvtDatabase:Provider`, `RVT__DATABASE_PROVIDER`,
+  `DatabaseProvider`, and the equivalent `RVT:DATABASE_PROVIDER` configuration
+  form are retired as selection keys. They may be omitted. During transition,
+  explicit PostgreSQL/Npgsql/Timescale aliases are accepted only by a
+  compatibility validator; any other value fails fast and cannot select a
+  different provider.
+- Real credentials remain outside Git in user secrets or the deployment secret
+  store. Presence-only verification found `RVT_EF_CONNECTION`,
+  `RVT_TEST_POSTGRES_CONNECTION`,
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`, checked OpenAI/GitHub/NuGet secret
+  variables, monitor API/vendor keys, and the checked default connection
+  environment variable absent. No values were printed or recorded.
+
+### Fresh Task 13 verification
+
+- All 12 repository commands passed: PostgreSQL-only script/fixture,
+  mono-layout script/fixture, mono-solution script/fixture, RVT common
+  source-boundary script/fixture/regression, and documentation-layout
+  script/fixture/regression.
+- The documentation commands ran with normal Git config and the untouched
+  untracked `apps/.nuget-packages/` cache. The initial guard reproduced 185
+  generated Markdown discoveries and two issue groups. A focused regression
+  now proves only that exact cache is pruned; the real guard passes with 86
+  moves and 7 retained entry points.
+- Plain `dotnet restore Rvt.Mono.slnx --locked-mode` was run once and exited 1.
+  Before the supported repack, stale same-version local packages produced
+  `NU1403` content-hash failures for `Rvt.Monitor.Common`,
+  `Rvt.Monitor.Common.Infrastructure`, and
+  `Rvt.Monitor.IntegrationTesting`, plus `NU1101` for two retired transitive
+  dependencies carried by the stale local artifacts. No committed lock was
+  changed.
+- The supported restore with `RvtUseArtifactValidationLocks=true` passed.
+  The final 40-project no-incremental build passed with 0 errors and 66
+  warnings: 5 `NU1903`, 2 `MSTEST0001`, 3 `MSTEST0032`, 8 `MSTEST0037`,
+  47 `MSTEST0044`, and 1 `MSTEST0052`.
+- The five existing `System.Security.Cryptography.Xml` 10.0.7 high-severity
+  advisories reproduced unchanged:
+  `GHSA-23rf-6693-g89p`, `GHSA-8q5v-6pqq-x66h`,
+  `GHSA-cvvh-rhrc-wg4q`, `GHSA-g8r8-53c2-pm3f`, and
+  `GHSA-mmjf-rqrv-855v`.
+- Individually green .NET suites:
+  - `RvtPortal.Application.Tests`: 48 passed, 0 failed, 0 skipped;
+  - `RvtPortal.Spa.Tests`: 414 passed, 0 failed, 9 live skips, 423 total;
+  - `Rvt.Monitor.CommonTests`: 423 passed, 0 failed, 0 skipped;
+  - `Rvt.Monitor.Common.InfrastructureTests`: 64 passed, 0 failed, 0 skipped;
+  - `Rvt.Monitor.PackageValidationTests`: 8 passed, 0 failed, 0 skipped;
+  - `Rvt.Reporting.Core.Tests`: 26 passed, 0 failed, 0 skipped;
+  - `Rvt.Reporting.Service.Tests`: 7 passed, 0 failed, 0 skipped;
+  - focused `SchemaDeployTests`: 17 passed, 0 failed, 0 skipped;
+  - post-review `CutoverReadinessTests`: 13 passed, 0 failed, 0 skipped.
+- Full monitor-suite evidence, before filtering:
+  - AirQ: 89 passed, 33 failed, 0 skipped, 122 total;
+  - MyATM: 155 passed, 53 failed, 0 skipped, 208 total;
+  - Omnidots: 326 passed, 64 failed, 0 skipped, 390 total;
+  - Svantek: 87 passed, 40 failed, 0 skipped, 127 total;
+  - ReportingMonitor: 69 passed, 14 failed, 0 skipped, 83 total.
+  Failures classify as the absent
+  `RVT__POSTGRES_INTEGRATION_CONNECTION` guard and known imported pre-mono
+  filesystem/solution assumptions.
+- With only `TestCategory!=PostgreSqlIntegration` excluded:
+  - AirQ passed 89/89 and Omnidots passed 326/326;
+  - MyATM reported 155 passed and 10 known imported-assumption failures;
+  - Svantek reported 87 passed and 5 known mono-path failures;
+  - ReportingMonitor reported 69 passed, 10 missing-variable failures whose
+    xUnit fixture lacks that category, and 4 known mono-path failures.
+- Narrow controls excluded only the named known failing classes after the broad
+  results were recorded: MyATM passed 141/141, Svantek passed 87/87, and
+  ReportingMonitor passed 68/68. These controls do not claim the excluded live
+  or imported-path cases passed.
+- The plan's obsolete `apps/portal/RvtPortal.Spa/ClientApp` prefix does not
+  exist and both prescribed npm commands exit 254 with `ENOENT`. At the tracked
+  `apps/portal/RvtPortal.Client` path, `test:run` passed 68/68 across 8 files
+  and the production build succeeded after transforming 1,605 modules.
+- `RVT_EF_CONNECTION` was absent, so the three EF
+  `has-pending-model-changes` checks were not run.
+  `RVT_TEST_POSTGRES_CONNECTION` was absent, so the 9 Portal live cases were
+  discovered as skips rather than executed.
+  `RVT__POSTGRES_INTEGRATION_CONNECTION` was absent, so live monitor suites and
+  `Rvt.Monitor.IntegrationTesting.Tests` were not run as live verification.
+- The final aggregate `scripts/build-mono.sh` run passed its unconditional
+  guard, package repack, artifact-validation restore, and build (5 warnings,
+  the five advisories above; 0 errors), then exited 1 at its unfiltered test
+  stage with the same monitor missing-variable/mono-path totals recorded
+  individually above. The three integration-test-support cases also failed
+  closed because `RVT__POSTGRES_INTEGRATION_CONNECTION` was absent. Portal,
+  Common, package-validation, and reporting-service aggregate results remained
+  green.
+- Whole-branch review from `a07f6019fc492531a2f7d67294dd17ace47058db`
+  found and repaired one real escaped provider-conditional migration through a
+  RED/GREEN guard mutation. Final review reports zero forbidden packages in
+  projects/locks, zero tracked retired-provider paths, zero production legacy
+  SQL tokens, zero provider-conditional migrations, zero unexpected tracked
+  lock diffs, zero changed authorization production files, zero added
+  `DateTime.Now`/`DateTime.Today` calls, zero added production
+  `SaveChanges` calls, and a clean `git diff --check`.
+
+### Deployment, rollback, and known limitation
+
+- Before deployment, take and verify a PostgreSQL/TimescaleDB backup, provision
+  extensions and privileges, configure secret-store connections, apply all
+  three Portal EF migration chains plus `RVT.SchemaDeploy`, apply the required
+  monitor/reporting PostgreSQL prerequisites, and run the environment-gated
+  pending-model and live integration suites against the target-compatible
+  database.
+- Remove stale provider-selection settings, or temporarily use only an accepted
+  PostgreSQL alias while the compatibility validators remain.
+- Rollback is a coordinated Git/application rollback plus restoration of the
+  verified database backup or the supported PostgreSQL rollback scripts for the
+  deployed change. There is no runtime dual-provider rollback and no retained
+  reader/conversion path for the retired database.
+- Monitor source builds are supported. Checked-in monitor container builds are
+  currently unsupported: their `apps/monitors` build context cannot reach
+  repository-root shared source projects, and obsolete package-feed secret
+  plumbing remains. A monorepo-root context, realigned Dockerfile paths, secret
+  cleanup, and verified clean image builds are required before container
+  support can be claimed.
+
+Next-session instruction: Read project_state.md to get up to speed

@@ -10,8 +10,8 @@
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.4" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.4" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.4" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.9" Condition="'$(MSBuildProjectName)' == 'Rvt.Reporting.Messaging'" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.9" Condition="'$(MSBuildProjectName)' == 'Rvt.Reporting.Messaging' Or '$(MSBuildProjectName)' == 'Rvt.Reporting.Storage'" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" Condition="'$(MSBuildProjectName)' == 'ReportingMonitorTests'" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" Condition="'$(MSBuildProjectName)' != 'ReportingMonitorTests'" />
     <PackageVersion Include="Moq" Version="4.20.69" />

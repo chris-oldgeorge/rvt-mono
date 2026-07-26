@@ -2954,5 +2954,17 @@ TimescaleDB extensions where the schema requires them.
   The regression guard fails when the override is absent, passes with the
   repair, and a live non-root write check against the runner temporary
   directory passed.
+- The second manual run, GitHub Actions run `30195309477`, proved the non-root
+  SDK repair and passed runner setup, database preparation, tool installation,
+  and SonarCloud initialization. Restore then failed because the tracked monitor
+  central-package catalog pinned `Microsoft.Extensions.Logging.Abstractions`
+  `10.0.4` below EF Core's `10.0.9` dependency and omitted
+  `Rvt.Reporting.Storage` from the `Microsoft.Extensions.Options` `10.0.9`
+  condition. NuGet in SDK `10.0.302` masked the downgrade with a
+  `PackagesLockFileUtilities.HasP2PDependencyChanged` null reference; SDK
+  `10.0.203` exposed `NU1109`. The tracked catalog now uses Logging Abstractions
+  `10.0.9` and covers both Reporting Messaging and Storage for Options. With no
+  nested ReportingMonitor override, the exact SDK `10.0.302` serial restore and
+  Release single-node build passed in the Linux ARM64 runner with zero errors.
 
 Next-session instruction: Read project_state.md to get up to speed

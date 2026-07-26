@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using ReportingMonitor.Api;
 using ReportingMonitor.Api.Db;
 using ReportingMonitor.Api.Db.EntityFramework;
 using Rvt.Monitor.Common.Data;
@@ -167,6 +170,82 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
     }
 }
 
+public sealed class ReportingMonitorCompositionTests
+{
+    private const string SafePostgreSqlOnlyMessage = "PostgreSQL is the only supported database provider";
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("postgres", "oracle")]
+    [InlineData(" POSTGRESQL ", "oracle")]
+    [InlineData("NPGSQL", null)]
+    [InlineData(null, "timescale")]
+    [InlineData(" ", "TimescaleDB")]
+    public void Composition_AcceptsOmittedAndPostgreSqlLegacyAliases(
+        string? primaryProvider,
+        string? fallbackProvider)
+    {
+        using var provider = CreateServiceProvider(
+            primaryProvider,
+            fallbackProvider,
+            "Host=localhost;Database=reporting_composition_tests;Username=reporting");
+        using var scope = provider.CreateScope();
+
+        var client = scope.ServiceProvider.GetRequiredService<ReportingDbClient>();
+
+        Assert.NotNull(client);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Composition_RejectsUnsupportedLegacyProviderBeforeDbClientResolution(
+        bool usePrimaryProvider)
+    {
+        var rejectedValue = string.Concat("sql", "server");
+        var primaryProvider = usePrimaryProvider ? rejectedValue : " ";
+        var fallbackProvider = usePrimaryProvider ? "postgresql" : rejectedValue;
+        const string invalidConnectionString = "not a valid connection string";
+        using var provider = CreateServiceProvider(
+            primaryProvider,
+            fallbackProvider,
+            invalidConnectionString);
+        using var scope = provider.CreateScope();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => scope.ServiceProvider.GetRequiredService<ReportingDbClient>());
+
+        Assert.Equal(SafePostgreSqlOnlyMessage, exception.Message);
+        Assert.DoesNotContain(invalidConnectionString, exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(rejectedValue, exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static ServiceProvider CreateServiceProvider(
+        string? primaryProvider,
+        string? fallbackProvider,
+        string connectionString)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = connectionString,
+                ["RVT:DATABASE_PROVIDER"] = primaryProvider,
+                ["DatabaseProvider"] = fallbackProvider,
+                ["RVT:EMAIL_ENABLED"] = "false"
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddLogging();
+        services.AddReportingMonitor();
+        return services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true
+        });
+    }
+}
+
 public sealed class ReportingDbFixture : IAsyncLifetime
 {
     private const string CreateScript = "testdata/create.postgres.sql";
@@ -186,8 +265,8 @@ public sealed class ReportingDbFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         database = await PostgreSqlIntegrationDatabase.CreateAsync(ReadTestData(CreateScript), ReadTestData(ResetScript));
-        var monitorOptions = new MonitorDbOptions(MonitorDatabaseProvider.PostgreSql, new Dictionary<string, string>());
-        var options = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(database.ConnectionString, monitorOptions);
+        var monitorOptions = new MonitorDbOptions(new Dictionary<string, string>());
+        var options = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(database.ConnectionString);
         context = new ReportingMonitorContext(options, monitorOptions);
         secondContext = new ReportingMonitorContext(options, monitorOptions);
     }

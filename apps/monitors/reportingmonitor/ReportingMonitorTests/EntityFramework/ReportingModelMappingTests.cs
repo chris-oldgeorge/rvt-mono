@@ -79,10 +79,9 @@ internal static class ReportingContextFactory
 {
     public static ReportingMonitorContext CreatePostgreSqlContext()
     {
-        var monitorOptions = new MonitorDbOptions(MonitorDatabaseProvider.PostgreSql, new Dictionary<string, string>());
+        var monitorOptions = new MonitorDbOptions(new Dictionary<string, string>());
         var options = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(
-            "Host=localhost;Database=reporting_mapping_tests;Username=reporting;Password=reporting",
-            monitorOptions);
+            "Host=localhost;Database=reporting_mapping_tests;Username=reporting;Password=reporting");
 
         return new ReportingMonitorContext(options, monitorOptions);
     }

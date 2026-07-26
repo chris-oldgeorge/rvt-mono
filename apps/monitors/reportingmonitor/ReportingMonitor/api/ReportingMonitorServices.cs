@@ -31,17 +31,12 @@ public static class ReportingMonitorServices
 
         services.AddSingleton(provider =>
         {
-            MonitorDatabaseProviderGuard.EnsureSupported();
             var configuration = provider.GetRequiredService<IConfiguration>();
-            var databaseProvider = MonitorDb.ResolveProvider(
+            MonitorDb.ValidateLegacyProvider(
                 configuration["RVT:DATABASE_PROVIDER"],
                 configuration["DatabaseProvider"]);
-            if (databaseProvider != MonitorDatabaseProvider.PostgreSql)
-            {
-                throw new NotSupportedException("ReportingMonitor requires the PostgreSql monitor database provider.");
-            }
-
-            return new MonitorDbOptions(databaseProvider, new Dictionary<string, string>(StringComparer.Ordinal));
+            var identifierMap = new Dictionary<string, string>(StringComparer.Ordinal);
+            return new MonitorDbOptions(identifierMap);
         });
 
         services.AddScoped(provider =>
@@ -54,7 +49,7 @@ public static class ReportingMonitorServices
             }
 
             var monitorOptions = provider.GetRequiredService<MonitorDbOptions>();
-            var dbContextOptions = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(connectionString, monitorOptions);
+            var dbContextOptions = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(connectionString);
             return new ReportingMonitorContext(dbContextOptions, monitorOptions);
         });
         services.AddScoped<ReportingDbClient>();

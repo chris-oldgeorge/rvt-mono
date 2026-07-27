@@ -29,6 +29,11 @@ aggregate builds and GitHub Actions.
   `docs/development/engineering-standards.md`; every task maps to its rule IDs.
 - Enforcement mode is exactly `ratcheted`: new files and modified logical units
   comply; untouched legacy violations are baselined and may not increase.
+- MSBuild `RvtEngineeringStandardsMode` defaults to `Ratchet`. In that mode,
+  `EnforceCodeStyleInBuild` is `false` because changed-scope `dotnet format` and
+  analyzer verification owns enforcement without activating untouched Portal errors.
+  `Strict` makes it `true`; promote the default only after every code-style baseline
+  reaches zero and the strict root build passes.
 - Automated changed-range checks supplement, but do not replace, review of the
   complete changed logical unit. Every implementation review records that check.
 - Root policy may be strengthened by module configuration but not silently
@@ -93,6 +98,9 @@ BLD-001, BLD-002, BLD-005
 - Consumes: existing nearest-file EditorConfig/MSBuild behavior.
 - Produces: one root EditorConfig policy and one root MSBuild policy imported by
   all four module build roots.
+- Produces: evaluated `RvtEngineeringStandardsMode=Ratchet` with
+  `EnforceCodeStyleInBuild=false`; overriding the mode to `Strict` evaluates
+  `EnforceCodeStyleInBuild=true`.
 
 - [ ] **Step 1: Write the failing evaluated-configuration test**
 
@@ -102,8 +110,10 @@ an expected XML or EditorConfig line exists.
 
 1. For one representative project in each of the four module roots, run
    `dotnet msbuild -getProperty` and assert the evaluated values of `Nullable`,
-   `ImplicitUsings`, `AnalysisLevel`, `EnforceCodeStyleInBuild`, and
-   `Deterministic` match the root policy.
+   `ImplicitUsings`, `AnalysisLevel`, `RvtEngineeringStandardsMode`,
+   `EnforceCodeStyleInBuild`, and `Deterministic` match the root Ratchet policy.
+   Re-evaluate one project with `-p:RvtEngineeringStandardsMode=Strict` and assert
+   `EnforceCodeStyleInBuild=true` without compiling legacy source.
 2. Build a temporary minimal SDK project beneath copies of each of the three real
    nested EditorConfig files. Add a probe-only naming rule to the copied root
    EditorConfig, run `dotnet format style --verify-no-changes --severity info`,
@@ -180,7 +190,9 @@ Create `Directory.Build.props`:
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <RvtEngineeringStandardsMode Condition="'$(RvtEngineeringStandardsMode)' == ''">Ratchet</RvtEngineeringStandardsMode>
+    <EnforceCodeStyleInBuild Condition="'$(RvtEngineeringStandardsMode)' == 'Strict'">true</EnforceCodeStyleInBuild>
+    <EnforceCodeStyleInBuild Condition="'$(RvtEngineeringStandardsMode)' != 'Strict'">false</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
@@ -222,7 +234,9 @@ dotnet restore Rvt.Mono.slnx --disable-parallel
 dotnet build Rvt.Mono.slnx --no-restore --nologo -m:1
 ```
 
-Expected: zero errors and no increase over the recorded warning count.
+Expected in default Ratchet mode: zero errors and no increase over the recorded
+warning count. Do not run the whole solution in Strict mode before the baseline is
+zero; Task 1 proves only the evaluated Strict promotion path.
 
 - [ ] **Step 8: Commit configuration hierarchy**
 
@@ -951,7 +965,17 @@ scripts/verify-engineering-standards.sh --all --update-baseline
 ```
 
 Include a complete exception JSON example with every GOV-003 field. Exception
-review dates use ISO `YYYY-MM-DD` UTC calendar dates.
+review dates use ISO `YYYY-MM-DD` UTC calendar dates. Document Ratchet as the
+bootstrap default, Strict as the zero-baseline destination, and this promotion gate:
+
+```bash
+scripts/verify-engineering-standards.sh --all
+dotnet build Rvt.Mono.slnx --no-restore --nologo -m:1 \
+  -p:RvtEngineeringStandardsMode=Strict
+```
+
+Change the default to Strict only in a dedicated commit after both commands pass
+with an empty code-style baseline. Invalid or partial promotion evidence is rejected.
 
 - [ ] **Step 2: Update authoritative status documents**
 
@@ -1029,6 +1053,7 @@ Before calling R9 complete, verify every approved requirement:
 | Ratcheted changed-scope enforcement | New-file, changed-line, increase/decrease tests and real mutation proof |
 | Logical-unit compliance | Required review record plus automated changed-range evidence |
 | Root plus stricter module policy | Hierarchy guard and four MSBuild imports |
+| Ratchet-to-Strict promotion | Evaluated mode test, mandatory verifier gate, and documented zero-baseline promotion command |
 | Stable rule/evidence model | Model tests and deterministic baseline keys |
 | Owned, expiring exceptions | Validation and expired-exception RED case |
 | .NET formatting/analyzers | Changed-C# fake-tool test and real repository run |

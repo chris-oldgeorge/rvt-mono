@@ -26,7 +26,7 @@ namespace SvantekMonitorTests
             var samples = JsonSerializer.Deserialize<List<SampleResponse>>(json)!;
 
             Assert.IsNotNull(samples);
-            Assert.AreEqual(1, samples.Count);
+            Assert.HasCount(1, samples);
 
             var noiseDto = new NoiseDto(samples[0]);
             Assert.IsNotNull(samples);

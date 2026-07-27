@@ -23,11 +23,11 @@ public sealed class MyAtmOperationalConfigurationTests
         var hasOptions = document.RootElement.TryGetProperty("MyAtmMonitor", out var options);
 
         Assert.IsTrue(hasOptions, "MyAtmMonitor configuration section is required.");
-        Assert.IsTrue(options.GetProperty("CustomerId").GetInt32() > 0);
-        Assert.IsTrue(options.GetProperty("DevicePageSize").GetInt32() > 0);
-        Assert.IsTrue(options.GetProperty("MeasurementPageSize").GetInt32() > 0);
-        Assert.IsTrue(options.GetProperty("AccessoryPageSize").GetInt32() > 0);
-        Assert.IsTrue(options.GetProperty("MaxPagesPerMonitorPerRun").GetInt32() > 0);
+        Assert.IsGreaterThan(0, options.GetProperty("CustomerId").GetInt32());
+        Assert.IsGreaterThan(0, options.GetProperty("DevicePageSize").GetInt32());
+        Assert.IsGreaterThan(0, options.GetProperty("MeasurementPageSize").GetInt32());
+        Assert.IsGreaterThan(0, options.GetProperty("AccessoryPageSize").GetInt32());
+        Assert.IsGreaterThan(0, options.GetProperty("MaxPagesPerMonitorPerRun").GetInt32());
         Assert.IsFalse(string.IsNullOrWhiteSpace(options.GetProperty("PortalBaseUrl").GetString()));
     }
 

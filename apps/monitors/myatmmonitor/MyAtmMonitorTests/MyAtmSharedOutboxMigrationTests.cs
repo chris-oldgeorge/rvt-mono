@@ -40,7 +40,7 @@ public sealed class MyAtmSharedOutboxMigrationTests
     public async Task ForwardMigration_ReplaysEveryLegacyStateIdempotently()
     {
         var legacySource = await ReadLegacySnapshotAsync();
-        Assert.AreEqual(5, legacySource.Count);
+        Assert.HasCount(5, legacySource);
 
         await ApplyMigrationAsync(ForwardMigration);
         AssertMigratedSnapshot(legacySource, await ReadSharedSnapshotAsync());
@@ -227,7 +227,7 @@ public sealed class MyAtmSharedOutboxMigrationTests
         IReadOnlyList<LegacyDeliverySnapshot> legacyRows,
         IReadOnlyList<SharedDeliverySnapshot> sharedRows)
     {
-        Assert.AreEqual(legacyRows.Count, sharedRows.Count);
+        Assert.HasCount(legacyRows.Count, sharedRows);
         Assert.AreEqual(sharedRows.Count, sharedRows.Select(row => row.DeliveryKey).Distinct(StringComparer.Ordinal).Count());
 
         for (var index = 0; index < legacyRows.Count; index++)

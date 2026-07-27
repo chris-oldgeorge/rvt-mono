@@ -3538,4 +3538,61 @@ TimescaleDB extensions where the schema requires them.
   zero errors. Stress logs are under
   `/private/tmp/rvt-mstest-parallel-stress-20260727`.
 
+## Monitor MSTest baseline repair - 2026-07-27
+
+- Work is implemented on branch `codex/monitor-mstest-baseline`. The execution plan is
+  `docs/superpowers/plans/2026-07-27-monitor-mstest-baseline.md`.
+- The unsuppressed baseline was 258 diagnostics across AirQ, MyATM, Omnidots,
+  and Svantek: `MSTEST0037` 177, `MSTEST0044` 53, `MSTEST0052` 10,
+  `MSTEST0032` 9, `MSTEST0001` 4, `MSTEST0017` 4, and `MSTEST0030` 1.
+- `apps/monitors/Directory.Build.props` no longer defines the test-project
+  `NoWarn`. Its test-project `WarningsAsErrors` now contains all seven rule
+  IDs. Evaluated MSBuild properties for every affected project contain all
+  seven IDs; inherited `NoWarn` contains only unrelated `1701;1702`.
+- The mechanical repairs use current MSTest APIs: `TestMethod` replaces
+  warned `DataTestMethod` use, redundant `DynamicDataSourceType` arguments are
+  gone, purpose-built assertions replace generic assertions, and four
+  expected/actual pairs are corrected. Active legacy attributes in Svantek
+  that its older analyzer surface did not report were harmonized as well.
+- The nine `MSTEST0032` assertions now test meaningful value-type state:
+  seven timestamps must differ from `default` and two identifiers must differ
+  from `Guid.Empty`. This preserves the original non-null intent without an
+  assertion that the compiler can prove true.
+- Four new test assembly files declare `[assembly: DoNotParallelize]`:
+  `airqmonitor/AirQMonitorTests/AssemblyInfo.cs`,
+  `myatmmonitor/MyAtmMonitorTests/AssemblyInfo.cs`,
+  `omnidotsmonitor/OmnidotsMonitorTests/AssemblyInfo.cs`, and
+  `svantekmonitor/SvantekMonitorTests/AssemblyInfo.cs`. Sequential execution
+  is deliberate because the suites repeatedly replace the process-global
+  `RvtLogger` and legacy database classes share mutable class fixtures.
+- The lone `MSTEST0030` source,
+  `omnidotsmonitor/OmnidotsMonitorTests/TestRules.cs`, was an obsolete imported
+  file: it retained the wrong `MyAtmMonitorTests` namespace and
+  `TestMyAtmApi` logger. Restoring discovery added 12 tests and all 12 failed
+  against the retired direct rule/MQTT path while the supported 392-test suite
+  passed. The stale 809-line file was removed rather than ignored or
+  suppressed; current peak-import and durable alert commit/outbox tests retain
+  the supported coverage.
+- Enforcement mutation proof temporarily restored one AirQ
+  `[DataTestMethod]`; the ordinary project build failed with exactly one
+  `MSTEST0044` error and zero warnings. The mutation was reverted, and the
+  enforced monitor build then passed with zero warnings and zero errors.
+- Each affected project passed twice against a disposable PostgreSQL database:
+  AirQ 124/124, MyATM 208/208, Omnidots 392/392, and Svantek 136/136. That is
+  8 green assembly runs and 1,720 accumulated executions.
+- Final fixed-SDK verification passes:
+  - monitor non-incremental Release build: 0 warnings, 0 errors;
+  - root `Rvt.Mono.slnx` non-incremental Release build: 0 warnings, 0 errors;
+  - all nine `tests/verify-*.test.sh` repository guards;
+  - `git diff --check`.
+- Verification used `/private/tmp/rvt-dotnet-10.0.302/dotnet`. Relevant logs
+  are `/private/tmp/rvt-monitor-final-nonincremental-20260727.log`,
+  `/private/tmp/rvt-root-build-monitor-mstest-20260727.log`, and
+  `/private/tmp/rvt-monitor-{airq,myatm,omnidots,svantek}-repeat-20260727.log`.
+- Test variables were command-scoped:
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`, database
+  `rvt_mstest_monitor_20260727_a91c4e`, and role
+  `rvt_mstest_runner_a91c4e`. The disposable database and role were removed
+  after verification; no test credential or environment variable persists.
+
 Next-session instruction: Read project_state.md to get up to speed

@@ -240,7 +240,7 @@ namespace OmnidotsAdapterTests
         [DataRow(25 * 60, 3600)]
         [DataRow(24 * 60, 0)]
         [DataRow((24 * 60) + 1, 60)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
@@ -301,7 +301,7 @@ namespace OmnidotsAdapterTests
 
         [DataRow(null)]
         [DataRow("Invalid/secret-timezone")]
-        [DataTestMethod]
+        [TestMethod]
         public void TestCheckForOfflineMonitors_InvalidTimeZone_RecordsFailureAndContinues(
             string? invalidTimeZone)
         {
@@ -333,7 +333,7 @@ namespace OmnidotsAdapterTests
                 testObj.CheckForOfflineMonitors);
 
             Assert.AreEqual("CheckForOfflineMonitors", exception.Operation);
-            Assert.AreEqual(1, exception.Failures.Count);
+            Assert.HasCount(1, exception.Failures);
             Assert.AreEqual(invalidMonitor.SerialId, exception.Failures[0].SerialId);
             Assert.IsFalse(exception.ToString().Contains(invalidTimeZone ?? "missing", StringComparison.Ordinal));
             dbClient.Verify(c => c.HandleException(
@@ -358,7 +358,7 @@ namespace OmnidotsAdapterTests
 
         [DataRow("2026-03-29T00:00:00Z")]
         [DataRow("2025-10-26T00:00:00Z")]
-        [DataTestMethod]
+        [TestMethod]
         public void TestCheckForOfflineMonitors_InvalidOrAmbiguousScheduleBoundary_RecordsAndContinues(
             string lastDataTimeUtc)
         {
@@ -400,7 +400,7 @@ namespace OmnidotsAdapterTests
                 testObj.CheckForOfflineMonitors);
 
             Assert.AreEqual("CheckForOfflineMonitors", exception.Operation);
-            Assert.AreEqual(1, exception.Failures.Count);
+            Assert.HasCount(1, exception.Failures);
             Assert.AreEqual(invalidMonitor.SerialId, exception.Failures[0].SerialId);
             Assert.IsInstanceOfType<SiteScheduleConfigurationException>(
                 exception.Failures[0].Exception);
@@ -878,7 +878,7 @@ namespace OmnidotsAdapterTests
         [DataRow(20, BatteryAlertType.Off, BatteryAlertType.BatteryCaution, AlertType.BatteryCaution, true)]
         [DataRow(98, BatteryAlertType.BatteryCaution, BatteryAlertType.Off, AlertType.Ignore, false)]
         [DataRow(99, BatteryAlertType.Off, BatteryAlertType.Off, AlertType.Ignore, false)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestNotifyBatteryLevels_Success(int batteryLevel, BatteryAlertType initialBatteryStatus, BatteryAlertType expectedBatteryStatus,
                                                AlertType expectedAlertType, bool expectNotification)
         {
@@ -1033,7 +1033,7 @@ namespace OmnidotsAdapterTests
             Assert.IsNotNull(response);
             Assert.IsInstanceOfType(response, typeof(TokenResponse));
             Assert.IsTrue(response.Ok);
-            Assert.AreEqual(response.Token, "702811da14ff4225973c4054ed52bb9f");
+            Assert.AreEqual("702811da14ff4225973c4054ed52bb9f", response.Token);
         }
 
         private static long RequestTime(string url, string name)

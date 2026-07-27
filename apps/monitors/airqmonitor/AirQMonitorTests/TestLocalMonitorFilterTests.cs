@@ -26,7 +26,7 @@ public class TestLocalMonitorFilterTests
 
         var filtered = filter.Apply(monitors);
 
-        Assert.AreEqual(1, filtered.Count);
+        Assert.HasCount(1, filtered);
         Assert.AreEqual("Device2", filtered[0].SerialId);
     }
 
@@ -42,7 +42,7 @@ public class TestLocalMonitorFilterTests
 
         var filtered = filter.ApplyCatalog(instruments);
 
-        Assert.AreEqual(1, filtered.Count);
+        Assert.HasCount(1, filtered);
         Assert.AreEqual("Device2", filtered[0].InstrumentID);
     }
 

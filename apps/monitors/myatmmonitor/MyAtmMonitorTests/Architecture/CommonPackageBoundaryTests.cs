@@ -178,7 +178,7 @@ public sealed class CommonPackageBoundaryTests
         CollectionAssert.AreEqual(Array.Empty<string>(), violations, string.Join(Environment.NewLine, violations));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(
         "ConditionalPropertyGroup",
         "<Project><PropertyGroup Condition=\"'$(Configuration)' == 'Debug'\"><IsTestProject>true</IsTestProject></PropertyGroup></Project>")]

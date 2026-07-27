@@ -46,7 +46,7 @@ public sealed class OmnidotsWebhookSignatureValidatorTests
     [DataRow("sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     [DataRow("sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     [DataRow("sha256=gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")]
-    [DataTestMethod]
+    [TestMethod]
     public void IsValid_RejectsMissingOrMalformedSignature(string? signature)
     {
         Assert.IsFalse(validator.IsValid(Body, signature, Secret));

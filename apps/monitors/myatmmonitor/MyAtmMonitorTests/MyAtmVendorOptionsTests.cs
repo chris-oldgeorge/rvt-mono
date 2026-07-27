@@ -19,7 +19,7 @@ public sealed class MyAtmVendorOptionsTests
         Assert.AreEqual(30, options.MaximumRetryDelaySeconds);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(null, "key")]
     [DataRow("relative/path", "key")]
     [DataRow("https://vendor.example/", null)]

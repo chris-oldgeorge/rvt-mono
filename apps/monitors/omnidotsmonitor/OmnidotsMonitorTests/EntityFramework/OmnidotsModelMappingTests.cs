@@ -415,7 +415,7 @@ public sealed class OmnidotsModelMappingTests
     {
         var constraints = entity.GetCheckConstraints().ToArray();
 
-        Assert.AreEqual(1, constraints.Length);
+        Assert.HasCount(1, constraints);
         Assert.AreEqual(name, constraints[0].Name);
         Assert.AreEqual(sql, constraints[0].Sql);
     }

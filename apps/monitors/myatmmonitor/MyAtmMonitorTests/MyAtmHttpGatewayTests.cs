@@ -63,7 +63,7 @@ public sealed class MyAtmHttpGatewayTests
 
         var page = await gateway.HttpGetDeviceMeasurementPageAsync<DeviceMeasurement>(customerId, serialId, cursor, Period.Minutes1);
 
-        Assert.AreEqual(2, page.Measurements.Count);
+        Assert.HasCount(2, page.Measurements);
         Assert.AreEqual(cursor.AddMinutes(1), page.Measurements[0].Timestamp);
         Assert.AreEqual(cursor.AddMinutes(2), page.Measurements[1].Timestamp);
         Assert.AreEqual(cursor.AddMinutes(2), page.NextCursor);

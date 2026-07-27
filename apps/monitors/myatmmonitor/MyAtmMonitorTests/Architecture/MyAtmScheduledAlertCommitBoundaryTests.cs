@@ -5,7 +5,7 @@ namespace MyAtmMonitorTests.Architecture;
 [TestClass]
 public sealed class MyAtmScheduledAlertCommitBoundaryTests
 {
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("ProcessDustLevelsHandler.cs", "CreateAggregateCommit,CreateDeletedRuleDeactivationCommit")]
     [DataRow("CheckForOfflineMonitorsHandler.cs", "CreateOfflineCommit,CreateOnlineRecoveryCommit")]
     public void ScheduledAlertHandlers_OnlyUseTheAtomicAlertCommitBoundary(

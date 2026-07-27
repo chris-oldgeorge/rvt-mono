@@ -55,7 +55,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [DataRow("{}")]
     [DataRow("{\"secret\":null}")]
     [DataRow("{\"secret\":123}")]
-    [DataTestMethod]
+    [TestMethod]
     public async Task RunAsync_MissingOrNonStringSecret_ThrowsAuthenticationException(string json)
     {
         var handler = CreateHandler(out var httpClient, out var monitorQueries);
@@ -90,7 +90,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
 
     [DataRow("unsupported", "true")]
     [DataRow("webhook", "\"https://attacker.example.test/capture\"")]
-    [DataTestMethod]
+    [TestMethod]
     public async Task RunAsync_AuthenticatedUnsupportedMember_ThrowsJsonException(
         string propertyName,
         string propertyValue)
@@ -124,7 +124,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [DataRow("flat_level", "1.7976931348623157E+308")]
     [DataRow("level_alert", "-0.01")]
     [DataRow("level_caution", "1000000000")]
-    [DataTestMethod]
+    [TestMethod]
     public async Task RunAsync_InvalidTuningValue_ThrowsJsonException(string propertyName, string propertyValue)
     {
         var handler = CreateHandler(out var httpClient, out var monitorQueries);
@@ -172,7 +172,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [DataRow(true, false, true, null, null, false)]
     [DataRow(true, true, false, null, null, false)]
     [DataRow(true, true, true, "09:10:11", "17:18:19", true)]
-    [DataTestMethod]
+    [TestMethod]
     public async Task RunAsync_MapsMonitorScheduleAndConfiguration(
         bool weekdays,
         bool sundays,

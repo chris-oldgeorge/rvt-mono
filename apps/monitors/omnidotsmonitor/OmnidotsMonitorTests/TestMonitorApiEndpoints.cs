@@ -62,7 +62,7 @@ public sealed class TestMonitorApiEndpoints
     [DataRow("blank")]
     [DataRow("malformed")]
     [DataRow("mismatch")]
-    [DataTestMethod]
+    [TestMethod]
     public async Task Webhook_MissingBlankMalformedOrMismatchedSignature_Returns401(string kind)
     {
         await using var app = await EndpointApp.StartAsync();
@@ -131,7 +131,7 @@ public sealed class TestMonitorApiEndpoints
 
     [DataRow("{\"created_at\":")]
     [DataRow("{\"bodySentinel\":\"BODY_SENTINEL\"}")]
-    [DataTestMethod]
+    [TestMethod]
     public async Task Webhook_AuthenticatedMalformedJsonOrSchema_Returns400WithoutLeakage(string json)
     {
         await using var app = await EndpointApp.StartAsync();
@@ -148,7 +148,7 @@ public sealed class TestMonitorApiEndpoints
 
     [DataRow(false)]
     [DataRow(true)]
-    [DataTestMethod]
+    [TestMethod]
     public async Task Webhook_FreshOrDurableDuplicate_ReturnsExact200Body(bool duplicate)
     {
         var result = IngressResult(duplicate);
@@ -254,7 +254,7 @@ public sealed class TestMonitorApiEndpoints
 
     [DataRow("{}")]
     [DataRow("{\"secret\":\"wrong\",\"serialid\":\"23423\"}")]
-    [DataTestMethod]
+    [TestMethod]
     public async Task ConfigureMeasuringPoint_MissingOrWrongSecret_Returns401(string json)
     {
         await using var app = await EndpointApp.StartAsync();
@@ -272,7 +272,7 @@ public sealed class TestMonitorApiEndpoints
 
     [DataRow("{\"secret\":")]
     [DataRow("{\"secret\":\"CONFIG_SECRET_SENTINEL_1234567890\",\"serialid\":\"23423\",\"webhook\":\"https://attacker.example.test\"}")]
-    [DataTestMethod]
+    [TestMethod]
     public async Task ConfigureMeasuringPoint_MalformedOrUnsupportedRequest_Returns400(string json)
     {
         await using var app = await EndpointApp.StartAsync();

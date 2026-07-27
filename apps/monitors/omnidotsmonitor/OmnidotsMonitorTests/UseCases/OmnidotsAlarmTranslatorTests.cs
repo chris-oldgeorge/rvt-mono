@@ -53,7 +53,7 @@ public sealed class OmnidotsAlarmTranslatorTests
     [DataRow("x-vtop")]
     [DataRow("y-vtop")]
     [DataRow("z-vtop")]
-    [DataTestMethod]
+    [TestMethod]
     public void Translate_MissingRequiredNestedObject_RejectsPayload(string missingObject)
     {
         var alarm = ValidAlarm();
@@ -99,7 +99,7 @@ public sealed class OmnidotsAlarmTranslatorTests
 
     [DataRow(0)]
     [DataRow(-1)]
-    [DataTestMethod]
+    [TestMethod]
     public void Translate_NonpositiveMeasuringPoint_RejectsPayload(int measuringPointId)
     {
         var alarm = ValidAlarm();
@@ -117,7 +117,7 @@ public sealed class OmnidotsAlarmTranslatorTests
     [DataRow("level-1")]
     [DataRow("level-2")]
     [DataRow("level-3")]
-    [DataTestMethod]
+    [TestMethod]
     public void Translate_NonfiniteTimestampValueOrThreshold_RejectsPayload(string invalidValue)
     {
         var alarm = ValidAlarm();
@@ -162,7 +162,7 @@ public sealed class OmnidotsAlarmTranslatorTests
     [DataRow("level-1")]
     [DataRow("level-2")]
     [DataRow("level-3")]
-    [DataTestMethod]
+    [TestMethod]
     public void Translate_NegativeThreshold_RejectsPayload(string threshold)
     {
         var alarm = ValidAlarm();
@@ -186,7 +186,7 @@ public sealed class OmnidotsAlarmTranslatorTests
 
     [DataRow(double.MaxValue)]
     [DataRow(-1.0e20)]
-    [DataTestMethod]
+    [TestMethod]
     public void Translate_UnrepresentableUnixTimestamp_RejectsPayload(double timestamp)
     {
         var alarm = ValidAlarm();
@@ -214,7 +214,7 @@ public sealed class OmnidotsAlarmTranslatorTests
     [DataRow(12, 5, 12, "z")]
     [DataRow(5, 12, 12, "z")]
     [DataRow(12, 12, 12, "z")]
-    [DataTestMethod]
+    [TestMethod]
     public void Translate_MaximumAxisTie_PreservesDeterministicSelection(
         double x,
         double y,
@@ -236,7 +236,7 @@ public sealed class OmnidotsAlarmTranslatorTests
     [DataRow(3, AlertType.Ignore, 3, AlertDeliveryChannels.None)]
     [DataRow(7, AlertType.Caution, 7, AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms)]
     [DataRow(10, AlertType.Alert, 10, AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms)]
-    [DataTestMethod]
+    [TestMethod]
     public void Translate_SeverityBoundary_SelectsExactLimitAndChannels(
         double value,
         AlertType expectedType,

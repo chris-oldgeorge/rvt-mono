@@ -27,7 +27,7 @@ namespace SvantekMonitorTests
         [DataRow("09:00:00", "17:00:00", null, null, "10:00:00", "11:00:00", true, false, true)]
         [DataRow("09:00:00", "17:00:00", "10:23:00", "11:20:00", null, null, true, true, false)]
         [DataRow(null, null, null, null, null, null, false, false, false)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestSiteInfo_ShouldReportForDate_Success(string? start, string? end,
                                      string? satStart, string? satEnd,
                                      string? sunStart, string? sunEnd,
@@ -60,7 +60,7 @@ namespace SvantekMonitorTests
         [DataRow("Sat, 18 Aug 2018 00:00:00")]
         [DataRow("Sun, 19 Aug 2018 00:00:00")]
         [DataRow("Tue, 21 Aug 2018 00:00:00")]
-        [DataTestMethod]
+        [TestMethod]
         public void TestSiteInfo_GetStartAndEndTimeForDate_Success(string dateStr)
         {
 

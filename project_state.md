@@ -3294,6 +3294,121 @@ TimescaleDB extensions where the schema requires them.
 
 Next-session instruction: Read project_state.md to get up to speed
 
+## Help Admin application-boundary integration - 2026-07-28
+
+- Resume instruction: start a future session with
+  `Read project_state.md to get up to speed`.
+- Worktree: `/private/tmp/rvt-mono-help-admin`; branch:
+  `codex/help-admin-application-boundary`; approved design base:
+  `96fa359`.
+- Implementation commits, in order:
+  - `8092c25` `feat: define Help application contracts`
+  - `c015d0b` `feat: add transactional Help use cases`
+  - `f9f0387` `feat: add Help read adapter`
+  - `cb68dba` `feat: add Help write adapter`
+  - `1f26e37` `refactor: route Help through application ports`
+  - `09fe9c1` `feat: complete Help Admin client workflow`
+  - `0d55d34` `docs: approve Help Admin release`
+- New application structure:
+  - `apps/portal/RvtPortal.Application/Help/HelpApplicationService.cs`
+  - `HelpAuthorizationPolicy.cs`, `HelpContracts.cs`,
+    `HelpMutationValidator.cs`, and `IHelpApplicationService.cs`
+  - `Ports/IHelpReadPort.cs` and `Ports/IHelpWritePort.cs`
+  This boundary remains BCL-only and imports no ASP.NET Core, EF Core,
+  persistence entity, data-access, or host namespaces.
+- New host adapters:
+  - `RvtPortal.Spa/Adapters/Help/EfHelpReadAdapter.cs`
+  - `RvtPortal.Spa/Adapters/Help/EfHelpWriteAdapter.cs`
+  The former host-side
+  `Application/Help/HelpApplicationService.cs` and
+  `Application/Help/HelpArticleCommands.cs` are removed.
+- `IHelpApplicationService` exposes authorized published overview/detail and
+  administrative overview/detail/create/update/publication/delete use cases.
+  Every operation receives `PortalUserContext` and `CancellationToken`.
+  Mutations return `UseCaseResult<T>`, execute through
+  `IApplicationUnitOfWork`, save exactly once, and use
+  `TimeProvider.GetUtcNow().UtcDateTime`.
+- `IHelpReadPort` exposes published/admin queries and
+  `GetMutationValidationDataAsync`. `IHelpWritePort` stages create, update,
+  publication, and delete changes with supplied UTC timestamps. EF adapters
+  never call `SaveChanges`; `DataAccessWriteBoundaryTests` enforces this.
+- Application authorization allows published Help to RVT administrators and
+  Company Users, and administrative Help only to RVT administrators. HTTP
+  authorization independently preserves both `RVTAdmin` and
+  `RVTMasterAdmin`, and denies Company User and Installer on every admin
+  endpoint.
+- Canonical HTTP creation is
+  `POST /api/help/admin/articles`. The old `POST /api/help/articles` no longer
+  resolves. Published `GET /api/help` and
+  `GET /api/help/articles/{slug}` remain unchanged.
+- Validation limits are section title/slug 120, article title/slug 160,
+  summary 512, body 100,000, asset title 160, and asset URL 512 characters.
+  Slugs use `^[a-z0-9]+(?:-[a-z0-9]+)*$`; section/article/asset orders must be
+  nonnegative. Canonical content types are `FAQ`, `Article`, `Document`,
+  `Video`, and `Definition`; asset types are `Document`, `Video`, and `Link`.
+- Assets remain URL metadata only. Accepted URLs are absolute HTTPS URLs or
+  root-relative `/help-assets/` paths. Protocol-relative, HTTP,
+  JavaScript/data/file schemes, user-info, control/whitespace, backslash, and
+  malformed values are rejected. The browser no longer supplies
+  `InternalPath`; the write adapter derives it only for `/help-assets/`.
+- Updates preserve persisted asset IDs, create server IDs for new assets,
+  remove omitted assets, and reject duplicate, empty, unknown, or foreign IDs
+  before staging. The React form uses persisted IDs plus a client-only random
+  `clientKey`; API submission strips `clientKey` and retains persisted `id`.
+- `HelpAdminPanel` restores focus by article ID or asset `clientKey` after
+  create, update, publication, delete, add, and remove. Delete chooses the next
+  article, then previous, then New FAQ; asset removal chooses next, previous,
+  then Add Asset. Reverting to title/index row keys made the focused regression
+  fail and was restored.
+- Release evidence:
+  - `apps/portal/docs/release/validate-help-asset-urls.sql` is read-only and
+    release requires zero returned rows;
+  - `CutoverReadinessTests` verifies canonical table selection, HTTPS and
+    `/help-assets/` checks, backslash/control rejection, read-only behavior,
+    and deterministic ordering; removing the HTTPS check made it fail;
+  - Help Admin is `READY` in the functionality matrix and R2 is resolved in the
+    architecture review;
+  - rollback disables admin navigation/route and admin endpoints while
+    preserving published Help and persisted content.
+- Fresh verification:
+  - standalone application tests: 48 passed;
+  - full Portal SPA backend: 474 passed, 10 explicitly PostgreSQL-gated skips;
+  - focused complete Help/architecture slice: 57 passed;
+  - Release solution build: succeeded with 0 errors and the five existing
+    `System.Security.Cryptography.Xml` 10.0.7 NU1903 advisories;
+  - client tests: 9 files and 76 tests passed;
+  - client lint: 0 errors and two pre-existing
+    `DataViewPanels.tsx` Fast Refresh warnings;
+  - client production build passed;
+  - Playwright: 5/5 passed, including the complete Help Admin lifecycle and
+    Company User denial;
+  - cutover-readiness class: 14/14 passed;
+  - all nine root layout, solution, PostgreSQL-only, source-boundary,
+    documentation, engineering-configuration, and engineering-standards
+    fixture guards passed outside the restricted named-pipe sandbox;
+  - Portal client-release export dry run passed with 460 tracked files
+    included and 9 internal/tooling paths excluded;
+  - bundle inspection contains `/admin/help`,
+    `/api/help/admin/articles`, and `Help/FAQ Management`; the only
+    `/api/help/articles` occurrence is the retained public detail GET.
+- The first no-restore Release build stopped only because the isolated
+  worktree lacked `RvtPortal.Application.Tests/obj/project.assets.json`.
+  A solution restore generated it, and the identical no-restore Release build
+  then passed.
+- Known external integration dependency: the committed-range verifier command
+  `scripts/verify-engineering-standards.sh --base 96fa359 --head HEAD` cannot
+  execute on this branch because `eng/standards` is not committed here. Those
+  policy files remain untracked in the separate
+  `codex/repository-engineering-standards` worktree. Do not copy or commit them
+  on this Help branch; rerun the range verifier after that branch is integrated.
+  The verifier's full fixture suite already passes.
+- Final self-review of `96fa359..0d55d34` found no application-boundary,
+  authorization, URL-policy, transaction, asset-identity, focus, API
+  compatibility, public Help, report-guideline, release-evidence, or unrelated
+  change finding.
+
+Next-session instruction: Read project_state.md to get up to speed
+
 ## Repository engineering standards Task 1 completion - 2026-07-27
 
 - Resume instruction: start a future session with Read project_state.md to get up to speed.
@@ -3311,5 +3426,17 @@ Next-session instruction: Read project_state.md to get up to speed
 - No full Strict solution build was run. Strict becomes the default only after later changed-scope baseline work reaches zero and a strict root build passes. No Portal severity was lowered and no suppression was added.
 - Codegraph status and context were retried before edits and failed with unable to open database file, so focused inspection was used.
 - Full TDD, mutation, guard, restore, build, warning, file, and self-review evidence is in .superpowers/sdd/2026-07-27-repository-engineering-standards-enforcement/task-1-report.md.
+
+## Current active state - Help Admin - 2026-07-28
+
+- The current branch is `codex/help-admin-application-boundary` at the Help
+  integration state described in
+  `Help Admin application-boundary integration - 2026-07-28` above.
+- Implementation, release documentation, full backend/client/browser
+  verification, release-export dry run, and whole-branch self-review are
+  complete. No merge or push has been performed or authorized in this phase.
+- Before integration, merge the separate engineering-standards work so
+  `eng/standards` is committed, then rerun
+  `scripts/verify-engineering-standards.sh --base 96fa359 --head HEAD`.
 
 Next-session instruction: Read project_state.md to get up to speed

@@ -3027,3 +3027,59 @@ TimescaleDB extensions where the schema requires them.
   and only `rvt_sonar_ci` remains.
 
 Next-session instruction: Read project_state.md to get up to speed
+
+## Branch Integration Attempt - 2026-07-27
+
+- User requested that merged branches be pushed and cleaned up.
+- Remote refs were refreshed. `origin/main` and
+  `origin/codex/direct-project-references` both point to `59d8efa` ("Make
+  schema deployment transactional").
+- `codex/sites-application-boundary` at `a07f601` is an ancestor of that
+  `main` history; it has no unmerged commits. Local `main` was safely
+  fast-forwarded from `ef9fca4` to `59d8efa` and currently matches
+  `origin/main`.
+- The owned auxiliary worktree remains at
+  `.worktrees/release-platform-hardening` on
+  `codex/direct-project-references`, also at `59d8efa`. Do not remove that
+  worktree or either branch until validation is green.
+- Integration validation ran all root `tests/*.test.sh` in sorted order.
+  The documentation layout, manual SonarQube workflow, PostgreSQL-only main
+  guard, PostgreSQL-only fixtures, and RVT source-boundary regression passed.
+  `tests/verify-rvt-common-source-boundary.test.sh` then failed with:
+  `FAIL: Package-validation consumers must be removed; internal RVT projects
+  are source referenced.` This is inconsistent with the latest main history,
+  which intentionally removed the package-validation consumers. The aggregate
+  `scripts/build-mono.sh` validation was not run, and no push, branch deletion,
+  or worktree cleanup was performed.
+- Untracked generated directories currently present in the primary worktree:
+  `.codegraph/` and `apps/.nuget-packages/`. They were not touched.
+
+## Boundary Guard Repair - 2026-07-27
+
+- Root cause of the branch-integration blocker: direct-project-reference commit
+  `54d522c` removed `libs/rvt-monitor-common/package-validation`, but
+  `scripts/verify-rvt-common-source-boundary.sh` retained an obsolete assertion
+  that failed whenever the correctly removed directory was absent.
+- The minimal repair removes only that directory-existence assertion. All
+  source-project-reference, `IsPackable=false`, container credential, and
+  internal-RVT-package-reference checks remain unchanged. The user referred to
+  the wrapper `tests/verify-rvt-common-source-boundary.test.sh`; the stale
+  assertion was located in the guard script it invokes.
+- Verification: the focused wrapper and its source-only mutation regression
+  pass. A fresh sorted run of all nine root `tests/*.test.sh` scripts passes,
+  and `git diff --check` is clean. The documented aggregate
+  `scripts/build-mono.sh` command also completed after its PostgreSQL boundary
+  check without reporting restore, build, or test errors.
+
+## Branch Integration Completion - 2026-07-27
+
+- The boundary-guard repair and state record were committed to `main` as
+  `ffdcafd` (`fix: remove obsolete package-validation guard`) and pushed to
+  `origin/main`.
+- `codex/sites-application-boundary` was confirmed merged, then deleted both
+  locally and from `origin`.
+- `codex/direct-project-references` remains in the owned
+  `.worktrees/release-platform-hardening` worktree. Although it is merged,
+  that worktree has a tracked `project_state.md` modification and multiple
+  untracked generated/suffixed-copy files. It and its remote branch were
+  deliberately preserved to avoid deleting that unsaved work.

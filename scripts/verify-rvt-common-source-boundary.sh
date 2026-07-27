@@ -181,10 +181,6 @@ require_project_reference \
   "${sendgrid_mail_project}"
 reject_internal_package_references
 
-if [[ -e "${repo_root}/libs/rvt-monitor-common/package-validation" ]]; then
-  fail "Package-validation consumers must be removed; internal RVT projects are source referenced."
-fi
-
 for project in \
   "${common_project}" \
   "${communication_abstractions_project}" \

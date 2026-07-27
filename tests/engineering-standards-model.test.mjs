@@ -278,6 +278,39 @@ test('validateExceptions rejects expired exceptions', () => {
   );
 });
 
+test('validateExceptions rejects reviewOn before introducedOn', () => {
+  assert.throws(
+    () => validateExceptions(
+      {
+        version: 1,
+        exceptions: [exception({ reviewOn: '2026-06-30' })]
+      },
+      new Date('2026-06-29T00:00:00Z')
+    ),
+    /reviewOn must be after introducedOn/i
+  );
+});
+
+test('validateExceptions rejects reviewOn equal to introducedOn', () => {
+  assert.throws(
+    () => validateExceptions(
+      {
+        version: 1,
+        exceptions: [exception({ reviewOn: '2026-07-01' })]
+      },
+      new Date('2026-06-30T00:00:00Z')
+    ),
+    /reviewOn must be after introducedOn/i
+  );
+});
+
+test('validateExceptions accepts reviewOn one day after introducedOn', () => {
+  assert.doesNotThrow(() => validateExceptions(
+    { version: 1, exceptions: [exception({ reviewOn: '2026-07-02' })] },
+    new Date('2026-07-01T00:00:00Z')
+  ));
+});
+
 test('validateExceptions rejects wildcard paths and unvalidated symbol scopes', () => {
   assert.throws(
     () => validateExceptions(

@@ -143,6 +143,11 @@ export function validateExceptions(document, now = new Date()) {
 
     validateIsoDate(item.introducedOn, `${prefix} introducedOn`);
     validateIsoDate(item.reviewOn, `${prefix} reviewOn`);
+    if (item.reviewOn <= item.introducedOn) {
+      throw new Error(
+        `Exception ${item.id} reviewOn must be after introducedOn`
+      );
+    }
     if (item.reviewOn < today) {
       throw new Error(`Expired exception ${item.id}: ${item.reviewOn}`);
     }

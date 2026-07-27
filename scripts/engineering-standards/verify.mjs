@@ -6,7 +6,9 @@ import {
   lstatSync,
   linkSync,
   mkdtempSync,
+  mkdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   writeFileSync
@@ -37,7 +39,12 @@ const dotnetTools = {
 };
 const portalSourceExtensions = new Set([
   '.css', '.html', '.js', '.jsx', '.json', '.md', '.mdx',
-  '.scss', '.ts', '.tsx', '.yaml', '.yml'
+  '.scss', '.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs',
+  '.svg', '.graphql', '.gql', '.yaml', '.yml'
+]);
+const portalBinaryExtensions = new Set([
+  '.eot', '.gif', '.ico', '.jpeg', '.jpg', '.pdf', '.png',
+  '.ttf', '.webp', '.woff', '.woff2'
 ]);
 
 class PolicyError extends Error {}
@@ -234,7 +241,9 @@ function resolveScope(repoRoot, options) {
       inventory: true,
       paths,
       newPaths: new Set(),
-      changedRanges: new Map()
+      changedRanges: new Map(),
+      executionRoot: repoRoot,
+      cleanup() {}
     };
   }
 
@@ -253,12 +262,16 @@ function resolveScope(repoRoot, options) {
     const added = gitLines(repoRoot, [
       'diff', '--name-only', '--diff-filter=A', 'HEAD'
     ]);
-    return finalizeChangedScope(repoRoot, {
+    return {
+      ...finalizeChangedScope(repoRoot, {
       paths: [...new Set([...tracked, ...untracked])],
       patch,
       newPaths: new Set([...added, ...untracked]),
       untracked: new Set(untracked)
-    });
+      }),
+      executionRoot: repoRoot,
+      cleanup() {}
+    };
   }
 
   const range = resolveRange(repoRoot, options.base, options.head);
@@ -274,12 +287,49 @@ function resolveScope(repoRoot, options) {
   const added = gitLines(repoRoot, [
     'diff', '--name-only', '--diff-filter=A', range.base, range.head
   ]);
-  return finalizeChangedScope(repoRoot, {
-    paths: tracked,
-    patch,
-    newPaths: new Set(added),
-    untracked: new Set()
-  });
+  const materialized = materializeRevision(repoRoot, range.head);
+  try {
+    return {
+      ...finalizeChangedScope(materialized.root, {
+        paths: tracked,
+        patch,
+        newPaths: new Set(added),
+        untracked: new Set()
+      }),
+      executionRoot: materialized.root,
+      cleanup: materialized.cleanup
+    };
+  } catch (error) {
+    materialized.cleanup();
+    throw error;
+  }
+}
+
+function materializeRevision(repoRoot, revision) {
+  const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), 'rvt-standards-head-'));
+  const checkoutRoot = path.join(temporaryRoot, 'tree');
+  const result = gitResult(repoRoot, [
+    'worktree', 'add', '--detach', checkoutRoot, revision
+  ]);
+  if (result.status !== 0) {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+    throw new InvocationError(`Git could not materialize requested head: ${result.stderr.trim()}`);
+  }
+  let cleaned = false;
+  return {
+    root: checkoutRoot,
+    cleanup() {
+      if (cleaned) return;
+      cleaned = true;
+      const removal = gitResult(repoRoot, ['worktree', 'remove', '--force', checkoutRoot]);
+      rmSync(temporaryRoot, { recursive: true, force: true });
+      if (removal.status !== 0) {
+        throw new InvocationError(
+          `Git could not remove requested-head worktree: ${removal.stderr.trim()}`
+        );
+      }
+    }
+  };
 }
 
 function finalizeChangedScope(repoRoot, input) {
@@ -391,11 +441,11 @@ function isIgnoredPath(candidate) {
 
 function isSourcePath(candidate) {
   if (candidate.endsWith('.cs')) return true;
+  const extension = path.posix.extname(candidate).toLowerCase();
   return (
     candidate.startsWith(portalPrefix) &&
-    portalSourceExtensions.has(
-      path.posix.extname(candidate).toLowerCase()
-    )
+    !portalBinaryExtensions.has(extension) &&
+    portalSourceExtensions.has(extension)
   );
 }
 
@@ -410,6 +460,7 @@ function validateSourceFile(repoRoot, candidate) {
 
 function validateSourceBoundary(repoRoot, candidate) {
   const absolute = path.join(repoRoot, candidate);
+  validateContainedPath(repoRoot, absolute, 'Changed source path');
   let stat;
   try {
     stat = lstatSync(absolute);
@@ -418,6 +469,48 @@ function validateSourceBoundary(repoRoot, candidate) {
   }
   if (stat.isSymbolicLink() || !stat.isFile()) {
     throw new InvocationError(`Changed source path must be a regular in-repository file: ${candidate}`);
+  }
+}
+
+function validateContainedPath(repoRoot, absolute, label, allowMissingLeaf = false) {
+  const lexicalRoot = path.resolve(repoRoot);
+  const relative = path.relative(lexicalRoot, absolute);
+  if (
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new InvocationError(`${label} is outside repository root: ${absolute}`);
+  }
+
+  const realRoot = realpathSync(lexicalRoot);
+  const segments = relative === '' ? [] : relative.split(path.sep);
+  let current = lexicalRoot;
+  for (let index = 0; index < segments.length; index += 1) {
+    current = path.join(current, segments[index]);
+    let stat;
+    try {
+      stat = lstatSync(current);
+    } catch (error) {
+      if (allowMissingLeaf && index === segments.length - 1 && error.code === 'ENOENT') {
+        return;
+      }
+      throw new InvocationError(`${label} is missing or unreadable: ${current}: ${error.message}`);
+    }
+    if (stat.isSymbolicLink()) {
+      throw new InvocationError(
+        `${label} must be a regular in-repository file; path contains a symlink: ${current}`
+      );
+    }
+    const realCurrent = realpathSync(current);
+    const realRelative = path.relative(realRoot, realCurrent);
+    if (
+      realRelative === '..' ||
+      realRelative.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(realRelative)
+    ) {
+      throw new InvocationError(`${label} resolves outside repository root: ${current}`);
+    }
   }
 }
 
@@ -442,7 +535,8 @@ function baselineMap(document) {
 function loadPolicy(repoRoot, options) {
   const baselinePath = resolvePolicyPath(
     repoRoot,
-    process.env.RVT_STANDARDS_BASELINE_PATH ?? 'eng/standards/baseline.json'
+    process.env.RVT_STANDARDS_BASELINE_PATH ?? 'eng/standards/baseline.json',
+    options.initialize
   );
   const exceptionsPath = resolvePolicyPath(
     repoRoot,
@@ -479,7 +573,7 @@ function loadPolicy(repoRoot, options) {
   };
 }
 
-function resolvePolicyPath(repoRoot, candidate) {
+function resolvePolicyPath(repoRoot, candidate, allowMissingLeaf = false) {
   if (typeof candidate !== 'string' || candidate.trim() === '') {
     throw new InvocationError('Policy path override must be a non-empty path');
   }
@@ -492,6 +586,7 @@ function resolvePolicyPath(repoRoot, candidate) {
   ) {
     throw new InvocationError(`Policy path is outside repository root: ${candidate}`);
   }
+  validateContainedPath(repoRoot, absolute, 'Policy path', allowMissingLeaf);
   return absolute;
 }
 
@@ -579,13 +674,6 @@ function runDotnetPhase({
 
   try {
     const result = runProcess(command, args, repoRoot, `dotnet format ${phase}`);
-    if (result.status !== 0 && phase === 'whitespace' && !inventory) {
-      immediateViolations.push(
-        `CSH-002 changed C# whitespace violation (${paths.join(', ')})`
-      );
-      return [];
-    }
-
     if (result.status !== 0 && !existsSync(reportPath)) {
       throw new InvocationError(
         `dotnet format ${phase} exited ${result.status} without a readable report`
@@ -616,6 +704,12 @@ function runDotnetPhase({
         `dotnet format ${phase} reported an unexpected path: ${unexpected.path}`
       );
     }
+    if (result.status !== 0 && phase === 'whitespace' && !inventory) {
+      immediateViolations.push(
+        `CSH-002 changed C# whitespace violation (${paths.join(', ')})`
+      );
+      return [];
+    }
     return parsed.map((item) => ({ ...item, tool: dotnetTools[phase] }));
   } finally {
     rmSync(reportDirectory, { recursive: true, force: true });
@@ -626,7 +720,7 @@ function runPortalTools({ repoRoot, paths, inventory, immediateViolations }) {
   const clientRoot = path.join(repoRoot, portalPrefix);
   const clientPaths = paths.map((item) => item.slice(portalPrefix.length));
   const typescriptPaths = clientPaths.filter(
-    (item) => item.endsWith('.ts') || item.endsWith('.tsx')
+    (item) => ['.ts', '.tsx', '.mts', '.cts'].includes(path.posix.extname(item).toLowerCase())
   );
   const diagnostics = [];
   const prettier = commandOverride(
@@ -651,29 +745,28 @@ function runPortalTools({ repoRoot, paths, inventory, immediateViolations }) {
     clientRoot,
     'Prettier'
   );
+  if (prettierResult.status !== 0 && prettierResult.status !== 1) {
+    throw new InvocationError(`Prettier exited with internal/configuration status ${prettierResult.status}`);
+  }
   if (prettierResult.status !== 0) {
-    if (!inventory) {
-      immediateViolations.push(
-        `WEB-001 Prettier violation in changed Portal files: ${paths.join(', ')}`
+    const reported = prettierResult.stdout
+      .split('\n')
+      .filter((item) => item !== '');
+    if (reported.length === 0) {
+      throw new InvocationError(
+        `Prettier exited ${prettierResult.status} without a readable file report`
       );
-    } else {
-      const reported = prettierResult.stdout
-        .split('\n')
-        .filter((item) => item !== '');
-      if (reported.length === 0) {
-        throw new InvocationError(
-          `Prettier exited ${prettierResult.status} without a readable file report`
-        );
+    }
+    for (const candidate of reported) {
+      const repositoryPath = validateToolPath(
+        repoRoot,
+        path.resolve(clientRoot, candidate),
+        'Prettier'
+      );
+      if (!paths.includes(repositoryPath)) {
+        throw new InvocationError(`Prettier reported an unexpected path: ${candidate}`);
       }
-      for (const candidate of reported) {
-        const repositoryPath = validateToolPath(
-          repoRoot,
-          path.resolve(clientRoot, candidate),
-          'Prettier'
-        );
-        if (!paths.includes(repositoryPath)) {
-          throw new InvocationError(`Prettier reported an unexpected path: ${candidate}`);
-        }
+      if (inventory) {
         diagnostics.push({
           tool: 'prettier',
           ruleId: 'prettier/format',
@@ -682,6 +775,11 @@ function runPortalTools({ repoRoot, paths, inventory, immediateViolations }) {
           message: 'File differs from Prettier formatting'
         });
       }
+    }
+    if (!inventory) {
+      immediateViolations.push(
+        `WEB-001 Prettier violation in changed Portal files: ${paths.join(', ')}`
+      );
     }
   }
 
@@ -692,6 +790,9 @@ function runPortalTools({ repoRoot, paths, inventory, immediateViolations }) {
     clientRoot,
     'ESLint'
   );
+  if (eslintResult.status !== 0 && eslintResult.status !== 1) {
+    throw new InvocationError(`ESLint exited with internal/configuration status ${eslintResult.status}`);
+  }
   if (eslintResult.status !== 0 && eslintResult.stdout.trim() === '') {
     throw new InvocationError(
       `ESLint exited ${eslintResult.status} without a readable JSON report`
@@ -776,12 +877,19 @@ function baselineDocumentFromResult(result) {
       path: itemPath,
       count: observed
     }))
-    .sort((left, right) => diagnosticKey(left).localeCompare(diagnosticKey(right)));
+    .sort((left, right) => compareCodePoints(
+      diagnosticKey(left),
+      diagnosticKey(right)
+    ));
   return {
     version: 1,
     generatedAt: new Date().toISOString().slice(0, 10),
     entries
   };
+}
+
+function compareCodePoints(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function writeBaselineAtomically(filePath, document, mustNotExist) {
@@ -812,6 +920,54 @@ function writeBaselineAtomically(filePath, document, mustNotExist) {
   }
 }
 
+function updateBaselineMonotonically(repoRoot, filePath, candidate) {
+  const lockText = gitText(repoRoot, [
+    'rev-parse', '--git-path', 'rvt-engineering-standards-update.lock'
+  ]).trim();
+  if (lockText === '') {
+    throw new InvocationError('Git returned an empty baseline-update lock path');
+  }
+  const lockPath = path.resolve(repoRoot, lockText);
+  let acquired = false;
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    try {
+      mkdirSync(lockPath);
+      acquired = true;
+      break;
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw new InvocationError(`Could not acquire baseline-update lock: ${error.message}`);
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+    }
+  }
+  if (!acquired) {
+    throw new InvocationError('Timed out waiting for baseline-update lock');
+  }
+
+  try {
+    validateContainedPath(repoRoot, filePath, 'Policy path');
+    const liveDocument = readJsonDocument(filePath, 'Baseline document');
+    try {
+      validateBaseline(liveDocument);
+    } catch (error) {
+      throw new InvocationError(error.message);
+    }
+    const live = baselineMap(liveDocument);
+    const widened = candidate.entries.find(
+      (entry) => entry.count > (live.get(diagnosticKey(entry)) ?? 0)
+    );
+    if (widened !== undefined) {
+      throw new PolicyError(
+        `Concurrent baseline update would increase ${diagnosticKey(widened)}`
+      );
+    }
+    writeBaselineAtomically(filePath, candidate, false);
+  } finally {
+    rmSync(lockPath, { recursive: true, force: true });
+  }
+}
+
 function repositoryRoot() {
   const result = runProcess(['git'], ['rev-parse', '--show-toplevel'], process.cwd(), 'Git');
   if (result.status !== 0) {
@@ -828,7 +984,12 @@ function main() {
   const repoRoot = repositoryRoot();
   const policy = loadPolicy(repoRoot, options);
   const scope = resolveScope(repoRoot, options);
-  const execution = collectDiagnostics(repoRoot, scope);
+  let execution;
+  try {
+    execution = collectDiagnostics(scope.executionRoot, scope);
+  } finally {
+    scope.cleanup();
+  }
   const result = compareRatchet({
     diagnostics: execution.diagnostics,
     baseline: policy.baseline,
@@ -848,11 +1009,12 @@ function main() {
   if (violated) return 1;
 
   if (options.initialize || options.update) {
-    writeBaselineAtomically(
-      policy.baselinePath,
-      baselineDocumentFromResult(result),
-      options.initialize
-    );
+    const candidate = baselineDocumentFromResult(result);
+    if (options.update) {
+      updateBaselineMonotonically(repoRoot, policy.baselinePath, candidate);
+    } else {
+      writeBaselineAtomically(policy.baselinePath, candidate, true);
+    }
   }
   return 0;
 }

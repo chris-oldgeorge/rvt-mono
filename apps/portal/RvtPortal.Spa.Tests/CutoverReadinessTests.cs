@@ -28,6 +28,31 @@ public partial class CutoverReadinessTests
     private static partial Regex LegacySchemaPattern();
 
     [Fact]
+    public void HelpAssetUrlReadinessQuery_IsReadOnlyAndComplete()
+    {
+        var scriptPath = Path.Combine(
+            FindRepositoryRoot(),
+            "docs",
+            "release",
+            "validate-help-asset-urls.sql");
+
+        Assert.True(File.Exists(scriptPath), $"Missing Help asset readiness query: {scriptPath}");
+        var sql = StripSqlComments(File.ReadAllText(scriptPath));
+        Assert.Contains("FROM public.help_asset", sql, StringComparison.Ordinal);
+        Assert.Contains("url NOT LIKE '/help-assets/%'", sql, StringComparison.Ordinal);
+        Assert.Contains("url !~ '^https://", sql, StringComparison.Ordinal);
+        Assert.Contains("[[:cntrl:]\\\\]", sql, StringComparison.Ordinal);
+        Assert.Contains("ORDER BY help_article_id, id", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("INSERT ", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("UPDATE ", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DELETE ", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ALTER ", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DROP ", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("CREATE ", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("TRUNCATE ", sql, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     // Function summary: Verifies post-load scripts use canonical names for Timescale tables and setup hooks.
     public void PostLoadScripts_UseCanonicalNames()
     {

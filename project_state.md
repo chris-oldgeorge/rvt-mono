@@ -993,7 +993,7 @@
 
 ## RVT Mono-Repository Bootstrap - 2026-07-22
 
-- Workspace: `/Users/oldgeorge/Documents/rvt-mono`
+- Workspace: `/Users/oldgeorge/Developer/rvt-mono`
 - Status: Documentation consolidation is complete. All 122 non-entry module
   Markdown documents are centralized under root `docs/`, with a guarded root
   index and valid retained repository/module entry points. The completed RVT
@@ -3109,11 +3109,44 @@ TimescaleDB extensions where the schema requires them.
   dependency direction. The main remaining boundaries are legacy monitor
   facades, the Portal's dual application architecture, duplicated reporting
   lineages, and infrastructure still collected in `Rvt.Monitor.Common`.
-- Sidecar cleanup removed all currently observed files and directories whose
-  names ended in ` 2`. Builds can recreate them because the repository is under
-  an iCloud Drive File Provider domain:
+- The sidecar investigation identified the previous workspace as an iCloud
+  Drive File Provider domain:
   `com.apple.CloudDocs.iCloudDriveFileProvider/E2494D5B-200D-4B93-8033-4F36D6975AE8`.
-  The durable mitigation is to move development worktrees and generated outputs
-  outside iCloud-synchronized Desktop/Documents folders.
+  The completed migration below removes that condition.
+
+## Non-iCloud Workspace Migration - 2026-07-27
+
+- The complete repository moved from
+  `/Users/oldgeorge/Documents/rvt-mono` to
+  `/Users/oldgeorge/Developer/rvt-mono`.
+- The old path no longer exists. The new repository root has no
+  `com.apple.file-provider-domain-id` extended attribute.
+- The linked `release-platform-hardening` worktree moved with the repository.
+  `git worktree repair` updated both absolute Git pointers to
+  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/release-platform-hardening`.
+- The project architecture review was preserved in commit `9a19baf`
+  (`docs: record architecture quality review`) before the move.
+- Existing untracked package/configuration artifacts were preserved. A
+  differing historical iCloud conflict report was retained as
+  `.superpowers/sdd/task-7-sites-application-boundary-report.md`.
+- All 4,609 remaining Finder-style numbered conflict files, which were confined
+  to generated output, dependency-cache, and code-index paths, were removed.
+- Operational documentation now uses the non-iCloud repository path.
+- Both CodeGraph indexes were rebuilt at their new paths. The stale daemon
+  serving `/Users/oldgeorge/Documents/rvt-mono` was stopped.
+- Relocation initially invalidated absolute paths in existing NuGet
+  `project.assets.json` files. A forced root restore regenerated that metadata
+  successfully at the new path.
+- Post-migration verification passed: the 50-project root solution built with
+  zero errors and five pre-existing Portal package warnings; all nine root
+  repository guards passed; Portal client tests passed 68/68; and the Vite
+  production build passed. Client lint retained two known Fast Refresh warnings
+  and no errors.
+- After all builds and tests, repository-wide conflict scans reported zero
+  Finder-style numbered files and zero numbered directories.
+- Git lists both worktrees exclusively under `/Users/oldgeorge/Developer`, and
+  the old iCloud path remains absent. The local main branch remains three
+  commits behind `origin/main`; no unrelated branch integration was performed
+  as part of the filesystem migration.
 
 Next-session instruction: Read project_state.md to get up to speed

@@ -319,3 +319,18 @@ The durable remedy is to keep Git worktrees and generated build/dependency
 directories outside iCloud-synchronized Desktop/Documents folders. Cleaning
 the copies treats the symptom; subsequent builds can recreate them while the
 worktree remains inside the File Provider domain.
+
+The repository migration was completed on 2026-07-27. The current repository
+root is `/Users/oldgeorge/Developer/rvt-mono`, the linked review worktree is
+under that root at `.worktrees/release-platform-hardening`, and the former
+`/Users/oldgeorge/Documents/rvt-mono` path no longer exists. The new root does
+not carry `com.apple.file-provider-domain-id`. All existing Finder-style
+numbered build conflicts were removed before post-migration validation.
+
+Post-migration validation regenerated the absolute NuGet restore metadata,
+built the 50-project root solution with zero errors, passed all nine repository
+guard scripts, passed all 68 Portal client tests, and produced a successful
+Vite production build. Client lint retained the two previously recorded
+Fast Refresh warnings and no errors. A final repository-wide scan after those
+builds and tests found zero Finder-style numbered conflict files and zero
+numbered conflict directories.

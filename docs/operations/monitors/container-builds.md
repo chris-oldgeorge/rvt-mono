@@ -3,7 +3,7 @@
 Use the monorepo for source builds:
 
 ```sh
-cd /Users/oldgeorge/Documents/rvt-mono
+cd /Users/oldgeorge/Developer/rvt-mono
 scripts/build-mono.sh
 ```
 

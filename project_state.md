@@ -3260,5 +3260,24 @@ TimescaleDB extensions where the schema requires them.
 - The clean isolated baseline passed all nine root repository guard scripts.
   No production code, build configuration, analyzer configuration, or package
   policy changed while authoring the standards.
+- The approved enforcement implementation plan is
+  `docs/superpowers/plans/2026-07-27-repository-engineering-standards-enforcement.md`.
+  It scopes this execution to R9; R1-R8 and R10-R11 remain separate future
+  remediation plans.
+- Planned enforcement variables are `baselinePath`, `exceptionsPath`,
+  `modulePolicyPath`, `changedRanges`, and `newPaths`. Their canonical paths are
+  `eng/standards/baseline.json`, `eng/standards/exceptions.json`, and
+  `eng/standards/module-policy.json`; `changedRanges` is a repository-relative
+  path-to-inclusive-line-range map and `newPaths` is a repository-relative set.
+- The plan enforces three layers: zero diagnostics for new files, zero
+  non-excepted diagnostics on changed lines, and non-increasing whole-path
+  counts. Full changed-logical-unit compliance remains a mandatory review record.
+- Baseline creation uses the one-time `--initialize-baseline` mode. Subsequent
+  `--update-baseline` runs can only preserve or reduce counts. ReportingMonitor
+  retains its explicit xUnit override under the otherwise-MSTest monitor module.
+- The plan has seven tasks: configuration hierarchy; diagnostic model; verifier;
+  frontend policy; baseline/module policy; local/CI integration; and final R9
+  documentation/evidence. Implementation has not started and requires selection
+  of the plan execution workflow.
 
 Next-session instruction: Read project_state.md to get up to speed

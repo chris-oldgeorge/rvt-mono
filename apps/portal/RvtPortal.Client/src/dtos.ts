@@ -148,10 +148,10 @@ export type HelpArticleMutationRequest = {
   assets: HelpAssetMutationRequest[];
 };
 export type HelpAssetMutationRequest = {
+  id?: string | null;
   title: string;
   assetType: string;
   url: string;
-  internalPath?: string | null;
   sortOrder: number;
 };
 export type HelpPublishRequest = {

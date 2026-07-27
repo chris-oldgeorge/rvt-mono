@@ -551,7 +551,7 @@ export function getAdminHelpArticle(id: string) {
 }
 // Function summary: Creates Help CMS article data for admin users.
 export function createHelpArticle(request: HelpArticleMutationRequest) {
-  return sendJson<EntityResponse<HelpArticleResponse>>('/api/help/articles', 'POST', request);
+  return sendJson<EntityResponse<HelpArticleResponse>>('/api/help/admin/articles', 'POST', request);
 }
 // Function summary: Updates Help CMS article data for admin users.
 export function updateHelpArticle(id: string, request: HelpArticleMutationRequest) {

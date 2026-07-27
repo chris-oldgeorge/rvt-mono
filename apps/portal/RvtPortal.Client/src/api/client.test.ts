@@ -9,7 +9,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ApiError, downloadFile, getHealth, queryCompanies } from './client';
+import {
+  ApiError,
+  createHelpArticle,
+  downloadFile,
+  getHealth,
+  queryCompanies
+} from './client';
 
 const apiDirectory = dirname(fileURLToPath(import.meta.url));
 
@@ -82,6 +88,32 @@ describe('API client infrastructure', () => {
     await queryCompanies(new URLSearchParams(), { signal: controller.signal });
 
     expect(observedSignal).toBe(controller.signal);
+  });
+
+  it('creates Help articles through the canonical admin route', async () => {
+    const fetch = vi.fn(async (
+      _input: RequestInfo | URL,
+      _init?: RequestInit
+    ) => jsonResponse({ item: null }, 201));
+    vi.stubGlobal('fetch', fetch);
+
+    await createHelpArticle({
+      sectionTitle: 'General',
+      sectionSlug: 'general',
+      title: 'New FAQ',
+      slug: 'new-faq',
+      body: 'Body',
+      contentType: 'FAQ',
+      isPublished: false,
+      sectionSortOrder: 1,
+      sortOrder: 1,
+      assets: []
+    });
+
+    const [requestUrl, requestInit] = fetch.mock.calls[0];
+    expect(new URL(requestUrl.toString()).pathname)
+      .toBe('/api/help/admin/articles');
+    expect(requestInit).toEqual(expect.objectContaining({ method: 'POST' }));
   });
 
   it('uses the generated OpenAPI schema facade for request and response contracts', () => {

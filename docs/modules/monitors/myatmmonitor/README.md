@@ -71,9 +71,9 @@ Offline duration is elapsed active-site time, not raw wall-clock time. The monit
 
 Run the cutover from the repository root against PostgreSQL. Keep credentials outside the repository and pause every MyATM scheduler and one-shot trigger before applying schema or moving rows.
 
-1. Export the authoritative shared migration from commit `f00d5b8a320945ed08e248da8641ca0c3f7e3b82` of `RVT-Group-LTD/rvt-reporting`. Verify the fetched commit and the PostgreSQL migration SHA-256 `0b9ec190b7a37b06044842d7a582128bc354a83463ddf5c2b027ec4658154170`.
-2. Apply `database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql` with `psql -v ON_ERROR_STOP=1`.
-3. Apply `myatmmonitor/database/migrations/2026-07-15-migrate-myatm-outbox-to-shared.postgres.sql` with the same stop-on-error setting.
+1. Verify the checked-in PostgreSQL migrations before use. The SHA-256 for `libs/rvt-monitor-common/database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql` is `0b9ec190b7a37b06044842d7a582128bc354a83463ddf5c2b027ec4658154170`; the SHA-256 for `apps/monitors/myatmmonitor/database/migrations/2026-07-15-migrate-myatm-outbox-to-shared.postgres.sql` is `62d1259161576b6fe4f225f9d356dfd59263f7c0187ca961a8f4a544a1afcba9`.
+2. Apply `libs/rvt-monitor-common/database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql` with `psql -v ON_ERROR_STOP=1`.
+3. Apply `apps/monitors/myatmmonitor/database/migrations/2026-07-15-migrate-myatm-outbox-to-shared.postgres.sql` with the same stop-on-error setting.
 4. Reconcile legacy and shared counts by mapped status. `Leased` maps to `InProgress`; the reconciliation query must return no rows.
 5. Deploy the shared-outbox application with Quartz and external triggers still disabled.
 6. Run `dotnet MyAtmMonitor.dll --job DispatchOutbox` and require exit code 0. Confirm expected `Completed`, retryable `Pending`, migrated `InProgress`, or terminal `DeadLetter` outcomes and no new legacy rows.
@@ -146,7 +146,7 @@ Unsuspend each later CronJob individually only after the preceding wave and disp
 Rollback is an authoritative shared-to-local synchronization; do not deploy the previous application before it completes.
 
 1. Disable all MyATM schedulers and one-shot triggers, including `DispatchOutbox`, and wait for running jobs to exit.
-2. Apply `myatmmonitor/database/migrations/2026-07-15-rollback-myatm-outbox-to-local.postgres.sql` with `psql -v ON_ERROR_STOP=1`.
+2. Verify that `apps/monitors/myatmmonitor/database/migrations/2026-07-15-rollback-myatm-outbox-to-local.postgres.sql` has SHA-256 `ab81ff9a588d03cf2620025c1b3afcab28dd1c9a952aeb3f52f41d135873cac4`, then apply it with `psql -v ON_ERROR_STOP=1`.
 3. Re-run the status reconciliation. It must return no rows; shared `InProgress` maps to local `Leased`.
 4. Deploy the previous local-outbox application while every job remains paused. Do not drop or modify the shared table.
 5. Run its one-shot `DispatchOutbox` smoke and require exit code 0.

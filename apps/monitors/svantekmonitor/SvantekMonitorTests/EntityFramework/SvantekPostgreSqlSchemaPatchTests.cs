@@ -10,6 +10,8 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     {
         var fixturePath = Path.Combine(
             FindRepoRoot(),
+            "apps",
+            "monitors",
             "svantekmonitor",
             "SvantekMonitorTests",
             "testdata",
@@ -57,6 +59,8 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     {
         var testDataPath = Path.Combine(
             FindRepoRoot(),
+            "apps",
+            "monitors",
             "svantekmonitor",
             "SvantekMonitorTests",
             "testdata");
@@ -90,6 +94,8 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     {
         var patchPath = Path.Combine(
             FindRepoRoot(),
+            "apps",
+            "monitors",
             "svantekmonitor",
             "SvantekMonitor",
             "postgres",
@@ -115,6 +121,8 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     {
         var patchPath = Path.Combine(
             FindRepoRoot(),
+            "apps",
+            "monitors",
             "svantekmonitor",
             "SvantekMonitor",
             "postgres",

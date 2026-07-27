@@ -12,7 +12,7 @@ public sealed class RuleAlertDeliveryPlannerTests
     private static readonly DateTime CreatedAt = new(2026, 7, 15, 10, 0, 5, DateTimeKind.Utc);
     private static readonly Guid MonitorId = Guid.Parse("11111111-2222-3333-4444-555555555555");
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(AlertType.Alert)]
     [DataRow(AlertType.Caution)]
     [DataRow(AlertType.Offline)]
@@ -194,7 +194,7 @@ public sealed class RuleAlertDeliveryPlannerTests
             CreatedAt));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("")]
     [DataRow(" ")]
     public void Plan_RejectsBlankCorrelationKey(string correlationKey)
@@ -208,7 +208,7 @@ public sealed class RuleAlertDeliveryPlannerTests
             CreatedAt));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("")]
     [DataRow(" ")]
     public void Plan_RejectsBlankSerialId(string serialId)
@@ -224,7 +224,7 @@ public sealed class RuleAlertDeliveryPlannerTests
             CreatedAt));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(DateTimeKind.Local)]
     [DataRow(DateTimeKind.Unspecified)]
     public void Plan_RejectsNonUtcAlertTime(DateTimeKind kind)
@@ -243,7 +243,7 @@ public sealed class RuleAlertDeliveryPlannerTests
             CreatedAt));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(DateTimeKind.Local)]
     [DataRow(DateTimeKind.Unspecified)]
     public void Plan_RejectsNonUtcCreatedAt(DateTimeKind kind)

@@ -42,6 +42,8 @@ public sealed class MyAtmServiceCompositionTests
     {
         var source = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
+            "apps",
+            "monitors",
             "myatmmonitor",
             "MyAtmMonitor",
             "api",

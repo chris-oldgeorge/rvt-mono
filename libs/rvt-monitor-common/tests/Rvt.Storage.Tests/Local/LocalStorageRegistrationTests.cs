@@ -57,7 +57,7 @@ public sealed class LocalStorageRegistrationTests
             provider.GetRequiredService<IObjectStorageClientFactory>().GetRequiredClient("recordings"));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("")]
     [DataRow(" ")]
     public void AddRvtLocalStorage_WhenResourceNameIsBlank_ThrowsAtRegistration(string resourceName)

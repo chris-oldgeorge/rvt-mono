@@ -15,7 +15,7 @@ public sealed class RvtConfigTests
         Assert.AreEqual("https://svannet.com/api/v2.3/", resolver.Defaults.BaseUrl);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("AirQ", "AirQMonitor noise monitor data collector running ", "https://datacollector.airqweb.com", "rvt/noise/inserted", "rvt/noise/alerted")]
     [DataRow("MyAtm", "MyAtmMonitor dust monitor data collector running ", "https://api.my-atmosphere.cloud/api/", "rvt/dust/inserted", "rvt/dust/alerted")]
     [DataRow("Omnidots", "OmnidotsMonitor vibration monitor data collector running ", "https://honeycomb.omnidots.com", "rvt/vibration/inserted", "rvt/vibration/alerted")]
@@ -35,7 +35,7 @@ public sealed class RvtConfigTests
         Assert.AreEqual(alertTopic, defaults.AlertTopic);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("/tmp/rvt/airqmonitor/AirQMonitor/bin/Debug/net10.0", "AirQMonitor noise monitor data collector running ")]
     [DataRow("/tmp/rvt/myatmmonitor/MyAtmMonitor/bin/Debug/net10.0", "MyAtmMonitor dust monitor data collector running ")]
     [DataRow("/tmp/rvt/omnidotsmonitor/OmnidotsMonitor/bin/Debug/net10.0", "OmnidotsMonitor vibration monitor data collector running ")]

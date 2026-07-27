@@ -93,7 +93,7 @@ public sealed class AzureBlobStorageOptionsTests
         Assert.AreEqual("https://neutral.example.test", options.ServiceUri);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("RVT:AUDIO_FOLDER")]
     [DataRow("RVT__AUDIO_FOLDER")]
     public void Bind_ReadsLegacyContainerAliases(string key)

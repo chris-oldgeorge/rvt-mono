@@ -3231,4 +3231,264 @@ TimescaleDB extensions where the schema requires them.
   runner, verify both zone files/runtime lookups, and dispatch a fresh manual
   Sonar run.
 
+## Sonar runner timezone repair and retry - 2026-07-27
+
+- Approved repair branch:
+  `codex/sonar-runner-tzdata`.
+- Commit `b0e7fe6` (`Install timezone data in Sonar runner`) is pushed to
+  `origin/codex/sonar-runner-tzdata`.
+- `.github/runner/Dockerfile` now installs Ubuntu `tzdata` in the existing
+  noninteractive `--no-install-recommends` apt transaction.
+- `tests/verify-sonar-runner-stack.test.sh` retains a focused package contract.
+  Strict TDD evidence:
+  - RED failed with `AssertionError: runner image must install timezone data`;
+  - after the single Dockerfile dependency change, the identical guard passed.
+- All nine root `tests/verify-*.test.sh` guards passed and `git diff --check`
+  was clean before commit.
+- The ARM64 runner image rebuilt successfully. The recreated runner reports
+  `tzdata 2026b-0ubuntu0.24.04.1`; both
+  `/usr/share/zoneinfo/Europe/London` and
+  `/usr/share/zoneinfo/Africa/Johannesburg` exist and `zdump` resolves them as
+  BST and SAST.
+- Only `rvt-sonar-runner` was recreated. The registration volume
+  `rvt-sonar-runner_runner-state`, explicit DNS resolvers, and bounded DNS
+  options were preserved. The database remained healthy with unchanged
+  container ID
+  `c3da4a5afa806a49ceda5f090e422d936c5adea0b133de3471a7a5c935dfd2f3`.
+- Initial dispatch `30232046545` was created before the recreated listener had
+  cleared its stale GitHub session. It remained unassigned and was cancelled.
+  Replacement run `30232216236` was immediately accepted after the listener
+  was stable and analyzed exact commit
+  `b0e7fe68c6d4dd612aab1db114e2f050db0d39ef`.
+- The replacement run passed checkout, JDK, .NET, Node, database preparation,
+  tool installation, Sonar begin, root restore/build, Portal database
+  deployment, and always-on database cleanup. Job-lease renewal remained
+  healthy throughout.
+- The timezone repair is live-proven. AirQ passed 124/124, Omnidots 392/392,
+  ReportingMonitor 93/93, Portal Application 48/48, and Portal SPA 435/435.
+  The run log contains no `TimeZoneNotFoundException`, invalid-timezone, or
+  Europe/London/Africa/Johannesburg failure. Other shared and reporting suites
+  also passed.
+- Coverage still failed for a separate monorepo-topology baseline:
+  - MyATM: 13 failed, 195 passed. Most failures construct stale paths under
+    `<repo>/myatmmonitor/...` instead of
+    `<repo>/apps/monitors/myatmmonitor/...`; the Mapperly analyzer policy still
+    expects a three-segment pre-monorepo project path; and its migration
+    documentation contract reports that the durable exact-commit archive
+    retrieval instructions are missing.
+  - Svantek: 5 failed, 131 passed. All five construct stale paths under
+    `<repo>/svantekmonitor/...` instead of
+    `<repo>/apps/monitors/svantekmonitor/...`.
+- Post-run state: runner `rvt-sonar-dev` is online and idle, and database
+  cleanup left only `rvt_sonar_ci`.
+- Next independent repair requires approval: update the MyATM and Svantek test
+  fixture paths and Mapperly path-shape policy to the monorepo layout, restore
+  the durable exact-commit archive retrieval instructions in the MyATM module
+  documentation using current monorepo paths, run the two focused test
+  projects against the integration database, then retry Sonar.
+- Preserve the unrelated unstaged `.gitignore` edit that ignores `.codegraph/`
+  and `apps/.nuget-packages/`; it is not part of the timezone repair.
+
+## Monorepo test-path repair - 2026-07-27
+
+- Branch `codex/sonar-runner-tzdata` now contains pushed commit `aaa20de`
+  (`Repair monorepo test paths`), exact SHA
+  `aaa20de59e44189ee4857feed1261bfd9f66f709`.
+- Reproduced the failures before repair. MyATM tests constructed obsolete
+  `<repo>/myatmmonitor/...` paths, Svantek tests constructed obsolete
+  `<repo>/svantekmonitor/...` paths, and the Mapperly analyzer policy assumed
+  the pre-monorepo three-segment project shape. The mapper policy's repository
+  scan also included the unrelated Portal data-access project.
+- Updated seven MyATM test files and three Svantek test files to use
+  `apps/monitors/<monitor>/...`. The Mapperly policy now checks the five-part
+  monitor project shape and scopes discovery to `apps/monitors`.
+- Updated `docs/modules/monitors/myatmmonitor/README.md` and its migration
+  documentation contract to describe the checked-in PostgreSQL shared,
+  forward, and rollback scripts under current monorepo paths. The contract no
+  longer expects the removed external SQL Server archive.
+- Focused verification passed:
+  - MyATM path/policy suite: 22/22;
+  - Svantek path suite: 5/5;
+  - all nine root `tests/verify-*.test.sh` repository guards;
+  - `git diff --check`.
+- Manual Sonar workflow run `30239653729` analyzed the exact pushed repair SHA:
+  <https://github.com/chris-oldgeorge/rvt-mono/actions/runs/30239653729>.
+  Checkout, tool setup, restore/build, Portal database deployment, the full
+  `.NET coverage` test command, Portal client coverage, and always-on database
+  cleanup all passed. This is the full-run proof that the 13 MyATM and five
+  Svantek monorepo-port failures are repaired.
+- The analysis report uploaded successfully, after which SonarCloud returned
+  `QUALITY GATE STATUS: FAILED`. This is a separate static-analysis gate result,
+  not a build, test, database, timezone, DNS, or path failure. The Sonar MCP/CLI
+  needed to enumerate the individual gate conditions was unavailable in this
+  session, so no threshold details were inferred.
+- The long Sonar end step was caused by local analysis, including a
+  602.814-second JavaScript security sensor pass. The log also confirms that
+  unignored files under the 730 MB `apps/.nuget-packages/` cache entered the
+  scan and produced missing-blame warnings.
+- Post-run state: self-hosted runner `rvt-sonar-dev` is online and idle; the
+  temporary run database was removed and only `rvt_sonar_ci` remains.
+- Preserve the unrelated unstaged `.gitignore` edit that ignores `.codegraph/`
+  and `apps/.nuget-packages/`; it remains outside the path-repair commit and
+  this state checkpoint.
+
+## Local full-suite rerun - 2026-07-27
+
+- Re-ran the full monorepo test sequence from
+  `codex/sonar-runner-tzdata` after a fresh restore and serial Release build.
+  Restore completed, and build completed with 0 errors and 73 existing
+  analyzer/package warnings.
+- The test environment used a dedicated disposable PostgreSQL login and
+  database on the local TimescaleDB container. The database received
+  `timescaledb` and `pgcrypto`, all three Portal EF migration contexts, and all
+  eight `RVT.SchemaDeploy` scripts before the final test pass.
+- A stale ignored
+  `libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure` directory
+  contained only old `obj` output and `.DS_Store`. It caused the clean-layout
+  architecture test to fail locally even though the directory is absent from
+  Git and CI. It was moved intact to
+  `/private/tmp/rvt-mono-stale-Rvt.Monitor.Common.Infrastructure-20260727`.
+- Final verification command:
+  `dotnet test Rvt.Mono.slnx --configuration Release --no-build --no-restore --nologo -m:1`.
+  Result: 2,109 passed, 0 failed, 0 skipped across all 17 test projects.
+  MyATM passed 208/208, Svantek passed 136/136, Portal SPA passed 435/435,
+  and Common passed 340/340.
+- The disposable database and login were removed after the run and their
+  absence was verified. No tracked restore/build changes remain. Preserve the
+  pre-existing unstaged `.gitignore` edit.
+
+## Build-warning review - 2026-07-27
+
+- A clean serial Release build with restore disabled and incremental compilation
+  disabled succeeded in 12.16 seconds with 0 errors and 73 warnings. The
+  warnings-only log is
+  `/private/tmp/rvt-build-warnings-20260727.log`.
+- The warning inventory is limited to five NuGet security warnings and 68
+  MSTest analyzer warnings; there are no production compiler or nullable
+  warnings:
+  - `NU1903`: 5, all emitted by `RvtPortal.Spa.Tests` for the same transitive
+    `System.Security.Cryptography.Xml` 10.0.7 package and five high-severity
+    advisories.
+  - `MSTEST0001`: 7 assemblies have not made an explicit test parallelization
+    choice.
+  - `MSTEST0032`: 3 assertions compare compile-time constants and therefore
+    cannot fail.
+  - `MSTEST0037`: 8 collection-count assertions should use `Assert.HasCount`.
+  - `MSTEST0044`: 49 obsolete `[DataTestMethod]` attributes should be
+    `[TestMethod]`.
+  - `MSTEST0052`: 1 `DynamicDataSourceType.Method` argument is redundant.
+- A current full transitive vulnerability audit confirmed that the cryptography
+  package is the solution's only vulnerable dependency. It enters through
+  `Microsoft.AspNetCore.DataProtection` 10.0.7. Portal uses Data Protection for
+  persisted keys and optional Key Vault protection, so the path is
+  operationally relevant.
+- The repository has patch-version drift: 24 direct Microsoft package
+  references remain at 10.0.7 and nine are at 10.0.9. The local SDK is
+  10.0.203 with .NET and ASP.NET Core runtimes 10.0.7. The current supported
+  security patch is .NET 10.0.10 with SDK 10.0.302; all five reported
+  `System.Security.Cryptography.Xml` advisories are fixed in 10.0.10.
+- Proposed remediation order, not yet implemented:
+  1. Align the SDK, runtimes, all direct Microsoft ASP.NET Core/EF
+     Core/Extensions package references, the Sonar workflow's `dotnet-ef`
+     version, and rebuilt deployment images to 10.0.10/SDK 10.0.302.
+  2. Regenerate affected lock files and prove the transitive audit is clean,
+     then run restore, build, all 2,109 tests, schema deployment, and Portal
+     authentication/Data Protection smoke checks.
+  3. Mechanically replace the 49 obsolete attributes, remove the one redundant
+     DynamicData argument, and convert the eight count assertions.
+  4. Preserve the intended public-constant contract checks by reading each
+     constant through reflection instead of deleting the three tests or
+     suppressing `MSTEST0032`.
+  5. Add an explicit per-assembly parallelization choice to the seven affected
+     test projects, defaulting to method-level parallelization only after
+     repeated focused runs confirm isolation; use `DoNotParallelize` for any
+     genuinely shared-resource suite.
+  6. Once the baseline is clean, gate high/critical NuGet advisories and these
+     specific MSTest rules in CI. Centralize Microsoft patch versions and add a
+     `global.json` roll-forward policy to prevent future drift.
+- No warning remediation code, dependency version, workflow, or build-policy
+  change was made during this review. Preserve the existing unrelated
+  `.gitignore` edit.
+
+## Security-warning remediation - 2026-07-27
+
+- Implemented the approved security-only remediation on
+  `codex/sonar-runner-tzdata`. Commit
+  `de004947295fcef70fcee03bf24805399f351574`
+  (`Resolve .NET dependency security warnings`) was pushed to the matching
+  origin branch.
+- Added root `global.json` selecting stable SDK 10.0.302, disallowing
+  prereleases, and allowing forward movement to later stable feature bands.
+  Verification used an isolated SDK at
+  `/private/tmp/rvt-dotnet-10.0.302`, whose installed runtimes are
+  `Microsoft.NETCore.App` 10.0.10 and `Microsoft.AspNetCore.App` 10.0.10.
+- Aligned direct Microsoft ASP.NET Core, EF Core, and Extensions packages from
+  10.0.4/10.0.7/10.0.9 to 10.0.10 across Portal, monitors, common libraries,
+  and reporting messaging. Regenerated and locked all affected
+  `packages.lock.json` files.
+- The remaining vulnerable edge was caused by
+  `RvtPortal.Spa.Tests` inheriting `Microsoft.AspNetCore.App` only through its
+  Portal project reference. NuGet package pruning does not use a transitive
+  framework reference, so Azure Data Protection dependencies remained at
+  10.0.7 in the test restore graph. Added an explicit
+  `<FrameworkReference Include="Microsoft.AspNetCore.App" />` to
+  `RvtPortal.Spa.Tests`; the vulnerable Data Protection and cryptography
+  packages are now pruned rather than overridden or suppressed.
+- Updated the manual Sonar workflow to install the SDK selected by
+  `global.json` and updated its `dotnet-ef` tool from 10.0.7 to 10.0.10. The
+  workflow regression test now enforces both selections.
+- Added `NU1903` and `NU1904` to `WarningsAsErrors` in the Portal, monitor, and
+  common `Directory.Build.props` files. Reporting already has
+  `TreatWarningsAsErrors=true`. Evaluated MSBuild properties confirm every
+  solution subtree now fails restore/build on high or critical NuGet
+  advisories.
+- Final verification:
+  - fixed-SDK locked restore passed;
+  - full current NuGet advisory query reported no vulnerable package in any of
+    the 50 solution projects;
+  - non-incremental Release build passed with 0 errors and 68 warnings, all
+    previously inventoried MSTest analyzer warnings; `NU1903`, `NU1904`, and
+    `NU1510` are absent;
+  - all nine repository guard scripts passed;
+  - all three Portal EF migration contexts and all eight schema-deployment
+    scripts were applied to a disposable local TimescaleDB database;
+  - full database-backed suite passed: 2,109 passed, 0 failed, 0 skipped.
+- The disposable database and login were removed and their absence was
+  verified. `RVT__POSTGRES_INTEGRATION_CONNECTION`,
+  `RVT_TEST_POSTGRES_CONNECTION`, `RVT_EF_CONNECTION`, and
+  `RVT_DEPLOY_CONNECTION` were command-scoped only; none remains active.
+- Preserve the pre-existing unrelated `.gitignore` change for `.codegraph/`
+  and `apps/.nuget-packages/`; it remains unstaged and was excluded from the
+  security-remediation commit.
+
+## Safe mechanical MSTest cleanup - 2026-07-27
+
+- Applied only the warning-review plan's syntax-preserving MSTest cleanup
+  under `libs/rvt-monitor-common/tests`; no production code, project file,
+  package, lock, workflow, or build policy changed.
+- Replaced the 49 active `[DataTestMethod]` attributes with `[TestMethod]`,
+  removed the one redundant `DynamicDataSourceType.Method` argument, and
+  replaced eight `Assert.AreEqual(expected, collection.Count)` assertions with
+  `Assert.HasCount(expected, collection)`.
+- A fresh fixed-SDK non-incremental Release build of `Rvt.Mono.slnx` passed
+  with 0 errors and 10 warnings. `MSTEST0037`, `MSTEST0044`, and `MSTEST0052`
+  are absent; the intentionally deferred baseline is seven `MSTEST0001`
+  parallelization-choice warnings and three `MSTEST0032` constant-contract
+  warnings.
+- All seven affected test assemblies passed, totaling 627/627:
+  `Rvt.Monitor.CommonTests` 340, Communication Abstractions 20,
+  Communication 31, SendGrid 20, Microsoft Graph 37, Transmit SMS 25, and
+  Storage 154.
+- The umbrella `rvt-common.sln` command additionally discovered the separate
+  `Rvt.Monitor.IntegrationTesting.Tests` project. Its three database-dependent
+  tests failed solely because `RVT__POSTGRES_INTEGRATION_CONNECTION` was not
+  set; the other three tests in that project passed. No database-dependent
+  behavior was changed by this cleanup.
+- Verification used
+  `/private/tmp/rvt-dotnet-10.0.302/dotnet`; the warnings-only build log is
+  `/private/tmp/rvt-mstest-mechanical-after-20260727.log`.
+- This checkpoint accompanies the cleanup commit. The same `.gitignore`
+  additions for `.codegraph/` and `apps/.nuget-packages/` are already present
+  in the newer target-branch commit and remain outside the cleanup diff.
+
 Next-session instruction: Read project_state.md to get up to speed

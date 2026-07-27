@@ -12,7 +12,15 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
         string fileName,
         string expectedCommitFactories)
     {
-        var source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "myatmmonitor", "MyAtmMonitor", "api", "UseCases", fileName));
+        var source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "apps",
+            "monitors",
+            "myatmmonitor",
+            "MyAtmMonitor",
+            "api",
+            "UseCases",
+            fileName));
 
         StringAssert.Contains(source, "IMyAtmAlertCommitCommands");
         CollectionAssert.AreEquivalent(
@@ -76,6 +84,8 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
     {
         var source = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
+            "apps",
+            "monitors",
             "myatmmonitor",
             "MyAtmMonitor",
             "api",
@@ -98,6 +108,8 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
     {
         var source = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
+            "apps",
+            "monitors",
             "myatmmonitor",
             "MyAtmMonitor",
             "api",

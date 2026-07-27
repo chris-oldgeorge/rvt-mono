@@ -5,7 +5,7 @@ namespace Rvt.Storage.Tests.Abstractions;
 [TestClass]
 public sealed class StorageObjectKeyTests
 {
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(" clips\\sample.wav ", "clips/sample.wav")]
     [DataRow("tenant//audio/sample.wav", "tenant/audio/sample.wav")]
     public void Parse_NormalizesSafeObjectNames(string input, string expected)
@@ -13,7 +13,7 @@ public sealed class StorageObjectKeyTests
         Assert.AreEqual(expected, StorageObjectKey.Parse(input).Value);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("")]
     [DataRow("/sample.wav")]
     [DataRow("../sample.wav")]

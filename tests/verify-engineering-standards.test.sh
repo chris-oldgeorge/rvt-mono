@@ -274,11 +274,19 @@ EOF
 cat > "$fake_bin/fake-prettier" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+unsupported_svg=0
 printf 'prettier cwd=<%s>' "$PWD" >> "$RVT_FAKE_LOG"
 for argument in "$@"; do
   printf ' <%s>' "$argument" >> "$RVT_FAKE_LOG"
+  if [[ "$argument" == *.svg ]]; then
+    unsupported_svg=1
+  fi
 done
 printf '\n' >> "$RVT_FAKE_LOG"
+if [[ "$unsupported_svg" -eq 1 ]]; then
+  printf '[error] No parser could be inferred for SVG input.\n' >&2
+  exit 2
+fi
 if [[ -n "$RVT_FAKE_PRETTIER_OUTPUT" ]]; then
   printf '%s\n' "$RVT_FAKE_PRETTIER_OUTPUT"
 fi
@@ -367,27 +375,32 @@ assert_log_contains "<--list-different> <src/app.ts>"
 assert_log_contains "eslint cwd=<$last_repo/apps/portal/RvtPortal.Client>"
 assert_log_contains "<--format> <json> <src/app.ts>"
 
-# Every supported Portal text extension is formatted; TS module forms are linted.
+# Every Prettier-supported Portal text extension is formatted; explicitly selected
+# unsupported text remains validated without being sent to Prettier.
 create_repo portal-supported-extensions
 declare -a prettier_extensions=(
   css html js jsx json md mdx scss ts tsx yaml yml
-  mjs cjs mts cts svg graphql gql
+  mjs cjs mts cts graphql gql
 )
 for extension in "${prettier_extensions[@]}"; do
   candidate="$last_repo/apps/portal/RvtPortal.Client/src/extension.$extension"
   case "$extension" in
     json) printf '{}\n' > "$candidate" ;;
     yaml|yml) printf 'value: true\n' > "$candidate" ;;
-    svg) printf '<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n' > "$candidate" ;;
     graphql|gql) printf 'query Viewer { viewer { id } }\n' > "$candidate" ;;
     *) printf 'export const extensionValue = true;\n' > "$candidate" ;;
   esac
 done
+printf '<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/extension.svg"
 run_verify --working-tree
 assert_status 0
 for extension in "${prettier_extensions[@]}"; do
   assert_log_contains "<src/extension.$extension>"
 done
+if rg -F -q -- "<src/extension.svg>" "$last_repo/tool.log"; then
+  fail "Prettier received explicitly selected unsupported SVG input"
+fi
 for extension in ts tsx mts cts; do
   rg -F "eslint cwd=" "$last_repo/tool.log" |
     rg -F -q -- "<src/extension.$extension>" ||
@@ -898,6 +911,20 @@ run_verify_default_commands --base "$base_revision" --head "$head_revision"
 assert_status 0
 assert_log_absent
 
+# Unsupported Portal text is still a validated source input, but an SVG-only
+# committed range does not require or provision a Prettier installation.
+create_repo exact-range-unsupported-portal-text
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf '<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/public/rvt-mark.svg"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/public/rvt-mark.svg
+git -C "$last_repo" commit -q -m "tracked unsupported Portal text"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_status 0
+assert_log_absent
+
 # Default range commands receive compatible ignored prerequisites.
 create_repo exact-range-default-assets
 write_json "$last_repo/apps/portal/RvtPortal.Client/package.json" \
@@ -1168,6 +1195,33 @@ RVT_FAKE_PRETTIER_OUTPUT="src/app.ts" RVT_FAKE_PRETTIER_STATUS=1 \
 assert_status 1
 assert_output "Prettier"
 
+# Supported GraphQL still fails closed for formatting differences and
+# syntax/internal status 2 after unsupported text is filtered.
+create_repo supported-prettier-graphql-format
+printf 'query Viewer{viewer{id}}\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/query.graphql"
+RVT_FAKE_PRETTIER_OUTPUT="src/query.graphql" RVT_FAKE_PRETTIER_STATUS=1 \
+  run_verify --working-tree
+assert_status 1
+assert_output "Prettier"
+
+create_repo supported-prettier-graphql-syntax
+printf 'query Viewer {\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/query.graphql"
+RVT_FAKE_PRETTIER_STATUS=2 run_verify --working-tree
+assert_status 2
+assert_output "internal/configuration status 2"
+
+create_repo prettier-unexpected-skipped-svg-report
+printf 'query Viewer { viewer { id } }\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/query.graphql"
+printf '<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/skipped.svg"
+RVT_FAKE_PRETTIER_OUTPUT="src/skipped.svg" RVT_FAKE_PRETTIER_STATUS=1 \
+  run_verify --working-tree
+assert_status 2
+assert_output "unexpected path"
+
 # Missing/malformed accepted reports and invalid test overrides are tool failures.
 create_repo abnormal-whitespace-missing-report
 printf '\n' >> "$last_repo/src/Clock.cs"
@@ -1343,6 +1397,24 @@ assert_output "outside repository root"
 create_repo binary
 printf '\0binary\n' > "$last_repo/src/Clock.cs"
 run_verify --working-tree
+assert_status 2
+assert_output "Binary"
+assert_log_absent
+
+create_repo binary-unsupported-portal-text
+printf '\0binary SVG\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/public/rvt-mark.svg"
+run_verify --working-tree
+assert_status 2
+assert_output "Binary"
+assert_log_absent
+
+create_repo inventory-binary-unsupported-portal-text
+printf '\0tracked binary SVG\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/public/rvt-mark.svg"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/public/rvt-mark.svg
+git -C "$last_repo" commit -q -m "tracked binary unsupported Portal text"
+run_verify --all
 assert_status 2
 assert_output "Binary"
 assert_log_absent

@@ -40,11 +40,12 @@ const dotnetTools = {
   style: 'dotnet-format-style',
   analyzers: 'dotnet-format-analyzers'
 };
-const portalSourceExtensions = new Set([
+const portalPrettierExtensions = new Set([
   '.css', '.html', '.js', '.jsx', '.json', '.md', '.mdx',
   '.scss', '.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs',
-  '.svg', '.graphql', '.gql', '.yaml', '.yml'
+  '.graphql', '.gql', '.yaml', '.yml'
 ]);
+const portalSourceExtensions = new Set([...portalPrettierExtensions, '.svg']);
 const portalBinaryExtensions = new Set([
   '.eot', '.gif', '.ico', '.jpeg', '.jpg', '.pdf', '.png',
   '.ttf', '.webp', '.woff', '.woff2'
@@ -362,7 +363,7 @@ function provisionRangePrerequisites(repoRoot, executionRoot, requestedHead, cha
   const needsDotnet =
     process.env.RVT_STANDARDS_DOTNET_COMMAND === undefined &&
     applicable.some((item) => item.endsWith('.cs'));
-  const portalPaths = applicable.filter((item) => item.startsWith(portalPrefix));
+  const portalPaths = applicable.filter(isPortalPrettierPath);
   const needsPrettier =
     process.env.RVT_STANDARDS_PRETTIER_COMMAND === undefined &&
     portalPaths.length > 0;
@@ -619,6 +620,13 @@ function isSourcePath(candidate) {
   );
 }
 
+function isPortalPrettierPath(candidate) {
+  return (
+    candidate.startsWith(portalPrefix) &&
+    portalPrettierExtensions.has(path.posix.extname(candidate).toLowerCase())
+  );
+}
+
 function validateSourceFile(repoRoot, candidate) {
   validateSourceBoundary(repoRoot, candidate);
   const absolute = path.join(repoRoot, candidate);
@@ -793,7 +801,7 @@ function collectDiagnostics(repoRoot, scope) {
 
   const dotnetPaths = applicable.filter((item) => item.endsWith('.cs')).sort();
   const portalPaths = applicable
-    .filter((item) => item.startsWith(portalPrefix))
+    .filter(isPortalPrettierPath)
     .sort();
   const diagnostics = [];
   const immediateViolations = [];

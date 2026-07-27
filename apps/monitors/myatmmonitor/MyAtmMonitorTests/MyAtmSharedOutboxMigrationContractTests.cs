@@ -44,7 +44,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
         Assert.HasCount(0, retiredProviderFiles);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(AddDurableOutbox, "CREATE TABLE IF NOT EXISTS", "CREATE INDEX IF NOT EXISTS")]
     [DataRow(AddHardening, "ADD COLUMN IF NOT EXISTS", "CREATE INDEX IF NOT EXISTS")]
     [DataRow(RemoveHardening, "DROP INDEX IF EXISTS", "DROP COLUMN IF EXISTS")]

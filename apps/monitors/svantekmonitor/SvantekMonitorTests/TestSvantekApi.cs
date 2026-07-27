@@ -93,7 +93,7 @@ namespace SvantekMonitorTests
         [DataRow(25 * 60, 3600)]
         [DataRow(24 * 60, 0)]
         [DataRow((24 * 60) + 1, 60)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,

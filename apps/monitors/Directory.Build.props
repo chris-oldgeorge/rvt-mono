@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectName)').EndsWith('Tests'))">
-    <NoWarn>$(NoWarn);MSTEST0001;MSTEST0017;MSTEST0030;MSTEST0032;MSTEST0037;MSTEST0044;MSTEST0052</NoWarn>
+    <WarningsAsErrors>$(WarningsAsErrors);MSTEST0001;MSTEST0017;MSTEST0030;MSTEST0032;MSTEST0037;MSTEST0044;MSTEST0052</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

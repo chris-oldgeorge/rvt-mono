@@ -44,11 +44,11 @@ namespace SvantekMonitorTests
                 actual.SendEndTime == expected.SendEndTime);
 
 
-        [DataTestMethod]
-        [DynamicData(nameof(DateExclusion), DynamicDataSourceType.Method)]
-        [DynamicData(nameof(DeletedExclusion), DynamicDataSourceType.Method)]
-        [DynamicData(nameof(TimeExclusion), DynamicDataSourceType.Method)]
-        [DynamicData(nameof(LevelExclusion), DynamicDataSourceType.Method)]
+        [TestMethod]
+        [DynamicData(nameof(DateExclusion))]
+        [DynamicData(nameof(DeletedExclusion))]
+        [DynamicData(nameof(TimeExclusion))]
+        [DynamicData(nameof(LevelExclusion))]
         public void TestStoreNoiseLevels_WithAlertRuleExclusion_Success(List<RvtAlertRuleDto> rules)
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
@@ -334,10 +334,10 @@ namespace SvantekMonitorTests
 
         }
 
-        [DataTestMethod]
-        [DynamicData(nameof(OneAlertContact), DynamicDataSourceType.Method)]
-        [DynamicData(nameof(TwoAlertContacts), DynamicDataSourceType.Method)]
-        [DynamicData(nameof(ThreeAlertContacts), DynamicDataSourceType.Method)]
+        [TestMethod]
+        [DynamicData(nameof(OneAlertContact))]
+        [DynamicData(nameof(TwoAlertContacts))]
+        [DynamicData(nameof(ThreeAlertContacts))]
         public void TestStoreNoiseLevels_WithVaryingNumberOfContactsForAlertRule_Success(List<RvtContactDto> contacts)
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
@@ -520,7 +520,7 @@ namespace SvantekMonitorTests
         [DataRow("Sun, 17 Dec 2023 14:10:00Z", null, null, 1)]
         [DataRow("Sun, 17 Dec 2023 14:10:00Z", "14:09:00", "15:00:00", 1)]
         [DataRow("Sun, 18 Jun 2023 14:10:00Z", "08:00:00", "14:09:00", 0)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestStoreNoiseLevels_AlertRuleActivatedButSendMessageExcludedBySendTime_Success(
             string dataTimeStr, string? sendStartTimeStr, string? sendEndTimeStr, int numExpectedMessages)
         {

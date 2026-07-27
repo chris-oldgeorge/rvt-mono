@@ -80,14 +80,14 @@ namespace SvantekMonitorTests
         [DataRow("2023-11-21T12:00:00Z", "2023-11-21T15:00:00Z", 5, 2)]
         [DataRow("2023-11-21T12:00:00Z", "2023-11-21T16:00:00Z", 5, 1)]
         [DataRow("2023-11-21T12:00:00Z", "2023-11-21T16:01:00Z", 5, 0)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestMonitorsList(string lastDate, string queryDate, int numMonitors, int numExpectedMonitors)
 
         {
             DateTime? lastDataTime = String.IsNullOrEmpty(lastDate) ? null : PostgreSqlFixtureDateTime.ParseUtc(lastDate);
             DateTime? queryLastdataTime = String.IsNullOrEmpty(queryDate) ? null : PostgreSqlFixtureDateTime.ParseUtc(queryDate);
             var monitorsIn = CreateMonitorsList(numMonitors);
-            Assert.AreEqual(numMonitors, monitorsIn.Count);
+            Assert.HasCount(numMonitors, monitorsIn);
             testObj!.WriteMonitorList(monitorsIn);
 
             if (lastDataTime != null)
@@ -100,7 +100,7 @@ namespace SvantekMonitorTests
             }
 
             var monitorsOut = testObj.ReadMonitorList(queryLastdataTime);
-            Assert.AreEqual(numExpectedMonitors, monitorsOut.Count);
+            Assert.HasCount(numExpectedMonitors, monitorsOut);
         }
 
         [TestMethod]
@@ -111,7 +111,7 @@ namespace SvantekMonitorTests
             connection.Open();
 
             var rules = testObj!.ReadRules(null);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
 
             var rule = rules[0];
 
@@ -122,7 +122,7 @@ namespace SvantekMonitorTests
             Assert.AreEqual(0, rule.LimitOn);
             Assert.AreEqual(0, rule.LimitOff);
             Assert.AreEqual(24 * 60 * 60, rule.AveragingPeriod);
-            Assert.IsNotNull(rule.Created);
+            Assert.AreNotEqual(default, rule.Created);
             Assert.IsNull(rule.Accessed);
             Assert.IsNull(rule.RuleActiveTime.StartTime);
             Assert.IsNull(rule.RuleActiveTime.EndTime);
@@ -135,7 +135,7 @@ namespace SvantekMonitorTests
         public void TestWriteLatestTimestamp()
         {
             var monitors = CreateMonitorsList(1, "E123");
-            Assert.AreEqual(1, monitors.Count);
+            Assert.HasCount(1, monitors);
 
             testObj!.WriteMonitorList(monitors);
 
@@ -144,7 +144,7 @@ namespace SvantekMonitorTests
             testObj.WriteLatestTimestamp(serialId, lastDataTime);
 
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
 
             var monitor = monitorsOut[0];
             Assert.AreEqual(lastDataTime, monitor.LastDataTime);
@@ -204,7 +204,7 @@ namespace SvantekMonitorTests
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();
             var dtos = ReadNoiseDtos(connection, out string lastSerialId);
-            Assert.AreEqual(1, dtos.Count);
+            Assert.HasCount(1, dtos);
             var dtoOut = dtos[0];
 
             Assert.AreEqual(serialId, lastSerialId);
@@ -261,7 +261,7 @@ namespace SvantekMonitorTests
             connection.Open();
             var dtos = ReadNoiseDtos(connection, out string lastSerialId);
 
-            Assert.AreEqual(1, dtos.Count);
+            Assert.HasCount(1, dtos);
             Assert.AreEqual(serialId, lastSerialId);
             Assert.AreEqual(sampleTime, dtos[0].SampleTime);
             Assert.AreEqual(DateTimeKind.Utc, dtos[0].SampleTime.Kind);
@@ -278,7 +278,7 @@ namespace SvantekMonitorTests
             var monitorsIn = CreateMonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
             var NUM_RULES = 10;
@@ -296,7 +296,7 @@ namespace SvantekMonitorTests
             }
 
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(NUM_RULES, rules.Count);
+            Assert.HasCount(NUM_RULES, rules);
 
             var orderedRules = rules.OrderBy(o => o.Field).ToList();
 
@@ -317,7 +317,7 @@ namespace SvantekMonitorTests
                 Assert.AreEqual(isEven, rule.RuleActiveTime.Sundays);
                 Assert.AreEqual(isEven ? startTime : null, rule.RuleActiveTime.StartTime);
                 Assert.AreEqual(isEven ? endTime : null, rule.RuleActiveTime.EndTime);
-                Assert.IsNotNull(rule.Created);
+                Assert.AreNotEqual(default, rule.Created);
             }
         }
 
@@ -332,13 +332,13 @@ namespace SvantekMonitorTests
             var monitorsIn = CreateMonitorsList(numMonitors);
             testObj!.WriteMonitorList(monitorsIn);
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(numMonitors, monitorsOut.Count);
+            Assert.HasCount(numMonitors, monitorsOut);
             var monitorId = monitorsOut[0].Id;
             var serialId = monitorsOut[0].SerialId;
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 44, serialId, monitorId);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "mytestemail@bbb.com";
             var phoneNo = "01234567890";
             var startTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddHours(-1));
@@ -364,10 +364,10 @@ namespace SvantekMonitorTests
                           siteId: Guid.NewGuid());
 
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(2, contacts.Count);
+            Assert.HasCount(2, contacts);
 
             var alertContacts = testObj.ReadAlertContacts(monitorId, out Guid siteId);
-            Assert.AreEqual(1, alertContacts.Count);
+            Assert.HasCount(1, alertContacts);
             Assert.AreNotEqual(Guid.Empty, siteId);
 
             var ac = alertContacts[0];
@@ -390,14 +390,14 @@ namespace SvantekMonitorTests
             var monitorsIn = CreateMonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId, AlertType.Caution);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "foobob@bbb.com";
             var phoneNo = "01238867890";
             var siteUserId = Guid.NewGuid();
@@ -409,7 +409,7 @@ namespace SvantekMonitorTests
                           siteUserId: siteUserId,
                           siteId: Guid.NewGuid());
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(1, contacts.Count);
+            Assert.HasCount(1, contacts);
 
 
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
@@ -435,7 +435,7 @@ namespace SvantekMonitorTests
 
             {
                 var alerts = ReadNotifications(connection);
-                Assert.AreEqual(1, alerts.Count);
+                Assert.HasCount(1, alerts);
                 var alertOut = alerts[0];
 
                 Assert.AreEqual(notifyCaution.Id, alertOut.Id);
@@ -464,14 +464,14 @@ namespace SvantekMonitorTests
             Assert.IsTrue(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
             Assert.IsTrue(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
-            Assert.AreEqual(2, ReadNotifications(connection).Count);
+            Assert.HasCount(2, ReadNotifications(connection));
         }
 
         [DataRow(AlertType.Caution, AlertType.Alert, false)]
         [DataRow(AlertType.Caution, AlertType.Caution, true)]
         [DataRow(AlertType.Alert, AlertType.Caution, false)]
         [DataRow(AlertType.Alert, AlertType.Alert, true)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestHasOpenNotification(AlertType existing, AlertType alertType, bool expectedResult)
         {
             var connectionString = database!.ConnectionString;
@@ -484,14 +484,14 @@ namespace SvantekMonitorTests
             testObj!.WriteMonitorList(monitorsIn);
             var monitorsOut = testObj.ReadMonitorList(null);
 
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId, alertType);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "foobob@bbb.com";
             var phoneNo = "01238867890";
             var siteUserId = Guid.NewGuid();
@@ -503,7 +503,7 @@ namespace SvantekMonitorTests
                           siteUserId: siteUserId,
                           siteId: Guid.NewGuid());
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(1, contacts.Count);
+            Assert.HasCount(1, contacts);
 
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
@@ -536,12 +536,12 @@ namespace SvantekMonitorTests
             var monitorsIn = CreateMonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
             var serialId = monitorsOut[0].SerialId;
             InsertAlertRule(connection, 721, serialId, monitorId);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
 
             var rule = rules[0];
 
@@ -551,7 +551,7 @@ namespace SvantekMonitorTests
             testObj.UpdateAlertRule(rules[0]);
 
             var updatedRules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, updatedRules.Count);
+            Assert.HasCount(1, updatedRules);
             Assert.AreEqual(isActive, updatedRules[0].IsActive);
 
         }
@@ -571,7 +571,7 @@ namespace SvantekMonitorTests
                 testObj.SetMonitorOffline(m.Id, true);
             }
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             foreach (var m in monitorsOut)
             {
                 Assert.IsTrue(m.Offline);
@@ -831,7 +831,7 @@ namespace SvantekMonitorTests
         [DataRow("09:00:00", "17:00:00", null, null, "10:00:00", "11:00:00")]
         [DataRow("09:00:00", "17:00:00", "10:23:00", "11:20:00", null, null)]
         [DataRow(null, null, null, null, null, null)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestReadSiteInfo(string? start, string? end,
                                      string? satStart, string? satEnd,
                                      string? sunStart, string? sunEnd)
@@ -945,12 +945,12 @@ namespace SvantekMonitorTests
             var monitorsIn = CreateMonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "bad-email";
             var phoneNo = "bad-phonenumber";
             var siteUserId = Guid.NewGuid();
@@ -962,7 +962,7 @@ namespace SvantekMonitorTests
                           siteUserId: siteUserId,
                           siteId: Guid.NewGuid());
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(1, contacts.Count);
+            Assert.HasCount(1, contacts);
             var dt = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T11:19:00Z");
             var notificationIn = new NotificationDto(//rules[0], 99.876, dt, monitorId);
 
@@ -980,7 +980,7 @@ namespace SvantekMonitorTests
             testObj.WriteNotification(notificationIn);
             testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
             var notifications = ReadNotifications(connection);
-            Assert.AreEqual(1, notifications.Count);
+            Assert.HasCount(1, notifications);
             var notificationOut = notifications[0];
             Assert.AreEqual(notificationIn.Id, notificationOut.Id);
             Assert.AreEqual(notificationIn.Level, notificationOut.Level);
@@ -992,7 +992,7 @@ namespace SvantekMonitorTests
             Assert.AreEqual(notificationIn.MonitorId, notificationOut.MonitorId);
 
             var audits = ReadNotificationsSent(connection);
-            Assert.AreEqual(1, audits.Count);
+            Assert.HasCount(1, audits);
             var audit = audits[0];
             Assert.IsInstanceOfType(audit["Id"], typeof(Guid));
             Assert.IsInstanceOfType(audit["SendTime"], typeof(DateTime));
@@ -1019,10 +1019,10 @@ namespace SvantekMonitorTests
 
             var siteAverages = ReadSiteAverages(database!.ConnectionString);
 
-            Assert.AreEqual(1, siteAverages.Count);
+            Assert.HasCount(1, siteAverages);
             var sa = siteAverages[0];
 
-            Assert.IsNotNull(sa.Id);
+            Assert.AreNotEqual(Guid.Empty, sa.Id);
             Assert.AreEqual(siteId, sa.SiteId);
             Assert.AreEqual(monitorId, sa.MonitorId);
             Assert.AreEqual(field, sa.Field);

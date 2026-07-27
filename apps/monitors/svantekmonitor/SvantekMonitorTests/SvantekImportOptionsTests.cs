@@ -22,7 +22,7 @@ public sealed class SvantekImportOptionsTests
         Assert.AreEqual(TimeSpan.FromMinutes(5), options.WatermarkOverlap);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(nameof(SvantekImportOptions.MaximumInitialBackfill), 0L)]
     [DataRow(nameof(SvantekImportOptions.MaximumInitialBackfill), -1L)]
     [DataRow(nameof(SvantekImportOptions.MaximumRequestWindow), 0L)]

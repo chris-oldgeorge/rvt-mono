@@ -25,7 +25,7 @@ public sealed class OmnidotsTraceCollectionOptionsTests
 
         options.Validate();
 
-        Assert.AreEqual(0, options.AllowedSerialIds.Length);
+        Assert.IsEmpty(options.AllowedSerialIds);
     }
 
     [TestMethod]

@@ -113,7 +113,7 @@ namespace MyAtmMonitorTests
 
             var exception = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(
                 () => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1));
-            Assert.AreEqual(2, exception.Failures.Count);
+            Assert.HasCount(2, exception.Failures);
 
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "11111", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "22222", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
@@ -142,7 +142,7 @@ namespace MyAtmMonitorTests
 
             var exception = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(
                 () => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1));
-            Assert.AreEqual(2, exception.Failures.Count);
+            Assert.HasCount(2, exception.Failures);
 
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "11111", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "22222", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));

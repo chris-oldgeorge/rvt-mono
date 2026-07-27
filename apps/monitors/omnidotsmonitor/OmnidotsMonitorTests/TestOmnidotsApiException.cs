@@ -44,7 +44,7 @@ namespace OmnidotsAdapterTests
                 testObj.Authenticate();
             });
 
-            Assert.AreEqual(exception.Message, "Failed ! Invalid ErrorResponse");
+            Assert.AreEqual("Failed ! Invalid ErrorResponse", exception.Message);
             Assert.IsInstanceOfType(exception.InnerException, typeof(JsonException));
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
@@ -106,7 +106,7 @@ namespace OmnidotsAdapterTests
             {
                 testObj.StoreMonitors();
             });
-            Assert.AreEqual(exception.Message, "Failed ! Invalid ErrorResponse");
+            Assert.AreEqual("Failed ! Invalid ErrorResponse", exception.Message);
             Assert.IsInstanceOfType(exception.InnerException, typeof(JsonException));
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
@@ -375,7 +375,7 @@ namespace OmnidotsAdapterTests
             dbClient.Verify(c => c.HandleException("Failed to read traces for serialId=23423", It.IsAny<AdapterException>()), Times.Once);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("StorePeakRecords", "/api/v1/get_peak_records")]
         [DataRow("StoreVeffRecords", "/api/v1/get_veff_records")]
         [DataRow("StoreVdvRecords", "/api/v1/get_vdv_records")]

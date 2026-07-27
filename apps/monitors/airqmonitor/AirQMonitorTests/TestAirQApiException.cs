@@ -183,7 +183,7 @@ namespace AirQMonitorTests
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
             var exception = Assert.Throws<AggregateException>(() => testObj.StoreNoiseLevels("foo", "bar"));
-            Assert.AreEqual(3, exception.InnerExceptions.Count);
+            Assert.HasCount(3, exception.InnerExceptions);
 
             httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device1"), Times.Exactly(1));
             httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device2"), Times.Exactly(1));
@@ -224,7 +224,7 @@ namespace AirQMonitorTests
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
             var exception = Assert.Throws<AggregateException>(() => testObj.StoreNoiseLevels("foo", "bar"));
-            Assert.AreEqual(3, exception.InnerExceptions.Count);
+            Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device1", It.Is<AdapterException>(
@@ -258,7 +258,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
             var exception = Assert.Throws<AggregateException>(() => testObj.StoreNoiseLevels("foo", "bar"));
-            Assert.AreEqual(3, exception.InnerExceptions.Count);
+            Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device1",
@@ -301,7 +301,7 @@ namespace AirQMonitorTests
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
             var exception = Assert.Throws<AggregateException>(() => testObj.StoreAllNoiseLevelsForYesterday("foo", "bar"));
-            Assert.AreEqual(3, exception.InnerExceptions.Count);
+            Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1", It.Is<AdapterException>(
@@ -335,7 +335,7 @@ namespace AirQMonitorTests
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
             var exception = Assert.Throws<AggregateException>(() => testObj.StoreAllNoiseLevelsForYesterday("foo", "bar"));
-            Assert.AreEqual(3, exception.InnerExceptions.Count);
+            Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1", It.Is<AdapterException>(
@@ -367,7 +367,7 @@ namespace AirQMonitorTests
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
             var exception = Assert.Throws<AggregateException>(() => testObj.StoreAllNoiseLevelsForYesterday("foo", "bar"));
-            Assert.AreEqual(3, exception.InnerExceptions.Count);
+            Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1",
@@ -406,7 +406,7 @@ namespace AirQMonitorTests
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
             var exception = Assert.Throws<AggregateException>(() => testObj.StoreNoiseLevelsForDate("foo", "bar", dateStr));
-            Assert.AreEqual(3, exception.InnerExceptions.Count);
+            Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1", It.Is<AdapterException>(
@@ -439,7 +439,7 @@ namespace AirQMonitorTests
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
             var exception = Assert.Throws<AggregateException>(() => testObj.StoreNoiseLevelsForDate("foo", "bar", dateStr));
-            Assert.AreEqual(3, exception.InnerExceptions.Count);
+            Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1", It.Is<AdapterException>(
@@ -471,7 +471,7 @@ namespace AirQMonitorTests
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
             var exception = Assert.Throws<AggregateException>(() => testObj.StoreNoiseLevelsForDate("foo", "bar", dateStr));
-            Assert.AreEqual(3, exception.InnerExceptions.Count);
+            Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1",

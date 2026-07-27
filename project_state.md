@@ -3413,7 +3413,10 @@ TimescaleDB extensions where the schema requires them.
 ## Security-warning remediation - 2026-07-27
 
 - Implemented the approved security-only remediation on
-  `codex/sonar-runner-tzdata`; changes are currently uncommitted.
+  `codex/sonar-runner-tzdata`. Commit
+  `de004947295fcef70fcee03bf24805399f351574`
+  (`Resolve .NET dependency security warnings`) was pushed to the matching
+  origin branch.
 - Added root `global.json` selecting stable SDK 10.0.302, disallowing
   prereleases, and allowing forward movement to later stable feature bands.
   Verification used an isolated SDK at
@@ -3455,6 +3458,7 @@ TimescaleDB extensions where the schema requires them.
   `RVT_TEST_POSTGRES_CONNECTION`, `RVT_EF_CONNECTION`, and
   `RVT_DEPLOY_CONNECTION` were command-scoped only; none remains active.
 - Preserve the pre-existing unrelated `.gitignore` change for `.codegraph/`
-  and `apps/.nuget-packages/`. No commit or push was requested or performed.
+  and `apps/.nuget-packages/`; it remains unstaged and was excluded from the
+  security-remediation commit.
 
 Next-session instruction: Read project_state.md to get up to speed

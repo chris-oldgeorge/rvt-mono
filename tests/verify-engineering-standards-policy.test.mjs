@@ -1,5 +1,15 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -11,8 +21,23 @@ import {
 } from '../scripts/engineering-standards/model.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const dotnetCommand = process.env.RVT_STANDARDS_POLICY_DOTNET ?? 'dotnet';
 const fixedPolicyDate = new Date('2026-07-27T00:00:00.000Z');
 const generatedPathSegments = new Set([
+  '.codegraph',
+  '.git',
+  '.worktrees',
+  'TestResults',
+  'artifacts',
+  'bin',
+  'coverage',
+  'dist',
+  'node_modules',
+  'obj',
+  'playwright-report',
+  'test-results'
+]);
+const projectDiscoveryIgnoredDirectories = new Set([
   '.codegraph',
   '.git',
   '.worktrees',
@@ -67,34 +92,6 @@ const expectedModulePolicy = {
     }
   ]
 };
-const repositoryView = {
-  readText(relativePath) {
-    const absolutePath = path.join(repoRoot, relativePath);
-    try {
-      return readFileSync(absolutePath, 'utf8');
-    } catch (error) {
-      if (error.code === 'ENOENT') return undefined;
-      throw error;
-    }
-  },
-  exists(relativePath) {
-    return existsSync(path.join(repoRoot, relativePath));
-  }
-};
-
-function withRepositoryMutations({ text = new Map(), missing = new Set() }) {
-  return {
-    readText(relativePath) {
-      if (missing.has(relativePath)) return undefined;
-      return text.has(relativePath)
-        ? text.get(relativePath)
-        : repositoryView.readText(relativePath);
-    },
-    exists(relativePath) {
-      return !missing.has(relativePath) && repositoryView.exists(relativePath);
-    }
-  };
-}
 
 function readJson(relativePath) {
   const absolutePath = path.join(repoRoot, relativePath);
@@ -116,10 +113,14 @@ function compareCodePoints(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+function toPosixPath(candidate) {
+  return candidate.replaceAll('\\', '/');
+}
+
 function assertExactPolicyPath(candidate, label) {
   assert.equal(typeof candidate, 'string', `${label} must be a string`);
   assert.notEqual(candidate, '', `${label} must not be empty`);
-  assert.equal(candidate, candidate.replaceAll('\\', '/'), `${label} must use POSIX separators`);
+  assert.equal(candidate, toPosixPath(candidate), `${label} must use POSIX separators`);
   assert.equal(
     path.posix.normalize(candidate),
     candidate,
@@ -212,60 +213,68 @@ function longestMatchingPolicy(projectPath, modulePolicy) {
   )[0];
 }
 
-function parseAttributes(source) {
-  const attributes = new Map();
-  for (const match of source.matchAll(/([A-Za-z][A-Za-z0-9_.:-]*)\s*=\s*(["'])(.*?)\2/g)) {
-    attributes.set(match[1], match[3]);
+function runDotnet(arguments_, root) {
+  const result = spawnSync(dotnetCommand, arguments_, {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    windowsHide: true
+  });
+  if (result.error !== undefined) {
+    throw new Error(
+      `Unable to run ${dotnetCommand} ${arguments_.join(' ')}: ${result.error.message}`
+    );
   }
-  return attributes;
+  if (result.status !== 0) {
+    throw new Error(
+      `${dotnetCommand} ${arguments_.join(' ')} exited ${result.status}\n` +
+      `${result.stdout}${result.stderr}`
+    );
+  }
+  return result.stdout;
 }
 
-function parsePackageReferences(projectXml) {
-  const references = [];
-  for (const match of projectXml.matchAll(/<PackageReference\b([^>]*)>/g)) {
-    const attributes = parseAttributes(match[1]);
-    const include = attributes.get('Include') ?? attributes.get('Update');
-    if (include === undefined) continue;
-    references.push({
-      include,
-      version: attributes.get('Version') ?? attributes.get('VersionOverride')
-    });
+function parseMsBuildJson(stdout, projectPath) {
+  try {
+    return JSON.parse(stdout);
+  } catch (error) {
+    throw new Error(`MSBuild returned malformed JSON for ${projectPath}: ${error.message}`);
   }
-  return references;
 }
 
-function parsePackageVersions(directoryPackagesXml) {
-  const versions = [];
-  for (const match of directoryPackagesXml.matchAll(/<PackageVersion\b([^>]*)>/g)) {
-    const attributes = parseAttributes(match[1]);
-    const include = attributes.get('Include') ?? attributes.get('Update');
-    if (include === undefined) continue;
-    versions.push({
-      include,
-      version: attributes.get('Version')
-    });
-  }
-  return versions;
+function optionalMetadata(value) {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
+}
+
+function trueProperty(value) {
+  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
 }
 
 function normalizePackageId(packageId) {
   return packageId.toLowerCase();
 }
 
-function hasTrueProperty(projectXml, propertyName) {
-  const propertyPattern = new RegExp(
-    `<${propertyName}\\b[^>]*>([^<]*)</${propertyName}>`,
-    'gi'
+function evaluateProjectMetadata(root, projectPath) {
+  assertExactPolicyPath(projectPath, 'project path');
+  const document = parseMsBuildJson(
+    runDotnet([
+      'msbuild',
+      path.join(root, projectPath),
+      '-nologo',
+      '-getProperty:IsTestProject,ManagePackageVersionsCentrally,RestorePackagesWithLockFile',
+      '-getItem:PackageReference,PackageVersion'
+    ], root),
+    projectPath
   );
-  let effectiveValue;
-  for (const match of projectXml.matchAll(propertyPattern)) {
-    effectiveValue = match[1].trim().toLowerCase();
-  }
-  return effectiveValue === 'true';
-}
-
-function projectMetadata(projectPath, projectXml) {
-  const packageReferences = parsePackageReferences(projectXml);
+  const properties = document.Properties ?? {};
+  const packageReferences = (document.Items?.PackageReference ?? []).map((item) => ({
+    include: item.Identity,
+    version: optionalMetadata(item.VersionOverride) ?? optionalMetadata(item.Version)
+  }));
+  const packageVersions = (document.Items?.PackageVersion ?? []).map((item) => ({
+    include: item.Identity,
+    version: optionalMetadata(item.Version)
+  }));
   const normalizedPackageIds = new Set(
     packageReferences.map((reference) => normalizePackageId(reference.include))
   );
@@ -274,165 +283,218 @@ function projectMetadata(projectPath, projectXml) {
       .map((reference) => frameworkPackages.get(normalizePackageId(reference.include)))
       .filter((framework) => framework !== undefined)
   );
+
   return {
     path: projectPath,
-    projectXml,
     packageReferences,
+    packageVersions,
     frameworks: [...frameworks].sort(compareCodePoints),
     isTestProject:
-      hasTrueProperty(projectXml, 'IsTestProject') ||
-      normalizedPackageIds.has('microsoft.net.test.sdk')
+      trueProperty(properties.IsTestProject) ||
+      normalizedPackageIds.has('microsoft.net.test.sdk'),
+    managePackageVersionsCentrally:
+      trueProperty(properties.ManagePackageVersionsCentrally),
+    restorePackagesWithLockFile:
+      trueProperty(properties.RestorePackagesWithLockFile)
   };
 }
 
-function solutionProjects() {
-  const solution = readFileSync(path.join(repoRoot, 'Rvt.Mono.slnx'), 'utf8');
-  const projectPaths = [...solution.matchAll(/<Project\s+Path=(["'])(.*?)\1\s*\/>/g)]
-    .map((match) => match[2])
-    .filter((projectPath) => projectPath.endsWith('.csproj'));
-  assert.ok(projectPaths.length > 0, 'Rvt.Mono.slnx must reference projects');
+function solutionProjectPaths(root) {
+  const solutionPath = path.join(root, 'Rvt.Mono.slnx');
+  const stdout = runDotnet(['sln', solutionPath, 'list'], root);
+  const paths = stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.toLowerCase().endsWith('.csproj'))
+    .map((candidate) => {
+      const platformPath = candidate.replaceAll('/', path.sep).replaceAll('\\', path.sep);
+      return toPosixPath(
+        path.relative(root, path.isAbsolute(platformPath)
+          ? platformPath
+          : path.resolve(root, platformPath))
+      );
+    })
+    .sort(compareCodePoints);
+
+  assert.ok(paths.length > 0, 'Rvt.Mono.slnx must reference projects');
+  for (const projectPath of paths) {
+    assertExactPolicyPath(projectPath, 'solution project path');
+  }
   assert.equal(
-    new Set(projectPaths).size,
-    projectPaths.length,
+    new Set(paths).size,
+    paths.length,
     'Rvt.Mono.slnx must not reference a project more than once'
   );
-
-  return projectPaths.map((projectPath) => {
-    assertExactPolicyPath(projectPath, 'solution project path');
-    const projectXml = readFileSync(path.join(repoRoot, projectPath), 'utf8');
-    return projectMetadata(projectPath, projectXml);
-  });
+  return paths;
 }
 
-function centralPackagePolicyErrors(modulePolicy, projects, repository) {
-  const errors = [];
-  for (const module of modulePolicy.modules) {
-    if (module.packageVersionPolicy === 'project-inline-legacy') continue;
+function discoverGovernedProjectPaths(root, modulePolicy = expectedModulePolicy) {
+  const projects = [];
 
-    const centralPath = `${module.path}/Directory.Packages.props`;
-    const centralXml = repository.readText(centralPath);
-    if (centralXml === undefined) {
-      errors.push(
-        `${module.path}: ${module.packageVersionPolicy} requires ${centralPath}`
-      );
-      continue;
-    }
-
-    if (!hasTrueProperty(centralXml, 'ManagePackageVersionsCentrally')) {
-      errors.push(
-        `${module.path}: ${module.packageVersionPolicy} requires ` +
-        'ManagePackageVersionsCentrally=true'
-      );
-    }
-
-    const packageVersions = parsePackageVersions(centralXml);
-    if (packageVersions.length === 0) {
-      errors.push(
-        `${module.path}: ${module.packageVersionPolicy} requires central PackageVersion declarations`
-      );
-    }
-    for (const packageVersion of packageVersions) {
-      if (packageVersion.version === undefined || packageVersion.version === '') {
-        errors.push(
-          `${centralPath}: PackageVersion ${packageVersion.include} requires a Version`
-        );
-      }
-    }
-    const centrallyVersionedIds = new Set(
-      packageVersions.map((packageVersion) => normalizePackageId(packageVersion.include))
-    );
-    const moduleProjects = projects.filter((project) =>
-      isAtOrBelow(project.path, module.path)
-    );
-    for (const project of moduleProjects) {
-      for (const reference of project.packageReferences) {
-        if (
-          reference.version === undefined &&
-          !centrallyVersionedIds.has(normalizePackageId(reference.include))
-        ) {
-          errors.push(
-            `${project.path}: ${module.packageVersionPolicy} has no central ` +
-            `PackageVersion for ${reference.include}`
-          );
+  function visit(directory, relativeDirectory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) continue;
+      const relativePath = path.posix.join(relativeDirectory, entry.name);
+      const absolutePath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (!projectDiscoveryIgnoredDirectories.has(entry.name)) {
+          visit(absolutePath, relativePath);
         }
-      }
-    }
-
-    const buildPropsPath = `${module.path}/Directory.Build.props`;
-    const buildPropsXml = repository.readText(buildPropsPath) ?? '';
-    const restoresWithLockFile = hasTrueProperty(
-      buildPropsXml,
-      'RestorePackagesWithLockFile'
-    );
-    if (module.packageVersionPolicy === 'module-central-locked') {
-      if (!restoresWithLockFile) {
-        errors.push(
-          `${module.path}: module-central-locked requires ` +
-          'RestorePackagesWithLockFile=true'
-        );
-      }
-      for (const project of moduleProjects) {
-        const lockPath = path.posix.join(
-          path.posix.dirname(project.path),
-          'packages.lock.json'
-        );
-        if (!repository.exists(lockPath)) {
-          errors.push(
-            `${project.path}: module-central-locked requires packages.lock.json`
-          );
-        }
+      } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.csproj')) {
+        assertExactPolicyPath(relativePath, 'discovered project path');
+        projects.push(relativePath);
       }
     }
   }
-  return errors;
+
+  for (const module of modulePolicy.modules) {
+    const moduleRoot = path.join(root, module.path);
+    if (existsSync(moduleRoot)) visit(moduleRoot, module.path);
+  }
+  return projects.sort(compareCodePoints);
 }
 
-function projectPolicyErrors(modulePolicy, projects, repository = repositoryView) {
+function solutionProjects(root = repoRoot, modulePolicy = expectedModulePolicy) {
+  const listedProjects = solutionProjectPaths(root);
+  const discoveredProjects = discoverGovernedProjectPaths(root, modulePolicy);
+  assert.deepEqual(
+    listedProjects,
+    discoveredProjects,
+    'Rvt.Mono.slnx must contain every governed project exactly once'
+  );
+  return discoveredProjects.map((projectPath) =>
+    evaluateProjectMetadata(root, projectPath)
+  );
+}
+
+function projectPolicyErrors(modulePolicy, projects, root = repoRoot) {
   const errors = [];
+  for (const module of modulePolicy.modules) {
+    if (module.packageVersionPolicy === 'project-inline-legacy') continue;
+    if (!projects.some((project) => isAtOrBelow(project.path, module.path))) continue;
+    const centralPath = `${module.path}/Directory.Packages.props`;
+    if (!existsSync(path.join(root, centralPath))) {
+      errors.push(
+        `${module.path}: ${module.packageVersionPolicy} requires ${centralPath}`
+      );
+    }
+  }
+
   for (const project of projects) {
     const policy = longestMatchingPolicy(project.path, modulePolicy);
     if (policy === undefined) {
-      errors.push(`${project.path}: no module policy matches this solution project`);
+      errors.push(`${project.path}: no module policy matches this governed project`);
       continue;
     }
 
-    if (project.isTestProject) {
-      if (
-        project.frameworks.length !== 1 ||
-        project.frameworks[0] !== policy.testFramework
-      ) {
-        errors.push(
-          `${project.path}: expected ${policy.testFramework} from ${policy.path}; ` +
-          `found ${project.frameworks.join(', ') || 'no supported test framework'}`
-        );
-      }
+    if (project.isTestProject && (
+      project.frameworks.length !== 1 ||
+      project.frameworks[0] !== policy.testFramework
+    )) {
+      errors.push(
+        `${project.path}: expected ${policy.testFramework} from ${policy.path}; ` +
+        `found ${project.frameworks.join(', ') || 'no supported test framework'}`
+      );
     }
 
     const inlineReferences = project.packageReferences
       .filter((reference) => reference.version !== undefined);
     const centralReferences = project.packageReferences
       .filter((reference) => reference.version === undefined);
-    if (
-      policy.packageVersionPolicy === 'project-inline-legacy' &&
-      centralReferences.length > 0
-    ) {
+
+    if (policy.packageVersionPolicy === 'project-inline-legacy') {
+      if (project.managePackageVersionsCentrally) {
+        errors.push(
+          `${project.path}: project-inline-legacy forbids central package management`
+        );
+      }
+      if (centralReferences.length > 0) {
+        errors.push(
+          `${project.path}: project-inline-legacy requires inline versions for ` +
+          centralReferences.map((reference) => reference.include).join(', ')
+        );
+      }
+      continue;
+    }
+
+    if (!project.managePackageVersionsCentrally) {
       errors.push(
-        `${project.path}: project-inline-legacy requires inline versions for ` +
-        centralReferences.map((reference) => reference.include).join(', ')
+        `${project.path}: ${policy.packageVersionPolicy} requires ` +
+        'ManagePackageVersionsCentrally=true'
       );
     }
-    if (
-      policy.packageVersionPolicy !== 'project-inline-legacy' &&
-      inlineReferences.length > 0
-    ) {
+    if (inlineReferences.length > 0) {
       errors.push(
         `${project.path}: ${policy.packageVersionPolicy} forbids inline versions for ` +
         inlineReferences.map((reference) => reference.include).join(', ')
       );
     }
+    if (project.packageVersions.length === 0) {
+      errors.push(
+        `${project.path}: ${policy.packageVersionPolicy} requires effective ` +
+        'PackageVersion declarations'
+      );
+    }
+
+    const centrallyVersionedIds = new Set();
+    for (const packageVersion of project.packageVersions) {
+      if (packageVersion.version === undefined) {
+        errors.push(
+          `${project.path}: PackageVersion ${packageVersion.include} requires a Version`
+        );
+      } else {
+        centrallyVersionedIds.add(normalizePackageId(packageVersion.include));
+      }
+    }
+    for (const reference of centralReferences) {
+      if (!centrallyVersionedIds.has(normalizePackageId(reference.include))) {
+        errors.push(
+          `${project.path}: ${policy.packageVersionPolicy} has no effective ` +
+          `PackageVersion for ${reference.include}`
+        );
+      }
+    }
+
+    if (policy.packageVersionPolicy === 'module-central-locked') {
+      if (!project.restorePackagesWithLockFile) {
+        errors.push(
+          `${project.path}: module-central-locked requires ` +
+          'RestorePackagesWithLockFile=true'
+        );
+      }
+      const lockPath = path.posix.join(
+        path.posix.dirname(project.path),
+        'packages.lock.json'
+      );
+      if (!existsSync(path.join(root, lockPath))) {
+        errors.push(
+          `${project.path}: module-central-locked requires packages.lock.json`
+        );
+      }
+    }
   }
-  errors.push(...centralPackagePolicyErrors(modulePolicy, projects, repository));
   return errors;
+}
+
+function withTemporaryRepository(files, action) {
+  const root = mkdtempSync(path.join(tmpdir(), 'rvt-standards-policy-'));
+  try {
+    for (const [relativePath, contents] of Object.entries(files)) {
+      const absolutePath = path.join(root, relativePath);
+      mkdirSync(path.dirname(absolutePath), { recursive: true });
+      writeFileSync(absolutePath, contents, 'utf8');
+    }
+    return action(root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+let cachedRealProjects;
+
+function realProjects() {
+  cachedRealProjects ??= solutionProjects();
+  return cachedRealProjects;
 }
 
 test('legacy baseline is valid, deterministic, unique, and excludes generated paths', () => {
@@ -474,30 +536,30 @@ test('exceptions are valid at the fixed policy date and start empty', () => {
   validateExceptions(exceptions, fixedPolicyDate);
 });
 
-test('real solution projects match module framework and package-version policies', () => {
+test('real governed projects match solution, framework, and package policies', () => {
   const modulePolicy = readJson('eng/standards/module-policy.json');
   validateModulePolicy(modulePolicy);
-  const projects = solutionProjects();
-  const testProjects = projects.filter((project) => project.isTestProject);
-  assert.ok(testProjects.length > 0, 'solution metadata must identify test projects');
+  const projects = realProjects();
+  assert.ok(
+    projects.some((project) => project.isTestProject),
+    'evaluated MSBuild metadata must identify test projects'
+  );
   assert.deepEqual(projectPolicyErrors(modulePolicy, projects), []);
 });
 
 test('framework policy rejects an added xUnit package and a displaced override', () => {
   const modulePolicy = readJson('eng/standards/module-policy.json');
-  validateModulePolicy(modulePolicy);
-  const projects = solutionProjects();
-
+  const projects = realProjects();
   const mstestProject = projects.find(
     (project) =>
       project.path === 'apps/monitors/airqmonitor/AirQMonitorTests/AirQMonitorTests.csproj'
   );
-  assert.ok(mstestProject, 'AirQMonitorTests must be present in the real solution metadata');
+  assert.ok(mstestProject, 'AirQMonitorTests must be present in governed metadata');
   const withAddedXunit = {
     ...mstestProject,
     packageReferences: [
       ...mstestProject.packageReferences,
-      { include: 'xunit', version: undefined }
+      { include: 'XUNIT', version: undefined }
     ],
     frameworks: [...mstestProject.frameworks, 'xUnit'].sort(compareCodePoints)
   };
@@ -514,201 +576,298 @@ test('framework policy rejects an added xUnit package and a displaced override',
       project.path ===
       'apps/monitors/reportingmonitor/ReportingMonitorTests/ReportingMonitorTests.csproj'
   );
-  assert.ok(reportingProject, 'ReportingMonitorTests must be present in real solution metadata');
+  assert.ok(reportingProject, 'ReportingMonitorTests must be present in governed metadata');
   assert.match(
     projectPolicyErrors(displacedOverride, [reportingProject]).join('\n'),
     /ReportingMonitorTests\.csproj: expected MSTest .*found xUnit/
   );
 });
 
-test('test-project identity survives removal of its required framework reference', () => {
-  const modulePolicy = readJson('eng/standards/module-policy.json');
-  const projectPath =
-    'apps/monitors/airqmonitor/AirQMonitorTests/AirQMonitorTests.csproj';
-  const projectXml = readFileSync(path.join(repoRoot, projectPath), 'utf8');
-  const withoutFrameworkXml = projectXml.replace(
-    /^\s*<PackageReference Include="MSTest\.TestFramework" \/>\r?\n/m,
-    ''
-  );
-  assert.notEqual(
-    withoutFrameworkXml,
-    projectXml,
-    'mutation must remove the real MSTest framework reference'
-  );
+test('evaluated test identity survives a missing framework and matches IDs case-insensitively', () => {
+  withTemporaryRepository({
+    'apps/monitors/Directory.Packages.props': `
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageVersion Include="mStEsT.tEsTfRaMeWoRk" Version="4.0.2" />
+    <PackageVersion Include="XUNIT" Version="2.9.3" />
+  </ItemGroup>
+</Project>
+`,
+    'apps/monitors/missing/Missing.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+  </ItemGroup>
+</Project>
+`,
+    'apps/monitors/case/Case.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="mStEsT.tEsTfRaMeWoRk" />
+  </ItemGroup>
+</Project>
+`,
+    'apps/monitors/mixed/Mixed.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="mStEsT.tEsTfRaMeWoRk" />
+    <PackageReference Include="XUNIT" />
+  </ItemGroup>
+</Project>
+`
+  }, (root) => {
+    const missing = evaluateProjectMetadata(root, 'apps/monitors/missing/Missing.csproj');
+    assert.equal(missing.isTestProject, true);
+    assert.match(
+      projectPolicyErrors(expectedModulePolicy, [missing], root).join('\n'),
+      /Missing\.csproj: expected MSTest .*found no supported test framework/
+    );
 
-  const withoutFramework = projectMetadata(projectPath, withoutFrameworkXml);
-  assert.equal(
-    withoutFramework.isTestProject,
-    true,
-    'IsTestProject or Microsoft.NET.Test.Sdk must identify the project independently'
-  );
-  assert.match(
-    projectPolicyErrors(modulePolicy, [withoutFramework]).join('\n'),
-    /AirQMonitorTests\.csproj: expected MSTest .*found no supported test framework/
-  );
+    const caseVariant = evaluateProjectMetadata(root, 'apps/monitors/case/Case.csproj');
+    assert.deepEqual(caseVariant.frameworks, ['MSTest']);
+    assert.deepEqual(projectPolicyErrors(expectedModulePolicy, [caseVariant], root), []);
+
+    const mixed = evaluateProjectMetadata(root, 'apps/monitors/mixed/Mixed.csproj');
+    assert.match(
+      projectPolicyErrors(expectedModulePolicy, [mixed], root).join('\n'),
+      /Mixed\.csproj: expected MSTest .*found MSTest, xUnit/
+    );
+  });
 });
 
-test('NuGet framework package IDs are matched case-insensitively', () => {
-  const modulePolicy = readJson('eng/standards/module-policy.json');
-  const projectPath =
-    'apps/monitors/airqmonitor/AirQMonitorTests/AirQMonitorTests.csproj';
-  const projectXml = readFileSync(path.join(repoRoot, projectPath), 'utf8');
+test('MSBuild evaluation ignores XML comments and false conditions', () => {
+  withTemporaryRepository({
+    'apps/monitors/Directory.Packages.props': `
+<Project>
+  <PropertyGroup>
+    <!-- <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally> -->
+    <ManagePackageVersionsCentrally Condition="'$(EnableCentral)' == 'true'">
+      true
+    </ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- <PackageVersion Include="Commented.Package" Version="1.0.0" /> -->
+    <PackageVersion
+      Include="Conditional.Package"
+      Version="1.0.0"
+      Condition="'$(EnableConditionalPackage)' == 'true'"
+    />
+  </ItemGroup>
+</Project>
+`,
+    'apps/monitors/probe/Probe.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <!-- <PackageReference Include="MSTest.TestFramework" Version="4.0.2" /> -->
+    <PackageReference Include="Conditional.Package" />
+  </ItemGroup>
+</Project>
+`,
+    'apps/monitors/production/Production.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsTestProject Condition="'$(ClassifyAsTest)' == 'true'">true</IsTestProject>
+  </PropertyGroup>
+</Project>
+`
+  }, (root) => {
+    const probe = evaluateProjectMetadata(root, 'apps/monitors/probe/Probe.csproj');
+    assert.deepEqual(probe.frameworks, []);
+    assert.equal(probe.managePackageVersionsCentrally, false);
+    assert.deepEqual(probe.packageVersions, []);
+    const errors = projectPolicyErrors(expectedModulePolicy, [probe], root).join('\n');
+    assert.match(errors, /requires ManagePackageVersionsCentrally=true/);
+    assert.match(errors, /has no effective PackageVersion for Conditional\.Package/);
 
-  const caseVariantXml = projectXml.replace(
-    'Include="MSTest.TestFramework"',
-    'Include="mStEsT.tEsTfRaMeWoRk"'
-  );
-  assert.notEqual(caseVariantXml, projectXml, 'mutation must change the package ID casing');
-  const caseVariant = projectMetadata(projectPath, caseVariantXml);
-  assert.deepEqual(caseVariant.frameworks, ['MSTest']);
-  assert.deepEqual(projectPolicyErrors(modulePolicy, [caseVariant]), []);
-
-  const mixedFrameworkXml = projectXml.replace(
-    '<PackageReference Include="MSTest.TestFramework" />',
-    '<PackageReference Include="MSTest.TestFramework" />\n' +
-      '    <PackageReference Include="XUNIT" />'
-  );
-  assert.notEqual(
-    mixedFrameworkXml,
-    projectXml,
-    'mutation must add the case-variant forbidden framework'
-  );
-  const mixedFrameworks = projectMetadata(projectPath, mixedFrameworkXml);
-  assert.match(
-    projectPolicyErrors(modulePolicy, [mixedFrameworks]).join('\n'),
-    /AirQMonitorTests\.csproj: expected MSTest .*found MSTest, xUnit/
-  );
+    const production = evaluateProjectMetadata(
+      root,
+      'apps/monitors/production/Production.csproj'
+    );
+    assert.equal(production.isTestProject, false);
+  });
 });
 
-test('module-central requires effective central package management', () => {
-  const modulePolicy = readJson('eng/standards/module-policy.json');
-  const projects = solutionProjects();
-  const centralPath = 'apps/monitors/Directory.Packages.props';
-  const centralXml = repositoryView.readText(centralPath);
-  assert.ok(centralXml, `${centralPath} must exist in the real repository`);
-
-  const withoutCentralManagement = centralXml.replace(
-    /^\s*<ManagePackageVersionsCentrally>true<\/ManagePackageVersionsCentrally>\r?\n/m,
-    ''
-  );
-  assert.notEqual(
-    withoutCentralManagement,
-    centralXml,
-    'mutation must remove ManagePackageVersionsCentrally'
-  );
-  const missingManagementView = withRepositoryMutations({
-    text: new Map([[centralPath, withoutCentralManagement]])
+test('MSBuild evaluation honors project lock overrides and commented restore properties', () => {
+  withTemporaryRepository({
+    'libs/rvt-monitor-common/Directory.Build.props': `
+<Project>
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/Directory.Packages.props': `
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Example.Package" Version="1.0.0" />
+  </ItemGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/override/Override.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+  </PropertyGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/override/packages.lock.json': '{}',
+    'libs/rvt-monitor-common/commented/Directory.Build.props': `
+<Project>
+  <PropertyGroup>
+    <!-- <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile> -->
+  </PropertyGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/commented/Commented.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/commented/packages.lock.json': '{}'
+  }, (root) => {
+    for (const projectPath of [
+      'libs/rvt-monitor-common/override/Override.csproj',
+      'libs/rvt-monitor-common/commented/Commented.csproj'
+    ]) {
+      const project = evaluateProjectMetadata(root, projectPath);
+      assert.equal(project.restorePackagesWithLockFile, false);
+      assert.match(
+        projectPolicyErrors(expectedModulePolicy, [project], root).join('\n'),
+        /module-central-locked requires RestorePackagesWithLockFile=true/
+      );
+    }
   });
-  assert.match(
-    projectPolicyErrors(modulePolicy, projects, missingManagementView).join('\n'),
-    /apps\/monitors: module-central requires ManagePackageVersionsCentrally=true/
-  );
-
-  const centralManagementDisabled = centralXml.replace(
-    '</PropertyGroup>',
-    '    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>\n' +
-      '  </PropertyGroup>'
-  );
-  assert.notEqual(
-    centralManagementDisabled,
-    centralXml,
-    'mutation must override central package management to false'
-  );
-  const disabledManagementView = withRepositoryMutations({
-    text: new Map([[centralPath, centralManagementDisabled]])
-  });
-  assert.match(
-    projectPolicyErrors(modulePolicy, projects, disabledManagementView).join('\n'),
-    /apps\/monitors: module-central requires ManagePackageVersionsCentrally=true/
-  );
 });
 
-test('module-central requires a central declaration for every package reference', () => {
-  const modulePolicy = readJson('eng/standards/module-policy.json');
-  const projects = solutionProjects();
-  const centralPath = 'apps/monitors/Directory.Packages.props';
-  const centralXml = repositoryView.readText(centralPath);
-  assert.ok(centralXml, `${centralPath} must exist in the real repository`);
-  const withoutTestSdkVersion = centralXml.replace(
-    /^\s*<PackageVersion Include="Microsoft\.NET\.Test\.Sdk"[^>]*\/>\r?\n/gm,
-    ''
-  );
-  assert.notEqual(
-    withoutTestSdkVersion,
-    centralXml,
-    'mutation must remove every central Microsoft.NET.Test.Sdk declaration'
-  );
-  const missingDeclarationView = withRepositoryMutations({
-    text: new Map([[centralPath, withoutTestSdkVersion]])
+test('MSBuild evaluation recognizes nested inline PackageReference versions', () => {
+  withTemporaryRepository({
+    'apps/monitors/Directory.Packages.props': `
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Example.Package" Version="1.2.3" />
+  </ItemGroup>
+</Project>
+`,
+    'apps/monitors/probe/Probe.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Example.Package">
+      <Version>1.2.3</Version>
+    </PackageReference>
+  </ItemGroup>
+</Project>
+`
+  }, (root) => {
+    const project = evaluateProjectMetadata(root, 'apps/monitors/probe/Probe.csproj');
+    assert.equal(project.packageReferences[0].version, '1.2.3');
+    assert.match(
+      projectPolicyErrors(expectedModulePolicy, [project], root).join('\n'),
+      /module-central forbids inline versions for Example\.Package/
+    );
   });
-  assert.match(
-    projectPolicyErrors(modulePolicy, projects, missingDeclarationView).join('\n'),
-    /AirQMonitorTests\.csproj: module-central has no central PackageVersion for Microsoft\.NET\.Test\.Sdk/
-  );
 });
 
-test('module-central-locked requires effective lock-file restore', () => {
-  const modulePolicy = readJson('eng/standards/module-policy.json');
-  const projects = solutionProjects();
-  const buildPropsPath = 'libs/rvt-monitor-common/Directory.Build.props';
-  const buildPropsXml = repositoryView.readText(buildPropsPath);
-  assert.ok(buildPropsXml, `${buildPropsPath} must exist in the real repository`);
-
-  const withoutLockRestore = buildPropsXml.replace(
-    /^\s*<RestorePackagesWithLockFile>true<\/RestorePackagesWithLockFile>\r?\n/m,
-    ''
-  );
-  assert.notEqual(
-    withoutLockRestore,
-    buildPropsXml,
-    'mutation must remove RestorePackagesWithLockFile'
-  );
-  const missingLockRestoreView = withRepositoryMutations({
-    text: new Map([[buildPropsPath, withoutLockRestore]])
+test('module-central-locked requires a colocated lock file for every project', () => {
+  withTemporaryRepository({
+    'libs/rvt-monitor-common/Directory.Build.props': `
+<Project>
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/Directory.Packages.props': `
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Example.Package" Version="1.0.0" />
+  </ItemGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/probe/Probe.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+`
+  }, (root) => {
+    const project = evaluateProjectMetadata(
+      root,
+      'libs/rvt-monitor-common/probe/Probe.csproj'
+    );
+    assert.match(
+      projectPolicyErrors(expectedModulePolicy, [project], root).join('\n'),
+      /Probe\.csproj: module-central-locked requires packages\.lock\.json/
+    );
   });
-  assert.match(
-    projectPolicyErrors(modulePolicy, projects, missingLockRestoreView).join('\n'),
-    /libs\/rvt-monitor-common: module-central-locked requires RestorePackagesWithLockFile=true/
-  );
-
-  const lockRestoreDisabled = buildPropsXml.replace(
-    '</PropertyGroup>',
-    '    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>\n' +
-      '  </PropertyGroup>'
-  );
-  assert.notEqual(
-    lockRestoreDisabled,
-    buildPropsXml,
-    'mutation must override lock-file restore to false'
-  );
-  const disabledLockRestoreView = withRepositoryMutations({
-    text: new Map([[buildPropsPath, lockRestoreDisabled]])
-  });
-  assert.match(
-    projectPolicyErrors(modulePolicy, projects, disabledLockRestoreView).join('\n'),
-    /libs\/rvt-monitor-common: module-central-locked requires RestorePackagesWithLockFile=true/
-  );
 });
 
-test('module-central-locked requires a lock file for every project', () => {
-  const modulePolicy = readJson('eng/standards/module-policy.json');
-  const projects = solutionProjects();
-  const projectPath =
-    'libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/' +
-    'Rvt.Communication.Abstractions.csproj';
-  const lockPath =
-    'libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/packages.lock.json';
-  assert.ok(repositoryView.exists(lockPath), `${lockPath} must exist in the real repository`);
-  const missingLockFileView = withRepositoryMutations({
-    missing: new Set([lockPath])
+test('governed project discovery rejects a project omitted from the solution', () => {
+  withTemporaryRepository({
+    'Rvt.Mono.slnx': `
+<Solution>
+  <Project Path="apps/monitors/listed/Listed.csproj" />
+</Solution>
+`,
+    'apps/monitors/listed/Listed.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+`,
+    'apps/monitors/omitted/Omitted.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+`
+  }, (root) => {
+    assert.throws(
+      () => solutionProjects(root),
+      /Rvt\.Mono\.slnx must contain every governed project exactly once/
+    );
   });
-  assert.match(
-    projectPolicyErrors(modulePolicy, projects, missingLockFileView).join('\n'),
-    new RegExp(
-      `${projectPath.replaceAll('.', '\\.').replaceAll('/', '\\/')}: ` +
-      'module-central-locked requires packages\\.lock\\.json'
-    )
-  );
 });
 
 test('module policy rejects an unauthorized extra module boundary', () => {

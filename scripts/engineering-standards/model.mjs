@@ -4,23 +4,33 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const WILDCARD = /[*?[\]{}]/;
 
 export function normalizeRepositoryPath(repoRoot, candidate) {
-  const normalizedRoot = path.posix.resolve(toPosixPath(repoRoot));
-  const normalizedCandidate = path.posix.resolve(
+  assertNonEmptyString(repoRoot, 'repository root');
+  assertNonEmptyString(candidate, 'candidate path');
+
+  const pathApi = isWindowsRoot(repoRoot) ? path.win32 : path.posix;
+  if (pathApi === path.posix && isWindowsRoot(candidate)) {
+    throw new Error(`Path is outside repository root: ${candidate}`);
+  }
+
+  const rootValue = preparePath(pathApi, repoRoot);
+  const candidateValue = preparePath(pathApi, candidate);
+  const normalizedRoot = pathApi.resolve(rootValue);
+  const normalizedCandidate = pathApi.resolve(
     normalizedRoot,
-    toPosixPath(candidate)
+    candidateValue
   );
-  const relative = path.posix.relative(normalizedRoot, normalizedCandidate);
+  const relative = pathApi.relative(normalizedRoot, normalizedCandidate);
 
   if (
     relative === '' ||
     relative === '..' ||
-    relative.startsWith('../') ||
-    path.posix.isAbsolute(relative)
+    relative.startsWith(`..${pathApi.sep}`) ||
+    pathApi.isAbsolute(relative)
   ) {
     throw new Error(`Path is outside repository root: ${candidate}`);
   }
 
-  return relative;
+  return relative.replaceAll('\\', '/');
 }
 
 export function parseDotnetFormatReport(report, repoRoot = process.cwd()) {
@@ -34,7 +44,7 @@ export function parseDotnetFormatReport(report, repoRoot = process.cwd()) {
       tool: 'dotnet-format-style',
       ruleId: requiredString(change?.DiagnosticId, '.NET diagnostic ID'),
       path: normalizeRepositoryPath(repoRoot, file.FilePath),
-      line: diagnosticLine(change?.LineNumber),
+      line: requireDiagnosticLine(change?.LineNumber, '.NET diagnostic line'),
       message: requiredString(
         change?.FormatDescription,
         '.NET diagnostic description'
@@ -54,9 +64,9 @@ export function parseEslintReport(report, repoRoot = process.cwd()) {
       .filter((message) => message?.severity > 0)
       .map((message) => ({
         tool: 'eslint',
-        ruleId: requiredString(message?.ruleId, 'ESLint rule ID'),
+        ruleId: eslintRuleId(message),
         path: normalizeRepositoryPath(repoRoot, file.filePath),
-        line: diagnosticLine(message?.line),
+        line: requireDiagnosticLine(message?.line, 'ESLint diagnostic line'),
         message: requiredString(message?.message, 'ESLint message')
       }));
   });
@@ -165,11 +175,13 @@ export function compareRatchet({
     (item) => !matchesGenericException(item, exceptions)
   );
 
-  const changedSurfaceViolations = activeDiagnostics.filter(
-    (item) =>
-      newPaths.has(item.path) ||
-      isLineChanged(item.line, changedRanges.get(item.path) ?? [])
-  );
+  const changedSurfaceViolations = [
+    ...activeDiagnostics.filter(
+      (item) =>
+        newPaths.has(item.path) ||
+        isLineChanged(item.line, changedRanges.get(item.path) ?? [])
+    )
+  ].sort(compareDiagnostics);
 
   const observedCounts = countDiagnostics(activeDiagnostics);
   const keys = [...new Set([...observedCounts.keys(), ...baseline.keys()])].sort();
@@ -200,9 +212,17 @@ export function compareRatchet({
   return result;
 }
 
-function toPosixPath(value) {
-  assertNonEmptyString(value, 'path');
-  return value.replaceAll('\\', '/');
+function isWindowsRoot(value) {
+  return (
+    /^[A-Za-z]:[\\/]/.test(value) ||
+    /^[\\/]{2}[^\\/]+[\\/][^\\/]+/.test(value)
+  );
+}
+
+function preparePath(pathApi, value) {
+  return pathApi === path.win32
+    ? value.replaceAll('/', '\\')
+    : value.replaceAll('\\', '/');
 }
 
 function requiredString(value, label) {
@@ -247,6 +267,7 @@ function validateExactRepositoryPath(value, label) {
   if (
     value.includes('\\') ||
     WILDCARD.test(value) ||
+    value === '.' ||
     path.posix.isAbsolute(value) ||
     path.posix.normalize(value) !== value ||
     value === '..' ||
@@ -290,8 +311,33 @@ function validateRuleSpecificValidator(validator, ruleId, label) {
   }
 }
 
-function diagnosticLine(value) {
-  return Number.isInteger(value) && value >= 0 ? value : 0;
+function eslintRuleId(message) {
+  if (
+    message?.fatal === true &&
+    (message.ruleId === null ||
+      message.ruleId === undefined ||
+      (typeof message.ruleId === 'string' && message.ruleId.trim() === ''))
+  ) {
+    return 'eslint/fatal-parse-error';
+  }
+
+  return requiredString(message?.ruleId, 'ESLint rule ID');
+}
+
+function requireDiagnosticLine(value, label) {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${label} must be a positive integer`);
+  }
+
+  return value;
+}
+
+function compareDiagnostics(left, right) {
+  return (
+    compareStrings(diagnosticKey(left), diagnosticKey(right)) ||
+    left.line - right.line ||
+    compareStrings(left.message, right.message)
+  );
 }
 
 function matchesGenericException(item, exceptions) {
@@ -307,6 +353,10 @@ function isLineChanged(line, ranges) {
   return ranges.some(
     ({ startLine, endLine }) => line >= startLine && line <= endLine
   );
+}
+
+function compareStrings(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function parseDiagnosticKey(key) {

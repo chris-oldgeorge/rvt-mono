@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import {
@@ -61,6 +60,47 @@ test('normalizeRepositoryPath rejects a path outside the repository root', () =>
   );
 });
 
+test('normalizeRepositoryPath handles Windows drive and UNC roots', () => {
+  assert.equal(
+    normalizeRepositoryPath(
+      String.raw`C:\work\rvt`,
+      String.raw`C:\work\rvt\src\Clock.cs`
+    ),
+    'src/Clock.cs'
+  );
+  assert.equal(
+    normalizeRepositoryPath(
+      String.raw`\\build-server\source\rvt`,
+      String.raw`\\build-server\source\rvt\src\Clock.cs`
+    ),
+    'src/Clock.cs'
+  );
+});
+
+test('normalizeRepositoryPath rejects Windows traversal and cross-root paths', () => {
+  assert.throws(
+    () => normalizeRepositoryPath(
+      String.raw`C:\work\rvt`,
+      String.raw`C:\work\outside\Clock.cs`
+    ),
+    /outside repository root/i
+  );
+  assert.throws(
+    () => normalizeRepositoryPath(
+      String.raw`C:\work\rvt`,
+      String.raw`D:\work\rvt\src\Clock.cs`
+    ),
+    /outside repository root/i
+  );
+  assert.throws(
+    () => normalizeRepositoryPath(
+      String.raw`\\build-server\source\rvt`,
+      String.raw`\\other-server\source\rvt\src\Clock.cs`
+    ),
+    /outside repository root/i
+  );
+});
+
 test('parsers normalize realistic dotnet-format and ESLint reports', async () => {
   const dotnetReport = await readFixture('dotnet-format-report.json');
   const eslintReport = await readFixture('eslint-report.json');
@@ -77,6 +117,78 @@ test('parsers normalize realistic dotnet-format and ESLint reports', async () =>
       message: "'unused' is assigned a value but never used."
     }
   ]);
+});
+
+test('parseEslintReport assigns a stable rule to fatal parse messages', () => {
+  const report = [{
+    filePath: '/repo/src/broken.ts',
+    messages: [
+      {
+        ruleId: null,
+        fatal: true,
+        severity: 2,
+        message: 'Parsing error: Expression expected.',
+        line: 1,
+        column: 4
+      },
+      {
+        ruleId: '',
+        fatal: true,
+        severity: 2,
+        message: 'Parsing error: Declaration expected.',
+        line: 2,
+        column: 1
+      }
+    ]
+  }];
+
+  assert.deepEqual(parseEslintReport(report, repoRoot), [
+    {
+      tool: 'eslint',
+      ruleId: 'eslint/fatal-parse-error',
+      path: 'src/broken.ts',
+      line: 1,
+      message: 'Parsing error: Expression expected.'
+    },
+    {
+      tool: 'eslint',
+      ruleId: 'eslint/fatal-parse-error',
+      path: 'src/broken.ts',
+      line: 2,
+      message: 'Parsing error: Declaration expected.'
+    }
+  ]);
+});
+
+test('report parsers reject invalid one-based diagnostic lines', () => {
+  const invalidLines = [undefined, 0, -1, 1.5, '4'];
+
+  for (const line of invalidLines) {
+    assert.throws(
+      () => parseDotnetFormatReport([{
+        FilePath: '/repo/src/Clock.cs',
+        FileChanges: [{
+          LineNumber: line,
+          DiagnosticId: 'IDE0055',
+          FormatDescription: 'Fix formatting'
+        }]
+      }], repoRoot),
+      /line.*positive integer/i
+    );
+
+    assert.throws(
+      () => parseEslintReport([{
+        filePath: '/repo/src/calendarDate.ts',
+        messages: [{
+          ruleId: '@typescript-eslint/no-unused-vars',
+          severity: 2,
+          message: 'Unused value.',
+          line
+        }]
+      }], repoRoot),
+      /line.*positive integer/i
+    );
+  }
 });
 
 test('diagnosticKey and countDiagnostics use exact tab-separated identity', () => {
@@ -141,6 +253,21 @@ test('validateBaseline rejects duplicate, negative, and fractional counts', () =
   );
 });
 
+test('validateBaseline rejects the repository root as a diagnostic path', () => {
+  assert.throws(
+    () => validateBaseline({
+      version: 1,
+      entries: [{
+        tool: 'dotnet-format-style',
+        ruleId: 'IDE0055',
+        path: '.',
+        count: 1
+      }]
+    }),
+    /exact repository-relative path/i
+  );
+});
+
 test('validateExceptions rejects expired exceptions', () => {
   assert.throws(
     () => validateExceptions(
@@ -189,6 +316,16 @@ test('validateExceptions rejects wildcard paths and unvalidated symbol scopes', 
       },
       new Date('2026-07-27T00:00:00Z')
     )
+  );
+});
+
+test('validateExceptions rejects the repository root as an exact path', () => {
+  assert.throws(
+    () => validateExceptions(
+      { version: 1, exceptions: [exception({ path: '.' })] },
+      new Date('2026-07-27T00:00:00Z')
+    ),
+    /exact repository-relative path/i
   );
 });
 
@@ -248,6 +385,26 @@ test('compareRatchet reports a baseline decrease and unchanged count', () => {
     path: 'src/Clock.cs',
     baseline: 1,
     observed: 1
+  }]);
+});
+
+test('compareRatchet reports a decrease for a baseline-only key', () => {
+  const result = compareRatchet({
+    diagnostics: [],
+    baseline: new Map([
+      ['dotnet-format-style\tIDE0055\tsrc/RemovedClock.cs', 2]
+    ]),
+    newPaths: new Set(),
+    changedRanges: new Map(),
+    exceptions: []
+  });
+
+  assert.deepEqual(result.decreases, [{
+    tool: 'dotnet-format-style',
+    ruleId: 'IDE0055',
+    path: 'src/RemovedClock.cs',
+    baseline: 2,
+    observed: 0
   }]);
 });
 
@@ -326,4 +483,78 @@ test('compareRatchet matches generic exceptions by exact rule and path only', ()
       { ruleId: 'IDE0055', path: 'src/nested/Clock.cs' }
     ]
   );
+});
+
+test('compareRatchet returns deterministic changed-surface ordering', () => {
+  const diagnostics = [
+    diagnostic({ ruleId: 'IDE0055', line: 7, message: 'Zulu' }),
+    diagnostic({ ruleId: 'IDE0005', line: 12, message: 'Unused import' }),
+    diagnostic({ ruleId: 'IDE0055', line: 7, message: 'Alpha' }),
+    diagnostic({ ruleId: 'IDE0055', line: 3, message: 'Early' })
+  ];
+  const input = {
+    baseline: new Map(),
+    newPaths: new Set(['src/Clock.cs']),
+    changedRanges: new Map(),
+    exceptions: []
+  };
+
+  const forward = compareRatchet({ ...input, diagnostics });
+  const reversed = compareRatchet({
+    ...input,
+    diagnostics: [...diagnostics].reverse()
+  });
+
+  assert.deepEqual(
+    forward.changedSurfaceViolations,
+    reversed.changedSurfaceViolations
+  );
+  assert.deepEqual(
+    forward.changedSurfaceViolations.map(({ ruleId, line, message }) => ({
+      ruleId,
+      line,
+      message
+    })),
+    [
+      { ruleId: 'IDE0005', line: 12, message: 'Unused import' },
+      { ruleId: 'IDE0055', line: 3, message: 'Early' },
+      { ruleId: 'IDE0055', line: 7, message: 'Alpha' },
+      { ruleId: 'IDE0055', line: 7, message: 'Zulu' }
+    ]
+  );
+});
+
+test('compareRatchet does not mutate caller-owned inputs', () => {
+  const inputs = {
+    diagnostics: [diagnostic({ line: 9 }), diagnostic({ line: 4 })],
+    baseline: new Map([
+      ['dotnet-format-style\tIDE0055\tsrc/Clock.cs', 2]
+    ]),
+    newPaths: new Set(['src/NewClock.cs']),
+    changedRanges: new Map([
+      ['src/Clock.cs', [{ startLine: 8, endLine: 10 }]]
+    ]),
+    exceptions: [exception({ ruleId: 'IDE0005' })]
+  };
+  const before = {
+    diagnostics: structuredClone(inputs.diagnostics),
+    baseline: [...inputs.baseline],
+    newPaths: [...inputs.newPaths],
+    changedRanges: [...inputs.changedRanges].map(([key, ranges]) => [
+      key,
+      structuredClone(ranges)
+    ]),
+    exceptions: structuredClone(inputs.exceptions)
+  };
+
+  compareRatchet(inputs);
+
+  assert.deepEqual(inputs.diagnostics, before.diagnostics);
+  assert.deepEqual([...inputs.baseline], before.baseline);
+  assert.deepEqual([...inputs.newPaths], before.newPaths);
+  assert.deepEqual(
+    [...inputs.changedRanges].map(([key, ranges]) => [key, ranges]),
+    before.changedRanges
+  );
+  assert.deepEqual(inputs.exceptions, before.exceptions);
 });

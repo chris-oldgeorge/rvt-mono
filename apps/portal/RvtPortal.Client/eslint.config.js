@@ -5,15 +5,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: [
-      '**/._*',
-      'dist',
-      'node_modules',
-      'coverage',
-      'playwright-report',
-      'test-results',
-      'src/api/schema.d.ts'
-    ]
+    ignores: ['**/._*', 'dist', 'node_modules', 'coverage', 'playwright-report', 'test-results', 'src/api/schema.d.ts'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -32,16 +24,16 @@ export default tseslint.config(
         RequestInfo: 'readonly',
         Response: 'readonly',
         URL: 'readonly',
-        URLSearchParams: 'readonly'
+        URLSearchParams: 'readonly',
       },
       parserOptions: {
         project: ['./tsconfig.app.json', './tsconfig.test.json', './tsconfig.node.json'],
-        tsconfigRootDir: import.meta.dirname
-      }
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: {
       'react-hooks': reactHooks,
-      'react-refresh': reactRefresh
+      'react-refresh': reactRefresh,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -51,16 +43,16 @@ export default tseslint.config(
         'warn',
         { selector: 'variableLike', format: ['camelCase', 'PascalCase', 'UPPER_CASE'] },
         { selector: 'typeLike', format: ['PascalCase'] },
-        { selector: 'parameter', format: ['camelCase'], leadingUnderscore: 'allow' }
-      ]
-    }
+        { selector: 'parameter', format: ['camelCase'], leadingUnderscore: 'allow' },
+      ],
+    },
   },
   {
     files: ['tests/e2e/**/*.ts', 'playwright.config.ts'],
     languageOptions: {
       globals: {
-        process: 'readonly'
-      }
-    }
-  }
+        process: 'readonly',
+      },
+    },
+  },
 );

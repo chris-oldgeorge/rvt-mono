@@ -3293,3 +3293,23 @@ TimescaleDB extensions where the schema requires them.
 - Resume by dispatching the Task 1 implementer from the plan-specific ledger.
 
 Next-session instruction: Read project_state.md to get up to speed
+
+## Repository engineering standards Task 1 completion - 2026-07-27
+
+- Resume instruction: start a future session with Read project_state.md to get up to speed.
+- Worktree: /Users/oldgeorge/Developer/rvt-mono/.worktrees/repository-engineering-standards; branch codex/repository-engineering-standards. Task 1 implementation follows plan-correction base 170b4d8.
+- Root .editorconfig owns the repository formatting, CSharp style, private-field naming, migration, and generated-source defaults. The nested monitor, Portal, and reporting EditorConfigs no longer terminate inheritance; all existing module rules remain, with Portal braces aligned from silent to suggestion.
+- Root Directory.Build.props owns Nullable enable, ImplicitUsings enable, AnalysisLevel latest-recommended, Deterministic true, and CI ContinuousIntegrationBuild. RvtEngineeringStandardsMode defaults to Ratchet; Ratchet evaluates EnforceCodeStyleInBuild false and an explicit Strict mode evaluates it true.
+- Module Directory.Build.props files under apps/monitors, apps/portal, libs/rvt-monitor-common, and services/reporting import the root immediately after Project. Former module EnforceCodeStyleInBuild true overrides were removed so Ratchet is authoritative. Monitors and shared common retain stronger AnalysisLevel latest.
+- File structure added or modified by Task 1: root .editorconfig and Directory.Build.props; three nested EditorConfigs; four module Directory.Build.props files; executable tests/verify-engineering-configuration.test.sh.
+- Guard variables are root_dir, temp_dir, nuget_config, representative_projects, representative_project, project_relative_path, expected_analysis_level, strict_project, editorconfig_root, editorconfig_modules, module_dir, msbuild_root, project, property, expected, actual, output, report, and status.
+- The guard canonicalizes macOS TMPDIR with pwd -P, clears temporary NuGet sources, keeps package and HTTP caches under the temporary root, and cleans through an EXIT trap.
+- Strict TDD for the approved mode change: the amended guard failed because AirQMonitor evaluated RvtEngineeringStandardsMode as empty instead of Ratchet. After the minimal root conditions and removal of three module overrides, the focused guard passed.
+- Evaluated behavior: four representative module projects expose the root properties and default Ratchet plus EnforceCodeStyleInBuild false. A property-only Portal evaluation with RvtEngineeringStandardsMode Strict exposes Strict plus EnforceCodeStyleInBuild true without compiling legacy source.
+- EditorConfig behavior: dotnet format style observes a root-only IDE1006 under copied monitor, Portal, and reporting configs. Inserting a nested root terminator removes that diagnostic in each mutation. Removing a copied monitor root import removes evaluated Nullable.
+- Verification: all 10 root guard scripts pass; root restore passes with five existing System.Security.Cryptography.Xml 10.0.7 NU1903 advisories and no lock drift; default Ratchet root build passes with 73 warnings and 0 errors, three below the recorded 76-warning baseline.
+- No full Strict solution build was run. Strict becomes the default only after later changed-scope baseline work reaches zero and a strict root build passes. No Portal severity was lowered and no suppression was added.
+- Codegraph status and context were retried before edits and failed with unable to open database file, so focused inspection was used.
+- Full TDD, mutation, guard, restore, build, warning, file, and self-review evidence is in .superpowers/sdd/2026-07-27-repository-engineering-standards-enforcement/task-1-report.md.
+
+Next-session instruction: Read project_state.md to get up to speed

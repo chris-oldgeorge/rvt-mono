@@ -1,8 +1,9 @@
 <Project>
+  <Import Project="../../Directory.Build.props" />
+
   <PropertyGroup>
     <DefaultItemExcludes>$(DefaultItemExcludes);**/._*</DefaultItemExcludes>
     <AnalysisLevel>latest</AnalysisLevel>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectName)').EndsWith('Tests'))">

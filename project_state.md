@@ -3280,4 +3280,16 @@ TimescaleDB extensions where the schema requires them.
   documentation/evidence. Implementation has not started and requires selection
   of the plan execution workflow.
 
+## Engineering standards enforcement execution preflight - 2026-07-27
+
+- The user selected the Subagent-Driven execution option for
+  `docs/superpowers/plans/2026-07-27-repository-engineering-standards-enforcement.md`.
+- The plan-specific ledger is
+  `.superpowers/sdd/2026-07-27-repository-engineering-standards-enforcement/progress.md`.
+- The user ruled that normative TST-002 and TST-003 govern the Task 1 conflict.
+  The plan now preserves the same configuration requirements but proves them via
+  evaluated `dotnet msbuild` properties, `dotnet format` EditorConfig behavior, and
+  representative mutations. No implementation commit existed at the ruling point.
+- Resume by dispatching the Task 1 implementer from the plan-specific ledger.
+
 Next-session instruction: Read project_state.md to get up to speed

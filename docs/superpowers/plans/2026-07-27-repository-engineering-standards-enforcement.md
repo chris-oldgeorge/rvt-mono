@@ -94,58 +94,26 @@ BLD-001, BLD-002, BLD-005
 - Produces: one root EditorConfig policy and one root MSBuild policy imported by
   all four module build roots.
 
-- [ ] **Step 1: Write the failing configuration hierarchy test**
+- [ ] **Step 1: Write the failing evaluated-configuration test**
 
-Create `tests/verify-engineering-configuration.test.sh` with exact checks for a
-single EditorConfig root and all module imports:
+Create `tests/verify-engineering-configuration.test.sh`. It MUST exercise the
+configuration through the tools that consume it; it MUST NOT pass merely because
+an expected XML or EditorConfig line exists.
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
+1. For one representative project in each of the four module roots, run
+   `dotnet msbuild -getProperty` and assert the evaluated values of `Nullable`,
+   `ImplicitUsings`, `AnalysisLevel`, `EnforceCodeStyleInBuild`, and
+   `Deterministic` match the root policy.
+2. Build a temporary minimal SDK project beneath copies of each of the three real
+   nested EditorConfig files. Add a probe-only naming rule to the copied root
+   EditorConfig, run `dotnet format style --verify-no-changes --severity info`,
+   and assert the root-only diagnostic is observed beneath every nested config.
+3. Keep all probe files and NuGet artifacts inside the temporary directory. The
+   test must be deterministic, offline after the repository restore, and must
+   clean up through a trap.
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-test -f "${repo_root}/.editorconfig"
-test -f "${repo_root}/Directory.Build.props"
-
-editor_roots="$(
-  git -C "${repo_root}" ls-files --cached --others --exclude-standard -- \
-    '.editorconfig' ':(glob)**/.editorconfig' \
-    | while IFS= read -r editor_config; do
-        if grep -Eq '^root[[:space:]]*=[[:space:]]*true$' \
-          "${repo_root}/${editor_config}"; then
-          printf '%s/%s\n' "${repo_root}" "${editor_config}"
-        fi
-      done \
-    | sort
-)"
-editor_root_count="$(
-  printf '%s\n' "${editor_roots}" | sed '/^$/d' | wc -l | tr -d ' '
-)"
-
-if [[ "${editor_root_count}" -ne 1 || "${editor_roots}" != "${repo_root}/.editorconfig" ]]; then
-  printf 'FAIL: only the repository .editorconfig may declare root=true.\n' >&2
-  printf '%s\n' "${editor_roots}" >&2
-  exit 1
-fi
-
-for module_props in \
-  apps/monitors/Directory.Build.props \
-  apps/portal/Directory.Build.props \
-  libs/rvt-monitor-common/Directory.Build.props \
-  services/reporting/Directory.Build.props; do
-  grep -Fq '<Import Project="../../Directory.Build.props"' \
-    "${repo_root}/${module_props}"
-done
-
-grep -Fq '<Nullable>enable</Nullable>' "${repo_root}/Directory.Build.props"
-grep -Fq '<ImplicitUsings>enable</ImplicitUsings>' "${repo_root}/Directory.Build.props"
-grep -Fq '<Deterministic>true</Deterministic>' "${repo_root}/Directory.Build.props"
-grep -Fq '<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>' \
-  "${repo_root}/Directory.Build.props"
-
-printf 'Engineering configuration hierarchy verified.\n'
-```
+The production change that makes this test fail is a missing root MSBuild import
+or a nested EditorConfig that terminates root policy inheritance.
 
 - [ ] **Step 2: Run the hierarchy test and verify RED**
 
@@ -155,8 +123,8 @@ Run:
 tests/verify-engineering-configuration.test.sh
 ```
 
-Expected: FAIL because the root files do not exist and three nested
-EditorConfig files still declare `root = true`.
+Expected: FAIL because the root configuration does not exist and the three nested
+EditorConfig files terminate inheritance, so evaluated root properties/rules are absent.
 
 - [ ] **Step 3: Add the root EditorConfig policy**
 
@@ -241,11 +209,11 @@ Expected: hierarchy verification and every existing root guard pass.
 
 - [ ] **Step 6: Add a nested-root mutation case**
 
-Extract the root-count logic into `verify_single_editor_root ROOT`. Copy a minimal
-Git configuration tree to a temporary directory, initialize it, add root and nested
-EditorConfig files, and assert that calling the helper returns nonzero with
-`only the repository .editorconfig may declare root=true`. This mutation must run
-inside the same test process and must not recursively invoke the test script.
+In the temporary evaluation tree, append `root = true` to each copied nested
+EditorConfig in turn and prove the root-only `dotnet format` diagnostic disappears.
+Also remove one copied module MSBuild import and prove at least one evaluated root
+property disappears. Restore each mutant before the next case. The guard passes only
+after every representative mutation is observed failing for the intended reason.
 
 - [ ] **Step 7: Build the root solution**
 

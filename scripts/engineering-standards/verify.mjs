@@ -292,7 +292,7 @@ function resolveScope(repoRoot, options) {
   ]);
   const materialized = materializeRevision(repoRoot, range.head);
   try {
-    provisionRangePrerequisites(repoRoot, materialized.root, tracked);
+    provisionRangePrerequisites(repoRoot, materialized.root, range.head, tracked);
     return {
       ...finalizeChangedScope(materialized.root, {
         paths: tracked,
@@ -336,11 +336,14 @@ function materializeRevision(repoRoot, revision) {
   };
 }
 
-function provisionRangePrerequisites(repoRoot, executionRoot, changedPaths) {
+function provisionRangePrerequisites(repoRoot, executionRoot, requestedHead, changedPaths) {
+  const applicable = changedPaths
+    .filter((item) => !isIgnoredPath(item))
+    .filter(isSourcePath);
   const needsDotnet =
     process.env.RVT_STANDARDS_DOTNET_COMMAND === undefined &&
-    changedPaths.some((item) => item.endsWith('.cs'));
-  const portalPaths = changedPaths.filter((item) => item.startsWith(portalPrefix));
+    applicable.some((item) => item.endsWith('.cs'));
+  const portalPaths = applicable.filter((item) => item.startsWith(portalPrefix));
   const needsPrettier =
     process.env.RVT_STANDARDS_PRETTIER_COMMAND === undefined &&
     portalPaths.length > 0;
@@ -351,23 +354,13 @@ function provisionRangePrerequisites(repoRoot, executionRoot, changedPaths) {
     );
   if (!needsDotnet && !needsPrettier && !needsEslint) return;
 
-  const trackedInputs = new Set([
-    ...gitLines(repoRoot, ['ls-files']),
-    ...gitLines(executionRoot, ['ls-files'])
-  ].filter(isDependencyInput));
-  for (const candidate of trackedInputs) {
-    const callerPath = path.join(repoRoot, candidate);
-    const headPath = path.join(executionRoot, candidate);
-    if (
-      !existsSync(callerPath) ||
-      !existsSync(headPath) ||
-      !readFileSync(callerPath).equals(readFileSync(headPath))
-    ) {
-      throw new InvocationError(
-        `Committed-range prerequisite inputs are incompatible with requested head: ${candidate}`
-      );
-    }
-  }
+  const callerHead = resolveRevision(repoRoot, 'HEAD');
+  if (needsDotnet) assertCompatibleFingerprint(
+    repoRoot, callerHead, requestedHead, isDotnetDependencyInput, '.NET'
+  );
+  if (needsPrettier || needsEslint) assertCompatibleFingerprint(
+    repoRoot, callerHead, requestedHead, isPortalDependencyInput, 'Portal'
+  );
 
   if (needsDotnet) {
     const projects = gitLines(executionRoot, ['ls-files']).filter(
@@ -405,13 +398,54 @@ function provisionRangePrerequisites(repoRoot, executionRoot, changedPaths) {
   }
 }
 
-function isDependencyInput(candidate) {
+function isDotnetDependencyInput(candidate) {
   const name = path.posix.basename(candidate).toLowerCase();
   return /\.(?:cs|fs|vb)proj$/i.test(candidate) ||
     /\.(?:props|targets|sln|slnx)$/i.test(candidate) ||
     name === 'global.json' || name === 'nuget.config' ||
-    /^(?:package|npm-shrinkwrap|pnpm-lock|yarn)(?:-lock)?\.(?:json|yaml|yml|lock)$/.test(name) ||
-    /^(?:eslint|prettier|tsconfig)(?:\..+)?$/.test(name);
+    name === 'packages.lock.json';
+}
+
+function isPortalDependencyInput(candidate) {
+  if (!candidate.startsWith(portalPrefix)) return false;
+  const name = path.posix.basename(candidate).toLowerCase();
+  return [
+    '.npmrc', 'npm-shrinkwrap.json', 'package-lock.json', 'package.json',
+    'pnpm-lock.yaml', 'pnpm-lock.yml', 'yarn.lock'
+  ].includes(name);
+}
+
+function dependencyFingerprint(repoRoot, revision, predicate) {
+  const output = gitText(repoRoot, [
+    'ls-tree', '-r', '--format=%(objectname)%x09%(path)', revision
+  ]);
+  const result = new Map();
+  for (const line of output.split('\n')) {
+    if (line === '') continue;
+    const separator = line.indexOf('\t');
+    if (separator <= 0) {
+      throw new InvocationError('Git returned a malformed dependency fingerprint');
+    }
+    const objectId = line.slice(0, separator);
+    const candidate = validateGitPath(repoRoot, line.slice(separator + 1));
+    if (predicate(candidate)) result.set(candidate, objectId);
+  }
+  return result;
+}
+
+function assertCompatibleFingerprint(repoRoot, callerHead, requestedHead, predicate, label) {
+  const caller = dependencyFingerprint(repoRoot, callerHead, predicate);
+  const requested = dependencyFingerprint(repoRoot, requestedHead, predicate);
+  const paths = [...new Set([...caller.keys(), ...requested.keys()])]
+    .sort(compareCodePoints);
+  const mismatch = paths.find(
+    (candidate) => caller.get(candidate) !== requested.get(candidate)
+  );
+  if (mismatch !== undefined) {
+    throw new InvocationError(
+      `Committed-range prerequisite inputs are incompatible for ${label}: ${mismatch}`
+    );
+  }
 }
 
 function provisionAssetDirectory(repoRoot, executionRoot, relativePath, label) {
@@ -1015,9 +1049,16 @@ function updateBaselineMonotonically(repoRoot, filePath, candidate) {
   validateContainedPath(repoRoot, filePath, 'Policy path');
   const canonicalTarget = realpathSync(filePath);
   const lockPath = `${canonicalTarget}.update.lock`;
+  const processStart = processStartIdentity(process.pid);
+  if (processStart === undefined) {
+    throw new InvocationError(
+      'Could not establish current process-start identity for baseline-update lock'
+    );
+  }
   const owner = {
     version: 1,
     pid: process.pid,
+    processStart,
     token: randomUUID(),
     createdAt: new Date().toISOString()
   };
@@ -1080,6 +1121,8 @@ function lockSnapshot(lockPath) {
       value?.version === 1 &&
       Number.isSafeInteger(value.pid) &&
       value.pid > 0 &&
+      typeof value.processStart === 'string' &&
+      value.processStart !== '' &&
       typeof value.token === 'string' &&
       value.token !== '' &&
       Number.isFinite(Date.parse(value.createdAt))
@@ -1101,10 +1144,26 @@ function processIsAlive(pid) {
   }
 }
 
+function processStartIdentity(pid) {
+  const result = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
+    encoding: 'utf8',
+    shell: false
+  });
+  if (result.error !== undefined || result.status !== 0) return undefined;
+  const identity = result.stdout.trim();
+  return identity === '' ? undefined : identity;
+}
+
 function reclaimStaleLock(lockPath) {
   const snapshot = lockSnapshot(lockPath);
   if (snapshot === undefined) return;
-  if (snapshot.kind === 'owner' && processIsAlive(snapshot.pid)) return;
+  if (snapshot.kind === 'owner') {
+    const currentStart = processStartIdentity(snapshot.pid);
+    if (currentStart === snapshot.processStart) return;
+    if (currentStart === undefined && processIsAlive(snapshot.pid)) {
+      return;
+    }
+  }
   if (
     snapshot.kind === 'partial' &&
     Date.now() - snapshot.mtimeMs < 1000

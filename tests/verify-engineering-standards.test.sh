@@ -5,12 +5,25 @@ source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 temp_root="$(mktemp -d "${TMPDIR:-/tmp}/rvt-engineering-standards.XXXXXX")"
 temp_root="$(cd "$temp_root" && pwd -P)"
 fake_bin="$temp_root/fake tools"
+sleep 30 &
+harness_pid_probe=$!
+harness_pid="$(ps -o ppid= -p "$harness_pid_probe" | tr -d '[:space:]')"
+kill "$harness_pid_probe"
+wait "$harness_pid_probe" 2>/dev/null || true
 case_number=0
 last_repo=
 last_output=
 last_status=0
 
 cleanup() {
+  sleep 30 &
+  cleanup_pid_probe=$!
+  current_shell_pid="$(ps -o ppid= -p "$cleanup_pid_probe" | tr -d '[:space:]')"
+  kill "$cleanup_pid_probe"
+  wait "$cleanup_pid_probe" 2>/dev/null || true
+  if [[ "$current_shell_pid" != "$harness_pid" ]]; then
+    return 0
+  fi
   rm -rf "$temp_root"
 }
 trap cleanup EXIT
@@ -46,6 +59,10 @@ write_json() {
   local destination="$1"
   local contents="$2"
   printf '%s\n' "$contents" > "$destination"
+}
+
+process_start_identity() {
+  ps -o lstart= -p "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 create_repo() {
@@ -527,12 +544,14 @@ node -e '
 create_repo initialize-race
 race_baseline="$last_repo/race-baseline.json"
 (
+  trap - EXIT
   RVT_FAKE_DELAY=0.1 RVT_TEST_BASELINE_PATH="$race_baseline" \
     run_verify --all --initialize-baseline
   printf '%s\n' "$last_status" > "$last_repo/race-status-1"
 ) &
 race_pid_1=$!
 (
+  trap - EXIT
   RVT_FAKE_DELAY=0.1 RVT_TEST_BASELINE_PATH="$race_baseline" \
     run_verify --all --initialize-baseline
   printf '%s\n' "$last_status" > "$last_repo/race-status-2"
@@ -582,6 +601,7 @@ write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
 write_dotnet_report "$last_repo/slow.json" "$last_repo/src/Clock.cs" "5:IDE0055"
 (
+  trap - EXIT
   RVT_FAKE_STARTED_MARKER="$last_repo/slow.started" RVT_FAKE_DELAY=0.2 \
   RVT_FAKE_DOTNET_REPORT="$last_repo/slow.json" \
   RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
@@ -595,6 +615,7 @@ for _ in {1..200}; do
 done
 [[ -e "$last_repo/slow.started" ]] || fail "slow update never started"
 (
+  trap - EXIT
   run_verify --all --update-baseline
   printf '%s\n' "$last_status" > "$last_repo/fast.status"
 ) &
@@ -616,49 +637,52 @@ assert_status 0
 create_repo canonical-baseline-lock
 canonical_lock="$last_repo/baseline.json.update.lock"
 mkdir "$canonical_lock"
+live_start="$(process_start_identity "$$")"
 write_json "$canonical_lock/owner.json" \
-  "{\"version\":1,\"pid\":$$,\"token\":\"live-owner\",\"createdAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
-live_dotnet_command="$(printf '["%s"]' "$fake_bin/fake-dotnet")"
-live_prettier_command="$(printf '["%s"]' "$fake_bin/fake-prettier")"
-live_eslint_command="$(printf '["%s"]' "$fake_bin/fake-eslint")"
-RVT_STANDARDS_DOTNET_COMMAND="$live_dotnet_command" \
-RVT_STANDARDS_PRETTIER_COMMAND="$live_prettier_command" \
-RVT_STANDARDS_ESLINT_COMMAND="$live_eslint_command" \
-RVT_STANDARDS_BASELINE_PATH="$last_repo/baseline.json" \
-RVT_STANDARDS_EXCEPTIONS_PATH="$last_repo/exceptions.json" \
-RVT_FAKE_LOG="$last_repo/tool.log" \
-RVT_FAKE_DOTNET_REPORT="" RVT_FAKE_DOTNET_STATUS=0 \
-RVT_FAKE_DOTNET_FAIL_PHASE="" RVT_FAKE_DOTNET_SKIP_REPORT=0 \
-RVT_FAKE_DELAY="" RVT_FAKE_STARTED_MARKER="" \
-RVT_FAKE_EXPECT_CONTENT="" RVT_FAKE_REQUIRE_ASSET="" \
-RVT_FAKE_PRETTIER_STATUS=0 RVT_FAKE_PRETTIER_OUTPUT="" \
-RVT_FAKE_ESLINT_STATUS=0 RVT_FAKE_ESLINT_REPORT="" \
-  node -e '
-    const { spawnSync } = require("child_process");
-    const result = spawnSync(process.argv[1], ["--all", "--update-baseline"], {
-      cwd: process.argv[2], env: process.env, timeout: 200
-    });
-    if (result.error?.code !== "ETIMEDOUT") process.exit(1);
-  ' "$last_repo/scripts/verify-engineering-standards.sh" "$last_repo" ||
-  fail "live canonical baseline lock was stolen"
+  "{\"version\":1,\"pid\":$$,\"processStart\":\"$live_start\",\"token\":\"live-owner\",\"createdAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+(
+  trap - EXIT
+  run_verify --all --update-baseline
+  printf '%s\n' "$last_status" > "$last_repo/live-owner.status"
+) &
+live_waiter=$!
+sleep 0.2
+kill -0 "$live_waiter" 2>/dev/null ||
+  fail "live PID/start owner was stolen"
 [[ -d "$canonical_lock" ]] ||
   fail "live canonical baseline lock was removed"
-rm -rf "$canonical_lock"
+rm "$canonical_lock/owner.json"
+rmdir "$canonical_lock"
+wait "$live_waiter"
+[[ "$(<"$last_repo/live-owner.status")" == "0" ]] ||
+  fail "live-lock waiter did not finish after owner release"
 
 # A demonstrably dead owner is reclaimed and the new owner cleans up its lock.
 create_repo dead-baseline-lock-owner
 dead_lock="$last_repo/baseline.json.update.lock"
 sleep 30 &
 killed_owner_pid=$!
+killed_owner_start="$(process_start_identity "$killed_owner_pid")"
 kill "$killed_owner_pid"
 wait "$killed_owner_pid" 2>/dev/null || true
 mkdir "$dead_lock"
 write_json "$dead_lock/owner.json" \
-  "{\"version\":1,\"pid\":$killed_owner_pid,\"token\":\"dead-owner\",\"createdAt\":\"2000-01-01T00:00:00Z\"}"
+  "{\"version\":1,\"pid\":$killed_owner_pid,\"processStart\":\"$killed_owner_start\",\"token\":\"dead-owner\",\"createdAt\":\"2000-01-01T00:00:00Z\"}"
 run_verify --all --update-baseline
 assert_status 0
 [[ ! -e "$dead_lock" ]] ||
   fail "dead canonical baseline lock was not reclaimed and cleaned"
+
+# A reused numeric PID with a different process-start identity is stale.
+create_repo reused-pid-baseline-lock-owner
+reused_lock="$last_repo/baseline.json.update.lock"
+mkdir "$reused_lock"
+write_json "$reused_lock/owner.json" \
+  "{\"version\":1,\"pid\":$$,\"processStart\":\"not-the-current-process-start\",\"token\":\"reused-owner\",\"createdAt\":\"2000-01-01T00:00:00Z\"}"
+run_verify --all --update-baseline
+assert_status 0
+[[ ! -e "$reused_lock" ]] ||
+  fail "reused PID with mismatched start identity was not reclaimed"
 
 # An incomplete lock-creation crash is recoverable only after its bounded grace.
 create_repo partial-baseline-lock-owner
@@ -724,6 +748,39 @@ rg -F -q "DirtyUnstagedMinute" "$last_repo/src/Clock.cs" ||
 worktree_count="$(git -C "$last_repo" worktree list --porcelain | rg -c '^worktree ')"
 [[ "$worktree_count" -eq 1 ]] ||
   fail "range verification leaked an isolated worktree"
+
+create_repo exact-range-ignored-csharp
+mkdir -p "$last_repo/src/node_modules"
+printf 'namespace Ignored;\n' > "$last_repo/src/node_modules/Ignored.cs"
+git -C "$last_repo" add src/node_modules/Ignored.cs
+git -C "$last_repo" commit -q -m "tracked ignored C#"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf 'namespace IgnoredChanged;\n' > "$last_repo/src/node_modules/Ignored.cs"
+git -C "$last_repo" add src/node_modules/Ignored.cs
+git -C "$last_repo" commit -q -m "changed ignored C#"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_status 0
+assert_log_absent
+
+create_repo exact-range-portal-binaries
+printf '\0icon\n' > "$last_repo/apps/portal/RvtPortal.Client/src/icon.ico"
+printf '\0font\n' > "$last_repo/apps/portal/RvtPortal.Client/src/font.woff2"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/src/icon.ico \
+  apps/portal/RvtPortal.Client/src/font.woff2
+git -C "$last_repo" commit -q -m "tracked Portal binaries"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf '\0changed icon\n' > "$last_repo/apps/portal/RvtPortal.Client/src/icon.ico"
+printf '\0changed font\n' > "$last_repo/apps/portal/RvtPortal.Client/src/font.woff2"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/src/icon.ico \
+  apps/portal/RvtPortal.Client/src/font.woff2
+git -C "$last_repo" commit -q -m "changed Portal binaries"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_status 0
+assert_log_absent
 
 # Default range commands receive compatible ignored prerequisites.
 create_repo exact-range-default-assets
@@ -796,6 +853,45 @@ mkdir -p "$last_repo/src/obj"
 run_verify_default_commands --base "$base_revision" --head "$head_revision"
 assert_status 2
 assert_output "incompatible"
+
+create_repo exact-range-packages-lock-incompatible
+write_json "$last_repo/src/Sample.csproj" '<Project Sdk="Microsoft.NET.Sdk"></Project>'
+write_json "$last_repo/src/packages.lock.json" '{"version":1}'
+git -C "$last_repo" add src/Sample.csproj src/packages.lock.json
+git -C "$last_repo" commit -q -m "locked restore inputs"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/src/packages.lock.json" '{"version":2}'
+sed -i.bak 's/public int Hour/public int HeadHour/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/packages.lock.json src/Clock.cs
+git -C "$last_repo" commit -q -m "changed restore lock"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+mkdir -p "$last_repo/src/obj"
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_status 2
+assert_output "packages.lock.json"
+
+create_repo exact-range-npmrc-incompatible
+write_json "$last_repo/apps/portal/RvtPortal.Client/package.json" '{"private":true}'
+write_json "$last_repo/apps/portal/RvtPortal.Client/.npmrc" 'registry=https://base.invalid'
+git -C "$last_repo" add apps/portal/RvtPortal.Client/package.json \
+  apps/portal/RvtPortal.Client/.npmrc
+git -C "$last_repo" commit -q -m "portal install inputs"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/apps/portal/RvtPortal.Client/.npmrc" 'registry=https://head.invalid'
+printf 'export const headOnly = true;\n' >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/.npmrc \
+  apps/portal/RvtPortal.Client/src/app.ts
+git -C "$last_repo" commit -q -m "changed portal install input"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+mkdir -p "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin"
+ln -s "$fake_bin/fake-prettier" "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/prettier"
+ln -s "$fake_bin/fake-eslint" "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/eslint"
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_status 2
+assert_output ".npmrc"
 
 # Inventory mode ratchets report-based whitespace, ESLint, and Prettier findings.
 create_repo inventory

@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
   accessSync,
@@ -49,6 +49,25 @@ const portalBinaryExtensions = new Set([
   '.eot', '.gif', '.ico', '.jpeg', '.jpg', '.pdf', '.png',
   '.ttf', '.webp', '.woff', '.woff2'
 ]);
+const dependencyInputPathspecs = [
+  ':(glob,icase)**/*.csproj',
+  ':(glob,icase)**/*.fsproj',
+  ':(glob,icase)**/*.vbproj',
+  ':(glob,icase)**/*.props',
+  ':(glob,icase)**/*.targets',
+  ':(glob,icase)**/*.sln',
+  ':(glob,icase)**/*.slnx',
+  ':(glob,icase)**/global.json',
+  ':(glob,icase)**/nuget.config',
+  ':(glob,icase)**/packages.lock.json',
+  `${portalPrefix}.npmrc`,
+  `${portalPrefix}npm-shrinkwrap.json`,
+  `${portalPrefix}package-lock.json`,
+  `${portalPrefix}package.json`,
+  `${portalPrefix}pnpm-lock.yaml`,
+  `${portalPrefix}pnpm-lock.yml`,
+  `${portalPrefix}yarn.lock`
+];
 
 class PolicyError extends Error {}
 class InvocationError extends Error {}
@@ -355,12 +374,18 @@ function provisionRangePrerequisites(repoRoot, executionRoot, requestedHead, cha
   if (!needsDotnet && !needsPrettier && !needsEslint) return;
 
   const callerHead = resolveRevision(repoRoot, 'HEAD');
-  if (needsDotnet) assertCompatibleFingerprint(
-    repoRoot, callerHead, requestedHead, isDotnetDependencyInput, '.NET'
-  );
-  if (needsPrettier || needsEslint) assertCompatibleFingerprint(
-    repoRoot, callerHead, requestedHead, isPortalDependencyInput, 'Portal'
-  );
+  if (needsDotnet) {
+    assertCallerDependencyInputsClean(repoRoot, isDotnetDependencyInput, '.NET');
+    assertCompatibleFingerprint(
+      repoRoot, callerHead, requestedHead, isDotnetDependencyInput, '.NET'
+    );
+  }
+  if (needsPrettier || needsEslint) {
+    assertCallerDependencyInputsClean(repoRoot, isPortalDependencyInput, 'Portal');
+    assertCompatibleFingerprint(
+      repoRoot, callerHead, requestedHead, isPortalDependencyInput, 'Portal'
+    );
+  }
 
   if (needsDotnet) {
     const projects = gitLines(executionRoot, ['ls-files']).filter(
@@ -407,12 +432,32 @@ function isDotnetDependencyInput(candidate) {
 }
 
 function isPortalDependencyInput(candidate) {
-  if (!candidate.startsWith(portalPrefix)) return false;
+  if (path.posix.dirname(candidate) !== portalPrefix.slice(0, -1)) return false;
   const name = path.posix.basename(candidate).toLowerCase();
   return [
     '.npmrc', 'npm-shrinkwrap.json', 'package-lock.json', 'package.json',
     'pnpm-lock.yaml', 'pnpm-lock.yml', 'yarn.lock'
   ].includes(name);
+}
+
+function assertCallerDependencyInputsClean(repoRoot, predicate, label) {
+  const staged = gitLines(repoRoot, [
+    'diff', '--cached', '--name-only', '--no-renames', 'HEAD'
+  ]);
+  const working = gitLines(repoRoot, [
+    'diff', '--name-only', '--no-renames', 'HEAD'
+  ]);
+  const untracked = gitLines(repoRoot, [
+    'ls-files', '--others', '--', ...dependencyInputPathspecs
+  ]);
+  const mismatch = [...new Set([...staged, ...working, ...untracked])]
+    .filter((candidate) => !isIgnoredPath(candidate) && predicate(candidate))
+    .sort(compareCodePoints)[0];
+  if (mismatch !== undefined) {
+    throw new InvocationError(
+      `Committed-range caller dependency input does not match caller HEAD for ${label}: ${mismatch}`
+    );
+  }
 }
 
 function dependencyFingerprint(repoRoot, revision, predicate) {
@@ -1017,7 +1062,7 @@ function compareCodePoints(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function writeBaselineAtomically(filePath, document, mustNotExist) {
+function writeBaselineAtomically(filePath, document, mustNotExist, beforeCommit = () => {}) {
   const parent = path.dirname(filePath);
   const temporary = path.join(
     parent,
@@ -1029,9 +1074,11 @@ function writeBaselineAtomically(filePath, document, mustNotExist) {
       flag: 'wx'
     });
     if (mustNotExist) {
+      beforeCommit();
       linkSync(temporary, filePath);
       rmSync(temporary);
     } else {
+      beforeCommit();
       renameSync(temporary, filePath);
     }
   } catch (error) {
@@ -1049,43 +1096,39 @@ function updateBaselineMonotonically(repoRoot, filePath, candidate) {
   validateContainedPath(repoRoot, filePath, 'Policy path');
   const canonicalTarget = realpathSync(filePath);
   const lockPath = `${canonicalTarget}.update.lock`;
-  const processStart = processStartIdentity(process.pid);
-  if (processStart === undefined) {
-    throw new InvocationError(
-      'Could not establish current process-start identity for baseline-update lock'
-    );
-  }
+  const token = randomUUID();
+  const sentinel = createLockSentinel(token);
   const owner = {
-    version: 1,
+    version: 2,
     pid: process.pid,
-    processStart,
-    token: randomUUID(),
+    sentinelPid: sentinel.pid,
+    token,
     createdAt: new Date().toISOString()
   };
   let ownsLock = false;
-  for (let attempt = 0; attempt < 400; attempt += 1) {
-    try {
-      mkdirSync(lockPath);
-      writeFileSync(
-        path.join(lockPath, 'owner.json'),
-        `${JSON.stringify(owner)}\n`,
-        { encoding: 'utf8', flag: 'wx' }
-      );
-      ownsLock = true;
-      break;
-    } catch (error) {
-      if (error.code !== 'EEXIST') {
-        throw new InvocationError(`Could not acquire baseline-update lock: ${error.message}`);
-      }
-      reclaimStaleLock(lockPath);
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
-    }
-  }
-  if (!ownsLock) {
-    throw new InvocationError('Timed out waiting for baseline-update lock');
-  }
-
   try {
+    for (let attempt = 0; attempt < 400; attempt += 1) {
+      try {
+        mkdirSync(lockPath);
+        writeFileSync(
+          path.join(lockPath, 'owner.json'),
+          `${JSON.stringify(owner)}\n`,
+          { encoding: 'utf8', flag: 'wx' }
+        );
+        ownsLock = true;
+        break;
+      } catch (error) {
+        if (error.code !== 'EEXIST') {
+          throw new InvocationError(`Could not acquire baseline-update lock: ${error.message}`);
+        }
+        reclaimStaleLock(lockPath);
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+      }
+    }
+    if (!ownsLock) {
+      throw new InvocationError('Timed out waiting for baseline-update lock');
+    }
+
     const liveDocument = readJsonDocument(filePath, 'Baseline document');
     try {
       validateBaseline(liveDocument);
@@ -1101,9 +1144,15 @@ function updateBaselineMonotonically(repoRoot, filePath, candidate) {
         `Concurrent baseline update would increase ${diagnosticKey(widened)}`
       );
     }
-    writeBaselineAtomically(filePath, candidate, false);
+    writeBaselineAtomically(
+      filePath,
+      candidate,
+      false,
+      () => assertOwnedLock(lockPath, owner)
+    );
   } finally {
-    releaseOwnedLock(lockPath, owner.token);
+    if (ownsLock) releaseOwnedLock(lockPath, owner.token);
+    stopLockSentinel(sentinel);
   }
 }
 
@@ -1118,11 +1167,11 @@ function lockSnapshot(lockPath) {
   try {
     const value = JSON.parse(readFileSync(path.join(lockPath, 'owner.json'), 'utf8'));
     if (
-      value?.version === 1 &&
+      value?.version === 2 &&
       Number.isSafeInteger(value.pid) &&
       value.pid > 0 &&
-      typeof value.processStart === 'string' &&
-      value.processStart !== '' &&
+      Number.isSafeInteger(value.sentinelPid) &&
+      value.sentinelPid > 0 &&
       typeof value.token === 'string' &&
       value.token !== '' &&
       Number.isFinite(Date.parse(value.createdAt))
@@ -1144,25 +1193,71 @@ function processIsAlive(pid) {
   }
 }
 
-function processStartIdentity(pid) {
-  const result = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
+function sentinelMarker(token) {
+  return `rvt-standards-lock-sentinel=${token}`;
+}
+
+function createLockSentinel(token) {
+  const child = spawn(
+    process.execPath,
+    [
+      '-e',
+      'process.on("disconnect",()=>process.exit(0));setInterval(()=>{},60000)',
+      sentinelMarker(token)
+    ],
+    {
+      stdio: ['ignore', 'ignore', 'ignore', 'ipc']
+    }
+  );
+  if (!Number.isSafeInteger(child.pid) || child.pid <= 0) {
+    child.kill();
+    throw new InvocationError('Could not create baseline-update lock sentinel');
+  }
+  return child;
+}
+
+function stopLockSentinel(child) {
+  if (child.connected) child.disconnect();
+  if (child.exitCode === null && child.signalCode === null) child.kill();
+}
+
+function observeLockSentinel(pid, token) {
+  const aliveBefore = processIsAlive(pid);
+  if (!aliveBefore) return 'dead';
+  const result = spawnSync('ps', ['-ww', '-o', 'command=', '-p', String(pid)], {
     encoding: 'utf8',
-    shell: false
+    shell: false,
+    env: { ...process.env, LC_ALL: 'C' }
   });
-  if (result.error !== undefined || result.status !== 0) return undefined;
-  const identity = result.stdout.trim();
-  return identity === '' ? undefined : identity;
+  if (result.error !== undefined || result.status !== 0) {
+    if (!processIsAlive(pid)) return 'dead';
+    throw new InvocationError(
+      'Could not observe baseline-update lock sentinel; refusing stale-lock reclamation'
+    );
+  }
+  if (!processIsAlive(pid)) return 'dead';
+  return result.stdout.includes(sentinelMarker(token)) ? 'owner' : 'collision';
+}
+
+function assertOwnedLock(lockPath, owner) {
+  const snapshot = lockSnapshot(lockPath);
+  if (
+    snapshot?.kind !== 'owner' ||
+    snapshot.token !== owner.token ||
+    snapshot.sentinelPid !== owner.sentinelPid ||
+    observeLockSentinel(owner.sentinelPid, owner.token) !== 'owner'
+  ) {
+    throw new InvocationError(
+      'Baseline-update lock ownership changed at the mutation boundary'
+    );
+  }
 }
 
 function reclaimStaleLock(lockPath) {
   const snapshot = lockSnapshot(lockPath);
   if (snapshot === undefined) return;
   if (snapshot.kind === 'owner') {
-    const currentStart = processStartIdentity(snapshot.pid);
-    if (currentStart === snapshot.processStart) return;
-    if (currentStart === undefined && processIsAlive(snapshot.pid)) {
-      return;
-    }
+    if (observeLockSentinel(snapshot.sentinelPid, snapshot.token) === 'owner') return;
   }
   if (
     snapshot.kind === 'partial' &&

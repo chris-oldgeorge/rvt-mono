@@ -55,14 +55,37 @@ assert_log_absent() {
     fail "source tools unexpectedly ran: $(<"$last_repo/tool.log")"
 }
 
+assert_range_rejected_before_provisioning() {
+  assert_status 2
+  assert_output "caller dependency input"
+  assert_log_absent
+  local worktree_count
+  worktree_count="$(git -C "$last_repo" worktree list --porcelain | rg -c '^worktree ')"
+  [[ "$worktree_count" -eq 1 ]] ||
+    fail "rejected range verification leaked an isolated worktree"
+}
+
 write_json() {
   local destination="$1"
   local contents="$2"
   printf '%s\n' "$contents" > "$destination"
 }
 
-process_start_identity() {
-  ps -o lstart= -p "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+start_lock_sentinel() {
+  local token="$1"
+  node -e 'setInterval(() => {}, 1000)' \
+    "rvt-standards-lock-sentinel=$token" &
+  lock_sentinel_pid=$!
+  for _ in {1..200}; do
+    if ps -ww -o command= -p "$lock_sentinel_pid" |
+      rg -F -q -- "rvt-standards-lock-sentinel=$token"; then
+      return 0
+    fi
+    sleep 0.01
+  done
+  kill "$lock_sentinel_pid" 2>/dev/null || true
+  wait "$lock_sentinel_pid" 2>/dev/null || true
+  fail "lock sentinel did not expose its ownership token"
 }
 
 create_repo() {
@@ -637,22 +660,24 @@ assert_status 0
 create_repo canonical-baseline-lock
 canonical_lock="$last_repo/baseline.json.update.lock"
 mkdir "$canonical_lock"
-live_start="$(process_start_identity "$$")"
+live_token="live-owner-token"
+start_lock_sentinel "$live_token"
+live_sentinel_pid="$lock_sentinel_pid"
 write_json "$canonical_lock/owner.json" \
-  "{\"version\":1,\"pid\":$$,\"processStart\":\"$live_start\",\"token\":\"live-owner\",\"createdAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+  "{\"version\":2,\"pid\":$$,\"sentinelPid\":$live_sentinel_pid,\"token\":\"$live_token\",\"createdAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
 (
   trap - EXIT
-  run_verify --all --update-baseline
+  LC_ALL=C run_verify --all --update-baseline
   printf '%s\n' "$last_status" > "$last_repo/live-owner.status"
 ) &
 live_waiter=$!
-sleep 0.2
+sleep 1.2
 kill -0 "$live_waiter" 2>/dev/null ||
-  fail "live PID/start owner was stolen"
+  fail "live tokenized sentinel owner was stolen under a different locale"
 [[ -d "$canonical_lock" ]] ||
   fail "live canonical baseline lock was removed"
-rm "$canonical_lock/owner.json"
-rmdir "$canonical_lock"
+kill "$live_sentinel_pid"
+wait "$live_sentinel_pid" 2>/dev/null || true
 wait "$live_waiter"
 [[ "$(<"$last_repo/live-owner.status")" == "0" ]] ||
   fail "live-lock waiter did not finish after owner release"
@@ -660,29 +685,42 @@ wait "$live_waiter"
 # A demonstrably dead owner is reclaimed and the new owner cleans up its lock.
 create_repo dead-baseline-lock-owner
 dead_lock="$last_repo/baseline.json.update.lock"
-sleep 30 &
-killed_owner_pid=$!
-killed_owner_start="$(process_start_identity "$killed_owner_pid")"
-kill "$killed_owner_pid"
-wait "$killed_owner_pid" 2>/dev/null || true
+dead_token="dead-owner-token"
+start_lock_sentinel "$dead_token"
+dead_sentinel_pid="$lock_sentinel_pid"
+kill "$dead_sentinel_pid"
+wait "$dead_sentinel_pid" 2>/dev/null || true
 mkdir "$dead_lock"
 write_json "$dead_lock/owner.json" \
-  "{\"version\":1,\"pid\":$killed_owner_pid,\"processStart\":\"$killed_owner_start\",\"token\":\"dead-owner\",\"createdAt\":\"2000-01-01T00:00:00Z\"}"
+  "{\"version\":2,\"pid\":$$,\"sentinelPid\":$dead_sentinel_pid,\"token\":\"$dead_token\",\"createdAt\":\"2000-01-01T00:00:00Z\"}"
 run_verify --all --update-baseline
 assert_status 0
 [[ ! -e "$dead_lock" ]] ||
   fail "dead canonical baseline lock was not reclaimed and cleaned"
 
-# A reused numeric PID with a different process-start identity is stale.
+# A same-window numeric PID collision without the random sentinel token is stale.
 create_repo reused-pid-baseline-lock-owner
 reused_lock="$last_repo/baseline.json.update.lock"
 mkdir "$reused_lock"
 write_json "$reused_lock/owner.json" \
-  "{\"version\":1,\"pid\":$$,\"processStart\":\"not-the-current-process-start\",\"token\":\"reused-owner\",\"createdAt\":\"2000-01-01T00:00:00Z\"}"
-run_verify --all --update-baseline
-assert_status 0
+  "{\"version\":2,\"pid\":$$,\"sentinelPid\":$$,\"token\":\"collision-token\",\"createdAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+(
+  trap - EXIT
+  run_verify --all --update-baseline
+  printf '%s\n' "$last_status" > "$last_repo/reused-owner.status"
+) &
+reused_waiter=$!
+sleep 0.4
+if kill -0 "$reused_waiter" 2>/dev/null; then
+  kill "$reused_waiter" 2>/dev/null || true
+  wait "$reused_waiter" 2>/dev/null || true
+  fail "same numeric PID without the sentinel token was treated as the owner"
+fi
+wait "$reused_waiter"
+[[ "$(<"$last_repo/reused-owner.status")" == "0" ]] ||
+  fail "same-window numeric PID collision was not reclaimed"
 [[ ! -e "$reused_lock" ]] ||
-  fail "reused PID with mismatched start identity was not reclaimed"
+  fail "same-window numeric PID collision lock was not cleaned"
 
 # An incomplete lock-creation crash is recoverable only after its bounded grace.
 create_repo partial-baseline-lock-owner
@@ -693,6 +731,84 @@ run_verify --all --update-baseline
 assert_status 0
 [[ ! -e "$partial_lock" ]] ||
   fail "stale metadata-free baseline lock was not reclaimed"
+
+# A live but unobservable sentinel is never guessed stale.
+create_repo unobservable-baseline-lock-owner
+unobservable_lock="$last_repo/baseline.json.update.lock"
+mkdir "$unobservable_lock"
+write_json "$unobservable_lock/owner.json" \
+  "{\"version\":2,\"pid\":$$,\"sentinelPid\":$$,\"token\":\"unobservable-token\",\"createdAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+mkdir "$last_repo/unobservable-bin"
+cat > "$last_repo/unobservable-bin/ps" <<'EOF'
+#!/usr/bin/env bash
+exit 2
+EOF
+chmod +x "$last_repo/unobservable-bin/ps"
+PATH="$last_repo/unobservable-bin:$PATH" run_verify --all --update-baseline
+assert_status 2
+assert_output "observe baseline-update lock sentinel"
+[[ -d "$unobservable_lock" ]] ||
+  fail "unobservable live sentinel was stolen instead of failing closed"
+rm "$unobservable_lock/owner.json"
+rmdir "$unobservable_lock"
+
+# Once a successor reclaims a dead sentinel, a stopped predecessor cannot
+# resume and mutate with its stale token.
+create_repo baseline-lock-successor-safety
+node -e '
+  const fs = require("fs");
+  const entries = [];
+  for (let index = 0; index < 15000; index += 1) {
+    entries.push({
+      tool: "dotnet-format-style",
+      ruleId: `R${String(index).padStart(5, "0")}`,
+      path: "src/Clock.cs",
+      count: 1
+    });
+  }
+  fs.writeFileSync(process.argv[1], `${JSON.stringify({ version: 1, entries })}\n`);
+' "$last_repo/baseline.json"
+successor_lock="$last_repo/baseline.json.update.lock"
+(
+  trap - EXIT
+  run_verify --all --update-baseline
+  printf '%s\n' "$last_status" > "$last_repo/predecessor.status"
+  printf '%s' "$last_output" > "$last_repo/predecessor.output"
+) &
+predecessor_controller=$!
+predecessor_pid=
+predecessor_sentinel_pid=
+for _ in {1..2000}; do
+  if [[ -f "$successor_lock/owner.json" ]]; then
+    predecessor_owner_json="$(<"$successor_lock/owner.json")"
+    if [[ "$predecessor_owner_json" =~ \"pid\":([0-9]+) ]]; then
+      predecessor_pid="${BASH_REMATCH[1]}"
+      if [[ "$predecessor_owner_json" =~ \"sentinelPid\":([0-9]+) ]]; then
+        predecessor_sentinel_pid="${BASH_REMATCH[1]}"
+        kill -STOP "$predecessor_pid"
+        break
+      fi
+    fi
+  fi
+  sleep 0.001
+done
+[[ -n "$predecessor_pid" && -n "$predecessor_sentinel_pid" ]] ||
+  fail "predecessor never acquired the update lock"
+kill "$predecessor_sentinel_pid"
+wait "$predecessor_sentinel_pid" 2>/dev/null || true
+run_verify --all --update-baseline
+assert_status 0
+kill -CONT "$predecessor_pid"
+wait "$predecessor_controller"
+[[ "$(<"$last_repo/predecessor.status")" == "2" ]] ||
+  fail "stale predecessor resumed and mutated after its successor"
+rg -F -q "lock ownership" "$last_repo/predecessor.output" ||
+  fail "stale predecessor did not report lost lock ownership"
+node -e '
+  const document = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+  if (document.entries.length !== 0) process.exit(1);
+' "$last_repo/baseline.json" ||
+  fail "stale predecessor overwrote the successor baseline"
 
 # Explicit and automatic committed ranges resolve without shell interpretation.
 create_repo explicit-range
@@ -892,6 +1008,134 @@ ln -s "$fake_bin/fake-eslint" "$last_repo/apps/portal/RvtPortal.Client/node_modu
 run_verify_default_commands --base "$base_revision" --head "$head_revision"
 assert_status 2
 assert_output ".npmrc"
+
+# Caller assets are valid only when every relevant index/worktree input matches
+# caller HEAD. Dirty dependency inputs fail before assets are linked or tools run.
+create_repo exact-range-dirty-package-lock
+write_json "$last_repo/apps/portal/RvtPortal.Client/package.json" '{"private":true}'
+write_json "$last_repo/apps/portal/RvtPortal.Client/package-lock.json" \
+  '{"lockfileVersion":3,"packages":{}}'
+git -C "$last_repo" add apps/portal/RvtPortal.Client/package.json \
+  apps/portal/RvtPortal.Client/package-lock.json
+git -C "$last_repo" commit -q -m "tracked Portal inputs"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf 'export const headOnly = true;\n' >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/src/app.ts
+git -C "$last_repo" commit -q -m "requested Portal head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+mkdir -p "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin"
+ln -s "$fake_bin/fake-prettier" \
+  "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/prettier"
+ln -s "$fake_bin/fake-eslint" \
+  "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/eslint"
+write_json "$last_repo/apps/portal/RvtPortal.Client/package-lock.json" \
+  '{"lockfileVersion":3,"packages":{"dirty":{}}}'
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_range_rejected_before_provisioning
+assert_output "package-lock.json"
+
+create_repo exact-range-dirty-npmrc
+write_json "$last_repo/apps/portal/RvtPortal.Client/package.json" '{"private":true}'
+write_json "$last_repo/apps/portal/RvtPortal.Client/.npmrc" 'registry=https://clean.invalid'
+git -C "$last_repo" add apps/portal/RvtPortal.Client/package.json \
+  apps/portal/RvtPortal.Client/.npmrc
+git -C "$last_repo" commit -q -m "tracked Portal inputs"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf 'export const headOnly = true;\n' >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/src/app.ts
+git -C "$last_repo" commit -q -m "requested Portal head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+mkdir -p "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin"
+ln -s "$fake_bin/fake-prettier" \
+  "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/prettier"
+ln -s "$fake_bin/fake-eslint" \
+  "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/eslint"
+write_json "$last_repo/apps/portal/RvtPortal.Client/.npmrc" \
+  'registry=https://dirty.invalid'
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_range_rejected_before_provisioning
+assert_output ".npmrc"
+
+create_repo exact-range-dirty-project
+write_json "$last_repo/src/Sample.csproj" \
+  '<Project Sdk="Microsoft.NET.Sdk"></Project>'
+git -C "$last_repo" add src/Sample.csproj
+git -C "$last_repo" commit -q -m "tracked project input"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+sed -i.bak 's/public int Hour/public int HeadHour/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Clock.cs
+git -C "$last_repo" commit -q -m "requested C# head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+mkdir -p "$last_repo/src/obj"
+write_json "$last_repo/src/Sample.csproj" \
+  '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><Dirty>true</Dirty></PropertyGroup></Project>'
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_range_rejected_before_provisioning
+assert_output "Sample.csproj"
+
+create_repo exact-range-staged-dependency
+write_json "$last_repo/apps/portal/RvtPortal.Client/package.json" '{"private":true}'
+write_json "$last_repo/apps/portal/RvtPortal.Client/package-lock.json" \
+  '{"lockfileVersion":3,"packages":{}}'
+git -C "$last_repo" add apps/portal/RvtPortal.Client/package.json \
+  apps/portal/RvtPortal.Client/package-lock.json
+git -C "$last_repo" commit -q -m "tracked Portal inputs"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf 'export const headOnly = true;\n' >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/src/app.ts
+git -C "$last_repo" commit -q -m "requested Portal head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+mkdir -p "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin"
+ln -s "$fake_bin/fake-prettier" \
+  "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/prettier"
+ln -s "$fake_bin/fake-eslint" \
+  "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/eslint"
+write_json "$last_repo/apps/portal/RvtPortal.Client/package-lock.json" \
+  '{"lockfileVersion":3,"packages":{"staged":{}}}'
+git -C "$last_repo" add apps/portal/RvtPortal.Client/package-lock.json
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_range_rejected_before_provisioning
+assert_output "package-lock.json"
+
+create_repo exact-range-deleted-dependency
+write_json "$last_repo/apps/portal/RvtPortal.Client/package.json" '{"private":true}'
+write_json "$last_repo/apps/portal/RvtPortal.Client/package-lock.json" \
+  '{"lockfileVersion":3,"packages":{}}'
+git -C "$last_repo" add apps/portal/RvtPortal.Client/package.json \
+  apps/portal/RvtPortal.Client/package-lock.json
+git -C "$last_repo" commit -q -m "tracked Portal inputs"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf 'export const headOnly = true;\n' >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/src/app.ts
+git -C "$last_repo" commit -q -m "requested Portal head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+mkdir -p "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin"
+ln -s "$fake_bin/fake-prettier" \
+  "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/prettier"
+ln -s "$fake_bin/fake-eslint" \
+  "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/eslint"
+rm "$last_repo/apps/portal/RvtPortal.Client/package-lock.json"
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_range_rejected_before_provisioning
+assert_output "package-lock.json"
+
+create_repo exact-range-untracked-packages-lock
+write_json "$last_repo/src/Sample.csproj" \
+  '<Project Sdk="Microsoft.NET.Sdk"></Project>'
+git -C "$last_repo" add src/Sample.csproj
+git -C "$last_repo" commit -q -m "tracked project input"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+sed -i.bak 's/public int Hour/public int HeadHour/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Clock.cs
+git -C "$last_repo" commit -q -m "requested C# head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+mkdir -p "$last_repo/src/obj"
+write_json "$last_repo/src/packages.lock.json" '{"version":1}'
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_range_rejected_before_provisioning
+assert_output "packages.lock.json"
 
 # Inventory mode ratchets report-based whitespace, ESLint, and Prettier findings.
 create_repo inventory

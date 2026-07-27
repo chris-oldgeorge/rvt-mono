@@ -2,12 +2,40 @@
 // Major updates:
 // - 2026-07-09 pending Added Help CMS read-service mappers for controller cleanup.
 
-using RvtPortal.Spa.Application.Help;
+using RvtPortal.Application.Help;
 
 namespace RvtPortal.Spa.Api.Mappers;
 
 public static class HelpApiMapper
 {
+    public static HelpAdminQuery ToAdminQuery(
+        string? searchText,
+        string? status,
+        string? contentType) =>
+        new(searchText, status, contentType);
+
+    public static HelpArticleMutation ToMutation(
+        HelpArticleMutationRequest request) =>
+        new(
+            request.SectionTitle,
+            request.SectionSlug,
+            request.Title,
+            request.Slug,
+            request.Summary,
+            request.Body,
+            request.ContentType,
+            request.IsPublished,
+            request.SectionSortOrder,
+            request.SortOrder,
+            request.Assets
+                .Select(asset => new HelpAssetMutation(
+                    asset.Id,
+                    asset.Title,
+                    asset.AssetType,
+                    asset.Url,
+                    asset.SortOrder))
+                .ToList());
+
     // Function summary: Maps a published Help overview model to the existing API response contract.
     public static HelpOverviewResponse ToOverviewResponse(HelpOverviewModel model)
     {
@@ -44,6 +72,7 @@ public static class HelpApiMapper
             ContentType = model.ContentType,
             SectionTitle = model.SectionTitle,
             SectionSlug = model.SectionSlug,
+            SectionSortOrder = model.SectionSortOrder,
             SortOrder = model.SortOrder,
             IsPublished = model.IsPublished,
             CreatedAtUtc = model.CreatedAtUtc,

@@ -84,9 +84,9 @@ public class HelpArticleMutationRequest
 
 public class HelpAssetMutationRequest
 {
+    public Guid? Id { get; set; }
     public string Title { get; set; } = "";
     public string AssetType { get; set; } = "Document";
     public string Url { get; set; } = "";
-    public string? InternalPath { get; set; }
     public required int SortOrder { get; set; }
 }

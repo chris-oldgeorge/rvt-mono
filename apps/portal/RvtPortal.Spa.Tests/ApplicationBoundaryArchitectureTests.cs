@@ -102,6 +102,24 @@ public sealed class ApplicationBoundaryArchitectureTests
             "articleQuery = articleQuery.Where(article =>");
     }
 
+    [Fact]
+    public void HostApplicationContainsNoHelpUseCaseSources()
+    {
+        var oldHelpDirectory = Path.Combine(
+            RepositoryLayout.Root,
+            "RvtPortal.Spa",
+            "Application",
+            "Help");
+        var remainingSources = Directory.Exists(oldHelpDirectory)
+            ? Directory.EnumerateFiles(
+                oldHelpDirectory,
+                "*.cs",
+                SearchOption.AllDirectories)
+            : [];
+
+        Assert.Empty(remainingSources);
+    }
+
     private static string MethodSource(
         string source,
         string startMarker,

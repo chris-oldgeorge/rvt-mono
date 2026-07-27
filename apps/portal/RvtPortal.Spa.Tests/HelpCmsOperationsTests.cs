@@ -49,7 +49,7 @@ public sealed class HelpCmsOperationsTests
                 new() { Title = "Readings overview", AssetType = "Video", Url = "https://video.rvt.test/readings", SortOrder = 2 }
             ]
         };
-        var create = await adminClient.PostAsJsonAsync("/api/help/articles", articleRequest);
+        var create = await adminClient.PostAsJsonAsync("/api/help/admin/articles", articleRequest);
         var created = await create.Content.ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
 
         var userClient = CreateClient(factory);
@@ -76,7 +76,7 @@ public sealed class HelpCmsOperationsTests
         var adminClient = CreateClient(factory);
         await LoginAsync(adminClient, AdminEmail, Password);
 
-        var create = await adminClient.PostAsJsonAsync("/api/help/articles", new HelpArticleMutationRequest
+        var create = await adminClient.PostAsJsonAsync("/api/help/admin/articles", new HelpArticleMutationRequest
         {
             SectionTitle = "Platform",
             SectionSlug = "platform",
@@ -133,6 +133,213 @@ public sealed class HelpCmsOperationsTests
         Assert.False(unpublished!.Item!.IsPublished);
         Assert.Equal(HttpStatusCode.NotFound, publicDraft.StatusCode);
     }
+
+    [Fact]
+    public async Task HelpCms_UsesCanonicalCreateRouteAndPreservesAssetIdentity()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var adminClient = CreateClient(factory);
+        await LoginAsync(adminClient, AdminEmail, Password);
+        var request = ArticleRequest(
+            "stable-asset",
+            [
+                new HelpAssetMutationRequest
+                {
+                    Title = "Guide",
+                    AssetType = "Document",
+                    Url = "/help-assets/guide.pdf",
+                    SortOrder = 1
+                }
+            ]);
+
+        var legacy = await adminClient.PostAsJsonAsync(
+            "/api/help/articles",
+            request);
+        var unsafeUrl = await adminClient.PostAsJsonAsync(
+            "/api/help/admin/articles",
+            ArticleRequest(
+                "unsafe-url",
+                [
+                    new HelpAssetMutationRequest
+                    {
+                        Title = "Unsafe",
+                        AssetType = "Link",
+                        Url = "javascript:alert(1)",
+                        SortOrder = 0
+                    }
+                ]));
+        var create = await adminClient.PostAsJsonAsync(
+            "/api/help/admin/articles",
+            request);
+        var created = await create.Content
+            .ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
+        var articleId = created!.Item!.Id;
+        var assetId = Assert.Single(created.Item.Assets).Id;
+        var updateRequest = ArticleRequest(
+            "stable-asset",
+            [
+                new HelpAssetMutationRequest
+                {
+                    Id = assetId,
+                    Title = "Updated guide",
+                    AssetType = "Document",
+                    Url = "https://docs.rvt.test/guide",
+                    SortOrder = 2
+                }
+            ]);
+        var update = await adminClient.PutAsJsonAsync(
+            $"/api/help/admin/articles/{articleId}",
+            updateRequest);
+        var updated = await update.Content
+            .ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
+        var foreign = await adminClient.PutAsJsonAsync(
+            $"/api/help/admin/articles/{articleId}",
+            ArticleRequest(
+                "stable-asset",
+                [
+                    new HelpAssetMutationRequest
+                    {
+                        Id = Guid.NewGuid(),
+                        Title = "Foreign",
+                        AssetType = "Link",
+                        Url = "https://docs.rvt.test/foreign",
+                        SortOrder = 0
+                    }
+                ]));
+
+        Assert.Equal(HttpStatusCode.NotFound, legacy.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, unsafeUrl.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        Assert.NotEqual(Guid.Empty, assetId);
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.Equal(assetId, Assert.Single(updated!.Item!.Assets).Id);
+        Assert.Equal("Updated guide", updated.Item.Assets[0].Title);
+        Assert.Null(updated.Item.Assets[0].InternalPath);
+        Assert.Equal(HttpStatusCode.BadRequest, foreign.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(RoleNames.RVTAdmin)]
+    [InlineData(RoleNames.RVTMasterAdmin)]
+    public async Task HelpCms_AllowsBothAdministratorRolesToUseEveryAdminEndpoint(
+        string role)
+    {
+        using var factory = new SpaTestApplicationFactory();
+        var email = $"help.{role.ToLowerInvariant()}@rvt.test";
+        await factory.SeedUserAsync(email, Password, role);
+        var client = CreateClient(factory);
+        await LoginAsync(client, email, Password);
+        var create = await client.PostAsJsonAsync(
+            "/api/help/admin/articles",
+            ArticleRequest($"admin-{role.ToLowerInvariant()}"));
+        var created = await create.Content
+            .ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
+        var articleId = created!.Item!.Id;
+
+        var query = await client.GetAsync("/api/help/admin");
+        var get = await client.GetAsync($"/api/help/admin/articles/{articleId}");
+        var update = await client.PutAsJsonAsync(
+            $"/api/help/admin/articles/{articleId}",
+            ArticleRequest($"admin-{role.ToLowerInvariant()}"));
+        var publication = await client.PostAsJsonAsync(
+            $"/api/help/admin/articles/{articleId}/publication",
+            new HelpPublishRequest { IsPublished = false });
+        var delete = await client.DeleteAsync(
+            $"/api/help/admin/articles/{articleId}");
+
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, query.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, publication.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, delete.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(RoleNames.CompanyUser)]
+    [InlineData(RoleNames.RVTInstaller)]
+    public async Task HelpCms_DeniesNonAdministratorsFromEveryAdminEndpoint(
+        string role)
+    {
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var deniedEmail = $"help.denied.{role.ToLowerInvariant()}@rvt.test";
+        await factory.SeedUserAsync(deniedEmail, Password, role);
+        var adminClient = CreateClient(factory);
+        await LoginAsync(adminClient, AdminEmail, Password);
+        var seed = await adminClient.PostAsJsonAsync(
+            "/api/help/admin/articles",
+            ArticleRequest($"denied-{role.ToLowerInvariant()}"));
+        var seeded = await seed.Content
+            .ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
+        var articleId = seeded!.Item!.Id;
+        var deniedClient = CreateClient(factory);
+        await LoginAsync(deniedClient, deniedEmail, Password);
+
+        HttpResponseMessage[] responses =
+        [
+            await deniedClient.GetAsync("/api/help/admin"),
+            await deniedClient.GetAsync($"/api/help/admin/articles/{articleId}"),
+            await deniedClient.PostAsJsonAsync(
+                "/api/help/admin/articles",
+                ArticleRequest("denied-create")),
+            await deniedClient.PutAsJsonAsync(
+                $"/api/help/admin/articles/{articleId}",
+                ArticleRequest($"denied-{role.ToLowerInvariant()}")),
+            await deniedClient.PostAsJsonAsync(
+                $"/api/help/admin/articles/{articleId}/publication",
+                new HelpPublishRequest { IsPublished = false }),
+            await deniedClient.DeleteAsync($"/api/help/admin/articles/{articleId}")
+        ];
+
+        Assert.All(
+            responses,
+            response => Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode));
+    }
+
+    [Fact]
+    public async Task HelpCms_AdminNotFoundResultsRemain404()
+    {
+        using var factory = new SpaTestApplicationFactory();
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        var client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+        var missingId = Guid.NewGuid();
+
+        var get = await client.GetAsync($"/api/help/admin/articles/{missingId}");
+        var update = await client.PutAsJsonAsync(
+            $"/api/help/admin/articles/{missingId}",
+            ArticleRequest("missing"));
+        var publication = await client.PostAsJsonAsync(
+            $"/api/help/admin/articles/{missingId}/publication",
+            new HelpPublishRequest { IsPublished = true });
+        var delete = await client.DeleteAsync(
+            $"/api/help/admin/articles/{missingId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, get.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, update.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, publication.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+    }
+
+    private static HelpArticleMutationRequest ArticleRequest(
+        string slug,
+        List<HelpAssetMutationRequest>? assets = null) =>
+        new()
+        {
+            SectionTitle = "Platform",
+            SectionSlug = "platform",
+            Title = $"Article {slug}",
+            Slug = slug,
+            Summary = "Summary",
+            Body = "Body",
+            ContentType = "FAQ",
+            IsPublished = true,
+            SectionSortOrder = 1,
+            SortOrder = 1,
+            Assets = assets ?? []
+        };
 
     // Function summary: Creates client data for the current workflow.
     private static HttpClient CreateClient(SpaTestApplicationFactory factory)

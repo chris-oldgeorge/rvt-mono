@@ -1,5 +1,6 @@
 ﻿// File summary: Supports the ASP.NET Core host that serves the RVT React portal and backend API.
 // Major updates:
+// - 2026-07-28 Registered application-owned Help use cases and EF read/write adapters.
 // - 2026-07-23 Registered the application-owned Sites read port and EF adapter.
 // - 2026-07-22 Registered the framework time provider required by report-generation clients.
 // - 2026-07-09 pending Bound TimeZones configuration to the injectable business date-time provider.
@@ -40,6 +41,7 @@ using RVT.DataAccess;
 using RVT.Entities.Ports.Persistence;
 using RvtPortal.Application.Identity;
 using RvtPortal.Application.Common;
+using RvtPortal.Application.Help.Ports;
 using RvtPortal.Application.Sites.Ports;
 using RVT.BusinessLogic.Notifications;
 using RVT.BusinessLogic.Ports.Notifications;
@@ -51,6 +53,7 @@ using RvtPortal.Spa.Adapters.Reporting;
 using RvtPortal.Spa.Adapters.Storage;
 using RvtPortal.Spa.Adapters.Vendors;
 using RvtPortal.Spa.Adapters.Archive;
+using RvtPortal.Spa.Adapters.Help;
 using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Application.AlertLevels;
 using RvtPortal.Spa.Application.Auth;
@@ -61,7 +64,6 @@ using RvtPortal.Spa.Application.Contracts;
 using RvtPortal.Spa.Application.Data;
 using RvtPortal.Spa.Application.Lookups;
 using RvtPortal.Spa.Application.Dashboard;
-using RvtPortal.Spa.Application.Help;
 using RvtPortal.Spa.Application.Installers;
 using RvtPortal.Spa.Application.Notifications;
 using RvtPortal.Spa.Application.ReportContent;
@@ -133,7 +135,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICompanyApplicationService, CompanyApplicationService>();
         services.AddScoped<IContractApplicationService, ContractApplicationService>();
         services.AddScoped<IReportApplicationService, ReportApplicationService>();
-        services.AddScoped<IHelpApplicationService, HelpApplicationService>();
+        services.AddScoped<
+            RvtPortal.Application.Help.IHelpApplicationService,
+            RvtPortal.Application.Help.HelpApplicationService>();
+        services.AddScoped<IHelpReadPort, EfHelpReadAdapter>();
+        services.AddScoped<IHelpWritePort, EfHelpWriteAdapter>();
         services.AddScoped<IUserAccountWorkflowService, UserAccountWorkflowService>();
         services.AddScoped<IUserAccountNotificationService, UserAccountNotificationService>();
         services.AddScoped<IAuthApplicationService, AuthApplicationService>();

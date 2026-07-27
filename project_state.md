@@ -3231,4 +3231,62 @@ TimescaleDB extensions where the schema requires them.
   runner, verify both zone files/runtime lookups, and dispatch a fresh manual
   Sonar run.
 
+## Sonar runner timezone repair and retry - 2026-07-27
+
+- Approved repair branch:
+  `codex/sonar-runner-tzdata`.
+- Commit `b0e7fe6` (`Install timezone data in Sonar runner`) is pushed to
+  `origin/codex/sonar-runner-tzdata`.
+- `.github/runner/Dockerfile` now installs Ubuntu `tzdata` in the existing
+  noninteractive `--no-install-recommends` apt transaction.
+- `tests/verify-sonar-runner-stack.test.sh` retains a focused package contract.
+  Strict TDD evidence:
+  - RED failed with `AssertionError: runner image must install timezone data`;
+  - after the single Dockerfile dependency change, the identical guard passed.
+- All nine root `tests/verify-*.test.sh` guards passed and `git diff --check`
+  was clean before commit.
+- The ARM64 runner image rebuilt successfully. The recreated runner reports
+  `tzdata 2026b-0ubuntu0.24.04.1`; both
+  `/usr/share/zoneinfo/Europe/London` and
+  `/usr/share/zoneinfo/Africa/Johannesburg` exist and `zdump` resolves them as
+  BST and SAST.
+- Only `rvt-sonar-runner` was recreated. The registration volume
+  `rvt-sonar-runner_runner-state`, explicit DNS resolvers, and bounded DNS
+  options were preserved. The database remained healthy with unchanged
+  container ID
+  `c3da4a5afa806a49ceda5f090e422d936c5adea0b133de3471a7a5c935dfd2f3`.
+- Initial dispatch `30232046545` was created before the recreated listener had
+  cleared its stale GitHub session. It remained unassigned and was cancelled.
+  Replacement run `30232216236` was immediately accepted after the listener
+  was stable and analyzed exact commit
+  `b0e7fe68c6d4dd612aab1db114e2f050db0d39ef`.
+- The replacement run passed checkout, JDK, .NET, Node, database preparation,
+  tool installation, Sonar begin, root restore/build, Portal database
+  deployment, and always-on database cleanup. Job-lease renewal remained
+  healthy throughout.
+- The timezone repair is live-proven. AirQ passed 124/124, Omnidots 392/392,
+  ReportingMonitor 93/93, Portal Application 48/48, and Portal SPA 435/435.
+  The run log contains no `TimeZoneNotFoundException`, invalid-timezone, or
+  Europe/London/Africa/Johannesburg failure. Other shared and reporting suites
+  also passed.
+- Coverage still failed for a separate monorepo-topology baseline:
+  - MyATM: 13 failed, 195 passed. Most failures construct stale paths under
+    `<repo>/myatmmonitor/...` instead of
+    `<repo>/apps/monitors/myatmmonitor/...`; the Mapperly analyzer policy still
+    expects a three-segment pre-monorepo project path; and its migration
+    documentation contract reports that the durable exact-commit archive
+    retrieval instructions are missing.
+  - Svantek: 5 failed, 131 passed. All five construct stale paths under
+    `<repo>/svantekmonitor/...` instead of
+    `<repo>/apps/monitors/svantekmonitor/...`.
+- Post-run state: runner `rvt-sonar-dev` is online and idle, and database
+  cleanup left only `rvt_sonar_ci`.
+- Next independent repair requires approval: update the MyATM and Svantek test
+  fixture paths and Mapperly path-shape policy to the monorepo layout, restore
+  the durable exact-commit archive retrieval instructions in the MyATM module
+  documentation using current monorepo paths, run the two focused test
+  projects against the integration database, then retry Sonar.
+- Preserve the unrelated unstaged `.gitignore` edit that ignores `.codegraph/`
+  and `apps/.nuget-packages/`; it is not part of the timezone repair.
+
 Next-session instruction: Read project_state.md to get up to speed

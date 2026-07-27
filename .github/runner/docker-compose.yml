@@ -17,6 +17,12 @@ services:
   rvt-sonar-runner:
     build:
       context: .
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    dns_opt:
+      - timeout:2
+      - attempts:3
     environment:
       RUNNER_URL: https://github.com/chris-oldgeorge/rvt-mono
       RUNNER_NAME: rvt-sonar-dev

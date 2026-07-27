@@ -2988,5 +2988,42 @@ TimescaleDB extensions where the schema requires them.
   the identical test passed 1/1 without mutating the Portal schema. The focused
   Release build passed with zero errors; the five existing
   `System.Security.Cryptography.Xml` 10.0.7 `NU1903` advisories remain.
+- The transaction repair is committed as `59d8efa` and pushed to both
+  `codex/direct-project-references` and `main`. Manual Sonar run `30199164649`
+  analyzes that exact commit.
+- Attempt 1 of run `30199164649` was infrastructure-abandoned during .NET setup:
+  the runner's first lease expired after no renewals and GitHub returned
+  `TaskAgentJobNotFoundException`. Restarting only the runner listener preserved
+  registration and database state.
+- Attempt 2 passed .NET/Node setup, run-database preparation, tool installation,
+  and Sonar initialization, then was infrastructure-abandoned during the clean
+  restore/build. Lease renewal succeeded once per minute through 11:34:43 UTC,
+  then DNS resolution for
+  `run-actions-1-azure-eastus.actions.githubusercontent.com` hung past the
+  11:44:43 lease expiry. The runner eventually reported `HostNotFound`, followed
+  by `NotFound` because GitHub had already invalidated the job. This is not a
+  build or schema-deploy failure; the workflow never reached the repaired
+  database step.
+- The runner-only DNS hardening is approved and implemented. The
+  `rvt-sonar-runner` Compose service uses `1.1.1.1` and `8.8.8.8` with
+  `timeout:2` and `attempts:3`; the rendered-Compose regression guard fails if
+  either the explicit resolvers or bounded options are removed. The operator
+  guide documents that DNS changes require recreating only the runner service.
+- Strict DNS TDD evidence: with the Compose service unchanged, the focused
+  guard failed with `runner must use explicit public DNS resolvers`; after the
+  minimal Compose change the identical guard passed. Rendered Compose validation
+  and shell syntax validation also passed.
+- Only `rvt-sonar-runner` was force-recreated. The database container retained
+  ID `c3da4a5afa806a49ceda5f090e422d936c5adea0b133de3471a7a5c935dfd2f3`,
+  the `rvt-sonar-runner_runner-state` registration volume was preserved, and
+  GitHub reported `rvt-sonar-dev` online and idle after startup. Docker reported
+  live DNS `["1.1.1.1","8.8.8.8"]` with
+  `["timeout:2","attempts:3"]`; broker, token, run, results-receiver, and the
+  previously failing Azure East US Actions hostname each resolved 10/10 times
+  from inside the new runner container.
+- Next action: commit and push the DNS hardening to the feature branch and
+  `main`, retry Sonar run `30199164649`, monitor job-lease renewal and every
+  workflow step through the Sonar quality gate, then verify the runner is idle
+  and only `rvt_sonar_ci` remains.
 
 Next-session instruction: Read project_state.md to get up to speed

@@ -41,6 +41,20 @@ therefore sets `DOTNET_INSTALL_DIR` to `${{ runner.temp }}/dotnet` for
 `actions/setup-dotnet`; its Linux default, `/usr/share/dotnet`, is not writable
 by this runner and must not be restored.
 
+The runner service uses Cloudflare (`1.1.1.1`) and Google (`8.8.8.8`) as
+explicit DNS resolvers. Resolver attempts are limited to three with a two-second
+timeout so a stalled Docker Desktop resolver cannot block GitHub job-lease
+renewal until the lease expires. After changing `dns` or `dns_opt`, recreate
+only the runner service so Docker writes the new resolver configuration:
+
+```bash
+docker compose -f .github/runner/docker-compose.yml up -d \
+  --no-deps --force-recreate rvt-sonar-runner
+```
+
+The `runner-state` volume preserves registration during this recreation. The
+database service is not restarted or recreated.
+
 ## Inspect, stop, and restart
 
 Inspect runner and database logs with:

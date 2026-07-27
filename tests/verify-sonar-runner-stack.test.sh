@@ -41,6 +41,9 @@ if isinstance(environment, list):
 assert environment.get("RUNNER_LABELS") == "rvt-sonar", "runner must provide the rvt-sonar label"
 assert "RUNNER_REGISTRATION_TOKEN" not in environment, "persistent runner service must not receive a registration token"
 
+assert runner.get("dns") == ["1.1.1.1", "8.8.8.8"], "runner must use explicit public DNS resolvers"
+assert runner.get("dns_opt") == ["timeout:2", "attempts:3"], "runner DNS retries must remain bounded"
+
 depends_on = runner.get("depends_on", {})
 assert depends_on.get("rvt-sonar-db", {}).get("condition") == "service_healthy", "runner must wait for the database health check"
 

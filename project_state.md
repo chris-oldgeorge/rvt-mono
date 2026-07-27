@@ -3289,4 +3289,47 @@ TimescaleDB extensions where the schema requires them.
 - Preserve the unrelated unstaged `.gitignore` edit that ignores `.codegraph/`
   and `apps/.nuget-packages/`; it is not part of the timezone repair.
 
+## Monorepo test-path repair - 2026-07-27
+
+- Branch `codex/sonar-runner-tzdata` now contains pushed commit `aaa20de`
+  (`Repair monorepo test paths`), exact SHA
+  `aaa20de59e44189ee4857feed1261bfd9f66f709`.
+- Reproduced the failures before repair. MyATM tests constructed obsolete
+  `<repo>/myatmmonitor/...` paths, Svantek tests constructed obsolete
+  `<repo>/svantekmonitor/...` paths, and the Mapperly analyzer policy assumed
+  the pre-monorepo three-segment project shape. The mapper policy's repository
+  scan also included the unrelated Portal data-access project.
+- Updated seven MyATM test files and three Svantek test files to use
+  `apps/monitors/<monitor>/...`. The Mapperly policy now checks the five-part
+  monitor project shape and scopes discovery to `apps/monitors`.
+- Updated `docs/modules/monitors/myatmmonitor/README.md` and its migration
+  documentation contract to describe the checked-in PostgreSQL shared,
+  forward, and rollback scripts under current monorepo paths. The contract no
+  longer expects the removed external SQL Server archive.
+- Focused verification passed:
+  - MyATM path/policy suite: 22/22;
+  - Svantek path suite: 5/5;
+  - all nine root `tests/verify-*.test.sh` repository guards;
+  - `git diff --check`.
+- Manual Sonar workflow run `30239653729` analyzed the exact pushed repair SHA:
+  <https://github.com/chris-oldgeorge/rvt-mono/actions/runs/30239653729>.
+  Checkout, tool setup, restore/build, Portal database deployment, the full
+  `.NET coverage` test command, Portal client coverage, and always-on database
+  cleanup all passed. This is the full-run proof that the 13 MyATM and five
+  Svantek monorepo-port failures are repaired.
+- The analysis report uploaded successfully, after which SonarCloud returned
+  `QUALITY GATE STATUS: FAILED`. This is a separate static-analysis gate result,
+  not a build, test, database, timezone, DNS, or path failure. The Sonar MCP/CLI
+  needed to enumerate the individual gate conditions was unavailable in this
+  session, so no threshold details were inferred.
+- The long Sonar end step was caused by local analysis, including a
+  602.814-second JavaScript security sensor pass. The log also confirms that
+  unignored files under the 730 MB `apps/.nuget-packages/` cache entered the
+  scan and produced missing-blame warnings.
+- Post-run state: self-hosted runner `rvt-sonar-dev` is online and idle; the
+  temporary run database was removed and only `rvt_sonar_ci` remains.
+- Preserve the unrelated unstaged `.gitignore` edit that ignores `.codegraph/`
+  and `apps/.nuget-packages/`; it remains outside the path-repair commit and
+  this state checkpoint.
+
 Next-session instruction: Read project_state.md to get up to speed

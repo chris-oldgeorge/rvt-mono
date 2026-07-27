@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "generatedAt": "2026-07-27",
+  "entries": [
+    {
+      "tool": "dotnet-format-style",
+      "ruleId": "IDE0055",
+      "path": "src/Clock.cs",
+      "count": 1
+    }
+  ]
+}

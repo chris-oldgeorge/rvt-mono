@@ -1152,6 +1152,15 @@ function updateBaselineMonotonically(repoRoot, filePath, candidate) {
         `Concurrent baseline update would increase ${diagnosticKey(widened)}`
       );
     }
+    const unchanged =
+      candidate.entries.length === live.size &&
+      candidate.entries.every(
+        (entry) => live.get(diagnosticKey(entry)) === entry.count
+      );
+    if (unchanged) {
+      assertOwnedLock(lockPath, owner);
+      return;
+    }
     writeBaselineAtomically(
       filePath,
       candidate,

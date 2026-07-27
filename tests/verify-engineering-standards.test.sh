@@ -653,6 +653,23 @@ cmp -s "$last_repo/baseline.before" "$last_repo/baseline.json" ||
 cmp -s "$last_repo/exceptions.before" "$last_repo/exceptions.json" ||
   fail "baseline update widened exceptions"
 
+# A semantically unchanged update preserves the installed document across dates.
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"generatedAt":"2000-01-01","entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+cp "$last_repo/baseline.json" "$last_repo/baseline.before"
+baseline_hash_before="$(git hash-object "$last_repo/baseline.json")"
+write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --all --update-baseline
+assert_status 0
+baseline_hash_after="$(git hash-object "$last_repo/baseline.json")"
+set +e
+cmp -s "$last_repo/baseline.before" "$last_repo/baseline.json"
+baseline_cmp_status=$?
+set -e
+[[ "$baseline_cmp_status" -eq 0 && "$baseline_hash_before" == "$baseline_hash_after" ]] ||
+  fail "unchanged cross-date baseline update rewrote bytes: cmp=$baseline_cmp_status before=$baseline_hash_before after=$baseline_hash_after"
+
 write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"

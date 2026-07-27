@@ -3030,5 +3030,19 @@ Next-session instruction: Read project_state.md to get up to speed
   assertion was located in the guard script it invokes.
 - Verification: the focused wrapper and its source-only mutation regression
   pass. A fresh sorted run of all nine root `tests/*.test.sh` scripts passes,
-  and `git diff --check` is clean. The aggregate `scripts/build-mono.sh` test
-  stage remains unrun during this narrow guard-only fix.
+  and `git diff --check` is clean. The documented aggregate
+  `scripts/build-mono.sh` command also completed after its PostgreSQL boundary
+  check without reporting restore, build, or test errors.
+
+## Branch Integration Completion - 2026-07-27
+
+- The boundary-guard repair and state record were committed to `main` as
+  `ffdcafd` (`fix: remove obsolete package-validation guard`) and pushed to
+  `origin/main`.
+- `codex/sites-application-boundary` was confirmed merged, then deleted both
+  locally and from `origin`.
+- `codex/direct-project-references` remains in the owned
+  `.worktrees/release-platform-hardening` worktree. Although it is merged,
+  that worktree has a tracked `project_state.md` modification and multiple
+  untracked generated/suffixed-copy files. It and its remote branch were
+  deliberately preserved to avoid deleting that unsaved work.

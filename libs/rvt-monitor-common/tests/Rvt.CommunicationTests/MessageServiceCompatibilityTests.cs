@@ -8,7 +8,7 @@ namespace Rvt.CommunicationTests;
 [TestClass]
 public sealed class MessageServiceCompatibilityTests
 {
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(LegacyMessageKind.Alert, NotificationMessageKind.Alert)]
     [DataRow(LegacyMessageKind.Caution, NotificationMessageKind.Caution)]
     [DataRow(LegacyMessageKind.Offline, NotificationMessageKind.Offline)]

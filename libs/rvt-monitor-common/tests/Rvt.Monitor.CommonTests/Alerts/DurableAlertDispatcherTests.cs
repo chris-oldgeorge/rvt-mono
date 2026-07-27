@@ -178,7 +178,7 @@ public sealed class DurableAlertDispatcherTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("malformed")]
     [DataRow("empty")]
     [DataRow("mismatched")]
@@ -317,7 +317,7 @@ public sealed class DurableAlertDispatcherTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(1, 30)]
     [DataRow(2, 60)]
     [DataRow(3, 120)]
@@ -349,7 +349,7 @@ public sealed class DurableAlertDispatcherTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(DeliveryFailureKind.Permanent)]
     [DataRow(DeliveryFailureKind.Configuration)]
     public async Task DispatchAsync_NonTransientTypedFailureDeadLettersImmediately(

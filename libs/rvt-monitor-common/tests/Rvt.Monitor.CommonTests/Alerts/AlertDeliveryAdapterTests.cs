@@ -87,7 +87,7 @@ public sealed class AlertDeliveryAdapterTests
         Assert.AreEqual(NotificationConstants.SENT_OK, audit.Message);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("mqtt")]
     [DataRow("email")]
     [DataRow("sms")]
@@ -109,7 +109,7 @@ public sealed class AlertDeliveryAdapterTests
         notificationDelivery.VerifyNoOtherCalls();
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("mqtt")]
     [DataRow("email")]
     [DataRow("sms")]
@@ -131,7 +131,7 @@ public sealed class AlertDeliveryAdapterTests
         notificationDelivery.VerifyNoOtherCalls();
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("mqtt")]
     [DataRow("email")]
     [DataRow("sms")]
@@ -154,7 +154,7 @@ public sealed class AlertDeliveryAdapterTests
         notificationDelivery.VerifyNoOtherCalls();
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("mqtt", "Email", "alert")]
     [DataRow("email", "Sms", "ops@example.test")]
     [DataRow("sms", "Email", "+441234567890")]
@@ -175,7 +175,7 @@ public sealed class AlertDeliveryAdapterTests
         notificationDelivery.VerifyNoOtherCalls();
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("mqtt", "MqttAlert", "wrong-topic")]
     [DataRow("email", "Email", " ")]
     [DataRow("sms", "Sms", "")]

@@ -19,7 +19,7 @@ public sealed class DeliveryContractTests
         Assert.IsFalse(stream.CanWrite);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("", "application/pdf")]
     [DataRow(" ", "application/pdf")]
     [DataRow("report.pdf", "")]
@@ -37,7 +37,7 @@ public sealed class DeliveryContractTests
             new EmailAttachment("report.pdf", "application/pdf", ReadOnlySpan<byte>.Empty));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("", "subject", "plain", "")]
     [DataRow(" ", "subject", "plain", "")]
     [DataRow("recipient@example.test", "", "plain", "")]
@@ -70,7 +70,7 @@ public sealed class DeliveryContractTests
         Assert.AreEqual("<p>body</p>", request.HtmlBody);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("", "content")]
     [DataRow(" ", "content")]
     [DataRow("+441234567890", "")]

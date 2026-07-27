@@ -30,7 +30,7 @@ public sealed class DurableAlertBackgroundServiceTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(MonitorExecutionMode.OneShot, true, false)]
     [DataRow(MonitorExecutionMode.QuartzScheduler, true, false)]
     [DataRow(MonitorExecutionMode.Unspecified, true, false)]

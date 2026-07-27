@@ -3461,4 +3461,34 @@ TimescaleDB extensions where the schema requires them.
   and `apps/.nuget-packages/`; it remains unstaged and was excluded from the
   security-remediation commit.
 
+## Safe mechanical MSTest cleanup - 2026-07-27
+
+- Applied only the warning-review plan's syntax-preserving MSTest cleanup
+  under `libs/rvt-monitor-common/tests`; no production code, project file,
+  package, lock, workflow, or build policy changed.
+- Replaced the 49 active `[DataTestMethod]` attributes with `[TestMethod]`,
+  removed the one redundant `DynamicDataSourceType.Method` argument, and
+  replaced eight `Assert.AreEqual(expected, collection.Count)` assertions with
+  `Assert.HasCount(expected, collection)`.
+- A fresh fixed-SDK non-incremental Release build of `Rvt.Mono.slnx` passed
+  with 0 errors and 10 warnings. `MSTEST0037`, `MSTEST0044`, and `MSTEST0052`
+  are absent; the intentionally deferred baseline is seven `MSTEST0001`
+  parallelization-choice warnings and three `MSTEST0032` constant-contract
+  warnings.
+- All seven affected test assemblies passed, totaling 627/627:
+  `Rvt.Monitor.CommonTests` 340, Communication Abstractions 20,
+  Communication 31, SendGrid 20, Microsoft Graph 37, Transmit SMS 25, and
+  Storage 154.
+- The umbrella `rvt-common.sln` command additionally discovered the separate
+  `Rvt.Monitor.IntegrationTesting.Tests` project. Its three database-dependent
+  tests failed solely because `RVT__POSTGRES_INTEGRATION_CONNECTION` was not
+  set; the other three tests in that project passed. No database-dependent
+  behavior was changed by this cleanup.
+- Verification used
+  `/private/tmp/rvt-dotnet-10.0.302/dotnet`; the warnings-only build log is
+  `/private/tmp/rvt-mstest-mechanical-after-20260727.log`.
+- This checkpoint accompanies the cleanup commit. The same `.gitignore`
+  additions for `.codegraph/` and `apps/.nuget-packages/` are already present
+  in the newer target-branch commit and remain outside the cleanup diff.
+
 Next-session instruction: Read project_state.md to get up to speed

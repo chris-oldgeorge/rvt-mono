@@ -42,7 +42,7 @@ public sealed class TransmitSmsAdapterTests
         Assert.IsNull(handler.Request);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(HttpStatusCode.RequestTimeout)]
     [DataRow((HttpStatusCode)429)]
     [DataRow(HttpStatusCode.InternalServerError)]
@@ -62,7 +62,7 @@ public sealed class TransmitSmsAdapterTests
         Assert.DoesNotContain("447700900123", exception.ToString());
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(HttpStatusCode.BadRequest)]
     [DataRow(HttpStatusCode.Unauthorized)]
     [DataRow(HttpStatusCode.Forbidden)]

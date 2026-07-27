@@ -11,8 +11,8 @@ public sealed class NotificationMessageComposerTests
     private const string HtmlPrefix = "<!DOCTYPE html>\r\n<html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta http-equiv=\"X-UA-Compatible\" content=\"ie=edge\"><title>RVT Cloud</title></head> <body>";
     private const string HtmlSuffix = "</body></html>";
 
-    [DataTestMethod]
-    [DynamicData(nameof(Templates), DynamicDataSourceType.Method)]
+    [TestMethod]
+    [DynamicData(nameof(Templates))]
     public void Compose_PreservesLegacyTemplates(
         NotificationMessageKind kind,
         NotificationChannel channel,

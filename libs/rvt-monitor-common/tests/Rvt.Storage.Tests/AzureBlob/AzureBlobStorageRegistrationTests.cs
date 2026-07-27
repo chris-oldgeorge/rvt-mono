@@ -136,7 +136,7 @@ public sealed class AzureBlobStorageRegistrationTests
         Assert.DoesNotContain(configuredValue, exception.Message);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("")]
     [DataRow(" ")]
     public void AddRvtAzureBlobStorage_WhenResourceNameIsBlank_ThrowsAtRegistration(

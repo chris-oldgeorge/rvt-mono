@@ -8,7 +8,7 @@ public sealed class CautionAlertAcceptancePolicyTests
 {
     private readonly CautionAlertAcceptancePolicy policy = new();
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(AlertType.Ignore, null, AlertOccurrenceOutcome.Ignored)]
     [DataRow(AlertType.Caution, null, AlertOccurrenceOutcome.Accepted)]
     [DataRow(AlertType.Caution, AlertType.Caution, AlertOccurrenceOutcome.Suppressed)]
@@ -27,7 +27,7 @@ public sealed class CautionAlertAcceptancePolicyTests
         Assert.AreEqual(expected, policy.Evaluate(incoming, recentTypes));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(AlertType.Offline)]
     [DataRow(AlertType.BatteryAlert)]
     [DataRow(AlertType.BatteryCaution)]

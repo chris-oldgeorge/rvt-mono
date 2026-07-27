@@ -270,7 +270,7 @@ public sealed class AzureBlobObjectStorageClientTests
         blob.VerifyAll();
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(403, StorageFailureKind.AccessDenied)]
     [DataRow(409, StorageFailureKind.Conflict)]
     [DataRow(408, StorageFailureKind.Unavailable)]

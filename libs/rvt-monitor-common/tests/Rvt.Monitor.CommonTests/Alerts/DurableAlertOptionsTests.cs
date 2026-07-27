@@ -30,7 +30,7 @@ public sealed class DurableAlertOptionsTests
         Assert.AreEqual("https://www.rvtcloud.com/", options.PortalBaseUrl);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(nameof(DurableAlertOptions.BatchSize))]
     [DataRow(nameof(DurableAlertOptions.LeaseSeconds))]
     [DataRow(nameof(DurableAlertOptions.DeliveryTimeoutSeconds))]
@@ -76,7 +76,7 @@ public sealed class DurableAlertOptionsTests
         }
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(120, 120)]
     [DataRow(121, 120)]
     public void Validator_RejectsTimeoutThatIsNotShorterThanLease(int timeout, int lease)
@@ -102,7 +102,7 @@ public sealed class DurableAlertOptionsTests
         Assert.IsTrue(new DurableAlertOptionsValidator().Validate(null, options).Failed);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("")]
     [DataRow("relative/path")]
     public void Validator_RejectsMissingOrNonAbsolutePortalBaseUrl(string portalBaseUrl)

@@ -20,7 +20,7 @@ public sealed class MonitorDeliveryMigrationContractTests
         StringAssert.Contains(sql, "CREATE INDEX IF NOT EXISTS ix_monitor_delivery_outbox_due");
         StringAssert.Contains(sql, "ON monitor_delivery_outbox (producer, status, next_attempt_at)");
         StringAssert.Contains(sql, "DO $$");
-        Assert.AreEqual(1, Regex.Matches(sql, @"\bCREATE\s+TABLE\b", RegexOptions.IgnoreCase).Count);
+        Assert.HasCount(1, Regex.Matches(sql, @"\bCREATE\s+TABLE\b", RegexOptions.IgnoreCase));
         Assert.DoesNotContain("ALTER TABLE notification ", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ALTER TABLE notification_sent", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("CREATE TABLE notification ", sql, StringComparison.OrdinalIgnoreCase);

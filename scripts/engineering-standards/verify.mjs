@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
   accessSync,
   constants,
@@ -11,6 +12,8 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs';
 import os from 'node:os';
@@ -289,6 +292,7 @@ function resolveScope(repoRoot, options) {
   ]);
   const materialized = materializeRevision(repoRoot, range.head);
   try {
+    provisionRangePrerequisites(repoRoot, materialized.root, tracked);
     return {
       ...finalizeChangedScope(materialized.root, {
         paths: tracked,
@@ -330,6 +334,93 @@ function materializeRevision(repoRoot, revision) {
       }
     }
   };
+}
+
+function provisionRangePrerequisites(repoRoot, executionRoot, changedPaths) {
+  const needsDotnet =
+    process.env.RVT_STANDARDS_DOTNET_COMMAND === undefined &&
+    changedPaths.some((item) => item.endsWith('.cs'));
+  const portalPaths = changedPaths.filter((item) => item.startsWith(portalPrefix));
+  const needsPrettier =
+    process.env.RVT_STANDARDS_PRETTIER_COMMAND === undefined &&
+    portalPaths.length > 0;
+  const needsEslint =
+    process.env.RVT_STANDARDS_ESLINT_COMMAND === undefined &&
+    portalPaths.some((item) =>
+      ['.ts', '.tsx', '.mts', '.cts'].includes(path.posix.extname(item).toLowerCase())
+    );
+  if (!needsDotnet && !needsPrettier && !needsEslint) return;
+
+  const trackedInputs = new Set([
+    ...gitLines(repoRoot, ['ls-files']),
+    ...gitLines(executionRoot, ['ls-files'])
+  ].filter(isDependencyInput));
+  for (const candidate of trackedInputs) {
+    const callerPath = path.join(repoRoot, candidate);
+    const headPath = path.join(executionRoot, candidate);
+    if (
+      !existsSync(callerPath) ||
+      !existsSync(headPath) ||
+      !readFileSync(callerPath).equals(readFileSync(headPath))
+    ) {
+      throw new InvocationError(
+        `Committed-range prerequisite inputs are incompatible with requested head: ${candidate}`
+      );
+    }
+  }
+
+  if (needsDotnet) {
+    const projects = gitLines(executionRoot, ['ls-files']).filter(
+      (item) => /\.(?:cs|fs|vb)proj$/i.test(item)
+    );
+    if (projects.length === 0) {
+      throw new InvocationError(
+        'Committed-range prerequisite is missing: no tracked project file for dotnet --no-restore'
+      );
+    }
+    for (const project of projects) {
+      provisionAssetDirectory(
+        repoRoot,
+        executionRoot,
+        path.posix.join(path.posix.dirname(project), 'obj'),
+        'dotnet --no-restore'
+      );
+    }
+  }
+
+  if (needsPrettier || needsEslint) {
+    const nodeModules = `${portalPrefix}node_modules`;
+    provisionAssetDirectory(repoRoot, executionRoot, nodeModules, 'Portal node_modules');
+    for (const executable of [
+      ...(needsPrettier ? ['prettier'] : []),
+      ...(needsEslint ? ['eslint'] : [])
+    ]) {
+      const executablePath = path.join(executionRoot, nodeModules, '.bin', executable);
+      if (!existsSync(executablePath)) {
+        throw new InvocationError(
+          `Committed-range prerequisite is missing: Portal node_modules/.bin/${executable}`
+        );
+      }
+    }
+  }
+}
+
+function isDependencyInput(candidate) {
+  const name = path.posix.basename(candidate).toLowerCase();
+  return /\.(?:cs|fs|vb)proj$/i.test(candidate) ||
+    /\.(?:props|targets|sln|slnx)$/i.test(candidate) ||
+    name === 'global.json' || name === 'nuget.config' ||
+    /^(?:package|npm-shrinkwrap|pnpm-lock|yarn)(?:-lock)?\.(?:json|yaml|yml|lock)$/.test(name) ||
+    /^(?:eslint|prettier|tsconfig)(?:\..+)?$/.test(name);
+}
+
+function provisionAssetDirectory(repoRoot, executionRoot, relativePath, label) {
+  const source = path.join(repoRoot, relativePath);
+  const destination = path.join(executionRoot, relativePath);
+  if (!existsSync(source) || !lstatSync(source).isDirectory()) {
+    throw new InvocationError(`Committed-range prerequisite is missing: ${label} (${relativePath})`);
+  }
+  if (!existsSync(destination)) symlinkSync(source, destination, 'dir');
 }
 
 function finalizeChangedScope(repoRoot, input) {
@@ -921,32 +1012,39 @@ function writeBaselineAtomically(filePath, document, mustNotExist) {
 }
 
 function updateBaselineMonotonically(repoRoot, filePath, candidate) {
-  const lockText = gitText(repoRoot, [
-    'rev-parse', '--git-path', 'rvt-engineering-standards-update.lock'
-  ]).trim();
-  if (lockText === '') {
-    throw new InvocationError('Git returned an empty baseline-update lock path');
-  }
-  const lockPath = path.resolve(repoRoot, lockText);
-  let acquired = false;
+  validateContainedPath(repoRoot, filePath, 'Policy path');
+  const canonicalTarget = realpathSync(filePath);
+  const lockPath = `${canonicalTarget}.update.lock`;
+  const owner = {
+    version: 1,
+    pid: process.pid,
+    token: randomUUID(),
+    createdAt: new Date().toISOString()
+  };
+  let ownsLock = false;
   for (let attempt = 0; attempt < 400; attempt += 1) {
     try {
       mkdirSync(lockPath);
-      acquired = true;
+      writeFileSync(
+        path.join(lockPath, 'owner.json'),
+        `${JSON.stringify(owner)}\n`,
+        { encoding: 'utf8', flag: 'wx' }
+      );
+      ownsLock = true;
       break;
     } catch (error) {
       if (error.code !== 'EEXIST') {
         throw new InvocationError(`Could not acquire baseline-update lock: ${error.message}`);
       }
+      reclaimStaleLock(lockPath);
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
     }
   }
-  if (!acquired) {
+  if (!ownsLock) {
     throw new InvocationError('Timed out waiting for baseline-update lock');
   }
 
   try {
-    validateContainedPath(repoRoot, filePath, 'Policy path');
     const liveDocument = readJsonDocument(filePath, 'Baseline document');
     try {
       validateBaseline(liveDocument);
@@ -964,8 +1062,93 @@ function updateBaselineMonotonically(repoRoot, filePath, candidate) {
     }
     writeBaselineAtomically(filePath, candidate, false);
   } finally {
-    rmSync(lockPath, { recursive: true, force: true });
+    releaseOwnedLock(lockPath, owner.token);
   }
+}
+
+function lockSnapshot(lockPath) {
+  let directoryStat;
+  try {
+    directoryStat = statSync(lockPath);
+  } catch (error) {
+    if (error.code === 'ENOENT') return undefined;
+    throw new InvocationError(`Could not inspect baseline-update lock: ${error.message}`);
+  }
+  try {
+    const value = JSON.parse(readFileSync(path.join(lockPath, 'owner.json'), 'utf8'));
+    if (
+      value?.version === 1 &&
+      Number.isSafeInteger(value.pid) &&
+      value.pid > 0 &&
+      typeof value.token === 'string' &&
+      value.token !== '' &&
+      Number.isFinite(Date.parse(value.createdAt))
+    ) {
+      return { kind: 'owner', ...value };
+    }
+  } catch {
+    // A creator can crash before its metadata is complete.
+  }
+  return { kind: 'partial', mtimeMs: directoryStat.mtimeMs };
+}
+
+function processIsAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === 'EPERM';
+  }
+}
+
+function reclaimStaleLock(lockPath) {
+  const snapshot = lockSnapshot(lockPath);
+  if (snapshot === undefined) return;
+  if (snapshot.kind === 'owner' && processIsAlive(snapshot.pid)) return;
+  if (
+    snapshot.kind === 'partial' &&
+    Date.now() - snapshot.mtimeMs < 1000
+  ) {
+    return;
+  }
+  moveAndRemoveMatchingLock(lockPath, snapshot, 'stale');
+}
+
+function releaseOwnedLock(lockPath, token) {
+  const snapshot = lockSnapshot(lockPath);
+  if (snapshot?.kind !== 'owner' || snapshot.token !== token) return;
+  moveAndRemoveMatchingLock(lockPath, snapshot, 'release');
+}
+
+function moveAndRemoveMatchingLock(lockPath, expected, purpose) {
+  const movedPath = `${lockPath}.${purpose}.${process.pid}.${randomUUID()}`;
+  try {
+    renameSync(lockPath, movedPath);
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw new InvocationError(`Could not claim baseline-update lock: ${error.message}`);
+  }
+  const actual = lockSnapshot(movedPath);
+  const matches =
+    expected.kind === 'owner'
+      ? actual?.kind === 'owner' && actual.token === expected.token
+      : actual?.kind === 'partial' && actual.mtimeMs === expected.mtimeMs;
+  if (matches) {
+    rmSync(movedPath, { recursive: true, force: true });
+    return true;
+  }
+  if (!existsSync(lockPath)) {
+    try {
+      renameSync(movedPath, lockPath);
+    } catch (error) {
+      throw new InvocationError(
+        `Baseline-update lock ownership changed during ${purpose}: ${error.message}`
+      );
+    }
+  }
+  throw new InvocationError(
+    `Baseline-update lock ownership changed during ${purpose}; refusing deletion`
+  );
 }
 
 function repositoryRoot() {

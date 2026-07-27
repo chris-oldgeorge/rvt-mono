@@ -131,6 +131,26 @@ run_verify() {
   set -e
 }
 
+run_verify_default_commands() {
+  set +e
+  last_output="$(
+    cd "$last_repo"
+    PATH="$default_bin:$PATH" \
+    RVT_STANDARDS_BASELINE_PATH="${RVT_TEST_BASELINE_PATH:-$last_repo/baseline.json}" \
+    RVT_STANDARDS_EXCEPTIONS_PATH="${RVT_TEST_EXCEPTIONS_PATH:-$last_repo/exceptions.json}" \
+    RVT_FAKE_EXPECT_CONTENT="${RVT_FAKE_EXPECT_CONTENT:-}" \
+    RVT_FAKE_REQUIRE_ASSET="${RVT_FAKE_REQUIRE_ASSET:-}" \
+    RVT_FAKE_LOG="$last_repo/tool.log" \
+    RVT_FAKE_DOTNET_REPORT="" RVT_FAKE_DOTNET_STATUS=0 \
+    RVT_FAKE_DOTNET_FAIL_PHASE="" RVT_FAKE_DOTNET_SKIP_REPORT=0 \
+    RVT_FAKE_PRETTIER_STATUS=0 RVT_FAKE_PRETTIER_OUTPUT="" \
+    RVT_FAKE_ESLINT_STATUS=0 RVT_FAKE_ESLINT_REPORT="" \
+      scripts/verify-engineering-standards.sh "$@" 2>&1
+  )"
+  last_status=$?
+  set -e
+}
+
 write_dotnet_report() {
   local destination="$1"
   local file_path="$2"
@@ -160,6 +180,8 @@ EOF
 }
 
 mkdir -p "$fake_bin"
+default_bin="$temp_root/default tools"
+mkdir -p "$default_bin"
 cat > "$fake_bin/fake-dotnet" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -172,6 +194,11 @@ fi
 if [[ -n "${RVT_FAKE_EXPECT_CONTENT:-}" ]] &&
    ! rg -F -q -- "$RVT_FAKE_EXPECT_CONTENT" src/Clock.cs; then
   exit 7
+fi
+if [[ -n "${RVT_FAKE_REQUIRE_ASSET:-}" &&
+      ! -f "$RVT_FAKE_REQUIRE_ASSET" ]]; then
+  printf 'missing required no-restore asset: %s\n' "$RVT_FAKE_REQUIRE_ASSET" >&2
+  exit 8
 fi
 printf 'dotnet' >> "$RVT_FAKE_LOG"
 for argument in "$@"; do
@@ -234,6 +261,7 @@ fi
 exit "$RVT_FAKE_ESLINT_STATUS"
 EOF
 chmod +x "$fake_bin/fake-dotnet" "$fake_bin/fake-prettier" "$fake_bin/fake-eslint"
+ln -s "$fake_bin/fake-dotnet" "$default_bin/dotnet"
 
 # Clean changed-scope checks do not invoke source tools.
 create_repo clean
@@ -584,6 +612,64 @@ node -e '
 run_verify --all --update-baseline
 assert_status 0
 
+# Update lock identity follows the canonical baseline target, not a worktree Git dir.
+create_repo canonical-baseline-lock
+canonical_lock="$last_repo/baseline.json.update.lock"
+mkdir "$canonical_lock"
+write_json "$canonical_lock/owner.json" \
+  "{\"version\":1,\"pid\":$$,\"token\":\"live-owner\",\"createdAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+live_dotnet_command="$(printf '["%s"]' "$fake_bin/fake-dotnet")"
+live_prettier_command="$(printf '["%s"]' "$fake_bin/fake-prettier")"
+live_eslint_command="$(printf '["%s"]' "$fake_bin/fake-eslint")"
+RVT_STANDARDS_DOTNET_COMMAND="$live_dotnet_command" \
+RVT_STANDARDS_PRETTIER_COMMAND="$live_prettier_command" \
+RVT_STANDARDS_ESLINT_COMMAND="$live_eslint_command" \
+RVT_STANDARDS_BASELINE_PATH="$last_repo/baseline.json" \
+RVT_STANDARDS_EXCEPTIONS_PATH="$last_repo/exceptions.json" \
+RVT_FAKE_LOG="$last_repo/tool.log" \
+RVT_FAKE_DOTNET_REPORT="" RVT_FAKE_DOTNET_STATUS=0 \
+RVT_FAKE_DOTNET_FAIL_PHASE="" RVT_FAKE_DOTNET_SKIP_REPORT=0 \
+RVT_FAKE_DELAY="" RVT_FAKE_STARTED_MARKER="" \
+RVT_FAKE_EXPECT_CONTENT="" RVT_FAKE_REQUIRE_ASSET="" \
+RVT_FAKE_PRETTIER_STATUS=0 RVT_FAKE_PRETTIER_OUTPUT="" \
+RVT_FAKE_ESLINT_STATUS=0 RVT_FAKE_ESLINT_REPORT="" \
+  node -e '
+    const { spawnSync } = require("child_process");
+    const result = spawnSync(process.argv[1], ["--all", "--update-baseline"], {
+      cwd: process.argv[2], env: process.env, timeout: 200
+    });
+    if (result.error?.code !== "ETIMEDOUT") process.exit(1);
+  ' "$last_repo/scripts/verify-engineering-standards.sh" "$last_repo" ||
+  fail "live canonical baseline lock was stolen"
+[[ -d "$canonical_lock" ]] ||
+  fail "live canonical baseline lock was removed"
+rm -rf "$canonical_lock"
+
+# A demonstrably dead owner is reclaimed and the new owner cleans up its lock.
+create_repo dead-baseline-lock-owner
+dead_lock="$last_repo/baseline.json.update.lock"
+sleep 30 &
+killed_owner_pid=$!
+kill "$killed_owner_pid"
+wait "$killed_owner_pid" 2>/dev/null || true
+mkdir "$dead_lock"
+write_json "$dead_lock/owner.json" \
+  "{\"version\":1,\"pid\":$killed_owner_pid,\"token\":\"dead-owner\",\"createdAt\":\"2000-01-01T00:00:00Z\"}"
+run_verify --all --update-baseline
+assert_status 0
+[[ ! -e "$dead_lock" ]] ||
+  fail "dead canonical baseline lock was not reclaimed and cleaned"
+
+# An incomplete lock-creation crash is recoverable only after its bounded grace.
+create_repo partial-baseline-lock-owner
+partial_lock="$last_repo/baseline.json.update.lock"
+mkdir "$partial_lock"
+touch -t 200001010000 "$partial_lock"
+run_verify --all --update-baseline
+assert_status 0
+[[ ! -e "$partial_lock" ]] ||
+  fail "stale metadata-free baseline lock was not reclaimed"
+
 # Explicit and automatic committed ranges resolve without shell interpretation.
 create_repo explicit-range
 base_revision="$(git -C "$last_repo" rev-parse HEAD)"
@@ -638,6 +724,78 @@ rg -F -q "DirtyUnstagedMinute" "$last_repo/src/Clock.cs" ||
 worktree_count="$(git -C "$last_repo" worktree list --porcelain | rg -c '^worktree ')"
 [[ "$worktree_count" -eq 1 ]] ||
   fail "range verification leaked an isolated worktree"
+
+# Default range commands receive compatible ignored prerequisites.
+create_repo exact-range-default-assets
+write_json "$last_repo/apps/portal/RvtPortal.Client/package.json" \
+  '{"private":true,"devDependencies":{"eslint":"1.0.0","prettier":"1.0.0"}}'
+write_json "$last_repo/apps/portal/RvtPortal.Client/package-lock.json" \
+  '{"lockfileVersion":3,"packages":{}}'
+write_json "$last_repo/src/Sample.csproj" \
+  '<Project Sdk="Microsoft.NET.Sdk"></Project>'
+git -C "$last_repo" add apps/portal/RvtPortal.Client/package.json \
+  apps/portal/RvtPortal.Client/package-lock.json src/Sample.csproj
+git -C "$last_repo" commit -q -m "tracked dependency inputs"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+mkdir -p "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin"
+ln -s "$fake_bin/fake-prettier" \
+  "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/prettier"
+ln -s "$fake_bin/fake-eslint" \
+  "$last_repo/apps/portal/RvtPortal.Client/node_modules/.bin/eslint"
+mkdir -p "$last_repo/src/obj"
+: > "$last_repo/src/obj/restore.sentinel"
+sed -i.bak 's/public int Hour/public int HeadHour/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+printf 'export const headOnly = true;\n' \
+  >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+git -C "$last_repo" add src/Clock.cs apps/portal/RvtPortal.Client/src/app.ts
+git -C "$last_repo" commit -q -m "requested source head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+sed -i.bak 's/public int Hour/public int DirtyHour/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+RVT_FAKE_EXPECT_CONTENT="HeadHour" RVT_FAKE_REQUIRE_ASSET="src/obj/restore.sentinel" \
+  run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_status 0
+assert_log_contains "dotnet"
+assert_log_contains "prettier cwd="
+assert_log_contains "eslint cwd="
+
+create_repo exact-range-missing-assets
+write_json "$last_repo/src/Sample.csproj" \
+  '<Project Sdk="Microsoft.NET.Sdk"></Project>'
+git -C "$last_repo" add src/Sample.csproj
+git -C "$last_repo" commit -q -m "tracked project"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+sed -i.bak 's/public int Hour/public int HeadHour/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Clock.cs
+git -C "$last_repo" commit -q -m "requested head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_status 2
+assert_output "range prerequisite"
+
+create_repo exact-range-incompatible-assets
+write_json "$last_repo/src/Sample.csproj" \
+  '<Project Sdk="Microsoft.NET.Sdk"></Project>'
+git -C "$last_repo" add src/Sample.csproj
+git -C "$last_repo" commit -q -m "base project inputs"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/src/Sample.csproj" \
+  '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><LangVersion>preview</LangVersion></PropertyGroup></Project>'
+sed -i.bak 's/public int Hour/public int HeadHour/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Sample.csproj src/Clock.cs
+git -C "$last_repo" commit -q -m "incompatible requested head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+mkdir -p "$last_repo/src/obj"
+: > "$last_repo/src/obj/restore.sentinel"
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_status 2
+assert_output "incompatible"
 
 # Inventory mode ratchets report-based whitespace, ESLint, and Prettier findings.
 create_repo inventory

@@ -3026,8 +3026,6 @@ TimescaleDB extensions where the schema requires them.
   workflow step through the Sonar quality gate, then verify the runner is idle
   and only `rvt_sonar_ci` remains.
 
-Next-session instruction: Read project_state.md to get up to speed
-
 ## Branch Integration Attempt - 2026-07-27
 
 - User requested that merged branches be pushed and cleaned up.
@@ -3083,3 +3081,19 @@ Next-session instruction: Read project_state.md to get up to speed
   that worktree has a tracked `project_state.md` modification and multiple
   untracked generated/suffixed-copy files. It and its remote branch were
   deliberately preserved to avoid deleting that unsaved work.
+
+## Sonar DNS hardening integration - 2026-07-27
+
+- DNS hardening commit `ccf5688` was pushed to
+  `origin/codex/direct-project-references`. Its initial `main` push was safely
+  rejected because `origin/main` had advanced to `724d2a7` with the boundary
+  guard repair and branch-integration documentation.
+- The two remote-main commits were reviewed and merged without overwriting
+  either line of work. Merge commit `a5624d0` contains the DNS hardening,
+  transactional schema deployment, obsolete guard removal, and both state
+  records.
+- Pending actions are a fresh post-merge guard run, pushing the integrated
+  branch and `main`, retrying Sonar run `30199164649`, and monitoring the job
+  through database deployment, coverage upload, and the quality gate.
+
+Next-session instruction: Read project_state.md to get up to speed

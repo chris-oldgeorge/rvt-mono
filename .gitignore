@@ -8,3 +8,5 @@
 artifacts/
 .superpowers/sdd/
 .worktrees/
+.codegraph/
+apps/.nuget-packages/

@@ -3154,4 +3154,81 @@ TimescaleDB extensions where the schema requires them.
   commits behind `origin/main`; no unrelated branch integration was performed
   as part of the filesystem migration.
 
+## Final main integration and cleanup - 2026-07-27
+
+- `main` and `codex/direct-project-references` were reconciled at the same
+  integrated history. The final provider metadata addition is commit
+  `ff7fbda` (`chore: add storage package locks`).
+- The five storage `packages.lock.json` files are intentional source artifacts:
+  their project tree enables `RestorePackagesWithLockFile`, and peer projects
+  already track equivalent lock files. The untracked nested
+  `apps/monitors/reportingmonitor/Directory.Packages.props` was a stale
+  dependency-version shadow and was removed.
+- Final verification passed a locked root restore, a serial no-restore root
+  build with zero errors, and all 154 storage tests. Existing analyzer and
+  package-advisory warnings remain unchanged.
+- Repository-wide scans found no Finder-style numbered conflict files or
+  directories after verification.
+- Generated `.codegraph` and `apps/.nuget-packages` trees are disposable local
+  caches and are not source artifacts. The merged feature worktree and local
+  and remote feature branches can be removed after `main` is published.
+- Current file layout is a single repository rooted at
+  `/Users/oldgeorge/Developer/rvt-mono`; the intended final branch is `main`.
+  Start future sessions with: `Read project_state.md to get up to speed`.
+
+## Post-move runner re-anchor - 2026-07-27
+
+- Canonical repository root:
+  `/Users/oldgeorge/Developer/rvt-mono`.
+- Canonical linked validation worktree:
+  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/release-platform-hardening`.
+- Git reports both worktrees only at the new location. The relocation
+  validation base was `ff7fbda`, shared by `main` and
+  `codex/direct-project-references`; both were four local commits ahead of
+  their remote tracking refs at `cfab4a3` before this state-only update.
+- Remote `origin` remains
+  `https://github.com/chris-oldgeorge/rvt-mono.git`.
+- Preserve the unrelated generated directories `.codegraph/` and
+  `apps/.nuget-packages/`; both remain untracked.
+- The persistent self-hosted runner was recreated from the new root with
+  `--no-deps --force-recreate`. Its Compose `config_files` and `working_dir`
+  labels now point to `/Users/oldgeorge/Developer/rvt-mono/.github/runner`.
+- Runner registration volume `rvt-sonar-runner_runner-state` was preserved.
+  GitHub reports `rvt-sonar-dev` online, idle, and labelled `self-hosted`,
+  `Linux`, `ARM64`, and `rvt-sonar`.
+- DNS hardening remains live on the recreated runner:
+  `Dns=["1.1.1.1","8.8.8.8"]` and
+  `DnsOptions=["timeout:2","attempts:3"]`. Resolution of the GitHub Actions
+  broker hostname passed from inside the container.
+- The TimescaleDB container was not restarted. It remains healthy with ID
+  `c3da4a5afa806a49ceda5f090e422d936c5adea0b133de3471a7a5c935dfd2f3`.
+  Its old Compose path label is inert metadata; normal Compose discovery from
+  the new root works through the stable project and service labels.
+
+## Sonar run after DNS hardening - 2026-07-27
+
+- Manual Sonar workflow run `30229885735` analyzed exact commit
+  `cfab4a3e795bced8a9dd6aaa697aa26cc91b2c26`.
+- The DNS repair is live-proven: the runner renewed its job lease for the whole
+  approximately eleven-minute run with no `HostNotFound` error and no abandoned
+  job.
+- Checkout, JDK, .NET, Node, database preparation, tool installation, Sonar
+  begin, clean restore/build, Portal database deployment, and always-on
+  database cleanup all passed. This also live-proves the transactional schema
+  deployment repair, including `post-load/06_site_write_uniqueness.sql`.
+- Coverage failed while running the full test solution. The runner image is
+  missing the Ubuntu `tzdata` package and therefore lacks
+  `/usr/share/zoneinfo/Europe/London` and
+  `/usr/share/zoneinfo/Africa/Johannesburg`. Direct failures report
+  `TimeZoneNotFoundException` or timezone options validation for
+  `GMT Standard Time`, `Europe/London`, and `South Africa Standard Time`;
+  remaining Portal HTTP 500 failures must be reclassified after the timezone
+  prerequisite is restored.
+- Proposed next independent CI repair, still requiring explicit approval under
+  the CI-fix workflow: add `tzdata` to `.github/runner/Dockerfile`, add a
+  focused regression assertion to
+  `tests/verify-sonar-runner-stack.test.sh`, rebuild and recreate only the
+  runner, verify both zone files/runtime lookups, and dispatch a fresh manual
+  Sonar run.
+
 Next-session instruction: Read project_state.md to get up to speed

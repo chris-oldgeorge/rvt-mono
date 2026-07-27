@@ -5,15 +5,19 @@ public sealed class ConsumerMessagingBoundaryTests
 {
     private static readonly string[] SynchronousCompatibilityCallers =
     [
-        "myatmmonitor/MyAtmMonitor/api/MyAtmRuleProcessor.cs",
-        "omnidotsmonitor/OmnidotsMonitor/api/OmnidotsRuleProcessor.cs"
+        "apps/monitors/myatmmonitor/MyAtmMonitor/api/MyAtmRuleProcessor.cs",
+        "apps/monitors/omnidotsmonitor/OmnidotsMonitor/api/OmnidotsRuleProcessor.cs"
     ];
 
     [TestMethod]
     public void ObsoleteSynchronousMessageCallsAreLimitedToConsumerCompatibilityAllowlist()
     {
         var root = RepositoryRoot();
-        var callers = new[] { "myatmmonitor/MyAtmMonitor", "omnidotsmonitor/OmnidotsMonitor" }
+        var callers = new[]
+            {
+                "apps/monitors/myatmmonitor/MyAtmMonitor",
+                "apps/monitors/omnidotsmonitor/OmnidotsMonitor"
+            }
             .SelectMany(relativeDirectory => ReadProductionSource(root, relativeDirectory))
             .Where(file => file.Text.Contains(".Sendmessage(", StringComparison.Ordinal) ||
                 file.Text.Contains(".SendMessage(", StringComparison.Ordinal))

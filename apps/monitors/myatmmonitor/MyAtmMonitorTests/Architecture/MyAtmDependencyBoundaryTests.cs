@@ -33,9 +33,10 @@ public sealed class MyAtmDependencyBoundaryTests
             .Where(element => element.Name.LocalName == "IsTestProject")
             .Any(element => bool.TryParse(element.Value, out var value) && value) == true;
 
-        if (segments.Length != 3 ||
-            !segments[0].EndsWith("monitor", StringComparison.OrdinalIgnoreCase) ||
-            segments[0].Equals("rvt-monitor-common", StringComparison.OrdinalIgnoreCase) ||
+        if (segments.Length != 5 ||
+            !segments[0].Equals("apps", StringComparison.OrdinalIgnoreCase) ||
+            !segments[1].Equals("monitors", StringComparison.OrdinalIgnoreCase) ||
+            !segments[2].EndsWith("monitor", StringComparison.OrdinalIgnoreCase) ||
             !projectName.Equals(projectDirectory, StringComparison.Ordinal) ||
             projectName.EndsWith("Test", StringComparison.OrdinalIgnoreCase) ||
             projectName.EndsWith("Tests", StringComparison.OrdinalIgnoreCase) ||
@@ -74,14 +75,22 @@ public sealed class MyAtmDependencyBoundaryTests
 
     private static IEnumerable<string> EnumeratePrimaryProjectFiles(string repositoryRoot) =>
         Directory
-            .EnumerateFiles(repositoryRoot, "*.csproj", SearchOption.AllDirectories)
+            .EnumerateFiles(
+                Path.Combine(repositoryRoot, "apps", "monitors"),
+                "*.csproj",
+                SearchOption.AllDirectories)
             .Where(path => IsPrimaryRepositoryProject(path, repositoryRoot));
 
     [TestMethod]
     public void ProductionCSharp_DoesNotReferenceTheLegacyMyAtmOutbox()
     {
         var repositoryRoot = FindRepositoryRoot();
-        var productionRoot = Path.Combine(repositoryRoot, "myatmmonitor", "MyAtmMonitor");
+        var productionRoot = Path.Combine(
+            repositoryRoot,
+            "apps",
+            "monitors",
+            "myatmmonitor",
+            "MyAtmMonitor");
         var forbiddenReferences = new[]
         {
             "MyAtmOutboxMessageEntity",

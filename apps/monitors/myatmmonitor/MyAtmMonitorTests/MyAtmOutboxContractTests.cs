@@ -12,6 +12,8 @@ public sealed class MyAtmOutboxContractTests
         var repositoryRoot = FindRepositoryRoot();
         var source = File.ReadAllText(Path.Combine(
             repositoryRoot,
+            "apps",
+            "monitors",
             "myatmmonitor",
             "MyAtmMonitor",
             "api",

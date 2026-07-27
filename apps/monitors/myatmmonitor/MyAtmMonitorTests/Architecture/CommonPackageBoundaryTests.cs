@@ -199,16 +199,18 @@ public sealed class CommonPackageBoundaryTests
     }
 
     [TestMethod]
-    public void MigrationDocumentation_UsesDurableExactSourceCommitRetrieval()
+    public void MigrationDocumentation_UsesCheckedInMonorepoPostgreSqlMigrationPaths()
     {
         var readme = File.ReadAllText(
             Path.Combine(MonoRepositoryRoot(), "docs/modules/monitors/myatmmonitor/README.md"));
 
         Assert.DoesNotContain("gh run download", readme);
-        Assert.Contains("f00d5b8a320945ed08e248da8641ca0c3f7e3b82", readme);
-        Assert.Contains("archive \"$source_commit\"", readme);
+        Assert.Contains("libs/rvt-monitor-common/database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql", readme);
+        Assert.Contains("apps/monitors/myatmmonitor/database/migrations/2026-07-15-migrate-myatm-outbox-to-shared.postgres.sql", readme);
+        Assert.Contains("apps/monitors/myatmmonitor/database/migrations/2026-07-15-rollback-myatm-outbox-to-local.postgres.sql", readme);
         Assert.Contains("0b9ec190b7a37b06044842d7a582128bc354a83463ddf5c2b027ec4658154170", readme);
-        Assert.Contains("2cd2e4e9403b9c69c9aa282107bcf8221bc3749246163a92d7c17e1eac03769e", readme);
+        Assert.Contains("62d1259161576b6fe4f225f9d356dfd59263f7c0187ca961a8f4a544a1afcba9", readme);
+        Assert.Contains("ab81ff9a588d03cf2620025c1b3afcab28dd1c9a952aeb3f52f41d135873cac4", readme);
     }
 
     private static IEnumerable<string> ValidateSourceReferenceMatrix(

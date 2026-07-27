@@ -8,7 +8,7 @@ public sealed class SvantekDependencyBoundaryTests
     {
         var repositoryRoot = FindRepositoryRoot();
         var apiFiles = Directory.GetFiles(
-            Path.Combine(repositoryRoot, "svantekmonitor", "SvantekMonitor", "api"),
+            Path.Combine(repositoryRoot, "apps", "monitors", "svantekmonitor", "SvantekMonitor", "api"),
             "SvantekApi*.cs",
             SearchOption.TopDirectoryOnly);
 

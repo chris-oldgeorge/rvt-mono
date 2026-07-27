@@ -3332,4 +3332,129 @@ TimescaleDB extensions where the schema requires them.
   and `apps/.nuget-packages/`; it remains outside the path-repair commit and
   this state checkpoint.
 
+## Local full-suite rerun - 2026-07-27
+
+- Re-ran the full monorepo test sequence from
+  `codex/sonar-runner-tzdata` after a fresh restore and serial Release build.
+  Restore completed, and build completed with 0 errors and 73 existing
+  analyzer/package warnings.
+- The test environment used a dedicated disposable PostgreSQL login and
+  database on the local TimescaleDB container. The database received
+  `timescaledb` and `pgcrypto`, all three Portal EF migration contexts, and all
+  eight `RVT.SchemaDeploy` scripts before the final test pass.
+- A stale ignored
+  `libs/rvt-monitor-common/src/Rvt.Monitor.Common.Infrastructure` directory
+  contained only old `obj` output and `.DS_Store`. It caused the clean-layout
+  architecture test to fail locally even though the directory is absent from
+  Git and CI. It was moved intact to
+  `/private/tmp/rvt-mono-stale-Rvt.Monitor.Common.Infrastructure-20260727`.
+- Final verification command:
+  `dotnet test Rvt.Mono.slnx --configuration Release --no-build --no-restore --nologo -m:1`.
+  Result: 2,109 passed, 0 failed, 0 skipped across all 17 test projects.
+  MyATM passed 208/208, Svantek passed 136/136, Portal SPA passed 435/435,
+  and Common passed 340/340.
+- The disposable database and login were removed after the run and their
+  absence was verified. No tracked restore/build changes remain. Preserve the
+  pre-existing unstaged `.gitignore` edit.
+
+## Build-warning review - 2026-07-27
+
+- A clean serial Release build with restore disabled and incremental compilation
+  disabled succeeded in 12.16 seconds with 0 errors and 73 warnings. The
+  warnings-only log is
+  `/private/tmp/rvt-build-warnings-20260727.log`.
+- The warning inventory is limited to five NuGet security warnings and 68
+  MSTest analyzer warnings; there are no production compiler or nullable
+  warnings:
+  - `NU1903`: 5, all emitted by `RvtPortal.Spa.Tests` for the same transitive
+    `System.Security.Cryptography.Xml` 10.0.7 package and five high-severity
+    advisories.
+  - `MSTEST0001`: 7 assemblies have not made an explicit test parallelization
+    choice.
+  - `MSTEST0032`: 3 assertions compare compile-time constants and therefore
+    cannot fail.
+  - `MSTEST0037`: 8 collection-count assertions should use `Assert.HasCount`.
+  - `MSTEST0044`: 49 obsolete `[DataTestMethod]` attributes should be
+    `[TestMethod]`.
+  - `MSTEST0052`: 1 `DynamicDataSourceType.Method` argument is redundant.
+- A current full transitive vulnerability audit confirmed that the cryptography
+  package is the solution's only vulnerable dependency. It enters through
+  `Microsoft.AspNetCore.DataProtection` 10.0.7. Portal uses Data Protection for
+  persisted keys and optional Key Vault protection, so the path is
+  operationally relevant.
+- The repository has patch-version drift: 24 direct Microsoft package
+  references remain at 10.0.7 and nine are at 10.0.9. The local SDK is
+  10.0.203 with .NET and ASP.NET Core runtimes 10.0.7. The current supported
+  security patch is .NET 10.0.10 with SDK 10.0.302; all five reported
+  `System.Security.Cryptography.Xml` advisories are fixed in 10.0.10.
+- Proposed remediation order, not yet implemented:
+  1. Align the SDK, runtimes, all direct Microsoft ASP.NET Core/EF
+     Core/Extensions package references, the Sonar workflow's `dotnet-ef`
+     version, and rebuilt deployment images to 10.0.10/SDK 10.0.302.
+  2. Regenerate affected lock files and prove the transitive audit is clean,
+     then run restore, build, all 2,109 tests, schema deployment, and Portal
+     authentication/Data Protection smoke checks.
+  3. Mechanically replace the 49 obsolete attributes, remove the one redundant
+     DynamicData argument, and convert the eight count assertions.
+  4. Preserve the intended public-constant contract checks by reading each
+     constant through reflection instead of deleting the three tests or
+     suppressing `MSTEST0032`.
+  5. Add an explicit per-assembly parallelization choice to the seven affected
+     test projects, defaulting to method-level parallelization only after
+     repeated focused runs confirm isolation; use `DoNotParallelize` for any
+     genuinely shared-resource suite.
+  6. Once the baseline is clean, gate high/critical NuGet advisories and these
+     specific MSTest rules in CI. Centralize Microsoft patch versions and add a
+     `global.json` roll-forward policy to prevent future drift.
+- No warning remediation code, dependency version, workflow, or build-policy
+  change was made during this review. Preserve the existing unrelated
+  `.gitignore` edit.
+
+## Security-warning remediation - 2026-07-27
+
+- Implemented the approved security-only remediation on
+  `codex/sonar-runner-tzdata`; changes are currently uncommitted.
+- Added root `global.json` selecting stable SDK 10.0.302, disallowing
+  prereleases, and allowing forward movement to later stable feature bands.
+  Verification used an isolated SDK at
+  `/private/tmp/rvt-dotnet-10.0.302`, whose installed runtimes are
+  `Microsoft.NETCore.App` 10.0.10 and `Microsoft.AspNetCore.App` 10.0.10.
+- Aligned direct Microsoft ASP.NET Core, EF Core, and Extensions packages from
+  10.0.4/10.0.7/10.0.9 to 10.0.10 across Portal, monitors, common libraries,
+  and reporting messaging. Regenerated and locked all affected
+  `packages.lock.json` files.
+- The remaining vulnerable edge was caused by
+  `RvtPortal.Spa.Tests` inheriting `Microsoft.AspNetCore.App` only through its
+  Portal project reference. NuGet package pruning does not use a transitive
+  framework reference, so Azure Data Protection dependencies remained at
+  10.0.7 in the test restore graph. Added an explicit
+  `<FrameworkReference Include="Microsoft.AspNetCore.App" />` to
+  `RvtPortal.Spa.Tests`; the vulnerable Data Protection and cryptography
+  packages are now pruned rather than overridden or suppressed.
+- Updated the manual Sonar workflow to install the SDK selected by
+  `global.json` and updated its `dotnet-ef` tool from 10.0.7 to 10.0.10. The
+  workflow regression test now enforces both selections.
+- Added `NU1903` and `NU1904` to `WarningsAsErrors` in the Portal, monitor, and
+  common `Directory.Build.props` files. Reporting already has
+  `TreatWarningsAsErrors=true`. Evaluated MSBuild properties confirm every
+  solution subtree now fails restore/build on high or critical NuGet
+  advisories.
+- Final verification:
+  - fixed-SDK locked restore passed;
+  - full current NuGet advisory query reported no vulnerable package in any of
+    the 50 solution projects;
+  - non-incremental Release build passed with 0 errors and 68 warnings, all
+    previously inventoried MSTest analyzer warnings; `NU1903`, `NU1904`, and
+    `NU1510` are absent;
+  - all nine repository guard scripts passed;
+  - all three Portal EF migration contexts and all eight schema-deployment
+    scripts were applied to a disposable local TimescaleDB database;
+  - full database-backed suite passed: 2,109 passed, 0 failed, 0 skipped.
+- The disposable database and login were removed and their absence was
+  verified. `RVT__POSTGRES_INTEGRATION_CONNECTION`,
+  `RVT_TEST_POSTGRES_CONNECTION`, `RVT_EF_CONNECTION`, and
+  `RVT_DEPLOY_CONNECTION` were command-scoped only; none remains active.
+- Preserve the pre-existing unrelated `.gitignore` change for `.codegraph/`
+  and `apps/.nuget-packages/`. No commit or push was requested or performed.
+
 Next-session instruction: Read project_state.md to get up to speed

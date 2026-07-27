@@ -96,6 +96,12 @@ assert(
   scalar(dotnet_environment.fetch("DOTNET_INSTALL_DIR"), "DOTNET_INSTALL_DIR") == "${{ runner.temp }}/dotnet",
   "Set up .NET 10 must install into the runner-owned temporary directory"
 )
+dotnet_inputs = mapping(dotnet_setup.fetch("with"), "Set up .NET 10 inputs")
+assert(dotnet_inputs.keys == ["global-json-file"], "Set up .NET 10 must use only the repository SDK policy")
+assert(
+  scalar(dotnet_inputs.fetch("global-json-file"), "global-json-file") == "global.json",
+  "Set up .NET 10 must install the SDK selected by global.json"
+)
 
 step_named = lambda do |name|
   steps.find { |step| step.key?("name") && scalar(step.fetch("name"), "step name") == name }
@@ -175,7 +181,7 @@ assert_database_lifecycle(steps)
 install_tools = run.call("Install analysis tools")
 assert(install_tools.include?("dotnet-sonarscanner --tool-path .sonar --version 11.2.1"), "scanner version must be pinned")
 assert(install_tools.include?("dotnet-coverage --tool-path .sonar --version 18.9.0"), "coverage tool version must be pinned")
-assert(install_tools.include?("dotnet-ef --tool-path .sonar --version 10.0.7"), "EF tool version must be pinned")
+assert(install_tools.include?("dotnet-ef --tool-path .sonar --version 10.0.10"), "EF tool version must be pinned")
 
 begin_step = step_named.call("Begin SonarQube analysis")
 assert(begin_step, "missing Begin SonarQube analysis step")

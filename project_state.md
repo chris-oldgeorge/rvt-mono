@@ -3231,4 +3231,34 @@ TimescaleDB extensions where the schema requires them.
   runner, verify both zone files/runtime lookups, and dispatch a fresh manual
   Sonar run.
 
+## Repository engineering standards foundation - 2026-07-27
+
+- Resume instruction: start a future session with
+  `Read project_state.md to get up to speed`.
+- Isolated worktree:
+  `.worktrees/repository-engineering-standards`; branch:
+  `codex/repository-engineering-standards`; base: `main` at `5cc977c`.
+- `docs/development/engineering-standards.md` is the normative repository-wide
+  contract for every new or modified logical unit and for all R1-R11
+  remediation analysis.
+- `docs/superpowers/specs/2026-07-27-repository-engineering-standards-design.md`
+  records the approved governance and enforcement design.
+- Governance variables are `standardsPath`, `designPath`, `baselineMode`, and
+  `complianceUnit`. Their defined values are the two paths above,
+  `ratcheted`, and `logical unit` respectively. A logical unit is a type,
+  function, React component, migration, SQL script, or configuration block.
+- Stable rule prefixes are `GOV`, `ARC`, `NAM`, `CSH`, `WEB`, `DAT`, `ASY`,
+  `ERR`, `NET`, `RES`, `OBS`, `CFG`, `TST`, `BLD`, `DOC`, and `REV`.
+- New files comply completely. Modified logical units comply completely.
+  Untouched legacy violations remain baselined, may not increase, and are
+  removed phase by phase. Exceptions require an ID, owner, exact scope,
+  justification, review date, removal condition, and validation.
+- The architecture review now makes the standard a prerequisite for every
+  remediation phase. Its completed standards-foundation item does not complete
+  R9; R9 still owns root tooling, machine-readable baselines, and automated
+  ratchet enforcement.
+- The clean isolated baseline passed all nine root repository guard scripts.
+  No production code, build configuration, analyzer configuration, or package
+  policy changed while authoring the standards.
+
 Next-session instruction: Read project_state.md to get up to speed

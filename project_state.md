@@ -3434,7 +3434,13 @@ Next-session instruction: Read project_state.md to get up to speed
   `Help Admin application-boundary integration - 2026-07-28` above.
 - Implementation, release documentation, full backend/client/browser
   verification, release-export dry run, and whole-branch self-review are
-  complete. No merge or push has been performed or authorized in this phase.
+  complete.
+- The branch is published as
+  `origin/codex/help-admin-application-boundary`. Draft pull request
+  `chris-oldgeorge/rvt-mono#4` targets `main`:
+  `https://github.com/chris-oldgeorge/rvt-mono/pull/4`.
+- No merge has been performed. The draft PR records the stacked integration
+  dependency and must not be marked ready until that dependency is resolved.
 - Before integration, merge the separate engineering-standards work so
   `eng/standards` is committed, then rerun
   `scripts/verify-engineering-standards.sh --base 96fa359 --head HEAD`.

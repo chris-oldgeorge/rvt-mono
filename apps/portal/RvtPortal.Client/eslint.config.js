@@ -5,7 +5,15 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/._*', 'dist', 'node_modules', 'coverage', 'playwright-report', 'test-results']
+    ignores: [
+      '**/._*',
+      'dist',
+      'node_modules',
+      'coverage',
+      'playwright-report',
+      'test-results',
+      'src/api/schema.d.ts'
+    ]
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -38,7 +46,13 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/naming-convention': [
+        'warn',
+        { selector: 'variableLike', format: ['camelCase', 'PascalCase', 'UPPER_CASE'] },
+        { selector: 'typeLike', format: ['PascalCase'] },
+        { selector: 'parameter', format: ['camelCase'], leadingUnderscore: 'allow' }
+      ]
     }
   },
   {

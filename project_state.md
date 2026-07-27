@@ -3491,4 +3491,51 @@ TimescaleDB extensions where the schema requires them.
   additions for `.codegraph/` and `apps/.nuget-packages/` are already present
   in the newer target-branch commit and remain outside the cleanup diff.
 
+## MSTest constant contracts and explicit parallelization - 2026-07-27
+
+- Work is implemented on branch
+  `codex/mstest-contracts-parallelization`; this checkpoint travels with the
+  branch. The execution plan is
+  `docs/superpowers/plans/2026-07-27-mstest-contracts-parallelization.md`.
+- The three former `MSTEST0032` assertions now resolve the public static fields
+  with `BindingFlags.Public | BindingFlags.Static` and compare
+  `FieldInfo.GetRawConstantValue()` with the frozen values
+  `Alerts:DurableDelivery`, `MyAtm`, and `Svantek`. No warning suppression or
+  production behavior changed.
+- Each reflected contract received independent mutation proof:
+  `DurableAlertOptions.SectionName`, `MonitorDeliveryProducers.MyAtm`, and
+  `MonitorDeliveryProducers.Svantek` were temporarily changed one at a time;
+  the relevant focused test failed with the mutation as the runtime actual
+  value. Every production mutation was explicitly reversed, both focused
+  tests then passed 2/2, and no production source file remains modified.
+- Seven dedicated `AssemblyInfo.cs` files now declare
+  `[assembly: Parallelize(Scope = ExecutionScope.MethodLevel)]` for:
+  `Rvt.Monitor.IntegrationTesting.Tests`,
+  `Rvt.Communication.AbstractionsTests`,
+  `Rvt.Communication.MicrosoftGraphMailTests`,
+  `Rvt.Communication.SendGridMailTests`,
+  `Rvt.Communication.TransmitSmsTests`, `Rvt.CommunicationTests`, and
+  `Rvt.Storage.Tests`.
+- Every affected assembly passed five consecutive whole-assembly runs:
+  35/35 runs and 1,465/1,465 accumulated test executions. Per-run counts were
+  Integration Testing 6, Communication Abstractions 20, Microsoft Graph 37,
+  SendGrid 20, Transmit SMS 25, Communication 31, and Storage 154.
+  No shared-resource collision occurred, so no assembly required
+  `DoNotParallelize`.
+- PostgreSQL repeat runs used command-scoped
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`. The helper generated a unique
+  `rvt_integration_<guid>` schema per database test; a post-stress database
+  query found zero remaining generated schemas. The connection variable was
+  scoped to test commands only and is not active in the repository or shell.
+- The complete shared-library solution passed 633/633, including the six real
+  PostgreSQL integration tests and the 340 existing
+  `Rvt.Monitor.CommonTests`. All nine root repository guards passed.
+- Verification uses
+  `/private/tmp/rvt-dotnet-10.0.302/dotnet`. The pre-change warnings log is
+  `/private/tmp/rvt-mstest-contracts-before-20260727.log` with seven
+  `MSTEST0001` and three `MSTEST0032`; the post-declaration log is
+  `/private/tmp/rvt-mstest-parallel-build-20260727.log` with zero warnings and
+  zero errors. Stress logs are under
+  `/private/tmp/rvt-mstest-parallel-stress-20260727`.
+
 Next-session instruction: Read project_state.md to get up to speed

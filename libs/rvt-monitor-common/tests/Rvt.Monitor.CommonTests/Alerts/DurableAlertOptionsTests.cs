@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,8 +18,14 @@ public sealed class DurableAlertOptionsTests
     public void Defaults_AreTheApprovedDurableDeliveryValues()
     {
         var options = new DurableAlertOptions();
+        var sectionNameField = typeof(DurableAlertOptions).GetField(
+            nameof(DurableAlertOptions.SectionName),
+            BindingFlags.Public | BindingFlags.Static);
 
-        Assert.AreEqual("Alerts:DurableDelivery", DurableAlertOptions.SectionName);
+        Assert.IsNotNull(sectionNameField);
+        Assert.AreEqual(
+            "Alerts:DurableDelivery",
+            (string?)sectionNameField.GetRawConstantValue());
         Assert.AreEqual(50, options.BatchSize);
         Assert.AreEqual(120, options.LeaseSeconds);
         Assert.AreEqual(90, options.DeliveryTimeoutSeconds);

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "modules": [
+    {
+      "path": "apps/monitors",
+      "testFramework": "MSTest",
+      "packageVersionPolicy": "module-central",
+      "testFrameworkOverrides": [
+        {
+          "path": "apps/monitors/reportingmonitor",
+          "testFramework": "xUnit"
+        }
+      ]
+    },
+    {
+      "path": "apps/portal",
+      "testFramework": "xUnit",
+      "packageVersionPolicy": "project-inline-legacy"
+    },
+    {
+      "path": "libs/rvt-monitor-common",
+      "testFramework": "MSTest",
+      "packageVersionPolicy": "module-central-locked"
+    },
+    {
+      "path": "services/reporting",
+      "testFramework": "xUnit",
+      "packageVersionPolicy": "project-inline-legacy"
+    }
+  ]
+}

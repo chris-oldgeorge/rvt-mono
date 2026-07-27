@@ -3096,4 +3096,24 @@ TimescaleDB extensions where the schema requires them.
   branch and `main`, retrying Sonar run `30199164649`, and monitoring the job
   through database deployment, coverage upload, and the quality gate.
 
+## Architecture and Code Quality Review Reference - 2026-07-27
+
+- The authoritative project-by-project coding-practices, hexagonal-architecture,
+  style-consistency, remaining-work, and dead-code review is:
+  `docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md`.
+- Security analysis was explicitly excluded from this review.
+- Use the ordered `R1` through `R11` checklist in that document as the remaining
+  remediation sequence. Update the checklist and this state record when a phase
+  is completed or deliberately deferred.
+- The new communication and storage adapter projects conform to the intended
+  dependency direction. The main remaining boundaries are legacy monitor
+  facades, the Portal's dual application architecture, duplicated reporting
+  lineages, and infrastructure still collected in `Rvt.Monitor.Common`.
+- Sidecar cleanup removed all currently observed files and directories whose
+  names ended in ` 2`. Builds can recreate them because the repository is under
+  an iCloud Drive File Provider domain:
+  `com.apple.CloudDocs.iCloudDriveFileProvider/E2494D5B-200D-4B93-8033-4F36D6975AE8`.
+  The durable mitigation is to move development worktrees and generated outputs
+  outside iCloud-synchronized Desktop/Documents folders.
+
 Next-session instruction: Read project_state.md to get up to speed

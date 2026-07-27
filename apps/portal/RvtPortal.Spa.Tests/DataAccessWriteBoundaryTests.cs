@@ -32,6 +32,28 @@ public sealed class DataAccessWriteBoundaryTests
         Assert.Empty(offenders);
     }
 
+    [Fact]
+    public void HelpWriteAdapter_StagesChangesWithoutCommittingThem()
+    {
+        var adapterPath = Path.Combine(
+            FindRepositoryRoot(),
+            "RvtPortal.Spa",
+            "Adapters",
+            "Help",
+            "EfHelpWriteAdapter.cs");
+
+        Assert.True(File.Exists(adapterPath), $"{adapterPath} must exist.");
+        Assert.False(CommitsChanges(File.ReadAllText(adapterPath)));
+    }
+
+    [Fact]
+    public void CommitDetection_RecognizesADirectCommitCall()
+    {
+        const string source = "await context.SaveChangesAsync(cancellationToken);";
+
+        Assert.True(CommitsChanges(source));
+    }
+
     // Function summary: Reports whether a source file commits the DbContext (calls SaveChanges) itself.
     private static bool CommitsChanges(string source)
     {

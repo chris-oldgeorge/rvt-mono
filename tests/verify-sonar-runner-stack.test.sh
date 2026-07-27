@@ -78,6 +78,7 @@ assert "libssl3t64" in dockerfile, "Ubuntu Noble runner image must install libss
 assert "liblttng-ust1t64" in dockerfile, "Ubuntu Noble runner image must install liblttng-ust1t64"
 assert "libkrb5-3" in dockerfile, "runner image must install the Kerberos runtime"
 assert "libgssapi-krb5-2" in dockerfile, "runner image must install the GSSAPI runtime"
+assert "tzdata" in dockerfile, "runner image must install timezone data"
 assert "libssl3" not in re.sub(r"libssl3t64", "", dockerfile), "Ubuntu Noble runner image must not retain libssl3"
 assert not re.search(r"(?:^|[\s,])(docker(?:\.io)?|docker-ce|docker-cli)(?:[\s,\\]|$)", dockerfile, re.IGNORECASE), "runner image must not install Docker"
 PY

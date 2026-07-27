@@ -296,13 +296,27 @@ EOF
 cat > "$fake_bin/fake-eslint" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+has_ignored_schema=0
+has_ordinary_warning=0
+suppress_ignored_warning=0
+quiet=0
 printf 'eslint cwd=<%s>' "$PWD" >> "$RVT_FAKE_LOG"
 for argument in "$@"; do
   printf ' <%s>' "$argument" >> "$RVT_FAKE_LOG"
+  case "$argument" in
+    --no-warn-ignored) suppress_ignored_warning=1 ;;
+    --quiet) quiet=1 ;;
+    src/api/schema.d.ts) has_ignored_schema=1 ;;
+    src/warning.ts) has_ordinary_warning=1 ;;
+  esac
 done
 printf '\n' >> "$RVT_FAKE_LOG"
 if [[ -n "$RVT_FAKE_ESLINT_REPORT" ]]; then
   cat "$RVT_FAKE_ESLINT_REPORT"
+elif [[ "$has_ignored_schema" -eq 1 && "$suppress_ignored_warning" -eq 0 ]]; then
+  printf '[{"filePath":"%s/src/api/schema.d.ts","messages":[{"ruleId":null,"fatal":false,"severity":1,"message":"File ignored because of a matching ignore pattern. Use \\"--no-ignore\\" to disable file ignore settings or use \\"--no-warn-ignored\\" to suppress this warning.","nodeType":null}]}]\n' "$PWD"
+elif [[ "$has_ordinary_warning" -eq 1 && "$quiet" -eq 0 ]]; then
+  printf '[{"filePath":"%s/src/warning.ts","messages":[{"ruleId":"react-refresh/only-export-components","fatal":false,"severity":1,"message":"Fast refresh only works when a file only exports components.","line":1}]}]\n' "$PWD"
 else
   printf '[]\n'
 fi
@@ -373,7 +387,31 @@ assert_status 0
 assert_log_contains "prettier cwd=<$last_repo/apps/portal/RvtPortal.Client>"
 assert_log_contains "<--list-different> <src/app.ts>"
 assert_log_contains "eslint cwd=<$last_repo/apps/portal/RvtPortal.Client>"
-assert_log_contains "<--format> <json> <src/app.ts>"
+assert_log_contains "<--format> <json>"
+assert_log_contains "<src/app.ts>"
+
+# Removing --no-warn-ignored from the production ESLint invocation makes the
+# fake pinned-engine boundary emit ESLint 9.39.4's nonfatal null-rule notice,
+# which the verifier must continue to reject rather than normalize heuristically.
+create_repo eslint-structurally-ignored-generated-file
+mkdir -p "$last_repo/apps/portal/RvtPortal.Client/src/api"
+printf 'export interface GeneratedSchema {}\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/api/schema.d.ts"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/src/api/schema.d.ts
+git -C "$last_repo" commit -q -m "tracked generated schema"
+run_verify --all
+assert_status 0
+assert_log_contains "<--no-warn-ignored>"
+assert_log_contains "<src/api/schema.d.ts>"
+
+# Adding --quiet to the production invocation would make this fake pinned-engine
+# boundary suppress a legitimate non-ignored warning and this changed-file check fail.
+create_repo eslint-ordinary-warning
+printf 'export const warning = 1;\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/warning.ts"
+run_verify --working-tree
+assert_status 1
+assert_output "react-refresh/only-export-components"
 
 # Every Prettier-supported Portal text extension is formatted; explicitly selected
 # unsupported text remains validated without being sent to Prettier.
@@ -1269,6 +1307,25 @@ write_eslint_report "$last_repo/eslint.json" \
 RVT_FAKE_ESLINT_STATUS=2 RVT_FAKE_ESLINT_REPORT="$last_repo/eslint.json" \
   run_verify --working-tree
 assert_status 2
+assert_output "internal/configuration status 2"
+
+create_repo eslint-fatal-parser-diagnostic
+printf 'export const broken = ;\n' >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+write_json "$last_repo/eslint.json" \
+  "[{\"filePath\":\"$last_repo/apps/portal/RvtPortal.Client/src/app.ts\",\"messages\":[{\"ruleId\":null,\"fatal\":true,\"severity\":2,\"message\":\"Parsing error: Expression expected.\",\"line\":2}]}]"
+RVT_FAKE_ESLINT_STATUS=1 RVT_FAKE_ESLINT_REPORT="$last_repo/eslint.json" \
+  run_verify --working-tree
+assert_status 1
+assert_output "eslint/fatal-parse-error"
+
+create_repo eslint-nonfatal-null-rule
+printf 'export const changed = 43;\n' >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+write_json "$last_repo/eslint.json" \
+  "[{\"filePath\":\"$last_repo/apps/portal/RvtPortal.Client/src/app.ts\",\"messages\":[{\"ruleId\":null,\"fatal\":false,\"severity\":1,\"message\":\"Malformed nonfatal diagnostic.\",\"line\":2}]}]"
+RVT_FAKE_ESLINT_REPORT="$last_repo/eslint.json" run_verify --working-tree
+assert_status 2
+assert_output "ESLint report is invalid"
+assert_output "rule ID"
 
 create_repo missing-report
 printf '\n' >> "$last_repo/src/Clock.cs"

@@ -964,7 +964,7 @@ function runPortalTools({ repoRoot, paths, inventory, immediateViolations }) {
   if (typescriptPaths.length === 0) return diagnostics;
   const eslintResult = runProcess(
     eslint,
-    ['--format', 'json', ...typescriptPaths],
+    ['--format', 'json', '--no-warn-ignored', ...typescriptPaths],
     clientRoot,
     'ESLint'
   );

@@ -3134,6 +3134,11 @@ TimescaleDB extensions where the schema requires them.
 - Operational documentation now uses the non-iCloud repository path.
 - Both CodeGraph indexes were rebuilt at their new paths. The stale daemon
   serving `/Users/oldgeorge/Documents/rvt-mono` was stopped.
+- Codex's persistent trusted-project entry, saved local-project root,
+  current-task assignment, and writable-root entries now use
+  `/Users/oldgeorge/Developer/rvt-mono`. The currently running desktop process
+  may continue to display its cached pre-migration path until Codex is
+  restarted; its persisted state is already updated for the next launch.
 - Relocation initially invalidated absolute paths in existing NuGet
   `project.assets.json` files. A forced root restore regenerated that metadata
   successfully at the new path.

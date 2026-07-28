@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Reflection;
+using System.Text.RegularExpressions;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace Rvt.Monitor.CommonTests.Diagnostics;
@@ -51,5 +54,32 @@ public sealed class SensitiveLogRedactorTests
         var redacted = SensitiveLogRedactor.RedactJson("Too many requests!");
 
         Assert.AreEqual("Too many requests!", redacted);
+    }
+
+    [TestMethod]
+    public void SensitiveAssignmentPattern_UsesAFiniteMatchTimeout()
+    {
+        var patternField = typeof(SensitiveLogRedactor).GetField(
+            "SensitiveAssignmentPattern",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.IsNotNull(patternField);
+        var pattern = patternField.GetValue(null) as Regex;
+
+        Assert.IsNotNull(pattern);
+        Assert.AreNotEqual(Regex.InfiniteMatchTimeout, pattern.MatchTimeout);
+    }
+
+    [TestMethod]
+    public void RedactJson_CompletesPromptlyAndDoesNotExposeLargeMalformedSensitiveAssignments()
+    {
+        var payload = "token=" + new string('a', 250_000) + new string(',', 10_000);
+        var started = Stopwatch.StartNew();
+
+        var redacted = SensitiveLogRedactor.RedactJson(payload);
+
+        started.Stop();
+        Assert.IsTrue(started.Elapsed < TimeSpan.FromSeconds(2));
+        Assert.IsFalse(redacted.Contains(payload[6..], StringComparison.Ordinal));
     }
 }

@@ -31,6 +31,7 @@ public sealed class ServiceAssemblyTests
 
         Assert.True(string.IsNullOrEmpty(builder.Username));
         Assert.True(string.IsNullOrEmpty(builder.Password));
+        Assert.True(string.IsNullOrEmpty(builder.SslPassword));
     }
 
     [Fact]
@@ -46,6 +47,7 @@ public sealed class ServiceAssemblyTests
         Assert.True(HasParsedCredentials("Host=localhost;Pwd=not-a-secret"));
         Assert.True(HasParsedCredentials("Host=localhost;UID=reporter"));
         Assert.True(HasParsedCredentials("Host=localhost;PSW=not-a-secret"));
+        Assert.True(HasParsedCredentials("Host=localhost;SSL Password=not-a-secret"));
     }
 
     private static bool HasParsedCredentials(string connectionString)
@@ -53,7 +55,9 @@ public sealed class ServiceAssemblyTests
         try
         {
             var builder = new NpgsqlConnectionStringBuilder(connectionString);
-            return !string.IsNullOrEmpty(builder.Username) || !string.IsNullOrEmpty(builder.Password);
+            return !string.IsNullOrEmpty(builder.Username) ||
+                   !string.IsNullOrEmpty(builder.Password) ||
+                   !string.IsNullOrEmpty(builder.SslPassword);
         }
         catch (ArgumentException)
         {

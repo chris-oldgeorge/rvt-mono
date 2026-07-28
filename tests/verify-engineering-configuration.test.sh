@@ -241,7 +241,6 @@ has_portal_runtime_user() {
 
   stage="$(final_dockerfile_stage "$dockerfile")"
   effective_user="$(printf '%s\n' "$stage" | awk '
-    /^[[:space:]]*(ENTRYPOINT|CMD|HEALTHCHECK)[[:space:]]/ { exit }
     /^[[:space:]]*USER[[:space:]]+/ { user = $0 }
     END { print user }
   ')"
@@ -274,6 +273,17 @@ assert_portal_runtime_user_later_root_mutation_rejected() {
   printf 'Rejected Portal client later-root runtime-user mutation.\n'
 }
 
+assert_portal_runtime_user_post_runtime_root_mutation_rejected() {
+  local mutation_path="$temp_dir/$(basename "$portal_client_dockerfile").runtime-user-post-runtime-root.mutation"
+
+  awk '
+    { print }
+    /^[[:space:]]*HEALTHCHECK/ { print "USER 0:0" }
+  ' "$portal_client_dockerfile" > "$mutation_path"
+  has_portal_runtime_user "$mutation_path" && fail "Portal client post-runtime root-user mutation bypassed the Dockerfile USER guard"
+  printf 'Rejected Portal client post-runtime root-user mutation.\n'
+}
+
 assert_portal_container_inspection_user_mutation_rejected() {
   local mutation_path="$temp_dir/$(basename "$portal_frontend_container_verifier").user-inspection.mutation"
 
@@ -285,6 +295,7 @@ assert_portal_container_inspection_user_mutation_rejected() {
 has_portal_runtime_user "$portal_client_dockerfile" || fail "Portal client Dockerfile final runtime stage must declare USER 101:101 before runtime execution"
 assert_portal_runtime_user_mutation_rejected
 assert_portal_runtime_user_later_root_mutation_rejected
+assert_portal_runtime_user_post_runtime_root_mutation_rejected
 has_portal_container_inspection_user "$portal_frontend_container_verifier" || fail "Portal frontend container verifier must require Config.User 101:101"
 assert_portal_container_inspection_user_mutation_rejected
 

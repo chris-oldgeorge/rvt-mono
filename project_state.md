@@ -11,7 +11,9 @@
   normal merge commit `3f2dabe0a12e984c88f98a3cbb8d857a8e7e4d07`; there were
   no conflicts. The prior stale, uncommitted Sonar planning state is preserved
   (not applied and not dropped) as
-  `stash@{0}: pre-lint-integration-stale-sonar-project-state`.
+  `stash@{1}: pre-lint-integration-stale-sonar-project-state`. The unrelated
+  RVT.Utilities retirement-audit checkpoint is separately preserved as
+  `stash@{0}: pre-lint-finalization-rvt-utilities-audit`.
 - The disposable full-profile baseline contained 38 findings: 36 lint errors
   and the two established `react-refresh/only-export-components` warnings.
   The Portal configuration now enables all of `js.configs.recommended`,
@@ -22,7 +24,7 @@
 - Final Portal verification on Node 24 passed: ESLint exits 0 with no errors
   and exactly the two established Fast Refresh warnings in
   `src/operations/DataViewPanels.tsx` (902:17 and 911:17); Vitest reports
-  13 files and 132 tests passed; `tsc -b && vite build` passed; and `npm audit`
+  13 files and 135 tests passed; `tsc -b && vite build` passed; and `npm audit`
   reports zero vulnerabilities.
 - Final whole-branch review remediation added per-execution request ownership,
   cross-deployment trace ownership, persistent request controls, and guards
@@ -30,6 +32,12 @@
   approved remediation commits are `c78768c`, `8bc7a77`, `0d94275`,
   `f7b71b7`, and `904f532`; their slice reviews found no remaining
   Important or Critical issue.
+- Final D1/D2 remediation added notification/alert mutation-refresh ownership
+  (`332a9d1`), Help Admin failed-filter and result ownership (`e6b54cc`), and
+  hidden-result actionability enforcement with browser proof (`098d628`).
+  The focused Help Admin Playwright specification passes 2/2, proving hidden
+  stale results cannot be acted on. D1, D2, and D2 round-two slice reviews
+  approved the final behavior.
 - Repository verification passed on the integrated branch: `scripts/verify-engineering-standards.sh --base origin/main --head HEAD` exits 0,
   `tests/verify-engineering-standards-workflow.test.sh` passes,
   `tests/verify-manual-sonarqube-workflow.test.sh` passes, and
@@ -39,9 +47,9 @@
   dependency change, backend change, database change, API contract change, or
   Help Admin/R2 release-status change. Help Admin/R2 remains conditional on
   its separate operator release-database audit.
-- Next step: repeat the whole-branch review on the final integrated head; only
-  after that review passes, push this dedicated review branch and open the
-  prepared draft pull request.
+- Publication status: implementation, D1/D2 slice review, and repeated
+  whole-branch review are complete. Next step: push this dedicated review
+  branch and open the prepared draft pull request.
 
 ## Authoritative checkpoint: Sonar reliability follow-up merged — 2026-07-28
 

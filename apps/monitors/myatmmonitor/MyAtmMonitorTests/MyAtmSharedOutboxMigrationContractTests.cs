@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Rvt.Monitor.IntegrationTesting;
 
 namespace MyAtmMonitorTests;
 
@@ -180,28 +181,10 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     }
 
     private static string MigrationDirectory() =>
-        Path.Combine(
-            FindRepositoryRoot(),
+        RepositoryLayout.GetPath(
             "apps",
             "monitors",
             "myatmmonitor",
             "database",
             "migrations");
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var gitPath = Path.Combine(directory.FullName, ".git");
-            if (Directory.Exists(gitPath) || File.Exists(gitPath))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find the repository root from the test output directory.");
-    }
 }

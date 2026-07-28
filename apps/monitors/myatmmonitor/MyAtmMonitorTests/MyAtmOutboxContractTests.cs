@@ -1,5 +1,6 @@
 using MyAtm.Api.Db;
 using Rvt.Monitor.Common.Delivery;
+using Rvt.Monitor.IntegrationTesting;
 
 namespace MyAtmMonitorTests;
 
@@ -9,7 +10,7 @@ public sealed class MyAtmOutboxContractTests
     [TestMethod]
     public void StoreDustLevelsHandler_DoesNotDependOnOrInvokeDeliveryDispatcher()
     {
-        var repositoryRoot = FindRepositoryRoot();
+        string repositoryRoot = RepositoryLayout.Root;
         var source = File.ReadAllText(Path.Combine(
             repositoryRoot,
             "apps",
@@ -71,20 +72,4 @@ public sealed class MyAtmOutboxContractTests
         typeof(T).GetMethods()
             .Single(method => method.Name == name && (parameterCount == null || method.GetParameters().Length == parameterCount));
 
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (Directory.Exists(Path.Combine(directory.FullName, ".git")) ||
-                File.Exists(Path.Combine(directory.FullName, ".git")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Repository root was not found.");
-    }
 }

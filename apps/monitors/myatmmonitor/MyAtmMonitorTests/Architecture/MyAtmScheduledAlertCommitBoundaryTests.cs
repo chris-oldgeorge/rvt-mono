@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Rvt.Monitor.IntegrationTesting;
 
 namespace MyAtmMonitorTests.Architecture;
 
@@ -12,8 +13,7 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
         string fileName,
         string expectedCommitFactories)
     {
-        var source = File.ReadAllText(Path.Combine(
-            FindRepositoryRoot(),
+        string source = File.ReadAllText(RepositoryLayout.GetPath(
             "apps",
             "monitors",
             "myatmmonitor",
@@ -82,8 +82,7 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
     [TestMethod]
     public void StoreDustLevelsHandler_CommitsAtomicallyWithoutRequestingDelivery()
     {
-        var source = File.ReadAllText(Path.Combine(
-            FindRepositoryRoot(),
+        string source = File.ReadAllText(RepositoryLayout.GetPath(
             "apps",
             "monitors",
             "myatmmonitor",
@@ -106,8 +105,7 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
     [TestMethod]
     public void MyAtmService_UsesFocusedHandlersInsteadOfCompatibilityFacades()
     {
-        var source = File.ReadAllText(Path.Combine(
-            FindRepositoryRoot(),
+        string source = File.ReadAllText(RepositoryLayout.GetPath(
             "apps",
             "monitors",
             "myatmmonitor",
@@ -142,20 +140,4 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
             $"Scheduled alert handlers must not reference {boundary}.");
     }
 
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (Directory.Exists(Path.Combine(directory.FullName, ".git")) || File.Exists(Path.Combine(directory.FullName, ".git")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        Assert.Fail("Could not find repository root from test output directory.");
-        return string.Empty;
-    }
 }

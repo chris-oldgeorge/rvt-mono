@@ -14,8 +14,20 @@ public sealed class MyAtmSharedOutboxMigrationTests
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext context)
     {
-        var setupSql = File.ReadAllText(RepositoryPath("apps", "monitors", "myatmmonitor", "MyAtmMonitorTests", "testdata", "create.postgres.sql"));
-        var resetSql = File.ReadAllText(RepositoryPath("apps", "monitors", "myatmmonitor", "MyAtmMonitorTests", "testdata", "reset.postgres.sql"));
+        string setupSql = File.ReadAllText(RepositoryLayout.GetPath(
+            "apps",
+            "monitors",
+            "myatmmonitor",
+            "MyAtmMonitorTests",
+            "testdata",
+            "create.postgres.sql"));
+        string resetSql = File.ReadAllText(RepositoryLayout.GetPath(
+            "apps",
+            "monitors",
+            "myatmmonitor",
+            "MyAtmMonitorTests",
+            "testdata",
+            "reset.postgres.sql"));
         database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql);
     }
 
@@ -31,7 +43,13 @@ public sealed class MyAtmSharedOutboxMigrationTests
     [TestInitialize]
     public async Task TestInitialize()
     {
-        var resetSql = File.ReadAllText(RepositoryPath("apps", "monitors", "myatmmonitor", "MyAtmMonitorTests", "testdata", "reset.postgres.sql"));
+        string resetSql = File.ReadAllText(RepositoryLayout.GetPath(
+            "apps",
+            "monitors",
+            "myatmmonitor",
+            "MyAtmMonitorTests",
+            "testdata",
+            "reset.postgres.sql"));
         await database!.ResetAsync(resetSql);
         await ExecuteAsync(SeedLegacyRowsSql);
     }
@@ -101,7 +119,13 @@ public sealed class MyAtmSharedOutboxMigrationTests
     }
 
     private static async Task ApplyMigrationAsync(string fileName) =>
-        await ExecuteAsync(File.ReadAllText(RepositoryPath("apps", "monitors", "myatmmonitor", "database", "migrations", fileName)));
+        await ExecuteAsync(File.ReadAllText(RepositoryLayout.GetPath(
+            "apps",
+            "monitors",
+            "myatmmonitor",
+            "database",
+            "migrations",
+            fileName)));
 
     private static async Task ExecuteAsync(string sql)
     {
@@ -264,26 +288,6 @@ public sealed class MyAtmSharedOutboxMigrationTests
 
     private static DateTime? GetNullableDateTime(NpgsqlDataReader reader, int ordinal) =>
         reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
-
-    private static string RepositoryPath(params string[] segments) =>
-        Path.Combine([FindRepositoryRoot(), .. segments]);
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var gitPath = Path.Combine(directory.FullName, ".git");
-            if (Directory.Exists(gitPath) || File.Exists(gitPath))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find the repository root from the test output directory.");
-    }
 
     private const string StateMismatchSql =
         """

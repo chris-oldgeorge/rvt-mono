@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using Rvt.Monitor.IntegrationTesting;
 
 namespace MyAtmMonitorTests.Architecture;
 
@@ -8,14 +9,17 @@ public sealed class MyAtmDependencyBoundaryTests
     [TestMethod]
     public void MapperlyPackageReferences_FollowMonitorAppAnalyzerPolicy()
     {
-        var repositoryRoot = FindRepositoryRoot();
+        string repositoryRoot = RepositoryLayout.Root;
         var violations = EnumeratePrimaryProjectFiles(repositoryRoot)
             .SelectMany(projectPath => ReadMapperlyReferences(projectPath)
                 .SelectMany(reference => ValidateMapperlyReference(repositoryRoot, projectPath, reference)))
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        CollectionAssert.AreEqual(Array.Empty<string>(), violations);
+        CollectionAssert.AreEqual(
+            Array.Empty<string>(),
+            violations,
+            string.Join(Environment.NewLine, violations));
     }
 
     private static IEnumerable<string> ValidateMapperlyReference(
@@ -84,7 +88,7 @@ public sealed class MyAtmDependencyBoundaryTests
     [TestMethod]
     public void ProductionCSharp_DoesNotReferenceTheLegacyMyAtmOutbox()
     {
-        var repositoryRoot = FindRepositoryRoot();
+        string repositoryRoot = RepositoryLayout.Root;
         var productionRoot = Path.Combine(
             repositoryRoot,
             "apps",
@@ -124,21 +128,4 @@ public sealed class MyAtmDependencyBoundaryTests
         return !relativePath.StartsWith(".worktrees/", StringComparison.Ordinal);
     }
 
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var gitPath = Path.Combine(directory.FullName, ".git");
-            if (Directory.Exists(gitPath) || File.Exists(gitPath))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        Assert.Fail("Could not find repository root from test output directory.");
-        return string.Empty;
-    }
 }

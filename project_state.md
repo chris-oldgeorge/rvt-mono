@@ -1,11 +1,137 @@
 # Project State
 
-## Local main reconciled after Help Admin merge — 2026-07-28
+## R1 architecture guards complete; Help Admin release still conditional — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
-- The local integration checkout at `/Users/oldgeorge/Developer/rvt-mono` is
-  on `main`, fast-forwarded to `origin/main` commit `1e2fbf3`, and has one
-  intentionally retained local commit:
+- This top checkpoint is the sole current authority for R1 and Help Admin. It
+  supersedes every lower checkpoint, current-state heading, resume instruction,
+  release gate, and next-step instruction concerning either item. Lower
+  sections are preserved only as historical evidence and must not override or
+  direct work away from this checkpoint.
+- Current Git integration state: the clean local `main` checkout and
+  `origin/main` are synchronized at `bef6da3`. There is no unpublished
+  `main` commit or pending `main` push recorded by this checkpoint.
+- R1 is complete on the unmerged implementation branch
+  `codex/r1-architecture-guards`. The implementation builds on `aaa20de`
+  (`Repair monorepo test paths`) and `f59d5d1` (`Record monorepo path repair
+  verification`) and is recorded in `0fd8921` (`test: add portable monitor
+  repository layout`), `b1433eb` (`style: satisfy repository layout
+  standards`), `f44bf24` (`test: share monitor repository layout discovery`),
+  `a7b84c2` (`test: expose Mapperly architecture diagnostics`), and `74de1f8`
+  (`test: prove R1 architecture guards reject mutations`). Final fail-closed
+  portability hardening is recorded in `d459dbb` (`test: define fail-closed
+  repository layout`), `e9c98d1` (`fix: fail closed on repository layout
+  ambiguity`), `8584049` (`test: require actionable repository root
+  guidance`), `81ef27f` (`fix: guide relocated test hosts to explicit root`),
+  and `d1dfad6` (`style: use current MSTest string assertions`). Merge commit
+  `c4b303b` reconciles the branch with current `origin/main`; it is not an R1
+  implementation unit. State commit `cb5fd5d` records the verified synchronized
+  main/origin state after the R1 code hardening. This documentation task does
+  not merge or modify `main`.
+- `Rvt.Monitor.IntegrationTesting.RepositoryLayout` is the shared monitor
+  test-support authority for the monorepo root and repository-relative paths.
+  It independently evaluates four candidates: test output, the
+  `[CallerFilePath]` source location, process current directory, and optional
+  `RVT_MONOREPO_ROOT`. Every discovered or configured root must contain
+  `Rvt.Mono.slnx` plus either a normal `.git` directory or a worktree `.git`
+  file. A configured root is validated directly and fails without fallback
+  when invalid. Existing path components are physically canonicalized so
+  aliases of one checkout collapse; candidates for distinct checkouts fail as
+  ambiguous instead of selecting one.
+- `RepositoryLayout.GetPath` accepts one or more segments, but each segment
+  must be a single non-empty, non-rooted repository-relative name: rooted
+  input, separators, null/blank values, `.` and `..` traversal, and an empty
+  segment collection are rejected. The normalized result is also required to
+  remain below the canonical repository root.
+- Eight MyATM and two Svantek repository-reading test files now use the shared
+  helper. No AirQ, Omnidots, ReportingMonitor, Portal, shared-library,
+  production monitor, database, package, or later-roadmap migration was
+  absorbed.
+- Focused normal proof passed 19/19 helper tests, 38/38 MyATM tests, and 5/5
+  Svantek tests. The same 19/19, 38/38, and 5/5 suites passed with `CI=true`,
+  `UseArtifactsOutput=true`, external disposable artifacts, and
+  `RVT_MONOREPO_ROOT` set to the validated R1 checkout. Restore/build/test
+  execution was deliberately serialized, then tests used
+  `--no-build --no-restore`, because this host's parallel MSBuild child nodes
+  are unreliable.
+- The deterministic-CI proof also recorded one expected bounded RED without
+  `RVT_MONOREPO_ROOT`: compiler `PathMap` mapped `[CallerFilePath]` to
+  `/_/...`, VSTest moved the process current directory to the external
+  test-assembly directory, and output was external. Discovery failed closed
+  and named all candidates while instructing the operator to set
+  `RVT_MONOREPO_ROOT` to a validated root. The identical explicit-root
+  invocation passed; no hidden checkout inference was added.
+- `tests/verify-r1-architecture-guards.test.sh` created and removed a detached
+  disposable worktree. It proved that Mapperly in the MyATM test project and a
+  forbidden `Rvt.Monitor.Common` package dependency in the MyATM production
+  project both fail for their intended architecture diagnostics, then proved
+  the restored baseline passes 2/2.
+- Mono-layout, mono-solution, RVT common source-boundary normal/regression,
+  engineering-standards, and `git diff --check` verification passed. No
+  PostgreSQL integration credential or production/release database was used.
+- Current R1 file structure:
+  - `libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/RepositoryLayout.cs`
+    — shared repository-root and path authority;
+  - `libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting.Tests/RepositoryLayoutTests.cs`
+    — 19 direct cases covering output, source, current-directory, and configured
+    roots; invalid configuration; distinct-checkout ambiguity; physical alias
+    collapse; `.git` file/directory markers; actionable no-candidate failure;
+    and valid/rejected path composition;
+  - eight repository-reading files under
+    `apps/monitors/myatmmonitor/MyAtmMonitorTests/` and two under
+    `apps/monitors/svantekmonitor/SvantekMonitorTests/` — shared-helper
+    consumers;
+  - `tests/verify-r1-architecture-guards.test.sh` — disposable two-mutation
+    proof; and
+  - `docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md`
+    — authoritative checklist, with R1 checked complete.
+- Current R1 variable definitions:
+  - `RepositoryRootEnvironmentVariable` names `RVT_MONOREPO_ROOT`;
+    `_pathComparer` supplies the platform path comparison, and
+    `_repositoryRoot` lazily resolves `Root`;
+  - `FindRepositoryRoot` receives `outputDirectory`, `sourceFilePath`,
+    `currentDirectory`, and `configuredRoot`; `sourceDirectory`, `candidates`,
+    `normalizedConfiguredRoot`, and `rootsByCanonicalPath` hold discovery,
+    validation, physical canonicalization, and ambiguity state;
+  - `RepositoryCandidate.Label` identifies `RVT_MONOREPO_ROOT`, output, source,
+    or current directory, while `RepositoryCandidate.Root` holds its canonical
+    checkout; `repositoryRoot`, `combinedPath`, and `rootPrefix` enforce the
+    `GetPath` below-root result;
+  - the mutation harness uses `repo_root`, `temp_root`, `mutation_root`,
+    `test_output`, `test_project`, `mapperly_project`, `consumer_project`,
+    `mapperly_filter`, `source_filter`, and `baseline_filter`; and
+  - `label`, `filter`, `expected_diagnostic`, and `status` define each
+    mutation assertion.
+- Help Admin's R2 implementation is merged to `main`, but its release status
+  remains `CONDITIONAL` and R2 remains unchecked. The SQL preflight and the
+  .NET application validator are demonstrably not equivalent: SQL accepts the
+  malformed `https://:443/guide.pdf`, while its case-sensitive scheme match
+  rejects `HTTPS://docs.rvt.test/guide.pdf`, which the application accepts
+  case-insensitively. A zero-row SQL result is therefore not a sufficient
+  release receipt.
+- The pending R2 design decision is to introduce one shared BCL-only
+  `HelpAssetUrlPolicy` and a read-only .NET release-audit adapter that reuses
+  it, then run that audit against every release database and record
+  zero-finding receipts. No production/release database was accessed while
+  completing R1 or documenting this decision.
+- `docs/release/portal/FUNCTIONALITY_READINESS_MATRIX.md` and
+  `docs/development/portal/development-guidelines.md` still contain stale
+  SQL-only R2 release wording. Correct both during the shared-policy/.NET-audit
+  work; until then, neither document overrides this checkpoint or makes the SQL
+  preflight sufficient for release.
+- The architecture review now marks R1 and R9 complete. R2 remains
+  conditional/unchecked; R3-R8 and R10-R11 remain pending and unchanged.
+
+## Historical/superseded checkpoint — local main reconciliation after Help Admin merge — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Historical evidence only: this section records the intermediate state before
+  the later synchronization recorded in the top checkpoint. Its ahead,
+  unpublished, and push-next wording is superseded and must not be used as a
+  current action instruction.
+- At this checkpoint, the local integration checkout at
+  `/Users/oldgeorge/Developer/rvt-mono` was on `main`, fast-forwarded to
+  `origin/main` commit `1e2fbf3`, and had one intentionally retained local commit:
   `244816b` (`build: include Portal communication projects in solution`).
 - The retained Visual Studio edit adds the in-repository
   `Rvt.Communication.Abstractions` and `Rvt.Communication.SendGridMail`
@@ -24,28 +150,29 @@
     restriction in MSBuild child nodes (`MSB4166`);
   - the identical serial Release build (`-m:1`) passed with 0 warnings and
     0 errors.
-- This local reconciliation has not been pushed. `main` is intentionally ahead
-  of `origin/main` until the state-file update is committed and a later explicit
-  push is requested.
+- At this historical checkpoint only, the local reconciliation had not yet
+  been pushed and `main` was ahead of `origin/main`. That condition no longer
+  applies: the top checkpoint records clean, synchronized refs and no pending
+  `main` push.
 - The Help Admin release remains `CONDITIONAL`; the zero-row release-database
   URL-validation receipt gate is unchanged.
 
-## Authoritative current checkpoint — Help Admin R2 conditional, R1 partial — 2026-07-28
+## Historical/superseded checkpoint — Help Admin R2 conditional, R1 partial — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
-- This checkpoint supersedes later historical Help Admin `READY` wording in
-  this file. Preserve those sections as implementation history, but use this
-  section and `Current active state - Help Admin - 2026-07-28` for the current
-  release decision.
+- Historical evidence only: the top checkpoint now supersedes this entire
+  section. Its R1-partial status, SQL-only release gate, and references to the
+  lower Help Admin active-state section must not be used as current action
+  instructions.
 - R9 is integrated into `main`: merge commit `1a48378` and integration-state
   commit `0675479`. Its final review returned `Ready—Yes`.
-- R1 has started only as a separate worktree/branch:
+- At this checkpoint, R1 had started only as a separate worktree/branch:
   `/Users/oldgeorge/Developer/rvt-mono/.worktrees/r1-architecture-guards` on
   `codex/r1-architecture-guards` at `0675479`. The worktree is clean and has no
   R1 implementation commit. The 17 known stale repository-layout/Mapperly
   failures recorded by the R9 aggregate remain the bounded R1 starting set;
-  R1 is partial/not complete.
-- R2 implementation is on `/private/tmp/rvt-mono-help-admin`, branch
+  R1 was partial/not complete at that time.
+- R2 implementation was on `/private/tmp/rvt-mono-help-admin`, branch
   `codex/help-admin-application-boundary`. This final-review wave began from
   `a86b041` (`fix: canonicalize materialized standards roots`) and retains the
   earlier Help application-boundary, adapter, client, HTTP, browser, and
@@ -55,13 +182,10 @@
   `apps/portal/docs/release/validate-help-asset-urls.sql` against the release
   databases, and this checkpoint did not access a production or release
   database.
-- Exact release gate: execute the committed read-only script against every
-  release database targeted by deployment. Each execution must return exactly
-  zero rows, and its receipt must record the environment/database identity,
-  UTC execution time, script revision, and returned-row count. Any returned row
-  or missing receipt blocks Help Admin release. Only after every receipt records
-  zero rows may the functionality matrix change to `READY` and architecture
-  checklist item R2 be checked complete.
+- Historical gate recorded at the time (superseded; do not use as release
+  authority): execute the committed read-only script against every release
+  database and require zero returned rows. The top checkpoint invalidates this
+  as a sufficient gate because the SQL and .NET policies are not equivalent.
 - Final-review code/test corrections:
   - the SQL now rejects whole-value whitespace as
     `HelpMutationValidator` does, including
@@ -122,10 +246,10 @@
   - scoped C# whitespace and IDE0305/IDE1006 formatter verification passed;
   - Prettier check passed for all seven changed Help client/e2e surfaces;
   - `git diff --check` passed.
-- Exact remaining gates are: obtain and record the zero-row release-database
-  receipts; then change Help Admin to `READY` and check R2. R1 must separately
-  repair and mutation-prove the 17 stale architecture/layout expectations.
-  After R1 and R2, continue the ordered review with R3 reporting lineage.
+- Historical next steps at the time (superseded; do not follow): obtain
+  zero-row SQL receipts, complete R1, then continue to R3. Use the top
+  checkpoint's shared-policy/.NET-audit R2 decision and completed R1 status
+  instead.
 
 ## R9 integrated into main — R1 next 2026-07-28
 
@@ -4399,8 +4523,10 @@ Next-session instruction: Read project_state.md to get up to speed
 - Codegraph status and context were retried before edits and failed with unable to open database file, so focused inspection was used.
 - Full TDD, mutation, guard, restore, build, warning, file, and self-review evidence is in .superpowers/sdd/2026-07-27-repository-engineering-standards-enforcement/task-1-report.md.
 
-## Current active state - Help Admin - 2026-07-28
+## Historical/superseded active state - Help Admin - 2026-07-28
 
+- Historical evidence only: the top checkpoint supersedes this section's
+  current-state and release-gate language.
 - Help Admin is integrated into `origin/main`; application-boundary merge
   commit `a4b8749` contains current `main`, the Help feature history, the final
   review corrections, and the standards-clean Svantek worktree-path repair.
@@ -4424,7 +4550,9 @@ Next-session instruction: Read project_state.md to get up to speed
 - R2 and Help Admin release are `CONDITIONAL`. No production/release database
   was accessed during this correction, and no receipt records execution of
   `apps/portal/docs/release/validate-help-asset-urls.sql` against every release
-  database. The exact zero-row receipt gate in the top checkpoint remains.
+  database. The historical SQL-only receipt gate is superseded and is not
+  sufficient release authority; use the shared-policy/.NET-audit direction in
+  the top checkpoint.
 - The host-owned feature worktree remains at
   `/private/tmp/rvt-mono-help-admin`.
 - The local main checkout at `/Users/oldgeorge/Developer/rvt-mono` has been

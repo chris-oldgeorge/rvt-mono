@@ -4,6 +4,7 @@ using MyAtm.Api.Db;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
 using Rvt.Monitor.Common.Delivery;
+using Rvt.Monitor.IntegrationTesting;
 
 namespace MyAtmMonitorTests;
 
@@ -40,8 +41,7 @@ public sealed class MyAtmServiceCompositionTests
     [TestMethod]
     public void ScheduledMethods_DelegateToTheExpectedFocusedHandlerWithPeriodAndCancellation()
     {
-        var source = File.ReadAllText(Path.Combine(
-            FindRepositoryRoot(),
+        string source = File.ReadAllText(RepositoryLayout.GetPath(
             "apps",
             "monitors",
             "myatmmonitor",
@@ -61,21 +61,4 @@ public sealed class MyAtmServiceCompositionTests
         StringAssert.Contains(source, "outboxDispatcher.DispatchDueAsync(cancellationToken)");
     }
 
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (Directory.Exists(Path.Combine(directory.FullName, ".git")) ||
-                File.Exists(Path.Combine(directory.FullName, ".git")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        Assert.Fail("Could not find repository root from test output directory.");
-        return string.Empty;
-    }
 }

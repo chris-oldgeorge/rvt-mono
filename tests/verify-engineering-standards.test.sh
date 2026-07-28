@@ -1021,6 +1021,110 @@ RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
 assert_status 1
 assert_output "changed surface"
 
+# An exception that is unchanged across a committed range remains active.
+create_repo exact-range-existing-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve existing exception"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Clock.cs
+git -C "$last_repo" commit -q -m "change excepted source"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 0
+
+# Removing an exception in a committed range takes effect immediately.
+create_repo exact-range-removed-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve removable exception"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/exceptions.json" '{"version":1,"exceptions":[]}'
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add exceptions.json src/Clock.cs
+git -C "$last_repo" commit -q -m "remove exception with source change"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 1
+assert_output "changed surface"
+
+# Editing any authorization field creates a new, not-yet-trusted exception.
+create_repo exact-range-edited-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve original exception"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"other-team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add exceptions.json src/Clock.cs
+git -C "$last_repo" commit -q -m "edit exception owner with source change"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 1
+assert_output "changed surface"
+
+# Working-tree policy uses the same current/trusted exception intersection.
+create_repo working-tree-existing-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve working-tree exception"
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --working-tree
+assert_status 0
+
+create_repo working-tree-removed-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve removable working-tree exception"
+write_json "$last_repo/exceptions.json" '{"version":1,"exceptions":[]}'
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --working-tree
+assert_status 1
+assert_output "changed surface"
+
+create_repo working-tree-edited-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve original working-tree exception"
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"other-team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --working-tree
+assert_status 1
+assert_output "changed surface"
+
 # A baseline decrease is enforced from the requested head and remains allowed.
 create_repo exact-range-baseline-decrease
 write_json "$last_repo/baseline.json" \

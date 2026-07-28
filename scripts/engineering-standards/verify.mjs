@@ -69,6 +69,17 @@ const dependencyInputPathspecs = [
   `${portalPrefix}pnpm-lock.yml`,
   `${portalPrefix}yarn.lock`
 ];
+const exceptionAuthorizationFields = [
+  'id',
+  'ruleId',
+  'owner',
+  'path',
+  'justification',
+  'introducedOn',
+  'reviewOn',
+  'removalCondition',
+  'validation'
+];
 
 class PolicyError extends Error {}
 class InvocationError extends Error {}
@@ -763,7 +774,7 @@ function loadPolicy(repoRoot, scope, options) {
   assertBaselineDoesNotWiden(current.baseline, trusted.baseline);
   return {
     ...current,
-    exceptions: trusted.exceptions
+    exceptions: intersectAuthorizedExceptions(current.exceptions, trusted.exceptions)
   };
 }
 
@@ -818,6 +829,19 @@ function assertBaselineDoesNotWiden(current, trusted) {
   const [key, count] = widened;
   throw new PolicyError(
     `Baseline policy cannot increase ${key}: trusted=${trusted.get(key) ?? 0} requested=${count}`
+  );
+}
+
+function intersectAuthorizedExceptions(current, trusted) {
+  const trustedIdentities = new Set(trusted.map(exceptionAuthorizationIdentity));
+  return current.filter(
+    (exception) => trustedIdentities.has(exceptionAuthorizationIdentity(exception))
+  );
+}
+
+function exceptionAuthorizationIdentity(exception) {
+  return JSON.stringify(
+    exceptionAuthorizationFields.map((field) => exception[field])
   );
 }
 

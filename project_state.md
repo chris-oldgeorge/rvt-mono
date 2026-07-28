@@ -12,9 +12,10 @@
 - No Git branch, ref, workflow, or repository file was renamed; this was a
   SonarCloud administrative setting change only. The SonarQube workflow
   continues to analyze project key `aileron-forward_rvt-mono`.
-- The direct `sonar list issues --branch main` inventory command requires
-  explicit authorization before private issue details may be returned into the
-  session; its result was therefore not retrieved during this checkpoint.
+- Post-rename validation ran `sonar list issues -p aileron-forward_rvt-mono
+  --branch main --format json --page-size 500` successfully. It returned the
+  current inventory (`total: 5345`, page 1 of 500), proving that `main`
+  resolves the analyzed project inventory rather than a branch mismatch.
 
 ## Authoritative checkpoint: PR #6 merged into main — 2026-07-28
 

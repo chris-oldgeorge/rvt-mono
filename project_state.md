@@ -1,5 +1,21 @@
 # Project State
 
+## Authoritative checkpoint: Sonar main branch aligned with Git — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- SonarCloud project `aileron-forward_rvt-mono` had one long-lived main branch
+  named `master` (`isMain: true`) at analyzed commit
+  `000f6c58d114927e800977ca6db0c0cb9f889f38`.
+- The SonarCloud main-branch setting was renamed from `master` to `main`.
+  Verification confirms `main` is now the sole `LONG` branch with
+  `isMain: true`, retaining the same analysis commit and branch identity.
+- No Git branch, ref, workflow, or repository file was renamed; this was a
+  SonarCloud administrative setting change only. The SonarQube workflow
+  continues to analyze project key `aileron-forward_rvt-mono`.
+- The direct `sonar list issues --branch main` inventory command requires
+  explicit authorization before private issue details may be returned into the
+  session; its result was therefore not retrieved during this checkpoint.
+
 ## Authoritative checkpoint: PR #6 merged into main — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

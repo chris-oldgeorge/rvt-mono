@@ -73,7 +73,10 @@ BCL-only `HelpAssetUrlPolicy`, a read-only .NET release-audit adapter that
 reuses it, and zero-finding receipts from that audit for every release
 database. Each receipt must identify the environment/database, UTC execution
 time, application revision, and returned finding count; a missing receipt or
-any finding blocks release.
+any finding blocks release. This design was approved on 2026-07-28 and is
+recorded in
+`docs/superpowers/specs/2026-07-28-help-asset-url-release-audit-design.md`;
+implementation has not started.
 Stable persisted asset IDs and client-only row keys are covered by focused
 regressions, and the browser journey covers create, publish, preview, edit,
 delete, and Company User denial. Rollback may disable the admin route/endpoints
@@ -303,9 +306,10 @@ build/test guarded.
       explicitly approved and the application-boundary, role,
       stable-identity/focus, HTTP, and browser work is complete. R2 remains
       conditional because the SQL preflight is not equivalent to .NET URI
-      validation. Complete the shared BCL-only URL policy and read-only .NET
-      release-audit adapter, then record zero-finding audit receipts for every
-      release database.
+      validation. The shared BCL-only URL policy and read-only .NET release
+      audit design is approved; implementation has not started. After
+      implementation, record zero-finding audit receipts for every release
+      database.
 - [ ] **R3 — Select the authoritative reporting lineage.** Inventory unique
       behavior, migrate it, and merge/remove or rename duplicate projects.
 - [ ] **R4 — Retire dead Portal infrastructure.** Complete shared storage

@@ -1,6 +1,6 @@
 # Project State
 
-## R1 integrated into main; Help Admin release still conditional — 2026-07-28
+## R1 integrated; R2 release-audit design approved and paused — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
 - This top checkpoint is the sole current authority for R1 and Help Admin. It
@@ -12,6 +12,9 @@
   `54d59cb` (`Merge R1 architecture guards`). This checkpoint is committed
   after that merge and is included in the same integration push to
   `origin/main`; verify local and remote refs before any later mutation.
+- This documentation-only R2 approval checkpoint is committed and pushed on
+  `main`. At the recorded pause boundary, local `main` and `origin/main` are
+  synchronized and the working tree is clean.
 - R1 is integrated into `main`. The reviewed source branch remains
   `codex/r1-architecture-guards` at `151971b`. The implementation builds on `aaa20de`
   (`Repair monorepo test paths`) and `f59d5d1` (`Record monorepo path repair
@@ -115,18 +118,24 @@
   rejects `HTTPS://docs.rvt.test/guide.pdf`, which the application accepts
   case-insensitively. A zero-row SQL result is therefore not a sufficient
   release receipt.
-- The pending R2 design decision is to introduce one shared BCL-only
-  `HelpAssetUrlPolicy` and a read-only .NET release-audit adapter that reuses
-  it, then run that audit against every release database and record
-  zero-finding receipts. No production/release database was accessed while
-  completing R1 or documenting this decision.
-- `docs/release/portal/FUNCTIONALITY_READINESS_MATRIX.md` and
-  `docs/development/portal/development-guidelines.md` still contain stale
-  SQL-only R2 release wording. Correct both during the shared-policy/.NET-audit
-  work; until then, neither document overrides this checkpoint or makes the SQL
-  preflight sufficient for release.
+- The dedicated R2 release-audit design is approved in
+  `docs/superpowers/specs/2026-07-28-help-asset-url-release-audit-design.md`.
+  It selects one shared BCL-only `HelpAssetUrlPolicy` plus a separate read-only
+  Npgsql `RVT.ReleaseAudit` adapter. The audit must scan every Help asset,
+  produce a secret-safe receipt, and fail closed on any finding or incomplete
+  execution. The SQL regex is non-authoritative.
+- Implementation has not started. No implementation branch/worktree, project,
+  policy, test, SQL, or workflow change has been created for this design, and
+  no implementation plan has been authored. This is the explicit pause point.
+- The functionality matrix and Portal development guideline now record the
+  approved audit requirement and retain Help Admin as `CONDITIONAL`.
+  No production/release database or credential was accessed while recording
+  the decision.
 - The architecture review now marks R1 and R9 complete. R2 remains
   conditional/unchecked; R3-R8 and R10-R11 remain pending and unchanged.
+- Next step after resumption: review the approved R2 release-audit
+  specification, then author its implementation plan. Do not begin code from
+  this checkpoint without that plan.
 
 ## Historical/superseded checkpoint — local main reconciliation after Help Admin merge — 2026-07-28
 

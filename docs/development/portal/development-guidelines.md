@@ -89,14 +89,19 @@ and the per-controller delegation cases).
 - **Editable React rows need immutable UI identity.** Use the persisted asset ID
   or a client-only random key. Never key an editable row by its title, value, or
   array index; preserve and restore focus through ID/key-addressed refs.
-- **Release requires clean persisted URLs.** Run
-  `apps/portal/docs/release/validate-help-asset-urls.sql`; any returned row
-  blocks release until corrected deliberately.
+- **Release requires clean persisted URLs under the application policy.** The
+  existing SQL query is a non-authoritative coarse preflight. A zero-row SQL
+  result cannot approve release. The approved, not-yet-implemented design uses
+  a shared BCL-only `HelpAssetUrlPolicy` and a read-only .NET release audit.
+  Every release database must produce a complete zero-finding receipt from that
+  audit before Help Admin can become `READY`.
 
 Enforced by: `HelpApplicationServiceTests`, `HelpAdapterTests`,
 `HelpCmsOperationsTests`,
 `CutoverReadinessTests.HelpAssetUrlReadinessQuery_IsReadOnlyAndComplete`,
-`HelpAdminPanel.test.tsx`, and `help-admin.spec.ts`.
+`HelpAdminPanel.test.tsx`, and `help-admin.spec.ts`. The current
+`CutoverReadinessTests` SQL guard proves only coarse query behavior; it does not
+prove parity with `System.Uri`.
 
 ## Ports and adapters
 

@@ -40,6 +40,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\RvtPortal.Application.Tests\Help\HelpAssetUrlPolicyCases.cs"
+             Link="Help\HelpAssetUrlPolicyCases.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="CanonicalNames.approved.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

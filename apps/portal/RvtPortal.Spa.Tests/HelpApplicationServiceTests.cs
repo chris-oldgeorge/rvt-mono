@@ -6,6 +6,7 @@ using RvtPortal.Application.Common;
 using RvtPortal.Application.Help;
 using RvtPortal.Application.Help.Ports;
 using RvtPortal.Application.Identity;
+using RvtPortal.Testing.Help;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -26,50 +27,61 @@ public sealed class HelpApplicationServiceTests
         Assert.False(HelpAuthorizationPolicy.CanManage(installer));
     }
 
-    [Theory]
-    [InlineData("https://docs.rvt.test/guide.pdf")]
-    [InlineData("https://docs.rvt.test")]
-    [InlineData("/help-assets/guides/guide.pdf")]
-    public void MutationValidator_AcceptsSafeAssetUrls(string url)
+    public static TheoryData<string, string?, string?, string?> MutationAssetUrlCases
     {
-        var result = HelpMutationValidator.ValidateShape(
-            ValidMutation() with
+        get
+        {
+            var cases = new TheoryData<string, string?, string?, string?>();
+            foreach (var @case in HelpAssetUrlPolicyCases.All)
             {
-                Assets =
-                [
-                    new HelpAssetMutation(null, "Guide", "Document", url, 0)
-                ]
-            });
+                cases.Add(
+                    @case.Name,
+                    @case.Input,
+                    @case.MutationCanonicalValue,
+                    @case.MutationViolation);
+            }
 
-        Assert.True(result.IsValid);
-        Assert.Empty(result.Errors);
+            return cases;
+        }
     }
 
     [Theory]
-    [InlineData("http://docs.rvt.test/guide.pdf")]
-    [InlineData("//docs.rvt.test/guide.pdf")]
-    [InlineData("javascript:alert(1)")]
-    [InlineData("data:text/html,test")]
-    [InlineData("file:///tmp/guide.pdf")]
-    [InlineData("/other/path.pdf")]
-    [InlineData("/help-assets\\guide.pdf")]
-    [InlineData("https://user:password@docs.rvt.test/guide.pdf")]
-    [InlineData("https://docs.rvt.test/guide\u0001.pdf")]
-    public void MutationValidator_RejectsUnsafeAssetUrls(string url)
+    [MemberData(nameof(MutationAssetUrlCases))]
+    public void MutationValidator_ValidatesAssetUrlsFromSharedCorpus(
+        string name,
+        string? input,
+        string? mutationCanonicalValue,
+        string? mutationViolation)
     {
+        Assert.False(string.IsNullOrWhiteSpace(name));
         var result = HelpMutationValidator.ValidateShape(
             ValidMutation() with
             {
                 Assets =
                 [
-                    new HelpAssetMutation(null, "Guide", "Document", url, 0)
+                    new HelpAssetMutation(null, "Guide", "Document", input!, 0)
                 ]
             });
 
+        if (mutationViolation is null)
+        {
+            Assert.True(result.IsValid);
+            var asset = Assert.Single(result.Value!.Source.Assets);
+            Assert.Equal(mutationCanonicalValue, asset.Url);
+            return;
+        }
+
         Assert.False(result.IsValid);
+        var expectedMessage = mutationViolation switch
+        {
+            "required" => "Assets[0].Url is required.",
+            "too_long" => "Assets[0].Url must be 512 characters or fewer.",
+            _ => "Asset URL must be an absolute HTTPS URL or a /help-assets/ path."
+        };
         Assert.Contains(
             result.Errors,
-            error => error.Field == "Assets[0].Url");
+            error => error.Field == "Assets[0].Url" &&
+                error.Message == expectedMessage);
     }
 
     [Fact]

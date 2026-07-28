@@ -103,16 +103,21 @@ public static partial class HelpMutationValidator
                 assetTypes,
                 "Asset type must be Document, Video, or Link.",
                 errors);
-            var assetUrl = Required(
-                $"{prefix}.Url",
-                asset.Url,
-                512,
-                errors);
-            if (!string.IsNullOrEmpty(assetUrl) && !IsSafeAssetUrl(assetUrl))
+            var assetUrlValidation =
+                HelpAssetUrlPolicy.ValidateMutationValue(asset.Url);
+            var assetUrl = assetUrlValidation.CanonicalValue ?? asset.Url?.Trim() ?? "";
+            if (!assetUrlValidation.IsValid)
             {
+                var message = assetUrlValidation.ViolationCode switch
+                {
+                    "required" => $"{prefix}.Url is required.",
+                    "too_long" =>
+                        $"{prefix}.Url must be {HelpAssetUrlPolicy.MaximumLength} characters or fewer.",
+                    _ => "Asset URL must be an absolute HTTPS URL or a /help-assets/ path."
+                };
                 errors.Add(new UseCaseError(
                     $"{prefix}.Url",
-                    "Asset URL must be an absolute HTTPS URL or a /help-assets/ path."));
+                    message));
             }
 
             ValidateNonNegative(
@@ -285,26 +290,6 @@ public static partial class HelpMutationValidator
         {
             errors.Add(new UseCaseError(field, $"{field} must be zero or greater."));
         }
-    }
-
-    private static bool IsSafeAssetUrl(string value)
-    {
-        if (value.Any(character => char.IsControl(character) || char.IsWhiteSpace(character)) ||
-            value.Contains('\\', StringComparison.Ordinal) ||
-            value.StartsWith("//", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (value.StartsWith("/help-assets/", StringComparison.Ordinal))
-        {
-            return Uri.TryCreate(value, UriKind.Relative, out _);
-        }
-
-        return Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
-            uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
-            !string.IsNullOrWhiteSpace(uri.Host) &&
-            string.IsNullOrEmpty(uri.UserInfo);
     }
 
     [GeneratedRegex(

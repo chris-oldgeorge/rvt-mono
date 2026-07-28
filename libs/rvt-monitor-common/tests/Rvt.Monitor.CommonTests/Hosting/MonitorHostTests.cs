@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Rvt.Monitor.Common.Hosting;
 using Rvt.Monitor.Common.Scheduling;
 
@@ -19,7 +20,7 @@ public sealed class MonitorHostTests
             ["--job", "StoreMonitors", "--hostBuilder:reloadConfigOnChange=false"],
             "TestMonitor",
             _ => "StoreMonitors",
-            (jobName, services) =>
+            (jobName, services, _) =>
             {
                 observedJobName = jobName;
                 observedMarker = services.GetService<TestMarkerService>();
@@ -48,7 +49,7 @@ public sealed class MonitorHostTests
                 ["--job", "StoreMonitors", "--hostBuilder:reloadConfigOnChange=false"],
                 "TestMonitor",
                 _ => "StoreMonitors",
-                (_, _) => throw new InvalidOperationException("job failed"),
+                (_, _, _) => throw new InvalidOperationException("job failed"),
                 _ => Assert.Fail("API mapping should not run for one-shot jobs."));
 
             Assert.AreEqual(1, exitCode);
@@ -73,13 +74,68 @@ public sealed class MonitorHostTests
                 ["--hostBuilder:reloadConfigOnChange=false"],
                 "TestMonitor",
                 _ => null,
-                (_, _) => Task.FromResult(0),
+                (_, _, _) => Task.FromResult(0),
                 _ => Assert.Fail("API mapping should not run when API mode is disabled."));
 
             Assert.AreEqual(2, exitCode);
             Assert.AreEqual(
                 "No monitor execution mode configured. Set MonitorApi:Enabled=true, MonitorScheduler:Enabled=true, or pass --job <name>." + Environment.NewLine,
                 error.ToString());
+        }
+        finally
+        {
+            Console.SetError(originalError);
+        }
+    }
+
+    [TestMethod]
+    public async Task RunAsync_PassesTheHostShutdownTokenToTheOneShotJob()
+    {
+        CancellationToken observedToken = default;
+        IHostApplicationLifetime? observedLifetime = null;
+
+        int exitCode = await MonitorHost.RunAsync<TestDispatcher>(
+            ["--job", "StoreMonitors", "--hostBuilder:reloadConfigOnChange=false"],
+            "TestMonitor",
+            _ => "StoreMonitors",
+            (_, services, cancellationToken) =>
+            {
+                observedToken = cancellationToken;
+                observedLifetime = services.GetRequiredService<IHostApplicationLifetime>();
+                return Task.FromResult(0);
+            },
+            _ => Assert.Fail("API mapping should not run for one-shot jobs."));
+
+        Assert.AreEqual(0, exitCode);
+        Assert.IsTrue(
+            observedToken.CanBeCanceled,
+            "A one-shot job must receive a live shutdown token, not CancellationToken.None.");
+        Assert.AreEqual(observedLifetime?.ApplicationStopping, observedToken);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_ReportsShutdownCancellationAsFailureWithoutTheRawCancellationMessage()
+    {
+        using StringWriter error = new();
+        TextWriter originalError = Console.Error;
+        Console.SetError(error);
+
+        try
+        {
+            int exitCode = await MonitorHost.RunAsync<TestDispatcher>(
+                ["--job", "StoreMonitors", "--hostBuilder:reloadConfigOnChange=false"],
+                "TestMonitor",
+                _ => "StoreMonitors",
+                (_, services, cancellationToken) =>
+                {
+                    services.GetRequiredService<IHostApplicationLifetime>().StopApplication();
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return Task.FromResult(0);
+                },
+                _ => Assert.Fail("API mapping should not run for one-shot jobs."));
+
+            Assert.AreEqual(1, exitCode);
+            Assert.AreEqual(string.Empty, error.ToString());
         }
         finally
         {

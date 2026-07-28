@@ -509,7 +509,10 @@ public sealed class TestMonitorJobScheduling
         return services;
     }
 
-    private static Task<int> InvokeJobRunner(string jobName, IServiceProvider provider)
+    private static Task<int> InvokeJobRunner(
+        string jobName,
+        IServiceProvider provider,
+        CancellationToken cancellationToken = default)
     {
         Type runner = typeof(OmnidotsApi).Assembly.GetType("Omnidots.Api.MonitorJobRunner", throwOnError: true)!;
         MethodInfo method = runner.GetMethod("RunAsync", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
@@ -520,7 +523,7 @@ public sealed class TestMonitorJobScheduling
             null,
             parameters.Length == 2
                 ? [jobName, provider]
-                : [jobName, provider, CancellationToken.None])!;
+                : [jobName, provider, cancellationToken])!;
     }
 
     private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider

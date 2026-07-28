@@ -1,5 +1,37 @@
 # Project State
 
+## Authoritative checkpoint: Sonar reliability follow-up merged — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- GitHub PR #11, `Resolve remaining Sonar reliability findings`, merged into
+  `main` as `415fe890a01ee6120edc06690c78abf8a0482712`. Its exact-head
+  Engineering Standards run `30372441816` passed, and the remote feature
+  branch was deleted.
+- On-demand SonarQube run `30372738728` analyzed exact SCM revision
+  `415fe890a01ee6120edc06690c78abf8a0482712`. Setup, dependency installation,
+  integration-database preparation, restore, engineering standards, scanner
+  initialization, Release build, database deployment, .NET coverage, all 78
+  Portal client tests with coverage, report upload, and database cleanup
+  passed. The scanner exited 1 only because the published quality gate is red.
+- The three JavaScript new-code reliability findings from the preceding
+  checkpoint are resolved. New-code reliability, security, and
+  maintainability ratings are all A; duplicated-line density is 0.0%; security
+  hotspot review is 100%; active vulnerabilities are 0; and security hotspots
+  with status `TO_REVIEW` are 0.
+- The quality gate now fails one condition only: new-code coverage is 9.8%
+  against the 80% threshold (102 covered of 1,626 lines to cover; 1,524
+  uncovered). No gate, threshold, new-code period, or coverage exclusion was
+  weakened. Remediating this repository-wide coverage debt is a separate,
+  non-security scope.
+- Four active legacy bugs remain outside the new-code gate: one namespace
+  organization finding, one always-true condition, and two cancellation-token
+  findings. They do not affect the A new-code reliability rating and were not
+  expanded into this security-remediation scope.
+- Sonar dependency analysis remains outside the authorized scope and was not
+  run; the final scanner log again records `Dependency analysis skipped`.
+  No runtime variable, secret, application configuration, or file-layout
+  contract changed in this final checkpoint.
+
 ## Authoritative checkpoint: Sonar security remediation merged — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

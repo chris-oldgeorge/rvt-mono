@@ -74,6 +74,16 @@ type AdminPanelProps = AdminPanelCallbacks &
     locationPath: string;
   }>;
 
+type LookupExecution = Readonly<{
+  query: string;
+  companyId?: string;
+}>;
+
+type RequestExecution<T> = Readonly<{
+  query: T;
+  generation: number;
+}>;
+
 // Function summary: Renders the CompaniesPanel React component and wires its local UI behavior.
 export function CompaniesPanel({ locationPath, onNavigate, onRequestError }: AdminPanelProps) {
   const mode = parseCompaniesMode(locationPath);
@@ -142,10 +152,10 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'companyName');
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
-  const [suggestionResult, setSuggestionResult] = useState<{ query: string; results: string[] }>({
-    query: '',
-    results: [],
-  });
+  const [suggestionResult, setSuggestionResult] = useState<{
+    execution: LookupExecution;
+    results: string[];
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -179,16 +189,24 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
     }),
     [page, searchText, sortDir, sortKey],
   );
-  const requestKey = JSON.stringify(query);
-  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
-  const isLoading = completedRequestKey !== requestKey;
-  const suggestions = searchText.length >= 2 && suggestionResult.query === searchText ? suggestionResult.results : [];
+  const execution = useMemo<RequestExecution<QueryCompaniesRequest>>(
+    () => ({ query, generation: 0 }),
+    [query],
+  );
+  const [completedExecution, setCompletedExecution] = useState<RequestExecution<QueryCompaniesRequest> | null>(null);
+  const suggestionExecution = useMemo<LookupExecution | null>(
+    () => (searchText.length >= 2 ? { query: searchText } : null),
+    [searchText],
+  );
+  const isLoading = completedExecution !== execution;
+  const suggestions =
+    suggestionResult?.execution === suggestionExecution ? suggestionResult.results : [];
   const returnPath = currentRoutePath(locationPath);
 
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildCompaniesUrl(searchText, page, sortKey, sortDir));
-    queryCompanies(query, { signal: controller.signal })
+    queryCompanies(execution.query, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) {
           return;
@@ -197,7 +215,7 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       })
       .catch((err: Error) => {
         if (controller.signal.aborted || isAbortError(err)) {
@@ -205,26 +223,26 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
         }
         setError(err.message);
         onRequestError(err);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
+  }, [execution, onRequestError, page, searchText, sortDir, sortKey]);
 
   useEffect(() => {
-    if (searchText.length < 2) {
+    if (!suggestionExecution) {
       return;
     }
     const controller = new AbortController();
     const handle = globalThis.setTimeout(() => {
-      searchLookup('companies', searchText, {}, { signal: controller.signal })
+      searchLookup('companies', suggestionExecution.query, {}, { signal: controller.signal })
         .then((response) => {
           if (!controller.signal.aborted) {
-            setSuggestionResult({ query: searchText, results: response.results });
+            setSuggestionResult({ execution: suggestionExecution, results: response.results });
           }
         })
         .catch((err: Error) => {
           if (!controller.signal.aborted && !isAbortError(err)) {
-            setSuggestionResult({ query: searchText, results: [] });
+            setSuggestionResult({ execution: suggestionExecution, results: [] });
           }
         });
     }, 180);
@@ -232,7 +250,7 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
       controller.abort();
       globalThis.clearTimeout(handle);
     };
-  }, [searchText]);
+  }, [suggestionExecution]);
 
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
@@ -521,12 +539,13 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'email');
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
-  const [suggestionResult, setSuggestionResult] = useState<{ query: string; results: string[] }>({
-    query: '',
-    results: [],
-  });
+  const [suggestionResult, setSuggestionResult] = useState<{
+    execution: LookupExecution;
+    results: string[];
+  } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshVersion, setRefreshVersion] = useState(0);
 
   const columns = useMemo<DataGridColumn<UserListItem>[]>(
     () => [
@@ -558,10 +577,18 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
     }),
     [companyId, page, searchText, sortDir, sortKey],
   );
-  const requestKey = JSON.stringify(query);
-  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
-  const isLoading = completedRequestKey !== requestKey;
-  const suggestions = searchText.length >= 2 && suggestionResult.query === searchText ? suggestionResult.results : [];
+  const execution = useMemo<RequestExecution<QueryUsersRequest>>(
+    () => ({ query, generation: refreshVersion }),
+    [query, refreshVersion],
+  );
+  const [completedExecution, setCompletedExecution] = useState<RequestExecution<QueryUsersRequest> | null>(null);
+  const suggestionExecution = useMemo<LookupExecution | null>(
+    () => (searchText.length >= 2 ? { query: searchText, companyId: companyId ?? undefined } : null),
+    [companyId, searchText],
+  );
+  const isLoading = completedExecution !== execution;
+  const suggestions =
+    suggestionResult?.execution === suggestionExecution ? suggestionResult.results : [];
   const returnPath = currentRoutePath(locationPath);
   const companiesBackPath = returnToOr(locationPath, '/companies');
 
@@ -572,7 +599,7 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
       '',
       buildUsersUrl({ companyId, companyName, searchText, page, sort: sortKey, sortDir }),
     );
-    queryUsers(query, { signal: controller.signal })
+    queryUsers(execution.query, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) {
           return;
@@ -581,7 +608,7 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       })
       .catch((err: Error) => {
         if (controller.signal.aborted || isAbortError(err)) {
@@ -589,26 +616,31 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
         }
         setError(err.message);
         onRequestError(err);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [companyId, companyName, onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
+  }, [companyId, companyName, execution, onRequestError, page, searchText, sortDir, sortKey]);
 
   useEffect(() => {
-    if (searchText.length < 2) {
+    if (!suggestionExecution) {
       return;
     }
     const controller = new AbortController();
     const handle = globalThis.setTimeout(() => {
-      searchLookup('users', searchText, { companyId: companyId ?? undefined }, { signal: controller.signal })
+      searchLookup(
+        'users',
+        suggestionExecution.query,
+        { companyId: suggestionExecution.companyId },
+        { signal: controller.signal },
+      )
         .then((response) => {
           if (!controller.signal.aborted) {
-            setSuggestionResult({ query: searchText, results: response.results });
+            setSuggestionResult({ execution: suggestionExecution, results: response.results });
           }
         })
         .catch((err: Error) => {
           if (!controller.signal.aborted && !isAbortError(err)) {
-            setSuggestionResult({ query: searchText, results: [] });
+            setSuggestionResult({ execution: suggestionExecution, results: [] });
           }
         });
     }, 180);
@@ -616,7 +648,7 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
       controller.abort();
       globalThis.clearTimeout(handle);
     };
-  }, [companyId, searchText]);
+  }, [suggestionExecution]);
 
   async function handleAction(user: UserListItem, action: 'resend' | 'reset' | 'disable' | 'enable' | 'delete') {
     setNotice(null);
@@ -642,10 +674,7 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
         await deleteUser(user.id);
         setNotice(`${user.email} deleted.`);
       }
-      const refreshed = await queryUsers(query);
-      setUsers(refreshed.results);
-      setTotal(refreshed.total);
-      setTotalPages(refreshed.totalPages);
+      setRefreshVersion((current) => current + 1);
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);

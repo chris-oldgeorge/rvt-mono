@@ -64,6 +64,14 @@ function overview(articles: HelpArticleResponse[]): HelpAdminOverviewResponse {
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
+}
+
 function renderHelpAdmin() {
   return render(<HelpAdminPanel onNavigate={vi.fn()} onRequestError={vi.fn()} />);
 }
@@ -207,6 +215,33 @@ describe('HelpAdminPanel', () => {
     await act(async () => resolveDraftFilter(overview([secondArticle])));
     expect(await screen.findByRole('button', { name: 'Publish Noise FAQ' })).toBeInTheDocument();
     await act(async () => resolveMutationRefresh(overview([existingArticle])));
+
+    expect(screen.getByRole('button', { name: 'Publish Noise FAQ' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Publish Dust FAQ' })).not.toBeInTheDocument();
+  });
+
+  it('gives each same-filter mutation refresh distinct pending and result ownership', async () => {
+    const firstRefresh = deferred<HelpAdminOverviewResponse>();
+    const secondRefresh = deferred<HelpAdminOverviewResponse>();
+    api.queryAdminHelp
+      .mockResolvedValueOnce(overview([existingArticle]))
+      .mockReturnValueOnce(firstRefresh.promise)
+      .mockReturnValueOnce(secondRefresh.promise);
+    renderHelpAdmin();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Dust FAQ' }));
+    const publish = await screen.findByRole('button', { name: 'Publish Dust FAQ' });
+    fireEvent.click(publish);
+    await waitFor(() => expect(api.queryAdminHelp).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Save FAQ' }));
+    await waitFor(() => expect(api.queryAdminHelp).toHaveBeenCalledTimes(3));
+
+    expect(screen.getByText('Loading help articles...')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Publish Dust FAQ' })).not.toBeInTheDocument();
+
+    await act(async () => secondRefresh.resolve(overview([secondArticle])));
+    expect(await screen.findByRole('button', { name: 'Publish Noise FAQ' })).toBeInTheDocument();
+    await act(async () => firstRefresh.resolve(overview([existingArticle])));
 
     expect(screen.getByRole('button', { name: 'Publish Noise FAQ' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Publish Dust FAQ' })).not.toBeInTheDocument();

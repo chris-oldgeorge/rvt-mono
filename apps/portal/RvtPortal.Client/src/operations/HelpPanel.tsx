@@ -30,31 +30,34 @@ export function HelpPanel({ locationPath, onNavigate, onRequestError }: HelpPane
 // Function summary: Renders the Help CMS overview and search experience.
 function HelpOverviewPanel({ onNavigate, onRequestError }: Omit<HelpPanelProps, 'locationPath'>) {
   const [searchText, setSearchText] = useState('');
-  const [overview, setOverview] = useState<HelpOverviewResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [completedSearchText, setCompletedSearchText] = useState<string | null>(null);
-  const isLoading = completedSearchText !== searchText;
+  const execution = useMemo(() => ({ searchText }), [searchText]);
+  const [result, setResult] = useState<{
+    execution: typeof execution;
+    overview: HelpOverviewResponse | null;
+    error: string | null;
+  } | null>(null);
+  const currentResult = result?.execution === execution ? result : null;
+  const overview = currentResult?.overview ?? null;
+  const error = currentResult?.error ?? null;
+  const isLoading = currentResult === null;
   useEffect(() => {
     const controller = new AbortController();
-    queryHelp(searchText, { signal: controller.signal })
+    queryHelp(execution.searchText, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) {
           return;
         }
-        setOverview(response);
-        setError(null);
-        setCompletedSearchText(searchText);
+        setResult({ execution, overview: response, error: null });
       })
       .catch((err: Error) => {
         if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
-        setError(err.message);
+        setResult({ execution, overview: null, error: err.message });
         onRequestError(err);
-        setCompletedSearchText(searchText);
       });
     return () => controller.abort();
-  }, [onRequestError, searchText]);
+  }, [execution, onRequestError]);
 
   return (
     <section className="panel help-panel">
@@ -107,31 +110,34 @@ function HelpArticlePanel({
   onNavigate,
   onRequestError,
 }: Omit<HelpPanelProps, 'locationPath'> & Readonly<{ slug: string }>) {
-  const [article, setArticle] = useState<HelpArticleResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [completedSlug, setCompletedSlug] = useState<string | null>(null);
-  const isLoading = completedSlug !== slug;
+  const execution = useMemo(() => ({ slug }), [slug]);
+  const [result, setResult] = useState<{
+    execution: typeof execution;
+    article: HelpArticleResponse | null;
+    error: string | null;
+  } | null>(null);
+  const currentResult = result?.execution === execution ? result : null;
+  const article = currentResult?.article ?? null;
+  const error = currentResult?.error ?? null;
+  const isLoading = currentResult === null;
   useEffect(() => {
     const controller = new AbortController();
-    getHelpArticle(slug, { signal: controller.signal })
+    getHelpArticle(execution.slug, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) {
           return;
         }
-        setArticle(response.item ?? null);
-        setError(null);
-        setCompletedSlug(slug);
+        setResult({ execution, article: response.item ?? null, error: null });
       })
       .catch((err: Error) => {
         if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
-        setError(err.message);
+        setResult({ execution, article: null, error: err.message });
         onRequestError(err);
-        setCompletedSlug(slug);
       });
     return () => controller.abort();
-  }, [onRequestError, slug]);
+  }, [execution, onRequestError]);
 
   return (
     <section className="panel help-panel">

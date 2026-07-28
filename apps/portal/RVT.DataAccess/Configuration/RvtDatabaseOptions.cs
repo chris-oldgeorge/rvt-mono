@@ -1,4 +1,4 @@
-﻿// File summary: Configures PostgreSQL database access for repositories and EF Core contexts.
+// File summary: Configures PostgreSQL database access for repositories and EF Core contexts.
 // Major updates:
 // - 2026-07-26 pending Removed runtime provider selection while validating legacy provider settings.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -51,7 +51,7 @@ public sealed class RvtDatabaseOptions
             configuration[$"{SectionName}:Provider"] ??
             configuration["RvtDatabase:Provider"]);
 
-        var options = new RvtDatabaseOptions
+        RvtDatabaseOptions options = new()
         {
             ConnectionStringName = ReadValue(configuration, "ConnectionStringName", DefaultConnectionStringName),
             PostgresRoutineSchema = ReadValue(configuration, "PostgresRoutineSchema", "public"),
@@ -77,7 +77,7 @@ public sealed class RvtDatabaseOptions
             return;
         }
 
-        var normalized = value.Trim().ToLowerInvariant();
+        string normalized = value.Trim().ToLowerInvariant();
         if (normalized is
             "postgres" or
             "postgresql" or
@@ -114,21 +114,21 @@ public sealed class RvtDatabaseOptions
     // Function summary: Retrieves value data for callers.
     private static string ReadValue(IConfiguration configuration, string key, string fallback)
     {
-        var value = configuration[$"{SectionName}:{key}"] ?? configuration[$"RvtDatabase:{key}"];
+        string? value = configuration[$"{SectionName}:{key}"] ?? configuration[$"RvtDatabase:{key}"];
         return string.IsNullOrWhiteSpace(value) ? fallback : value;
     }
 
     // Function summary: Reads an optional boolean setting, falling back when unset or unparsable.
     private static bool ReadBool(IConfiguration configuration, string key, bool fallback)
     {
-        var value = configuration[$"{SectionName}:{key}"] ?? configuration[$"RvtDatabase:{key}"];
-        return bool.TryParse(value, out var parsed) ? parsed : fallback;
+        string? value = configuration[$"{SectionName}:{key}"] ?? configuration[$"RvtDatabase:{key}"];
+        return bool.TryParse(value, out bool parsed) ? parsed : fallback;
     }
 
     // Function summary: Reads an optional integer setting, falling back when unset or unparsable.
     private static int ReadInt(IConfiguration configuration, string key, int fallback)
     {
-        var value = configuration[$"{SectionName}:{key}"] ?? configuration[$"RvtDatabase:{key}"];
-        return int.TryParse(value, out var parsed) ? parsed : fallback;
+        string? value = configuration[$"{SectionName}:{key}"] ?? configuration[$"RvtDatabase:{key}"];
+        return int.TryParse(value, out int parsed) ? parsed : fallback;
     }
 }

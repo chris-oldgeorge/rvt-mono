@@ -1,6 +1,7 @@
 using System.Data;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Notifications;
@@ -42,7 +43,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         }
         catch (Exception exception)
         {
-            var classified = AlertPersistenceExceptionClassifier.Classify(exception);
+            Exception classified = AlertPersistenceExceptionClassifier.Classify(exception);
             if (classified is AlertOccurrenceConflictException)
             {
                 return await RecoverDuplicateAsync(request, cancellationToken);
@@ -66,7 +67,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         }
         catch (Exception exception)
         {
-            var classified = AlertPersistenceExceptionClassifier.Classify(exception);
+            Exception classified = AlertPersistenceExceptionClassifier.Classify(exception);
             if (ReferenceEquals(classified, exception))
             {
                 throw;
@@ -80,23 +81,23 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         AlertCommitRequest request,
         CancellationToken cancellationToken)
     {
-        await using var context = contextFactory.CreateDbContext();
-        await using var transaction = await context.Database.BeginTransactionAsync(
+        await using TContext context = contextFactory.CreateDbContext();
+        await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
-        var serialId = request.Signal.SerialId.Trim();
-        var monitor = await context.Monitors.SingleAsync(
+        string serialId = request.Signal.SerialId.Trim();
+        MonitorEntity monitor = await context.Monitors.SingleAsync(
             row => row.SerialId == serialId,
             cancellationToken);
-        var occurrence = NewOccurrence(request, monitor.Id, serialId);
+        AlertOccurrenceEntity occurrence = NewOccurrence(request, monitor.Id, serialId);
         context.AlertOccurrences.Add(occurrence);
 
         // Establish the source/hash uniqueness authority before policy and delivery planning.
         await context.SaveChangesAsync(cancellationToken);
 
-        var windowStart = request.Signal.EventTime - request.Signal.SuppressionWindow;
-        var recentTypes = await context.Notifications
+        DateTime windowStart = request.Signal.EventTime - request.Signal.SuppressionWindow;
+        List<AlertType> recentTypes = await context.Notifications
             .Where(row => row.MonitorId == monitor.Id &&
                           row.NotificationTime >= windowStart &&
                           row.NotificationTime <= request.Signal.EventTime &&
@@ -104,7 +105,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
                            row.AlertType == (int)AlertType.Alert))
             .Select(row => (AlertType)row.AlertType)
             .ToListAsync(cancellationToken);
-        var outcome = policy.Evaluate(request.Signal.AlertType, recentTypes);
+        AlertOccurrenceOutcome outcome = policy.Evaluate(request.Signal.AlertType, recentTypes);
 
         occurrence.Outcome = outcome.ToString();
         if (outcome == AlertOccurrenceOutcome.Accepted)
@@ -132,7 +133,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         string serialId,
         CancellationToken cancellationToken)
     {
-        var envelope = new AlertDeliveryEnvelope(
+        AlertDeliveryEnvelope envelope = new(
             Version: 1,
             request.NotificationId,
             request.Signal.EventTime,
@@ -141,8 +142,8 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             monitor.CustomerId,
             monitor.FleetNr?.Trim() is { Length: > 0 } fleetNr ? fleetNr : serialId,
             request.Signal.Message);
-        var payload = JsonSerializer.Serialize(envelope);
-        var planned = new HashSet<string>(StringComparer.Ordinal);
+        string payload = JsonSerializer.Serialize(envelope);
+        HashSet<string> planned = new(StringComparer.Ordinal);
 
         if (request.Signal.DeliveryChannels.HasFlag(AlertDeliveryChannels.Mqtt))
         {
@@ -162,8 +163,8 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             return;
         }
 
-        var eventTime = request.Signal.EventTime;
-        var contactRows = await (
+        DateTime eventTime = request.Signal.EventTime;
+        List<ContactSetting> contactRows = await (
             from deployment in context.Deployments.AsNoTracking()
             join contract in context.Contracts.AsNoTracking()
                 on deployment.ContractId equals contract.Id
@@ -185,20 +186,19 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
                 setting.EndTime))
             .ToListAsync(cancellationToken);
 
-        var userIds = contactRows
+        string[] userIds = [.. contactRows
             .Select(row => row.UserId.ToString("D").ToLowerInvariant())
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-        var users = await context.Users
+            .Distinct(StringComparer.Ordinal)];
+        List<AspNetUserEntity> users = await context.Users
             .AsNoTracking()
             .Where(user => userIds.Contains(user.Id.ToLower()))
             .ToListAsync(cancellationToken);
-        var usersById = users.ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, AspNetUserEntity> usersById = users.ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var contact in contactRows)
+        foreach (ContactSetting? contact in contactRows)
         {
             if (!ShouldSendAtEventTime(eventTime, contact.StartTime, contact.EndTime) ||
-                !usersById.TryGetValue(contact.UserId.ToString("D"), out var user))
+                !usersById.TryGetValue(contact.UserId.ToString("D"), out AspNetUserEntity? user))
             {
                 continue;
             }
@@ -207,7 +207,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
                 contact.Email &&
                 !string.IsNullOrWhiteSpace(user.Email))
             {
-                var destination = user.Email.Trim();
+                string destination = user.Email.Trim();
                 AddDelivery(
                     context,
                     request,
@@ -223,7 +223,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
                 contact.Sms &&
                 !string.IsNullOrWhiteSpace(user.PhoneNumber))
             {
-                var destination = user.PhoneNumber.Trim();
+                string destination = user.PhoneNumber.Trim();
                 AddDelivery(
                     context,
                     request,
@@ -247,7 +247,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         string payload,
         ISet<string> planned)
     {
-        var deliveryKey = AlertDeliveryIdentity.Create(
+        string deliveryKey = AlertDeliveryIdentity.Create(
             occurrenceId,
             kind,
             canonicalDestination);
@@ -275,8 +275,8 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         AlertCommitRequest request,
         CancellationToken cancellationToken)
     {
-        await using var context = contextFactory.CreateDbContext();
-        var occurrence = await context.AlertOccurrences
+        await using TContext context = contextFactory.CreateDbContext();
+        AlertOccurrenceEntity occurrence = await context.AlertOccurrences
             .AsNoTracking()
             .SingleAsync(
                 row => row.Source == request.Signal.Source &&
@@ -286,7 +286,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         if (!Enum.TryParse<AlertOccurrenceOutcome>(
                 occurrence.Outcome,
                 ignoreCase: false,
-                out var outcome))
+                out AlertOccurrenceOutcome outcome))
         {
             throw new InvalidOperationException("The stored alert occurrence outcome is invalid.");
         }
@@ -306,7 +306,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         {
             Id = Guid.NewGuid(),
             Source = request.Signal.Source,
-            SourceKeyHash = request.SourceKeyHash.ToArray(),
+            SourceKeyHash = [.. request.SourceKeyHash],
             MonitorId = monitorId,
             SerialId = serialId,
             EventTime = request.Signal.EventTime,
@@ -344,7 +344,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             return true;
         }
 
-        var time = eventTime.TimeOfDay;
+        TimeSpan time = eventTime.TimeOfDay;
         return startTime <= endTime
             ? time >= startTime && time <= endTime
             : time >= startTime || time <= endTime;

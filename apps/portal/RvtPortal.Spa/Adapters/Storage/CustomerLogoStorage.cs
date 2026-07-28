@@ -40,7 +40,7 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
             throw new StorageValidationException("Customer logo images must be 2 MB or smaller.");
         }
 
-        if (!AllowedContentTypes.TryGetValue(logo.ContentType, out var extension))
+        if (!AllowedContentTypes.TryGetValue(logo.ContentType, out string? extension))
         {
             extension = ExtensionForFileName(logo.FileName);
         }
@@ -55,14 +55,14 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
             throw new StorageValidationException("Customer logos must be valid PNG, JPEG, or WebP images.");
         }
 
-        var directory = StorageDirectory();
+        string directory = StorageDirectory();
         Directory.CreateDirectory(directory);
-        var normalizedExtension = NormalizeExtension(extension);
-        var targetPath = Path.Combine(directory, $"{siteId:N}{normalizedExtension}");
-        var temporaryPath = Path.Combine(directory, $".{siteId:N}.{Guid.NewGuid():N}.tmp");
+        string normalizedExtension = NormalizeExtension(extension);
+        string targetPath = Path.Combine(directory, $"{siteId:N}{normalizedExtension}");
+        string temporaryPath = Path.Combine(directory, $".{siteId:N}.{Guid.NewGuid():N}.tmp");
         try
         {
-            await using (var stream = File.Create(temporaryPath))
+            await using (FileStream stream = File.Create(temporaryPath))
             {
                 await logo.CopyToAsync(stream, cancellationToken);
                 await stream.FlushAsync(cancellationToken);
@@ -81,7 +81,7 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
     public Task<StoredContentFile?> OpenReadAsync(Guid siteId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var path = FindExistingPath(siteId);
+        string? path = FindExistingPath(siteId);
         if (path == null)
         {
             return Task.FromResult<StoredContentFile?>(null);
@@ -119,7 +119,7 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
 
     private string? FindExistingPath(Guid siteId)
     {
-        var directory = StorageDirectory();
+        string directory = StorageDirectory();
         if (!Directory.Exists(directory))
         {
             return null;
@@ -137,14 +137,14 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
 
     private void DeleteExistingExcept(Guid siteId, string? keepExtension)
     {
-        foreach (var extension in KnownExtensions)
+        foreach (string extension in KnownExtensions)
         {
             if (extension.Equals(keepExtension, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var path = Path.Combine(StorageDirectory(), $"{siteId:N}{extension}");
+            string path = Path.Combine(StorageDirectory(), $"{siteId:N}{extension}");
             DeleteFileIfExists(path);
         }
     }
@@ -184,13 +184,13 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
     private static bool HasSupportedImageHeader(IUploadedContent logo)
     {
         Span<byte> header = stackalloc byte[12];
-        using var stream = logo.OpenReadStream();
-        var read = stream.Read(header);
-        var isJpeg = read >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
-        var isPng = read >= 8 &&
+        using Stream stream = logo.OpenReadStream();
+        int read = stream.Read(header);
+        bool isJpeg = read >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
+        bool isPng = read >= 8 &&
             header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47 &&
             header[4] == 0x0D && header[5] == 0x0A && header[6] == 0x1A && header[7] == 0x0A;
-        var isWebp = read >= 12 &&
+        bool isWebp = read >= 12 &&
             header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46 &&
             header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50;
         return isJpeg || isPng || isWebp;

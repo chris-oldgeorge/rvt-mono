@@ -1,4 +1,4 @@
-﻿// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
+// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
 // - 2026-07-08 pending Updated report-generation override to target the reporting adapter port.
 // - 2026-07-09 pending Added report-recipient query and performance-index guardrails.
@@ -20,8 +20,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
-using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Adapters.Reporting;
+using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Tests;
@@ -37,30 +37,30 @@ public class ReportWorkflowTests
     // Function summary: Handles the report rules create update delete validate and persist workflow for this module.
     public async Task ReportRules_CreateUpdateDelete_ValidateAndPersist()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var ids = await SeedReportSiteAsync(factory);
+        using SpaTestApplicationFactory factory = new();
+        ReportWorkflowIds ids = await SeedReportSiteAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var invalid = await client.PostAsJsonAsync("/api/report-rules", new ReportRuleMutationRequest
+        HttpResponseMessage invalid = await client.PostAsJsonAsync("/api/report-rules", new ReportRuleMutationRequest
         {
             SiteId = ids.SiteId,
             Frequency = ReportFrequencyType.Weekly,
             ReportName = "Invalid weekly report"
         });
         // The create/update requests are the fixtures; read-backs assert against their own fields.
-        var createRequest = new ReportRuleMutationRequest
+        ReportRuleMutationRequest createRequest = new()
         {
             SiteId = ids.SiteId,
             Frequency = ReportFrequencyType.Weekly,
             DayOfWeek = DayOfWeek.Monday,
             ReportName = "Weekly compliance"
         };
-        var create = await client.PostAsJsonAsync("/api/report-rules", createRequest);
-        var created = await create.Content.ReadFromJsonAsync<EntityResponse<ReportRuleDetailResponse>>();
-        var list = await client.GetFromJsonAsync<QueryReportRulesResponse>("/api/report-rules?searchText=weekly&sort=siteName");
-        var updateRequest = new ReportRuleMutationRequest
+        HttpResponseMessage create = await client.PostAsJsonAsync("/api/report-rules", createRequest);
+        EntityResponse<ReportRuleDetailResponse>? created = await create.Content.ReadFromJsonAsync<EntityResponse<ReportRuleDetailResponse>>();
+        QueryReportRulesResponse? list = await client.GetFromJsonAsync<QueryReportRulesResponse>("/api/report-rules?searchText=weekly&sort=siteName");
+        ReportRuleMutationRequest updateRequest = new()
         {
             SiteId = ids.SiteId,
             Frequency = ReportFrequencyType.WeeklyAndMonthly,
@@ -68,10 +68,10 @@ public class ReportWorkflowTests
             DayOfMonth = 28,
             ReportName = "Board pack"
         };
-        var update = await client.PutAsJsonAsync($"/api/report-rules/{created!.Item!.Id}", updateRequest);
-        var updated = await update.Content.ReadFromJsonAsync<EntityResponse<ReportRuleDetailResponse>>();
-        var delete = await client.DeleteAsync($"/api/report-rules/{created.Item.Id}");
-        var afterDelete = await client.GetFromJsonAsync<QueryReportRulesResponse>("/api/report-rules");
+        HttpResponseMessage update = await client.PutAsJsonAsync($"/api/report-rules/{created!.Item!.Id}", updateRequest);
+        EntityResponse<ReportRuleDetailResponse>? updated = await update.Content.ReadFromJsonAsync<EntityResponse<ReportRuleDetailResponse>>();
+        HttpResponseMessage delete = await client.DeleteAsync($"/api/report-rules/{created.Item.Id}");
+        QueryReportRulesResponse? afterDelete = await client.GetFromJsonAsync<QueryReportRulesResponse>("/api/report-rules");
 
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
@@ -90,20 +90,20 @@ public class ReportWorkflowTests
     // Function summary: Verifies daily report rules are exposed and accepted without weekly or monthly schedule fields.
     public async Task ReportRules_DailyFrequency_IsAvailableAndDoesNotRequireScheduleFields()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var ids = await SeedReportSiteAsync(factory);
+        using SpaTestApplicationFactory factory = new();
+        ReportWorkflowIds ids = await SeedReportSiteAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var options = await client.GetFromJsonAsync<ReportRuleOptionsResponse>("/api/report-rules/options");
-        var create = await client.PostAsJsonAsync("/api/report-rules", new ReportRuleMutationRequest
+        ReportRuleOptionsResponse? options = await client.GetFromJsonAsync<ReportRuleOptionsResponse>("/api/report-rules/options");
+        HttpResponseMessage create = await client.PostAsJsonAsync("/api/report-rules", new ReportRuleMutationRequest
         {
             SiteId = ids.SiteId,
             Frequency = ReportFrequencyType.Daily,
             ReportName = "Daily compliance"
         });
-        var created = await create.Content.ReadFromJsonAsync<EntityResponse<ReportRuleDetailResponse>>();
+        EntityResponse<ReportRuleDetailResponse>? created = await create.Content.ReadFromJsonAsync<EntityResponse<ReportRuleDetailResponse>>();
 
         Assert.Contains(options!.Frequencies, frequency => frequency.Value == "1" && frequency.Label == "Daily");
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
@@ -116,10 +116,10 @@ public class ReportWorkflowTests
     // Function summary: Verifies edit details keep the current site option even after that site is archived.
     public async Task ReportRules_EditDetailIncludesArchivedCurrentSiteOption()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var ids = await SeedArchivedReportSiteAsync(factory);
-        var admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var reportRuleId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new();
+        ReportWorkflowIds ids = await SeedArchivedReportSiteAsync(factory);
+        ApplicationUser admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        Guid reportRuleId = Guid.NewGuid();
         await factory.SeedSearchEntitiesAsync(new ReportRule
         {
             Id = reportRuleId,
@@ -129,13 +129,13 @@ public class ReportWorkflowTests
             DayOfWeek = DayOfWeek.Monday,
             ReportName = "Archived site weekly rule"
         });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var response = await client.GetAsync($"/api/report-rules/{reportRuleId}");
-        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
-        var item = document.RootElement.GetProperty("item");
-        var currentSite = item
+        HttpResponseMessage response = await client.GetAsync($"/api/report-rules/{reportRuleId}");
+        using JsonDocument document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        JsonElement item = document.RootElement.GetProperty("item");
+        JsonElement currentSite = item
             .GetProperty("sites")
             .EnumerateArray()
             .Single(site => site.GetProperty("value").GetString() == ids.SiteId.ToString());
@@ -151,11 +151,11 @@ public class ReportWorkflowTests
     // Function summary: Verifies report-rule mutations reject archived site targets with a clear validation message.
     public async Task ReportRules_CreateUpdateRejectArchivedSiteTargets()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var archivedIds = await SeedArchivedReportSiteAsync(factory);
-        var activeIds = await SeedReportSiteAsync(factory);
-        var admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var reportRuleId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new();
+        ReportWorkflowIds archivedIds = await SeedArchivedReportSiteAsync(factory);
+        ReportWorkflowIds activeIds = await SeedReportSiteAsync(factory);
+        ApplicationUser admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        Guid reportRuleId = Guid.NewGuid();
         await factory.SeedSearchEntitiesAsync(new ReportRule
         {
             Id = reportRuleId,
@@ -164,16 +164,16 @@ public class ReportWorkflowTests
             Frequency = ReportFrequencyType.Daily,
             ReportName = "Active daily rule"
         });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var create = await client.PostAsJsonAsync("/api/report-rules", new ReportRuleMutationRequest
+        HttpResponseMessage create = await client.PostAsJsonAsync("/api/report-rules", new ReportRuleMutationRequest
         {
             SiteId = archivedIds.SiteId,
             Frequency = ReportFrequencyType.Daily,
             ReportName = "Archived daily rule"
         });
-        var update = await client.PutAsJsonAsync($"/api/report-rules/{reportRuleId}", new ReportRuleMutationRequest
+        HttpResponseMessage update = await client.PutAsJsonAsync($"/api/report-rules/{reportRuleId}", new ReportRuleMutationRequest
         {
             SiteId = archivedIds.SiteId,
             Frequency = ReportFrequencyType.Daily,
@@ -191,16 +191,16 @@ public class ReportWorkflowTests
     // Function summary: Handles the report rule users add and remove site assignments workflow for this module.
     public async Task ReportRuleUsers_AddAndRemoveSiteAssignments()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var ids = await SeedReportSiteAsync(factory);
-        var admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var companyUser = await factory.SeedUserAsync(
+        using SpaTestApplicationFactory factory = new();
+        ReportWorkflowIds ids = await SeedReportSiteAsync(factory);
+        ApplicationUser admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        ApplicationUser companyUser = await factory.SeedUserAsync(
             "reports.company@rvt.test",
             Password,
             RoleNames.CompanyUser,
             companyId: ids.CompanyId,
             name: "Report Recipient");
-        var reportRuleId = Guid.NewGuid();
+        Guid reportRuleId = Guid.NewGuid();
         await factory.SeedDomainEntitiesAsync(TestData.SiteUser(siteId: ids.SiteId, userId: Guid.Parse(companyUser.Id), startDate: DateTime.UtcNow.AddDays(-1)));
         await factory.SeedSearchEntitiesAsync(new ReportRule
         {
@@ -212,16 +212,16 @@ public class ReportWorkflowTests
             ReportName = "Monthly recipient list"
         });
 
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
-        var initial = await client.GetFromJsonAsync<QueryReportUsersResponse>($"/api/report-rules/{reportRuleId}/available-users");
-        var add = await client.PostAsJsonAsync($"/api/report-rules/{reportRuleId}/users", new ReportUserMutationRequest
+        QueryReportUsersResponse? initial = await client.GetFromJsonAsync<QueryReportUsersResponse>($"/api/report-rules/{reportRuleId}/available-users");
+        HttpResponseMessage add = await client.PostAsJsonAsync($"/api/report-rules/{reportRuleId}/users", new ReportUserMutationRequest
         {
             UserId = Guid.Parse(companyUser.Id)
         });
-        var added = await add.Content.ReadFromJsonAsync<EntityResponse<ReportUserAssignmentResponse>>();
-        var remove = await client.DeleteAsync($"/api/report-rules/{reportRuleId}/users/{companyUser.Id}");
-        var removed = await remove.Content.ReadFromJsonAsync<EntityResponse<ReportUserAssignmentResponse>>();
+        EntityResponse<ReportUserAssignmentResponse>? added = await add.Content.ReadFromJsonAsync<EntityResponse<ReportUserAssignmentResponse>>();
+        HttpResponseMessage remove = await client.DeleteAsync($"/api/report-rules/{reportRuleId}/users/{companyUser.Id}");
+        EntityResponse<ReportUserAssignmentResponse>? removed = await remove.Content.ReadFromJsonAsync<EntityResponse<ReportUserAssignmentResponse>>();
 
         Assert.Contains(initial!.Results, user => user.Id == companyUser.Id);
         Assert.Contains(initial.Results, user => user.Id == admin.Id);
@@ -236,9 +236,9 @@ public class ReportWorkflowTests
     // Function summary: Verifies reporting list endpoints keep filtering and paging in EF queries.
     public void ReportQueries_PageBeforeMaterializingRows()
     {
-        var reportApplicationService = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/Application/Reports/ReportApplicationService.cs"));
-        var reportRuleService = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/Application/ReportRules/ReportRuleApplicationService.cs"));
-        var reportRuleRecipientReader = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/Application/ReportRules/ReportRuleRecipientReader.cs"));
+        string reportApplicationService = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/Application/Reports/ReportApplicationService.cs"));
+        string reportRuleService = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/Application/ReportRules/ReportRuleApplicationService.cs"));
+        string reportRuleRecipientReader = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/Application/ReportRules/ReportRuleRecipientReader.cs"));
 
         AssertQueryCountsBeforeMaterializing(reportApplicationService, "public async Task<ReportQueryResult> QueryAsync");
         AssertQueryCountsBeforeMaterializing(reportRuleService, "public async Task<ApplicationResult<PagedResult<ReportRuleListModel>>> QueryAsync");
@@ -253,9 +253,9 @@ public class ReportWorkflowTests
     // Function summary: Verifies report recipient performance indexes are present in the PostgreSQL script and registry.
     public void ReportRecipientPerformanceIndexes_AreDocumentedForPostgres()
     {
-        var postgresScript = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../database/postgres/performance_indexes_20260609.sql"));
-        var registry = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../docs/database/database-constraint-index-name-registry.csv"));
-        var expectedIndexNames = new[]
+        string postgresScript = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../database/postgres/performance_indexes_20260609.sql"));
+        string registry = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../docs/database/database-constraint-index-name-registry.csv"));
+        string[] expectedIndexNames = new[]
         {
             "ix_report_user_report_rule_id_user_id",
             "ix_report_rule_site_id_deleted",
@@ -263,7 +263,7 @@ public class ReportWorkflowTests
             "ix_site_user_site_id_end_date_user_id"
         };
 
-        foreach (var expectedIndexName in expectedIndexNames)
+        foreach (string? expectedIndexName in expectedIndexNames)
         {
             Assert.Contains(expectedIndexName, postgresScript, StringComparison.Ordinal);
             Assert.Contains(expectedIndexName, registry, StringComparison.Ordinal);
@@ -278,8 +278,8 @@ public class ReportWorkflowTests
         const string queuedStatus = "Queued";
         const string queuedMessage = "Manual generation queued.";
 
-        using var factory = new SpaTestApplicationFactory();
-        using var app = factory.WithWebHostBuilder(builder =>
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> app = factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
@@ -287,9 +287,9 @@ public class ReportWorkflowTests
                 services.AddSingleton<IReportGenerationClient>(new FakeReportGenerationClient(queuedStatus, queuedMessage));
             });
         });
-        var ids = await SeedReportSiteAsync(factory);
-        var admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var reportRuleId = Guid.NewGuid();
+        ReportWorkflowIds ids = await SeedReportSiteAsync(factory);
+        ApplicationUser admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        Guid reportRuleId = Guid.NewGuid();
         await factory.SeedSearchEntitiesAsync(new ReportRule
         {
             Id = reportRuleId,
@@ -300,15 +300,15 @@ public class ReportWorkflowTests
             ReportName = "Weekly generation"
         });
 
-        var client = CreateClient(app);
+        HttpClient client = CreateClient(app);
         await LoginAsync(client, AdminEmail, Password);
-        var response = await client.PostAsJsonAsync($"/api/report-rules/{reportRuleId}/generation-requests", new ReportGenerationRequest
+        HttpResponseMessage response = await client.PostAsJsonAsync($"/api/report-rules/{reportRuleId}/generation-requests", new ReportGenerationRequest
         {
             ReportDate = new DateTime(2026, 6, 24),
             SendToRecipients = true
         });
-        var body = await response.Content.ReadFromJsonAsync<ReportGenerationRequestResponse>();
-        var missing = await client.PostAsJsonAsync($"/api/report-rules/{Guid.NewGuid()}/generation-requests", new ReportGenerationRequest
+        ReportGenerationRequestResponse? body = await response.Content.ReadFromJsonAsync<ReportGenerationRequestResponse>();
+        HttpResponseMessage missing = await client.PostAsJsonAsync($"/api/report-rules/{Guid.NewGuid()}/generation-requests", new ReportGenerationRequest
         {
             ReportDate = new DateTime(2026, 6, 24),
             SendToRecipients = true
@@ -327,22 +327,22 @@ public class ReportWorkflowTests
     // Function summary: Verifies report recipient queries page assigned and available users separately.
     public async Task ReportRuleUsers_QueryAssignedAndAvailableRecipients()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var ids = await SeedReportSiteAsync(factory);
-        var admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var assignedUser = await factory.SeedUserAsync(
+        using SpaTestApplicationFactory factory = new();
+        ReportWorkflowIds ids = await SeedReportSiteAsync(factory);
+        ApplicationUser admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        ApplicationUser assignedUser = await factory.SeedUserAsync(
             "assigned.recipient@rvt.test",
             Password,
             RoleNames.CompanyUser,
             companyId: ids.CompanyId,
             name: "Assigned Recipient");
-        var availableUser = await factory.SeedUserAsync(
+        ApplicationUser availableUser = await factory.SeedUserAsync(
             "available.recipient@rvt.test",
             Password,
             RoleNames.CompanyUser,
             companyId: ids.CompanyId,
             name: "Available Recipient");
-        var reportRuleId = Guid.NewGuid();
+        Guid reportRuleId = Guid.NewGuid();
         await factory.SeedDomainEntitiesAsync(
             TestData.SiteUser(siteId: ids.SiteId, userId: Guid.Parse(assignedUser.Id), startDate: DateTime.UtcNow.AddDays(-1)),
             TestData.SiteUser(siteId: ids.SiteId, userId: Guid.Parse(availableUser.Id), startDate: DateTime.UtcNow.AddDays(-1)));
@@ -362,11 +362,11 @@ public class ReportWorkflowTests
                 UserId = Guid.Parse(assignedUser.Id)
             });
 
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
-        var assigned = await client.GetFromJsonAsync<QueryReportUsersResponse>(
+        QueryReportUsersResponse? assigned = await client.GetFromJsonAsync<QueryReportUsersResponse>(
             $"/api/report-rules/{reportRuleId}/assigned-users?searchText=assigned&page=1&pageSize=1&sort=email&sortDir=Descending");
-        var available = await client.GetFromJsonAsync<QueryReportUsersResponse>(
+        QueryReportUsersResponse? available = await client.GetFromJsonAsync<QueryReportUsersResponse>(
             $"/api/report-rules/{reportRuleId}/available-users?searchText=available&page=1&pageSize=1&sort=name");
 
         Assert.Equal(reportRuleId, assigned!.ReportRuleId);
@@ -385,13 +385,13 @@ public class ReportWorkflowTests
     // Function summary: Handles the reports list contract rejects unsupported sort workflow for this module.
     public async Task Reports_ListContractRejectsUnsupportedSort()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var empty = await client.GetFromJsonAsync<QueryReportsResponse>("/api/reports?sort=reportDate&sortDir=Descending");
-        var invalid = await client.GetAsync("/api/reports?sort=unknown");
+        QueryReportsResponse? empty = await client.GetFromJsonAsync<QueryReportsResponse>("/api/reports?sort=reportDate&sortDir=Descending");
+        HttpResponseMessage invalid = await client.GetAsync("/api/reports?sort=unknown");
 
         Assert.Empty(empty!.Results);
         Assert.Equal("reportDate", empty.Sort);
@@ -402,10 +402,10 @@ public class ReportWorkflowTests
     // Function summary: Initializes report site state required by the application.
     private static async Task<ReportWorkflowIds> SeedReportSiteAsync(SpaTestApplicationFactory factory)
     {
-        var companyId = Guid.NewGuid();
-        var siteId = Guid.NewGuid();
-        var contractId = Guid.NewGuid();
-        var now = DateTime.UtcNow;
+        Guid companyId = Guid.NewGuid();
+        Guid siteId = Guid.NewGuid();
+        Guid contractId = Guid.NewGuid();
+        DateTime now = DateTime.UtcNow;
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Report Company", Contracts = [] },
             new Site { Id = siteId, SiteName = ReportSiteName, CreateDate = now.AddDays(-30), Contracts = [] },
@@ -424,10 +424,10 @@ public class ReportWorkflowTests
     // Function summary: Initializes archived report-site state used by edit-detail regression tests.
     private static async Task<ReportWorkflowIds> SeedArchivedReportSiteAsync(SpaTestApplicationFactory factory)
     {
-        var companyId = Guid.NewGuid();
-        var siteId = Guid.NewGuid();
-        var contractId = Guid.NewGuid();
-        var now = DateTime.UtcNow;
+        Guid companyId = Guid.NewGuid();
+        Guid siteId = Guid.NewGuid();
+        Guid contractId = Guid.NewGuid();
+        DateTime now = DateTime.UtcNow;
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Archived Report Company", Contracts = [] },
             new Site { Id = siteId, SiteName = ArchivedReportSiteName, CreateDate = now.AddDays(-30), Archived = true, Contracts = [] },
@@ -467,10 +467,10 @@ public class ReportWorkflowTests
     // Function summary: Verifies query implementations count before the first row materialization point.
     private static void AssertQueryCountsBeforeMaterializing(string source, string signature)
     {
-        var methodSource = ExtractMethodSource(source, signature);
+        string methodSource = ExtractMethodSource(source, signature);
 
-        var count = methodSource.IndexOf("CountAsync", StringComparison.Ordinal);
-        var firstMaterialization = methodSource.IndexOf("ToListAsync", StringComparison.Ordinal);
+        int count = methodSource.IndexOf("CountAsync", StringComparison.Ordinal);
+        int firstMaterialization = methodSource.IndexOf("ToListAsync", StringComparison.Ordinal);
 
         Assert.True(count >= 0, $"{signature} should use CountAsync before paging.");
         Assert.True(firstMaterialization >= 0, $"{signature} should materialize only the requested page.");
@@ -480,16 +480,16 @@ public class ReportWorkflowTests
     // Function summary: Verifies a method body does not include a rejected source fragment.
     private static void AssertMethodDoesNotContain(string source, string signature, string rejectedFragment)
     {
-        var methodSource = ExtractMethodSource(source, signature);
+        string methodSource = ExtractMethodSource(source, signature);
         Assert.DoesNotContain(rejectedFragment, methodSource, StringComparison.Ordinal);
     }
 
     // Function summary: Extracts a source method body for text-based architecture guardrails.
     private static string ExtractMethodSource(string source, string signature)
     {
-        var start = source.IndexOf(signature, StringComparison.Ordinal);
+        int start = source.IndexOf(signature, StringComparison.Ordinal);
         Assert.True(start >= 0, $"Could not find query method signature: {signature}");
-        var nextMember = source.IndexOf("\n    private ", start + signature.Length, StringComparison.Ordinal);
+        int nextMember = source.IndexOf("\n    private ", start + signature.Length, StringComparison.Ordinal);
         if (nextMember < 0)
         {
             nextMember = source.IndexOf("\n    public ", start + signature.Length, StringComparison.Ordinal);
@@ -501,7 +501,7 @@ public class ReportWorkflowTests
     // Function summary: Reads validation-problem details returned by mutation endpoint tests.
     private static async Task<ValidationProblemDetails> ReadValidationProblemAsync(HttpResponseMessage response)
     {
-        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        ValidationProblemDetails? problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
         Assert.NotNull(problem);
         return problem;
     }
@@ -509,7 +509,7 @@ public class ReportWorkflowTests
     // Function summary: Verifies a validation-problem field includes an expected message fragment.
     private static void AssertValidationErrorContains(ValidationProblemDetails problem, string key, string expected)
     {
-        Assert.True(problem.Errors.TryGetValue(key, out var messages), $"Expected validation key '{key}'.");
+        Assert.True(problem.Errors.TryGetValue(key, out string[]? messages), $"Expected validation key '{key}'.");
         Assert.Contains(messages, message => message.Contains(expected, StringComparison.OrdinalIgnoreCase));
     }
 

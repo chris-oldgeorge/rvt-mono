@@ -32,10 +32,10 @@ public class LookupsController : ControllerBase
     // Function summary: Returns admin-scoped lookup values for a supported lookup kind using async database queries.
     public async Task<ActionResult<SearchLookupResponse>> Search([FromRoute] string kind, [FromQuery] SearchLookupRequest request)
     {
-        var query = request.Query ?? "";
-        var take = request.GetNormalizedTake();
-        var normalizedKind = kind.Trim().ToLowerInvariant();
-        var values = normalizedKind switch
+        string query = request.Query ?? "";
+        int take = request.GetNormalizedTake();
+        string normalizedKind = kind.Trim().ToLowerInvariant();
+        List<string>? values = normalizedKind switch
         {
             "companies" => await lookupService.CompaniesSearchAsync(query, take, HttpContext.RequestAborted),
             "contracts" => await lookupService.ContractsSearchAsync(query, take, HttpContext.RequestAborted),

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
-using Rvt.Monitor.Common.Alerts.Persistence;
 using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts.Persistence;
 using Rvt.Monitor.Common.Notifications;
 
 namespace Rvt.Monitor.Common.Alerts;
@@ -16,7 +16,7 @@ public sealed class SmsAlertDeliveryAdapter(
         ClaimedAlertDelivery delivery,
         CancellationToken cancellationToken)
     {
-        var envelope = AlertDeliveryAdapterValidation.ReadEnvelope(
+        AlertDeliveryEnvelope envelope = AlertDeliveryAdapterValidation.ReadEnvelope(
             delivery,
             Kind,
             destination => !string.IsNullOrWhiteSpace(destination));

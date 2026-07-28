@@ -4,9 +4,9 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
-using RVT.Entities;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
+using RVT.Entities;
 using RvtPortal.Spa.Api;
 
 namespace RvtPortal.Spa.Application.Reports;
@@ -30,7 +30,7 @@ public sealed record ReportQuery(
 public sealed class ReportQueryResult
 {
     public string? InvalidSort { get; init; }
-    public IReadOnlyCollection<string> AllowedSortFields { get; init; } = ReportApplicationService.SortFields.ToArray();
+    public IReadOnlyCollection<string> AllowedSortFields { get; init; } = [.. ReportApplicationService.SortFields];
     public QueryReportsResponse? Response { get; init; }
 }
 
@@ -58,17 +58,17 @@ public sealed class ReportApplicationService : IReportApplicationService
     // Function summary: Returns a paged report list while keeping filtering, count, sort, and paging in EF.
     public async Task<ReportQueryResult> QueryAsync(ReportQuery request, CancellationToken cancellationToken)
     {
-        var requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "reportDate" : request.Sort.Trim();
+        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "reportDate" : request.Sort.Trim();
         if (!SortFields.Contains(requestedSort))
         {
             return new ReportQueryResult
             {
                 InvalidSort = requestedSort,
-                AllowedSortFields = SortFields.ToArray()
+                AllowedSortFields = [.. SortFields]
             };
         }
 
-        var query = searchContext.ReportSearches
+        IQueryable<ReportSearch> query = searchContext.ReportSearches
             .AsNoTracking()
             .Where(report => !report.Deleted);
         if (!string.IsNullOrWhiteSpace(request.SearchText))
@@ -76,14 +76,12 @@ public sealed class ReportApplicationService : IReportApplicationService
             query = ApplySearch(query, request.SearchText);
         }
 
-        var total = await query.CountAsync(cancellationToken);
-        var rows = await ApplySort(query, requestedSort, request.SortDir)
+        int total = await query.CountAsync(cancellationToken);
+        List<ReportSearch> rows = await ApplySort(query, requestedSort, request.SortDir)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
-        var items = rows
-            .Select(BuildReportItem)
-            .ToList();
+        List<ReportListItem> items = [.. rows.Select(BuildReportItem)];
 
         return new ReportQueryResult
         {
@@ -106,7 +104,7 @@ public sealed class ReportApplicationService : IReportApplicationService
     // Function summary: Returns one report item by id, or null when absent.
     public async Task<ReportListItem?> GetAsync(Guid reportId, CancellationToken cancellationToken)
     {
-        var report = await searchContext.ReportSearches
+        ReportSearch? report = await searchContext.ReportSearches
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == reportId && !item.Deleted, cancellationToken);
         return report == null ? null : BuildReportItem(report);
@@ -138,10 +136,8 @@ public sealed class ReportApplicationService : IReportApplicationService
     [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]
     private static IQueryable<ReportSearch> ApplySearch(IQueryable<ReportSearch> reports, string searchText)
     {
-        var search = searchText.Trim().ToLower();
-        var frequencyMatches = MatchingFrequencies(search)
-            .Select(frequency => (int)frequency)
-            .ToArray();
+        string search = searchText.Trim().ToLower();
+        int[] frequencyMatches = [.. MatchingFrequencies(search).Select(frequency => (int)frequency)];
         return reports.Where(report =>
             (report.ReportName != null && report.ReportName.ToLower().Contains(search)) ||
             report.SiteName.ToLower().Contains(search) ||
@@ -153,7 +149,7 @@ public sealed class ReportApplicationService : IReportApplicationService
     // Function summary: Applies database-side report sorting.
     private static IOrderedQueryable<ReportSearch> ApplySort(IQueryable<ReportSearch> reports, string sort, string direction)
     {
-        var descending = string.Equals(direction, SortDirections.Descending, StringComparison.OrdinalIgnoreCase);
+        bool descending = string.Equals(direction, SortDirections.Descending, StringComparison.OrdinalIgnoreCase);
         return sort.ToLowerInvariant() switch
         {
             "reportname" => descending ? reports.OrderByDescending(report => report.ReportName) : reports.OrderBy(report => report.ReportName),

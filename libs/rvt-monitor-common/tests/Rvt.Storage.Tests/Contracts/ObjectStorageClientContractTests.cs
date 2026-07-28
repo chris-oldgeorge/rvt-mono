@@ -11,7 +11,7 @@ public abstract class ObjectStorageClientContractTests
         // Every adapter implemented this identically before it was added to the
         // port, which forced consumers to bind to concrete adapter types.
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
-        var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
+        StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
 
         Uri uri = fixture.Client.GetObjectUri(key);
 
@@ -31,8 +31,8 @@ public abstract class ObjectStorageClientContractTests
     public async Task WriteAsync_WithNonSeekableContent_ReturnsSameNormalizedKey()
     {
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
-        var key = StorageObjectKey.Parse(" project\\source//sample.bin ");
-        await using var content = new NonSeekableReadStream([1, 2, 3]);
+        StorageObjectKey key = StorageObjectKey.Parse(" project\\source//sample.bin ");
+        await using NonSeekableReadStream content = new([1, 2, 3]);
 
         StorageWriteResult result = await fixture.Client.WriteAsync(
             new StorageWriteRequest(key, content, "application/octet-stream"));
@@ -45,7 +45,7 @@ public abstract class ObjectStorageClientContractTests
     public async Task OpenReadAsync_AfterWrite_ReturnsEqualContentAndMetadata()
     {
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
-        var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
+        StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         byte[] expectedContent = [4, 5, 6, 7];
 
         await WriteAsync(
@@ -77,7 +77,7 @@ public abstract class ObjectStorageClientContractTests
     public async Task WriteAsync_WhenKeyExists_ReplacesContent()
     {
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
-        var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
+        StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2], "first/type");
 
         await WriteAsync(fixture.Client, key, [8, 9, 10], "second/type");
@@ -93,7 +93,7 @@ public abstract class ObjectStorageClientContractTests
     public async Task DeleteIfExistsAsync_ReturnsTrueThenFalse()
     {
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
-        var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
+        StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "application/octet-stream");
 
         bool existingResult = await fixture.Client.DeleteIfExistsAsync(key);
@@ -108,9 +108,9 @@ public abstract class ObjectStorageClientContractTests
     public async Task WriteAsync_WhenCallerAlreadyCancelled_PreservesExistingObject()
     {
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
-        var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
+        StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "original/type");
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -132,9 +132,9 @@ public abstract class ObjectStorageClientContractTests
     public async Task OpenReadAsync_WhenCallerAlreadyCancelled_PreservesExistingObject()
     {
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
-        var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
+        StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "original/type");
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -151,9 +151,9 @@ public abstract class ObjectStorageClientContractTests
     public async Task DeleteIfExistsAsync_WhenCallerAlreadyCancelled_PreservesExistingObject()
     {
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
-        var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
+        StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "original/type");
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -192,7 +192,7 @@ public abstract class ObjectStorageClientContractTests
 
     private static async Task<byte[]> ReadAllBytesAsync(Stream content)
     {
-        using var buffer = new MemoryStream();
+        using MemoryStream buffer = new();
         await content.CopyToAsync(buffer);
         return buffer.ToArray();
     }

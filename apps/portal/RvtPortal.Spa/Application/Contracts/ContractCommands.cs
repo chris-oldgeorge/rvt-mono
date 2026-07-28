@@ -43,14 +43,14 @@ public sealed class CreateContractCommandHandler : IRequestHandler<CreateContrac
     // Function summary: Creates a contract after validating number, dates, company, and site.
     public async Task<ContractCommandResult> Handle(CreateContractCommand request, CancellationToken cancellationToken)
     {
-        var result = new ContractCommandResult();
+        ContractCommandResult result = new();
         await ContractCommandWorkflow.ValidateContractAsync(domainContext, request.Request, null, result.Errors, cancellationToken);
         if (result.Errors.Count > 0)
         {
             return result;
         }
 
-        var contract = ContractCommandWorkflow.CreateContract(request.Request);
+        Contract contract = ContractCommandWorkflow.CreateContract(request.Request);
         domainContext.Contracts.Add(contract);
         result.ContractId = contract.Id;
         result.ContractNumber = contract.ContractNumber;
@@ -71,8 +71,8 @@ public sealed class UpdateContractCommandHandler : IRequestHandler<UpdateContrac
     // Function summary: Updates contract fields after validating number, dates, company, and site.
     public async Task<ContractCommandResult> Handle(UpdateContractCommand request, CancellationToken cancellationToken)
     {
-        var result = new ContractCommandResult { ContractId = request.ContractId };
-        var contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
+        ContractCommandResult result = new() { ContractId = request.ContractId };
+        Contract? contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
         if (contract == null)
         {
             result.NotFound = true;
@@ -104,8 +104,8 @@ public sealed class DeleteContractCommandHandler : IRequestHandler<DeleteContrac
     // Function summary: Deletes a contract by id.
     public async Task<ContractCommandResult> Handle(DeleteContractCommand request, CancellationToken cancellationToken)
     {
-        var result = new ContractCommandResult { ContractId = request.ContractId };
-        var contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
+        ContractCommandResult result = new() { ContractId = request.ContractId };
+        Contract? contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
         if (contract == null)
         {
             result.NotFound = true;
@@ -168,7 +168,7 @@ internal static class ContractCommandWorkflow
         Dictionary<string, string[]> errors,
         CancellationToken cancellationToken)
     {
-        var contractNumber = request.ContractNumber?.Trim();
+        string? contractNumber = request.ContractNumber?.Trim();
         if (string.IsNullOrWhiteSpace(contractNumber))
         {
             AddError(errors, nameof(ContractMutationRequest.ContractNumber), "The Contract Number field is required.");
@@ -227,14 +227,14 @@ internal static class ContractCommandWorkflow
             return;
         }
 
-        var siteExists = await domainContext.Sites.AnyAsync(site => site.Id == request.SiteId.Value, cancellationToken);
+        bool siteExists = await domainContext.Sites.AnyAsync(site => site.Id == request.SiteId.Value, cancellationToken);
         if (!siteExists)
         {
             AddError(errors, nameof(ContractMutationRequest.SiteId), "Please select a Site.");
             return;
         }
 
-        var conflictingCompany = await domainContext.Contracts.AnyAsync(
+        bool conflictingCompany = await domainContext.Contracts.AnyAsync(
             contract => contract.Id != currentId &&
                 contract.SiteiD == request.SiteId.Value &&
                 contract.CompanyId != request.CompanyId,
@@ -247,7 +247,7 @@ internal static class ContractCommandWorkflow
 
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }

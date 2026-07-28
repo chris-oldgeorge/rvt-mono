@@ -16,21 +16,21 @@ public static class ReportingMonitorApi
 {
     public static IEndpointRouteBuilder Map(IEndpointRouteBuilder endpoints)
     {
-        var services = endpoints.ServiceProvider;
-        var filter = new InternalApiKeyFilter(
+        IServiceProvider services = endpoints.ServiceProvider;
+        InternalApiKeyFilter filter = new(
             services.GetRequiredService<ReportingMonitorOptions>(),
             services.GetRequiredService<IHostEnvironment>());
 
         endpoints.MapGet("/liveness", () => Results.Text(LivenessText(), "text/plain"));
         endpoints.MapGet("/readiness", async ([FromServices] IReportingHealthQueries healthQueries, CancellationToken cancellationToken) =>
         {
-            var ready = await healthQueries.CanConnectAsync(cancellationToken).ConfigureAwait(false);
+            bool ready = await healthQueries.CanConnectAsync(cancellationToken).ConfigureAwait(false);
             return ready
                 ? Results.Ok(new { status = "ready" })
                 : Results.Json(new { status = "not-ready" }, statusCode: StatusCodes.Status503ServiceUnavailable);
         });
 
-        var reports = endpoints.MapGroup("/internal/reports").AddEndpointFilter(filter);
+        RouteGroupBuilder reports = endpoints.MapGroup("/internal/reports").AddEndpointFilter(filter);
         reports.MapPost("/run-scheduled", GenerateScheduledAsync);
         reports.MapPost("/rules/{reportRuleId:guid}/generate", GenerateRuleAsync);
         reports.MapPost("/one-time", async (OneTimeReportRequest request, GenerateOneTimeReportHandler handler, CancellationToken cancellationToken) =>
@@ -59,7 +59,7 @@ public static class ReportingMonitorApi
         GenerateScheduledReportsHandler handler,
         CancellationToken cancellationToken)
     {
-        var generated = await handler.HandleAsync(DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<GeneratedReport> generated = await handler.HandleAsync(DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false);
         return GeneratedReportsResult(generated);
     }
 
@@ -69,8 +69,8 @@ public static class ReportingMonitorApi
         GenerateRuleReportHandler handler,
         CancellationToken cancellationToken)
     {
-        var triggerUtc = request?.TriggerUtc ?? DateTimeOffset.UtcNow;
-        var generated = await handler.HandleAsync(reportRuleId, triggerUtc, cancellationToken).ConfigureAwait(false);
+        DateTimeOffset triggerUtc = request?.TriggerUtc ?? DateTimeOffset.UtcNow;
+        IReadOnlyList<GeneratedReport> generated = await handler.HandleAsync(reportRuleId, triggerUtc, cancellationToken).ConfigureAwait(false);
         return GeneratedReportsResult(generated);
     }
 

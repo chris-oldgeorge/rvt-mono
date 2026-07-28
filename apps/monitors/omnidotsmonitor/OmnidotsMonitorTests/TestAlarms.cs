@@ -2,13 +2,9 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Notifications.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Notifications.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace OmnidotsAdapterTests
 {
 
@@ -18,7 +14,7 @@ namespace OmnidotsAdapterTests
 
         public TestAlarms()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -29,8 +25,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestParseAlarmJson()
         {
-            var json = TestUtil.ReadTextFromFile("testdata/alarm_ignore.json");
-            var alarm = JsonSerializer.Deserialize<AlarmData>(json);
+            string json = TestUtil.ReadTextFromFile("testdata/alarm_ignore.json");
+            AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
             Assert.IsNotNull(alarm);
             Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_GUIDELINE_ALARM, alarm.Category);
@@ -47,7 +43,7 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(70, alarm!.Data!.Alarms!.AlarmLevel2);
             Assert.AreEqual(100, alarm!.Data!.Alarms!.AlarmLevel3);
 
-            var x = alarm!.Data!.Axes!.X!;
+            AlarmFdomVtop x = alarm!.Data!.Axes!.X!;
             Assert.AreEqual(17.5, x.fdom);
             Assert.AreEqual(1.6326589584350586, x.vtop!.Value);
             Assert.AreEqual(16.326589584350586, x.vtop!.GuideLineOverflow);
@@ -59,7 +55,7 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(7, x.vtop!.AlarmLimits!.AlarmLevel2);
             Assert.AreEqual(10, x.vtop!.AlarmLimits!.AlarmLevel3);
 
-            var y = alarm!.Data!.Axes!.Y!;
+            AlarmFdomVtop y = alarm!.Data!.Axes!.Y!;
             Assert.AreEqual(17.5, y.fdom);
             Assert.AreEqual(0.7223203182220459, y.vtop!.Value);
             Assert.AreEqual(7.223203182220458, y.vtop!.GuideLineOverflow);
@@ -71,7 +67,7 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(7, y.vtop!.AlarmLimits!.AlarmLevel2);
             Assert.AreEqual(10, y.vtop!.AlarmLimits!.AlarmLevel3);
 
-            var z = alarm!.Data!.Axes!.Z!;
+            AlarmFdomVtop z = alarm!.Data!.Axes!.Z!;
             Assert.AreEqual(17.5, z.fdom);
             Assert.AreEqual(4.057920932769775, z.vtop!.Value);
             Assert.AreEqual(40.579209327697754, z.vtop!.GuideLineOverflow);
@@ -102,7 +98,7 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual("Off", alarm.Data.NoiseSavingEnabled);
             Assert.AreEqual(23423, alarm.MeasuringPointId);
 
-            var txt = "Alarm level 1: Your measuring point WOHEPU-82022 (WOHEPU), measured an exceedance";
+            string txt = "Alarm level 1: Your measuring point WOHEPU-82022 (WOHEPU), measured an exceedance";
             Assert.StartsWith(txt, alarm.Text);
 
 
@@ -122,8 +118,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestParseOnlineJson()
         {
-            var json = TestUtil.ReadTextFromFile("testdata/online.json");
-            var alarm = JsonSerializer.Deserialize<AlarmData>(json);
+            string json = TestUtil.ReadTextFromFile("testdata/online.json");
+            AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
             Assert.IsNotNull(alarm);
             Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_ONLINE, alarm.Category);
@@ -144,8 +140,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestParseOfflineJson()
         {
-            var json = TestUtil.ReadTextFromFile("testdata/stop_clipping.json");
-            var alarm = JsonSerializer.Deserialize<AlarmData>(json);
+            string json = TestUtil.ReadTextFromFile("testdata/stop_clipping.json");
+            AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
             Assert.IsNotNull(alarm);
             Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_OFFLINE, alarm.Category);
@@ -159,21 +155,21 @@ namespace OmnidotsAdapterTests
             Assert.IsNull(alarm!.Data!.Axes);
 
             Assert.IsNull(alarm.Data.Category);
-            var txt = "Your measuring point WOHEPU-82022 (WOHEPU) stopped measuring on Dec. 5, 2023, 5:48:31 p.m. GMT";
+            string txt = "Your measuring point WOHEPU-82022 (WOHEPU) stopped measuring on Dec. 5, 2023, 5:48:31 p.m. GMT";
             Assert.StartsWith(txt, alarm.Text);
         }
 
         [TestMethod]
         public void AlarmDataV2_MissingNestedObjectsRemainObservableAsNull()
         {
-            var missingData = JsonSerializer.Deserialize<AlarmDataV2>("{}");
-            var missingAlarmAndAxes = JsonSerializer.Deserialize<AlarmDataV2>("""
+            AlarmDataV2? missingData = JsonSerializer.Deserialize<AlarmDataV2>("{}");
+            AlarmDataV2? missingAlarmAndAxes = JsonSerializer.Deserialize<AlarmDataV2>("""
                 {"data":{}}
                 """);
-            var missingAxes = JsonSerializer.Deserialize<AlarmDataV2>("""
+            AlarmDataV2? missingAxes = JsonSerializer.Deserialize<AlarmDataV2>("""
                 {"data":{"alarms":{},"axes":{}}}
                 """);
-            var missingVtop = JsonSerializer.Deserialize<AlarmDataV2>("""
+            AlarmDataV2? missingVtop = JsonSerializer.Deserialize<AlarmDataV2>("""
                 {"data":{"alarms":{},"axes":{"x":{},"y":{},"z":{}}}}
                 """);
 
@@ -209,8 +205,8 @@ namespace OmnidotsAdapterTests
                                                                   double expectedLevel,
                                                                   double expectedLimit)
         {
-            var json = TestUtil.ReadTextFromFile(filename);
-            var alarm = JsonSerializer.Deserialize<AlarmData>(json);
+            string json = TestUtil.ReadTextFromFile(filename);
+            AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
             Assert.IsNotNull(alarm);
             Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_GUIDELINE_ALARM, alarm.Category);
@@ -218,8 +214,8 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
             Assert.AreEqual("WOHEPU-82022", alarm!.Data!.MeasuringPoint);
 
-            var monitorId = Guid.NewGuid();
-            var notification = alarm.GetNotification(monitorId);
+            Guid monitorId = Guid.NewGuid();
+            NotificationDto notification = alarm.GetNotification(monitorId);
 
             Assert.AreEqual(expectedAxis, notification.AlertField);
             Assert.AreEqual(expectedAlertType, notification.AlertType);

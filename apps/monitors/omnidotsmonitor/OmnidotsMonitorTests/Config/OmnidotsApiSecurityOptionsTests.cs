@@ -19,7 +19,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void Validate_ApiEnabledWithValidOptions_Succeeds()
     {
-        var result = CreateValidator().Validate(null, CreateValidOptions());
+        ValidateOptionsResult result = CreateValidator().Validate(null, CreateValidOptions());
 
         Assert.IsTrue(result.Succeeded);
     }
@@ -34,7 +34,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [DataRow("equal-secrets")]
     public void Validate_ApiEnabledWithInvalidSecrets_FailsGenerically(string invalidCase)
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         switch (invalidCase)
         {
             case "missing-webhook":
@@ -69,11 +69,11 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void Validate_SecretsUseStrictUtf8ByteLength_SucceedsForSixteenTwoByteCharacters()
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         options.WebhookSecret = string.Concat(Enumerable.Repeat("é", 16));
         options.ConfigSecret = string.Concat(Enumerable.Repeat("ø", 16));
 
-        var result = CreateValidator().Validate(null, options);
+        ValidateOptionsResult result = CreateValidator().Validate(null, options);
 
         Assert.IsTrue(result.Succeeded);
     }
@@ -81,7 +81,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void Validate_InvalidSurrogateInSecret_FailsGenerically()
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         options.WebhookSecret = new string('\ud800', 1) + new string('w', 32);
 
         AssertGenericFailure(CreateValidator().Validate(null, options));
@@ -93,7 +93,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [DataRow("alerts.example.test/omnidots")]
     public void Validate_ApiEnabledWithNonHttpsAbsoluteUrl_FailsGenerically(string webhookUrl)
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         options.WebhookUrl = webhookUrl;
 
         AssertGenericFailure(CreateValidator().Validate(null, options));
@@ -105,7 +105,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [DataRow("configure-concurrency")]
     public void Validate_ApiEnabledWithNonpositiveLimit_FailsGenerically(string invalidCase)
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         switch (invalidCase)
         {
             case "notification-delay":
@@ -128,9 +128,9 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void Validate_ApiDisabledSchedulerConfiguration_SucceedsWithoutApiSecrets()
     {
-        var validator = CreateValidator(MonitorExecutionMode.QuartzScheduler);
+        OmnidotsApiSecurityOptionsValidator validator = CreateValidator(MonitorExecutionMode.QuartzScheduler);
 
-        var result = validator.Validate(null, new OmnidotsApiSecurityOptions());
+        ValidateOptionsResult result = validator.Validate(null, new OmnidotsApiSecurityOptions());
 
         Assert.IsTrue(result.Succeeded);
     }
@@ -138,9 +138,9 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void Validate_ApiDisabledUnrelatedOneShotConfiguration_SucceedsWithoutApiSecrets()
     {
-        var validator = CreateValidator(MonitorExecutionMode.OneShot);
+        OmnidotsApiSecurityOptionsValidator validator = CreateValidator(MonitorExecutionMode.OneShot);
 
-        var result = validator.Validate(null, new OmnidotsApiSecurityOptions());
+        ValidateOptionsResult result = validator.Validate(null, new OmnidotsApiSecurityOptions());
 
         Assert.IsTrue(result.Succeeded);
     }
@@ -151,9 +151,9 @@ public sealed class OmnidotsApiSecurityOptionsTests
     public void Validate_NonApiExecutionModeWithAmbientApiEnabled_SucceedsWithoutApiSecrets(
         MonitorExecutionMode mode)
     {
-        var validator = CreateValidator(mode);
+        OmnidotsApiSecurityOptionsValidator validator = CreateValidator(mode);
 
-        var result = validator.Validate(null, new OmnidotsApiSecurityOptions());
+        ValidateOptionsResult result = validator.Validate(null, new OmnidotsApiSecurityOptions());
 
         Assert.IsTrue(result.Succeeded);
     }
@@ -161,7 +161,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void AddOmnidotsMonitor_UsesLegacyAliasesWhenSectionValuesAreAbsent()
     {
-        var options = ResolveRegisteredOptions(new Dictionary<string, string?>
+        OmnidotsApiSecurityOptions options = ResolveRegisteredOptions(new Dictionary<string, string?>
         {
             ["MonitorApi:Enabled"] = "true",
             ["RVT__OMNIDOTS_WEBHOOK_URL"] = WebhookUrl,
@@ -181,7 +181,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void AddOmnidotsMonitor_UsesEnvironmentNormalizedLegacyAliases()
     {
-        var options = ResolveRegisteredOptions(new Dictionary<string, string?>
+        OmnidotsApiSecurityOptions options = ResolveRegisteredOptions(new Dictionary<string, string?>
         {
             ["MonitorApi:Enabled"] = "true",
             ["RVT:OMNIDOTS_WEBHOOK_URL"] = WebhookUrl,
@@ -200,7 +200,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     public void AddOmnidotsMonitor_InvalidLegacyDelay_FailsWithoutExposingValue()
     {
         const string invalidDelay = "invalid-delay-value-marker";
-        var configurationValues = new Dictionary<string, string?>
+        Dictionary<string, string?> configurationValues = new()
         {
             ["MonitorApi:Enabled"] = "true",
             ["RVT__OMNIDOTS_WEBHOOK_URL"] = WebhookUrl,
@@ -209,7 +209,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
             ["RVT__NOTIFICATION_DELAY_MINUTES"] = invalidDelay
         };
 
-        var exception = Assert.ThrowsExactly<OptionsValidationException>(() =>
+        OptionsValidationException exception = Assert.ThrowsExactly<OptionsValidationException>(() =>
             ResolveRegisteredOptions(configurationValues));
 
         Assert.AreEqual(ValidationFailure, exception.Failures.Single());
@@ -222,7 +222,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
         const string sectionUrl = "https://section.example.test/omnidots";
         const string sectionWebhookSecret = "ssssssssssssssssssssssssssssssss";
         const string sectionConfigSecret = "tttttttttttttttttttttttttttttttt";
-        var options = ResolveRegisteredOptions(new Dictionary<string, string?>
+        OmnidotsApiSecurityOptions options = ResolveRegisteredOptions(new Dictionary<string, string?>
         {
             ["MonitorApi:Enabled"] = "true",
             [$"{OmnidotsApiSecurityOptions.SectionName}:WebhookUrl"] = sectionUrl,
@@ -244,7 +244,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void AddOmnidotsMonitor_BlankSectionValueFallsBackToLegacyAlias()
     {
-        var configurationValues = new Dictionary<string, string?>
+        Dictionary<string, string?> configurationValues = new()
         {
             ["MonitorApi:Enabled"] = "true",
             [$"{OmnidotsApiSecurityOptions.SectionName}:WebhookUrl"] = WebhookUrl,
@@ -253,7 +253,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
             ["RVT__OMNIDOTS_WEBHOOK_SECRET"] = WebhookSecret
         };
 
-        var options = ResolveRegisteredOptions(configurationValues);
+        OmnidotsApiSecurityOptions options = ResolveRegisteredOptions(configurationValues);
 
         Assert.AreEqual(WebhookSecret, options.WebhookSecret);
     }
@@ -261,10 +261,10 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void EnsureWebhookReady_InvalidDirectOptions_ThrowsValueFreeError()
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         options.WebhookSecret = "direct-webhook-secret-marker";
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             OmnidotsApiSecurityGuard.EnsureWebhookReady(options));
 
         Assert.AreEqual(ValidationFailure, exception.Message);
@@ -279,7 +279,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [DataRow("negative-concurrency")]
     public void EnsureWebhookReady_InvalidEndpointSpecificOptions_ThrowsValueFreeError(string invalidCase)
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         switch (invalidCase)
         {
             case "equal-secrets":
@@ -302,7 +302,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
                 break;
         }
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             OmnidotsApiSecurityGuard.EnsureWebhookReady(options));
 
         Assert.AreEqual(ValidationFailure, exception.Message);
@@ -317,10 +317,10 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [DataRow(-1)]
     public void EnsureWebhookReady_NonpositiveDelay_ThrowsValueFreeError(int delayMinutes)
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         options.NotificationDelayMinutes = delayMinutes;
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             OmnidotsApiSecurityGuard.EnsureWebhookReady(options));
 
         Assert.AreEqual(ValidationFailure, exception.Message);
@@ -329,10 +329,10 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void EnsureConfigurationReady_InvalidDirectOptions_ThrowsValueFreeError()
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         options.WebhookUrl = "http://direct-value-marker.example.test";
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             OmnidotsApiSecurityGuard.EnsureConfigurationReady(options));
 
         Assert.AreEqual(ValidationFailure, exception.Message);
@@ -348,7 +348,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
         string invalidCase,
         int value)
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         if (invalidCase == "configure-concurrency")
         {
             options.ConfigureConcurrencyLimit = value;
@@ -358,7 +358,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
             options.NotificationDelayMinutes = value;
         }
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             OmnidotsApiSecurityGuard.EnsureConfigurationReady(options));
 
         Assert.AreEqual(ValidationFailure, exception.Message);
@@ -367,7 +367,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void EnsureWebhookReady_DoesNotRequireConfigureConcurrencyLimit()
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         options.ConfigureConcurrencyLimit = 0;
 
         OmnidotsApiSecurityGuard.EnsureWebhookReady(options);
@@ -376,7 +376,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void EnsureConfigurationReady_DoesNotRequireWebhookConcurrencyLimit()
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
         options.WebhookConcurrencyLimit = 0;
 
         OmnidotsApiSecurityGuard.EnsureConfigurationReady(options);
@@ -385,7 +385,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void DirectGuards_ValidOptions_DoNotThrow()
     {
-        var options = CreateValidOptions();
+        OmnidotsApiSecurityOptions options = CreateValidOptions();
 
         OmnidotsApiSecurityGuard.EnsureWebhookReady(options);
         OmnidotsApiSecurityGuard.EnsureConfigurationReady(options);
@@ -415,15 +415,15 @@ public sealed class OmnidotsApiSecurityOptionsTests
     private static OmnidotsApiSecurityOptions ResolveRegisteredOptions(
         Dictionary<string, string?> configurationValues)
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configurationValues)
             .Build();
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.Api));
         services.AddLogging();
         services.AddOmnidotsMonitor(configuration);
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
         return provider.GetRequiredService<OmnidotsApiSecurityOptions>();
     }
 }

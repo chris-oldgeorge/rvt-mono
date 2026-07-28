@@ -37,7 +37,7 @@ public sealed class ReportContentController : ControllerBase
         [FromHeader(Name = InternalKeyHeader)] string? internalKey,
         CancellationToken cancellationToken)
     {
-        var result = await reportContent.GetCustomerLogoAsync(siteId, internalKey, cancellationToken);
+        ReportContentFileResult result = await reportContent.GetCustomerLogoAsync(siteId, internalKey, cancellationToken);
         if (result.File is not null)
         {
             return File(result.File.Stream, result.File.ContentType, result.File.FileName);

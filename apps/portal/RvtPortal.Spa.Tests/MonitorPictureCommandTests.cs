@@ -22,10 +22,10 @@ public sealed class MonitorPictureCommandTests
     // Function summary: Verifies a saved picture is deleted when the deployment row cannot be updated.
     public async Task UploadMonitorPictureCommand_DeletesSavedPictureWhenDatabaseSaveFails()
     {
-        var monitorId = Guid.NewGuid();
-        await using var context = await CreateCurrentDeploymentContextAsync(monitorId);
-        var storage = new RecordingMonitorPictureStorage();
-        var handler = new UploadMonitorPictureCommandHandler(
+        Guid monitorId = Guid.NewGuid();
+        await using ThrowingSaveRVTDbContext context = await CreateCurrentDeploymentContextAsync(monitorId);
+        RecordingMonitorPictureStorage storage = new();
+        UploadMonitorPictureCommandHandler handler = new(
             context,
             new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity("test")) } },
             storage,
@@ -44,13 +44,13 @@ public sealed class MonitorPictureCommandTests
     // Function summary: Creates a domain context containing one active monitor deployment.
     private static async Task<ThrowingSaveRVTDbContext> CreateCurrentDeploymentContextAsync(Guid monitorId)
     {
-        var options = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseInMemoryDatabase($"monitor-picture-command-{Guid.NewGuid():N}")
             .Options;
-        var context = new ThrowingSaveRVTDbContext(options);
-        var company = new Company { Id = Guid.NewGuid(), CompanyName = "Picture Company" };
-        var site = new Site { Id = Guid.NewGuid(), SiteName = "Picture Site", CreateDate = DateTime.UtcNow };
-        var contract = new Contract
+        ThrowingSaveRVTDbContext context = new(options);
+        Company company = new() { Id = Guid.NewGuid(), CompanyName = "Picture Company" };
+        Site site = new() { Id = Guid.NewGuid(), SiteName = "Picture Site", CreateDate = DateTime.UtcNow };
+        Contract contract = new()
         {
             Id = Guid.NewGuid(),
             ContractNumber = "PIC-1",
@@ -60,7 +60,7 @@ public sealed class MonitorPictureCommandTests
             Site = site,
             OnHireDate = DateTime.UtcNow.AddDays(-1)
         };
-        var monitor = new MonitorEntity
+        MonitorEntity monitor = new()
         {
             Id = monitorId,
             SerialId = "PIC-001",
@@ -69,7 +69,7 @@ public sealed class MonitorPictureCommandTests
             FirmwareVersion = "1",
             ListedAtTime = DateTime.UtcNow
         };
-        var deployment = new Deployment
+        Deployment deployment = new()
         {
             Id = Guid.NewGuid(),
             ContractId = contract.Id,

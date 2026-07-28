@@ -9,9 +9,9 @@
 
 using Microsoft.EntityFrameworkCore;
 using RVT.BusinessLogic;
-using RvtPortal.Spa.Application.Monitors;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
+using RvtPortal.Spa.Application.Monitors;
 
 namespace RvtPortal.Spa.Api;
 
@@ -60,8 +60,8 @@ public sealed class MonitorDataSource : IMonitorDataSource
     // Function summary: Returns trace indexes for one serial number over a half-open time range.
     public async Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(string serialId, DateTime fromDate, DateTime toDate)
     {
-        var databaseFromDate = SearchTimestampPolicy.ToDatabase(fromDate);
-        var databaseToDate = SearchTimestampPolicy.ToDatabase(toDate);
+        DateTime databaseFromDate = SearchTimestampPolicy.ToDatabase(fromDate);
+        DateTime databaseToDate = SearchTimestampPolicy.ToDatabase(toDate);
         return await searchContext.OmnidotsTracesIndices
             .AsNoTracking()
             .Where(trace =>

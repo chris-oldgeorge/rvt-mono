@@ -1,6 +1,8 @@
+using System.Xml.Linq;
 using Microsoft.Extensions.Options;
 using Rvt.Communication.Abstractions;
 using Rvt.Reporting.Core.Models;
+using Rvt.Reporting.Core.Reports;
 using Rvt.Reporting.Messaging;
 
 namespace ReportingMonitorTests.Messaging;
@@ -10,21 +12,20 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public void MessagingProject_ReferencesCommunicationAbstractionsWithoutCommonOrSendGrid()
     {
-        var repositoryRoot = FindRepositoryRoot();
-        var projectPath = Path.Combine(
+        string repositoryRoot = FindRepositoryRoot();
+        string projectPath = Path.Combine(
             repositoryRoot,
             "apps",
             "monitors",
             "reportingmonitor",
             "Rvt.Reporting.Messaging",
             "Rvt.Reporting.Messaging.csproj");
-        var project = System.Xml.Linq.XDocument.Load(projectPath);
-        var references = project.Descendants()
+        XDocument project = System.Xml.Linq.XDocument.Load(projectPath);
+        string[] references = [.. project.Descendants()
             .Where(element => element.Name.LocalName is "ProjectReference" or "PackageReference")
             .Select(element => (string?)element.Attribute("Include"))
             .Where(reference => reference is not null)
-            .Select(reference => reference!.Replace('\\', '/'))
-            .ToArray();
+            .Select(reference => reference!.Replace('\\', '/'))];
 
         Assert.Contains(references, reference =>
             reference.EndsWith(
@@ -39,11 +40,11 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public async Task SendAsync_MapsReportAndExistingMessageContentToEmailPort()
     {
-        var port = new RecordingEmailPort();
-        var sender = CreateSender(port);
-        var report = Report();
+        RecordingEmailPort port = new();
+        ReportMessageSender sender = CreateSender(port);
+        RenderedReport report = Report();
 
-        var result = await sender.SendAsync(
+        ReportSendResult result = await sender.SendAsync(
             "recipient@example.test",
             "AB1 2CD",
             report,
@@ -51,16 +52,16 @@ public sealed class ReportMessageSenderTests
 
         Assert.True(result.Success);
         Assert.Equal("Sent ok", result.StatusMessage);
-        var request = Assert.Single(port.Requests);
+        EmailDeliveryRequest request = Assert.Single(port.Requests);
         Assert.Equal("recipient@example.test", request.Recipient);
         Assert.Equal("RVT Cloud report for AB1 2CD", request.Subject);
         Assert.Equal("Your RVT Cloud report is attached.", request.PlainTextBody);
         Assert.Equal("<p>Your RVT Cloud report is attached.</p>", request.HtmlBody);
-        var attachment = Assert.Single(request.Attachments);
+        EmailAttachment attachment = Assert.Single(request.Attachments);
         Assert.Equal(report.FileName, attachment.FileName);
         Assert.Equal(report.ContentType, attachment.ContentType);
-        await using var stream = attachment.OpenRead();
-        using var buffer = new MemoryStream();
+        await using Stream stream = attachment.OpenRead();
+        using MemoryStream buffer = new();
         await stream.CopyToAsync(buffer, CancellationToken.None);
         Assert.Equal(report.Content, buffer.ToArray());
     }
@@ -68,10 +69,10 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public async Task SendAsync_DisabledReturnsSuccessWithoutCallingPort()
     {
-        var port = new RecordingEmailPort();
-        var sender = CreateSender(port, new ReportMessageSenderOptions { EmailEnabled = false });
+        RecordingEmailPort port = new();
+        ReportMessageSender sender = CreateSender(port, new ReportMessageSenderOptions { EmailEnabled = false });
 
-        var result = await sender.SendAsync("recipient@example.test", "AB1", Report(), default);
+        ReportSendResult result = await sender.SendAsync("recipient@example.test", "AB1", Report(), default);
 
         Assert.True(result.Success);
         Assert.Equal("Email disabled by configuration.", result.StatusMessage);
@@ -81,8 +82,8 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public async Task SendAsync_TestModeUsesConfiguredOverrideRecipient()
     {
-        var port = new RecordingEmailPort();
-        var sender = CreateSender(port, new ReportMessageSenderOptions
+        RecordingEmailPort port = new();
+        ReportMessageSender sender = CreateSender(port, new ReportMessageSenderOptions
         {
             EmailEnabled = true,
             EmailTestMode = true,
@@ -97,13 +98,13 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public async Task SendAsync_TypedDeliveryFailureReturnsSafeProviderError()
     {
-        var sender = CreateSender(new ThrowingEmailPort(new EmailDeliveryException(
+        ReportMessageSender sender = CreateSender(new ThrowingEmailPort(new EmailDeliveryException(
             "MicrosoftGraph",
             DeliveryFailureKind.Transient,
             "429",
             TimeSpan.FromMinutes(1))));
 
-        var result = await sender.SendAsync("recipient@example.test", "AB1", Report(), default);
+        ReportSendResult result = await sender.SendAsync("recipient@example.test", "AB1", Report(), default);
 
         Assert.False(result.Success);
         Assert.Equal("MicrosoftGraph email delivery failed (Transient, code 429).", result.StatusMessage);
@@ -112,10 +113,10 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public async Task SendAsync_UntypedFailureReturnsTypeOnly()
     {
-        var sender = CreateSender(new ThrowingEmailPort(
+        ReportMessageSender sender = CreateSender(new ThrowingEmailPort(
             new InvalidOperationException("secret recipient@example.test")));
 
-        var result = await sender.SendAsync("recipient@example.test", "AB1", Report(), default);
+        ReportSendResult result = await sender.SendAsync("recipient@example.test", "AB1", Report(), default);
 
         Assert.False(result.Success);
         Assert.Equal("Email delivery failed (InvalidOperationException).", result.StatusMessage);
@@ -124,9 +125,9 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public async Task SendAsync_RequestedCancellationPropagates()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
-        var sender = CreateSender(new ThrowingEmailPort(new OperationCanceledException(cancellation.Token)));
+        ReportMessageSender sender = CreateSender(new ThrowingEmailPort(new OperationCanceledException(cancellation.Token)));
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             sender.SendAsync("recipient@example.test", "AB1", Report(), cancellation.Token));
@@ -142,7 +143,7 @@ public sealed class ReportMessageSenderTests
 
     private static string FindRepositoryRoot()
     {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        for (DirectoryInfo? directory = new(AppContext.BaseDirectory);
              directory is not null;
              directory = directory.Parent)
         {

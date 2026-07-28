@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RVT.Entities;
@@ -17,8 +17,8 @@ public sealed class SiteReadAdapterTests
     [Fact]
     public async Task GetArchiveStateAsync_ReturnsMaterializedArchiveState()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var siteId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new();
+        Guid siteId = Guid.NewGuid();
         const string archiveUrl = "https://archive.example/canonical.zip";
         await factory.SeedDomainEntitiesAsync(
             new Site
@@ -37,10 +37,10 @@ public sealed class SiteReadAdapterTests
                 CreatedBy = "admin",
                 CreateDate = Now.UtcDateTime
             });
-        using var scope = factory.Services.CreateScope();
-        var reads = scope.ServiceProvider.GetRequiredService<ISiteReadPort>();
+        using IServiceScope scope = factory.Services.CreateScope();
+        ISiteReadPort reads = scope.ServiceProvider.GetRequiredService<ISiteReadPort>();
 
-        var state = await reads.GetArchiveStateAsync(
+        SiteArchiveState? state = await reads.GetArchiveStateAsync(
             siteId,
             CancellationToken.None);
 
@@ -50,8 +50,8 @@ public sealed class SiteReadAdapterTests
     [Fact]
     public async Task GetArchiveStateAsync_ReturnsNullCanonicalUrlWhenMetadataIsAbsent()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var siteId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new();
+        Guid siteId = Guid.NewGuid();
         await factory.SeedDomainEntitiesAsync(new Site
         {
             Id = siteId,
@@ -60,10 +60,10 @@ public sealed class SiteReadAdapterTests
             CreateDate = Now.UtcDateTime,
             Contracts = []
         });
-        using var scope = factory.Services.CreateScope();
-        var reads = scope.ServiceProvider.GetRequiredService<ISiteReadPort>();
+        using IServiceScope scope = factory.Services.CreateScope();
+        ISiteReadPort reads = scope.ServiceProvider.GetRequiredService<ISiteReadPort>();
 
-        var state = await reads.GetArchiveStateAsync(
+        SiteArchiveState? state = await reads.GetArchiveStateAsync(
             siteId,
             CancellationToken.None);
 
@@ -73,20 +73,20 @@ public sealed class SiteReadAdapterTests
     [Fact]
     public async Task AssignedScope_UsesActiveWindowForExistenceAndPagedQuery()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
-        var activeSiteId = Guid.NewGuid();
-        var expiredSiteId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new();
+        Guid companyId = Guid.NewGuid();
+        Guid activeSiteId = Guid.NewGuid();
+        Guid expiredSiteId = Guid.NewGuid();
         await factory.SeedUserAsync(
             "site.read.admin@rvt.test",
             null,
             RoleNames.RVTAdmin);
-        var companyUser = await factory.SeedUserAsync(
+        ApplicationUser companyUser = await factory.SeedUserAsync(
             "site.read.company@rvt.test",
             null,
             RoleNames.CompanyUser,
             companyId: companyId);
-        var userId = Guid.Parse(companyUser.Id);
+        Guid userId = Guid.Parse(companyUser.Id);
 
         await factory.SeedDomainEntitiesAsync(
             new Company
@@ -126,7 +126,7 @@ public sealed class SiteReadAdapterTests
                 EndDate = Now.UtcDateTime.AddTicks(-1)
             });
 
-        using var fixedTimeFactory = factory.WithWebHostBuilder(builder =>
+        using WebApplicationFactory<Program> fixedTimeFactory = factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
@@ -134,14 +134,14 @@ public sealed class SiteReadAdapterTests
                 services.AddSingleton<TimeProvider>(new FixedTimeProvider(Now));
             });
         });
-        using var scope = fixedTimeFactory.Services.CreateScope();
-        var reads = scope.ServiceProvider.GetRequiredService<ISiteReadPort>();
-        var nowUtc = scope.ServiceProvider
+        using IServiceScope scope = fixedTimeFactory.Services.CreateScope();
+        ISiteReadPort reads = scope.ServiceProvider.GetRequiredService<ISiteReadPort>();
+        DateTime nowUtc = scope.ServiceProvider
             .GetRequiredService<TimeProvider>()
             .GetUtcNow()
             .UtcDateTime;
-        var assignedScope = SiteAccessScope.Assigned(userId, nowUtc);
-        var query = new SiteQuery(
+        SiteAccessScope assignedScope = SiteAccessScope.Assigned(userId, nowUtc);
+        SiteQuery query = new(
             null,
             true,
             new PageRequest(

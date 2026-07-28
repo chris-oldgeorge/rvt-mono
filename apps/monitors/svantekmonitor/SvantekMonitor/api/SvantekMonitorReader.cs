@@ -1,4 +1,3 @@
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Svantek.Api.Db;
 using SvantekMonitor.model.dto;
@@ -37,7 +36,7 @@ namespace Svantek.Api
         {
             try
             {
-                var monitors = await monitorQueries
+                List<NoiseMonitorReadDto> monitors = await monitorQueries
                     .ReadMonitorListAsync(lastDataTime, cancellationToken)
                     .ConfigureAwait(false);
                 return SvantekTestLocalMonitorFilter.Apply(monitors, testLocal);

@@ -19,9 +19,9 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_PreviousDateDataWithLaterClockTime_SendsWarning()
     {
-        var utcNow = new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
-        var previousDateWithLaterClockTime = new DateTime(2026, 7, 13, 17, 0, 0, DateTimeKind.Utc);
-        var (handler, monitorQueries, notifier) = CreateHandler(
+        DateTimeOffset utcNow = new(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
+        DateTime previousDateWithLaterClockTime = new(2026, 7, 13, 17, 0, 0, DateTimeKind.Utc);
+        (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(
             utcNow,
             OmnidotsFixture.MonitorsList(1, previousDateWithLaterClockTime));
         notifier
@@ -45,12 +45,12 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_FreshDataAcrossUtcMidnight_DoesNotSendWarning()
     {
-        var utcNow = new DateTimeOffset(2026, 7, 14, 0, 30, 0, TimeSpan.Zero);
-        var freshPreviousDateData = new DateTime(2026, 7, 13, 23, 45, 0, DateTimeKind.Utc);
-        var options = ValidOptions(
+        DateTimeOffset utcNow = new(2026, 7, 14, 0, 30, 0, TimeSpan.Zero);
+        DateTime freshPreviousDateData = new(2026, 7, 13, 23, 45, 0, DateTimeKind.Utc);
+        OmnidotsMonitoringOptions options = ValidOptions(
             windowStart: TimeSpan.Zero,
             windowEnd: TimeSpan.FromHours(3));
-        var (handler, monitorQueries, notifier) = CreateHandler(
+        (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(
             utcNow,
             OmnidotsFixture.MonitorsList(1, freshPreviousDateData),
             options);
@@ -65,11 +65,11 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_FreshUnspecifiedDatabaseTimestamp_TreatsValueAsUtc()
     {
-        var clockNow = new DateTimeOffset(2026, 7, 14, 12, 30, 0, TimeSpan.FromHours(3));
-        var freshDatabaseTimestamp = DateTime.SpecifyKind(
+        DateTimeOffset clockNow = new(2026, 7, 14, 12, 30, 0, TimeSpan.FromHours(3));
+        DateTime freshDatabaseTimestamp = DateTime.SpecifyKind(
             clockNow.UtcDateTime - TimeSpan.FromMinutes(30),
             DateTimeKind.Unspecified);
-        var (handler, monitorQueries, notifier) = CreateHandler(
+        (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(
             clockNow,
             OmnidotsFixture.MonitorsList(1, freshDatabaseTimestamp));
 
@@ -83,11 +83,11 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_StaleUnspecifiedDatabaseTimestamp_TreatsValueAsUtc()
     {
-        var clockNow = new DateTimeOffset(2026, 7, 14, 12, 30, 0, TimeSpan.FromHours(3));
-        var staleDatabaseTimestamp = DateTime.SpecifyKind(
+        DateTimeOffset clockNow = new(2026, 7, 14, 12, 30, 0, TimeSpan.FromHours(3));
+        DateTime staleDatabaseTimestamp = DateTime.SpecifyKind(
             clockNow.UtcDateTime - TimeSpan.FromHours(2),
             DateTimeKind.Unspecified);
-        var (handler, monitorQueries, notifier) = CreateHandler(
+        (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(
             clockNow,
             OmnidotsFixture.MonitorsList(1, staleDatabaseTimestamp));
         notifier
@@ -111,8 +111,8 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_NullNewestTimestamp_SendsWarning()
     {
-        var utcNow = new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
-        var (handler, monitorQueries, notifier) = CreateHandler(
+        DateTimeOffset utcNow = new(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
+        (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(
             utcNow,
             OmnidotsFixture.MonitorsList(1, lastDataTime: null));
         notifier
@@ -136,10 +136,10 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_OutsideConfiguredWindow_DoesNotReadFleetOrSendWarning()
     {
-        var utcNow = new DateTimeOffset(2026, 7, 14, 7, 0, 0, TimeSpan.Zero); // 08:00 BST
-        var monitorQueries = new Mock<IOmnidotsMonitorQueries>(MockBehavior.Strict);
-        var notifier = new Mock<IOmnidotsMonitoringNotifier>(MockBehavior.Strict);
-        var handler = new MonitoringHandler(
+        DateTimeOffset utcNow = new(2026, 7, 14, 7, 0, 0, TimeSpan.Zero); // 08:00 BST
+        Mock<IOmnidotsMonitorQueries> monitorQueries = new(MockBehavior.Strict);
+        Mock<IOmnidotsMonitoringNotifier> notifier = new(MockBehavior.Strict);
+        MonitoringHandler handler = new(
             new OmnidotsMonitorReader(monitorQueries.Object, testLocal: false),
             ValidOptions(),
             notifier.Object,
@@ -156,9 +156,9 @@ public sealed class MonitoringHandlerTests
     [DataRow("2026-07-14T08:30:00+00:00")]
     public async Task RunAsync_InsideLondonWindowInGmtAndBst_SendsWarning(string utcNowText)
     {
-        var utcNow = DateTimeOffset.Parse(utcNowText);
-        var staleData = utcNow.UtcDateTime - TimeSpan.FromHours(2);
-        var (handler, monitorQueries, notifier) = CreateHandler(
+        DateTimeOffset utcNow = DateTimeOffset.Parse(utcNowText);
+        DateTime staleData = utcNow.UtcDateTime - TimeSpan.FromHours(2);
+        (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(
             utcNow,
             OmnidotsFixture.MonitorsList(1, staleData));
         notifier
@@ -182,8 +182,8 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_EmptyFleet_DoesNotSendWarning()
     {
-        var utcNow = new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
-        var (handler, monitorQueries, notifier) = CreateHandler(utcNow, []);
+        DateTimeOffset utcNow = new(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
+        (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(utcNow, []);
 
         await handler.RunAsync();
 
@@ -195,14 +195,14 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_RequestedCancellationStopsBeforeReadingFleet()
     {
-        var monitorQueries = new Mock<IOmnidotsMonitorQueries>(MockBehavior.Strict);
-        var notifier = new Mock<IOmnidotsMonitoringNotifier>(MockBehavior.Strict);
-        var handler = new MonitoringHandler(
+        Mock<IOmnidotsMonitorQueries> monitorQueries = new(MockBehavior.Strict);
+        Mock<IOmnidotsMonitoringNotifier> notifier = new(MockBehavior.Strict);
+        MonitoringHandler handler = new(
             new OmnidotsMonitorReader(monitorQueries.Object, testLocal: false),
             ValidOptions(),
             notifier.Object,
             new FixedTimeProvider(new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero)));
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
@@ -216,7 +216,7 @@ public sealed class MonitoringHandlerTests
     public void AddOmnidotsMonitor_AlertRecipientEnvironmentSettingOverridesSectionFallback()
     {
         const string overrideRecipient = "override@example.test";
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["RVT:OMNIDOTS_MONITORING_ALERT_TO"] = overrideRecipient,
@@ -227,11 +227,11 @@ public sealed class MonitoringHandlerTests
                 [$"{OmnidotsMonitoringOptions.SectionName}:StaleAfter"] = "01:00:00"
             })
             .Build();
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
         services.AddOmnidotsMonitor(configuration);
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
 
         Assert.AreEqual(
             overrideRecipient,
@@ -246,9 +246,9 @@ public sealed class MonitoringHandlerTests
     [DataRow("stale-threshold")]
     public void Validate_InvalidOptions_ThrowsWithoutExposingRecipient(string invalidField)
     {
-        var options = InvalidOptions(invalidField);
+        OmnidotsMonitoringOptions options = InvalidOptions(invalidField);
 
-        var exception = Assert.ThrowsExactly<OptionsValidationException>(options.Validate);
+        OptionsValidationException exception = Assert.ThrowsExactly<OptionsValidationException>(options.Validate);
 
         Assert.AreEqual(OmnidotsMonitoringOptions.SectionName, exception.OptionsName);
         Assert.IsFalse(exception.Message.Contains(Recipient, StringComparison.Ordinal));
@@ -257,7 +257,7 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public void AddOmnidotsMonitor_InvalidMonitoringOptions_FailsWhenServicesStart()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 [$"{OmnidotsMonitoringOptions.SectionName}:Recipient"] = Recipient,
@@ -267,13 +267,13 @@ public sealed class MonitoringHandlerTests
                 [$"{OmnidotsMonitoringOptions.SectionName}:StaleAfter"] = "01:00:00"
             })
             .Build();
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
         services.AddOmnidotsMonitor(configuration);
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
 
-        var exception = Assert.ThrowsExactly<OptionsValidationException>(
+        OptionsValidationException exception = Assert.ThrowsExactly<OptionsValidationException>(
             provider.GetRequiredService<OmnidotsMonitoringOptions>);
 
         Assert.IsFalse(exception.Message.Contains(Recipient, StringComparison.Ordinal));
@@ -282,7 +282,7 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public void AddOmnidotsMonitor_RegistersNarrowImportPortsAgainstCompatibilityFacade()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 [$"{OmnidotsMonitoringOptions.SectionName}:Recipient"] = Recipient,
@@ -292,13 +292,13 @@ public sealed class MonitoringHandlerTests
                 [$"{OmnidotsMonitoringOptions.SectionName}:StaleAfter"] = "01:00:00"
             })
             .Build();
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
         services.AddOmnidotsMonitor(configuration);
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
 
-        var compatibilityFacade = provider.GetRequiredService<IDBClient>();
+        IDBClient compatibilityFacade = provider.GetRequiredService<IDBClient>();
 
         Assert.AreSame<object>(
             compatibilityFacade,
@@ -314,9 +314,9 @@ public sealed class MonitoringHandlerTests
     public async Task AddOmnidotsMonitor_InvalidMonitoringOptions_HostStartFailsSafely()
     {
         const string invalidTimeZone = "Not/A-Time-Zone";
-        using var host = CreateHost(invalidTimeZone);
+        using IHost host = CreateHost(invalidTimeZone);
 
-        var exception = await Assert.ThrowsExactlyAsync<OptionsValidationException>(
+        OptionsValidationException exception = await Assert.ThrowsExactlyAsync<OptionsValidationException>(
             () => host.StartAsync());
 
         Assert.IsFalse(exception.Message.Contains(Recipient, StringComparison.Ordinal));
@@ -326,7 +326,7 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task AddOmnidotsMonitor_ValidMonitoringOptions_HostStarts()
     {
-        using var host = CreateHost("Europe/London");
+        using IHost host = CreateHost("Europe/London");
 
         await host.StartAsync();
 
@@ -339,12 +339,12 @@ public sealed class MonitoringHandlerTests
             List<VibrationMonitorDto> monitors,
             OmnidotsMonitoringOptions? options = null)
     {
-        var monitorQueries = new Mock<IOmnidotsMonitorQueries>(MockBehavior.Strict);
+        Mock<IOmnidotsMonitorQueries> monitorQueries = new(MockBehavior.Strict);
         monitorQueries
             .Setup(x => x.ReadMonitorList(null))
             .Returns(monitors);
-        var notifier = new Mock<IOmnidotsMonitoringNotifier>(MockBehavior.Strict);
-        var handler = new MonitoringHandler(
+        Mock<IOmnidotsMonitoringNotifier> notifier = new(MockBehavior.Strict);
+        MonitoringHandler handler = new(
             new OmnidotsMonitorReader(monitorQueries.Object, testLocal: false),
             options ?? ValidOptions(),
             notifier.Object,
@@ -381,7 +381,7 @@ public sealed class MonitoringHandlerTests
 
     private static IHost CreateHost(string timeZoneId)
     {
-        var builder = Host.CreateApplicationBuilder();
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["RVT:EMAIL_ENABLED"] = "false",

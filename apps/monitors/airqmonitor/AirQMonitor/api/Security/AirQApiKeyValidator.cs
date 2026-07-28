@@ -27,7 +27,7 @@ public sealed class AirQApiKeyValidator
             return false;
         }
 
-        var suppliedKey = Encoding.UTF8.GetBytes(suppliedKeys[0]!);
+        byte[] suppliedKey = Encoding.UTF8.GetBytes(suppliedKeys[0]!);
         return CryptographicOperations.FixedTimeEquals(expectedKey, suppliedKey);
     }
 }

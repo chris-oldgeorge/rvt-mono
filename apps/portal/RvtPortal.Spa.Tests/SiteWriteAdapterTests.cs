@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Sites;
+using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Application.Common;
 using RvtPortal.Spa.Data;
@@ -16,8 +17,8 @@ public sealed class SiteWriteAdapterTests
     [Fact]
     public async Task TryClaimArchiveAsync_PersistsUtcArchiveMetadata()
     {
-        await using var fixture = await SiteWriteAdapterFixture.CreateAsync();
-        var siteId = Guid.NewGuid();
+        await using SiteWriteAdapterFixture fixture = await SiteWriteAdapterFixture.CreateAsync();
+        Guid siteId = Guid.NewGuid();
         fixture.DomainContext.Sites.Add(new Site
         {
             Id = siteId,
@@ -26,7 +27,7 @@ public sealed class SiteWriteAdapterTests
             Contracts = []
         });
         await fixture.DomainContext.SaveChangesAsync();
-        var archivedUtc = new DateTime(
+        DateTime archivedUtc = new(
             2026,
             7,
             23,
@@ -38,7 +39,7 @@ public sealed class SiteWriteAdapterTests
         await fixture.UnitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
-                var claim = await fixture.Adapter.TryClaimArchiveAsync(
+                SiteArchiveClaimResult claim = await fixture.Adapter.TryClaimArchiveAsync(
                     siteId,
                     "admin",
                     "https://archive.example/site.zip",
@@ -50,12 +51,12 @@ public sealed class SiteWriteAdapterTests
             },
             CancellationToken.None);
 
-        await using var context = fixture.CreateDomainContext();
+        await using RVTDbContext context = fixture.CreateDomainContext();
         Assert.True(await context.Sites
             .Where(site => site.Id == siteId)
             .Select(site => site.Archived)
             .SingleAsync());
-        var archive = await context.SiteArchived
+        SiteArchived archive = await context.SiteArchived
             .SingleAsync(entry => entry.SiteId == siteId);
         Assert.Equal("admin", archive.CreatedBy);
         Assert.Equal("https://archive.example/site.zip", archive.PictureLink);
@@ -65,12 +66,12 @@ public sealed class SiteWriteAdapterTests
     [Fact]
     public async Task CreateAsync_CommitsSiteContractLinkAndSevenOperatingHourRows()
     {
-        await using var fixture = await SiteWriteAdapterFixture.CreateAsync();
-        var companyId = Guid.NewGuid();
-        var contractId = Guid.NewGuid();
+        await using SiteWriteAdapterFixture fixture = await SiteWriteAdapterFixture.CreateAsync();
+        Guid companyId = Guid.NewGuid();
+        Guid contractId = Guid.NewGuid();
         await fixture.SeedContractAsync(companyId, contractId);
-        var mutation = ValidatedMutation(companyId, contractId);
-        var createDateUtc = new DateTime(
+        ValidatedSiteMutation mutation = ValidatedMutation(companyId, contractId);
+        DateTime createDateUtc = new(
             2026,
             7,
             23,
@@ -79,10 +80,10 @@ public sealed class SiteWriteAdapterTests
             0,
             DateTimeKind.Utc);
 
-        var siteId = await fixture.UnitOfWork.ExecuteInTransactionAsync(
+        Guid siteId = await fixture.UnitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
-                var createdSiteId = await fixture.Adapter.CreateAsync(
+                Guid createdSiteId = await fixture.Adapter.CreateAsync(
                     mutation,
                     createDateUtc,
                     token);
@@ -96,7 +97,7 @@ public sealed class SiteWriteAdapterTests
             },
             CancellationToken.None);
 
-        await using var context = fixture.CreateDomainContext();
+        await using RVTDbContext context = fixture.CreateDomainContext();
         Assert.Equal(1, await context.Sites.CountAsync());
         Assert.Equal(siteId, await context.Contracts
             .Where(contract => contract.Id == contractId)
@@ -113,17 +114,17 @@ public sealed class SiteWriteAdapterTests
     [Fact]
     public async Task CreateAsync_WhenOperationThrows_RollsBackSiteAndContractLink()
     {
-        await using var fixture = await SiteWriteAdapterFixture.CreateAsync();
-        var companyId = Guid.NewGuid();
-        var contractId = Guid.NewGuid();
+        await using SiteWriteAdapterFixture fixture = await SiteWriteAdapterFixture.CreateAsync();
+        Guid companyId = Guid.NewGuid();
+        Guid contractId = Guid.NewGuid();
         await fixture.SeedContractAsync(companyId, contractId);
-        var mutation = ValidatedMutation(companyId, contractId);
+        ValidatedSiteMutation mutation = ValidatedMutation(companyId, contractId);
 
         await Assert.ThrowsAsync<ExpectedFailureException>(
             () => fixture.UnitOfWork.ExecuteInTransactionAsync<bool>(
                 async token =>
                 {
-                    var siteId = await fixture.Adapter.CreateAsync(
+                    Guid siteId = await fixture.Adapter.CreateAsync(
                         mutation,
                         DateTime.UtcNow,
                         token);
@@ -137,7 +138,7 @@ public sealed class SiteWriteAdapterTests
                 },
                 CancellationToken.None));
 
-        await using var context = fixture.CreateDomainContext();
+        await using RVTDbContext context = fixture.CreateDomainContext();
         Assert.Equal(0, await context.Sites.CountAsync());
         Assert.Null(await context.Contracts
             .Where(contract => contract.Id == contractId)
@@ -149,12 +150,12 @@ public sealed class SiteWriteAdapterTests
     [Fact]
     public async Task CreateAsync_WhenContractClaimIsStale_RollsBackTheUncommittedSite()
     {
-        await using var fixture = await SiteWriteAdapterFixture.CreateAsync();
-        var companyId = Guid.NewGuid();
-        var contractId = Guid.NewGuid();
+        await using SiteWriteAdapterFixture fixture = await SiteWriteAdapterFixture.CreateAsync();
+        Guid companyId = Guid.NewGuid();
+        Guid contractId = Guid.NewGuid();
         await fixture.SeedContractAsync(companyId, contractId);
-        var firstMutation = ValidatedMutation(companyId, contractId);
-        var secondMutation = firstMutation with
+        ValidatedSiteMutation firstMutation = ValidatedMutation(companyId, contractId);
+        ValidatedSiteMutation secondMutation = firstMutation with
         {
             Source = firstMutation.Source with
             {
@@ -162,10 +163,10 @@ public sealed class SiteWriteAdapterTests
             }
         };
 
-        var claimedSiteId = await fixture.UnitOfWork.ExecuteInTransactionAsync(
+        Guid claimedSiteId = await fixture.UnitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
-                var siteId = await fixture.Adapter.CreateAsync(
+                Guid siteId = await fixture.Adapter.CreateAsync(
                     firstMutation,
                     DateTime.UtcNow,
                     token);
@@ -180,10 +181,10 @@ public sealed class SiteWriteAdapterTests
             CancellationToken.None);
 
         await Assert.ThrowsAsync<StaleContractClaimException>(
-            () => fixture.UnitOfWork.ExecuteInTransactionAsync<bool>(
+            () => fixture.UnitOfWork.ExecuteInTransactionAsync(
                 async token =>
                 {
-                    var siteId = await fixture.Adapter.CreateAsync(
+                    Guid siteId = await fixture.Adapter.CreateAsync(
                         secondMutation,
                         DateTime.UtcNow,
                         token);
@@ -201,7 +202,7 @@ public sealed class SiteWriteAdapterTests
                 },
                 CancellationToken.None));
 
-        await using var context = fixture.CreateDomainContext();
+        await using RVTDbContext context = fixture.CreateDomainContext();
         Assert.Equal(1, await context.Sites.CountAsync());
         Assert.Equal(claimedSiteId, await context.Contracts
             .Where(contract => contract.Id == contractId)
@@ -214,7 +215,7 @@ public sealed class SiteWriteAdapterTests
         Guid companyId,
         Guid contractId)
     {
-        var request = new SiteMutation(
+        SiteMutation request = new(
             "Adapter Site",
             companyId,
             contractId,
@@ -230,8 +231,8 @@ public sealed class SiteWriteAdapterTests
             null,
             null,
             []);
-        var shape = SiteMutationValidator.ValidateShape(request);
-        var validation = SiteMutationValidator.ValidateBusinessRules(
+        SiteMutationValidationResult shape = SiteMutationValidator.ValidateShape(request);
+        SiteMutationValidationResult validation = SiteMutationValidator.ValidateBusinessRules(
             shape,
             new SiteMutationValidationData(
                 DuplicateSiteName: false,
@@ -278,17 +279,17 @@ public sealed class SiteWriteAdapterTests
 
         public static async Task<SiteWriteAdapterFixture> CreateAsync()
         {
-            var connection = new SqliteConnection(
+            SqliteConnection connection = new(
                 "Data Source=:memory:;Foreign Keys=True");
             await connection.OpenAsync();
 
-            var domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
+            DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
                 .UseSqlite(connection)
                 .Options;
-            var searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
+            DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
                 .UseSqlite(connection)
                 .Options;
-            var applicationOptions =
+            DbContextOptions<ApplicationDbContext> applicationOptions =
                 new DbContextOptionsBuilder<ApplicationDbContext>()
                     .UseSqlite(connection)
                     .Options;

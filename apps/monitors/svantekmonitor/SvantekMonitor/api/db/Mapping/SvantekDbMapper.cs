@@ -32,7 +32,7 @@ public static partial class SvantekDbMapper
 
     public static MonitorEntity ToMonitorEntity(NoiseMonitorDto dto)
     {
-        var entity = new MonitorEntity { Id = dto.Id };
+        MonitorEntity entity = new() { Id = dto.Id };
         UpdateMonitorEntity(entity, dto);
         return entity;
     }
@@ -68,7 +68,7 @@ public static partial class SvantekDbMapper
 
     public static SvantekMonitorStatusEntity ToStatusEntity(NoiseMonitorDto dto)
     {
-        var entity = new SvantekMonitorStatusEntity
+        SvantekMonitorStatusEntity entity = new()
         {
             SerialId = dto.SerialId,
             UpdateTime = DateTime.UtcNow,
@@ -130,7 +130,7 @@ public static partial class SvantekDbMapper
 
     public static SvantekNoiseLevelEntity ToNoiseLevelEntity(string serialId, NoiseDto dto)
     {
-        var entity = ToNoiseLevelEntity(dto);
+        SvantekNoiseLevelEntity entity = ToNoiseLevelEntity(dto);
         entity.SerialId = serialId;
         return entity;
     }
@@ -151,6 +151,6 @@ public static partial class SvantekDbMapper
 
     private static DateTime? ParseDateTime(string? value)
     {
-        return DateTime.TryParse(value, out var parsed) ? parsed : null;
+        return DateTime.TryParse(value, out DateTime parsed) ? parsed : null;
     }
 }

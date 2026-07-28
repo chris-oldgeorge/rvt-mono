@@ -1,16 +1,17 @@
 using System.Globalization;
-using Svantek.Api.Db;
-using Svantek.Api.Http;
-using Svantek.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Moq.Language.Flow;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-
+using Svantek.Api;
+using Svantek.Api.Db;
+using Svantek.Api.Http;
+using Svantek.Model.Dto;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
@@ -22,7 +23,7 @@ namespace SvantekMonitorTests
     {
         public TestSvantekApiNoiseLevels()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -32,13 +33,13 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevels_EmptyRules_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
                                 Returns(Task<string>.Factory.StartNew(() => SvantekFixture.SamplesResponseJson()));
 
-            var monitors = SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE);
+            List<NoiseMonitorDto> monitors = SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE);
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
@@ -69,7 +70,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevels_TruncatedByTimestamp_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
@@ -94,10 +95,10 @@ namespace SvantekMonitorTests
         public void TestStoreNoiseLevelsForYesterday_Success()
         {
 
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            var yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + yesterday + "&token=bar&instrumentID=*"))).
                                 Returns(Task<string>.Factory.StartNew(() => SvantekFixture.DateSamplesResponseJson()));
 
@@ -124,11 +125,11 @@ namespace SvantekMonitorTests
         public void TestStoreNoiseLevelsForDate_Success()
         {
 
-            var dateStr = "2023-09-11";
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            string dateStr = "2023-09-11";
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            var regex =
+            IReturnsResult<IHttpClient> regex =
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"))).
                                 Returns(Task<string>.Factory.StartNew(() => SvantekFixture.DateSamplesResponseJson()));
 
@@ -153,7 +154,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevelsInactiveMonitor_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
@@ -179,8 +180,8 @@ namespace SvantekMonitorTests
         public void TestStoreNoiseLevelsForDateInactiveMonitor_Success()
         {
 
-            var dateStr = "2023-09-11";
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            string dateStr = "2023-09-11";
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"))).

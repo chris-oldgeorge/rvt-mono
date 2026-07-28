@@ -89,7 +89,7 @@ namespace AirQ.Model.Dto
 
         public NoiseMonitorDto(InstrumentResponse monitor, MetaDataResponse metaData)
         {
-            var utcNow = DateTime.UtcNow;
+            DateTime utcNow = DateTime.UtcNow;
             Id = Guid.NewGuid();
             ListedAtTime = utcNow;
             SerialId = monitor.InstrumentID!;

@@ -12,7 +12,7 @@ public sealed class AlertIdentityTests
     [TestMethod]
     public void SourceKeyHash_MatchesGoldenVectorForNonAsciiSourceEventKey()
     {
-        var hash = AlertIdentity.CreateSourceKeyHash(SourceEventKey);
+        byte[] hash = AlertIdentity.CreateSourceKeyHash(SourceEventKey);
 
         Assert.AreEqual(SourceKeyHashHex, Convert.ToHexString(hash));
     }
@@ -20,9 +20,9 @@ public sealed class AlertIdentityTests
     [TestMethod]
     public void NotificationId_MatchesGoldenVectorAndUsesRfc9562Version8Variant()
     {
-        var sourceKeyHash = Convert.FromHexString(SourceKeyHashHex);
-        var notificationId = AlertIdentity.CreateNotificationId("omnidots.webhook", sourceKeyHash);
-        var bytes = notificationId.ToByteArray(bigEndian: true);
+        byte[] sourceKeyHash = Convert.FromHexString(SourceKeyHashHex);
+        Guid notificationId = AlertIdentity.CreateNotificationId("omnidots.webhook", sourceKeyHash);
+        byte[] bytes = notificationId.ToByteArray(bigEndian: true);
 
         Assert.AreEqual(Guid.Parse("fe0a093a-75ad-8966-baa9-ace828f4b739"), notificationId);
         Assert.AreEqual(8, bytes[6] >> 4);

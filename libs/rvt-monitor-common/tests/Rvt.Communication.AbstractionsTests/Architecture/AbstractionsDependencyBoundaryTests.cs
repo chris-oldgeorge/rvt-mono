@@ -10,7 +10,7 @@ public sealed class AbstractionsDependencyBoundaryTests
     [TestMethod]
     public void AbstractionsProject_HasNoProjectOrProviderDependencies()
     {
-        var project = File.ReadAllText(Path.Combine(
+        string project = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
             "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj"));
 
@@ -25,7 +25,7 @@ public sealed class AbstractionsDependencyBoundaryTests
     [TestMethod]
     public void MessageServiceContract_UsesTopLevelLegacyEnums()
     {
-        var method = typeof(IMessageService).GetMethod(nameof(IMessageService.SendMessageAsync));
+        MethodInfo? method = typeof(IMessageService).GetMethod(nameof(IMessageService.SendMessageAsync));
 
         Assert.IsNotNull(method);
         CollectionAssert.AreEqual(
@@ -44,10 +44,10 @@ public sealed class AbstractionsDependencyBoundaryTests
 
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var gitPath = Path.Combine(directory.FullName, ".git");
+            string gitPath = Path.Combine(directory.FullName, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
                 return directory.FullName;

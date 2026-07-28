@@ -17,12 +17,12 @@ internal static class RepositoryLayout
 
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var solution = Path.Combine(directory.FullName, "RvtPortal.Spa.sln");
-            var lockFile = Path.Combine(directory.FullName, "RvtPortal.Client", "package-lock.json");
-            var nugetConfig = Path.Combine(directory.FullName, "NuGet.config");
+            string solution = Path.Combine(directory.FullName, "RvtPortal.Spa.sln");
+            string lockFile = Path.Combine(directory.FullName, "RvtPortal.Client", "package-lock.json");
+            string nugetConfig = Path.Combine(directory.FullName, "NuGet.config");
             if (File.Exists(solution) && File.Exists(lockFile) && File.Exists(nugetConfig))
             {
                 return directory.FullName;

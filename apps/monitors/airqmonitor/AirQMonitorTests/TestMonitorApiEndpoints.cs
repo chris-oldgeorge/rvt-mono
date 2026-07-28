@@ -37,7 +37,7 @@ public class TestMonitorApiEndpoints
     [TestMethod]
     public async Task StoreNoiseLevelsForDate_ReturnsUnauthorizedBeforeParsingMissingOrMalformedBodies()
     {
-        var importer = new Mock<IAirQDateImporter>(MockBehavior.Strict);
+        Mock<IAirQDateImporter> importer = new(MockBehavior.Strict);
         await using WebApplication app = await StartAppAsync("monitor-api-key", importer.Object);
         using HttpClient client = app.GetTestClient();
 
@@ -45,7 +45,7 @@ public class TestMonitorApiEndpoints
         {
             foreach (string? body in new[] { string.Empty, "{" })
             {
-                using var request = new HttpRequestMessage(HttpMethod.Post, "/store-noise-levels-for-date")
+                using HttpRequestMessage request = new(HttpMethod.Post, "/store-noise-levels-for-date")
                 {
                     Content = new StringContent(body, Encoding.UTF8, "application/json")
                 };
@@ -65,13 +65,13 @@ public class TestMonitorApiEndpoints
     [TestMethod]
     public async Task StoreNoiseLevelsForDate_ReturnsBadRequestForMissingMalformedOrNonCanonicalDate()
     {
-        var importer = new Mock<IAirQDateImporter>(MockBehavior.Strict);
+        Mock<IAirQDateImporter> importer = new(MockBehavior.Strict);
         await using WebApplication app = await StartAppAsync("monitor-api-key", importer.Object);
         using HttpClient client = app.GetTestClient();
 
         foreach (string? body in new[] { string.Empty, "{", "{}", "{\"date\":\"2026-7-14\"}" })
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "/store-noise-levels-for-date")
+            using HttpRequestMessage request = new(HttpMethod.Post, "/store-noise-levels-for-date")
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json")
             };
@@ -87,13 +87,13 @@ public class TestMonitorApiEndpoints
     [TestMethod]
     public async Task StoreNoiseLevelsForDate_DispatchesOnlyCanonicalDateAfterApiKeyValidation()
     {
-        var importer = new Mock<IAirQDateImporter>(MockBehavior.Strict);
+        Mock<IAirQDateImporter> importer = new(MockBehavior.Strict);
         importer.Setup(service => service.StoreNoiseLevelsForDateAsync("2026-07-14", It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         await using WebApplication app = await StartAppAsync("monitor-api-key", importer.Object);
         using HttpClient client = app.GetTestClient();
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/store-noise-levels-for-date")
+        using HttpRequestMessage request = new(HttpMethod.Post, "/store-noise-levels-for-date")
         {
             Content = new StringContent("{\"date\":\"2026-07-14\"}", Encoding.UTF8, "application/json")
         };

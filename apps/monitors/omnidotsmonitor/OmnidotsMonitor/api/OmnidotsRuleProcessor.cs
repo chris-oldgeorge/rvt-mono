@@ -33,7 +33,7 @@ namespace Omnidots.Api
         public void ProcessAlertForContacts(VibrationMonitorDto monitor, NotificationDto notification)
         {
             operationalCommands.WriteNotification(notification);
-            var contacts = ruleQueries.ReadAlertContacts(monitor.Id);
+            List<RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id);
 
             if (contacts != null && contacts.Count() > 0)
             {
@@ -57,13 +57,13 @@ namespace Omnidots.Api
                         messageToSend = LegacyMessageKind.Battery_Caution;
                         break;
                 }
-                var notificationUrl = "";
+                string notificationUrl = "";
                 if (notification.AlertType == AlertType.Alert || notification.AlertType == AlertType.Caution)
                 {
                     notificationUrl = $"{RvtConfig.PORTAL_BASE_URL}Notification/View/{notification.Id}";
                 }
 
-                foreach (var contact in contacts.Where(x => x.Email))
+                foreach (RvtContactDto? contact in contacts.Where(x => x.Email))
                 {
                     try
                     {
@@ -85,7 +85,7 @@ namespace Omnidots.Api
                         operationalCommands.WriteNotificationAudit(notification.Id, e.Address, e.Message);
                     }
                 }
-                foreach (var contact in contacts.Where(x => x.SMS))
+                foreach (RvtContactDto? contact in contacts.Where(x => x.SMS))
                 {
                     try
                     {

@@ -6,13 +6,11 @@ using NpgsqlTypes;
 using Omnidots.Api.Db;
 using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
 using Rvt.Monitor.IntegrationTesting;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Notifications.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Notifications.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
@@ -33,7 +31,7 @@ namespace OmnidotsAdapterTests
 
         public TestDBClient()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -43,9 +41,9 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestScopedPostgresConnectionUsesFixtureSchema()
         {
-            using var connection = database!.OpenConnection();
+            using NpgsqlConnection connection = database!.OpenConnection();
             connection.Open();
-            using var command = new NpgsqlCommand("SELECT current_schema();", connection);
+            using NpgsqlCommand command = new("SELECT current_schema();", connection);
 
             Assert.AreEqual(database.SchemaName, command.ExecuteScalar());
         }
@@ -53,8 +51,8 @@ namespace OmnidotsAdapterTests
         [ClassInitialize]
         public static async Task TestFixtureSetup(TestContext context)
         {
-            var setupSql = TestUtil.ReadTextFromFile("testdata/create.postgres.sql");
-            var resetSql = TestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
+            string setupSql = TestUtil.ReadTextFromFile("testdata/create.postgres.sql");
+            string resetSql = TestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
             database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql);
             testObj = new DBClient(database.ConnectionString);
         }
@@ -86,9 +84,9 @@ namespace OmnidotsAdapterTests
         public void ReadLatestMeasurementTime_ReturnsEachSeriesMaximumWithoutCrossSeriesLeakage()
         {
             const string serialId = "latest-series";
-            var peakTime = Utc(2026, 7, 14, 8, 0);
-            var veffTime = peakTime.AddMinutes(10);
-            var vdvTime = peakTime.AddMinutes(20);
+            DateTime peakTime = Utc(2026, 7, 14, 8, 0);
+            DateTime veffTime = peakTime.AddMinutes(10);
+            DateTime vdvTime = peakTime.AddMinutes(20);
 
             testObj!.InsertPeakRecordsTable(PeakTable(serialId, peakTime.AddMinutes(-1), peakTime));
             testObj.InsertVeffRecords(serialId,
@@ -102,9 +100,9 @@ namespace OmnidotsAdapterTests
                 VdvRecord(vdvTime)
             ]);
 
-            var latestPeak = testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Peak);
-            var latestVeff = testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Veff);
-            var latestVdv = testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Vdv);
+            DateTime? latestPeak = testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Peak);
+            DateTime? latestVeff = testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Veff);
+            DateTime? latestVdv = testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Vdv);
             Assert.AreEqual(peakTime, latestPeak);
             Assert.AreEqual(veffTime, latestVeff);
             Assert.AreEqual(vdvTime, latestVdv);
@@ -118,8 +116,8 @@ namespace OmnidotsAdapterTests
         public void ImportSeries_AdvancesOnlyItsOwnCursor()
         {
             const string serialId = "isolated-series";
-            var veffTime = Utc(2026, 7, 14, 9, 0);
-            var vdvTime = veffTime.AddMinutes(5);
+            DateTime veffTime = Utc(2026, 7, 14, 9, 0);
+            DateTime vdvTime = veffTime.AddMinutes(5);
 
             testObj!.ImportVeffRecords(serialId, [VeffRecord(veffTime)], veffTime);
 
@@ -138,11 +136,11 @@ namespace OmnidotsAdapterTests
         public void ImportVeffRecords_DuplicateOrOlderBatch_DoesNotMoveCursorOrUpdatedAtBackward()
         {
             const string serialId = "monotonic-veff";
-            var older = Utc(2026, 7, 14, 10, 0);
-            var newer = older.AddMinutes(1);
+            DateTime older = Utc(2026, 7, 14, 10, 0);
+            DateTime newer = older.AddMinutes(1);
 
             testObj!.ImportVeffRecords(serialId, [VeffRecord(newer)], newer);
-            var updatedAt = ReadCursorUpdatedAt(serialId, "Veff");
+            DateTime updatedAt = ReadCursorUpdatedAt(serialId, "Veff");
 
             testObj.ImportVeffRecords(serialId, [VeffRecord(older)], older);
 
@@ -154,8 +152,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void ImportPeakRecords_AtomicallyAdvancesPeakCursorAndCompatibilityTimestamp()
         {
-            var monitor = OmnidotsFixture.MonitorsList(1).Single();
-            var newest = Utc(2026, 7, 14, 11, 0);
+            VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
+            DateTime newest = Utc(2026, 7, 14, 11, 0);
             testObj!.WriteMonitorList([monitor]);
 
             testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId, newest), newest);
@@ -170,13 +168,13 @@ namespace OmnidotsAdapterTests
         public void ImportVeffRecords_WhenCursorWriteFails_RollsBackMeasurementsAndCursor()
         {
             const string serialId = "rollback-veff";
-            var sampleTime = Utc(2026, 7, 14, 12, 0);
-            using var connection = database!.OpenConnection();
+            DateTime sampleTime = Utc(2026, 7, 14, 12, 0);
+            using NpgsqlConnection connection = database!.OpenConnection();
             connection.Open();
 
             try
             {
-                using (var install = new NpgsqlCommand(
+                using (NpgsqlCommand install = new(
                     """
                     CREATE FUNCTION fail_omnidots_cursor_write() RETURNS trigger
                     LANGUAGE plpgsql AS $$
@@ -200,7 +198,7 @@ namespace OmnidotsAdapterTests
             }
             finally
             {
-                using var cleanup = new NpgsqlCommand(
+                using NpgsqlCommand cleanup = new(
                     """
                     DROP TRIGGER IF EXISTS fail_omnidots_cursor_write ON omnidots_import_cursor;
                     DROP FUNCTION IF EXISTS fail_omnidots_cursor_write();
@@ -212,8 +210,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void ImportMethods_EmptyBatches_DoNotValidateOrMutateAnyState()
         {
-            var monitor = OmnidotsFixture.MonitorsList(1).Single();
-            var existingLastDataTime = Utc(2026, 7, 14, 13, 0);
+            VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
+            DateTime existingLastDataTime = Utc(2026, 7, 14, 13, 0);
             testObj!.WriteMonitorList([monitor]);
             testObj.WriteLatestTimestamp(monitor.SerialId, existingLastDataTime);
 
@@ -234,8 +232,8 @@ namespace OmnidotsAdapterTests
         public void ImportMethods_NonEmptyBatchRequiresNewestSampleAtToMatchBatchMaximum()
         {
             const string serialId = "newest-validation";
-            var sampleTime = Utc(2026, 7, 14, 14, 0);
-            var wrongNewest = sampleTime.AddMinutes(-1);
+            DateTime sampleTime = Utc(2026, 7, 14, 14, 0);
+            DateTime wrongNewest = sampleTime.AddMinutes(-1);
 
             Assert.ThrowsExactly<ArgumentException>(() =>
                 testObj!.ImportPeakRecords(serialId, PeakTable(serialId, sampleTime), wrongNewest));
@@ -252,9 +250,9 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void ImportPeakRecords_OlderReplay_DoesNotMoveCursorOrCompatibilityTimestampBackward()
         {
-            var monitor = OmnidotsFixture.MonitorsList(1).Single();
-            var older = Utc(2026, 7, 14, 15, 0);
-            var newer = older.AddMinutes(1);
+            VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
+            DateTime older = Utc(2026, 7, 14, 15, 0);
+            DateTime newer = older.AddMinutes(1);
             testObj!.WriteMonitorList([monitor]);
             testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId, newer), newer);
 
@@ -268,9 +266,9 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void ImportPeakRecords_FirstCursorDoesNotRegressNewerCompatibilityTimestamp()
         {
-            var monitor = OmnidotsFixture.MonitorsList(1).Single();
-            var importedSample = Utc(2026, 7, 14, 15, 30);
-            var existingLastDataTime = importedSample.AddMinutes(1);
+            VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
+            DateTime importedSample = Utc(2026, 7, 14, 15, 30);
+            DateTime existingLastDataTime = importedSample.AddMinutes(1);
             testObj!.WriteMonitorList([monitor]);
             testObj.WriteLatestTimestamp(monitor.SerialId, existingLastDataTime);
 
@@ -290,9 +288,9 @@ namespace OmnidotsAdapterTests
         {
             const string firstSerial = "mixed-first";
             const string secondSerial = "mixed-second";
-            var firstTime = Utc(2026, 7, 14, 16, 0);
-            var secondTime = firstTime.AddMinutes(1);
-            var table = PeakTable(firstSerial, firstTime);
+            DateTime firstTime = Utc(2026, 7, 14, 16, 0);
+            DateTime secondTime = firstTime.AddMinutes(1);
+            DataTable table = PeakTable(firstSerial, firstTime);
             AddPeakRow(table, secondSerial, secondTime);
 
             testObj!.InsertPeakRecordsTable(table);
@@ -308,7 +306,7 @@ namespace OmnidotsAdapterTests
         {
             const string requestedSerial = "requested-serial";
             const string rowSerial = "row-serial";
-            var sampleTime = Utc(2026, 7, 14, 17, 0);
+            DateTime sampleTime = Utc(2026, 7, 14, 17, 0);
 
             Assert.ThrowsExactly<ArgumentException>(() =>
                 testObj!.ImportPeakRecords(requestedSerial, PeakTable(rowSerial, sampleTime), sampleTime));
@@ -321,9 +319,9 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void NormalizeLatestMeasurementTime_ReturnsUtcForEveryDateTimeKind()
         {
-            var utc = Utc(2026, 7, 14, 18, 0);
-            var local = utc.ToLocalTime();
-            var unspecified = DateTime.SpecifyKind(utc, DateTimeKind.Unspecified);
+            DateTime utc = Utc(2026, 7, 14, 18, 0);
+            DateTime local = utc.ToLocalTime();
+            DateTime unspecified = DateTime.SpecifyKind(utc, DateTimeKind.Unspecified);
 
             Assert.AreEqual(utc, DBClient.NormalizeLatestMeasurementTime(utc));
             Assert.AreEqual(utc, DBClient.NormalizeLatestMeasurementTime(local));
@@ -337,10 +335,10 @@ namespace OmnidotsAdapterTests
         public async Task ImportVeffRecords_OverlappingConcurrentBatches_RetryToMaximumCursor()
         {
             const string serialId = "concurrent-veff";
-            var first = Utc(2026, 7, 14, 19, 0);
-            var overlap = first.AddMinutes(1);
-            var last = overlap.AddMinutes(1);
-            using var firstAttemptBarrier = new Barrier(2);
+            DateTime first = Utc(2026, 7, 14, 19, 0);
+            DateTime overlap = first.AddMinutes(1);
+            DateTime last = overlap.AddMinutes(1);
+            using Barrier firstAttemptBarrier = new(2);
             void BeforeSave(OmnidotsMeasurementSeries series, int attempt)
             {
                 if (series == OmnidotsMeasurementSeries.Veff && attempt == 1 &&
@@ -350,11 +348,11 @@ namespace OmnidotsAdapterTests
                 }
             }
 
-            var firstClient = new DBClient(database!.ConnectionString, BeforeSave);
-            var secondClient = new DBClient(database.ConnectionString, BeforeSave);
-            var firstImport = Task.Run(() =>
+            DBClient firstClient = new(database!.ConnectionString, BeforeSave);
+            DBClient secondClient = new(database.ConnectionString, BeforeSave);
+            Task firstImport = Task.Run(() =>
                 firstClient.ImportVeffRecords(serialId, [VeffRecord(first), VeffRecord(overlap)], overlap));
-            var secondImport = Task.Run(() =>
+            Task secondImport = Task.Run(() =>
                 secondClient.ImportVeffRecords(serialId, [VeffRecord(overlap), VeffRecord(last)], last));
 
             await Task.WhenAll(firstImport, secondImport).WaitAsync(TimeSpan.FromSeconds(20));
@@ -367,9 +365,9 @@ namespace OmnidotsAdapterTests
         public void ImportVeffRecords_PersistentSerializationFailure_StopsAfterThreeAttempts()
         {
             const string serialId = "bounded-retry";
-            var sampleTime = Utc(2026, 7, 14, 20, 0);
-            var attempts = 0;
-            var client = new DBClient(database!.ConnectionString, (_, attempt) =>
+            DateTime sampleTime = Utc(2026, 7, 14, 20, 0);
+            int attempts = 0;
+            DBClient client = new(database!.ConnectionString, (_, attempt) =>
             {
                 attempts = attempt;
                 throw new PostgresException(
@@ -390,10 +388,10 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestMonitors()
         {
-            var numMonitors = 5;
-            var monitorsIn = OmnidotsFixture.MonitorsList(numMonitors, null, true);
+            int numMonitors = 5;
+            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(numMonitors, null, true);
             testObj!.WriteMonitorList(monitorsIn);
-            var monitorsOut = testObj.ReadMonitorList(null);
+            List<VibrationMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
 
             AssertMonitorsList(monitorsIn, monitorsOut);
 
@@ -405,9 +403,9 @@ namespace OmnidotsAdapterTests
 
         private static int CountRows(string connectionString, string tableName)
         {
-            using var connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
-            var sql = string.Format(@"SELECT Count(*) FROM {0};", tableName);
+            string sql = string.Format(@"SELECT Count(*) FROM {0};", tableName);
 
             using NpgsqlCommand cmd = new(sql, connection);
             return Convert.ToInt32(cmd.ExecuteScalar());
@@ -415,19 +413,19 @@ namespace OmnidotsAdapterTests
 
         private static int CountRows(string connectionString, string tableName, string serialId)
         {
-            using var connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
-            var sql = string.Format(@"SELECT Count(*) FROM {0} WHERE serial_id = $1;", tableName);
-            using var command = new NpgsqlCommand(sql, connection);
+            string sql = string.Format(@"SELECT Count(*) FROM {0} WHERE serial_id = $1;", tableName);
+            using NpgsqlCommand command = new(sql, connection);
             command.Parameters.AddWithValue(serialId);
             return Convert.ToInt32(command.ExecuteScalar());
         }
 
         private static DateTime ReadCursorUpdatedAt(string serialId, string series)
         {
-            using var connection = database!.OpenConnection();
+            using NpgsqlConnection connection = database!.OpenConnection();
             connection.Open();
-            using var command = new NpgsqlCommand(
+            using NpgsqlCommand command = new(
                 "SELECT updated_at FROM omnidots_import_cursor WHERE serial_id = $1 AND series = $2;",
                 connection);
             command.Parameters.AddWithValue(serialId);
@@ -440,7 +438,7 @@ namespace OmnidotsAdapterTests
 
         private static VeffRecordDto VeffRecord(DateTime sampleTime)
         {
-            var record = new VeffRecordDto(1.0, 2.0, 3.0, new DateTimeOffset(sampleTime).ToUnixTimeMilliseconds())
+            VeffRecordDto record = new(1.0, 2.0, 3.0, new DateTimeOffset(sampleTime).ToUnixTimeMilliseconds())
             {
                 SampleTime = sampleTime
             };
@@ -449,7 +447,7 @@ namespace OmnidotsAdapterTests
 
         private static VdvRecordDto VdvRecord(DateTime sampleTime)
         {
-            var record = new VdvRecordDto(
+            VdvRecordDto record = new(
                 1.0,
                 2.0,
                 3.0,
@@ -465,10 +463,10 @@ namespace OmnidotsAdapterTests
 
         private static DataTable PeakTable(string serialId, params DateTime[] sampleTimes)
         {
-            var table = new DataTable("Results");
+            DataTable table = new("Results");
             table.Columns.Add("SerialId", typeof(string));
             table.Columns.Add("SampleTime", typeof(DateTime));
-            foreach (var columnName in new[]
+            foreach (string? columnName in new[]
                      {
                          "XFdom", "XVtop", "XVtopOverflow",
                          "YFdom", "YVtop", "YVtopOverflow",
@@ -478,7 +476,7 @@ namespace OmnidotsAdapterTests
                 table.Columns.Add(columnName, typeof(double)).AllowDBNull = true;
             }
 
-            foreach (var sampleTime in sampleTimes)
+            foreach (DateTime sampleTime in sampleTimes)
             {
                 AddPeakRow(table, serialId, sampleTime);
             }
@@ -488,7 +486,7 @@ namespace OmnidotsAdapterTests
 
         private static void AddPeakRow(DataTable table, string serialId, DateTime sampleTime)
         {
-            var row = table.NewRow();
+            DataRow row = table.NewRow();
             row["SerialId"] = serialId;
             row["SampleTime"] = sampleTime;
             table.Rows.Add(row);
@@ -496,15 +494,15 @@ namespace OmnidotsAdapterTests
 
         private void AssertMonitorsList(List<VibrationMonitorDto> expected, List<VibrationMonitorDto> actual)
         {
-            var connectionString = database!.ConnectionString;
+            string connectionString = database!.ConnectionString;
 
             Assert.HasCount(expected.Count, actual);
-            var orderedmonitorsOut = actual.OrderBy(o => o.SerialId).ToList();
+            List<VibrationMonitorDto> orderedmonitorsOut = [.. actual.OrderBy(o => o.SerialId)];
             Assert.IsTrue(TestUtil.AreEqual(expected, orderedmonitorsOut));
 
-            foreach (var monitor in expected)
+            foreach (VibrationMonitorDto monitor in expected)
             {
-                var m = testObj!.ReadMonitor(monitor.SerialId);
+                VibrationMonitorDto m = testObj!.ReadMonitor(monitor.SerialId);
                 Assert.IsNotNull(m);
                 Assert.AreEqual(monitor.ListedAtTime, m.ListedAtTime);
                 Assert.AreEqual(monitor.SerialId, m.SerialId);
@@ -531,7 +529,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestReadMonitorBadSerialId()
         {
-            var exception = Assert.ThrowsExactly<AdapterException>(() =>
+            AdapterException exception = Assert.ThrowsExactly<AdapterException>(() =>
             {
 
                 testObj!.ReadMonitor("bad-serial-id");
@@ -542,40 +540,40 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestReadAlertRules()
         {
-            var connectionString = database!.ConnectionString;
-            using var connection = new NpgsqlConnection(connectionString);
+            string connectionString = database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
-            var serialId = "12345";
-            var monitorsIn = OmnidotsFixture.MonitorsList(1);
+            string serialId = "12345";
+            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
-            var monitorsOut = testObj.ReadMonitorList(null);
+            List<VibrationMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
-            var monitorId = monitorsOut[0].Id;
+            Guid monitorId = monitorsOut[0].Id;
 
-            var NUM_RULES = 10;
-            var startTime = new TimeSpan(9, 0, 0);
-            var endTime = new TimeSpan(17, 0, 0);
-            for (var i = 0; i < NUM_RULES; i++)
+            int NUM_RULES = 10;
+            TimeSpan startTime = new(9, 0, 0);
+            TimeSpan endTime = new(17, 0, 0);
+            for (int i = 0; i < NUM_RULES; i++)
             {
                 InsertAlertRule(connection, i, serialId, monitorId);
             }
 
             // add rules that should NOT be read
-            for (var i = 0; i < 3; i++)
+            for (int i = 0; i < 3; i++)
             {
                 InsertAlertRule(connection, i, "99999", monitorId);
             }
 
-            var rules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
             Assert.HasCount(NUM_RULES, rules);
 
-            var orderedRules = rules.OrderBy(o => o.Field).ToList();
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> orderedRules = [.. rules.OrderBy(o => o.Field)];
 
-            for (var i = 0; i < NUM_RULES; i++)
+            for (int i = 0; i < NUM_RULES; i++)
             {
-                var isEven = i % 2 == 0;
-                var rule = orderedRules[i];
+                bool isEven = i % 2 == 0;
+                Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule = orderedRules[i];
                 Assert.AreEqual(serialId, rule.SerialId);
 
                 Assert.AreEqual("Pm" + i, rule.Field);
@@ -597,37 +595,37 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestReadAlertContacts()
         {
-            var connectionString = database!.ConnectionString;
-            using var connection = new NpgsqlConnection(connectionString);
+            string connectionString = database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
-            var numMonitors = 2;
-            var monitorsIn = OmnidotsFixture.MonitorsList(numMonitors);
+            int numMonitors = 2;
+            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(numMonitors);
             testObj!.WriteMonitorList(monitorsIn);
-            var monitorId = monitorsIn[0].Id;
-            var serialId = monitorsIn[0].SerialId;
+            Guid monitorId = monitorsIn[0].Id;
+            string serialId = monitorsIn[0].SerialId;
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 44, serialId, monitorId);
-            var rules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
-            var email = "mytestemail@bbb.com";
-            var phoneNo = "01234567890";
-            var startTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddHours(-1));
-            var endTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddHours(1));
+            string email = "mytestemail@bbb.com";
+            string phoneNo = "01234567890";
+            DateTime startTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddHours(-1));
+            DateTime endTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddHours(1));
 
-            var siteUserId = Guid.NewGuid();
+            Guid siteUserId = Guid.NewGuid();
             InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo,
               siteUserId, startTime, endTime);
 
             // insert that should not be read
             InsertContact(connection, monitorsIn[1].Id, ContactMethod.Email, email, phoneNo, Guid.NewGuid());
 
-            var contacts = ReadContacts(connection, siteUserId);
+            List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
             Assert.HasCount(2, contacts);
 
-            var alertContacts = testObj.ReadAlertContacts(monitorId);
+            List<RvtContactDto> alertContacts = testObj.ReadAlertContacts(monitorId);
             Assert.HasCount(1, alertContacts);
-            var ac = alertContacts[0];
+            RvtContactDto ac = alertContacts[0];
             Assert.AreEqual(ContactMethod.Email, ac.ContactMethod);
             Assert.AreEqual(email, ac.EmailAddress);
             Assert.AreEqual(phoneNo, ac.PhoneNumber);
@@ -639,10 +637,10 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestWriteExceptionUsesPostgreSqlErrorLog()
         {
-            var connectionString = database!.ConnectionString;
+            string connectionString = database!.ConnectionString;
 
-            var TAG = "MyTestError";
-            var MESSAGE = "bang";
+            string TAG = "MyTestError";
+            string MESSAGE = "bang";
 
             MonitorDb.WriteException(
                 connectionString,
@@ -651,14 +649,14 @@ namespace OmnidotsAdapterTests
                 "OmnidotsMonitorTests",
                 "test");
 
-            using var connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
-            var sql = @"SELECT variables, message, logged_at FROM error_log";
+            string sql = @"SELECT variables, message, logged_at FROM error_log";
             using NpgsqlCommand cmd = new(sql, connection);
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
-            var count = 0;
+            int count = 0;
             while (reader.Read())
             {
                 count++;
@@ -674,50 +672,50 @@ namespace OmnidotsAdapterTests
         public void TestWriteLatestTimestamp()
         {
 
-            var monitors = OmnidotsFixture.MonitorsList(1);
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(1);
             Assert.HasCount(1, monitors);
 
             testObj!.WriteMonitorList(monitors);
 
-            var lastDataTime = DateTime.Parse("2023-10-18T14:35:42Z").ToUniversalTime();
+            DateTime lastDataTime = DateTime.Parse("2023-10-18T14:35:42Z").ToUniversalTime();
             testObj.WriteLatestTimestamp("1", lastDataTime);
 
             monitors = testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitors);
 
-            var monitor = monitors[0];
+            VibrationMonitorDto monitor = monitors[0];
             Assert.AreEqual(lastDataTime, monitor.LastDataTime);
         }
 
         [TestMethod]
         public void TestReadWriteNotification()
         {
-            var connectionString = database!.ConnectionString;
-            using var connection = new NpgsqlConnection(connectionString);
+            string connectionString = database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
-            var serialId = "1";
+            string serialId = "1";
 
-            var monitorsIn = OmnidotsFixture.MonitorsList(1);
+            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
-            var monitorsOut = testObj.ReadMonitorList(null);
+            List<VibrationMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
-            var monitorId = monitorsOut[0].Id;
+            Guid monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId);
-            var rules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
-            var email = "foobob@bbb.com";
-            var phoneNo = "01238867890";
-            var siteUserId = Guid.NewGuid();
+            string email = "foobob@bbb.com";
+            string phoneNo = "01238867890";
+            Guid siteUserId = Guid.NewGuid();
             InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo, siteUserId);
-            var contacts = ReadContacts(connection, siteUserId);
+            List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
             Assert.HasCount(1, contacts);
 
-            var dt = DateTime.Parse("2023-10-18T11:19:00Z").ToUniversalTime();
-            var alertIn = new NotificationDto(id: Guid.NewGuid(),
+            DateTime dt = DateTime.Parse("2023-10-18T11:19:00Z").ToUniversalTime();
+            NotificationDto alertIn = new(id: Guid.NewGuid(),
                                               notificationTime: dt,
                                               limitOn: rules[0].LimitOn,
                                               averagingPeriod: rules[0].AveragingPeriod,
@@ -730,10 +728,10 @@ namespace OmnidotsAdapterTests
 
             testObj.WriteNotification(alertIn);
 
-            var alerts = ReadNotifications(connection);
+            List<NotificationDto> alerts = ReadNotifications(connection);
             Assert.HasCount(1, alerts);
 
-            var alertOut = alerts[0];
+            NotificationDto alertOut = alerts[0];
 
             Assert.AreEqual(alertIn.Id, alertOut.Id);
             Assert.AreEqual(alertIn.Level, alertOut.Level);
@@ -744,9 +742,9 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(alertIn.AlertType, alertOut.AlertType);
             Assert.AreEqual(alertIn.MonitorId, alertOut.MonitorId);
 
-            var notifictions = testObj.ReadNotifications(monitorId, dt.AddMinutes(-5));
+            List<NotificationDto> notifictions = testObj.ReadNotifications(monitorId, dt.AddMinutes(-5));
             Assert.HasCount(1, notifictions);
-            var notifiction = notifictions[0];
+            NotificationDto notifiction = notifictions[0];
             Assert.AreEqual(alertIn.Id, notifiction.Id);
             Assert.AreEqual(alertIn.Level, notifiction.Level);
             Assert.AreEqual(alertIn.NotificationTime, notifiction.NotificationTime);
@@ -760,59 +758,59 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestUpdateAlertRule()
         {
-            var connectionString = database!.ConnectionString;
-            using var connection = new NpgsqlConnection(connectionString);
+            string connectionString = database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
-            var serialId = "1";
-            var monitorsIn = OmnidotsFixture.MonitorsList(1);
+            string serialId = "1";
+            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
-            var monitorsOut = testObj.ReadMonitorList(null);
+            List<VibrationMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
-            var monitorId = monitorsOut[0].Id;
+            Guid monitorId = monitorsOut[0].Id;
 
             InsertAlertRule(connection, 721, serialId, monitorId);
-            var rules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
 
-            var rule = rules[0];
+            Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule = rules[0];
 
-            var isActive = !rule.IsActive;
+            bool isActive = !rule.IsActive;
             rule.IsActive = isActive;
 
             testObj.UpdateAlertRule(rules[0]);
 
-            var updatedRules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> updatedRules = testObj!.ReadRules(serialId);
             Assert.HasCount(1, updatedRules);
         }
 
         [TestMethod]
         public void TestInsertPeakRecord_Success()
         {
-            var serialId = "123";
-            var epocMillis = 1699960800001L;
-            var sampleTime = DateTimeOffset.FromUnixTimeMilliseconds(epocMillis).UtcDateTime;
+            string serialId = "123";
+            long epocMillis = 1699960800001L;
+            DateTime sampleTime = DateTimeOffset.FromUnixTimeMilliseconds(epocMillis).UtcDateTime;
 
-            var x = new FDomVtopOverflow(vtop: 1.0, fdom: 2.7, vtopOverflow: 4.5);
-            var y = new FDomVtopOverflow(vtop: 2.2, fdom: 6.7, vtopOverflow: 2.33);
-            var z = new FDomVtopOverflow(vtop: 4.222, fdom: 4.7, vtopOverflow: 11.5);
+            FDomVtopOverflow x = new(vtop: 1.0, fdom: 2.7, vtopOverflow: 4.5);
+            FDomVtopOverflow y = new(vtop: 2.2, fdom: 6.7, vtopOverflow: 2.33);
+            FDomVtopOverflow z = new(vtop: 4.222, fdom: 4.7, vtopOverflow: 11.5);
 
-            var peakRecords = new List<PeakRecordDto>
-                {
+            List<PeakRecordDto> peakRecords =
+                [
                  new PeakRecordDto(x: x,
                                    y: y,
                                    z: z,
                                    epocMillis: epocMillis)
-            };
+            ];
             peakRecords[0].SampleTime = sampleTime;
 
             testObj!.InsertPeakRecords(serialId, peakRecords);
 
-            var connectionString = database!.ConnectionString;
-            using var connection = new NpgsqlConnection(connectionString);
+            string connectionString = database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
-            var dtos = ReadPeakRecords(connection);
+            List<PeakRecordDto> dtos = ReadPeakRecords(connection);
             Assert.HasCount(1, dtos);
-            var dtoOut = dtos[0];
+            PeakRecordDto dtoOut = dtos[0];
 
             Assert.IsTrue(TestUtil.VerifyDateTime(sampleTime, dtoOut.SampleTime));
 
@@ -835,24 +833,24 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void InsertVibrationDto_NullFDomVTop_Success()
         {
-            var serialId = "99";
-            var epocMillis = 1699960800001L;
-            var sampleTime = DateTimeOffset.FromUnixTimeMilliseconds(epocMillis).UtcDateTime;
+            string serialId = "99";
+            long epocMillis = 1699960800001L;
+            DateTime sampleTime = DateTimeOffset.FromUnixTimeMilliseconds(epocMillis).UtcDateTime;
 
-            var y = new FDomVtopOverflow(vtop: 2.2, fdom: 6.7, vtopOverflow: 2.33);
+            FDomVtopOverflow y = new(vtop: 2.2, fdom: 6.7, vtopOverflow: 2.33);
 
-            var record = new PeakRecordDto(x: null, y: y, z: null, epocMillis: epocMillis)
+            PeakRecordDto record = new(x: null, y: y, z: null, epocMillis: epocMillis)
             {
                 SampleTime = sampleTime
             };
-            testObj!.InsertPeakRecords(serialId: serialId, dtos: new List<PeakRecordDto> { record });
+            testObj!.InsertPeakRecords(serialId: serialId, dtos: [record]);
 
-            var connectionString = database!.ConnectionString;
-            using var connection = new NpgsqlConnection(connectionString);
+            string connectionString = database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
-            var dtos = ReadPeakRecords(connection);
+            List<PeakRecordDto> dtos = ReadPeakRecords(connection);
             Assert.HasCount(1, dtos);
-            var dtoOut = dtos[0];
+            PeakRecordDto dtoOut = dtos[0];
 
             Assert.IsTrue(TestUtil.VerifyDateTime(sampleTime, dtoOut.SampleTime));
             Assert.IsNull(dtoOut!.X);
@@ -865,30 +863,30 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestInsertVeffRecord_Success()
         {
-            var serialId = "12345";
-            var epocMillis = 1699960800001L;
-            var sampleTime = DateTimeOffset.FromUnixTimeMilliseconds(epocMillis).UtcDateTime;
+            string serialId = "12345";
+            long epocMillis = 1699960800001L;
+            DateTime sampleTime = DateTimeOffset.FromUnixTimeMilliseconds(epocMillis).UtcDateTime;
 
-            var x = 1.0;
-            var y = 6.77;
-            var z = 4.222;
+            double x = 1.0;
+            double y = 6.77;
+            double z = 4.222;
 
-            var records = new List<VeffRecordDto> {new VeffRecordDto(x: x,
+            List<VeffRecordDto> records = [new VeffRecordDto(x: x,
                                            y: y,
                                            z: z,
-                                           epocMillis: epocMillis) };
+                                           epocMillis: epocMillis) ];
             records[0].SampleTime = sampleTime;
 
             testObj!.InsertVeffRecords(serialId, records);
             // insert same record twice, should only be 1 read
             testObj!.InsertVeffRecords(serialId, records);
 
-            var connectionString = database!.ConnectionString;
-            using var connection = new NpgsqlConnection(connectionString);
+            string connectionString = database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
-            var dtos = ReadVeffRecords(connection);
+            List<VeffRecordDto> dtos = ReadVeffRecords(connection);
             Assert.HasCount(1, dtos);
-            var dtoOut = dtos[0];
+            VeffRecordDto dtoOut = dtos[0];
 
             Assert.IsTrue(TestUtil.VerifyDateTime(sampleTime, dtoOut.SampleTime));
 
@@ -901,36 +899,36 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestInsertVdvRecord_Success()
         {
-            var serialId = "123";
-            var epocMillis = 1699960800001L;
-            var sampleTime = DateTimeOffset.FromUnixTimeMilliseconds(epocMillis).UtcDateTime;
+            string serialId = "123";
+            long epocMillis = 1699960800001L;
+            DateTime sampleTime = DateTimeOffset.FromUnixTimeMilliseconds(epocMillis).UtcDateTime;
 
-            var x = 1.0;
-            var y = 6.77;
-            var z = 4.222;
-            var vdvX = "foo";
-            var vdvY = "jsdfkjhsf";
-            var vdvZ = "klsgjlkjglsfgsbob";
+            double x = 1.0;
+            double y = 6.77;
+            double z = 4.222;
+            string vdvX = "foo";
+            string vdvY = "jsdfkjhsf";
+            string vdvZ = "klsgjlkjglsfgsbob";
 
-            var records = new List<VdvRecordDto>{ new VdvRecordDto(x: x,
+            List<VdvRecordDto> records = [ new VdvRecordDto(x: x,
                                            y: y,
                                            z: z,
                                            epocMillis: epocMillis,
                                            vdvX: vdvX,
                                            vdvY: vdvY,
-                                           vdvZ: vdvZ) };
+                                           vdvZ: vdvZ) ];
             records[0].SampleTime = sampleTime;
 
             testObj!.InsertVdvRecords(serialId, records);
             // insert same record twice, should only be 1 read
             testObj!.InsertVdvRecords(serialId, records);
 
-            var connectionString = database!.ConnectionString;
-            using var connection = new NpgsqlConnection(connectionString);
+            string connectionString = database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
-            var dtos = ReadVdvRecords(connection);
+            List<VdvRecordDto> dtos = ReadVdvRecords(connection);
             Assert.HasCount(1, dtos);
-            var dtoOut = dtos[0];
+            VdvRecordDto dtoOut = dtos[0];
 
             Assert.IsTrue(TestUtil.VerifyDateTime(sampleTime, dtoOut.SampleTime));
 
@@ -985,31 +983,31 @@ namespace OmnidotsAdapterTests
         public void TestWriteNotificationAudit()
         {
 
-            var connectionString = database!.ConnectionString;
-            using var connection = new NpgsqlConnection(connectionString);
+            string connectionString = database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
-            var serialId = "13";
-            var monitorsIn = OmnidotsFixture.MonitorsList(1);
+            string serialId = "13";
+            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
-            var monitorsOut = testObj.ReadMonitorList(null);
+            List<VibrationMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
-            var monitorId = monitorsOut[0].Id;
+            Guid monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId);
-            var rules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
-            var email = "bad-email";
-            var phoneNo = "bad-phonenumber";
-            var siteUserId = Guid.NewGuid();
+            string email = "bad-email";
+            string phoneNo = "bad-phonenumber";
+            Guid siteUserId = Guid.NewGuid();
             InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo, siteUserId);
-            var contacts = ReadContacts(connection, siteUserId);
+            List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
             Assert.HasCount(1, contacts);
 
-            var dt = DateTime.Parse("2023-10-18T11:19:00Z").ToUniversalTime();
-            var notificationIn = new NotificationDto(id: Guid.NewGuid(),
+            DateTime dt = DateTime.Parse("2023-10-18T11:19:00Z").ToUniversalTime();
+            NotificationDto notificationIn = new(id: Guid.NewGuid(),
                                                          notificationTime: dt,
                                                          limitOn: rules[0].LimitOn,
                                                          averagingPeriod: rules[0].AveragingPeriod,
@@ -1023,10 +1021,10 @@ namespace OmnidotsAdapterTests
             testObj.WriteNotification(notificationIn);
             testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
 
-            var notifications = ReadNotifications(connection);
+            List<NotificationDto> notifications = ReadNotifications(connection);
             Assert.HasCount(1, notifications);
 
-            var notificationOut = notifications[0];
+            NotificationDto notificationOut = notifications[0];
 
             Assert.AreEqual(notificationIn.Id, notificationOut.Id);
             Assert.AreEqual(notificationIn.Level, notificationOut.Level);
@@ -1037,13 +1035,13 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(notificationIn.AlertField, notificationOut.AlertField);
             Assert.AreEqual(notificationIn.MonitorId, notificationOut.MonitorId);
 
-            var audits = ReadNotificationsSent(connection);
+            List<Dictionary<string, object>> audits = ReadNotificationsSent(connection);
             Assert.HasCount(1, audits);
-            var audit = audits[0];
+            Dictionary<string, object> audit = audits[0];
 
             Assert.IsInstanceOfType(audit["Id"], typeof(Guid));
             Assert.IsInstanceOfType(audit["SendTime"], typeof(DateTime));
-            var sendTime = (DateTime)audit["SendTime"];
+            DateTime sendTime = (DateTime)audit["SendTime"];
             Assert.IsTrue(sendTime < DateTime.UtcNow.AddSeconds(10) && sendTime > DateTime.UtcNow.AddSeconds(-10));
             Assert.IsInstanceOfType(audit["Address"], typeof(string));
             Assert.AreEqual("mytest@email.net", (string)audit["Address"]);
@@ -1058,34 +1056,34 @@ namespace OmnidotsAdapterTests
         public async Task TestWriteTraces()
         {
 
-            var serialId = "12345";
+            string serialId = "12345";
 
-            var json = OmnidotsFixture.TracesResponseJson();
-            var tracesResponse = JsonSerializer.Deserialize<TracesReponse>(json)!;
+            string json = OmnidotsFixture.TracesResponseJson();
+            TracesReponse tracesResponse = JsonSerializer.Deserialize<TracesReponse>(json)!;
 
-            var t0 = DateTime.UtcNow;
+            DateTime t0 = DateTime.UtcNow;
             testObj!.WriteTraces(serialId, tracesResponse.Traces!);
-            var tt = DateTime.UtcNow - t0;
+            TimeSpan tt = DateTime.UtcNow - t0;
             RvtLogger.Logger.LogInformation("WriteTraces took={} seconds", tt.TotalSeconds);
 
-            await using (var connection = database!.OpenConnection())
+            await using (NpgsqlConnection connection = database!.OpenConnection())
             {
                 await connection.OpenAsync();
-                await using var command = new NpgsqlCommand(
+                await using NpgsqlCommand command = new(
                     "SELECT trace_id, sample_index, x, y, z FROM omnidots_trace ORDER BY trace_id, sample_index;", connection);
-                await using var reader = await command.ExecuteReaderAsync();
+                await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
                 Assert.IsTrue(await reader.ReadAsync());
                 Assert.AreEqual(0, reader.GetInt32(1));
             }
 
-            var tds = ReadTraces(database!.ConnectionString, serialId);
+            List<TestTraceData> tds = ReadTraces(database!.ConnectionString, serialId);
 
             Assert.HasCount(tracesResponse.Traces!.Count, tds);
 
-            for (var i = 0; i < tds.Count; i++)
+            for (int i = 0; i < tds.Count; i++)
             {
-                var expected = tracesResponse.Traces[i];
-                var actual = tds[i].TraceData;
+                TraceData expected = tracesResponse.Traces[i];
+                TraceData actual = tds[i].TraceData;
 
                 Assert.AreEqual(expected.StartTime, actual.StartTime);
                 Assert.AreEqual(expected.EndTime, actual.EndTime);
@@ -1106,7 +1104,7 @@ namespace OmnidotsAdapterTests
         public void WriteTraces_DuplicateValuedSamplesRemainDistinctAndOrderedAcrossReplay()
         {
             const string serialId = "ordered-duplicates";
-            var trace = new TraceData
+            TraceData trace = new()
             {
                 StartTime = DateTimeUtil.GetMillis(Utc(2026, 7, 14, 12, 0)),
                 EndTime = DateTimeUtil.GetMillis(Utc(2026, 7, 14, 12, 1)),
@@ -1118,9 +1116,9 @@ namespace OmnidotsAdapterTests
             testObj!.WriteTraces(serialId, [trace]);
             testObj.WriteTraces(serialId, [trace]);
 
-            var storedTraces = ReadTraces(database!.ConnectionString, serialId);
+            List<TestTraceData> storedTraces = ReadTraces(database!.ConnectionString, serialId);
             Assert.HasCount(2, storedTraces, "Trace replay retains the append-only compatibility behavior.");
-            foreach (var storedTrace in storedTraces)
+            foreach (TestTraceData storedTrace in storedTraces)
             {
                 CollectionAssert.AreEqual(trace.X, storedTrace.TraceData.X);
                 CollectionAssert.AreEqual(trace.Y, storedTrace.TraceData.Y);
@@ -1134,12 +1132,12 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task ReadLatestTraceEndTimes_ReturnsMaximumForEachRequestedSerial()
         {
-            await using var connection = database!.OpenConnection();
+            await using NpgsqlConnection connection = database!.OpenConnection();
             await connection.OpenAsync();
-            var serialAOld = Utc(2026, 7, 10, 8, 0);
-            var serialANew = Utc(2026, 7, 12, 9, 0);
-            var serialB = Utc(2026, 7, 11, 10, 0);
-            await using var insert = new NpgsqlCommand(
+            DateTime serialAOld = Utc(2026, 7, 10, 8, 0);
+            DateTime serialANew = Utc(2026, 7, 12, 9, 0);
+            DateTime serialB = Utc(2026, 7, 11, 10, 0);
+            await using NpgsqlCommand insert = new(
                 """
                 INSERT INTO omnidots_trace_index (id, serial_id, start_time, end_time)
                 VALUES
@@ -1159,7 +1157,7 @@ namespace OmnidotsAdapterTests
             insert.Parameters.AddWithValue("end3", serialB);
             await insert.ExecuteNonQueryAsync();
 
-            var result = testObj!.ReadLatestTraceEndTimes(["trace-a", "trace-b", "missing"]);
+            IReadOnlyDictionary<string, DateTime> result = testObj!.ReadLatestTraceEndTimes(["trace-a", "trace-b", "missing"]);
 
             Assert.HasCount(2, result);
             Assert.AreEqual(serialANew, result["trace-a"]);
@@ -1169,9 +1167,9 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task WriteTraces_WhenSampleInsertFails_RollsBackTraceIndexAndSamples()
         {
-            await using var connection = database!.OpenConnection();
+            await using NpgsqlConnection connection = database!.OpenConnection();
             await connection.OpenAsync();
-            await using var createTrigger = new NpgsqlCommand(
+            await using NpgsqlCommand createTrigger = new(
                 """
                 CREATE OR REPLACE FUNCTION fail_second_trace_sample()
                 RETURNS trigger AS $$
@@ -1191,7 +1189,7 @@ namespace OmnidotsAdapterTests
 
             try
             {
-                var trace = new TraceData
+                TraceData trace = new()
                 {
                     StartTime = DateTimeUtil.GetMillis(Utc(2026, 7, 14, 13, 0)),
                     EndTime = DateTimeUtil.GetMillis(Utc(2026, 7, 14, 13, 1)),
@@ -1207,7 +1205,7 @@ namespace OmnidotsAdapterTests
             }
             finally
             {
-                await using var dropTrigger = new NpgsqlCommand(
+                await using NpgsqlCommand dropTrigger = new(
                     """
                     DROP TRIGGER IF EXISTS fail_second_trace_sample ON omnidots_trace;
                     DROP FUNCTION IF EXISTS fail_second_trace_sample();
@@ -1233,14 +1231,14 @@ namespace OmnidotsAdapterTests
         private static List<TestTraceData> ReadTraces(string connectionString, string serialId)
         {
 
-            using var connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
-            var sql = @"SELECT id, start_time, end_time FROM omnidots_trace_index
+            string sql = @"SELECT id, start_time, end_time FROM omnidots_trace_index
                         WHERE serial_id = @SerialId
                         ORDER BY start_time";
 
 
-            var traceDataList = new List<TestTraceData>();
+            List<TestTraceData> traceDataList = [];
 
             {
                 using NpgsqlCommand cmd = new(sql, connection);
@@ -1250,25 +1248,27 @@ namespace OmnidotsAdapterTests
 
                 while (reader.Read())
                 {
-                    var traceId = reader.GetGuid(0);
-                    var startTime = reader.GetDateTime(1);
-                    var endTime = reader.GetDateTime(2);
+                    Guid traceId = reader.GetGuid(0);
+                    DateTime startTime = reader.GetDateTime(1);
+                    DateTime endTime = reader.GetDateTime(2);
 
-                    var td = new TraceData();
-                    td.StartTime = DateTimeUtil.GetMillis(startTime);
-                    td.EndTime = DateTimeUtil.GetMillis(endTime);
+                    TraceData td = new()
+                    {
+                        StartTime = DateTimeUtil.GetMillis(startTime),
+                        EndTime = DateTimeUtil.GetMillis(endTime),
 
-                    td.X = new List<double>();
-                    td.Y = new List<double>();
-                    td.Z = new List<double>();
+                        X = [],
+                        Y = [],
+                        Z = []
+                    };
                     traceDataList.Add(new TestTraceData(traceId, td));
 
                 }
             }
 
-            foreach (var testData in traceDataList)
+            foreach (TestTraceData testData in traceDataList)
             {
-                var traceSql = @"SELECT x, y, z FROM omnidots_trace
+                string traceSql = @"SELECT x, y, z FROM omnidots_trace
                                  WHERE trace_id = @TraceId
                                  ORDER BY sample_index";
                 using NpgsqlCommand cmd = new(traceSql, connection);
@@ -1303,14 +1303,14 @@ namespace OmnidotsAdapterTests
 
         private static int[] ReadSampleIndexes(string connectionString, Guid traceId)
         {
-            using var connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
-            using var command = new NpgsqlCommand(
+            using NpgsqlCommand command = new(
                 "SELECT sample_index FROM omnidots_trace WHERE trace_id = $1 ORDER BY sample_index;",
                 connection);
             command.Parameters.AddWithValue(traceId);
-            using var reader = command.ExecuteReader();
-            var indexes = new List<int>();
+            using NpgsqlDataReader reader = command.ExecuteReader();
+            List<int> indexes = [];
             while (reader.Read())
             {
                 indexes.Add(reader.GetInt32(0));
@@ -1321,7 +1321,7 @@ namespace OmnidotsAdapterTests
 
         private static void InsertAlertRule(NpgsqlConnection connection, int index, string serialId, Guid monitorId)
         {
-            var sql = @"INSERT INTO rvt_alert_rule
+            string sql = @"INSERT INTO rvt_alert_rule
                             (id, serial_id, alert_field, limit_on, limit_off, alert_type,
                              is_active, averaging_period, weekdays, saturdays, sundays,
                              start_time, end_time, is_deleted, monitor_id, created)
@@ -1330,7 +1330,7 @@ namespace OmnidotsAdapterTests
                              @IsActive, @AveragingPeriod, @Weekdays, @Saturdays, @Sundays,
                              @StartTime, @EndTime, @IsDeleted, @MonitorId, @Created);";
 
-            var isEven = index % 2 == 0;
+            bool isEven = index % 2 == 0;
             using NpgsqlCommand cmd = new(sql, connection);
             cmd.Parameters.AddWithValue("@Id", Guid.NewGuid());
             cmd.Parameters.AddWithValue("@SerialId", serialId);
@@ -1358,12 +1358,12 @@ namespace OmnidotsAdapterTests
                                           string email, string phoneNo, Guid siteUserId,
         DateTime? sendStartTime = null, DateTime? sendEndTime = null)
         {
-            var contractId = Guid.NewGuid();
-            var userId = Guid.NewGuid();
-            var siteId = Guid.NewGuid();
+            Guid contractId = Guid.NewGuid();
+            Guid userId = Guid.NewGuid();
+            Guid siteId = Guid.NewGuid();
 
             {
-                var sql = @"INSERT INTO contract
+                string sql = @"INSERT INTO contract
                                 (id,
                                  contract_number,
                                  on_hire_date,
@@ -1385,7 +1385,7 @@ namespace OmnidotsAdapterTests
                 cmd.ExecuteNonQuery();
             }
             {
-                var sql = @"INSERT INTO deployment
+                string sql = @"INSERT INTO deployment
                                 (id,
                                  start_date,
                                  end_date,
@@ -1421,14 +1421,14 @@ namespace OmnidotsAdapterTests
 
             // update Contracts with SiteId
             {
-                var sql = @"UPDATE contract SET site_id = @SiteId WHERE id = @ContractId;";
-                using var cmd = new NpgsqlCommand(sql, connection);
+                string sql = @"UPDATE contract SET site_id = @SiteId WHERE id = @ContractId;";
+                using NpgsqlCommand cmd = new(sql, connection);
                 cmd.Parameters.AddWithValue("@SiteId", siteId);
                 cmd.Parameters.AddWithValue("@ContractId", contractId);
                 cmd.ExecuteNonQuery();
             }
             {
-                var sql = @"INSERT INTO ""AspNetUsers""
+                string sql = @"INSERT INTO ""AspNetUsers""
                                (""Id"",
                                 is_disabled,
                                 ""Email"",
@@ -1466,7 +1466,7 @@ namespace OmnidotsAdapterTests
                 cmd.ExecuteNonQuery();
             }
             {
-                var sql = @"INSERT INTO site_user
+                string sql = @"INSERT INTO site_user
                                 (id,
                                  start_date,
                                  user_id,
@@ -1484,7 +1484,7 @@ namespace OmnidotsAdapterTests
                 cmd.ExecuteNonQuery();
             }
             {
-                var sql = @"INSERT INTO notification_setting
+                string sql = @"INSERT INTO notification_setting
                                 (id,
                                  site_user_id,
                                  email,
@@ -1514,9 +1514,9 @@ namespace OmnidotsAdapterTests
         private static ContactMethod ReadContactMethod(string connectionString, Guid siteUserId)
         {
 
-            using var connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
-            var sql = @"SELECT email, sms FROM notification_setting WHERE site_user_id = @SiteUserId";
+            string sql = @"SELECT email, sms FROM notification_setting WHERE site_user_id = @SiteUserId";
 
             using NpgsqlCommand cmd = new(sql, connection);
             cmd.Parameters.AddWithValue("@SiteUserId", siteUserId);
@@ -1524,8 +1524,8 @@ namespace OmnidotsAdapterTests
             using NpgsqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                var email = reader.GetBoolean(0);
-                var sms = reader.GetBoolean(1);
+                bool email = reader.GetBoolean(0);
+                bool sms = reader.GetBoolean(1);
                 return RvtContactDto.FromFlags(email, sms);
             }
             throw AdapterException.Of("Failed to ReadContactMethod");
@@ -1533,17 +1533,17 @@ namespace OmnidotsAdapterTests
 
         private static List<RvtContactDto> ReadContacts(NpgsqlConnection connection, Guid siteUserId)
         {
-            var sql = @"SELECT ""Email"", ""PhoneNumber"", ""Id"" FROM ""AspNetUsers""";
+            string sql = @"SELECT ""Email"", ""PhoneNumber"", ""Id"" FROM ""AspNetUsers""";
             using NpgsqlCommand cmd = new(sql, connection);
-            var contacts = new List<RvtContactDto>();
+            List<RvtContactDto> contacts = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
             {
-                var emailAddress = reader.GetString(0);
-                var phoneNumber = reader.IsDBNull(1) ? null : reader.GetString(1);
-                var id = reader.GetString(2);
-                var contactMethod = ReadContactMethod(database!.ConnectionString, siteUserId);
+                string emailAddress = reader.GetString(0);
+                string? phoneNumber = reader.IsDBNull(1) ? null : reader.GetString(1);
+                string id = reader.GetString(2);
+                ContactMethod contactMethod = ReadContactMethod(database!.ConnectionString, siteUserId);
                 contacts.Add(new RvtContactDto(contactMethod: contactMethod,
                                                emailAddress: emailAddress,
                                                phoneNumber: phoneNumber,
@@ -1556,27 +1556,27 @@ namespace OmnidotsAdapterTests
         private static List<NotificationDto> ReadNotifications(NpgsqlConnection connection)
         {
 
-            var sql = @"SELECT id, notification_time, limit_on, averaging_period, level, closed_time,
+            string sql = @"SELECT id, notification_time, limit_on, averaging_period, level, closed_time,
                                closed_by_user, alert_type, alert_field, monitor_id
                         FROM notification";
             using NpgsqlCommand cmd = new(sql, connection);
-            var alerts = new List<NotificationDto>();
+            List<NotificationDto> alerts = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
             {
-                var id = reader.GetGuid(0);
-                var notificationTime = reader.GetDateTime(1);
-                var limitOn = reader.GetDouble(2);
-                var averagingPeriod = reader.GetInt32(3);
-                var level = reader.GetDouble(4);
+                Guid id = reader.GetGuid(0);
+                DateTime notificationTime = reader.GetDateTime(1);
+                double limitOn = reader.GetDouble(2);
+                int averagingPeriod = reader.GetInt32(3);
+                double level = reader.GetDouble(4);
                 DateTime? closedTime = reader.IsDBNull(5) ? null : reader.GetDateTime(5);
                 Guid? closedByUser = reader.IsDBNull(6) ? null : reader.GetGuid(6);
-                var alertType = (AlertType)reader.GetInt32(7);
-                var alertField = reader.GetString(8);
-                var monitorId = reader.GetGuid(9);
+                AlertType alertType = (AlertType)reader.GetInt32(7);
+                string alertField = reader.GetString(8);
+                Guid monitorId = reader.GetGuid(9);
 
-                var alert = new NotificationDto(id: id,
+                NotificationDto alert = new(id: id,
                                                 notificationTime: notificationTime,
                                                 limitOn: limitOn,
                                                 averagingPeriod: averagingPeriod,
@@ -1594,21 +1594,22 @@ namespace OmnidotsAdapterTests
         private static List<Dictionary<string, object>> ReadNotificationsSent(NpgsqlConnection connection)
         {
 
-            var sql = @"SELECT id, send_time, address, error_message, notification_id
+            string sql = @"SELECT id, send_time, address, error_message, notification_id
                         FROM notification_sent";
             using NpgsqlCommand cmd = new(sql, connection);
-            var audits = new List<Dictionary<string, object>>();
+            List<Dictionary<string, object>> audits = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
             {
-                var dict = new Dictionary<string, object>();
-
-                dict["Id"] = reader.GetGuid(0);
-                dict["SendTime"] = reader.GetDateTime(1);
-                dict["Address"] = reader.GetString(2);
-                dict["ErrorMessage"] = reader.GetString(3);
-                dict["NotificationId"] = reader.GetGuid(4);
+                Dictionary<string, object> dict = new()
+                {
+                    ["Id"] = reader.GetGuid(0),
+                    ["SendTime"] = reader.GetDateTime(1),
+                    ["Address"] = reader.GetString(2),
+                    ["ErrorMessage"] = reader.GetString(3),
+                    ["NotificationId"] = reader.GetGuid(4)
+                };
                 audits.Add(dict);
             }
             return audits;
@@ -1618,18 +1619,18 @@ namespace OmnidotsAdapterTests
         // Summary: Reads persisted peak fixture rows using canonical PostgreSQL identifiers.
         private static List<PeakRecordDto> ReadPeakRecords(NpgsqlConnection connection)
         {
-            var sql = @"SELECT serial_id, sample_time,
+            string sql = @"SELECT serial_id, sample_time,
                                x_fdom, x_vtop, x_vtop_overflow,
                                y_fdom, y_vtop, y_vtop_overflow,
                                z_fdom, z_vtop, z_vtop_overflow
                         FROM omnidots_peak_level";
             using NpgsqlCommand cmd = new(sql, connection);
-            var dtos = new List<PeakRecordDto>();
+            List<PeakRecordDto> dtos = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                var serialId = reader.GetString(0);
-                var sampleTime = reader.GetDateTime(1);
+                string serialId = reader.GetString(0);
+                DateTime sampleTime = reader.GetDateTime(1);
                 double? xfDom = reader.IsDBNull(2) ? null : reader.GetDouble(2);
                 double? xvTop = reader.IsDBNull(3) ? null : reader.GetDouble(3);
                 double? xvTopOverflow = reader.IsDBNull(4) ? null : reader.GetDouble(4);
@@ -1653,7 +1654,7 @@ namespace OmnidotsAdapterTests
                 FDomVtopOverflow? z = zfDom != null && zvTop != null && zvTopOverflow != null ?
                     new FDomVtopOverflow(fdom: (double)zfDom!, vtop: (double)zvTop!, vtopOverflow: (double)zvTopOverflow!) : null;
 
-                var epocMillis = sampleTime.Subtract(DateTimeUtil.JAN1_1970).TotalMilliseconds;
+                double epocMillis = sampleTime.Subtract(DateTimeUtil.JAN1_1970).TotalMilliseconds;
 
                 dtos.Add(new PeakRecordDto(x: x, y: y, z: z, epocMillis: epocMillis));
             }
@@ -1665,19 +1666,19 @@ namespace OmnidotsAdapterTests
         // Summary: Reads persisted VEFF fixture rows using canonical PostgreSQL identifiers.
         private static List<VeffRecordDto> ReadVeffRecords(NpgsqlConnection connection)
         {
-            var sql = @"SELECT serial_id, sample_time, x, y, z
+            string sql = @"SELECT serial_id, sample_time, x, y, z
                     FROM omnidots_veff_level";
             using NpgsqlCommand cmd = new(sql, connection);
-            var dtos = new List<VeffRecordDto>();
+            List<VeffRecordDto> dtos = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                var serialId = reader.GetString(0);
-                var sampleTime = reader.GetDateTime(1);
-                var x = reader.GetDouble(2);
-                var y = reader.GetDouble(3);
-                var z = reader.GetDouble(4);
-                var epocMillis = sampleTime.Subtract(DateTimeUtil.JAN1_1970).TotalMilliseconds;
+                string serialId = reader.GetString(0);
+                DateTime sampleTime = reader.GetDateTime(1);
+                double x = reader.GetDouble(2);
+                double y = reader.GetDouble(3);
+                double z = reader.GetDouble(4);
+                double epocMillis = sampleTime.Subtract(DateTimeUtil.JAN1_1970).TotalMilliseconds;
 
                 dtos.Add(new VeffRecordDto(x: x, y: y, z: z, epocMillis: epocMillis));
             }
@@ -1688,23 +1689,23 @@ namespace OmnidotsAdapterTests
         // Summary: Reads persisted VDV fixture rows using canonical PostgreSQL identifiers.
         private static List<VdvRecordDto> ReadVdvRecords(NpgsqlConnection connection)
         {
-            var sql = @"SELECT serial_id, sample_time, x, y, z, vdv_x, vdv_y, vdv_z
+            string sql = @"SELECT serial_id, sample_time, x, y, z, vdv_x, vdv_y, vdv_z
                     FROM omnidots_vdv_level";
             using NpgsqlCommand cmd = new(sql, connection);
-            var dtos = new List<VdvRecordDto>();
+            List<VdvRecordDto> dtos = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                var serialId = reader.GetString(0);
-                var sampleTime = reader.GetDateTime(1);
-                var x = reader.GetDouble(2);
-                var y = reader.GetDouble(3);
-                var z = reader.GetDouble(4);
-                var vdvX = reader.GetString(5);
-                var vdvY = reader.GetString(6);
-                var vdvZ = reader.GetString(7);
+                string serialId = reader.GetString(0);
+                DateTime sampleTime = reader.GetDateTime(1);
+                double x = reader.GetDouble(2);
+                double y = reader.GetDouble(3);
+                double z = reader.GetDouble(4);
+                string vdvX = reader.GetString(5);
+                string vdvY = reader.GetString(6);
+                string vdvZ = reader.GetString(7);
 
-                var epocMillis = sampleTime.Subtract(DateTimeUtil.JAN1_1970).TotalMilliseconds;
+                double epocMillis = sampleTime.Subtract(DateTimeUtil.JAN1_1970).TotalMilliseconds;
 
                 dtos.Add(new VdvRecordDto(x: x,
                                           y: y,

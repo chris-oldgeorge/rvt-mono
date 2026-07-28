@@ -11,7 +11,7 @@ namespace RvtPortal.Spa.Api.Mappers;
 public static class SiteApiMapper
 {
     // Function summary: Copies the host-normalized legacy page request into the application-owned paging contract.
-    public static RvtPortal.Application.Common.PageRequest ToApplicationPage(
+    public static PageRequest ToApplicationPage(
         RVT.BusinessLogic.Application.Paging.PageRequest page) =>
         new(
             page.SearchText,
@@ -25,7 +25,7 @@ public static class SiteApiMapper
     {
         return new QuerySitesResponse
         {
-            Results = result.Results.Select(ToListItem).ToList(),
+            Results = [.. result.Results.Select(ToListItem)],
             Total = result.Total,
             Page = result.Page,
             PageSize = result.PageSize,
@@ -44,15 +44,15 @@ public static class SiteApiMapper
     {
         return new SiteOptionsResponse
         {
-            Companies = model.Companies.Select(ToOptionItem).ToList(),
-            Contracts = model.Contracts.Select(ToOptionItem).ToList()
+            Companies = [.. model.Companies.Select(ToOptionItem)],
+            Contracts = [.. model.Contracts.Select(ToOptionItem)]
         };
     }
 
     // Function summary: Maps site detail to the existing API response contract.
     public static SiteDetailResponse ToDetailResponse(SiteDetailModel model, string? customerLogoUrl)
     {
-        var item = ToListItem(model);
+        SiteListItem item = ToListItem(model);
         return new SiteDetailResponse
         {
             Id = item.Id,
@@ -78,18 +78,18 @@ public static class SiteApiMapper
             SatEndTime = model.SatEndTime,
             SunStartTime = model.SunStartTime,
             SunEndTime = model.SunEndTime,
-            OperatingHours = model.OperatingHours.Select(ToOperatingHours).ToList(),
-            ContractList = model.ContractList.Select(ToContractItem).ToList(),
-            Monitors = model.Monitors.Select(ToMonitorItem).ToList(),
-            OpenNotifications = model.OpenNotifications.Select(ToNotificationItem).ToList(),
+            OperatingHours = [.. model.OperatingHours.Select(ToOperatingHours)],
+            ContractList = [.. model.ContractList.Select(ToContractItem)],
+            Monitors = [.. model.Monitors.Select(ToMonitorItem)],
+            OpenNotifications = [.. model.OpenNotifications.Select(ToNotificationItem)],
             Archive = model.Archive == null ? null : new SiteArchiveResponse
             {
                 Archived = model.Archive.Archived,
                 CreatedBy = model.Archive.CreatedBy,
                 PictureLink = model.Archive.PictureLink
             },
-            Companies = model.Companies.Select(ToOptionItem).ToList(),
-            AvailableContracts = model.AvailableContracts.Select(ToOptionItem).ToList(),
+            Companies = [.. model.Companies.Select(ToOptionItem)],
+            AvailableContracts = [.. model.AvailableContracts.Select(ToOptionItem)],
             CanManage = model.CanManage
         };
     }
@@ -124,7 +124,7 @@ public static class SiteApiMapper
     {
         return new QuerySiteMonitorsResponse
         {
-            Results = result.Results.Select(ToMonitorItem).ToList(),
+            Results = [.. result.Results.Select(ToMonitorItem)],
             Total = result.Total,
             Page = result.Page,
             PageSize = result.PageSize,
@@ -142,7 +142,7 @@ public static class SiteApiMapper
     {
         return new QuerySiteNotificationsResponse
         {
-            Results = result.Results.Select(ToNotificationItem).ToList(),
+            Results = [.. result.Results.Select(ToNotificationItem)],
             Total = result.Total,
             Page = result.Page,
             PageSize = result.PageSize,
@@ -162,7 +162,7 @@ public static class SiteApiMapper
         {
             SiteId = model.SiteId,
             SiteName = model.SiteName ?? "",
-            Settings = model.Settings.Select(ToNotificationSettingItem).ToList()
+            Settings = [.. model.Settings.Select(ToNotificationSettingItem)]
         };
     }
 

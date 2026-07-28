@@ -16,12 +16,12 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
@@ -35,11 +35,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 using RVT.BusinessLogic.Notifications;
 using RVT.BusinessLogic.Ports.Notifications;
 using RVT.Entities;
-using RvtPortal.Spa.Application.Users;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Application.Users;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Tests;
@@ -53,7 +54,7 @@ public class SecurityHardeningTests
     // Function summary: Handles the API controller endpoints have explicit authorization decision workflow for this module.
     public void ApiControllerEndpoints_HaveExplicitAuthorizationDecision()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         factory.CreateClient();
 
         var endpoints = factory.Services
@@ -68,14 +69,12 @@ public class SecurityHardeningTests
             .Where(item => item.Action is not null && IsApiRoute(item.Endpoint))
             .ToList();
 
-        var missingDecision = endpoints
+        List<string> missingDecision = [.. endpoints
             .Where(item => !HasAuthorizationDecision(item.Endpoint))
-            .Select(item => $"{item.Action!.ControllerName}.{item.Action.ActionName} => {item.Endpoint.RoutePattern.RawText}")
-            .ToList();
-        var undocumentedAnonymous = endpoints
+            .Select(item => $"{item.Action!.ControllerName}.{item.Action.ActionName} => {item.Endpoint.RoutePattern.RawText}")];
+        List<string> undocumentedAnonymous = [.. endpoints
             .Where(item => HasAnonymousDecision(item.Endpoint) && !IsDocumentedAnonymousApiRoute(item.Endpoint))
-            .Select(item => $"{item.Action!.ControllerName}.{item.Action.ActionName} => {item.Endpoint.RoutePattern.RawText}")
-            .ToList();
+            .Select(item => $"{item.Action!.ControllerName}.{item.Action.ActionName} => {item.Endpoint.RoutePattern.RawText}")];
 
         Assert.NotEmpty(endpoints);
         Assert.Empty(missingDecision);
@@ -86,12 +85,12 @@ public class SecurityHardeningTests
     // Function summary: Handles the cookie auth session uses strict same site cookie workflow for this module.
     public async Task CookieAuthSession_UsesStrictSameSiteCookie()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
 
-        using var response = await LoginAsync(client);
-        var setCookie = response.Headers.GetValues("Set-Cookie");
+        using HttpResponseMessage response = await LoginAsync(client);
+        IEnumerable<string> setCookie = response.Headers.GetValues("Set-Cookie");
 
         Assert.Contains(setCookie, cookie => cookie.Contains(".AspNetCore.Identity.Application", StringComparison.OrdinalIgnoreCase) &&
             cookie.Contains("samesite=strict", StringComparison.OrdinalIgnoreCase) &&
@@ -102,11 +101,11 @@ public class SecurityHardeningTests
     // Function summary: Handles the unsafe API mutation with cross site origin is blocked before controller workflow for this module.
     public async Task UnsafeApiMutation_WithCrossSiteOrigin_IsBlockedBeforeController()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client);
-        var request = new HttpRequestMessage(HttpMethod.Put, "/api/auth/profile")
+        HttpRequestMessage request = new(HttpMethod.Put, "/api/auth/profile")
         {
             Content = JsonContent.Create(new UpdateProfileRequest
             {
@@ -118,9 +117,9 @@ public class SecurityHardeningTests
         };
         request.Headers.Add("Origin", "https://attacker.example");
 
-        using var response = await client.SendAsync(request);
-        var body = await response.Content.ReadAsStringAsync();
-        using var document = JsonDocument.Parse(body);
+        using HttpResponseMessage response = await client.SendAsync(request);
+        string body = await response.Content.ReadAsStringAsync();
+        using JsonDocument document = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
@@ -131,12 +130,12 @@ public class SecurityHardeningTests
     // Function summary: Handles the API responses include server timing header workflow for this module.
     public async Task ApiResponses_IncludeServerTimingHeader()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var client = CreateClient(factory);
+        using SpaTestApplicationFactory factory = new();
+        HttpClient client = CreateClient(factory);
 
-        using var response = await client.GetAsync("/api/health");
+        using HttpResponseMessage response = await client.GetAsync("/api/health");
 
-        Assert.True(response.Headers.TryGetValues("Server-Timing", out var values));
+        Assert.True(response.Headers.TryGetValues("Server-Timing", out IEnumerable<string>? values));
         Assert.Contains(values, value => value.StartsWith("app;dur=", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -144,7 +143,7 @@ public class SecurityHardeningTests
     // Function summary: Handles the representative read endpoints include server timing for performance tracking workflow for this module.
     public async Task RepresentativeReadEndpoints_IncludeServerTimingForPerformanceTracking()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainCompaniesAsync(new Company
         {
@@ -152,15 +151,15 @@ public class SecurityHardeningTests
             CompanyName = "Security Performance Co",
             Contracts = []
         });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client);
 
-        foreach (var path in new[] { "/api/companies?page=1&pageSize=5", "/api/dashboard/summary" })
+        foreach (string? path in new[] { "/api/companies?page=1&pageSize=5", "/api/dashboard/summary" })
         {
-            using var response = await client.GetAsync(path);
+            using HttpResponseMessage response = await client.GetAsync(path);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.True(response.Headers.TryGetValues("Server-Timing", out var values), $"Missing Server-Timing for {path}.");
+            Assert.True(response.Headers.TryGetValues("Server-Timing", out IEnumerable<string>? values), $"Missing Server-Timing for {path}.");
             Assert.Contains(values, value => value.StartsWith("app;dur=", StringComparison.OrdinalIgnoreCase));
         }
     }
@@ -169,10 +168,10 @@ public class SecurityHardeningTests
     // Function summary: Handles the mutation requests create safe audit log without payload values workflow for this module.
     public async Task MutationRequests_CreateSafeAuditLogWithoutPayloadValues()
     {
-        var logs = new ListLoggerProvider();
-        using var factory = new SpaTestApplicationFactory();
+        ListLoggerProvider logs = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        using var app = factory.WithWebHostBuilder(builder =>
+        using WebApplicationFactory<Program> app = factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureLogging(logging =>
             {
@@ -180,11 +179,11 @@ public class SecurityHardeningTests
                 logging.SetMinimumLevel(LogLevel.Information);
             });
         });
-        var client = CreateClient(app);
+        HttpClient client = CreateClient(app);
         await LoginAsync(client);
         logs.Clear();
 
-        using var response = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
+        using HttpResponseMessage response = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
         {
             Email = AdminEmail,
             Name = "Audited Admin Secret",
@@ -202,13 +201,12 @@ public class SecurityHardeningTests
     // Function summary: Handles the request DTO value type properties are nullable or explicitly required workflow for this module.
     public void RequestDtoValueTypeProperties_AreNullableOrExplicitlyRequired()
     {
-        var violations = typeof(Program).Assembly
+        List<string> violations = [.. typeof(Program).Assembly
             .GetTypes()
             .Where(type => type.Namespace == "RvtPortal.Spa.Api" && type.Name.EndsWith("Request", StringComparison.Ordinal))
             .SelectMany(type => type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Where(property => IsNonNullableValueType(property) && !IsRequired(property))
-                .Select(property => $"{type.Name}.{property.Name}"))
-            .ToList();
+                .Select(property => $"{type.Name}.{property.Name}"))];
 
         Assert.Empty(violations);
     }
@@ -217,11 +215,11 @@ public class SecurityHardeningTests
     // Function summary: Handles the unsafe API mutation with same site fetch metadata is blocked workflow for this module.
     public async Task UnsafeApiMutation_WithSameSiteFetchMetadata_IsBlockedBeforeController()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client);
-        var request = new HttpRequestMessage(HttpMethod.Put, "/api/auth/profile")
+        HttpRequestMessage request = new(HttpMethod.Put, "/api/auth/profile")
         {
             Content = JsonContent.Create(new UpdateProfileRequest
             {
@@ -233,9 +231,9 @@ public class SecurityHardeningTests
         };
         request.Headers.Add("Sec-Fetch-Site", "same-site");
 
-        using var response = await client.SendAsync(request);
-        var body = await response.Content.ReadAsStringAsync();
-        using var document = JsonDocument.Parse(body);
+        using HttpResponseMessage response = await client.SendAsync(request);
+        string body = await response.Content.ReadAsStringAsync();
+        using JsonDocument document = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("Cross-site API request blocked.", document.RootElement.GetProperty("title").GetString());
@@ -246,9 +244,9 @@ public class SecurityHardeningTests
     public async Task LookupsEndpoint_RequiresAdminRole()
     {
         const string companyUserEmail = "company.lookup@rvt.test";
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(companyUserEmail, Password, RoleNames.CompanyUser);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await client.PostAsJsonAsync("/api/auth/login", new LoginRequest
         {
             Email = companyUserEmail,
@@ -256,7 +254,7 @@ public class SecurityHardeningTests
             RememberMe = true
         });
 
-        using var response = await client.GetAsync("/api/lookups/companies?query=a");
+        using HttpResponseMessage response = await client.GetAsync("/api/lookups/companies?query=a");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -265,12 +263,12 @@ public class SecurityHardeningTests
     // Function summary: Handles the lookups endpoint allows admin role workflow for this module.
     public async Task LookupsEndpoint_AllowsAdminRole()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client);
 
-        using var response = await client.GetAsync("/api/lookups/companies?query=a");
+        using HttpResponseMessage response = await client.GetAsync("/api/lookups/companies?query=a");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -279,17 +277,17 @@ public class SecurityHardeningTests
     // Function summary: Handles the API responses include hardening security headers workflow for this module.
     public async Task ApiResponses_IncludeHardeningSecurityHeaders()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var client = CreateClient(factory);
+        using SpaTestApplicationFactory factory = new();
+        HttpClient client = CreateClient(factory);
 
-        using var response = await client.GetAsync("/api/health");
+        using HttpResponseMessage response = await client.GetAsync("/api/health");
 
-        Assert.True(response.Headers.TryGetValues("X-Content-Type-Options", out var nosniff));
+        Assert.True(response.Headers.TryGetValues("X-Content-Type-Options", out IEnumerable<string>? nosniff));
         Assert.Contains(nosniff, value => value.Equals("nosniff", StringComparison.OrdinalIgnoreCase));
-        Assert.True(response.Headers.TryGetValues("X-Frame-Options", out var frameOptions));
+        Assert.True(response.Headers.TryGetValues("X-Frame-Options", out IEnumerable<string>? frameOptions));
         Assert.Contains(frameOptions, value => value.Equals("DENY", StringComparison.OrdinalIgnoreCase));
         Assert.True(response.Headers.TryGetValues("Referrer-Policy", out _));
-        Assert.True(response.Headers.TryGetValues("Content-Security-Policy", out var csp));
+        Assert.True(response.Headers.TryGetValues("Content-Security-Policy", out IEnumerable<string>? csp));
         Assert.Contains(csp, value => value.Contains("frame-ancestors 'none'", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -297,13 +295,13 @@ public class SecurityHardeningTests
     // Function summary: Handles the auth login endpoint is rate limited after configured attempts workflow for this module.
     public async Task AuthLoginEndpoint_IsRateLimited_AfterConfiguredAttempts()
     {
-        using var factory = new SpaTestApplicationFactory(authRatePermitLimit: 3);
-        var client = CreateClient(factory);
+        using SpaTestApplicationFactory factory = new(authRatePermitLimit: 3);
+        HttpClient client = CreateClient(factory);
 
-        var statuses = new List<HttpStatusCode>();
-        for (var attempt = 0; attempt < 6; attempt++)
+        List<HttpStatusCode> statuses = new();
+        for (int attempt = 0; attempt < 6; attempt++)
         {
-            using var response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest
+            using HttpResponseMessage response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest
             {
                 Email = "ratelimit@rvt.test",
                 Password = "WrongPassword1$",
@@ -320,18 +318,18 @@ public class SecurityHardeningTests
     // Function summary: Verifies a disallowed Host is rejected before any password-reset email can be delivered.
     public async Task ForgotPassword_WithDisallowedHost_IsRejectedBeforeDelivery()
     {
-        var messenger = new RecordingAccountMessenger();
-        using var factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
-        var client = CreateClient(app);
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+        using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        HttpClient client = CreateClient(app);
+        using HttpRequestMessage request = new(HttpMethod.Post, "/api/auth/forgot-password")
         {
             Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
         };
         request.Headers.Host = "attacker.example";
 
-        using var response = await client.SendAsync(request);
+        using HttpResponseMessage response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Null(messenger.PasswordResetCallbackUrl);
@@ -341,16 +339,16 @@ public class SecurityHardeningTests
     // Function summary: Verifies missing public-origin configuration keeps the anonymous response generic and suppresses delivery.
     public async Task ForgotPassword_WithoutPublicBaseUrl_ReturnsGenericSuccessWithoutDelivery()
     {
-        var messenger = new RecordingAccountMessenger();
-        using var factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        using var app = ConfigureAuthDelivery(factory, messenger, publicBaseUrl: "");
-        var client = CreateClient(app);
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+        using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, publicBaseUrl: "");
+        HttpClient client = CreateClient(app);
+        using HttpRequestMessage request = new(HttpMethod.Post, "/api/auth/forgot-password")
         {
             Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
         };
-        using var response = await client.SendAsync(request);
+        using HttpResponseMessage response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Null(messenger.PasswordResetCallbackUrl);
@@ -360,17 +358,17 @@ public class SecurityHardeningTests
     // Function summary: Verifies configured public origin controls password-reset links for an allowed request host.
     public async Task ForgotPassword_WithPublicBaseUrl_SendsConfiguredHostLink()
     {
-        var messenger = new RecordingAccountMessenger();
-        using var factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
-        var client = CreateClient(app);
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+        using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        HttpClient client = CreateClient(app);
+        using HttpRequestMessage request = new(HttpMethod.Post, "/api/auth/forgot-password")
         {
             Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
         };
 
-        using var response = await client.SendAsync(request);
+        using HttpResponseMessage response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.StartsWith("https://portal.example.test/reset-password?", messenger.PasswordResetCallbackUrl, StringComparison.Ordinal);
@@ -381,12 +379,12 @@ public class SecurityHardeningTests
     // Function summary: Verifies the sibling admin notification workflow cannot fall back to an attacker-controlled request origin.
     public async Task AdminAccountNotification_WithoutPublicBaseUrl_DoesNotSendHostDerivedLink()
     {
-        var messenger = new RecordingAccountMessenger();
-        using var factory = new SpaTestApplicationFactory();
-        var user = await factory.SeedUserAsync("admin-created.user@rvt.test", null, RoleNames.CompanyUser, emailConfirmed: false);
-        using var app = ConfigureAuthDelivery(factory, messenger, publicBaseUrl: "");
-        using var scope = app.Services.CreateScope();
-        var notifications = scope.ServiceProvider.GetRequiredService<IUserAccountNotificationService>();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
+        ApplicationUser user = await factory.SeedUserAsync("admin-created.user@rvt.test", null, RoleNames.CompanyUser, emailConfirmed: false);
+        using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, publicBaseUrl: "");
+        using IServiceScope scope = app.Services.CreateScope();
+        IUserAccountNotificationService notifications = scope.ServiceProvider.GetRequiredService<IUserAccountNotificationService>();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => notifications.SendPasswordSetAsync(
             user,
@@ -400,22 +398,22 @@ public class SecurityHardeningTests
     public async Task ProfileEmailChange_RemainsPendingUntilConfirmation()
     {
         const string newEmail = "security.changed@rvt.test";
-        var messenger = new RecordingAccountMessenger();
-        using var factory = new SpaTestApplicationFactory();
-        var seededUser = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
-        var client = CreateClient(app);
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
+        ApplicationUser seededUser = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        HttpClient client = CreateClient(app);
         await LoginAsync(client);
 
-        using var update = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
+        using HttpResponseMessage update = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
         {
             Email = newEmail,
             Name = "Pending Email Admin",
             MobilePhone = "07123456789",
             CompanyRole = "Operations"
         });
-        var pendingProfile = await update.Content.ReadFromJsonAsync<ProfileResponse>();
-        var pendingUser = await FindUserByIdAsync(app, seededUser.Id);
+        ProfileResponse? pendingProfile = await update.Content.ReadFromJsonAsync<ProfileResponse>();
+        ApplicationUser pendingUser = await FindUserByIdAsync(app, seededUser.Id);
 
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         Assert.Equal(AdminEmail, pendingProfile?.Email);
@@ -426,9 +424,9 @@ public class SecurityHardeningTests
         Assert.Equal(newEmail, messenger.EmailChangeRecipient);
         Assert.NotNull(messenger.EmailChangeCallbackUrl);
 
-        var confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
-        using var confirmation = await client.GetAsync(confirmationUri.PathAndQuery);
-        var confirmedUser = await FindUserByIdAsync(app, seededUser.Id);
+        Uri confirmationUri = new(messenger.EmailChangeCallbackUrl);
+        using HttpResponseMessage confirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        ApplicationUser confirmedUser = await FindUserByIdAsync(app, seededUser.Id);
 
         Assert.Equal(HttpStatusCode.OK, confirmation.StatusCode);
         Assert.Equal(newEmail, confirmedUser.Email);
@@ -442,23 +440,23 @@ public class SecurityHardeningTests
     {
         const string originalEmail = "admin.target@rvt.test";
         const string requestedEmail = "admin.requested@rvt.test";
-        var messenger = new RecordingAccountMessenger();
-        using var factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTMasterAdmin);
-        var target = await factory.SeedUserAsync(originalEmail, Password, RoleNames.RVTAdmin);
-        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
-        var client = CreateClient(app);
+        ApplicationUser target = await factory.SeedUserAsync(originalEmail, Password, RoleNames.RVTAdmin);
+        using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        HttpClient client = CreateClient(app);
         await LoginAsync(client);
 
-        using var update = await client.PutAsJsonAsync($"/api/users/{target.Id}", new UserMutationRequest
+        using HttpResponseMessage update = await client.PutAsJsonAsync($"/api/users/{target.Id}", new UserMutationRequest
         {
             Email = requestedEmail,
             Name = "Pending Admin Target",
             MobilePhone = "07111111111",
             Role = RoleNames.RVTAdmin
         });
-        var pendingUser = await FindUserByIdAsync(app, target.Id);
-        using var reset = await client.PostAsync($"/api/users/{target.Id}/reset-password-link", null);
+        ApplicationUser pendingUser = await FindUserByIdAsync(app, target.Id);
+        using HttpResponseMessage reset = await client.PostAsync($"/api/users/{target.Id}/reset-password-link", null);
 
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         Assert.Equal(originalEmail, pendingUser.Email);
@@ -471,9 +469,9 @@ public class SecurityHardeningTests
         Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
         Assert.Equal(originalEmail, messenger.PasswordResetRecipient);
 
-        var confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
-        using var confirmation = await client.GetAsync(confirmationUri.PathAndQuery);
-        var confirmedUser = await FindUserByIdAsync(app, target.Id);
+        Uri confirmationUri = new(messenger.EmailChangeCallbackUrl);
+        using HttpResponseMessage confirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        ApplicationUser confirmedUser = await FindUserByIdAsync(app, target.Id);
 
         Assert.Equal(HttpStatusCode.OK, confirmation.StatusCode);
         Assert.Equal(requestedEmail, confirmedUser.Email);
@@ -486,32 +484,32 @@ public class SecurityHardeningTests
     public async Task EmailChangeConfirmation_WhenUserNameUpdateFails_RollsBackAndTokenCanRetry()
     {
         const string requestedEmail = "reserved.username@rvt.test";
-        var messenger = new RecordingAccountMessenger();
-        await using var identityConnection = new SqliteConnection("Data Source=:memory:");
+        RecordingAccountMessenger messenger = new();
+        await using SqliteConnection identityConnection = new("Data Source=:memory:");
         await identityConnection.OpenAsync();
-        using var factory = new SpaTestApplicationFactory();
-        using var app = ConfigureAuthDelivery(
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> app = ConfigureAuthDelivery(
             factory,
             messenger,
             "https://portal.example.test",
             identityConnection: identityConnection);
         await EnsureIdentityDatabaseAsync(app);
-        var target = await SeedUserAsync(app, AdminEmail, Password, RoleNames.RVTAdmin);
-        var blocker = await SeedUserAsync(app, "blocker.email@rvt.test", Password, RoleNames.RVTAdmin);
+        ApplicationUser target = await SeedUserAsync(app, AdminEmail, Password, RoleNames.RVTAdmin);
+        ApplicationUser blocker = await SeedUserAsync(app, "blocker.email@rvt.test", Password, RoleNames.RVTAdmin);
         await SetUserNameAsync(app, blocker.Id, requestedEmail);
-        var client = CreateClient(app);
+        HttpClient client = CreateClient(app);
         await LoginAsync(client);
-        using var update = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
+        using HttpResponseMessage update = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
         {
             Email = requestedEmail,
             Name = "Retry Safe Admin",
             MobilePhone = "07222222222",
             CompanyRole = "Operations"
         });
-        var confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
+        Uri confirmationUri = new(messenger.EmailChangeCallbackUrl!);
 
-        using var firstConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
-        var rolledBackUser = await FindUserByIdAsync(app, target.Id);
+        using HttpResponseMessage firstConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        ApplicationUser rolledBackUser = await FindUserByIdAsync(app, target.Id);
 
         Assert.Equal(HttpStatusCode.BadRequest, firstConfirmation.StatusCode);
         Assert.Equal(AdminEmail, rolledBackUser.Email);
@@ -519,8 +517,8 @@ public class SecurityHardeningTests
         Assert.True(rolledBackUser.EmailConfirmed);
 
         await SetUserNameAsync(app, blocker.Id, "released.username@rvt.test");
-        using var retryConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
-        var confirmedUser = await FindUserByIdAsync(app, target.Id);
+        using HttpResponseMessage retryConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        ApplicationUser confirmedUser = await FindUserByIdAsync(app, target.Id);
 
         Assert.Equal(HttpStatusCode.OK, retryConfirmation.StatusCode);
         Assert.Equal(requestedEmail, confirmedUser.Email);
@@ -533,38 +531,38 @@ public class SecurityHardeningTests
     public async Task EmailChangeConfirmation_WhenUserNameUpdateThrows_RollsBackTransactionAndTokenCanRetry()
     {
         const string requestedEmail = "exception.retry@rvt.test";
-        var messenger = new RecordingAccountMessenger();
-        var throwingValidator = new ThrowWhenEmailAndUserNameAlignValidator(requestedEmail);
-        await using var identityConnection = new SqliteConnection("Data Source=:memory:");
+        RecordingAccountMessenger messenger = new();
+        ThrowWhenEmailAndUserNameAlignValidator throwingValidator = new(requestedEmail);
+        await using SqliteConnection identityConnection = new("Data Source=:memory:");
         await identityConnection.OpenAsync();
-        using var factory = new SpaTestApplicationFactory();
-        using var app = ConfigureAuthDelivery(
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> app = ConfigureAuthDelivery(
             factory,
             messenger,
             "https://portal.example.test",
             identityConnection: identityConnection,
             userValidator: throwingValidator);
         await EnsureIdentityDatabaseAsync(app);
-        using (var validatorScope = app.Services.CreateScope())
+        using (IServiceScope validatorScope = app.Services.CreateScope())
         {
             Assert.Contains(
                 validatorScope.ServiceProvider.GetServices<IUserValidator<ApplicationUser>>(),
                 validator => ReferenceEquals(validator, throwingValidator));
         }
-        var target = await SeedUserAsync(app, AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(app);
+        ApplicationUser target = await SeedUserAsync(app, AdminEmail, Password, RoleNames.RVTAdmin);
+        HttpClient client = CreateClient(app);
         await LoginAsync(client);
-        using var update = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
+        using HttpResponseMessage update = await client.PutAsJsonAsync("/api/auth/profile", new UpdateProfileRequest
         {
             Email = requestedEmail,
             Name = "Exception Safe Admin",
             MobilePhone = "07333333333",
             CompanyRole = "Operations"
         });
-        var confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
+        Uri confirmationUri = new(messenger.EmailChangeCallbackUrl!);
 
-        using var failedConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
-        var rolledBackUser = await FindUserByIdAsync(app, target.Id);
+        using HttpResponseMessage failedConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        ApplicationUser rolledBackUser = await FindUserByIdAsync(app, target.Id);
 
         Assert.Equal(HttpStatusCode.InternalServerError, failedConfirmation.StatusCode);
         Assert.Equal(AdminEmail, rolledBackUser.Email);
@@ -572,8 +570,8 @@ public class SecurityHardeningTests
         Assert.True(rolledBackUser.EmailConfirmed);
 
         throwingValidator.ThrowEnabled = false;
-        using var retryConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
-        var confirmedUser = await FindUserByIdAsync(app, target.Id);
+        using HttpResponseMessage retryConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
+        ApplicationUser confirmedUser = await FindUserByIdAsync(app, target.Id);
 
         Assert.Equal(HttpStatusCode.OK, retryConfirmation.StatusCode);
         Assert.Equal(requestedEmail, confirmedUser.Email);
@@ -588,44 +586,44 @@ public class SecurityHardeningTests
         const string originalEmail = "invited.original@rvt.test";
         const string requestedEmail = "invited.replacement@rvt.test";
         const string initialPassword = "N3wInvitedPass!";
-        var messenger = new RecordingAccountMessenger();
-        using var factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTMasterAdmin);
-        var target = await factory.SeedUserAsync(originalEmail, null, RoleNames.RVTAdmin, emailConfirmed: false);
-        var oldToken = await factory.GenerateEmailConfirmationTokenAsync(originalEmail);
-        var oldResetToken = await factory.GeneratePasswordResetTokenAsync(originalEmail);
-        var oldEncodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(oldToken));
-        var oldConfirmationPath = $"/api/auth/confirm-email?userId={Uri.EscapeDataString(target.Id)}&code={Uri.EscapeDataString(oldEncodedToken)}";
-        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
-        var adminClient = CreateClient(app);
-        var invitedClient = CreateClient(app);
+        ApplicationUser target = await factory.SeedUserAsync(originalEmail, null, RoleNames.RVTAdmin, emailConfirmed: false);
+        string oldToken = await factory.GenerateEmailConfirmationTokenAsync(originalEmail);
+        string oldResetToken = await factory.GeneratePasswordResetTokenAsync(originalEmail);
+        string oldEncodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(oldToken));
+        string oldConfirmationPath = $"/api/auth/confirm-email?userId={Uri.EscapeDataString(target.Id)}&code={Uri.EscapeDataString(oldEncodedToken)}";
+        using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
+        HttpClient adminClient = CreateClient(app);
+        HttpClient invitedClient = CreateClient(app);
         await LoginAsync(adminClient);
 
-        using var update = await adminClient.PutAsJsonAsync($"/api/users/{target.Id}", new UserMutationRequest
+        using HttpResponseMessage update = await adminClient.PutAsJsonAsync($"/api/users/{target.Id}", new UserMutationRequest
         {
             Email = requestedEmail,
             Name = "Replacement Invite",
             MobilePhone = "07444444444",
             Role = RoleNames.RVTAdmin
         });
-        var pendingUser = await FindUserByIdAsync(app, target.Id);
-        using var resetBeforeConfirmation = await invitedClient.PostAsJsonAsync("/api/auth/reset-password", new ResetPasswordRequest
+        ApplicationUser pendingUser = await FindUserByIdAsync(app, target.Id);
+        using HttpResponseMessage resetBeforeConfirmation = await invitedClient.PostAsJsonAsync("/api/auth/reset-password", new ResetPasswordRequest
         {
             Email = requestedEmail,
             Code = oldResetToken,
             Password = initialPassword,
             ConfirmPassword = initialPassword
         });
-        using var loginBeforeConfirmation = await invitedClient.PostAsJsonAsync("/api/auth/login", new LoginRequest
+        using HttpResponseMessage loginBeforeConfirmation = await invitedClient.PostAsJsonAsync("/api/auth/login", new LoginRequest
         {
             Email = requestedEmail,
             Password = initialPassword,
             RememberMe = false
         });
-        using var forgotBeforeConfirmation = await invitedClient.PostAsJsonAsync(
+        using HttpResponseMessage forgotBeforeConfirmation = await invitedClient.PostAsJsonAsync(
             "/api/auth/forgot-password",
             new ForgotPasswordRequest { Email = requestedEmail });
-        using var oldConfirmation = await invitedClient.GetAsync(oldConfirmationPath);
+        using HttpResponseMessage oldConfirmation = await invitedClient.GetAsync(oldConfirmationPath);
 
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         Assert.Equal(requestedEmail, pendingUser.Email);
@@ -641,20 +639,20 @@ public class SecurityHardeningTests
         Assert.Null(messenger.PasswordResetRecipient);
         Assert.Equal(HttpStatusCode.NotFound, oldConfirmation.StatusCode);
 
-        var newConfirmationUri = new Uri(messenger.PasswordSetCallbackUrl!);
-        var newConfirmationQuery = QueryHelpers.ParseQuery(newConfirmationUri.Query);
-        var newConfirmationCode = newConfirmationQuery["code"].ToString();
-        var newConfirmationPath = $"/api/auth/confirm-email?userId={Uri.EscapeDataString(target.Id)}&code={Uri.EscapeDataString(newConfirmationCode)}";
-        using var newConfirmation = await invitedClient.GetAsync(newConfirmationPath);
-        using var setInitialPassword = await invitedClient.PostAsJsonAsync("/api/auth/confirm-email", new SetInitialPasswordRequest
+        Uri newConfirmationUri = new(messenger.PasswordSetCallbackUrl);
+        Dictionary<string, StringValues> newConfirmationQuery = QueryHelpers.ParseQuery(newConfirmationUri.Query);
+        string newConfirmationCode = newConfirmationQuery["code"].ToString();
+        string newConfirmationPath = $"/api/auth/confirm-email?userId={Uri.EscapeDataString(target.Id)}&code={Uri.EscapeDataString(newConfirmationCode)}";
+        using HttpResponseMessage newConfirmation = await invitedClient.GetAsync(newConfirmationPath);
+        using HttpResponseMessage setInitialPassword = await invitedClient.PostAsJsonAsync("/api/auth/confirm-email", new SetInitialPasswordRequest
         {
             UserId = target.Id,
             Code = newConfirmationCode,
             NewPassword = initialPassword,
             ConfirmPassword = initialPassword
         });
-        var authState = await invitedClient.GetFromJsonAsync<AuthStateResponse>("/api/auth/me");
-        var onboardedUser = await FindUserByIdAsync(app, target.Id);
+        AuthStateResponse? authState = await invitedClient.GetFromJsonAsync<AuthStateResponse>("/api/auth/me");
+        ApplicationUser onboardedUser = await FindUserByIdAsync(app, target.Id);
 
         Assert.Equal(HttpStatusCode.OK, newConfirmation.StatusCode);
         Assert.Equal(HttpStatusCode.OK, setInitialPassword.StatusCode);
@@ -670,20 +668,20 @@ public class SecurityHardeningTests
     public async Task ForgotPassword_EmailProviderFailure_MatchesUnknownAccountResponse()
     {
         const string providerDetail = "sendgrid-private-diagnostic";
-        var logs = new ListLoggerProvider();
-        var messenger = new RecordingAccountMessenger(EmailDeliveryResult.Failure(providerDetail));
-        using var factory = new SpaTestApplicationFactory();
+        ListLoggerProvider logs = new();
+        RecordingAccountMessenger messenger = new(EmailDeliveryResult.Failure(providerDetail));
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedUserAsync("unconfirmed@rvt.test", Password, RoleNames.RVTAdmin, emailConfirmed: false);
-        using var app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test", logs);
-        var client = CreateClient(app);
+        using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test", logs);
+        HttpClient client = CreateClient(app);
 
-        using var known = await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest { Email = AdminEmail });
-        using var unknown = await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest { Email = "missing@rvt.test" });
-        using var unconfirmed = await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest { Email = "unconfirmed@rvt.test" });
-        var knownBody = await known.Content.ReadAsStringAsync();
-        var unknownBody = await unknown.Content.ReadAsStringAsync();
-        var unconfirmedBody = await unconfirmed.Content.ReadAsStringAsync();
+        using HttpResponseMessage known = await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest { Email = AdminEmail });
+        using HttpResponseMessage unknown = await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest { Email = "missing@rvt.test" });
+        using HttpResponseMessage unconfirmed = await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest { Email = "unconfirmed@rvt.test" });
+        string knownBody = await known.Content.ReadAsStringAsync();
+        string unknownBody = await unknown.Content.ReadAsStringAsync();
+        string unconfirmedBody = await unconfirmed.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
         Assert.Equal(unknown.StatusCode, known.StatusCode);
@@ -702,13 +700,13 @@ public class SecurityHardeningTests
     // Function summary: Verifies explicitly trusted proxy addresses and networks can supply the original HTTPS scheme.
     public async Task ForwardedProto_FromConfiguredProxyOrNetwork_IsHonored(string settingKey, string settingValue)
     {
-        using var factory = new SpaTestApplicationFactory();
-        using var app = factory.WithWebHostBuilder(builder =>
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> app = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting(settingKey, settingValue);
         });
 
-        var context = await app.Server.SendAsync(request => ConfigureForwardedRequest(request, IPAddress.Loopback));
+        HttpContext context = await app.Server.SendAsync(request => ConfigureForwardedRequest(request, IPAddress.Loopback));
 
         Assert.Equal("https", context.Request.Scheme);
         Assert.Equal(IPAddress.Parse("203.0.113.25"), context.Connection.RemoteIpAddress);
@@ -718,13 +716,13 @@ public class SecurityHardeningTests
     // Function summary: Verifies forwarded headers are ignored when the immediate proxy is not explicitly trusted.
     public async Task ForwardedProto_FromUntrustedProxy_IsIgnored()
     {
-        using var factory = new SpaTestApplicationFactory(authRatePermitLimit: 1);
-        using var app = factory.WithWebHostBuilder(builder =>
+        using SpaTestApplicationFactory factory = new(authRatePermitLimit: 1);
+        using WebApplicationFactory<Program> app = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("ForwardedHeaders:KnownProxies:0", "198.51.100.10");
         });
 
-        var context = await app.Server.SendAsync(request => ConfigureForwardedRequest(request, IPAddress.Loopback));
+        HttpContext context = await app.Server.SendAsync(request => ConfigureForwardedRequest(request, IPAddress.Loopback));
 
         Assert.Equal("http", context.Request.Scheme);
         Assert.Equal(IPAddress.Loopback, context.Connection.RemoteIpAddress);
@@ -734,14 +732,14 @@ public class SecurityHardeningTests
     // Function summary: Verifies forwarded-host trust remains disabled and framework loopback defaults are cleared.
     public void ForwardedHeaders_TrustOnlyConfiguredSources_AndNeverForwardedHost()
     {
-        using var factory = new SpaTestApplicationFactory();
-        using var app = factory.WithWebHostBuilder(builder =>
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> app = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("ForwardedHeaders:KnownProxies:0", "198.51.100.10");
         });
         _ = app.CreateClient();
 
-        var options = app.Services.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;
+        ForwardedHeadersOptions options = app.Services.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;
 
         Assert.Equal(ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto, options.ForwardedHeaders);
         Assert.False(options.ForwardedHeaders.HasFlag(ForwardedHeaders.XForwardedHost));
@@ -754,14 +752,14 @@ public class SecurityHardeningTests
     // Function summary: Handles the supplied correlation id with unsafe characters is not reflected workflow for this module.
     public async Task SuppliedCorrelationId_WithUnsafeCharacters_IsNotReflected()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var client = CreateClient(factory);
+        using SpaTestApplicationFactory factory = new();
+        HttpClient client = CreateClient(factory);
         const string malicious = "forged value <script> with spaces";
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/health");
+        using HttpRequestMessage request = new(HttpMethod.Get, "/api/health");
         request.Headers.TryAddWithoutValidation(ApiDiagnostics.CorrelationIdHeader, malicious);
 
-        using var response = await client.SendAsync(request);
-        var echoed = response.Headers.TryGetValues(ApiDiagnostics.CorrelationIdHeader, out var values)
+        using HttpResponseMessage response = await client.SendAsync(request);
+        string? echoed = response.Headers.TryGetValues(ApiDiagnostics.CorrelationIdHeader, out IEnumerable<string>? values)
             ? values.FirstOrDefault()
             : null;
 
@@ -793,7 +791,7 @@ public class SecurityHardeningTests
     // Function summary: Evaluates documented anonymous API route for the current decision point.
     private static bool IsDocumentedAnonymousApiRoute(RouteEndpoint endpoint)
     {
-        var route = endpoint.RoutePattern.RawText ?? "";
+        string route = endpoint.RoutePattern.RawText ?? "";
         return route.StartsWith("api/auth", StringComparison.OrdinalIgnoreCase) ||
             route.StartsWith("api/health", StringComparison.OrdinalIgnoreCase) ||
             route.StartsWith("api/report-content", StringComparison.OrdinalIgnoreCase);
@@ -878,7 +876,7 @@ public class SecurityHardeningTests
                 }
                 if (userValidator is not null)
                 {
-                    services.AddSingleton<IUserValidator<ApplicationUser>>(userValidator);
+                    services.AddSingleton(userValidator);
                 }
             });
             if (loggerProvider is not null)
@@ -895,8 +893,8 @@ public class SecurityHardeningTests
     // Function summary: Creates the relational Identity schema used to prove real transaction rollback behavior.
     private static async Task EnsureIdentityDatabaseAsync(WebApplicationFactory<Program> factory)
     {
-        using var scope = factory.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        using IServiceScope scope = factory.Services.CreateScope();
+        ApplicationDbContext context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await context.Database.EnsureCreatedAsync();
         Assert.True(context.Database.IsRelational());
     }
@@ -908,30 +906,30 @@ public class SecurityHardeningTests
         string? password,
         string roleName)
     {
-        using var scope = factory.Services.CreateScope();
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        foreach (var role in new[] { RoleNames.RVTMasterAdmin, RoleNames.RVTAdmin, RoleNames.RVTInstaller, RoleNames.CompanyUser })
+        using IServiceScope scope = factory.Services.CreateScope();
+        RoleManager<IdentityRole> roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        foreach (string? role in new[] { RoleNames.RVTMasterAdmin, RoleNames.RVTAdmin, RoleNames.RVTInstaller, RoleNames.CompanyUser })
         {
             if (!await roleManager.RoleExistsAsync(role))
             {
-                var roleResult = await roleManager.CreateAsync(new IdentityRole(role));
+                IdentityResult roleResult = await roleManager.CreateAsync(new IdentityRole(role));
                 Assert.True(roleResult.Succeeded, string.Join("; ", roleResult.Errors.Select(error => error.Description)));
             }
         }
 
-        var user = new ApplicationUser
+        ApplicationUser user = new()
         {
             Email = email,
             UserName = email,
             EmailConfirmed = true,
             Name = email.Split('@')[0]
         };
-        var createResult = password is null
+        IdentityResult createResult = password is null
             ? await userManager.CreateAsync(user)
             : await userManager.CreateAsync(user, password);
         Assert.True(createResult.Succeeded, string.Join("; ", createResult.Errors.Select(error => error.Description)));
-        var addRoleResult = await userManager.AddToRoleAsync(user, roleName);
+        IdentityResult addRoleResult = await userManager.AddToRoleAsync(user, roleName);
         Assert.True(addRoleResult.Succeeded, string.Join("; ", addRoleResult.Errors.Select(error => error.Description)));
         return user;
     }
@@ -939,18 +937,18 @@ public class SecurityHardeningTests
     // Function summary: Loads one Identity user from the application under test for persistence assertions.
     private static async Task<ApplicationUser> FindUserByIdAsync(WebApplicationFactory<Program> factory, string userId)
     {
-        using var scope = factory.Services.CreateScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
+        using IServiceScope scope = factory.Services.CreateScope();
+        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         return await userManager.FindByIdAsync(userId) ?? throw new InvalidOperationException($"User {userId} was not found.");
     }
 
     // Function summary: Sets one test user's username through Identity to create or release deterministic collision state.
     private static async Task SetUserNameAsync(WebApplicationFactory<Program> factory, string userId, string userName)
     {
-        using var scope = factory.Services.CreateScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
-        var user = await userManager.FindByIdAsync(userId) ?? throw new InvalidOperationException($"User {userId} was not found.");
-        var result = await userManager.SetUserNameAsync(user, userName);
+        using IServiceScope scope = factory.Services.CreateScope();
+        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        ApplicationUser user = await userManager.FindByIdAsync(userId) ?? throw new InvalidOperationException($"User {userId} was not found.");
+        IdentityResult result = await userManager.SetUserNameAsync(user, userName);
         if (!result.Succeeded)
         {
             throw new InvalidOperationException(string.Join("; ", result.Errors.Select(error => error.Description)));
@@ -1025,7 +1023,7 @@ public class SecurityHardeningTests
         private readonly ConcurrentQueue<string> messages = new();
 
         // Function summary: Maps list into the shape required by callers.
-        public IReadOnlyCollection<string> Messages => messages.ToList();
+        public IReadOnlyCollection<string> Messages => [.. messages];
 
         // Function summary: Creates logger data for the current workflow.
         public ILogger CreateLogger(string categoryName)

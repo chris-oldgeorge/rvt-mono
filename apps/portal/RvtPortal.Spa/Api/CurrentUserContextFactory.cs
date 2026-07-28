@@ -4,7 +4,6 @@
 
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
-using RVT.Entities;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Data;
 
@@ -34,15 +33,15 @@ public sealed class CurrentUserContextFactory : ICurrentUserContextFactory
             return new PortalUserContext(null, null, null, false, false, false);
         }
 
-        var user = await userManager.GetUserAsync(principal);
-        var userId = Guid.TryParse(user?.Id, out var parsedUserId) ? parsedUserId : (Guid?)null;
+        ApplicationUser? user = await userManager.GetUserAsync(principal);
+        Guid? userId = Guid.TryParse(user?.Id, out Guid parsedUserId) ? parsedUserId : null;
         IReadOnlyCollection<string> roles = user == null
             ? []
             : (await userManager.GetRolesAsync(user)).ToArray();
-        var isAdmin = roles.Contains(RoleNames.RVTMasterAdmin, StringComparer.Ordinal) ||
+        bool isAdmin = roles.Contains(RoleNames.RVTMasterAdmin, StringComparer.Ordinal) ||
             roles.Contains(RoleNames.RVTAdmin, StringComparer.Ordinal);
-        var isInstaller = roles.Contains(RoleNames.RVTInstaller, StringComparer.Ordinal);
-        var isCompanyUser = roles.Contains(RoleNames.CompanyUser, StringComparer.Ordinal);
+        bool isInstaller = roles.Contains(RoleNames.RVTInstaller, StringComparer.Ordinal);
+        bool isCompanyUser = roles.Contains(RoleNames.CompanyUser, StringComparer.Ordinal);
 
         return new PortalUserContext(
             userId,

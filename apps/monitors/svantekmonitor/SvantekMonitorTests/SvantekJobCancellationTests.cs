@@ -38,13 +38,13 @@ public sealed class SvantekJobCancellationTests
     [TestMethod]
     public async Task MonitorJobRunner_PassesTheExactTokenToEveryScheduledServiceMethod()
     {
-        using var cancellation = new CancellationTokenSource();
-        var token = cancellation.Token;
-        var service = CreateStrictJobsMock(token);
+        using CancellationTokenSource cancellation = new();
+        CancellationToken token = cancellation.Token;
+        Mock<ISvantekMonitorJobs> service = CreateStrictJobsMock(token);
 
-        foreach (var jobName in JobNames)
+        foreach (string jobName in JobNames)
         {
-            var result = await InvokeRunnerAsync(jobName, service.Object, token);
+            int result = await InvokeRunnerAsync(jobName, service.Object, token);
             Assert.AreEqual(0, result, jobName);
         }
 
@@ -54,23 +54,23 @@ public sealed class SvantekJobCancellationTests
     [TestMethod]
     public async Task MonitorJobDispatcher_PassesTheExactTokenThroughTheRunner()
     {
-        using var cancellation = new CancellationTokenSource();
-        var token = cancellation.Token;
-        var service = new Mock<ISvantekMonitorJobs>(MockBehavior.Strict);
+        using CancellationTokenSource cancellation = new();
+        CancellationToken token = cancellation.Token;
+        Mock<ISvantekMonitorJobs> service = new(MockBehavior.Strict);
         service.Setup(jobs => jobs.StoreMonitorsAsync(token)).Returns(Task.CompletedTask);
-        var dispatcherType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.SvantekMonitorJobDispatcher");
+        Type? dispatcherType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.SvantekMonitorJobDispatcher");
         Assert.IsNotNull(dispatcherType);
-        var dispatcher = Activator.CreateInstance(
+        object? dispatcher = Activator.CreateInstance(
             dispatcherType,
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             binder: null,
             args: [service.Object],
             culture: null);
         Assert.IsNotNull(dispatcher);
-        var runMethod = dispatcherType.GetMethod("RunAsync");
+        MethodInfo? runMethod = dispatcherType.GetMethod("RunAsync");
         Assert.IsNotNull(runMethod);
 
-        var runTask = runMethod.Invoke(dispatcher, ["StoreMonitors", token]) as Task<int>;
+        Task<int>? runTask = runMethod.Invoke(dispatcher, ["StoreMonitors", token]) as Task<int>;
 
         Assert.IsNotNull(runTask);
         Assert.AreEqual(0, await runTask);
@@ -80,18 +80,18 @@ public sealed class SvantekJobCancellationTests
     [TestMethod]
     public void AddSvantekMonitor_RegistersJobsAsSingletonAlias_AndDispatcherDependsOnInterface()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddLogging();
-        var configuration = new ConfigurationBuilder().Build();
+        IConfigurationRoot configuration = new ConfigurationBuilder().Build();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSvantekMonitor(configuration);
 
-        using var provider = services.BuildServiceProvider();
-        var concrete = provider.GetRequiredService<SvantekService>();
-        var jobs = provider.GetRequiredService<ISvantekMonitorJobs>();
-        var dispatcherType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.SvantekMonitorJobDispatcher");
+        using ServiceProvider provider = services.BuildServiceProvider();
+        SvantekService concrete = provider.GetRequiredService<SvantekService>();
+        ISvantekMonitorJobs jobs = provider.GetRequiredService<ISvantekMonitorJobs>();
+        Type? dispatcherType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.SvantekMonitorJobDispatcher");
         Assert.IsNotNull(dispatcherType);
-        var serviceConstructor = dispatcherType.GetConstructor(
+        ConstructorInfo? serviceConstructor = dispatcherType.GetConstructor(
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             binder: null,
             types: [typeof(ISvantekMonitorJobs)],
@@ -104,16 +104,16 @@ public sealed class SvantekJobCancellationTests
     [TestMethod]
     public void MonitorJobDispatcher_WithoutJobs_IdentifiesTheInterfaceDependency()
     {
-        var dispatcherType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.SvantekMonitorJobDispatcher");
+        Type? dispatcherType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.SvantekMonitorJobDispatcher");
         Assert.IsNotNull(dispatcherType);
-        var dispatcher = Activator.CreateInstance(dispatcherType, nonPublic: true);
+        object? dispatcher = Activator.CreateInstance(dispatcherType, nonPublic: true);
         Assert.IsNotNull(dispatcher);
-        var runMethod = dispatcherType.GetMethod("RunAsync");
+        MethodInfo? runMethod = dispatcherType.GetMethod("RunAsync");
         Assert.IsNotNull(runMethod);
 
-        var invocation = Assert.ThrowsExactly<TargetInvocationException>(
+        TargetInvocationException invocation = Assert.ThrowsExactly<TargetInvocationException>(
             () => runMethod.Invoke(dispatcher, ["StoreMonitors", CancellationToken.None]));
-        var exception = Assert.IsInstanceOfType<InvalidOperationException>(invocation.InnerException);
+        InvalidOperationException exception = Assert.IsInstanceOfType<InvalidOperationException>(invocation.InnerException);
 
         StringAssert.Contains(exception.Message, nameof(ISvantekMonitorJobs));
     }
@@ -121,10 +121,10 @@ public sealed class SvantekJobCancellationTests
     [TestMethod]
     public async Task StoreNoiseLevelsAsync_UsesBoundedPastOnlyWindows_AndPassesTokenToGatewayAndDatabase()
     {
-        var utcNow = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
-        using var cancellation = new CancellationTokenSource();
-        var token = cancellation.Token;
-        var monitor = new NoiseMonitorReadDto(
+        DateTime utcNow = new(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
+        using CancellationTokenSource cancellation = new();
+        CancellationToken token = cancellation.Token;
+        NoiseMonitorReadDto monitor = new(
             Guid.NewGuid(),
             "fleet-1",
             "1001",
@@ -137,23 +137,23 @@ public sealed class SvantekJobCancellationTests
             false,
             SvantekApi.BatteryAlertType.Off,
             100);
-        var monitorQueries = new Mock<ISvantekMonitorQueries>(MockBehavior.Strict);
+        Mock<ISvantekMonitorQueries> monitorQueries = new(MockBehavior.Strict);
         monitorQueries.Setup(queries => queries.ReadMonitorListAsync(null, token))
             .ReturnsAsync([monitor]);
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
-        var requestedWindows = new List<(DateTime Start, DateTime End)>();
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        List<(DateTime Start, DateTime End)> requestedWindows = [];
         http.Setup(client => client.PostAsync(
                 "projects-get-result-data-multi-point.php",
                 It.IsAny<HttpContent>(),
                 token))
             .Callback((string _, HttpContent content, CancellationToken _) =>
             {
-                var multipart = (MultipartFormDataContent)content;
-                var dataPart = multipart.Single(part =>
+                MultipartFormDataContent multipart = (MultipartFormDataContent)content;
+                HttpContent dataPart = multipart.Single(part =>
                     part.Headers.ContentDisposition?.Name?.Trim('"') == "data");
-                var json = dataPart.ReadAsStringAsync(token).GetAwaiter().GetResult();
-                using var document = JsonDocument.Parse(json);
-                var argument = document.RootElement[0];
+                string json = dataPart.ReadAsStringAsync(token).GetAwaiter().GetResult();
+                using JsonDocument document = JsonDocument.Parse(json);
+                JsonElement argument = document.RootElement[0];
                 requestedWindows.Add((
                     DateTime.Parse(argument.GetProperty("time_from").GetString()!),
                     DateTime.Parse(argument.GetProperty("time_to").GetString()!)));
@@ -161,8 +161,8 @@ public sealed class SvantekJobCancellationTests
             .ReturnsAsync("""
                 {"status":"ok","data":[{"point":3,"data":{"status":"no_data","results":[]}}]}
                 """);
-        var operational = new Mock<ISvantekOperationalCommands>(MockBehavior.Strict);
-        var handler = new StoreNoiseLevelsHandler(
+        Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
+        StoreNoiseLevelsHandler handler = new(
             new SvantekHttpGateway(http.Object, "key"),
             new SvantekMonitorReader(monitorQueries.Object, testLocal: false),
             Mock.Of<ISvantekRuleQueries>(),
@@ -190,7 +190,7 @@ public sealed class SvantekJobCancellationTests
 
     private static Mock<ISvantekMonitorJobs> CreateStrictJobsMock(CancellationToken token)
     {
-        var service = new Mock<ISvantekMonitorJobs>(MockBehavior.Strict);
+        Mock<ISvantekMonitorJobs> service = new(MockBehavior.Strict);
         service.Setup(jobs => jobs.StoreMonitorsAsync(token)).Returns(Task.CompletedTask);
         service.Setup(jobs => jobs.StoreNoiseLevelsAsync(token)).Returns(Task.CompletedTask);
         service.Setup(jobs => jobs.NotifySiteAveragesAsync(token)).Returns(Task.CompletedTask);
@@ -205,16 +205,16 @@ public sealed class SvantekJobCancellationTests
         ISvantekMonitorJobs service,
         CancellationToken cancellationToken)
     {
-        var runnerType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.MonitorJobRunner");
+        Type? runnerType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.MonitorJobRunner");
         Assert.IsNotNull(runnerType);
-        var runMethod = runnerType.GetMethod(
+        MethodInfo? runMethod = runnerType.GetMethod(
             "RunAsync",
             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
             binder: null,
             types: [typeof(string), typeof(ISvantekMonitorJobs), typeof(CancellationToken)],
             modifiers: null);
         Assert.IsNotNull(runMethod);
-        var task = runMethod.Invoke(null, [jobName, service, cancellationToken]) as Task<int>;
+        Task<int>? task = runMethod.Invoke(null, [jobName, service, cancellationToken]) as Task<int>;
         Assert.IsNotNull(task);
         return await task;
     }

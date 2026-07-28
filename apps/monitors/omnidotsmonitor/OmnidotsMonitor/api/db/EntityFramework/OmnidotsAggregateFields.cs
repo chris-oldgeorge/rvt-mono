@@ -20,7 +20,7 @@ public static class OmnidotsAggregateFields
 
     public static MonitorAggregateField<OmnidotsPeakLevelEntity> Resolve(string fieldName)
     {
-        return Fields.TryGetValue(fieldName, out var field)
+        return Fields.TryGetValue(fieldName, out MonitorAggregateField<OmnidotsPeakLevelEntity>? field)
             ? field
             : throw new NotSupportedException($"Unsupported Omnidots aggregate field '{fieldName}'.");
     }

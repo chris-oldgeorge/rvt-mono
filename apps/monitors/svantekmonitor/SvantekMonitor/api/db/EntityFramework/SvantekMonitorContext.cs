@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
@@ -28,7 +29,7 @@ public sealed class SvantekMonitorContext : MonitorDbContextBase
 
         modelBuilder.Entity<NotificationEntity>(entity =>
         {
-            var recordingLink = entity.Property<string?>("RecordingLink").HasColumnName("recording_link");
+            PropertyBuilder<string?> recordingLink = entity.Property<string?>("RecordingLink").HasColumnName("recording_link");
             recordingLink.Metadata.SetBeforeSaveBehavior(PropertySaveBehavior.Ignore);
             recordingLink.Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Save);
         });
@@ -124,7 +125,7 @@ public sealed class SvantekMonitorContext : MonitorDbContextBase
             return null;
         }
 
-        var normalized = value.Trim();
+        string normalized = value.Trim();
         if (normalized == "1")
         {
             return true;
@@ -135,7 +136,7 @@ public sealed class SvantekMonitorContext : MonitorDbContextBase
             return false;
         }
 
-        if (bool.TryParse(normalized, out var parsed))
+        if (bool.TryParse(normalized, out bool parsed))
         {
             return parsed;
         }

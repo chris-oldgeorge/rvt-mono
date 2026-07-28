@@ -20,7 +20,7 @@ public sealed class ReportingMonitorOptions
 
     public static ReportingMonitorOptions Bind(IConfiguration configuration)
     {
-        var section = configuration.GetSection(SectionName);
+        IConfigurationSection section = configuration.GetSection(SectionName);
         return new ReportingMonitorOptions
         {
             EmailEnabled = section.GetValue<bool?>("EMAIL_ENABLED") ?? true,
@@ -38,7 +38,7 @@ public sealed class ReportingMonitorOptions
 
     public void Validate()
     {
-        var failures = new List<string>();
+        List<string> failures = [];
         if (AiSummaryTimeoutSeconds <= 0)
         {
             failures.Add("AiSummaryTimeoutSeconds must be positive.");

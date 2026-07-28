@@ -65,7 +65,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         {
             using HttpClient operationClient = httpClientFactory.CreateClient(
                 MicrosoftGraphMailServiceCollectionExtensions.HttpClientName);
-            var operationAdapter = new MicrosoftGraphEmailAdapter(
+            MicrosoftGraphEmailAdapter operationAdapter = new(
                 operationClient,
                 tokenProvider,
                 options);
@@ -83,7 +83,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
             ? null
             : [.. request.Attachments.Select(ToSmallAttachment)];
         bool hasHtmlBody = !string.IsNullOrWhiteSpace(request.HtmlBody);
-        var payload = new GraphSendMailRequest(
+        GraphSendMailRequest payload = new(
             new GraphMessage(
                 request.Subject,
                 new GraphItemBody(
@@ -93,7 +93,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
                 attachments),
             true);
         string json = JsonSerializer.Serialize(payload, MicrosoftGraphJsonContext.Default.GraphSendMailRequest);
-        var uri = new Uri(
+        Uri uri = new(
             GraphBaseUri,
             $"users/{Uri.EscapeDataString(options.SenderAddress)}/sendMail");
 
@@ -106,13 +106,13 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         CancellationToken cancellationToken)
     {
         GraphItemBody body = Body(request);
-        var draft = new GraphMessage(
+        GraphMessage draft = new(
             request.Subject,
             body,
             [new GraphRecipient(new GraphEmailAddress(request.Recipient))],
             null);
         string senderPath = $"users/{Uri.EscapeDataString(options.SenderAddress)}";
-        var draftUri = new Uri(GraphBaseUri, $"{senderPath}/messages");
+        Uri draftUri = new(GraphBaseUri, $"{senderPath}/messages");
         string draftJson = JsonSerializer.Serialize(
             draft,
             MicrosoftGraphJsonContext.Default.GraphMessage);
@@ -181,7 +181,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         EmailAttachment attachment,
         CancellationToken cancellationToken)
     {
-        var request = new GraphUploadSessionRequest(new GraphAttachmentItem(
+        GraphUploadSessionRequest request = new(new GraphAttachmentItem(
             "file",
             attachment.FileName,
             attachment.Length,
@@ -251,7 +251,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
                 read += current;
             }
 
-            using var message = new HttpRequestMessage(HttpMethod.Put, session.UploadUrl);
+            using HttpRequestMessage message = new(HttpMethod.Put, session.UploadUrl);
             message.Content = new ByteArrayContent(buffer, 0, read);
             message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             message.Content.Headers.ContentLength = read;
@@ -306,7 +306,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
     private static GraphFileAttachment ToSmallAttachment(EmailAttachment attachment)
     {
         using Stream stream = attachment.OpenRead();
-        using var buffer = new MemoryStream();
+        using MemoryStream buffer = new();
         stream.CopyTo(buffer);
         return new GraphFileAttachment(
             "#microsoft.graph.fileAttachment",
@@ -351,7 +351,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
                 "Authentication");
         }
 
-        using var message = new HttpRequestMessage(HttpMethod.Post, uri);
+        using HttpRequestMessage message = new(HttpMethod.Post, uri);
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         message.Content = new StringContent(json, Encoding.UTF8, "application/json");
         HttpResponseMessage response;

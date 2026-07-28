@@ -64,7 +64,7 @@ public sealed class ReportContentApplicationService : IReportContentApplicationS
         string? internalKey,
         CancellationToken cancellationToken)
     {
-        var configuredKey = configuration["ReportContent:InternalApiKey"];
+        string? configuredKey = configuration["ReportContent:InternalApiKey"];
         if (string.IsNullOrWhiteSpace(configuredKey))
         {
             return ReportContentFileResult.Failed(ReportContentFailureKind.ServiceUnavailable);
@@ -75,7 +75,7 @@ public sealed class ReportContentApplicationService : IReportContentApplicationS
             return ReportContentFileResult.Failed(ReportContentFailureKind.Unauthorized);
         }
 
-        var siteExists = await domainContext.Sites
+        bool siteExists = await domainContext.Sites
             .AsNoTracking()
             .AnyAsync(site => site.Id == siteId && !site.Archived, cancellationToken);
         if (!siteExists)
@@ -83,7 +83,7 @@ public sealed class ReportContentApplicationService : IReportContentApplicationS
             return ReportContentFileResult.Failed(ReportContentFailureKind.NotFound);
         }
 
-        var logo = await customerLogoStorage.OpenReadAsync(siteId, cancellationToken);
+        StoredContentFile? logo = await customerLogoStorage.OpenReadAsync(siteId, cancellationToken);
         return logo is null
             ? ReportContentFileResult.Failed(ReportContentFailureKind.NotFound)
             : ReportContentFileResult.Success(logo);
@@ -93,8 +93,8 @@ public sealed class ReportContentApplicationService : IReportContentApplicationS
     private static bool FixedTimeEquals(string provided, string configured)
     {
         // Hash both to a fixed length first so the comparison length does not leak via timing.
-        var providedHash = SHA256.HashData(Encoding.UTF8.GetBytes(provided));
-        var configuredHash = SHA256.HashData(Encoding.UTF8.GetBytes(configured));
+        byte[] providedHash = SHA256.HashData(Encoding.UTF8.GetBytes(provided));
+        byte[] configuredHash = SHA256.HashData(Encoding.UTF8.GetBytes(configured));
         return CryptographicOperations.FixedTimeEquals(providedHash, configuredHash);
     }
 }

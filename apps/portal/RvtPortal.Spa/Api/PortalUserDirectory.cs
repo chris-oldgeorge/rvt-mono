@@ -21,11 +21,11 @@ public sealed class PortalUserDirectory : IPortalUserDirectory
 
     public async Task<IReadOnlyList<PortalUserProfile>> ListUsersAsync(CancellationToken cancellationToken)
     {
-        var users = await userManager.Users.AsNoTracking().ToListAsync(cancellationToken);
-        var profiles = new List<PortalUserProfile>();
-        foreach (var user in users)
+        List<ApplicationUser> users = await userManager.Users.AsNoTracking().ToListAsync(cancellationToken);
+        List<PortalUserProfile> profiles = new();
+        foreach (ApplicationUser? user in users)
         {
-            var profile = await BuildProfileAsync(user);
+            PortalUserProfile? profile = await BuildProfileAsync(user);
             if (profile != null)
             {
                 profiles.Add(profile);
@@ -37,19 +37,19 @@ public sealed class PortalUserDirectory : IPortalUserDirectory
 
     public async Task<PortalUserProfile?> FindByIdAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(userId.ToString());
+        ApplicationUser? user = await userManager.FindByIdAsync(userId.ToString());
         return user == null ? null : await BuildProfileAsync(user);
     }
 
     // Function summary: Converts one Identity user into the business-layer user profile shape.
     private async Task<PortalUserProfile?> BuildProfileAsync(ApplicationUser user)
     {
-        if (!Guid.TryParse(user.Id, out var parsedId))
+        if (!Guid.TryParse(user.Id, out Guid parsedId))
         {
             return null;
         }
 
-        var roles = await userManager.GetRolesAsync(user);
+        IList<string> roles = await userManager.GetRolesAsync(user);
         return new PortalUserProfile(
             parsedId,
             user.Id,
@@ -60,6 +60,6 @@ public sealed class PortalUserDirectory : IPortalUserDirectory
             user.PhoneNumber,
             user.CompanyRole,
             user.EmailConfirmed,
-            roles.ToList());
+            [.. roles]);
     }
 }

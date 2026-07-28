@@ -12,15 +12,15 @@ public sealed class TestReportingDispatcher
     [Fact]
     public async Task RunAsync_GenerateScheduledReports_FromSingletonComposition_InvokesScopedGenerationService()
     {
-        var service = new RecordingReportGenerationService();
-        using var provider = ReportingServiceProviderFactory.Create(services =>
+        RecordingReportGenerationService service = new();
+        using ServiceProvider provider = ReportingServiceProviderFactory.Create(services =>
         {
             services.RemoveAll<IReportGenerationService>();
             services.AddScoped<IReportGenerationService>(_ => service);
         });
-        var dispatcher = provider.GetRequiredService<ReportingMonitorJobDispatcher>();
+        ReportingMonitorJobDispatcher dispatcher = provider.GetRequiredService<ReportingMonitorJobDispatcher>();
 
-        var result = await dispatcher.RunAsync("GenerateScheduledReports", CancellationToken.None);
+        int result = await dispatcher.RunAsync("GenerateScheduledReports", CancellationToken.None);
 
         Assert.Equal(0, result);
         Assert.Equal(1, service.CallCount);
@@ -30,10 +30,10 @@ public sealed class TestReportingDispatcher
     [Fact]
     public async Task RunAsync_GenerateScheduledReports_UsesCurrentUtcTimeAndReturnsZero()
     {
-        var service = new RecordingReportGenerationService();
-        var dispatcher = new ReportingMonitorJobDispatcher(new GenerateScheduledReportsHandler(service));
+        RecordingReportGenerationService service = new();
+        ReportingMonitorJobDispatcher dispatcher = new(new GenerateScheduledReportsHandler(service));
 
-        var result = await dispatcher.RunAsync("GenerateScheduledReports", CancellationToken.None);
+        int result = await dispatcher.RunAsync("GenerateScheduledReports", CancellationToken.None);
 
         Assert.Equal(0, result);
         Assert.Equal(1, service.CallCount);
@@ -44,7 +44,7 @@ public sealed class TestReportingDispatcher
     [Fact]
     public async Task RunAsync_UnknownJob_ReturnsTwoWithParameterlessDispatcher()
     {
-        var result = await new ReportingMonitorJobDispatcher()
+        int result = await new ReportingMonitorJobDispatcher()
             .RunAsync("GenerateAllReports", CancellationToken.None);
 
         Assert.Equal(2, result);

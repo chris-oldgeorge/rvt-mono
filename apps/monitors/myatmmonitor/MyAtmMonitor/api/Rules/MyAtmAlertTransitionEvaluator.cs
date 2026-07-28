@@ -22,7 +22,7 @@ public sealed class MyAtmAlertTransitionEvaluator
             return new MyAtmAlertTransition(isActive, false, null);
         }
 
-        var level = ReadLevel(rule.Field, sample);
+        double? level = ReadLevel(rule.Field, sample);
         if (!level.HasValue)
         {
             return new MyAtmAlertTransition(isActive, false, null);

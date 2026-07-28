@@ -15,9 +15,10 @@
 // - 2026-07-08 pending Replaced console archive error output with trace logging during cleanup review.
 
 using System.Data.Common;
+using Azure;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Azure.Storage.Blobs.Specialized;
-using Microsoft.Extensions.Configuration;
 using RvtPortal.Spa.Adapters.Storage;
 
 namespace RvtPortal.Spa.Adapters.Archive
@@ -77,11 +78,11 @@ namespace RvtPortal.Spa.Adapters.Archive
             // marks the site archived and reports success even though no archive exists. The caller decides what
             // a failed export means (ArchiveAsync returns 503 and does not archive). The workspace is disposed on
             // the way out either way.
-            await using var workspace = workspaceFactory.Create(siteId);
+            await using SiteArchiveWorkspace workspace = workspaceFactory.Create(siteId);
             Directory.CreateDirectory(workspace.RootPath);
             Directory.CreateDirectory(workspace.FilesPath);
 
-            foreach (var export in queryCatalog.CsvExports)
+            foreach (ArchiveCsvExport export in queryCatalog.CsvExports)
             {
                 await export.WriteAsync(queryExecutor, csvWriter, workspace.FilesPath, siteId, cancellationToken);
             }
@@ -93,13 +94,13 @@ namespace RvtPortal.Spa.Adapters.Archive
         // Function summary: Streams report links and downloads linked report blobs into the archive workspace.
         private async Task DownloadReportsAsync(string filesDirectory, Guid siteId, CancellationToken cancellationToken)
         {
-            await foreach (var report in queryExecutor
+            await foreach (ReportArchiveRow? report in queryExecutor
                 .StreamAsync<ReportArchiveRow>(queryCatalog.ReportLinksSql, siteId, cancellationToken)
                 .WithCancellation(cancellationToken))
             {
                 if (!string.IsNullOrWhiteSpace(report.ReportLink))
                 {
-                    var filename = Path.GetFileName(new Uri(report.ReportLink).AbsolutePath);
+                    string filename = Path.GetFileName(new Uri(report.ReportLink).AbsolutePath);
                     await BlobToFolder(filename, filesDirectory, cancellationToken);
                 }
             }
@@ -110,9 +111,9 @@ namespace RvtPortal.Spa.Adapters.Archive
         {
             await System.IO.Compression.ZipFile.CreateFromDirectoryAsync(filesPath, zipFilePath, cancellationToken);
 
-            var monitorContainerClient = RequiredContainer(config.ArchiveContainer);
+            BlobContainerClient monitorContainerClient = RequiredContainer(config.ArchiveContainer);
 
-            var blobClient = monitorContainerClient.GetBlobClient(blobName);
+            BlobClient blobClient = monitorContainerClient.GetBlobClient(blobName);
             await blobClient.UploadAsync(zipFilePath, true, cancellationToken);
 
             BlockBlobClient blob = monitorContainerClient.GetBlockBlobClient(blobName);
@@ -127,7 +128,7 @@ namespace RvtPortal.Spa.Adapters.Archive
             if (!Uri.TryCreate(
                     durableArchiveUrl,
                     UriKind.Absolute,
-                    out var durableUri)
+                    out Uri? durableUri)
                 || (durableUri.Scheme != Uri.UriSchemeHttps
                     && durableUri.Scheme != Uri.UriSchemeHttp)
                 || !string.IsNullOrEmpty(durableUri.UserInfo)
@@ -151,10 +152,10 @@ namespace RvtPortal.Spa.Adapters.Archive
                     exception);
             }
 
-            var archiveContainer = RequiredContainer(config.ArchiveContainer);
-            var candidateBlob = archiveContainer.GetBlobClient(
+            BlobContainerClient archiveContainer = RequiredContainer(config.ArchiveContainer);
+            BlobClient candidateBlob = archiveContainer.GetBlobClient(
                 $"{siteId:N}/site-archive.zip");
-            var candidateArchive = new BlobUriBuilder(candidateBlob.Uri);
+            BlobUriBuilder candidateArchive = new(candidateBlob.Uri);
             if (!IdentifiesConfiguredContainer(
                     durableUri,
                     durableArchive,
@@ -174,7 +175,7 @@ namespace RvtPortal.Spa.Adapters.Archive
             }
 
             await candidateBlob.DeleteIfExistsAsync(
-                Azure.Storage.Blobs.Models.DeleteSnapshotsOption.IncludeSnapshots,
+                DeleteSnapshotsOption.IncludeSnapshots,
                 cancellationToken: cancellationToken);
         }
 
@@ -215,20 +216,20 @@ namespace RvtPortal.Spa.Adapters.Archive
         // Function summary: Downloads a report blob into the archive workspace.
         private async Task BlobToFolder(string blobName, string downloadFolder, CancellationToken cancellationToken)
         {
-            var downloadFilePath = Path.Combine(downloadFolder, blobName);
-            var containerClient = RequiredContainer(config.ReportContainer);
-            var blobClient = containerClient.GetBlobClient($"{config.ReportFolder}/{blobName}");
+            string downloadFilePath = Path.Combine(downloadFolder, blobName);
+            BlobContainerClient containerClient = RequiredContainer(config.ReportContainer);
+            BlobClient blobClient = containerClient.GetBlobClient($"{config.ReportFolder}/{blobName}");
 
             if (await blobClient.ExistsAsync(cancellationToken))
             {
-                var response = await blobClient.DownloadAsync(cancellationToken);
-                await using var fileStream = File.Create(downloadFilePath);
+                Response<BlobDownloadInfo> response = await blobClient.DownloadAsync(cancellationToken);
+                await using FileStream fileStream = File.Create(downloadFilePath);
                 await response.Value.Content.CopyToAsync(fileStream, cancellationToken);
             }
         }
 
         // Function summary: Resolves a required archive container through the shared blob-client factory.
-        private Azure.Storage.Blobs.BlobContainerClient RequiredContainer(string containerName)
+        private BlobContainerClient RequiredContainer(string containerName)
         {
             return blobStorageClientFactory.CreateContainerClient(containerName)
                 ?? throw new InvalidOperationException("Blob storage is not configured for site archives.");

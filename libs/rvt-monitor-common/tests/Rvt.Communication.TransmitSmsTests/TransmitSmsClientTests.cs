@@ -11,11 +11,11 @@ public sealed class TransmitSmsClientTests
     [TestMethod]
     public async Task SendAsync_PostsFormRequestWithBasicAuthentication()
     {
-        using var handler = new CapturingHandler(
+        using CapturingHandler handler = new(
             HttpStatusCode.OK,
             """{"error":{"code":"SUCCESS","description":"OK"}}""");
-        using var httpClient = new HttpClient(handler);
-        var client = new TransmitSmsClient(
+        using HttpClient httpClient = new(handler);
+        TransmitSmsClient client = new(
             httpClient,
             new Uri("https://api.transmitsms.com/send-sms.json"));
 
@@ -43,13 +43,13 @@ public sealed class TransmitSmsClientTests
     public async Task SendAsync_ApiFailureRetainsCodeButNotRawDescription()
     {
         const string rawDescription = "Invalid recipient raw-private-data";
-        using var handler = new CapturingHandler(
+        using CapturingHandler handler = new(
             HttpStatusCode.OK,
             "{\"error\":{\"code\":\"FIELD_INVALID\",\"description\":\"" + rawDescription + "\"}}");
-        using var httpClient = new HttpClient(handler);
-        var client = new TransmitSmsClient(httpClient);
+        using HttpClient httpClient = new(handler);
+        TransmitSmsClient client = new(httpClient);
 
-        var exception = await Assert.ThrowsExactlyAsync<TransmitSmsException>(() =>
+        TransmitSmsException exception = await Assert.ThrowsExactlyAsync<TransmitSmsException>(() =>
             client.SendAsync(
                 new TransmitSmsRequest("api-key", "api-secret", "bad", "private-body", null),
                 CancellationToken.None));
@@ -78,7 +78,7 @@ public sealed class TransmitSmsClientTests
                 ? null
                 : await request.Content.ReadAsStringAsync(cancellationToken);
 
-            var response = new HttpResponseMessage(statusCode)
+            HttpResponseMessage response = new(statusCode)
             {
                 Content = new StringContent(responseBody, Encoding.UTF8, "application/json")
             };

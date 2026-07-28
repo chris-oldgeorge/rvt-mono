@@ -14,7 +14,7 @@ public static class UserApiMapper
     {
         return new QueryUsersResponse
         {
-            Results = result.Page.Results.Select(ToListItem).ToList(),
+            Results = [.. result.Page.Results.Select(ToListItem)],
             Total = result.Page.Total,
             Page = result.Page.Page,
             PageSize = result.Page.PageSize,
@@ -34,18 +34,18 @@ public static class UserApiMapper
     {
         return new UserDetailResponse
         {
-            AvailableRoles = model.AvailableRoles.Select(ToOptionItem).ToList(),
-            Companies = model.Companies.Select(ToOptionItem).ToList()
+            AvailableRoles = [.. model.AvailableRoles.Select(ToOptionItem)],
+            Companies = [.. model.Companies.Select(ToOptionItem)]
         };
     }
 
     // Function summary: Maps a user detail application model to the existing API response contract.
     public static UserDetailResponse ToDetailResponse(UserDetailModel model)
     {
-        var response = new UserDetailResponse
+        UserDetailResponse response = new()
         {
-            AvailableRoles = model.AvailableRoles.Select(ToOptionItem).ToList(),
-            Companies = model.Companies.Select(ToOptionItem).ToList()
+            AvailableRoles = [.. model.AvailableRoles.Select(ToOptionItem)],
+            Companies = [.. model.Companies.Select(ToOptionItem)]
         };
         CopyUserFields(model, response);
         return response;
@@ -60,15 +60,15 @@ public static class UserApiMapper
             SiteName = model.SiteName,
             CompanyId = model.CompanyId,
             CompanyName = model.CompanyName,
-            AvailableUsers = model.AvailableUsers.Select(ToListItem).ToList(),
-            AssignedUsers = model.AssignedUsers.Select(ToSiteUserAssignmentItem).ToList()
+            AvailableUsers = [.. model.AvailableUsers.Select(ToListItem)],
+            AssignedUsers = [.. model.AssignedUsers.Select(ToSiteUserAssignmentItem)]
         };
     }
 
     // Function summary: Maps one user application model to the existing user list DTO.
     public static UserListItem ToListItem(UserListModel model)
     {
-        var item = new UserListItem();
+        UserListItem item = new();
         CopyUserFields(model, item);
         return item;
     }
@@ -76,7 +76,7 @@ public static class UserApiMapper
     // Function summary: Maps one assigned site user model to the existing API assignment DTO.
     private static SiteUserAssignmentItem ToSiteUserAssignmentItem(SiteUserAssignmentModel model)
     {
-        var item = new SiteUserAssignmentItem
+        SiteUserAssignmentItem item = new()
         {
             SiteContact = model.SiteContact
         };

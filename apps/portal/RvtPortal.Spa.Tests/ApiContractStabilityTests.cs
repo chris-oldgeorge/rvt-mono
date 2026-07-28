@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
-using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
 
@@ -20,7 +19,7 @@ public class ApiContractStabilityTests
     // Function summary: Verifies monitor routes consumed by the SPA remain stable while controller logic is refactored.
     public void MonitorRoutes_RemainStable()
     {
-        var routes = ApiRouteSnapshot.ForController<MonitorsController>();
+        IReadOnlyCollection<ApiRoute> routes = ApiRouteSnapshot.ForController<MonitorsController>();
 
         AssertRoute(routes, "GET", "api/monitors");
         AssertRoute(routes, "GET", "api/monitors/options");
@@ -43,7 +42,7 @@ public class ApiContractStabilityTests
     // Function summary: Verifies site routes consumed by the SPA remain stable while controller logic is refactored.
     public void SiteRoutes_RemainStable()
     {
-        var routes = ApiRouteSnapshot.ForController<SitesController>();
+        IReadOnlyCollection<ApiRoute> routes = ApiRouteSnapshot.ForController<SitesController>();
 
         AssertRoute(routes, "GET", "api/sites");
         AssertRoute(routes, "GET", "api/sites/options");
@@ -64,7 +63,7 @@ public class ApiContractStabilityTests
     // Function summary: Verifies report routes consumed by the SPA remain stable while controller logic is refactored.
     public void ReportRoutes_RemainStable()
     {
-        var reportRuleRoutes = ApiRouteSnapshot.ForController<ReportRulesController>();
+        IReadOnlyCollection<ApiRoute> reportRuleRoutes = ApiRouteSnapshot.ForController<ReportRulesController>();
         AssertRoute(reportRuleRoutes, "GET", "api/report-rules");
         AssertRoute(reportRuleRoutes, "GET", "api/report-rules/options");
         AssertRoute(reportRuleRoutes, "GET", "api/report-rules/{id:guid}");
@@ -78,11 +77,11 @@ public class ApiContractStabilityTests
         AssertRoute(reportRuleRoutes, "DELETE", "api/report-rules/{id:guid}/users/{userId:guid}");
         AssertRoute(reportRuleRoutes, "POST", "api/report-rules/{id:guid}/generation-requests");
 
-        var reportRoutes = ApiRouteSnapshot.ForController<ReportsController>();
+        IReadOnlyCollection<ApiRoute> reportRoutes = ApiRouteSnapshot.ForController<ReportsController>();
         AssertRoute(reportRoutes, "GET", "api/reports");
         AssertRoute(reportRoutes, "GET", "api/reports/{id:guid}");
 
-        var contentRoutes = ApiRouteSnapshot.ForController<ReportContentController>();
+        IReadOnlyCollection<ApiRoute> contentRoutes = ApiRouteSnapshot.ForController<ReportContentController>();
         AssertRoute(contentRoutes, "GET", "api/report-content/sites/{siteId:guid}/customer-logo");
     }
 
@@ -124,7 +123,7 @@ public class ApiContractStabilityTests
         AssertCrudRoutes<CompaniesController>("api/companies", idTemplate: "{id:guid}", hasOptions: false);
         AssertCrudRoutes<ContractsController>("api/contracts", idTemplate: "{id:guid}", hasOptions: true);
 
-        var users = ApiRouteSnapshot.ForController<UsersController>();
+        IReadOnlyCollection<ApiRoute> users = ApiRouteSnapshot.ForController<UsersController>();
         AssertRoute(users, "GET", "api/users");
         AssertRoute(users, "GET", "api/users/options");
         AssertRoute(users, "GET", "api/users/{id}");
@@ -146,7 +145,7 @@ public class ApiContractStabilityTests
     // Function summary: Verifies monitor list response JSON remains compatible with the handed-over React client.
     public void QueryMonitorsResponse_JsonShape_RemainsStable()
     {
-        var response = new QueryMonitorsResponse
+        QueryMonitorsResponse response = new()
         {
             Results =
             [
@@ -169,8 +168,8 @@ public class ApiContractStabilityTests
             State = MonitorListStates.All
         };
 
-        using var document = JsonDocument.Parse(JsonSerializer.Serialize(response, JsonOptions));
-        var root = document.RootElement;
+        using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(response, JsonOptions));
+        JsonElement root = document.RootElement;
 
         AssertJsonProperties(root, "results", "total", "page", "pageSize", "totalPages", "hasPreviousPage", "hasNextPage", "searchText", "sort", "sortDir", "state", "isScopedToCurrentUser", "canManage", "canUseInstallerTools");
         AssertJsonProperties(root.GetProperty("results")[0], "id", "deploymentId", "fleetNumber", "serialId", "manufacturer", "model", "firmwareVersion", "typeOfMonitor", "contractId", "siteId", "lastDataTime", "isAssigned", "isOffline", "hasAlerts", "hasCautions", "canEdit", "canAssign", "canInstallerEdit");
@@ -180,7 +179,7 @@ public class ApiContractStabilityTests
     // Function summary: Verifies site detail response JSON remains compatible with the handed-over React client.
     public void SiteDetailResponse_JsonShape_RemainsStable()
     {
-        var response = new EntityResponse<SiteDetailResponse>
+        EntityResponse<SiteDetailResponse> response = new()
         {
             Item = new SiteDetailResponse
             {
@@ -193,8 +192,8 @@ public class ApiContractStabilityTests
             }
         };
 
-        using var document = JsonDocument.Parse(JsonSerializer.Serialize(response, JsonOptions));
-        var item = document.RootElement.GetProperty("item");
+        using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(response, JsonOptions));
+        JsonElement item = document.RootElement.GetProperty("item");
 
         AssertJsonProperties(item, "id", "siteName", "customerLogoUrl", "startTime", "endTime", "satStartTime", "satEndTime", "sunStartTime", "sunEndTime", "operatingHours", "contractList", "monitors", "openNotifications", "archive", "companies", "availableContracts", "canManage");
         AssertJsonProperties(item.GetProperty("operatingHours")[0], "dayOfWeek", "dayName", "startTime", "endTime", "isClosed");
@@ -204,7 +203,7 @@ public class ApiContractStabilityTests
     // Function summary: Verifies report rule response JSON remains compatible with the handed-over React client.
     public void ReportRuleResponse_JsonShape_RemainsStable()
     {
-        var response = new EntityResponse<ReportRuleDetailResponse>
+        EntityResponse<ReportRuleDetailResponse> response = new()
         {
             Item = new ReportRuleDetailResponse
             {
@@ -221,8 +220,8 @@ public class ApiContractStabilityTests
             }
         };
 
-        using var document = JsonDocument.Parse(JsonSerializer.Serialize(response, JsonOptions));
-        var item = document.RootElement.GetProperty("item");
+        using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(response, JsonOptions));
+        JsonElement item = document.RootElement.GetProperty("item");
 
         AssertJsonProperties(item, "id", "siteId", "siteName", "frequency", "frequencyLabel", "dayOfWeek", "dayOfMonth", "reportName", "lastGenerated", "canManage", "sites", "frequencies", "daysOfWeek", "alertRuleGuidelines", "assignedUserCount");
         AssertJsonProperties(item.GetProperty("alertRuleGuidelines")[0], "monitorType", "title", "summary", "body", "articleSlug");
@@ -230,7 +229,7 @@ public class ApiContractStabilityTests
 
     private static void AssertCrudRoutes<TController>(string prefix, string idTemplate, bool hasOptions)
     {
-        var routes = ApiRouteSnapshot.ForController<TController>();
+        IReadOnlyCollection<ApiRoute> routes = ApiRouteSnapshot.ForController<TController>();
         AssertRoute(routes, "GET", prefix);
         if (hasOptions)
         {
@@ -250,7 +249,7 @@ public class ApiContractStabilityTests
 
     private static void AssertJsonProperties(JsonElement element, params string[] propertyNames)
     {
-        foreach (var propertyName in propertyNames)
+        foreach (string propertyName in propertyNames)
         {
             Assert.True(element.TryGetProperty(propertyName, out _), $"Expected JSON property '{propertyName}' was not found in {element}.");
         }
@@ -262,13 +261,12 @@ public class ApiContractStabilityTests
     {
         public static IReadOnlyCollection<ApiRoute> ForController<TController>()
         {
-            var controllerType = typeof(TController);
-            var controllerTemplate = controllerType.GetCustomAttribute<RouteAttribute>()?.Template ?? "";
-            return controllerType
+            Type controllerType = typeof(TController);
+            string controllerTemplate = controllerType.GetCustomAttribute<RouteAttribute>()?.Template ?? "";
+            return [.. controllerType
                 .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
                 .SelectMany(method => method.GetCustomAttributes<HttpMethodAttribute>(), (method, attribute) => new { method, attribute })
-                .SelectMany(item => item.attribute.HttpMethods.Select(httpMethod => new ApiRoute(httpMethod.ToUpperInvariant(), Combine(controllerTemplate, item.attribute.Template))))
-                .ToList();
+                .SelectMany(item => item.attribute.HttpMethods.Select(httpMethod => new ApiRoute(httpMethod.ToUpperInvariant(), Combine(controllerTemplate, item.attribute.Template))))];
         }
 
         private static string Combine(string controllerTemplate, string? actionTemplate)

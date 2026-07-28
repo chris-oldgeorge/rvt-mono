@@ -1,5 +1,5 @@
-using Rvt.Communication.Abstractions;
 using Rvt.Communication;
+using Rvt.Communication.Abstractions;
 
 namespace Rvt.CommunicationTests;
 
@@ -20,7 +20,7 @@ public sealed class NotificationMessageComposerTests
         string expectedPlainText,
         string expectedHtml)
     {
-        var result = new NotificationMessageComposer().Compose(
+        ComposedNotification result = new NotificationMessageComposer().Compose(
             kind,
             channel,
             MonitorName,
@@ -55,7 +55,7 @@ public sealed class NotificationMessageComposerTests
 
     public static IEnumerable<object[]> Templates()
     {
-        var alertHtml = Html(
+        string alertHtml = Html(
             "Your monitor has detected an alert above the safe limit set. <br/><br/>" +
             $"Click <a href='{CallbackUrl}'>here</a> to view the details. <br/><br/>" +
             "Many thanks From the RVT Group");

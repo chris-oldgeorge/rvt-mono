@@ -10,7 +10,7 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [TestMethod]
     public void PayloadV1_SerializesWithPascalCasePropertyNames()
     {
-        var json = JsonSerializer.Serialize(DeliveryFixture.ValidPayload);
+        string json = JsonSerializer.Serialize(DeliveryFixture.ValidPayload);
 
         Assert.Contains("\"NotificationId\"", json);
         Assert.Contains("\"Timestamp\"", json);
@@ -21,7 +21,7 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [TestMethod]
     public void DecodeV1_ReturnsValidPayload()
     {
-        var payload = MonitorDeliveryPayloadCodec.Decode(DeliveryFixture.Message());
+        MonitorDeliveryPayloadV1 payload = MonitorDeliveryPayloadCodec.Decode(DeliveryFixture.Message());
 
         Assert.AreEqual(DeliveryFixture.ValidPayload, payload);
     }
@@ -29,7 +29,7 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [TestMethod]
     public void Decode_RejectsUnsupportedPayloadVersion()
     {
-        var message = DeliveryFixture.Message() with { PayloadVersion = 2 };
+        MonitorDeliveryMessage message = DeliveryFixture.Message() with { PayloadVersion = 2 };
 
         Assert.ThrowsExactly<InvalidDataException>(() => MonitorDeliveryPayloadCodec.Decode(message));
     }
@@ -37,7 +37,7 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [TestMethod]
     public void DecodeV1_RejectsMalformedJson()
     {
-        var message = DeliveryFixture.Message(payload: "{ invalid json");
+        MonitorDeliveryMessage message = DeliveryFixture.Message(payload: "{ invalid json");
 
         Assert.ThrowsExactly<InvalidDataException>(() => MonitorDeliveryPayloadCodec.Decode(message));
     }
@@ -45,8 +45,8 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [TestMethod]
     public void DecodeV1_RejectsEmptySerialId()
     {
-        var payload = DeliveryFixture.ValidPayload with { SerialId = " " };
-        var message = DeliveryFixture.Message(payload: JsonSerializer.Serialize(payload));
+        MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with { SerialId = " " };
+        MonitorDeliveryMessage message = DeliveryFixture.Message(payload: JsonSerializer.Serialize(payload));
 
         Assert.ThrowsExactly<InvalidDataException>(() => MonitorDeliveryPayloadCodec.Decode(message));
     }
@@ -54,11 +54,11 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [TestMethod]
     public void DecodeV1_RejectsNonUtcTimestamp()
     {
-        var payload = DeliveryFixture.ValidPayload with
+        MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with
         {
             Timestamp = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Unspecified)
         };
-        var message = DeliveryFixture.Message(payload: JsonSerializer.Serialize(payload));
+        MonitorDeliveryMessage message = DeliveryFixture.Message(payload: JsonSerializer.Serialize(payload));
 
         Assert.ThrowsExactly<InvalidDataException>(() => MonitorDeliveryPayloadCodec.Decode(message));
     }
@@ -69,8 +69,8 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [DataRow(MonitorDeliveryKind.Sms)]
     public void DecodeV1_RejectsEmptyNotificationForAlertOrContactDelivery(MonitorDeliveryKind kind)
     {
-        var payload = DeliveryFixture.ValidPayload with { NotificationId = Guid.Empty };
-        var message = DeliveryFixture.Message(kind, JsonSerializer.Serialize(payload));
+        MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with { NotificationId = Guid.Empty };
+        MonitorDeliveryMessage message = DeliveryFixture.Message(kind, JsonSerializer.Serialize(payload));
 
         Assert.ThrowsExactly<InvalidDataException>(() => MonitorDeliveryPayloadCodec.Decode(message));
     }
@@ -78,8 +78,8 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [TestMethod]
     public void DecodeV1_AllowsEmptyNotificationForDataDelivery()
     {
-        var payload = DeliveryFixture.ValidPayload with { NotificationId = Guid.Empty };
-        var message = DeliveryFixture.Message(
+        MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with { NotificationId = Guid.Empty };
+        MonitorDeliveryMessage message = DeliveryFixture.Message(
             MonitorDeliveryKind.MqttDataInserted,
             JsonSerializer.Serialize(payload)) with
         {
@@ -92,8 +92,8 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [TestMethod]
     public void DecodeV1_RejectsEmptyNotificationForUnknownDeliveryKind()
     {
-        var payload = DeliveryFixture.ValidPayload with { NotificationId = Guid.Empty };
-        var message = DeliveryFixture.Message(
+        MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with { NotificationId = Guid.Empty };
+        MonitorDeliveryMessage message = DeliveryFixture.Message(
             (MonitorDeliveryKind)99,
             JsonSerializer.Serialize(payload));
 
@@ -106,7 +106,7 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [DataRow(MonitorDeliveryKind.Sms)]
     public void DecodeV1_RejectsMismatchedRowNotificationForAlertOrContactDelivery(MonitorDeliveryKind kind)
     {
-        var message = DeliveryFixture.Message(kind) with { NotificationId = Guid.NewGuid() };
+        MonitorDeliveryMessage message = DeliveryFixture.Message(kind) with { NotificationId = Guid.NewGuid() };
 
         Assert.ThrowsExactly<InvalidDataException>(() => MonitorDeliveryPayloadCodec.Decode(message));
     }
@@ -114,7 +114,7 @@ public sealed class MonitorDeliveryPayloadCodecTests
     [TestMethod]
     public void DecodeV1_AllowsMissingRowNotificationReference()
     {
-        var message = DeliveryFixture.Message() with { NotificationId = null };
+        MonitorDeliveryMessage message = DeliveryFixture.Message() with { NotificationId = null };
 
         Assert.AreEqual(DeliveryFixture.ValidPayload, MonitorDeliveryPayloadCodec.Decode(message));
     }

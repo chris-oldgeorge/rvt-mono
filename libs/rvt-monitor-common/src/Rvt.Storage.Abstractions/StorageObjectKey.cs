@@ -13,7 +13,7 @@ public sealed record StorageObjectKey
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        var trimmed = value.Trim();
+        string trimmed = value.Trim();
         if (trimmed.Length == 0
             || trimmed.StartsWith('/')
             || trimmed.StartsWith('\\')
@@ -22,7 +22,7 @@ public sealed record StorageObjectKey
             throw new ArgumentException("Object storage key must be a safe relative object name.", nameof(value));
         }
 
-        var segments = trimmed
+        string[] segments = trimmed
             .Replace('\\', '/')
             .Split('/', StringSplitOptions.RemoveEmptyEntries);
 

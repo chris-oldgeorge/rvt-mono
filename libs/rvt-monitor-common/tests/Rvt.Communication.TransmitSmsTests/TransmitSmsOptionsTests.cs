@@ -9,7 +9,7 @@ public sealed class TransmitSmsOptionsTests
     [TestMethod]
     public void FromConfiguration_UsesColonKeysForAllTransmitSmsSettings()
     {
-        var options = Load(
+        TransmitSmsOptions options = Load(
             ("RVT:SMS_ENABLED", "true"),
             ("RVT:SMS_API_KEY", "api-key"),
             ("RVT:SMS_API_SECRET", "api-secret"),
@@ -24,7 +24,7 @@ public sealed class TransmitSmsOptionsTests
     [TestMethod]
     public void FromConfiguration_FallsBackToLiteralDoubleUnderscoreKeys()
     {
-        var options = Load(
+        TransmitSmsOptions options = Load(
             ("RVT__SMS_ENABLED", "true"),
             ("RVT__SMS_API_KEY", "api-key"),
             ("RVT__SMS_API_SECRET", "api-secret"),
@@ -39,7 +39,7 @@ public sealed class TransmitSmsOptionsTests
     [TestMethod]
     public void FromConfiguration_PrefersColonKeysAndAppliesDefaults()
     {
-        var options = Load(
+        TransmitSmsOptions options = Load(
             ("RVT:SMS_ENABLED", "true"),
             ("RVT__SMS_ENABLED", "false"),
             ("RVT:SMS_API_KEY", "colon-key"),
@@ -56,7 +56,7 @@ public sealed class TransmitSmsOptionsTests
     [TestMethod]
     public void FromConfiguration_UsesDisabledEmptyCredentialAndDefaultSenderValues()
     {
-        var options = Load();
+        TransmitSmsOptions options = Load();
 
         Assert.IsFalse(options.Enabled);
         Assert.AreEqual(string.Empty, options.ApiKey);
@@ -73,7 +73,7 @@ public sealed class TransmitSmsOptionsTests
     [TestMethod]
     public void Validate_EnabledSmsNamesEveryMissingSetting()
     {
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             new TransmitSmsOptions { Enabled = true, Sender = string.Empty }.Validate());
 
         Assert.Contains("RVT__SMS_API_KEY", exception.Message);
@@ -84,7 +84,7 @@ public sealed class TransmitSmsOptionsTests
     [TestMethod]
     public void Validate_EnabledSmsReportsMissingSettingsWithoutExposingConfiguredSecrets()
     {
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             new TransmitSmsOptions
             {
                 Enabled = true,

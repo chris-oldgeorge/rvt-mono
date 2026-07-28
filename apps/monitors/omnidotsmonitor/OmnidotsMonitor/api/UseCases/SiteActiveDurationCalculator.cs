@@ -28,23 +28,23 @@ internal static class SiteActiveDurationCalculator
             return TimeSpan.Zero;
         }
 
-        var firstLocalDate = TimeZoneInfo.ConvertTimeFromUtc(fromUtc, siteTimeZone).Date;
-        var lastLocalDate = TimeZoneInfo.ConvertTimeFromUtc(toUtc, siteTimeZone).Date;
-        var scheduleDate = firstLocalDate > DateTime.MinValue.Date
+        DateTime firstLocalDate = TimeZoneInfo.ConvertTimeFromUtc(fromUtc, siteTimeZone).Date;
+        DateTime lastLocalDate = TimeZoneInfo.ConvertTimeFromUtc(toUtc, siteTimeZone).Date;
+        DateTime scheduleDate = firstLocalDate > DateTime.MinValue.Date
             ? firstLocalDate.AddDays(-1)
             : firstLocalDate;
-        var total = TimeSpan.Zero;
+        TimeSpan total = TimeSpan.Zero;
 
         for (; scheduleDate <= lastLocalDate; scheduleDate = scheduleDate.AddDays(1))
         {
-            var (start, end) = TimesForDate(siteTimes, scheduleDate.DayOfWeek);
+            (TimeSpan? start, TimeSpan? end) = TimesForDate(siteTimes, scheduleDate.DayOfWeek);
             if (start is null || end is null)
             {
                 continue;
             }
 
-            var localStart = DateTime.SpecifyKind(scheduleDate.Add(start.Value), DateTimeKind.Unspecified);
-            var localEnd = DateTime.SpecifyKind(scheduleDate.Add(end.Value), DateTimeKind.Unspecified);
+            DateTime localStart = DateTime.SpecifyKind(scheduleDate.Add(start.Value), DateTimeKind.Unspecified);
+            DateTime localEnd = DateTime.SpecifyKind(scheduleDate.Add(end.Value), DateTimeKind.Unspecified);
             if (end < start)
             {
                 localEnd = localEnd.AddDays(1);
@@ -53,10 +53,10 @@ internal static class SiteActiveDurationCalculator
             ValidateBoundary(localStart, siteTimeZone);
             ValidateBoundary(localEnd, siteTimeZone);
 
-            var activeStartUtc = TimeZoneInfo.ConvertTimeToUtc(localStart, siteTimeZone);
-            var activeEndUtc = TimeZoneInfo.ConvertTimeToUtc(localEnd, siteTimeZone);
-            var intersectionStart = activeStartUtc > fromUtc ? activeStartUtc : fromUtc;
-            var intersectionEnd = activeEndUtc < toUtc ? activeEndUtc : toUtc;
+            DateTime activeStartUtc = TimeZoneInfo.ConvertTimeToUtc(localStart, siteTimeZone);
+            DateTime activeEndUtc = TimeZoneInfo.ConvertTimeToUtc(localEnd, siteTimeZone);
+            DateTime intersectionStart = activeStartUtc > fromUtc ? activeStartUtc : fromUtc;
+            DateTime intersectionEnd = activeEndUtc < toUtc ? activeEndUtc : toUtc;
 
             if (intersectionEnd > intersectionStart)
             {

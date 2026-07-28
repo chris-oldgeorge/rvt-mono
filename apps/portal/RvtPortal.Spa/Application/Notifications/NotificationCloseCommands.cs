@@ -47,17 +47,17 @@ public sealed class CloseNotificationCommandHandler
         CloseNotificationCommand request,
         CancellationToken cancellationToken)
     {
-        var result = new CloseNotificationResult();
-        var notification = await NotificationCloseWorkflow.LoadNotificationAsync(domainContext, request.NotificationId, cancellationToken);
+        CloseNotificationResult result = new();
+        Notification? notification = await NotificationCloseWorkflow.LoadNotificationAsync(domainContext, request.NotificationId, cancellationToken);
         if (notification == null)
         {
             result.NotFound = true;
             return result;
         }
 
-        var deployment = await NotificationCloseWorkflow.FindDeploymentForNotificationAsync(domainContext, notification, cancellationToken);
-        var access = NotificationCloseWorkflow.BuildAccessInfo(notification, deployment);
-        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(
+        Deployment? deployment = await NotificationCloseWorkflow.FindDeploymentForNotificationAsync(domainContext, notification, cancellationToken);
+        NotificationCloseAccess access = NotificationCloseWorkflow.BuildAccessInfo(notification, deployment);
+        HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(
             domainContext,
             request.Actor,
             timeProvider,
@@ -90,7 +90,7 @@ public sealed class CloseNotificationCommandHandler
     // Function summary: Appends a validation error to a command result.
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }
@@ -120,36 +120,36 @@ public sealed class BatchCloseNotificationsCommandHandler
         BatchCloseNotificationsCommand request,
         CancellationToken cancellationToken)
     {
-        var ids = request.NotificationIds.Distinct().ToList();
-        var response = new NotificationBatchCloseResponse { Requested = ids.Count };
+        List<Guid> ids = [.. request.NotificationIds.Distinct()];
+        NotificationBatchCloseResponse response = new() { Requested = ids.Count };
         if (ids.Count == 0)
         {
             return response;
         }
 
-        var notifications = await domainContext.Notifications
+        List<Notification> notifications = await domainContext.Notifications
             .Include(notification => notification.Monitor)
             .Where(notification => ids.Contains(notification.Id))
             .ToListAsync(cancellationToken);
-        var byId = notifications.ToDictionary(notification => notification.Id);
-        var deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(domainContext, notifications, cancellationToken);
-        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(
+        Dictionary<Guid, Notification> byId = notifications.ToDictionary(notification => notification.Id);
+        Dictionary<Guid, Deployment?> deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(domainContext, notifications, cancellationToken);
+        HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(
             domainContext,
             request.Actor,
             timeProvider,
             cancellationToken);
-        var note = string.IsNullOrWhiteSpace(request.Note) ? "batch close" : request.Note;
+        string note = string.IsNullOrWhiteSpace(request.Note) ? "batch close" : request.Note;
 
-        foreach (var id in ids)
+        foreach (Guid id in ids)
         {
-            if (!byId.TryGetValue(id, out var notification))
+            if (!byId.TryGetValue(id, out Notification? notification))
             {
                 response.NotFoundIds.Add(id);
                 continue;
             }
 
-            deploymentLookup.TryGetValue(notification.Id, out var deployment);
-            var access = NotificationCloseWorkflow.BuildAccessInfo(notification, deployment);
+            deploymentLookup.TryGetValue(notification.Id, out Deployment? deployment);
+            NotificationCloseAccess access = NotificationCloseWorkflow.BuildAccessInfo(notification, deployment);
             if (!NotificationCloseWorkflow.CanReadNotification(access, request.Actor, visibleSiteIds))
             {
                 response.ForbiddenIds.Add(id);
@@ -185,8 +185,8 @@ internal static class NotificationCloseWorkflow
         IReadOnlyCollection<Notification> notifications,
         CancellationToken cancellationToken)
     {
-        var monitorIds = notifications.Select(notification => notification.MonitorId).Distinct().ToList();
-        var deployments = new List<Deployment>();
+        List<Guid> monitorIds = [.. notifications.Select(notification => notification.MonitorId).Distinct()];
+        List<Deployment> deployments = new();
         if (monitorIds.Count > 0)
         {
             deployments = await domainContext.Deployments
@@ -211,7 +211,7 @@ internal static class NotificationCloseWorkflow
         Notification notification,
         CancellationToken cancellationToken)
     {
-        var deployments = await domainContext.Deployments
+        List<Deployment> deployments = await domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .ThenInclude(contract => contract.Company)

@@ -1,6 +1,7 @@
 using Moq;
 using MyAtm.Api;
 using MyAtm.Api.Db;
+using MyAtm.Model.Dto;
 
 namespace MyAtmMonitorTests;
 
@@ -10,13 +11,13 @@ public sealed class MyAtmMonitorReaderTests
     [TestMethod]
     public void ReadMonitors_ForwardsTheCustomerScopeToTheQueryPort()
     {
-        var queries = new Mock<IMyAtmMonitorQueries>(MockBehavior.Strict);
-        var operations = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        var expected = MyAtmFixture.CustomerDeviceDtos(lastDataTime: null, singleItem: true);
+        Mock<IMyAtmMonitorQueries> queries = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operations = new(MockBehavior.Strict);
+        List<DustMonitorDto> expected = MyAtmFixture.CustomerDeviceDtos(lastDataTime: null, singleItem: true);
         queries.Setup(query => query.ReadMonitorList(9, null)).Returns(expected);
-        var reader = new MyAtmMonitorReader(queries.Object, operations.Object, testLocal: false);
+        MyAtmMonitorReader reader = new(queries.Object, operations.Object, testLocal: false);
 
-        var monitors = reader.ReadMonitors(9);
+        List<DustMonitorDto>? monitors = reader.ReadMonitors(9);
 
         CollectionAssert.AreEqual(expected, monitors!);
         queries.VerifyAll();
@@ -26,14 +27,14 @@ public sealed class MyAtmMonitorReaderTests
     [TestMethod]
     public void ReadMonitors_WhenTheQueryFails_RecordsTheFailureAndRethrowsTheOriginalException()
     {
-        var queries = new Mock<IMyAtmMonitorQueries>(MockBehavior.Strict);
-        var operations = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        var expected = new InvalidOperationException("monitor query failed");
+        Mock<IMyAtmMonitorQueries> queries = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operations = new(MockBehavior.Strict);
+        InvalidOperationException expected = new("monitor query failed");
         queries.Setup(query => query.ReadMonitorList(9, null)).Throws(expected);
         operations.Setup(command => command.HandleException("ReadMonitors", expected));
-        var reader = new MyAtmMonitorReader(queries.Object, operations.Object, testLocal: false);
+        MyAtmMonitorReader reader = new(queries.Object, operations.Object, testLocal: false);
 
-        var actual = Assert.ThrowsExactly<InvalidOperationException>(() => reader.ReadMonitors(9));
+        InvalidOperationException actual = Assert.ThrowsExactly<InvalidOperationException>(() => reader.ReadMonitors(9));
 
         Assert.AreSame(expected, actual);
         queries.VerifyAll();
@@ -43,15 +44,15 @@ public sealed class MyAtmMonitorReaderTests
     [TestMethod]
     public void ReadMonitors_WhenOperationalRecordingFails_RethrowsTheOriginalQueryException()
     {
-        var queries = new Mock<IMyAtmMonitorQueries>(MockBehavior.Strict);
-        var operations = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        var expected = new InvalidOperationException("monitor query failed");
+        Mock<IMyAtmMonitorQueries> queries = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operations = new(MockBehavior.Strict);
+        InvalidOperationException expected = new("monitor query failed");
         queries.Setup(query => query.ReadMonitorList(9, null)).Throws(expected);
         operations.Setup(command => command.HandleException("ReadMonitors", expected))
             .Throws(new InvalidOperationException("operational recording failed"));
-        var reader = new MyAtmMonitorReader(queries.Object, operations.Object, testLocal: false);
+        MyAtmMonitorReader reader = new(queries.Object, operations.Object, testLocal: false);
 
-        var actual = Assert.ThrowsExactly<InvalidOperationException>(() => reader.ReadMonitors(9));
+        InvalidOperationException actual = Assert.ThrowsExactly<InvalidOperationException>(() => reader.ReadMonitors(9));
 
         Assert.AreSame(expected, actual);
         queries.VerifyAll();
@@ -61,13 +62,13 @@ public sealed class MyAtmMonitorReaderTests
     [TestMethod]
     public void ReadMonitors_WhenCallerCancellationWasRequested_PropagatesWithoutOperationalRecording()
     {
-        var queries = new Mock<IMyAtmMonitorQueries>(MockBehavior.Strict);
-        var operations = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        var cancellation = new OperationCanceledException(new CancellationToken(canceled: true));
+        Mock<IMyAtmMonitorQueries> queries = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operations = new(MockBehavior.Strict);
+        OperationCanceledException cancellation = new(new CancellationToken(canceled: true));
         queries.Setup(query => query.ReadMonitorList(9, null)).Throws(cancellation);
-        var reader = new MyAtmMonitorReader(queries.Object, operations.Object, testLocal: false);
+        MyAtmMonitorReader reader = new(queries.Object, operations.Object, testLocal: false);
 
-        var actual = Assert.ThrowsExactly<OperationCanceledException>(() => reader.ReadMonitors(9));
+        OperationCanceledException actual = Assert.ThrowsExactly<OperationCanceledException>(() => reader.ReadMonitors(9));
 
         Assert.AreSame(cancellation, actual);
         queries.VerifyAll();

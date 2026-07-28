@@ -1,9 +1,8 @@
 using System.Data;
 using System.Globalization;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
+using Rvt.Monitor.Common.Rules;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
 using Svantek.Model.Http;
@@ -52,21 +51,21 @@ public sealed class StoreNoiseLevelsHandler
     {
         // Fleet reads are setup. Failure here means no independent project unit can be identified,
         // so it must fault immediately rather than be converted into an aggregate.
-        var monitors = await monitorReader.ReadMonitorsAsync(
+        List<NoiseMonitorReadDto> monitors = await monitorReader.ReadMonitorsAsync(
             lastDataTime: null,
             cancellationToken).ConfigureAwait(false);
-        var utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        var failures = new SvantekFailureCollector(operationalCommands);
+        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
+        SvantekFailureCollector failures = new(operationalCommands);
 
-        foreach (var projectMonitors in monitors.GroupBy(monitor => monitor.ProjectId))
+        foreach (IGrouping<int, NoiseMonitorReadDto> projectMonitors in monitors.GroupBy(monitor => monitor.ProjectId))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var projectId = projectMonitors.Key;
+            int projectId = projectMonitors.Key;
             try
             {
                 await StoreProjectAsync(
                     projectId,
-                    projectMonitors.ToList(),
+                    [.. projectMonitors],
                     utcNow,
                     cancellationToken).ConfigureAwait(false);
             }
@@ -86,26 +85,26 @@ public sealed class StoreNoiseLevelsHandler
         CancellationToken cancellationToken)
     {
         RvtLogger.Logger.LogDebug("StoreNoiseLevels reading for project {ProjectId}", projectId);
-        var windowsByMonitor = monitors.ToDictionary(
+        Dictionary<int, IReadOnlyList<NoiseRequestWindow>> windowsByMonitor = monitors.ToDictionary(
             monitor => monitor.PointId,
             monitor => windowCalculator.Calculate(
                 monitor.DeployedStart,
                 monitor.LastDataTime,
                 monitor.LastStatusTimestamp,
                 utcNow));
-        var requestCount = windowsByMonitor.Count == 0
+        int requestCount = windowsByMonitor.Count == 0
             ? 0
             : windowsByMonitor.Max(pair => pair.Value.Count);
 
-        for (var requestIndex = 0; requestIndex < requestCount; requestIndex++)
+        for (int requestIndex = 0; requestIndex < requestCount; requestIndex++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var requestedMonitors = monitors
+            Dictionary<int, NoiseMonitorReadDto> requestedMonitors = monitors
                 .Where(monitor => windowsByMonitor[monitor.PointId].Count > requestIndex)
                 .ToDictionary(monitor => monitor.PointId);
-            var arguments = requestedMonitors.Values.Select(monitor =>
+            List<MultiDataArgument> arguments = [.. requestedMonitors.Values.Select(monitor =>
             {
-                var window = windowsByMonitor[monitor.PointId][requestIndex];
+                NoiseRequestWindow window = windowsByMonitor[monitor.PointId][requestIndex];
                 RvtLogger.Logger.LogDebug(
                     "StoreNoiseLevels request monitor {SerialId} from {Start} to {End}",
                     monitor.SerialId,
@@ -117,16 +116,16 @@ public sealed class StoreNoiseLevelsHandler
                     time_from = window.Start.ToString(VendorDateFormat, CultureInfo.InvariantCulture),
                     time_to = window.End.ToString(VendorDateFormat, CultureInfo.InvariantCulture)
                 };
-            }).ToList();
+            })];
 
-            var response = await gateway.GetDataMultiAsync(
+            List<MultiData> response = await gateway.GetDataMultiAsync(
                 projectId.ToString(CultureInfo.InvariantCulture),
                 arguments,
                 cancellationToken).ConfigureAwait(false);
-            foreach (var monitorData in response)
+            foreach (MultiData monitorData in response)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!requestedMonitors.TryGetValue(monitorData.point, out var monitor))
+                if (!requestedMonitors.TryGetValue(monitorData.point, out NoiseMonitorReadDto? monitor))
                 {
                     throw new InvalidOperationException(
                         $"Monitor data point {monitorData.point} was not found in project {projectId}.");
@@ -160,15 +159,15 @@ public sealed class StoreNoiseLevelsHandler
         CancellationToken cancellationToken)
     {
         RvtLogger.Logger.LogDebug("StoreNoiseLevels data received for {SerialId}", monitor.SerialId);
-        var table = CreateResultsTable();
+        DataTable table = CreateResultsTable();
         DateTime? firstDataTime = null;
         DateTime? lastDataTime = null;
 
-        foreach (var measuringData in monitorData.data.results.SelectMany(result => result.data))
+        foreach (DataPoint? measuringData in monitorData.data.results.SelectMany(result => result.data))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var sampleTime = DateTime.Parse(measuringData.timestamp);
-            var row = table.NewRow();
+            DateTime sampleTime = DateTime.Parse(measuringData.timestamp);
+            DataRow row = table.NewRow();
             row["SerialId"] = monitor.SerialId;
             row["SampleTime"] = sampleTime;
             row["LAeq"] = ParseLevel(measuringData.values[0]);
@@ -199,16 +198,16 @@ public sealed class StoreNoiseLevelsHandler
         }
 
         await measurementCommands.InsertNoiseRecordsTableAsync(table, cancellationToken).ConfigureAwait(false);
-        var start = monitor.PeriodStartDate;
-        var end = lastDataTime.Value;
-        var startHour = (start.Hour / 8) * 8;
+        DateTime start = monitor.PeriodStartDate;
+        DateTime end = lastDataTime.Value;
+        int startHour = (start.Hour / 8) * 8;
         start = new DateTime(start.Year, start.Month, start.Day, startHour, 0, 0, start.Kind);
         if (start == firstDataTime.Value)
         {
             start = start.AddHours(-8);
         }
 
-        for (var endPeriod = start.AddHours(8); endPeriod <= end; endPeriod = endPeriod.AddHours(8))
+        for (DateTime endPeriod = start.AddHours(8); endPeriod <= end; endPeriod = endPeriod.AddHours(8))
         {
             await measurementCommands.Create8hourAverageAsync(
                 monitor.SerialId,
@@ -229,16 +228,16 @@ public sealed class StoreNoiseLevelsHandler
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        var rules = ruleQueries.ReadRules(monitor.SerialId);
+        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId);
         ruleProcessor.ProcessRules(monitor, rules, monitor.PeriodStartDate, lastDataTime.Value);
     }
 
     private static DataTable CreateResultsTable()
     {
-        var table = new DataTable { TableName = "Results" };
+        DataTable table = new() { TableName = "Results" };
         table.Columns.Add("SerialId", typeof(string));
         table.Columns.Add("SampleTime", typeof(DateTime));
-        foreach (var field in new[] { "LAeq", "LAmax", "LA90", "LA10", "LCeq", "LCmax", "LC90", "LC10" })
+        foreach (string? field in new[] { "LAeq", "LAmax", "LA90", "LA10", "LCeq", "LCmax", "LC90", "LC10" })
         {
             table.Columns.Add(field, typeof(double)).AllowDBNull = true;
         }
@@ -247,7 +246,7 @@ public sealed class StoreNoiseLevelsHandler
     }
 
     private static double ParseLevel(string value) =>
-        double.TryParse(value, out var parsed)
+        double.TryParse(value, out double parsed)
             ? parsed
             : 0.0;
 }

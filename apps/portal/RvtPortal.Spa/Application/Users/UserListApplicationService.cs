@@ -7,7 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using RVT.BusinessLogic.Application.Paging;
 using RVT.DataAccess.Context;
-using RVT.Entities;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Application.Users;
@@ -103,24 +102,23 @@ public sealed class UserListApplicationService : IUserListApplicationService
     // Function summary: Returns a paged admin user list with filters applied before materialization where provider boundaries allow.
     public async Task<UserListResult> QueryAsync(UserListQuery request, CancellationToken cancellationToken)
     {
-        var companies = await LoadCompaniesAsync(cancellationToken);
-        var query = BuildUserRoleQuery(request.CompanyId);
+        Dictionary<Guid, string> companies = await LoadCompaniesAsync(cancellationToken);
+        IQueryable<UserRoleProjection> query = BuildUserRoleQuery(request.CompanyId);
         query = ApplySearch(query, request.Page.SearchText, companies);
-        var total = await query.CountAsync(cancellationToken);
-        var canonicalSort = CanonicalSort(request.Page.Sort);
+        int total = await query.CountAsync(cancellationToken);
+        string canonicalSort = CanonicalSort(request.Page.Sort);
         List<UserRoleProjection> pageRows;
         Dictionary<Guid, int> siteCounts;
 
         if (RequiresProjectedSort(canonicalSort))
         {
-            var rows = await query.ToListAsync(cancellationToken);
+            List<UserRoleProjection> rows = await query.ToListAsync(cancellationToken);
             siteCounts = await LoadSiteCountsAsync(rows.Select(row => row.Id), cancellationToken);
-            var sorted = SortProjectedRows(rows.Select(row => BuildModel(row, companies, siteCounts, request.Actor)), canonicalSort, request.Page.SortDir);
+            IEnumerable<UserListModel> sorted = SortProjectedRows(rows.Select(row => BuildModel(row, companies, siteCounts, request.Actor)), canonicalSort, request.Page.SortDir);
             pageRows = [];
-            var pageItems = sorted
+            List<UserListModel> pageItems = [.. sorted
                 .Skip((request.Page.Page - 1) * request.Page.PageSize)
-                .Take(request.Page.PageSize)
-                .ToList();
+                .Take(request.Page.PageSize)];
             return BuildResult(request, companies, total, pageItems);
         }
 
@@ -133,13 +131,13 @@ public sealed class UserListApplicationService : IUserListApplicationService
             request,
             companies,
             total,
-            pageRows.Select(row => BuildModel(row, companies, siteCounts, request.Actor)).ToList());
+            [.. pageRows.Select(row => BuildModel(row, companies, siteCounts, request.Actor))]);
     }
 
     // Function summary: Builds the Identity user plus role query used for admin list filtering.
     private IQueryable<UserRoleProjection> BuildUserRoleQuery(Guid? companyId)
     {
-        var query =
+        IQueryable<UserRoleProjection> query =
             from user in applicationContext.Users.AsNoTracking()
             join userRole in applicationContext.UserRoles.AsNoTracking() on user.Id equals userRole.UserId into userRoles
             from userRole in userRoles.DefaultIfEmpty()
@@ -177,11 +175,10 @@ public sealed class UserListApplicationService : IUserListApplicationService
             return query;
         }
 
-        var search = searchText.Trim().ToLower();
-        var matchingCompanyIds = companies
+        string search = searchText.Trim().ToLower();
+        List<Guid> matchingCompanyIds = [.. companies
             .Where(company => company.Value.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .Select(company => company.Key)
-            .ToList();
+            .Select(company => company.Key)];
         return query.Where(user =>
             (user.Name != null && user.Name.ToLower().Contains(search)) ||
             user.Email.ToLower().Contains(search) ||
@@ -192,7 +189,7 @@ public sealed class UserListApplicationService : IUserListApplicationService
     // Function summary: Applies provider-side ordering for fields available in the Identity query.
     private static IQueryable<UserRoleProjection> ApplyDatabaseSort(IQueryable<UserRoleProjection> users, string sort, string sortDir)
     {
-        var descending = sortDir == PageSortDirections.Descending;
+        bool descending = sortDir == PageSortDirections.Descending;
         return sort switch
         {
             NameSortField => descending ? users.OrderByDescending(user => user.Name) : users.OrderBy(user => user.Name),
@@ -206,7 +203,7 @@ public sealed class UserListApplicationService : IUserListApplicationService
     // Function summary: Applies ordering for fields assembled from domain-context values.
     private static IEnumerable<UserListModel> SortProjectedRows(IEnumerable<UserListModel> users, string sort, string sortDir)
     {
-        var descending = sortDir == PageSortDirections.Descending;
+        bool descending = sortDir == PageSortDirections.Descending;
         return sort switch
         {
             CompanyNameSortField => descending ? users.OrderByDescending(user => user.CompanyName) : users.OrderBy(user => user.CompanyName),
@@ -222,8 +219,8 @@ public sealed class UserListApplicationService : IUserListApplicationService
         IReadOnlyDictionary<Guid, int> siteCounts,
         UserListActor actor)
     {
-        var parsedId = Guid.TryParse(row.Id, out var userId) ? userId : Guid.Empty;
-        var companyName = row.CompanyId.HasValue && companies.TryGetValue(row.CompanyId.Value, out var name) ? name : null;
+        Guid parsedId = Guid.TryParse(row.Id, out Guid userId) ? userId : Guid.Empty;
+        string? companyName = row.CompanyId.HasValue && companies.TryGetValue(row.CompanyId.Value, out string? name) ? name : null;
         return new UserListModel
         {
             Id = row.Id,
@@ -235,7 +232,7 @@ public sealed class UserListApplicationService : IUserListApplicationService
             PhoneNumber = row.PhoneNumber,
             CompanyRole = row.CompanyRole,
             Role = row.Role,
-            SiteCount = parsedId == Guid.Empty || !siteCounts.TryGetValue(parsedId, out var count) ? 0 : count,
+            SiteCount = parsedId == Guid.Empty || !siteCounts.TryGetValue(parsedId, out int count) ? 0 : count,
             EmailConfirmed = row.EmailConfirmed,
             CanEdit = CanEditUser(row.Role, actor),
             CanDisable = !row.IsDisabled && CanEditUser(row.Role, actor),
@@ -257,7 +254,7 @@ public sealed class UserListApplicationService : IUserListApplicationService
         return new UserListResult
         {
             CompanyId = request.CompanyId,
-            CompanyName = request.CompanyId.HasValue && companies.TryGetValue(request.CompanyId.Value, out var name) ? name : null,
+            CompanyName = request.CompanyId.HasValue && companies.TryGetValue(request.CompanyId.Value, out string? name) ? name : null,
             Page = new PagedResult<UserListModel>
             {
                 Results = results,
@@ -282,11 +279,10 @@ public sealed class UserListApplicationService : IUserListApplicationService
     // Function summary: Counts site assignments for the requested user ids.
     private async Task<Dictionary<Guid, int>> LoadSiteCountsAsync(IEnumerable<string> userIds, CancellationToken cancellationToken)
     {
-        var parsedIds = userIds
-            .Select(id => Guid.TryParse(id, out var parsedId) ? parsedId : (Guid?)null)
+        List<Guid> parsedIds = [.. userIds
+            .Select(id => Guid.TryParse(id, out Guid parsedId) ? parsedId : (Guid?)null)
             .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToList();
+            .Select(id => id!.Value)];
         return parsedIds.Count == 0
             ? []
             : await domainContext.SiteUsers
@@ -300,7 +296,7 @@ public sealed class UserListApplicationService : IUserListApplicationService
     // Function summary: Resolves accepted API sort aliases to canonical sort fields.
     private static string CanonicalSort(string sort)
     {
-        return SortAliases.TryGetValue(sort, out var canonicalSort) ? canonicalSort : EmailSortField;
+        return SortAliases.TryGetValue(sort, out string? canonicalSort) ? canonicalSort : EmailSortField;
     }
 
     // Function summary: Identifies sorts that depend on values assembled outside the Identity query.

@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Dto;
@@ -43,7 +43,7 @@ public static class MonitorApiEndpoints
     {
         try
         {
-            var body = await BoundedJsonRequestReader.ReadAsync(
+            byte[] body = await BoundedJsonRequestReader.ReadAsync(
                 request,
                 request.HttpContext.RequestAborted);
             return TypedResults.Ok(await handler.RunAsync(
@@ -105,10 +105,10 @@ public static class MonitorApiEndpoints
     {
         try
         {
-            var body = await BoundedJsonRequestReader.ReadAsync(
+            byte[] body = await BoundedJsonRequestReader.ReadAsync(
                 request,
                 request.HttpContext.RequestAborted);
-            if (!request.Headers.TryGetValue(OmnidotsProtocol.SIGNATURE_HEADER, out var values) ||
+            if (!request.Headers.TryGetValue(OmnidotsProtocol.SIGNATURE_HEADER, out StringValues values) ||
                 values.Count != 1)
             {
                 throw new OmnidotsWebhookAuthenticationException();

@@ -7,7 +7,6 @@
 
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -22,9 +21,9 @@ public static class RvtDatabaseServiceCollectionExtensions
     // Function summary: Registers PostgreSQL database options and supporting services.
     public static RvtDatabaseOptions AddRvtDatabaseProvider(this IServiceCollection services, IConfiguration configuration)
     {
-        var options = RvtDatabaseOptions.FromConfiguration(configuration);
+        RvtDatabaseOptions options = RvtDatabaseOptions.FromConfiguration(configuration);
 
-        services.TryAddSingleton<IOptions<RvtDatabaseOptions>>(Options.Create(options));
+        services.TryAddSingleton(Options.Create(options));
         services.TryAddSingleton<IRvtDatabaseConnectionFactory, RvtDatabaseConnectionFactory>();
         services.TryAddSingleton<IRvtStoredRoutineExecutor, RvtStoredRoutineExecutor>();
 

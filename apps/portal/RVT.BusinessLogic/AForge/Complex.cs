@@ -24,8 +24,8 @@ namespace AForge.Math
     using System;
     using System.Diagnostics.CodeAnalysis;
     using System.Globalization;
-    using System.Text.RegularExpressions;
     using System.Runtime.Serialization;
+    using System.Text.RegularExpressions;
 
     /// <summary>
     /// Complex number wrapper class.

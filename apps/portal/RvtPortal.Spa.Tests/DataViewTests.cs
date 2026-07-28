@@ -1,4 +1,4 @@
-﻿// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
+// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
 // - 2026-06-26 pending Added moved-monitor trace ownership-window regressions.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -10,21 +10,19 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using RVT.BusinessLogic;
 using RVT.DataAccess.Context;
-using RvtPortal.Spa.Application.Monitors;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Ports.Persistence;
 using RVT.Entities.Querying;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Application.Monitors;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Tests;
@@ -41,16 +39,16 @@ public class DataViewTests
     // Function summary: Handles the data grid and csv download return dust rows with paging and escaped csv workflow for this module.
     public async Task DataGridAndCsvDownload_ReturnDustRowsWithPagingAndEscapedCsv()
     {
-        var dataSource = new FakeMonitorDataSource();
-        using var factory = new SpaTestApplicationFactory();
-        using var clientFactory = CreateClientFactory(factory, dataSource);
-        var ids = await SeedDataViewScenarioAsync(factory, dataSource);
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> clientFactory = CreateClientFactory(factory, dataSource);
+        DataViewScenarioIds ids = await SeedDataViewScenarioAsync(factory, dataSource);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
 
-        var client = CreateClient(clientFactory);
+        HttpClient client = CreateClient(clientFactory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var grid = await GetJsonAsync(
+        JsonDocument grid = await GetJsonAsync(
             client,
             $"/api/data/deployments/{ids.DustDeploymentId}/grid?filterOption=60&page=1&pageSize={GridPageSize}&sort=sampleTime&sortDir=Descending");
         Assert.Equal("Dust", grid.RootElement.GetProperty("monitorType").GetString());
@@ -61,12 +59,12 @@ public class DataViewTests
         Assert.Equal("SampleTime", dataSource.LastGridSort);
         Assert.Equal(OrderByDirectionEnum.Descending, dataSource.LastGridSortDirection);
 
-        var download = await client.GetAsync(
+        HttpResponseMessage download = await client.GetAsync(
             $"/api/data/deployments/{ids.DustDeploymentId}/download?filterOption=60&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(3):yyyy-MM-ddTHH:mm:ss}Z");
         Assert.Equal(HttpStatusCode.OK, download.StatusCode);
         Assert.StartsWith("text/csv", download.Content.Headers.ContentType?.MediaType);
         Assert.Contains("Air Quality Levels at Dust Monitor DATA-DUST", download.Content.Headers.ContentDisposition?.FileNameStar);
-        var csv = await download.Content.ReadAsStringAsync();
+        string csv = await download.Content.ReadAsStringAsync();
         Assert.StartsWith("Date,Pm1,Pm2.5,Pm10,PmTotal", csv);
         Assert.Contains(FakeMonitorDataSource.PeakDustPm10.ToString("0.00", CultureInfo.InvariantCulture), csv);
         Assert.Equal(4, csv.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
@@ -76,20 +74,20 @@ public class DataViewTests
     // Function summary: Verifies database-style unspecified telemetry is restored to UTC before API JSON serialization.
     public async Task DataGrid_RestoresDatabaseTimestampAsUtcJson()
     {
-        var dataSource = new FakeMonitorDataSource();
-        using var factory = new SpaTestApplicationFactory();
-        using var clientFactory = CreateClientFactory(factory, dataSource);
-        var ids = await SeedDataViewScenarioAsync(factory, dataSource);
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> clientFactory = CreateClientFactory(factory, dataSource);
+        DataViewScenarioIds ids = await SeedDataViewScenarioAsync(factory, dataSource);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         dataSource.AddDustData(
             ids.DustDeploymentId,
             Monitor(Guid.NewGuid(), "DATA-DUST", "SER-DATA-D", MonitorTypeEnum.Dust, ids.Today),
             DateTime.SpecifyKind(ids.Today, DateTimeKind.Unspecified));
 
-        var client = CreateClient(clientFactory);
+        HttpClient client = CreateClient(clientFactory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var grid = await GetJsonAsync(
+        JsonDocument grid = await GetJsonAsync(
             client,
             $"/api/data/deployments/{ids.DustDeploymentId}/grid?filterOption=60&page=1&pageSize={GridPageSize}&sort=sampleTime&sortDir=Descending");
 
@@ -102,18 +100,18 @@ public class DataViewTests
     // Function summary: Verifies data-view requests reject ambiguous or offset timestamps and accept explicit UTC instants.
     public async Task DataGrid_RequiresExplicitUtcRequestBounds()
     {
-        var dataSource = new FakeMonitorDataSource();
-        using var factory = new SpaTestApplicationFactory();
-        using var clientFactory = CreateClientFactory(factory, dataSource);
-        var ids = await SeedDataViewScenarioAsync(factory, dataSource);
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> clientFactory = CreateClientFactory(factory, dataSource);
+        DataViewScenarioIds ids = await SeedDataViewScenarioAsync(factory, dataSource);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(clientFactory);
+        HttpClient client = CreateClient(clientFactory);
         await LoginAsync(client, AdminEmail, Password);
-        var route = $"/api/data/deployments/{ids.DustDeploymentId}/grid?filterOption=60&page=1&pageSize={GridPageSize}";
+        string route = $"/api/data/deployments/{ids.DustDeploymentId}/grid?filterOption=60&page=1&pageSize={GridPageSize}";
 
-        var zoneLess = await client.GetAsync($"{route}&fromDate=2026-05-24T08:00:00&toDate=2026-05-24T09:00:00");
-        var offset = await client.GetAsync($"{route}&fromDate=2026-05-24T09:00:00%2B01:00&toDate=2026-05-24T10:00:00%2B01:00");
-        var utc = await client.GetAsync($"{route}&fromDate=2026-05-24T08:00:00Z&toDate=2026-05-24T09:00:00Z");
+        HttpResponseMessage zoneLess = await client.GetAsync($"{route}&fromDate=2026-05-24T08:00:00&toDate=2026-05-24T09:00:00");
+        HttpResponseMessage offset = await client.GetAsync($"{route}&fromDate=2026-05-24T09:00:00%2B01:00&toDate=2026-05-24T10:00:00%2B01:00");
+        HttpResponseMessage utc = await client.GetAsync($"{route}&fromDate=2026-05-24T08:00:00Z&toDate=2026-05-24T09:00:00Z");
 
         Assert.Equal(HttpStatusCode.BadRequest, zoneLess.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, offset.StatusCode);
@@ -126,18 +124,17 @@ public class DataViewTests
     // Function summary: Verifies UTC application bounds keep their ticks and become unspecified only at the search database boundary.
     public async Task MonitorService_TimeSeriesBounds_AreUnspecifiedAtDatabaseBoundary()
     {
-        var reader = new RecordingSearchQueryReader();
-        var service = new MonitorService(null!, null!, null!, reader, null!, null!, null!, null!);
-        var from = new DateTime(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
-        var to = from.AddHours(1);
+        RecordingSearchQueryReader reader = new();
+        MonitorService service = new(null!, null!, null!, reader, null!, null!, null!, null!);
+        DateTime from = new(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
+        DateTime to = from.AddHours(1);
 
         await service.GetAirQnoiseLevels("TEST-UTC-BOUND", from, to);
 
-        var bounds = reader.LastFilters!
+        DateTime[] bounds = [.. reader.LastFilters!
             .OfType<SingleFilter>()
             .Where(filter => filter.PropertyName == "SampleTime")
-            .Select(filter => Assert.IsType<DateTime>(filter.Value))
-            .ToArray();
+            .Select(filter => Assert.IsType<DateTime>(filter.Value))];
         Assert.Equal([from.Ticks, to.Ticks], bounds.Select(bound => bound.Ticks));
         Assert.All(bounds, bound => Assert.Equal(DateTimeKind.Unspecified, bound.Kind));
     }
@@ -148,12 +145,12 @@ public class DataViewTests
     // Function summary: Verifies the search boundary rejects application timestamp bounds that are not UTC.
     public async Task MonitorService_TimeSeriesBounds_RejectNonUtcInputs(DateTimeKind kind)
     {
-        var reader = new RecordingSearchQueryReader();
-        var service = new MonitorService(null!, null!, null!, reader, null!, null!, null!, null!);
-        var from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
-        var to = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 15, 0, 0), kind);
+        RecordingSearchQueryReader reader = new();
+        MonitorService service = new(null!, null!, null!, reader, null!, null!, null!, null!);
+        DateTime from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
+        DateTime to = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 15, 0, 0), kind);
 
-        var error = await Assert.ThrowsAsync<ArgumentException>(
+        ArgumentException error = await Assert.ThrowsAsync<ArgumentException>(
             () => service.GetAirQnoiseLevels("TEST-NON-UTC-BOUND", from, to));
 
         Assert.Equal("value", error.ParamName);
@@ -164,16 +161,16 @@ public class DataViewTests
     // Function summary: Verifies trace-list UTC bounds become provider-naive values only at the real EF query boundary.
     public async Task MonitorDataSource_TraceBounds_AreUnspecifiedAtDatabaseBoundary()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection connection = new("Data Source=:memory:");
         await connection.OpenAsync();
-        var probe = new TraceBoundCommandProbe();
-        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+        TraceBoundCommandProbe probe = new();
+        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseSqlite(connection)
             .AddInterceptors(probe)
             .Options;
-        await using var searchContext = new RVTSearchContext(options);
+        await using RVTSearchContext searchContext = new(options);
         await searchContext.Database.EnsureCreatedAsync();
-        var start = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
+        DateTime start = new(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
         searchContext.OmnidotsTracesIndices.Add(new OmnidotsTracesIndex
         {
             Id = Guid.NewGuid(),
@@ -183,11 +180,11 @@ public class DataViewTests
         });
         await searchContext.SaveChangesAsync();
         probe.Clear();
-        var dataSource = new MonitorDataSource(null!, searchContext, null!);
-        var from = new DateTime(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
-        var to = from.AddHours(1);
+        MonitorDataSource dataSource = new(null!, searchContext, null!);
+        DateTime from = new(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
+        DateTime to = from.AddHours(1);
 
-        var traces = await dataSource.GetTraceIndexesAsync("TRACE-UTC-BOUND", from, to);
+        IReadOnlyList<OmnidotsTracesIndex> traces = await dataSource.GetTraceIndexesAsync("TRACE-UTC-BOUND", from, to);
 
         Assert.Single(traces);
         Assert.Equal([from.Ticks, to.Ticks], probe.DateTimeParameters.Select(value => value.Ticks));
@@ -200,15 +197,15 @@ public class DataViewTests
     // Function summary: Verifies trace-list data access rejects bounds that violate the UTC application contract.
     public async Task MonitorDataSource_TraceBounds_RejectNonUtcInputs(DateTimeKind kind)
     {
-        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseInMemoryDatabase($"trace-bound-kind-{Guid.NewGuid():N}")
             .Options;
-        await using var searchContext = new RVTSearchContext(options);
-        var dataSource = new MonitorDataSource(null!, searchContext, null!);
-        var from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
-        var to = from.AddHours(1);
+        await using RVTSearchContext searchContext = new(options);
+        MonitorDataSource dataSource = new(null!, searchContext, null!);
+        DateTime from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
+        DateTime to = from.AddHours(1);
 
-        var error = await Assert.ThrowsAsync<ArgumentException>(
+        ArgumentException error = await Assert.ThrowsAsync<ArgumentException>(
             () => dataSource.GetTraceIndexesAsync("TRACE-NON-UTC-BOUND", from, to));
 
         Assert.Equal("value", error.ParamName);
@@ -219,22 +216,22 @@ public class DataViewTests
     // Function summary: Verifies the point-in-time trace-index lookup also strips UTC Kind only at its EF query boundary.
     public async Task MonitorService_TraceIndexBound_IsUnspecifiedAtDatabaseBoundary()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection connection = new("Data Source=:memory:");
         await connection.OpenAsync();
-        var probe = new TraceBoundCommandProbe();
-        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+        TraceBoundCommandProbe probe = new();
+        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseSqlite(connection)
             .AddInterceptors(probe)
             .Options;
-        await using var searchContext = new RVTSearchContext(options);
+        await using RVTSearchContext searchContext = new(options);
         await searchContext.Database.EnsureCreatedAsync();
         probe.Clear();
-        var service = new MonitorService(null!, null!, null!, null!, searchContext, null!, null!, null!);
-        var instant = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Utc);
+        MonitorService service = new(null!, null!, null!, null!, searchContext, null!, null!, null!);
+        DateTime instant = new(2026, 7, 1, 14, 30, 0, DateTimeKind.Utc);
 
         await service.GetVibrationTracesIndex("TRACE-UTC-INSTANT", instant);
 
-        var parameter = Assert.Single(probe.DateTimeParameters);
+        DateTime parameter = Assert.Single(probe.DateTimeParameters);
         Assert.Equal(instant.Ticks, parameter.Ticks);
         Assert.Equal(DateTimeKind.Unspecified, parameter.Kind);
     }
@@ -245,14 +242,14 @@ public class DataViewTests
     // Function summary: Verifies point-in-time trace-index reads reject non-UTC application instants.
     public async Task MonitorService_TraceIndexBound_RejectsNonUtcInput(DateTimeKind kind)
     {
-        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseInMemoryDatabase($"trace-index-kind-{Guid.NewGuid():N}")
             .Options;
-        await using var searchContext = new RVTSearchContext(options);
-        var service = new MonitorService(null!, null!, null!, null!, searchContext, null!, null!, null!);
-        var instant = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 30, 0), kind);
+        await using RVTSearchContext searchContext = new(options);
+        MonitorService service = new(null!, null!, null!, null!, searchContext, null!, null!, null!);
+        DateTime instant = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 30, 0), kind);
 
-        var error = await Assert.ThrowsAsync<ArgumentException>(
+        ArgumentException error = await Assert.ThrowsAsync<ArgumentException>(
             () => service.GetVibrationTracesIndex("TRACE-NON-UTC-INSTANT", instant));
 
         Assert.Equal("value", error.ParamName);
@@ -263,23 +260,23 @@ public class DataViewTests
     // Function summary: Verifies a read that stopped at its row bound is reported as truncated, not as complete.
     public async Task CappedRead_IsReportedAsTruncated()
     {
-        var dataSource = new FakeMonitorDataSource();
-        using var factory = new SpaTestApplicationFactory();
-        using var clientFactory = CreateClientFactory(factory, dataSource);
-        var ids = await SeedDataViewScenarioAsync(factory, dataSource);
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> clientFactory = CreateClientFactory(factory, dataSource);
+        DataViewScenarioIds ids = await SeedDataViewScenarioAsync(factory, dataSource);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
 
         // Re-register the dust data as a read that hit its bound and stopped short.
-        var dustMonitor = Monitor(Guid.NewGuid(), "DATA-DUST", "SER-DATA-D", MonitorTypeEnum.Dust, ids.Today);
+        RVT.Entities.Monitor dustMonitor = Monitor(Guid.NewGuid(), "DATA-DUST", "SER-DATA-D", MonitorTypeEnum.Dust, ids.Today);
         dataSource.AddDustData(ids.DustDeploymentId, dustMonitor, ids.Today, hasMore: true);
 
-        var client = CreateClient(clientFactory);
+        HttpClient client = CreateClient(clientFactory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var grid = await GetJsonAsync(
+        JsonDocument grid = await GetJsonAsync(
             client,
             $"/api/data/deployments/{ids.DustDeploymentId}/grid?filterOption=60&page=1&pageSize={GridPageSize}&sort=sampleTime&sortDir=Descending");
-        var download = await client.GetAsync(
+        HttpResponseMessage download = await client.GetAsync(
             $"/api/data/deployments/{ids.DustDeploymentId}/download?filterOption=60&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(3):yyyy-MM-ddTHH:mm:ss}Z");
 
         // The capped result must not look complete: JSON carries a flag, the CSV carries a header.
@@ -292,19 +289,19 @@ public class DataViewTests
     // Function summary: Verifies a complete read is not flagged as truncated.
     public async Task CompleteRead_IsNotReportedAsTruncated()
     {
-        var dataSource = new FakeMonitorDataSource();
-        using var factory = new SpaTestApplicationFactory();
-        using var clientFactory = CreateClientFactory(factory, dataSource);
-        var ids = await SeedDataViewScenarioAsync(factory, dataSource);
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> clientFactory = CreateClientFactory(factory, dataSource);
+        DataViewScenarioIds ids = await SeedDataViewScenarioAsync(factory, dataSource);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
 
-        var client = CreateClient(clientFactory);
+        HttpClient client = CreateClient(clientFactory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var grid = await GetJsonAsync(
+        JsonDocument grid = await GetJsonAsync(
             client,
             $"/api/data/deployments/{ids.DustDeploymentId}/grid?filterOption=60&page=1&pageSize={GridPageSize}&sort=sampleTime&sortDir=Descending");
-        var download = await client.GetAsync(
+        HttpResponseMessage download = await client.GetAsync(
             $"/api/data/deployments/{ids.DustDeploymentId}/download?filterOption=60&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(3):yyyy-MM-ddTHH:mm:ss}Z");
 
         Assert.False(grid.RootElement.GetProperty("truncated").GetBoolean());
@@ -315,16 +312,16 @@ public class DataViewTests
     // Function summary: Handles the graph returns vibration frequency series and alert thresholds workflow for this module.
     public async Task Graph_ReturnsVibrationFrequencySeriesAndAlertThresholds()
     {
-        var dataSource = new FakeMonitorDataSource();
-        using var factory = new SpaTestApplicationFactory();
-        using var clientFactory = CreateClientFactory(factory, dataSource);
-        var ids = await SeedDataViewScenarioAsync(factory, dataSource);
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> clientFactory = CreateClientFactory(factory, dataSource);
+        DataViewScenarioIds ids = await SeedDataViewScenarioAsync(factory, dataSource);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
 
-        var client = CreateClient(clientFactory);
+        HttpClient client = CreateClient(clientFactory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var graph = await GetJsonAsync(
+        JsonDocument graph = await GetJsonAsync(
             client,
             $"/api/data/deployments/{ids.VibrationDeploymentId}/graph?filterOption=frequency&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(1):yyyy-MM-ddTHH:mm:ss}Z");
 
@@ -335,7 +332,7 @@ public class DataViewTests
         Assert.Equal("Xvtop", graph.RootElement.GetProperty("datasets")[0].GetProperty("label").GetString());
         AssertApproximately(FakeMonitorDataSource.PeakFrequencyHz, graph.RootElement.GetProperty("datasets")[0].GetProperty("points")[1].GetProperty("x").GetDouble());
         AssertApproximately(FakeMonitorDataSource.PeakFrequencyXVtop, graph.RootElement.GetProperty("datasets")[0].GetProperty("points")[1].GetProperty("y").GetDouble());
-        var threshold = Assert.Single(graph.RootElement.GetProperty("thresholds").EnumerateArray(), threshold =>
+        JsonElement threshold = Assert.Single(graph.RootElement.GetProperty("thresholds").EnumerateArray(), threshold =>
             threshold.GetProperty("field").GetString() == "Xvtop" &&
             threshold.GetProperty("alertType").GetString() == "Alert");
         AssertApproximately(VibrationAlertLimitOn, threshold.GetProperty("limitOn").GetDouble());
@@ -345,24 +342,24 @@ public class DataViewTests
     // Function summary: Handles the traces return scoped list detail and csv download workflow for this module.
     public async Task Traces_ReturnScopedListDetailAndCsvDownload()
     {
-        var dataSource = new FakeMonitorDataSource();
-        using var factory = new SpaTestApplicationFactory();
-        using var clientFactory = CreateClientFactory(factory, dataSource);
-        var ids = await SeedDataViewScenarioAsync(factory, dataSource);
-        var companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> clientFactory = CreateClientFactory(factory, dataSource);
+        DataViewScenarioIds ids = await SeedDataViewScenarioAsync(factory, dataSource);
+        ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
         await AssignUserToSiteAsync(factory, companyUser.Id, ids.SiteId);
 
-        var client = CreateClient(clientFactory);
+        HttpClient client = CreateClient(clientFactory);
         await LoginAsync(client, CompanyUserEmail, Password);
 
-        var list = await GetJsonAsync(client, $"/api/data/deployments/{ids.VibrationDeploymentId}/traces");
-        var detail = await GetJsonAsync(client, $"/api/data/deployments/{ids.VibrationDeploymentId}/traces/{ids.TraceId}");
-        var download = await client.GetAsync($"/api/data/deployments/{ids.VibrationDeploymentId}/traces/{ids.TraceId}/download");
-        var hidden = await client.GetAsync($"/api/data/deployments/{ids.HiddenDeploymentId}/traces");
-        var wideList = await GetJsonAsync(
+        JsonDocument list = await GetJsonAsync(client, $"/api/data/deployments/{ids.VibrationDeploymentId}/traces");
+        JsonDocument detail = await GetJsonAsync(client, $"/api/data/deployments/{ids.VibrationDeploymentId}/traces/{ids.TraceId}");
+        HttpResponseMessage download = await client.GetAsync($"/api/data/deployments/{ids.VibrationDeploymentId}/traces/{ids.TraceId}/download");
+        HttpResponseMessage hidden = await client.GetAsync($"/api/data/deployments/{ids.HiddenDeploymentId}/traces");
+        JsonDocument wideList = await GetJsonAsync(
             client,
             $"/api/data/deployments/{ids.VibrationDeploymentId}/traces?fromDate={ids.Today.AddDays(-10):yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(1):yyyy-MM-ddTHH:mm:ss}Z");
-        var oldDetail = await client.GetAsync($"/api/data/deployments/{ids.VibrationDeploymentId}/traces/{ids.OldTraceId}");
+        HttpResponseMessage oldDetail = await client.GetAsync($"/api/data/deployments/{ids.VibrationDeploymentId}/traces/{ids.OldTraceId}");
 
         Assert.Single(list.RootElement.GetProperty("traces").EnumerateArray());
         Assert.Equal(ids.TraceId, list.RootElement.GetProperty("traces")[0].GetProperty("id").GetGuid());
@@ -385,14 +382,14 @@ public class DataViewTests
     // Function summary: Verifies vibration trace reads use the mapped EF trace entity rather than the unmapped legacy DTO.
     public async Task GetVibrationTraces_ReadsMappedTraceRows()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection connection = new("Data Source=:memory:");
         await connection.OpenAsync();
-        var options = new DbContextOptionsBuilder<RVTSearchContext>()
+        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseSqlite(connection)
             .Options;
-        await using var searchContext = new RVTSearchContext(options);
+        await using RVTSearchContext searchContext = new(options);
         await searchContext.Database.EnsureCreatedAsync();
-        var traceId = Guid.NewGuid();
+        Guid traceId = Guid.NewGuid();
         searchContext.OmnidotsTracesIndices.Add(new OmnidotsTracesIndex
         {
             Id = traceId,
@@ -405,11 +402,11 @@ public class DataViewTests
             INSERT INTO omnidots_trace (omnidots_trace_index_id, x, y, z)
             VALUES ({traceId}, {0.1}, {0.2}, {0.3})
             """);
-        var service = new MonitorService(null!, null!, null!, null!, searchContext, null!, null!, null!);
+        MonitorService service = new(null!, null!, null!, null!, searchContext, null!, null!, null!);
 
-        var result = await service.GetVibrationTraces(traceId);
+        SearchQueryResult<OmnidotsTrace> result = await service.GetVibrationTraces(traceId);
 
-        var trace = Assert.Single(result.Value);
+        OmnidotsTrace trace = Assert.Single(result.Value);
         Assert.Equal(traceId, trace.TraceId);
         Assert.Equal(0.2, trace.Y);
     }
@@ -430,9 +427,9 @@ public class DataViewTests
     // Function summary: Retrieves json data for callers.
     private static async Task<JsonDocument> GetJsonAsync(HttpClient client, string url)
     {
-        var response = await client.GetAsync(url);
+        HttpResponseMessage response = await client.GetAsync(url);
         response.EnsureSuccessStatusCode();
-        var stream = await response.Content.ReadAsStreamAsync();
+        Stream stream = await response.Content.ReadAsStreamAsync();
         return await JsonDocument.ParseAsync(stream);
     }
 
@@ -445,26 +442,26 @@ public class DataViewTests
     // Function summary: Initializes data view scenario state required by the application.
     private static async Task<DataViewScenarioIds> SeedDataViewScenarioAsync(SpaTestApplicationFactory factory, FakeMonitorDataSource dataSource)
     {
-        var companyId = Guid.NewGuid();
-        var hiddenCompanyId = Guid.NewGuid();
-        var siteId = Guid.NewGuid();
-        var hiddenSiteId = Guid.NewGuid();
-        var contractId = Guid.NewGuid();
-        var hiddenContractId = Guid.NewGuid();
-        var dustMonitorId = Guid.NewGuid();
-        var vibrationMonitorId = Guid.NewGuid();
-        var hiddenMonitorId = Guid.NewGuid();
-        var dustDeploymentId = Guid.NewGuid();
-        var vibrationDeploymentId = Guid.NewGuid();
-        var hiddenDeploymentId = Guid.NewGuid();
-        var traceId = Guid.NewGuid();
-        var oldTraceId = Guid.NewGuid();
-        var endBoundaryTraceId = Guid.NewGuid();
-        var today = new DateTime(2026, 5, 24, 8, 0, 0, DateTimeKind.Utc);
+        Guid companyId = Guid.NewGuid();
+        Guid hiddenCompanyId = Guid.NewGuid();
+        Guid siteId = Guid.NewGuid();
+        Guid hiddenSiteId = Guid.NewGuid();
+        Guid contractId = Guid.NewGuid();
+        Guid hiddenContractId = Guid.NewGuid();
+        Guid dustMonitorId = Guid.NewGuid();
+        Guid vibrationMonitorId = Guid.NewGuid();
+        Guid hiddenMonitorId = Guid.NewGuid();
+        Guid dustDeploymentId = Guid.NewGuid();
+        Guid vibrationDeploymentId = Guid.NewGuid();
+        Guid hiddenDeploymentId = Guid.NewGuid();
+        Guid traceId = Guid.NewGuid();
+        Guid oldTraceId = Guid.NewGuid();
+        Guid endBoundaryTraceId = Guid.NewGuid();
+        DateTime today = new(2026, 5, 24, 8, 0, 0, DateTimeKind.Utc);
 
-        var dustMonitor = Monitor(dustMonitorId, "DATA-DUST", "SER-DATA-D", MonitorTypeEnum.Dust, today);
-        var vibrationMonitor = Monitor(vibrationMonitorId, "DATA-VIBE", "SER-DATA-V", MonitorTypeEnum.Vibration, today);
-        var hiddenMonitor = Monitor(hiddenMonitorId, "DATA-HIDDEN", "SER-DATA-H", MonitorTypeEnum.Vibration, today);
+        RVT.Entities.Monitor dustMonitor = Monitor(dustMonitorId, "DATA-DUST", "SER-DATA-D", MonitorTypeEnum.Dust, today);
+        RVT.Entities.Monitor vibrationMonitor = Monitor(vibrationMonitorId, "DATA-VIBE", "SER-DATA-V", MonitorTypeEnum.Vibration, today);
+        RVT.Entities.Monitor hiddenMonitor = Monitor(hiddenMonitorId, "DATA-HIDDEN", "SER-DATA-H", MonitorTypeEnum.Vibration, today);
 
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Data View Company", Contracts = [] },
@@ -513,7 +510,7 @@ public class DataViewTests
     // Function summary: Handles the monitor workflow for this module.
     private static RVT.Entities.Monitor Monitor(Guid id, string fleetNumber, string serialId, MonitorTypeEnum type, DateTime today)
     {
-        var monitor = TestData.Monitor(type, id: id, fleetNr: fleetNumber, serialId: serialId);
+        RVT.Entities.Monitor monitor = TestData.Monitor(type, id: id, fleetNr: fleetNumber, serialId: serialId);
         monitor.ListedAtTime = today.AddDays(-30);
         monitor.LastDataTime15Min = today;
         return monitor;
@@ -611,7 +608,7 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
 
         if (request.TraceId is not null)
         {
-            var trace = traces[(Guid)request.TraceId];
+            (RVT.Entities.Monitor Monitor, OmnidotsTracesIndex Index, List<OmnidotsTrace> Samples) trace = traces[(Guid)request.TraceId];
             return Task.FromResult(new MonitorData
             {
                 Monitor = trace.Monitor,
@@ -630,17 +627,16 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
     // Function summary: Retrieves trace indexes data for callers.
     public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(string serialId, DateTime fromDate, DateTime toDate)
     {
-        IReadOnlyList<OmnidotsTracesIndex> indexes = traces.Values
+        IReadOnlyList<OmnidotsTracesIndex> indexes = [.. traces.Values
             .Where(trace => trace.Monitor.SerialId == serialId && trace.Index.StartTime >= fromDate && trace.Index.StartTime < toDate)
-            .Select(trace => trace.Index)
-            .ToList();
+            .Select(trace => trace.Index)];
         return Task.FromResult(indexes);
     }
 
     // Function summary: Retrieves trace index data for callers.
     public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
     {
-        return Task.FromResult(traces.TryGetValue(traceId, out var trace) ? trace.Index : null);
+        return Task.FromResult(traces.TryGetValue(traceId, out (RVT.Entities.Monitor Monitor, OmnidotsTracesIndex Index, List<OmnidotsTrace> Samples) trace) ? trace.Index : null);
     }
 
     // Function summary: Registers dust data for the current workflow.
@@ -648,13 +644,13 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
     {
         dataByDeployment[deploymentId] = (page) =>
         {
-            var rows = new List<MyAtmDustLevel>
+            List<MyAtmDustLevel> rows = new()
             {
                 new() { SerialId = monitor.SerialId, Avrg = 60, SampleTime = today.AddMinutes(30), Pm1 = 4.1, Pm25 = 10.2, Pm10 = PeakDustPm10, PmTotal = 31.2 },
                 new() { SerialId = monitor.SerialId, Avrg = 60, SampleTime = today.AddMinutes(15), Pm1 = 3.1, Pm25 = 9.2, Pm10 = 21.2, PmTotal = 28.8 },
                 new() { SerialId = monitor.SerialId, Avrg = 60, SampleTime = today, Pm1 = 2.1, Pm25 = 8.2, Pm10 = 20.2, PmTotal = 27.8 }
             };
-            var values = page is null ? rows : rows.Take(2).ToList();
+            List<MyAtmDustLevel> values = page is null ? rows : [.. rows.Take(2)];
             return new MonitorData
             {
                 Monitor = monitor,
@@ -703,7 +699,7 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
     // Function summary: Registers trace data at a specific timestamp for ownership-window tests.
     public void AddTraceDataAt(RVT.Entities.Monitor monitor, Guid traceId, DateTime startTime)
     {
-        var databaseStartTime = DateTime.SpecifyKind(startTime, DateTimeKind.Unspecified);
+        DateTime databaseStartTime = DateTime.SpecifyKind(startTime, DateTimeKind.Unspecified);
         traces[traceId] = (
             monitor,
             new OmnidotsTracesIndex

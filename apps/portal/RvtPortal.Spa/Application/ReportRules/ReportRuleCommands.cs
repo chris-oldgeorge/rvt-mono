@@ -53,14 +53,14 @@ public sealed class CreateReportRuleCommandHandler : IRequestHandler<CreateRepor
     // Function summary: Creates a report rule after validating site and schedule fields.
     public async Task<ReportRuleCommandResult> Handle(CreateReportRuleCommand request, CancellationToken cancellationToken)
     {
-        var result = new ReportRuleCommandResult();
+        ReportRuleCommandResult result = new();
         await ReportRuleCommandWorkflow.ValidateRuleRequestAsync(domainContext, request.Request, result.Errors, cancellationToken);
         if (result.Errors.Count > 0)
         {
             return result;
         }
 
-        var rule = ReportRuleCommandWorkflow.CreateRule(request.Request, request.UserId);
+        ReportRule rule = ReportRuleCommandWorkflow.CreateRule(request.Request, request.UserId);
         searchContext.ReportRules.Add(rule);
         result.ReportRuleId = rule.Id;
         return result;
@@ -82,8 +82,8 @@ public sealed class UpdateReportRuleCommandHandler : IRequestHandler<UpdateRepor
     // Function summary: Updates a report rule after validating site and schedule fields.
     public async Task<ReportRuleCommandResult> Handle(UpdateReportRuleCommand request, CancellationToken cancellationToken)
     {
-        var result = new ReportRuleCommandResult { ReportRuleId = request.ReportRuleId };
-        var rule = await searchContext.ReportRules.SingleOrDefaultAsync(
+        ReportRuleCommandResult result = new() { ReportRuleId = request.ReportRuleId };
+        ReportRule? rule = await searchContext.ReportRules.SingleOrDefaultAsync(
             item => item.Id == request.ReportRuleId && !item.Deleted,
             cancellationToken);
         if (rule == null)
@@ -116,8 +116,8 @@ public sealed class DeleteReportRuleCommandHandler : IRequestHandler<DeleteRepor
     // Function summary: Soft-deletes a report rule.
     public async Task<ReportRuleCommandResult> Handle(DeleteReportRuleCommand request, CancellationToken cancellationToken)
     {
-        var result = new ReportRuleCommandResult { ReportRuleId = request.ReportRuleId };
-        var rule = await searchContext.ReportRules.SingleOrDefaultAsync(
+        ReportRuleCommandResult result = new() { ReportRuleId = request.ReportRuleId };
+        ReportRule? rule = await searchContext.ReportRules.SingleOrDefaultAsync(
             item => item.Id == request.ReportRuleId && !item.Deleted,
             cancellationToken);
         if (rule == null)
@@ -148,8 +148,8 @@ public sealed class AddReportRuleUserCommandHandler : IRequestHandler<AddReportR
     // Function summary: Adds a user assignment to a report rule when the user is eligible.
     public async Task<ReportRuleCommandResult> Handle(AddReportRuleUserCommand request, CancellationToken cancellationToken)
     {
-        var result = new ReportRuleCommandResult { ReportRuleId = request.ReportRuleId };
-        var rule = await searchContext.ReportRules.AsNoTracking().SingleOrDefaultAsync(
+        ReportRuleCommandResult result = new() { ReportRuleId = request.ReportRuleId };
+        ReportRule? rule = await searchContext.ReportRules.AsNoTracking().SingleOrDefaultAsync(
             item => item.Id == request.ReportRuleId && !item.Deleted,
             cancellationToken);
         if (rule == null)
@@ -163,7 +163,7 @@ public sealed class AddReportRuleUserCommandHandler : IRequestHandler<AddReportR
             return result;
         }
 
-        var exists = await searchContext.ReportUsers.AnyAsync(
+        bool exists = await searchContext.ReportUsers.AnyAsync(
             item => item.ReportRuleId == request.ReportRuleId && item.UserId == request.UserId,
             cancellationToken);
         if (!exists)
@@ -192,8 +192,8 @@ public sealed class RemoveReportRuleUserCommandHandler : IRequestHandler<RemoveR
     // Function summary: Removes matching user assignments from a report rule.
     public async Task<ReportRuleCommandResult> Handle(RemoveReportRuleUserCommand request, CancellationToken cancellationToken)
     {
-        var result = new ReportRuleCommandResult { ReportRuleId = request.ReportRuleId };
-        var rule = await searchContext.ReportRules.AsNoTracking().SingleOrDefaultAsync(
+        ReportRuleCommandResult result = new() { ReportRuleId = request.ReportRuleId };
+        ReportRule? rule = await searchContext.ReportRules.AsNoTracking().SingleOrDefaultAsync(
             item => item.Id == request.ReportRuleId && !item.Deleted,
             cancellationToken);
         if (rule == null)
@@ -202,7 +202,7 @@ public sealed class RemoveReportRuleUserCommandHandler : IRequestHandler<RemoveR
             return result;
         }
 
-        var assignments = await searchContext.ReportUsers
+        List<ReportUser> assignments = await searchContext.ReportUsers
             .Where(item => item.ReportRuleId == request.ReportRuleId && item.UserId == request.UserId)
             .ToListAsync(cancellationToken);
         if (assignments.Count > 0)
@@ -320,14 +320,14 @@ internal static class ReportRuleCommandWorkflow
         Dictionary<string, string[]> errors,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(userId.ToString());
+        ApplicationUser? user = await userManager.FindByIdAsync(userId.ToString());
         if (user == null)
         {
             AddError(errors, nameof(ReportUserMutationRequest.UserId), "User was not found.");
             return false;
         }
 
-        var roles = await userManager.GetRolesAsync(user);
+        IList<string> roles = await userManager.GetRolesAsync(user);
         if (roles.Contains(RoleNames.RVTMasterAdmin, StringComparer.Ordinal) ||
             roles.Contains(RoleNames.RVTAdmin, StringComparer.Ordinal))
         {
@@ -354,7 +354,7 @@ internal static class ReportRuleCommandWorkflow
 
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }

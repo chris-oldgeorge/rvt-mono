@@ -3,6 +3,7 @@
 // - 2026-07-15 pending Added after DateTime.Now writes to timestamptz columns were found to throw on persistence.
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -54,14 +55,14 @@ public sealed class UtcTimestampGuardInterceptor : SaveChangesInterceptor
 
         List<string>? violations = null;
 
-        foreach (var entry in context.ChangeTracker.Entries())
+        foreach (EntityEntry entry in context.ChangeTracker.Entries())
         {
             if (entry.State is not (EntityState.Added or EntityState.Modified))
             {
                 continue;
             }
 
-            foreach (var property in entry.Properties)
+            foreach (PropertyEntry property in entry.Properties)
             {
                 // A Modified entity writes only the columns that actually changed.
                 if (entry.State == EntityState.Modified && !property.IsModified)
@@ -98,7 +99,7 @@ public sealed class UtcTimestampGuardInterceptor : SaveChangesInterceptor
     // Function summary: Reports whether a property maps to a PostgreSQL timestamptz column.
     private static bool IsTimestamptz(IProperty property)
     {
-        var storeType = property.GetColumnType() ?? property.FindRelationalTypeMapping()?.StoreType;
+        string? storeType = property.GetColumnType() ?? property.FindRelationalTypeMapping()?.StoreType;
         return string.Equals(storeType, TimestamptzStoreType, StringComparison.OrdinalIgnoreCase);
     }
 }

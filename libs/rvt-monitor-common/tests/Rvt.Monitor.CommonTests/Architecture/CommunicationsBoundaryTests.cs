@@ -158,7 +158,7 @@ public sealed class CommunicationsBoundaryTests
         string? relativeDirectory = null)
     {
         string directory = relativeDirectory is null ? root : Path.Combine(root, relativeDirectory);
-        return Directory
+        return [.. Directory
             .EnumerateFiles(directory, "*.*", SearchOption.AllDirectories)
             .Where(path => path.EndsWith(".cs", StringComparison.Ordinal) ||
                 path.EndsWith(".csproj", StringComparison.Ordinal))
@@ -166,8 +166,7 @@ public sealed class CommunicationsBoundaryTests
             .Where(path => !Normalize(path).Contains("Tests/", StringComparison.Ordinal))
             .Select(path => (
                 Normalize(Path.GetRelativePath(root, path)),
-                File.ReadAllText(path)))
-            .ToArray();
+                File.ReadAllText(path)))];
     }
 
     private static void AssertProviderOwnership(string expectedProject, params string[] markers)
@@ -194,7 +193,7 @@ public sealed class CommunicationsBoundaryTests
 
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
             string gitPath = Path.Combine(directory.FullName, ".git");

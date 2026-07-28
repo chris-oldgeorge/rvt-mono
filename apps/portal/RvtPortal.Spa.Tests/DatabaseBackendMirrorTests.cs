@@ -31,7 +31,7 @@ public sealed class DatabaseBackendMirrorTests
     public void MonitorNaturalKeyDeploymentScript_ExistsForPostgres()
     {
         const string relativePath = "database/postgres/monitor_natural_key_changes_20260618.sql";
-        var path = Path.Combine(FindRepositoryRoot(), relativePath);
+        string path = Path.Combine(FindRepositoryRoot(), relativePath);
 
         Assert.True(File.Exists(path), $"Missing database deployment script: {relativePath}");
     }
@@ -40,11 +40,11 @@ public sealed class DatabaseBackendMirrorTests
     // Function summary: Verifies the PostgreSQL script defines monitor natural-key unique indexes.
     public void MonitorNaturalKeyDeploymentScript_DefinesUniqueIndexes()
     {
-        var postgresSql = NormalizeSql(ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql"));
+        string postgresSql = NormalizeSql(ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql"));
 
-        foreach (var index in NaturalKeyIndexes)
+        foreach (NaturalKeyIndex index in NaturalKeyIndexes)
         {
-            var postgresColumns = string.Join(", ", index.Columns);
+            string postgresColumns = string.Join(", ", index.Columns);
 
             Assert.Contains($"CREATE UNIQUE INDEX IF NOT EXISTS {index.IndexName}", postgresSql, StringComparison.Ordinal);
             Assert.Contains($"ON {index.Table} ({postgresColumns})", postgresSql, StringComparison.Ordinal);
@@ -55,7 +55,7 @@ public sealed class DatabaseBackendMirrorTests
     // Function summary: Verifies the PostgreSQL script populates the AirQ natural-key column before enforcing uniqueness.
     public void MonitorNaturalKeyDeploymentScript_BackfillsAirQStatusSerialId()
     {
-        var postgresSql = NormalizeSql(ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql"));
+        string postgresSql = NormalizeSql(ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql"));
 
         Assert.Contains("ALTER TABLE air_q_monitor_status ADD COLUMN IF NOT EXISTS serial_id varchar(64)", postgresSql, StringComparison.Ordinal);
         Assert.Contains("UPDATE air_q_monitor_status SET serial_id = id WHERE serial_id IS NULL AND id IS NOT NULL", postgresSql, StringComparison.Ordinal);
@@ -65,13 +65,13 @@ public sealed class DatabaseBackendMirrorTests
     // Function summary: Verifies the PostgreSQL script audits monitor natural keys before unique indexes are applied.
     public void MonitorNaturalKeyDeploymentScript_AuditsNaturalKeys()
     {
-        var postgresSql = ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql");
+        string postgresSql = ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql");
 
-        foreach (var index in NaturalKeyIndexes)
+        foreach (NaturalKeyIndex index in NaturalKeyIndexes)
         {
             Assert.Contains(index.Table, postgresSql, StringComparison.Ordinal);
 
-            foreach (var column in index.Columns)
+            foreach (string column in index.Columns)
             {
                 Assert.Contains(column, postgresSql, StringComparison.Ordinal);
             }
@@ -83,15 +83,15 @@ public sealed class DatabaseBackendMirrorTests
     // Function summary: Verifies the PostgreSQL script preserves removed duplicate rows before enforcing monitor natural keys.
     public void MonitorNaturalKeyDeploymentScript_QuarantinesKnownDuplicateTables(string relativePath)
     {
-        var sql = ReadRepositoryFile(relativePath);
-        var quarantineTables = new[]
+        string sql = ReadRepositoryFile(relativePath);
+        string[] quarantineTables = new[]
         {
             "duplicate_quarantine_svantek_noise_level",
             "duplicate_quarantine_omnidots_peak_level",
             "duplicate_quarantine_svantek_noise_8_hour_average"
         };
 
-        foreach (var quarantineTable in quarantineTables)
+        foreach (string? quarantineTable in quarantineTables)
         {
             Assert.Contains(quarantineTable, sql, StringComparison.Ordinal);
         }
@@ -99,7 +99,7 @@ public sealed class DatabaseBackendMirrorTests
 
     private static string ReadRepositoryFile(string relativePath)
     {
-        var path = Path.Combine(FindRepositoryRoot(), relativePath);
+        string path = Path.Combine(FindRepositoryRoot(), relativePath);
         Assert.True(File.Exists(path), $"Missing repository file: {relativePath}");
         return File.ReadAllText(path);
     }
@@ -111,7 +111,7 @@ public sealed class DatabaseBackendMirrorTests
 
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "RvtPortal.Spa.sln")))

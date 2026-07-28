@@ -45,8 +45,8 @@ public sealed class AccountMessenger : IAccountMessenger
 
     private Task<EmailDeliveryResult> SendAsync(AccountMessageKind kind, string email, string callbackUrl, CancellationToken cancellationToken)
     {
-        var message = AccountMessageCatalog.For(kind);
-        var body = message.HtmlBody.Replace("{callbackUrl}", HtmlEncoder.Default.Encode(callbackUrl), StringComparison.Ordinal);
+        AccountMessage message = AccountMessageCatalog.For(kind);
+        string body = message.HtmlBody.Replace("{callbackUrl}", HtmlEncoder.Default.Encode(callbackUrl), StringComparison.Ordinal);
         return emailDelivery.SendAsync(email, message.Subject, body, cancellationToken);
     }
 }

@@ -18,7 +18,7 @@ public sealed class MonitorRulePolicyTests
     [TestMethod]
     public void ForMonitorKind_MyAtmDoesNotApplyTheActivityTimeWindow()
     {
-        var policy = MonitorRulePolicy.ForMonitorKind("myatm");
+        MonitorRulePolicy policy = MonitorRulePolicy.ForMonitorKind("myatm");
 
         Assert.IsFalse(policy.AppliesActivityTimeWindow);
     }
@@ -30,7 +30,7 @@ public sealed class MonitorRulePolicyTests
     [DataRow(null)]
     public void ForMonitorKind_EveryOtherMonitorAppliesTheActivityTimeWindow(string? monitorKind)
     {
-        var policy = MonitorRulePolicy.ForMonitorKind(monitorKind);
+        MonitorRulePolicy policy = MonitorRulePolicy.ForMonitorKind(monitorKind);
 
         Assert.IsTrue(policy.AppliesActivityTimeWindow);
     }
@@ -68,7 +68,7 @@ public sealed class MonitorRulePolicyTests
     [TestMethod]
     public void IsActive_WithADayThatDoesNotApply_IsInactiveUnderEveryPolicy()
     {
-        var rule = new AlertActivityTimeDto
+        AlertActivityTimeDto rule = new()
         {
             Weekdays = true,
             Saturdays = false,
@@ -84,7 +84,7 @@ public sealed class MonitorRulePolicyTests
     [TestMethod]
     public void IsActive_UsesTheRulesOwnPolicyWhenNoneIsSupplied()
     {
-        var rule = new AlertActivityTimeDto
+        AlertActivityTimeDto rule = new()
         {
             Weekdays = true,
             Saturdays = true,

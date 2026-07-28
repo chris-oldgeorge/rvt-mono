@@ -14,8 +14,9 @@ using Microsoft.AspNetCore.Mvc;
 using RVT.BusinessLogic.Application;
 using RVT.BusinessLogic.Application.Paging;
 using RVT.BusinessLogic.Reports;
-using RvtPortal.Spa.Application.ReportRules;
+using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
+using RvtPortal.Spa.Application.ReportRules;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Api;
@@ -46,7 +47,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Queries report rules using the business-layer report-rule use case.
     public async Task<ActionResult<QueryReportRulesResponse>> Query([FromQuery] QueryReportRulesRequest request)
     {
-        var requestedSort = string.IsNullOrWhiteSpace(request.Sort)
+        string requestedSort = string.IsNullOrWhiteSpace(request.Sort)
             ? ReportRuleApplicationService.DefaultSort
             : request.Sort.Trim();
         if (!ReportRuleApplicationService.SortFields.Contains(requestedSort))
@@ -54,7 +55,7 @@ public class ReportRulesController : ControllerBase
             return InvalidSort(requestedSort, ReportRuleApplicationService.SortFields);
         }
 
-        var result = await reportRules.QueryAsync(
+        ApplicationResult<PagedResult<ReportRuleListModel>> result = await reportRules.QueryAsync(
             new ReportRuleQuery(request.SiteId, BuildPageRequest(request, requestedSort)),
             HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ReportRuleApiMapper.ToQueryResponse);
@@ -65,7 +66,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Returns report-rule edit options from the business-layer use case.
     public async Task<ActionResult<ReportRuleOptionsResponse>> Options()
     {
-        var result = await reportRules.OptionsAsync(HttpContext.RequestAborted);
+        ApplicationResult<ReportRuleOptionsModel> result = await reportRules.OptionsAsync(HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ReportRuleApiMapper.ToOptionsResponse);
     }
 
@@ -75,7 +76,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Retrieves report-rule detail through the business-layer use case.
     public async Task<ActionResult<EntityResponse<ReportRuleDetailResponse>>> Get(Guid id)
     {
-        var result = await reportRules.GetAsync(id, HttpContext.RequestAborted);
+        ApplicationResult<ReportRuleDetailModel> result = await reportRules.GetAsync(id, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ToDetailEntity);
     }
 
@@ -85,14 +86,14 @@ public class ReportRulesController : ControllerBase
     // Function summary: Creates a report rule through the business-layer use case.
     public async Task<ActionResult<EntityResponse<ReportRuleDetailResponse>>> Create(ReportRuleMutationRequest request)
     {
-        var user = await currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
-        var result = await reportRules.CreateAsync(
+        PortalUserContext user = await currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
+        ApplicationResult<ReportRuleDetailModel> result = await reportRules.CreateAsync(
             user,
             ReportRuleApiMapper.ToMutation(request),
             HttpContext.RequestAborted);
         if (result.Kind == ApplicationResultKind.Success && result.Value != null)
         {
-            var response = ToDetailEntity(result.Value);
+            EntityResponse<ReportRuleDetailResponse> response = ToDetailEntity(result.Value);
             return CreatedAtAction(nameof(Get), new { id = result.Value.Id }, response);
         }
 
@@ -106,8 +107,8 @@ public class ReportRulesController : ControllerBase
     // Function summary: Updates a report rule through the business-layer use case.
     public async Task<ActionResult<EntityResponse<ReportRuleDetailResponse>>> Update(Guid id, ReportRuleMutationRequest request)
     {
-        var user = await currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
-        var result = await reportRules.UpdateAsync(
+        PortalUserContext user = await currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
+        ApplicationResult<ReportRuleDetailModel> result = await reportRules.UpdateAsync(
             user,
             id,
             ReportRuleApiMapper.ToMutation(request),
@@ -121,7 +122,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Deletes a report rule through the business-layer use case.
     public async Task<ActionResult<MutationResponse>> Delete(Guid id)
     {
-        var result = await reportRules.DeleteAsync(id, HttpContext.RequestAborted);
+        ApplicationResult<Guid> result = await reportRules.DeleteAsync(id, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, deletedId => new MutationResponse
         {
             Id = deletedId,
@@ -135,7 +136,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Retrieves the report-rule assignment summary used by legacy-compatible clients.
     public async Task<ActionResult<EntityResponse<ReportUserAssignmentResponse>>> Users(Guid id)
     {
-        var result = await reportRules.GetUsersAsync(id, HttpContext.RequestAborted);
+        ApplicationResult<ReportUserAssignmentModel> result = await reportRules.GetUsersAsync(id, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ToAssignmentEntity);
     }
 
@@ -145,7 +146,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Retrieves paged users eligible to receive a report rule.
     public async Task<ActionResult<QueryReportUsersResponse>> AvailableUsers(Guid id, [FromQuery] QueryReportUsersRequest request)
     {
-        var result = await reportRules.QueryUsersAsync(
+        ApplicationResult<ReportUserQueryResult> result = await reportRules.QueryUsersAsync(
             id,
             BuildPageRequest(request, string.IsNullOrWhiteSpace(request.Sort) ? "name" : request.Sort.Trim()),
             assigned: false,
@@ -159,7 +160,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Retrieves paged users currently assigned to receive a report rule.
     public async Task<ActionResult<QueryReportUsersResponse>> AssignedUsers(Guid id, [FromQuery] QueryReportUsersRequest request)
     {
-        var result = await reportRules.QueryUsersAsync(
+        ApplicationResult<ReportUserQueryResult> result = await reportRules.QueryUsersAsync(
             id,
             BuildPageRequest(request, string.IsNullOrWhiteSpace(request.Sort) ? "name" : request.Sort.Trim()),
             assigned: true,
@@ -174,7 +175,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Assigns one user to a report rule through the business-layer use case.
     public async Task<ActionResult<EntityResponse<ReportUserAssignmentResponse>>> AddUser(Guid id, ReportUserMutationRequest request)
     {
-        var result = await reportRules.AddUserAsync(id, request.UserId, HttpContext.RequestAborted);
+        ApplicationResult<ReportUserAssignmentModel> result = await reportRules.AddUserAsync(id, request.UserId, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ToAssignmentEntity);
     }
 
@@ -184,7 +185,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Removes one user from a report rule through the business-layer use case.
     public async Task<ActionResult<EntityResponse<ReportUserAssignmentResponse>>> RemoveUser(Guid id, Guid userId)
     {
-        var result = await reportRules.RemoveUserAsync(id, userId, HttpContext.RequestAborted);
+        ApplicationResult<ReportUserAssignmentModel> result = await reportRules.RemoveUserAsync(id, userId, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ToAssignmentEntity);
     }
 
@@ -199,7 +200,7 @@ public class ReportRulesController : ControllerBase
         ReportGenerationRequest? request,
         CancellationToken cancellationToken)
     {
-        var result = await reportRules.RequestGenerationAsync(
+        ApplicationResult<ReportGenerationResponseModel> result = await reportRules.RequestGenerationAsync(
             id,
             ReportRuleApiMapper.ToGenerationRequest(request),
             cancellationToken);
@@ -215,7 +216,7 @@ public class ReportRulesController : ControllerBase
 
         if (result.Kind == ApplicationResultKind.ExternalServiceUnavailable)
         {
-            var statusCode = result.StatusCode ?? StatusCodes.Status503ServiceUnavailable;
+            int statusCode = result.StatusCode ?? StatusCodes.Status503ServiceUnavailable;
             return StatusCode(statusCode, ApiProblems.Create(
                 HttpContext,
                 statusCode,
@@ -258,7 +259,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Builds the existing problem response for unsupported sort fields.
     private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
     {
-        var problem = ApiProblems.Create(
+        ProblemDetails problem = ApiProblems.Create(
             HttpContext,
             StatusCodes.Status400BadRequest,
             "Invalid sort field",

@@ -6,6 +6,7 @@ using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Api.UseCases;
+using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 
@@ -23,13 +24,13 @@ public sealed class StoreAccessoryInfoHandlerTests
     [TestMethod]
     public async Task RunAsync_UsesTheSuccessfullyCommittedPageCursorForTheNextDirectKeysetRequest()
     {
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
-        var database = new Mock<IDBClient>(MockBehavior.Strict);
-        var monitor = MyAtmFixture.CustomerDeviceDtos(lastDataTime: null, singleItem: true).Single();
-        var firstTimestamp = new DateTime(2026, 7, 14, 9, 0, 0, DateTimeKind.Utc);
-        var secondTimestamp = firstTimestamp.AddMinutes(1);
-        var calls = 0;
-        var requestPaths = new List<string>();
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IDBClient> database = new(MockBehavior.Strict);
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(lastDataTime: null, singleItem: true).Single();
+        DateTime firstTimestamp = new(2026, 7, 14, 9, 0, 0, DateTimeKind.Utc);
+        DateTime secondTimestamp = firstTimestamp.AddMinutes(1);
+        int calls = 0;
+        List<string> requestPaths = [];
         http.Setup(client => client.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns((string path, CancellationToken _) =>
             {
@@ -50,9 +51,9 @@ public sealed class StoreAccessoryInfoHandlerTests
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var reader = new MyAtmMonitorReader(database.Object, database.Object, testLocal: false);
-        var gateway = new MyAtmHttpGateway(http.Object, devicePageSize: 10, accessoryPageSize: 1);
-        var handler = new StoreAccessoryInfoHandler(gateway, reader, database.Object, database.Object, database.Object, maxPagesPerMonitorPerRun: 2);
+        MyAtmMonitorReader reader = new(database.Object, database.Object, testLocal: false);
+        MyAtmHttpGateway gateway = new(http.Object, devicePageSize: 10, accessoryPageSize: 1);
+        StoreAccessoryInfoHandler handler = new(gateway, reader, database.Object, database.Object, database.Object, maxPagesPerMonitorPerRun: 2);
 
         await handler.RunAsync(9);
 
@@ -70,12 +71,12 @@ public sealed class StoreAccessoryInfoHandlerTests
     [TestMethod]
     public async Task RunAsync_StopsWhenTheDirectGatewayReturnsNoNextCursor()
     {
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
-        var database = new Mock<IDBClient>(MockBehavior.Strict);
-        var monitor = MyAtmFixture.CustomerDeviceDtos(lastDataTime: null, singleItem: true).Single();
-        var cursor = new DateTime(2026, 7, 14, 9, 0, 0, DateTimeKind.Utc);
-        var nextTimestamp = cursor.AddMinutes(1);
-        var calls = 0;
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IDBClient> database = new(MockBehavior.Strict);
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(lastDataTime: null, singleItem: true).Single();
+        DateTime cursor = new(2026, 7, 14, 9, 0, 0, DateTimeKind.Utc);
+        DateTime nextTimestamp = cursor.AddMinutes(1);
+        int calls = 0;
         http.Setup(client => client.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns((string _, CancellationToken _) =>
             {
@@ -89,7 +90,7 @@ public sealed class StoreAccessoryInfoHandlerTests
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var handler = CreateHandler(http.Object, database.Object, maxPagesPerMonitorPerRun: 10);
+        StoreAccessoryInfoHandler handler = CreateHandler(http.Object, database.Object, maxPagesPerMonitorPerRun: 10);
 
         await handler.RunAsync(9);
 
@@ -103,14 +104,14 @@ public sealed class StoreAccessoryInfoHandlerTests
     [TestMethod]
     public async Task RunAsync_ContinuesLaterMonitorsAndAggregatesPageCommitFailures()
     {
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
-        var database = new Mock<IDBClient>(MockBehavior.Strict);
-        var monitors = MyAtmFixture.CustomerDeviceDtos(lastDataTime: null);
-        var first = monitors[0];
-        var second = monitors[1];
-        var timestamp = new DateTime(2026, 7, 14, 9, 0, 0, DateTimeKind.Utc);
-        var failure = new InvalidOperationException("page commit failed");
-        var recordingFailure = new IOException("error store unavailable");
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IDBClient> database = new(MockBehavior.Strict);
+        List<DustMonitorDto> monitors = MyAtmFixture.CustomerDeviceDtos(lastDataTime: null);
+        DustMonitorDto first = monitors[0];
+        DustMonitorDto second = monitors[1];
+        DateTime timestamp = new(2026, 7, 14, 9, 0, 0, DateTimeKind.Utc);
+        InvalidOperationException failure = new("page commit failed");
+        IOException recordingFailure = new("error store unavailable");
         http.Setup(client => client.GetAsync(It.Is<string>(path => path.Contains(first.SerialId)), It.IsAny<CancellationToken>()))
             .ReturnsAsync(AccessoryPageJson(timestamp));
         http.Setup(client => client.GetAsync(It.Is<string>(path => path.Contains(second.SerialId)), It.IsAny<CancellationToken>()))
@@ -129,9 +130,9 @@ public sealed class StoreAccessoryInfoHandlerTests
         database.Setup(command => command.HandleException("StoreAccessoryInfo SerialId=" + first.SerialId, failure))
             .Throws(recordingFailure);
 
-        var handler = CreateHandler(http.Object, database.Object, maxPagesPerMonitorPerRun: 10);
+        StoreAccessoryInfoHandler handler = CreateHandler(http.Object, database.Object, maxPagesPerMonitorPerRun: 10);
 
-        var aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => handler.RunAsync(9));
+        MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => handler.RunAsync(9));
 
         CollectionAssert.AreEqual(new[] { failure }, aggregate.Failures.Select(item => item.Exception).ToArray());
         Assert.AreSame(recordingFailure, aggregate.Failures.Single().RecordingException);
@@ -147,12 +148,12 @@ public sealed class StoreAccessoryInfoHandlerTests
     [TestMethod]
     public async Task RunAsync_RequestedCancellationStopsWithoutRecordingFailure()
     {
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
-        var database = new Mock<IDBClient>(MockBehavior.Strict);
-        var monitor = MyAtmFixture.CustomerDeviceDtos(lastDataTime: null, singleItem: true).Single();
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IDBClient> database = new(MockBehavior.Strict);
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(lastDataTime: null, singleItem: true).Single();
         database.Setup(query => query.ReadMonitorList(9, null)).Returns([monitor]);
-        var handler = CreateHandler(http.Object, database.Object, maxPagesPerMonitorPerRun: 10);
-        using var cancellation = new CancellationTokenSource();
+        StoreAccessoryInfoHandler handler = CreateHandler(http.Object, database.Object, maxPagesPerMonitorPerRun: 10);
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -168,8 +169,8 @@ public sealed class StoreAccessoryInfoHandlerTests
         IDBClient database,
         int maxPagesPerMonitorPerRun)
     {
-        var reader = new MyAtmMonitorReader(database, database, testLocal: false);
-        var gateway = new MyAtmHttpGateway(http, devicePageSize: 10, accessoryPageSize: 1);
+        MyAtmMonitorReader reader = new(database, database, testLocal: false);
+        MyAtmHttpGateway gateway = new(http, devicePageSize: 10, accessoryPageSize: 1);
         return new StoreAccessoryInfoHandler(gateway, reader, database, database, database, maxPagesPerMonitorPerRun);
     }
 

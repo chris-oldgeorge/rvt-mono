@@ -15,7 +15,7 @@ internal sealed class OmnidotsRateLimiterOptionsSetup(
 
     public void Configure(RateLimiterOptions options)
     {
-        var security = securityOptions.Value;
+        OmnidotsApiSecurityOptions security = securityOptions.Value;
         if (security.WebhookConcurrencyLimit <= 0 || security.ConfigureConcurrencyLimit <= 0)
         {
             throw new InvalidOperationException("Omnidots API concurrency limits are invalid.");

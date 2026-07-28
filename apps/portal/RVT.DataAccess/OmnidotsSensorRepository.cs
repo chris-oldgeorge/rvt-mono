@@ -8,12 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities.DTO;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using RVT.Entities.Querying;
 
 namespace RVT.DataAccess
 {
@@ -28,9 +22,11 @@ namespace RVT.DataAccess
         // Function summary: Retrieves battery level data for callers.
         public async Task<BatteryLevel?> ReadBatteryLevelAsync(string SerialId)
         {
-            var details = await DbSet.Where(W => W.SerialId == SerialId).FirstOrDefaultAsync();
+            OmnidotsSensor? details = await DbSet.Where(sensor => sensor.SerialId == SerialId).FirstOrDefaultAsync();
             if (details is null)
+            {
                 return null;
+            }
 
             return new BatteryLevel { SerialId = details.SerialId, Lastseen = details.Lastseen, BatteryCharge = details.BatteryCharge };
         }

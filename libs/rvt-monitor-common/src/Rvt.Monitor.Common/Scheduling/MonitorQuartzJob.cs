@@ -14,7 +14,7 @@ public sealed class MonitorQuartzJob(IMonitorJobDispatcher dispatcher, ILogger<M
 
     public async Task Execute(IJobExecutionContext context)
     {
-        var jobName = context.MergedJobDataMap.ContainsKey(JobNameDataKey)
+        string? jobName = context.MergedJobDataMap.ContainsKey(JobNameDataKey)
             ? context.MergedJobDataMap.GetString(JobNameDataKey)
             : null;
         if (string.IsNullOrWhiteSpace(jobName))
@@ -22,8 +22,8 @@ public sealed class MonitorQuartzJob(IMonitorJobDispatcher dispatcher, ILogger<M
             throw new JobExecutionException("Quartz monitor job is missing JobName.");
         }
 
-        var monitorName = context.JobDetail.Key.Group;
-        var exitCode = await MonitorJobTelemetry.ExecuteAsync(
+        string monitorName = context.JobDetail.Key.Group;
+        int exitCode = await MonitorJobTelemetry.ExecuteAsync(
             monitorName,
             jobName,
             "quartz",

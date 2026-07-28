@@ -3,9 +3,9 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Alerts.Persistence;
-using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Notifications;
 
 namespace Rvt.Monitor.CommonTests.Alerts;
@@ -18,10 +18,10 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_WhenQueueIsEmpty_ClaimsOnceAndReturns()
     {
-        var store = new Mock<IAlertOutboxStore>();
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(UtcNow, TimeSpan.FromSeconds(120), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ClaimedAlertDelivery?)null);
-        var dispatcher = CreateDispatcher(store.Object, []);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, []);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -35,8 +35,8 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_StopsAtDefaultBatchCapOfFifty()
     {
-        var message = CreateDelivery("MqttAlert", "alert");
-        var store = new Mock<IAlertOutboxStore>();
+        ClaimedAlertDelivery message = CreateDelivery("MqttAlert", "alert");
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(message);
         store.Setup(x => x.CompleteAsync(
@@ -46,8 +46,8 @@ public sealed class DurableAlertDispatcherTests
                 null,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var adapter = CreateAdapter("MqttAlert");
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("MqttAlert");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -67,10 +67,10 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_SamplesFreshTimeBeforeEveryClaimAndAfterEveryDelivery()
     {
-        var first = CreateDelivery("MqttAlert", "alert");
-        var second = CreateDelivery("MqttAlert", "alert");
-        var claims = new Queue<ClaimedAlertDelivery?>([first, second, null]);
-        var store = new Mock<IAlertOutboxStore>();
+        ClaimedAlertDelivery first = CreateDelivery("MqttAlert", "alert");
+        ClaimedAlertDelivery second = CreateDelivery("MqttAlert", "alert");
+        Queue<ClaimedAlertDelivery?> claims = new([first, second, null]);
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(
                 It.IsAny<DateTime>(),
                 TimeSpan.FromSeconds(120),
@@ -83,13 +83,13 @@ public sealed class DurableAlertDispatcherTests
                 null,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var clock = new ManualTimeProvider(UtcNow);
-        var adapter = CreateAdapter("MqttAlert");
+        ManualTimeProvider clock = new(UtcNow);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("MqttAlert");
         adapter.Setup(x => x.DeliverAsync(It.IsAny<ClaimedAlertDelivery>(), It.IsAny<CancellationToken>()))
             .Callback<ClaimedAlertDelivery, CancellationToken>((message, _) =>
                 clock.Advance(message.Id == first.Id ? TimeSpan.FromSeconds(45) : TimeSpan.FromSeconds(15)))
             .ReturnsAsync((AlertDeliveryAudit?)null);
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object], timeProvider: clock);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object], timeProvider: clock);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -122,11 +122,11 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_SelectsAdapterByExactKind()
     {
-        var message = CreateDelivery("Email", "ops@example.test");
-        var store = StoreWithSingleClaim(message);
-        var mqttAdapter = CreateAdapter("MqttAlert");
-        var emailAdapter = CreateAdapter("Email");
-        var dispatcher = CreateDispatcher(store.Object, [mqttAdapter.Object, emailAdapter.Object]);
+        ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test");
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> mqttAdapter = CreateAdapter("MqttAlert");
+        Mock<IAlertDeliveryAdapter> emailAdapter = CreateAdapter("Email");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [mqttAdapter.Object, emailAdapter.Object]);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -137,9 +137,9 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_WhenAdapterIsMissing_UsesBoundedRetryPath()
     {
-        var message = CreateDelivery("Unknown", "private-destination");
-        var store = StoreWithSingleClaim(message);
-        var dispatcher = CreateDispatcher(store.Object, []);
+        ClaimedAlertDelivery message = CreateDelivery("Unknown", "private-destination");
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, []);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -157,12 +157,12 @@ public sealed class DurableAlertDispatcherTests
     public async Task DispatchAsync_WhenEnvelopeIsMalformed_StoresOnlyExceptionClassification()
     {
         const string rawFailure = "raw payload contains secret-value";
-        var message = CreateDelivery("Email", "ops@example.test") with { Payload = "{bad-json" };
-        var store = StoreWithSingleClaim(message);
-        var adapter = CreateAdapter("Email");
+        ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test") with { Payload = "{bad-json" };
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new JsonException(rawFailure));
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -185,7 +185,7 @@ public sealed class DurableAlertDispatcherTests
     public async Task DispatchAsync_WhenTerminalEnvelopeIsInvalid_UsesAuthoritativeNotificationId(
         string payloadCase)
     {
-        var rawPayload = payloadCase switch
+        string rawPayload = payloadCase switch
         {
             "malformed" => "{raw-payload-secret",
             "empty" => string.Empty,
@@ -195,21 +195,21 @@ public sealed class DurableAlertDispatcherTests
             }),
             _ => throw new ArgumentOutOfRangeException(nameof(payloadCase))
         };
-        var message = CreateDelivery("Email", "ops@example.test", attemptCount: 8) with
+        ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test", attemptCount: 8) with
         {
             Payload = rawPayload
         };
-        var store = StoreWithSingleClaim(message);
-        var adapter = CreateAdapter("Email");
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
         Exception failure = payloadCase == "mismatched"
             ? new InvalidOperationException("Alert delivery notification ID does not match its occurrence.")
             : new JsonException(rawPayload);
-        var failureName = failure.GetType().Name;
+        string failureName = failure.GetType().Name;
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .ThrowsAsync(failure);
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
-        var exception = await Assert.ThrowsExactlyAsync<AggregateException>(
+        AggregateException exception = await Assert.ThrowsExactlyAsync<AggregateException>(
             () => dispatcher.DispatchAsync(CancellationToken.None));
 
         store.Verify(x => x.RetryAsync(
@@ -234,16 +234,16 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_WhenCallerCancels_PropagatesWithoutRetrying()
     {
-        using var cancellationSource = new CancellationTokenSource();
-        var message = CreateDelivery("MqttAlert", "alert");
-        var store = new Mock<IAlertOutboxStore>();
+        using CancellationTokenSource cancellationSource = new();
+        ClaimedAlertDelivery message = CreateDelivery("MqttAlert", "alert");
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(message);
-        var adapter = CreateAdapter("MqttAlert");
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("MqttAlert");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .Callback(() => cancellationSource.Cancel())
             .ThrowsAsync(new OperationCanceledException(cancellationSource.Token));
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(
             () => dispatcher.DispatchAsync(cancellationSource.Token));
@@ -261,12 +261,12 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_WhenDeliveryTimeoutCancels_DoesNotTreatItAsHostCancellation()
     {
-        var message = CreateDelivery("MqttAlert", "alert");
-        var store = StoreWithSingleClaim(message);
-        var adapter = CreateAdapter("MqttAlert");
+        ClaimedAlertDelivery message = CreateDelivery("MqttAlert", "alert");
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("MqttAlert");
         adapter.Setup(x => x.DeliverAsync(message, It.Is<CancellationToken>(token => token.CanBeCanceled)))
             .ThrowsAsync(new OperationCanceledException("delivery timeout"));
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -283,16 +283,16 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_CancelsDeliveryAtConfiguredTimeoutAndRetries()
     {
-        var message = CreateDelivery("MqttAlert", "alert");
-        var store = StoreWithSingleClaim(message);
-        var adapter = CreateAdapter("MqttAlert");
+        ClaimedAlertDelivery message = CreateDelivery("MqttAlert", "alert");
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("MqttAlert");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .Returns<ClaimedAlertDelivery, CancellationToken>(async (_, cancellationToken) =>
             {
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
                 return null;
             });
-        var dispatcher = CreateDispatcher(
+        DurableAlertDispatcher dispatcher = CreateDispatcher(
             store.Object,
             [adapter.Object],
             new DurableAlertOptions
@@ -300,7 +300,7 @@ public sealed class DurableAlertDispatcherTests
                 DeliveryTimeoutSeconds = 1,
                 LeaseSeconds = 2
             });
-        var stopwatch = Stopwatch.StartNew();
+        Stopwatch stopwatch = Stopwatch.StartNew();
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -328,12 +328,12 @@ public sealed class DurableAlertDispatcherTests
         int expectedDelaySeconds)
     {
         const string rawFailure = "provider leaked destination@example.test";
-        var message = CreateDelivery("MqttAlert", "alert", attemptCount);
-        var store = StoreWithSingleClaim(message);
-        var adapter = CreateAdapter("MqttAlert");
+        ClaimedAlertDelivery message = CreateDelivery("MqttAlert", "alert", attemptCount);
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("MqttAlert");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException(rawFailure));
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -355,12 +355,12 @@ public sealed class DurableAlertDispatcherTests
     public async Task DispatchAsync_NonTransientTypedFailureDeadLettersImmediately(
         DeliveryFailureKind failureKind)
     {
-        var message = CreateDelivery("Email", "ops@example.test", attemptCount: 1);
-        var store = StoreWithSingleClaim(message);
-        var adapter = CreateAdapter("Email");
+        ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test", attemptCount: 1);
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new EmailDeliveryException("SendGrid", failureKind, "400"));
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
         await Assert.ThrowsExactlyAsync<AggregateException>(
             () => dispatcher.DispatchAsync(CancellationToken.None));
@@ -378,16 +378,16 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_TransientRetryAfterRaisesDelayWithinConfiguredCap()
     {
-        var message = CreateDelivery("Email", "ops@example.test", attemptCount: 1);
-        var store = StoreWithSingleClaim(message);
-        var adapter = CreateAdapter("Email");
+        ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test", attemptCount: 1);
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new EmailDeliveryException(
                 "SendGrid",
                 DeliveryFailureKind.Transient,
                 "429",
                 TimeSpan.FromMinutes(2)));
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -404,16 +404,16 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_TransientRetryAfterIsCapped()
     {
-        var message = CreateDelivery("Email", "ops@example.test", attemptCount: 1);
-        var store = StoreWithSingleClaim(message);
-        var adapter = CreateAdapter("Email");
+        ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test", attemptCount: 1);
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new EmailDeliveryException(
                 "SendGrid",
                 DeliveryFailureKind.Transient,
                 "429",
                 TimeSpan.FromHours(1)));
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -430,15 +430,15 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_TransientTypedFailureAtMaxAttemptsDeadLetters()
     {
-        var message = CreateDelivery("Email", "ops@example.test", attemptCount: 8);
-        var store = StoreWithSingleClaim(message);
-        var adapter = CreateAdapter("Email");
+        ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test", attemptCount: 8);
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new EmailDeliveryException(
                 "SendGrid",
                 DeliveryFailureKind.Transient,
                 "503"));
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
         await Assert.ThrowsExactlyAsync<AggregateException>(
             () => dispatcher.DispatchAsync(CancellationToken.None));
@@ -456,19 +456,19 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_BasesRetryAndFailureAuditOnFreshFailureTime()
     {
-        var message = CreateDelivery("Email", "ops@example.test", attemptCount: 8);
-        var store = StoreWithSingleClaim(message);
-        var clock = new ManualTimeProvider(UtcNow);
-        var adapter = CreateAdapter("Email");
+        ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test", attemptCount: 8);
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        ManualTimeProvider clock = new(UtcNow);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .Callback(() => clock.Advance(TimeSpan.FromSeconds(20)))
             .ThrowsAsync(new HttpRequestException("provider failure"));
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object], timeProvider: clock);
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object], timeProvider: clock);
 
         await Assert.ThrowsExactlyAsync<AggregateException>(
             () => dispatcher.DispatchAsync(CancellationToken.None));
 
-        var outcomeTime = UtcNow.AddSeconds(20);
+        DateTime outcomeTime = UtcNow.AddSeconds(20);
         store.Verify(x => x.RetryAsync(
             message.Id,
             message.LeaseId,
@@ -486,11 +486,11 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_WhenCompletionOwnershipIsLost_LogsAndDoesNotRetry()
     {
-        var message = CreateDelivery("MqttAlert", "alert");
-        var store = StoreWithSingleClaim(message, completeResult: false);
-        var adapter = CreateAdapter("MqttAlert");
-        var logger = new TestLogger<DurableAlertDispatcher>();
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object], logger: logger);
+        ClaimedAlertDelivery message = CreateDelivery("MqttAlert", "alert");
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message, completeResult: false);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("MqttAlert");
+        TestLogger<DurableAlertDispatcher> logger = new();
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object], logger: logger);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -509,8 +509,8 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_WhenRetryOwnershipIsLost_DoesNotReportADeadLetter()
     {
-        var message = CreateDelivery("Email", "ops@example.test", attemptCount: 8);
-        var store = StoreWithSingleClaim(message);
+        ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test", attemptCount: 8);
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
         store.Setup(x => x.RetryAsync(
                 message.Id,
                 message.LeaseId,
@@ -520,11 +520,11 @@ public sealed class DurableAlertDispatcherTests
                 It.IsAny<AlertDeliveryAudit?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
-        var adapter = CreateAdapter("Email");
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("provider failure"));
-        var logger = new TestLogger<DurableAlertDispatcher>();
-        var dispatcher = CreateDispatcher(store.Object, [adapter.Object], logger: logger);
+        TestLogger<DurableAlertDispatcher> logger = new();
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object], logger: logger);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
 
@@ -539,10 +539,10 @@ public sealed class DurableAlertDispatcherTests
     {
         const string destination = "alerts@example.test";
         const string rawFailure = "provider rejected alerts@example.test with secret-token";
-        var deadLetter = CreateDelivery("Email", destination, attemptCount: 8);
-        var successful = CreateDelivery("MqttAlert", "alert");
-        var claims = new Queue<ClaimedAlertDelivery?>([deadLetter, successful, null]);
-        var store = new Mock<IAlertOutboxStore>();
+        ClaimedAlertDelivery deadLetter = CreateDelivery("Email", destination, attemptCount: 8);
+        ClaimedAlertDelivery successful = CreateDelivery("MqttAlert", "alert");
+        Queue<ClaimedAlertDelivery?> claims = new([deadLetter, successful, null]);
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => claims.Dequeue());
         store.Setup(x => x.RetryAsync(
@@ -561,17 +561,17 @@ public sealed class DurableAlertDispatcherTests
                 null,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var emailAdapter = CreateAdapter("Email");
+        Mock<IAlertDeliveryAdapter> emailAdapter = CreateAdapter("Email");
         emailAdapter.Setup(x => x.DeliverAsync(deadLetter, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException(rawFailure));
-        var mqttAdapter = CreateAdapter("MqttAlert");
-        var logger = new TestLogger<DurableAlertDispatcher>();
-        var dispatcher = CreateDispatcher(
+        Mock<IAlertDeliveryAdapter> mqttAdapter = CreateAdapter("MqttAlert");
+        TestLogger<DurableAlertDispatcher> logger = new();
+        DurableAlertDispatcher dispatcher = CreateDispatcher(
             store.Object,
             [emailAdapter.Object, mqttAdapter.Object],
             logger: logger);
 
-        var exception = await Assert.ThrowsExactlyAsync<AggregateException>(
+        AggregateException exception = await Assert.ThrowsExactlyAsync<AggregateException>(
             () => dispatcher.DispatchAsync(CancellationToken.None));
 
         mqttAdapter.Verify(x => x.DeliverAsync(successful, It.IsAny<CancellationToken>()), Times.Once);
@@ -612,7 +612,7 @@ public sealed class DurableAlertDispatcherTests
 
     private static Mock<IAlertDeliveryAdapter> CreateAdapter(string kind)
     {
-        var adapter = new Mock<IAlertDeliveryAdapter>();
+        Mock<IAlertDeliveryAdapter> adapter = new();
         adapter.SetupGet(x => x.Kind).Returns(kind);
         adapter.Setup(x => x.DeliverAsync(It.IsAny<ClaimedAlertDelivery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((AlertDeliveryAudit?)null);
@@ -623,8 +623,8 @@ public sealed class DurableAlertDispatcherTests
         ClaimedAlertDelivery message,
         bool completeResult = true)
     {
-        var claims = new Queue<ClaimedAlertDelivery?>([message, null]);
-        var store = new Mock<IAlertOutboxStore>();
+        Queue<ClaimedAlertDelivery?> claims = new([message, null]);
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => claims.Dequeue());
         store.Setup(x => x.CompleteAsync(

@@ -11,9 +11,9 @@ public sealed class SiteAuthorizationPolicyTests
     [Fact]
     public void ReadScope_AdminCanReadAllSites()
     {
-        var user = new PortalUserContext(Guid.NewGuid(), "admin", null, true, false, false);
+        PortalUserContext user = new(Guid.NewGuid(), "admin", null, true, false, false);
 
-        var scope = SiteAuthorizationPolicy.ReadScope(user, NowUtc);
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(user, NowUtc);
 
         Assert.Equal(SiteAccessScopeKind.All, scope.Kind);
     }
@@ -21,10 +21,10 @@ public sealed class SiteAuthorizationPolicyTests
     [Fact]
     public void ReadScope_CompanyUserCarriesUserAndUtcInstant()
     {
-        var userId = Guid.NewGuid();
-        var user = new PortalUserContext(userId, "user", Guid.NewGuid(), false, false, true);
+        Guid userId = Guid.NewGuid();
+        PortalUserContext user = new(userId, "user", Guid.NewGuid(), false, false, true);
 
-        var scope = SiteAuthorizationPolicy.ReadScope(user, NowUtc);
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(user, NowUtc);
 
         Assert.Equal(SiteAccessScopeKind.Assigned, scope.Kind);
         Assert.Equal(userId, scope.UserId);
@@ -34,8 +34,8 @@ public sealed class SiteAuthorizationPolicyTests
     [Fact]
     public void AssignmentWindow_IsInclusiveAtBothBounds()
     {
-        var userId = Guid.NewGuid();
-        var assignment = new SiteAssignmentWindow(userId, NowUtc, NowUtc);
+        Guid userId = Guid.NewGuid();
+        SiteAssignmentWindow assignment = new(userId, NowUtc, NowUtc);
 
         Assert.True(ActiveSiteAssignment.IsActive(assignment, userId, NowUtc));
         Assert.False(ActiveSiteAssignment.IsActive(
@@ -47,7 +47,7 @@ public sealed class SiteAuthorizationPolicyTests
     [Fact]
     public void ReadScope_RejectsNonUtcClockValues()
     {
-        var user = new PortalUserContext(Guid.NewGuid(), "user", null, false, false, true);
+        PortalUserContext user = new(Guid.NewGuid(), "user", null, false, false, true);
 
         Assert.Throws<ArgumentException>(() =>
             SiteAuthorizationPolicy.ReadScope(

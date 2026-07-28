@@ -71,12 +71,12 @@ internal static class HelpAssetUrlAudit
         string revision,
         string auditVersion)
     {
-        var scannedRows = rows.ToArray();
-        var violations = new List<HelpAssetUrlViolation>();
+        HelpAssetUrlAuditRow[] scannedRows = [.. rows];
+        List<HelpAssetUrlViolation> violations = new();
 
-        foreach (var row in scannedRows)
+        foreach (HelpAssetUrlAuditRow? row in scannedRows)
         {
-            var validation = HelpAssetUrlPolicy.ValidatePersistedValue(row.Url);
+            HelpAssetUrlValidationResult validation = HelpAssetUrlPolicy.ValidatePersistedValue(row.Url);
             if (validation.ViolationCode is not { } violationCode)
             {
                 continue;
@@ -88,11 +88,10 @@ internal static class HelpAssetUrlAudit
                 violationCode));
         }
 
-        var orderedViolations = violations
+        HelpAssetUrlViolation[] orderedViolations = [.. violations
             .OrderBy(violation => violation.HelpArticleId)
             .ThenBy(violation => violation.AssetId)
-            .ThenBy(violation => violation.ViolationCode, StringComparer.Ordinal)
-            .ToArray();
+            .ThenBy(violation => violation.ViolationCode, StringComparer.Ordinal)];
 
         return new HelpAssetUrlAuditReceipt(
             environment,
@@ -113,14 +112,14 @@ internal static class HelpAssetUrlAudit
         string connectionString,
         CancellationToken cancellationToken)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
+        await using NpgsqlConnection connection = new(connectionString);
         await connection.OpenAsync(cancellationToken);
-        var database = connection.Database;
+        string database = connection.Database;
 
-        await using var transaction = await BeginReadOnlyTransactionAsync(
+        await using NpgsqlTransaction transaction = await BeginReadOnlyTransactionAsync(
             connection,
             cancellationToken);
-        var rows = await ReadRowsAsync(
+        IReadOnlyList<HelpAssetUrlAuditRow> rows = await ReadRowsAsync(
             connection,
             transaction,
             HelpAssetRelation.Production,
@@ -134,13 +133,13 @@ internal static class HelpAssetUrlAudit
         NpgsqlConnection openConnection,
         CancellationToken cancellationToken)
     {
-        var transaction = await openConnection.BeginTransactionAsync(
+        NpgsqlTransaction transaction = await openConnection.BeginTransactionAsync(
             IsolationLevel.RepeatableRead,
             cancellationToken);
 
         try
         {
-            await using var command = new NpgsqlCommand(
+            await using NpgsqlCommand command = new(
                 "SET TRANSACTION READ ONLY;",
                 openConnection,
                 transaction);
@@ -160,12 +159,12 @@ internal static class HelpAssetUrlAudit
         HelpAssetRelation relation,
         CancellationToken cancellationToken)
     {
-        var rows = new List<HelpAssetUrlAuditRow>();
-        await using var command = new NpgsqlCommand(
+        List<HelpAssetUrlAuditRow> rows = new();
+        await using NpgsqlCommand command = new(
             GetReadRowsQuery(relation),
             openConnection,
             transaction);
-        await using var reader = await command.ExecuteReaderAsync(
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync(
             CommandBehavior.SequentialAccess,
             cancellationToken);
 
@@ -187,9 +186,9 @@ internal static class HelpAssetUrlAudit
         string receiptJson,
         CancellationToken cancellationToken)
     {
-        var parentDirectory = Path.GetDirectoryName(receiptPath)
+        string parentDirectory = Path.GetDirectoryName(receiptPath)
             ?? throw new IOException("Receipt path has no parent directory.");
-        var temporaryPath = Path.Combine(
+        string temporaryPath = Path.Combine(
             parentDirectory,
             $".{Path.GetFileName(receiptPath)}.{Guid.NewGuid():N}.tmp");
 
@@ -200,7 +199,7 @@ internal static class HelpAssetUrlAudit
                 Directory.CreateDirectory(parentDirectory);
             }
 
-            await using (var stream = new FileStream(
+            await using (FileStream stream = new(
                 temporaryPath,
                 FileMode.CreateNew,
                 FileAccess.Write,
@@ -208,7 +207,7 @@ internal static class HelpAssetUrlAudit
                 bufferSize: 4096,
                 FileOptions.Asynchronous))
             {
-                await using (var writer = new StreamWriter(
+                await using (StreamWriter writer = new(
                     stream,
                     new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
                     bufferSize: 4096,

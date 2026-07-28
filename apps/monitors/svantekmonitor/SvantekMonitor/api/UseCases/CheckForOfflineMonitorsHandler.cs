@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using Svantek.Api.Db;
+using SvantekMonitor.model.dto;
 
 namespace Svantek.Api.UseCases;
 
@@ -34,28 +34,26 @@ public sealed class CheckForOfflineMonitorsHandler
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var rules = ruleQueries.ReadRules(null)
-            .Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))
-            .ToList();
-        var monitors = await monitorReader.ReadMonitorsAsync(
+        List<RvtAlertRuleDto> rules = [.. ruleQueries.ReadRules(null).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
+        List<NoiseMonitorReadDto> monitors = await monitorReader.ReadMonitorsAsync(
             lastDataTime: null,
             cancellationToken).ConfigureAwait(false);
-        var utcNow = DateTime.UtcNow;
-        var failures = new SvantekFailureCollector(operationalCommands);
+        DateTime utcNow = DateTime.UtcNow;
+        SvantekFailureCollector failures = new(operationalCommands);
 
-        foreach (var monitor in monitors)
+        foreach (NoiseMonitorReadDto monitor in monitors)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                foreach (var rule in rules)
+                foreach (RvtAlertRuleDto rule in rules)
                 {
-                    var cutOff = utcNow.Subtract(TimeSpan.FromSeconds(rule.AveragingPeriod));
-                    var offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
-                    var lastDataTime = monitor.LastDataTime.HasValue
+                    DateTime cutOff = utcNow.Subtract(TimeSpan.FromSeconds(rule.AveragingPeriod));
+                    DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
+                    DateTime lastDataTime = monitor.LastDataTime.HasValue
                         ? DateTimeUtil.TruncateMillis(monitor.LastDataTime.Value).ToUniversalTime()
                         : SvantekApi.JAN1_1970;
-                    var diffInSeconds = monitor.LastDataTime.HasValue
+                    double diffInSeconds = monitor.LastDataTime.HasValue
                         ? offlineDateTime.Subtract(lastDataTime).TotalSeconds
                         : 0;
 
@@ -64,7 +62,7 @@ public sealed class CheckForOfflineMonitorsHandler
                         RvtLogger.Logger.LogInformation(
                             "Device serialId={SerialId} has not received data; marking offline",
                             monitor.SerialId);
-                        var contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
+                        List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
                         ruleProcessor.ProcessAlertForContacts(
                             monitor.FleetNr,
                             monitor.SerialId,

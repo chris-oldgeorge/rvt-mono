@@ -6,7 +6,6 @@ using System.Globalization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using RVT.BusinessLogic.Ports.Vendors;
 using RVT.DataAccess.Context;
@@ -28,14 +27,14 @@ public sealed class OmnidotsVibrationGatewayTests
     // Function summary: Verifies alert-level updates post the exact adapter payload to the configured URL.
     public async Task UpdateAlertLevelsAsync_PostsConfiguredPayloadAndReportsSuccess()
     {
-        var handler = new RecordingHttpMessageHandler(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
-        var gateway = new OmnidotsVibrationGateway(new HttpClient(handler), CreateOptions());
+        RecordingHttpMessageHandler handler = new(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+        OmnidotsVibrationGateway gateway = new(new HttpClient(handler), CreateOptions());
 
         const string serialId = "SER-001";
         const double alertLevel = 12.5;
         const double cautionLevel = 7.25;
 
-        var result = await gateway.UpdateAlertLevelsAsync(serialId, alertLevel, cautionLevel, CancellationToken.None);
+        VendorSyncResult result = await gateway.UpdateAlertLevelsAsync(serialId, alertLevel, cautionLevel, CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Null(result.Error);
@@ -52,12 +51,12 @@ public sealed class OmnidotsVibrationGatewayTests
     // Function summary: Verifies a missing adapter secret fails fast without any HTTP call.
     public async Task UpdateAlertLevelsAsync_WithoutSecret_FailsWithoutSendingRequest()
     {
-        var handler = new RecordingHttpMessageHandler(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
-        var gateway = new OmnidotsVibrationGateway(
+        RecordingHttpMessageHandler handler = new(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+        OmnidotsVibrationGateway gateway = new(
             new HttpClient(handler),
             Options.Create(new OmnidotsAdapterOptions { Url = AdapterUrl, Secret = null }));
 
-        var result = await gateway.UpdateAlertLevelsAsync("SER-001", 12.5, 7.25, CancellationToken.None);
+        VendorSyncResult result = await gateway.UpdateAlertLevelsAsync("SER-001", 12.5, 7.25, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("Omnidots adapter secret is not configured.", result.Error);
@@ -68,13 +67,13 @@ public sealed class OmnidotsVibrationGatewayTests
     // Function summary: Verifies a non-success vendor response is typed without reflecting a potentially sensitive body.
     public async Task UpdateAlertLevelsAsync_OnErrorResponse_ReturnsSafeStatusOnly()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.BadRequest)
+        HttpResponseMessage response = new(System.Net.HttpStatusCode.BadRequest)
         {
             Content = new StringContent("vendor rejected the level secret=adapter-secret")
         };
-        var gateway = new OmnidotsVibrationGateway(new HttpClient(new RecordingHttpMessageHandler(response)), CreateOptions());
+        OmnidotsVibrationGateway gateway = new(new HttpClient(new RecordingHttpMessageHandler(response)), CreateOptions());
 
-        var result = await gateway.UpdateAlertLevelsAsync("SER-001", 12.5, 7.25, CancellationToken.None);
+        VendorSyncResult result = await gateway.UpdateAlertLevelsAsync("SER-001", 12.5, 7.25, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("Omnidots adapter returned HTTP 400.", result.Error);
@@ -84,12 +83,12 @@ public sealed class OmnidotsVibrationGatewayTests
     // Function summary: Verifies invalid endpoint configuration fails without issuing an outbound request.
     public async Task UpdateAlertLevelsAsync_WithInvalidUrl_FailsWithoutSendingRequest()
     {
-        var handler = new RecordingHttpMessageHandler(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
-        var gateway = new OmnidotsVibrationGateway(
+        RecordingHttpMessageHandler handler = new(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+        OmnidotsVibrationGateway gateway = new(
             new HttpClient(handler),
             Options.Create(new OmnidotsAdapterOptions { Url = "not a URL", Secret = AdapterSecret }));
 
-        var result = await gateway.UpdateAlertLevelsAsync("SER-001", 12.5, 7.25, CancellationToken.None);
+        VendorSyncResult result = await gateway.UpdateAlertLevelsAsync("SER-001", 12.5, 7.25, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("Omnidots adapter URL is invalid.", result.Error);
@@ -102,18 +101,18 @@ public sealed class OmnidotsVibrationGatewayTests
     // Function summary: Verifies a successful vendor sync lets the handler persist both vibration levels.
     public async Task Handler_OnVendorSuccess_PersistsLevelsAndReportsSync()
     {
-        var monitorId = Guid.NewGuid();
-        await using var context = await CreateVibrationMonitorContextAsync(monitorId);
-        var gateway = new FakeVibrationVendorGateway(VendorSyncResult.Success());
-        var handler = new UpdateVibrationAlertLevelsCommandHandler(context, gateway, ProductionEnvironment());
+        Guid monitorId = Guid.NewGuid();
+        await using RVTDbContext context = await CreateVibrationMonitorContextAsync(monitorId);
+        FakeVibrationVendorGateway gateway = new(VendorSyncResult.Success());
+        UpdateVibrationAlertLevelsCommandHandler handler = new(context, gateway, ProductionEnvironment());
 
-        var result = await handler.Handle(
+        VibrationAlertLevelCommandResult result = await handler.Handle(
             new UpdateVibrationAlertLevelsCommand(monitorId, new VibrationAlertLevelMutationRequest { AlertLevel = 12.5, CautionLevel = 7.25 }),
             CancellationToken.None);
 
         Assert.Empty(result.Errors);
         Assert.NotNull(result.Response);
-        Assert.True(result.Response!.ExternalSyncAttempted);
+        Assert.True(result.Response.ExternalSyncAttempted);
         Assert.True(result.Response.ExternalSyncSucceeded);
         Assert.Equal(2, result.Response.AlertLevels.Count);
         // The handler queues the levels for the transaction pipeline to persist; it does not SaveChanges itself.
@@ -127,17 +126,17 @@ public sealed class OmnidotsVibrationGatewayTests
     // Function summary: Verifies a failed vendor sync surfaces the vendor error and writes no levels.
     public async Task Handler_OnVendorFailure_SurfacesErrorAndWritesNothing()
     {
-        var monitorId = Guid.NewGuid();
-        await using var context = await CreateVibrationMonitorContextAsync(monitorId);
-        var gateway = new FakeVibrationVendorGateway(VendorSyncResult.Failure("vendor boom"));
-        var handler = new UpdateVibrationAlertLevelsCommandHandler(context, gateway, ProductionEnvironment());
+        Guid monitorId = Guid.NewGuid();
+        await using RVTDbContext context = await CreateVibrationMonitorContextAsync(monitorId);
+        FakeVibrationVendorGateway gateway = new(VendorSyncResult.Failure("vendor boom"));
+        UpdateVibrationAlertLevelsCommandHandler handler = new(context, gateway, ProductionEnvironment());
 
-        var result = await handler.Handle(
+        VibrationAlertLevelCommandResult result = await handler.Handle(
             new UpdateVibrationAlertLevelsCommand(monitorId, new VibrationAlertLevelMutationRequest { AlertLevel = 12.5, CautionLevel = 7.25 }),
             CancellationToken.None);
 
         Assert.Null(result.Response);
-        var error = Assert.Single(result.Errors);
+        KeyValuePair<string, string[]> error = Assert.Single(result.Errors);
         Assert.Contains("vendor boom", string.Join(" ", error.Value), StringComparison.Ordinal);
         Assert.Equal(0, await context.RvtAlertRules.CountAsync());
     }
@@ -151,10 +150,10 @@ public sealed class OmnidotsVibrationGatewayTests
 
     private static async Task<RVTDbContext> CreateVibrationMonitorContextAsync(Guid monitorId)
     {
-        var options = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseInMemoryDatabase($"vibration-gateway-{Guid.NewGuid():N}")
             .Options;
-        var context = new RVTDbContext(options);
+        RVTDbContext context = new(options);
         context.MonitorsList.Add(TestData.Monitor(MonitorTypeEnum.Vibration, id: monitorId, serialId: "VIB-001"));
         await context.SaveChangesAsync();
         return context;

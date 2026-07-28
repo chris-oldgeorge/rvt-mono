@@ -10,9 +10,9 @@ public sealed class BoundedJsonRequestReaderTests
     public async Task ReadAsync_ApplicationJsonWithCharset_ReturnsExactBytes()
     {
         byte[] body = [0x7b, 0xff, 0x7d];
-        var request = CreateRequest(body, "application/json; charset=utf-8");
+        HttpRequest request = CreateRequest(body, "application/json; charset=utf-8");
 
-        var result = await BoundedJsonRequestReader.ReadAsync(request, CancellationToken.None);
+        byte[] result = await BoundedJsonRequestReader.ReadAsync(request, CancellationToken.None);
 
         CollectionAssert.AreEqual(body, result);
     }
@@ -23,7 +23,7 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public async Task ReadAsync_MissingOrNonJsonMediaType_ThrowsUnsupportedMediaType(string? contentType)
     {
-        var request = CreateRequest("{}"u8.ToArray(), contentType);
+        HttpRequest request = CreateRequest("{}"u8.ToArray(), contentType);
 
         await Assert.ThrowsExactlyAsync<OmnidotsUnsupportedMediaTypeException>(() =>
             BoundedJsonRequestReader.ReadAsync(request, CancellationToken.None));
@@ -34,13 +34,13 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public async Task ReadAsync_NoEncodingOrIdentityEncoding_ReturnsBody(string? contentEncoding)
     {
-        var request = CreateRequest("{}"u8.ToArray(), "application/json");
+        HttpRequest request = CreateRequest("{}"u8.ToArray(), "application/json");
         if (contentEncoding is not null)
         {
             request.Headers.ContentEncoding = contentEncoding;
         }
 
-        var result = await BoundedJsonRequestReader.ReadAsync(request, CancellationToken.None);
+        byte[] result = await BoundedJsonRequestReader.ReadAsync(request, CancellationToken.None);
 
         CollectionAssert.AreEqual("{}"u8.ToArray(), result);
     }
@@ -50,7 +50,7 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public async Task ReadAsync_NonIdentityEncoding_ThrowsUnsupportedMediaType(string contentEncoding)
     {
-        var request = CreateRequest("{}"u8.ToArray(), "application/json");
+        HttpRequest request = CreateRequest("{}"u8.ToArray(), "application/json");
         request.Headers.ContentEncoding = contentEncoding;
 
         await Assert.ThrowsExactlyAsync<OmnidotsUnsupportedMediaTypeException>(() =>
@@ -60,7 +60,7 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public async Task ReadAsync_MultipleIdentityEncodingValues_ThrowsUnsupportedMediaType()
     {
-        var request = CreateRequest("{}"u8.ToArray(), "application/json");
+        HttpRequest request = CreateRequest("{}"u8.ToArray(), "application/json");
         request.Headers.Append("Content-Encoding", "identity");
         request.Headers.Append("Content-Encoding", "identity");
 
@@ -71,7 +71,7 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public async Task ReadAsync_DeclaredBodyOverLimit_ThrowsBeforeReading()
     {
-        var request = CreateRequest([], "application/json");
+        HttpRequest request = CreateRequest([], "application/json");
         request.ContentLength = BoundedJsonRequestReader.MaxBodyBytes + 1;
         request.Body = new ThrowOnReadStream();
 
@@ -82,10 +82,10 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public async Task ReadAsync_ExactlyAtLimit_ReturnsEntireBody()
     {
-        var body = Enumerable.Repeat((byte)'x', BoundedJsonRequestReader.MaxBodyBytes).ToArray();
-        var request = CreateRequest(body, "application/json");
+        byte[] body = [.. Enumerable.Repeat((byte)'x', BoundedJsonRequestReader.MaxBodyBytes)];
+        HttpRequest request = CreateRequest(body, "application/json");
 
-        var result = await BoundedJsonRequestReader.ReadAsync(request, CancellationToken.None);
+        byte[] result = await BoundedJsonRequestReader.ReadAsync(request, CancellationToken.None);
 
         Assert.HasCount(BoundedJsonRequestReader.MaxBodyBytes, result);
         CollectionAssert.AreEqual(body, result);
@@ -94,8 +94,8 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public async Task ReadAsync_ChunkedBodyWithExtraByte_ThrowsBodyTooLarge()
     {
-        var body = Enumerable.Repeat((byte)'x', BoundedJsonRequestReader.MaxBodyBytes + 1).ToArray();
-        var request = CreateRequest([], "application/json");
+        byte[] body = [.. Enumerable.Repeat((byte)'x', BoundedJsonRequestReader.MaxBodyBytes + 1)];
+        HttpRequest request = CreateRequest([], "application/json");
         request.ContentLength = null;
         request.Body = new ChunkedReadStream(body, chunkSize: 997);
 
@@ -106,12 +106,12 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public async Task ReadAsync_EarlyCancellation_PropagatesCancellation()
     {
-        var request = CreateRequest([], "application/json");
+        HttpRequest request = CreateRequest([], "application/json");
         request.Body = new CancellationOnlyStream();
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
-        var exception = await Assert.ThrowsAsync<OperationCanceledException>(() =>
+        OperationCanceledException exception = await Assert.ThrowsAsync<OperationCanceledException>(() =>
             BoundedJsonRequestReader.ReadAsync(request, cancellation.Token));
 
         Assert.AreEqual(cancellation.Token, exception.CancellationToken);
@@ -120,8 +120,8 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public void Source_DoesNotUseUnboundedStreamHelpers()
     {
-        var root = FindRepositoryRoot();
-        var source = File.ReadAllText(Path.Combine(
+        string root = FindRepositoryRoot();
+        string source = File.ReadAllText(Path.Combine(
             root,
             "omnidotsmonitor",
             "OmnidotsMonitor",
@@ -136,7 +136,7 @@ public sealed class BoundedJsonRequestReaderTests
 
     private static HttpRequest CreateRequest(byte[] body, string? contentType)
     {
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Request.Body = new MemoryStream(body);
         context.Request.ContentType = contentType;
         context.Request.ContentLength = body.Length;
@@ -145,7 +145,7 @@ public sealed class BoundedJsonRequestReaderTests
 
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null &&
                !File.Exists(Path.Combine(directory.FullName, "rvt-monitors.sln")))
         {

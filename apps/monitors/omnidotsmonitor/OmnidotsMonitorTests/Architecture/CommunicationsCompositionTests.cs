@@ -12,10 +12,10 @@ public sealed class CommunicationsCompositionTests
     [TestMethod]
     public async Task AddOmnidotsMonitor_MissingProvider_ComposesSendGridSmsAndWorkflows()
     {
-        var (services, configuration) = CreateServices();
+        (ServiceCollection? services, IConfiguration? configuration) = CreateServices();
         services.AddOmnidotsMonitor(configuration);
 
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
 
         Assert.AreEqual(
             "Rvt.Communication.SendGridMail.SendGridEmailAdapter",
@@ -31,7 +31,7 @@ public sealed class CommunicationsCompositionTests
     [TestMethod]
     public void AddOmnidotsMonitor_MicrosoftGraphCaseInsensitive_ComposesMicrosoftGraph()
     {
-        var (services, configuration) = CreateServices(new Dictionary<string, string?>
+        (ServiceCollection? services, IConfiguration? configuration) = CreateServices(new Dictionary<string, string?>
         {
             ["RVT:EMAIL_PROVIDER"] = "mIcRoSoFtGrApH",
             ["RVT__EMAIL_PROVIDER"] = "invalid-fallback-must-not-win"
@@ -39,7 +39,7 @@ public sealed class CommunicationsCompositionTests
 
         services.AddOmnidotsMonitor(configuration);
 
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
         Assert.AreEqual(
             "Rvt.Communication.MicrosoftGraphMail.MicrosoftGraphEmailAdapter",
             provider.GetRequiredService<IEmailDeliveryPort>().GetType().FullName);
@@ -52,12 +52,12 @@ public sealed class CommunicationsCompositionTests
     public void AddOmnidotsMonitor_InvalidProvider_ThrowsSafeMessageAtCompositionTime()
     {
         const string invalidProvider = "sensitive-invalid-provider";
-        var (services, configuration) = CreateServices(new Dictionary<string, string?>
+        (ServiceCollection? services, IConfiguration? configuration) = CreateServices(new Dictionary<string, string?>
         {
             ["RVT__EMAIL_PROVIDER"] = invalidProvider
         });
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             services.AddOmnidotsMonitor(configuration));
 
         Assert.AreEqual("RVT__EMAIL_PROVIDER must be SendGrid or MicrosoftGraph.", exception.Message);
@@ -67,23 +67,23 @@ public sealed class CommunicationsCompositionTests
     private static (ServiceCollection Services, IConfiguration Configuration) CreateServices(
         IReadOnlyDictionary<string, string?>? settings = null)
     {
-        var values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["RVT:EMAIL_ENABLED"] = "false",
             ["RVT:SMS_ENABLED"] = "false"
         };
         if (settings is not null)
         {
-            foreach (var setting in settings)
+            foreach (KeyValuePair<string, string?> setting in settings)
             {
                 values[setting.Key] = setting.Value;
             }
         }
 
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(values)
             .Build();
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddLogging();
         services.AddSingleton<IConfiguration>(configuration);
         return (services, configuration);
@@ -93,19 +93,18 @@ public sealed class CommunicationsCompositionTests
         IServiceCollection services,
         IServiceProvider provider)
     {
-        var validatorTypes = services
+        Type[] validatorTypes = [.. services
             .Where(descriptor => descriptor.ServiceType == typeof(IHostedService))
             .Select(descriptor => descriptor.ImplementationType)
             .Where(type => type?.Namespace?.StartsWith("Rvt.Communication.", StringComparison.Ordinal) == true)
-            .Cast<Type>()
-            .ToArray();
+            .Cast<Type>()];
         Assert.IsTrue(validatorTypes.Any(type => type.FullName ==
             "Rvt.Communication.SendGridMail.SendGridMailStartupValidationService"));
         Assert.IsTrue(validatorTypes.Any(type => type.FullName ==
             "Rvt.Communication.TransmitSms.TransmitSmsStartupValidationService"));
-        foreach (var validatorType in validatorTypes)
+        foreach (Type? validatorType in validatorTypes)
         {
-            var validator = (IHostedService)ActivatorUtilities.CreateInstance(provider, validatorType);
+            IHostedService validator = (IHostedService)ActivatorUtilities.CreateInstance(provider, validatorType);
             await validator.StartAsync(CancellationToken.None);
         }
     }

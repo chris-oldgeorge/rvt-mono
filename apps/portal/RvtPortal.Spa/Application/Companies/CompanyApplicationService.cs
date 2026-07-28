@@ -1,4 +1,4 @@
-﻿// File summary: Provides company list, detail, and lifecycle workflows for the portal API.
+// File summary: Provides company list, detail, and lifecycle workflows for the portal API.
 // Major updates:
 // - 2026-07-09 pending Moved company create/update/delete orchestration out of the API controller.
 // - 2026-07-09 pending Moved company list/detail composition out of the API controller.
@@ -6,8 +6,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic;
 using RVT.DataAccess.Context;
+using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Querying;
 using RvtPortal.Spa.Api;
@@ -91,11 +91,10 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         ["Contracts"] = "Contracts"
     };
 
-    internal static readonly IReadOnlyCollection<string> AllowedSortFields = SortFields.Keys
+    internal static readonly IReadOnlyCollection<string> AllowedSortFields = [.. SortFields.Keys
         .Where(key => key[0] == char.ToLowerInvariant(key[0]))
         .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
-        .ToArray();
+        .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)];
 
     private readonly ICompanyService companyService;
     private readonly UserManager<ApplicationUser> userManager;
@@ -118,8 +117,8 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
     // Function summary: Returns a paged company list using the existing company search contract.
     public async Task<CompanyQueryResult> Query(CompanyQuery request, CancellationToken cancellationToken = default)
     {
-        var requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? CompanyNameSort : request.Sort.Trim();
-        if (!SortFields.TryGetValue(requestedSort, out var serviceSort))
+        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? CompanyNameSort : request.Sort.Trim();
+        if (!SortFields.TryGetValue(requestedSort, out string? serviceSort))
         {
             return new CompanyQueryResult
             {
@@ -128,10 +127,10 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
             };
         }
 
-        var sortDir = request.SortDir.Equals(SortDirections.Descending, StringComparison.OrdinalIgnoreCase)
+        OrderByDirectionEnum sortDir = request.SortDir.Equals(SortDirections.Descending, StringComparison.OrdinalIgnoreCase)
             ? OrderByDirectionEnum.Descending
             : OrderByDirectionEnum.Ascending;
-        var result = await companyService.Search(
+        SearchQueryResult<CompanySearch> result = await companyService.Search(
             request.SearchText ?? "",
             request.Page,
             sortDir,
@@ -143,19 +142,19 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
             return new CompanyQueryResult { ErrorMessage = result.ErrorMessage };
         }
 
-        var totalPages = result.RecordCount == 0 ? 0 : (int)Math.Ceiling(result.RecordCount / (double)request.PageSize);
+        int totalPages = result.RecordCount == 0 ? 0 : (int)Math.Ceiling(result.RecordCount / (double)request.PageSize);
         return new CompanyQueryResult
         {
             Response = new QueryCompaniesResponse
             {
-                Results = result.Value.Select(company => new CompanyListItem
+                Results = [.. result.Value.Select(company => new CompanyListItem
                 {
                     Id = company.Id,
                     CompanyName = company.CompanyName,
                     UserCount = company.NrUsers,
                     Sites = company.Sites,
                     Contracts = company.Contracts
-                }).ToList(),
+                })],
                 Total = result.RecordCount,
                 Page = request.Page,
                 PageSize = request.PageSize,
@@ -172,7 +171,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
     // Function summary: Returns company detail by id, or null when absent.
     public async Task<CompanyDetailResponse?> GetAsync(Guid companyId, CancellationToken cancellationToken)
     {
-        var company = await companyService.ReadOneAsync(companyId);
+        Company company = await companyService.ReadOneAsync(companyId);
         return company == null ? null : await BuildDetailAsync(company, cancellationToken);
     }
 
@@ -181,8 +180,8 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         CompanyMutationRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new CreateCompanyCommand(request), cancellationToken);
-        var company = result.CompanyId.HasValue && result.Errors.Count == 0
+        CompanyCommandResult result = await mediator.Send(new CreateCompanyCommand(request), cancellationToken);
+        CompanyDetailResponse? company = result.CompanyId.HasValue && result.Errors.Count == 0
             ? await GetAsync(result.CompanyId.Value, cancellationToken)
             : null;
         return CompanyMutationWorkflowResult.FromCommand(result, company);
@@ -194,8 +193,8 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         CompanyMutationRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new UpdateCompanyCommand(companyId, request), cancellationToken);
-        var company = !result.NotFound && result.Errors.Count == 0
+        CompanyCommandResult result = await mediator.Send(new UpdateCompanyCommand(companyId, request), cancellationToken);
+        CompanyDetailResponse? company = !result.NotFound && result.Errors.Count == 0
             ? await GetAsync(companyId, cancellationToken)
             : null;
         return CompanyMutationWorkflowResult.FromCommand(result, company);
@@ -204,23 +203,22 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
     // Function summary: Deletes a company through the transactional command pipeline.
     public async Task<CompanyMutationWorkflowResult> DeleteAsync(Guid companyId, CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new DeleteCompanyCommand(companyId), cancellationToken);
+        CompanyCommandResult result = await mediator.Send(new DeleteCompanyCommand(companyId), cancellationToken);
         return CompanyMutationWorkflowResult.FromCommand(result);
     }
 
     // Function summary: Builds the company detail counters and compact contract/site summaries.
     private async Task<CompanyDetailResponse> BuildDetailAsync(Company company, CancellationToken cancellationToken)
     {
-        var contracts = await domainContext.Contracts
+        List<Contract> contracts = await domainContext.Contracts
             .AsNoTracking()
             .Where(contract => contract.CompanyId == company.Id)
             .ToListAsync(cancellationToken);
-        var siteIds = contracts
+        List<Guid> siteIds = [.. contracts
             .Where(contract => contract.SiteiD.HasValue)
             .Select(contract => contract.SiteiD!.Value)
-            .Distinct()
-            .ToList();
-        var sites = siteIds.Count == 0
+            .Distinct()];
+        List<string> sites = siteIds.Count == 0
             ? []
             : await domainContext.Sites
                 .AsNoTracking()
@@ -228,7 +226,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
                 .OrderBy(site => site.SiteName)
                 .Select(site => site.SiteName)
                 .ToListAsync(cancellationToken);
-        var userCount = await userManager.Users.CountAsync(user => user.CompanyId == company.Id, cancellationToken);
+        int userCount = await userManager.Users.CountAsync(user => user.CompanyId == company.Id, cancellationToken);
 
         return new CompanyDetailResponse
         {
@@ -245,12 +243,11 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
     // Function summary: Builds a compact comma-separated summary from distinct non-empty values.
     private static string? JoinSummary(IEnumerable<string?> values)
     {
-        var list = values
+        List<string> list = [.. values
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(5)
-            .ToList();
+            .Take(5)];
         return list.Count == 0 ? null : string.Join(", ", list);
     }
 }

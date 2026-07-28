@@ -12,8 +12,8 @@ public sealed class SendGridMailRegistrationTests
     [TestMethod]
     public void AddSendGridMail_RegistersOneEmailPortFactoryOptionsAndValidationService()
     {
-        var services = new ServiceCollection();
-        var options = new SendGridMailOptions
+        ServiceCollection services = new();
+        SendGridMailOptions options = new()
         {
             Enabled = false,
             ApiKey = "api-key"
@@ -21,7 +21,7 @@ public sealed class SendGridMailRegistrationTests
 
         services.AddSendGridMail(options);
 
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
         Assert.IsInstanceOfType<SendGridEmailAdapter>(provider.GetRequiredService<IEmailDeliveryPort>());
         Assert.IsInstanceOfType<SendGridClientFactory>(provider.GetRequiredService<ISendGridClientFactory>());
         Assert.AreSame(options, provider.GetRequiredService<SendGridMailOptions>());
@@ -34,8 +34,8 @@ public sealed class SendGridMailRegistrationTests
     [TestMethod]
     public void AddSendGridMail_LoadsProviderOptionsFromConfiguration()
     {
-        var services = new ServiceCollection();
-        var configuration = new ConfigurationBuilder()
+        ServiceCollection services = new();
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["RVT:SENDGRID_API_KEY"] = "api-key"
@@ -44,7 +44,7 @@ public sealed class SendGridMailRegistrationTests
 
         services.AddSendGridMail(configuration);
 
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
         Assert.AreEqual("api-key", provider.GetRequiredService<SendGridMailOptions>().ApiKey);
         Assert.IsInstanceOfType<SendGridEmailAdapter>(provider.GetRequiredService<IEmailDeliveryPort>());
     }
@@ -52,10 +52,10 @@ public sealed class SendGridMailRegistrationTests
     [TestMethod]
     public void AddSendGridMail_RejectsAnExistingEmailDeliveryProvider()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IEmailDeliveryPort, ExistingEmailDeliveryPort>();
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             services.AddSendGridMail(new SendGridMailOptions { Enabled = false }));
 
         Assert.AreEqual("An email delivery provider is already registered.", exception.Message);

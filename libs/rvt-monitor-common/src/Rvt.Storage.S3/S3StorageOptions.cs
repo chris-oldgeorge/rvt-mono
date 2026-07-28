@@ -44,7 +44,7 @@ public sealed record S3StorageOptions
                     configuration,
                     "BlobStorage:S3ForcePathStyle",
                     "S3_FORCE_PATH_STYLE"),
-                out var forcePathStyle)
+                out bool forcePathStyle)
                 && forcePathStyle,
         };
     }
@@ -55,13 +55,13 @@ public sealed record S3StorageOptions
         string environmentKey,
         string defaultValue = "")
     {
-        var values = new[]
-        {
+        string?[] values =
+        [
             configuration[providerNeutralKey],
             configuration[$"RVT:{environmentKey}"],
             configuration[$"RVT__{environmentKey}"],
             defaultValue,
-        };
+        ];
 
         return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
             ?? string.Empty;

@@ -30,18 +30,18 @@ public sealed class MonitorRemovalImpactReader : IMonitorRemovalImpactReader
     // Function summary: Counts monitor-related data that determines delete versus archive behavior.
     public async Task<MonitorRemovalImpactResponse> BuildAsync(Guid monitorId, string serialId, CancellationToken cancellationToken)
     {
-        var deploymentCount = await domainContext.Deployments.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
-        var notificationCount = await domainContext.Notifications.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
-        var alertRuleCount = await domainContext.RvtAlertRules.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
-        var measurementCounts = await CountMeasurementRowsAsync(serialId, cancellationToken);
+        int deploymentCount = await domainContext.Deployments.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
+        int notificationCount = await domainContext.Notifications.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
+        int alertRuleCount = await domainContext.RvtAlertRules.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
+        (int tableCount, int rowCount) = await CountMeasurementRowsAsync(serialId, cancellationToken);
 
         return new MonitorRemovalImpactResponse
         {
             DeploymentCount = deploymentCount,
             NotificationCount = notificationCount,
             AlertRuleCount = alertRuleCount,
-            MeasurementTableCount = measurementCounts.TableCount,
-            MeasurementRowCount = measurementCounts.RowCount
+            MeasurementTableCount = tableCount,
+            MeasurementRowCount = rowCount
         };
     }
 
@@ -78,12 +78,12 @@ public sealed class MonitorRemovalImpactReader : IMonitorRemovalImpactReader
         string serialId,
         CancellationToken cancellationToken)
     {
-        var tableCount = 0;
-        var rowCount = 0;
+        int tableCount = 0;
+        int rowCount = 0;
 
         async Task AddCountAsync(Task<int> countTask)
         {
-            var count = await countTask;
+            int count = await countTask;
             if (count > 0)
             {
                 tableCount++;

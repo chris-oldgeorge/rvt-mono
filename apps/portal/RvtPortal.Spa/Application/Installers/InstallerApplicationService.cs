@@ -8,8 +8,6 @@ using System.Security.Claims;
 using System.Text.Json;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using RVT.BusinessLogic.Application;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Identity;
@@ -196,7 +194,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         Guid monitorId,
         CancellationToken cancellationToken)
     {
-        var deployment = await FindVisibleDeploymentByMonitorIdAsync(actor, monitorId, cancellationToken);
+        Deployment? deployment = await FindVisibleDeploymentByMonitorIdAsync(actor, monitorId, cancellationToken);
         return deployment == null
             ? null
             : await detailReader.BuildAsync(deployment.Monitor, deployment, principal, cancellationToken);
@@ -209,7 +207,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         Guid deploymentId,
         CancellationToken cancellationToken)
     {
-        var deployment = await FindVisibleDeploymentByDeploymentIdAsync(actor, deploymentId, cancellationToken);
+        Deployment? deployment = await FindVisibleDeploymentByDeploymentIdAsync(actor, deploymentId, cancellationToken);
         return deployment == null
             ? null
             : await detailReader.BuildAsync(deployment.Monitor, deployment, principal, cancellationToken);
@@ -228,13 +226,13 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
             return InstallerDeploymentWorkflowResult.Missing();
         }
 
-        var result = await mediator.Send(new UpdateInstallerDeploymentLocationCommand(deploymentId, request), cancellationToken);
+        InstallerDeploymentCommandResult result = await mediator.Send(new UpdateInstallerDeploymentLocationCommand(deploymentId, request), cancellationToken);
         if (result.NotFound || result.Errors.Count > 0)
         {
             return InstallerDeploymentWorkflowResult.FromCommand(result);
         }
 
-        var detail = await GetDeploymentDetailAsync(actor, principal, deploymentId, cancellationToken);
+        MonitorDetailResponse? detail = await GetDeploymentDetailAsync(actor, principal, deploymentId, cancellationToken);
         return detail == null
             ? InstallerDeploymentWorkflowResult.Missing()
             : new InstallerDeploymentWorkflowResult
@@ -250,14 +248,14 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         Guid monitorId,
         CancellationToken cancellationToken)
     {
-        var deployment = await FindVisibleDeploymentByMonitorIdAsync(actor, monitorId, cancellationToken);
+        Deployment? deployment = await FindVisibleDeploymentByMonitorIdAsync(actor, monitorId, cancellationToken);
         if (deployment == null)
         {
             return null;
         }
 
-        var lastDataTime = LastDataTime(deployment.Monitor);
-        var isOffline = IsOffline(lastDataTime);
+        DateTime? lastDataTime = LastDataTime(deployment.Monitor);
+        bool isOffline = IsOffline(lastDataTime);
         return new InstallerMonitorStatusModel
         {
             MonitorId = monitorId,
@@ -272,32 +270,32 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         string what3words,
         CancellationToken cancellationToken)
     {
-        var trimmedWords = what3words.Trim();
-        var apiKey = configuration["What3Words:ApiKey"];
+        string trimmedWords = what3words.Trim();
+        string? apiKey = configuration["What3Words:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             return What3WordsConversionResult.ServiceUnavailable();
         }
 
-        var path = $"https://api.what3words.com/v3/convert-to-coordinates?words={Uri.EscapeDataString(trimmedWords)}&key={Uri.EscapeDataString(apiKey)}";
-        using var client = httpClientFactory.CreateClient();
+        string path = $"https://api.what3words.com/v3/convert-to-coordinates?words={Uri.EscapeDataString(trimmedWords)}&key={Uri.EscapeDataString(apiKey)}";
+        using HttpClient client = httpClientFactory.CreateClient();
         client.Timeout = TimeSpan.FromSeconds(15);
-        using var response = await client.GetAsync(path, cancellationToken);
+        using HttpResponseMessage response = await client.GetAsync(path, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             return What3WordsConversionResult.BadGateway((int)response.StatusCode);
         }
 
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-        var root = document.RootElement;
-        var coordinates = root.TryGetProperty("coordinates", out var coordinateElement) ? coordinateElement : default;
+        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        JsonElement root = document.RootElement;
+        JsonElement coordinates = root.TryGetProperty("coordinates", out JsonElement coordinateElement) ? coordinateElement : default;
         return What3WordsConversionResult.Success(new What3WordsConvertResponse
         {
-            Words = root.TryGetProperty("words", out var wordsElement) ? wordsElement.GetString() ?? trimmedWords : trimmedWords,
-            Lat = coordinates.ValueKind == JsonValueKind.Object && coordinates.TryGetProperty("lat", out var latElement) ? latElement.GetDouble() : null,
-            Lng = coordinates.ValueKind == JsonValueKind.Object && coordinates.TryGetProperty("lng", out var lngElement) ? lngElement.GetDouble() : null,
-            NearestPlace = root.TryGetProperty("nearestPlace", out var nearestPlaceElement) ? nearestPlaceElement.GetString() : null,
+            Words = root.TryGetProperty("words", out JsonElement wordsElement) ? wordsElement.GetString() ?? trimmedWords : trimmedWords,
+            Lat = coordinates.ValueKind == JsonValueKind.Object && coordinates.TryGetProperty("lat", out JsonElement latElement) ? latElement.GetDouble() : null,
+            Lng = coordinates.ValueKind == JsonValueKind.Object && coordinates.TryGetProperty("lng", out JsonElement lngElement) ? lngElement.GetDouble() : null,
+            NearestPlace = root.TryGetProperty("nearestPlace", out JsonElement nearestPlaceElement) ? nearestPlaceElement.GetString() : null,
             Message = "Converted by what3words."
         });
     }
@@ -308,7 +306,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         Guid deploymentId,
         CancellationToken cancellationToken)
     {
-        var deployment = await BaseVisibleDeploymentQuery()
+        Deployment? deployment = await BaseVisibleDeploymentQuery()
             .SingleOrDefaultAsync(item => item.Id == deploymentId && item.EndDate == null, cancellationToken);
         return CanAccessDeployment(actor, deployment) ? deployment : null;
     }
@@ -319,7 +317,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         Guid monitorId,
         CancellationToken cancellationToken)
     {
-        var deployment = await BaseVisibleDeploymentQuery()
+        Deployment? deployment = await BaseVisibleDeploymentQuery()
             .Where(item => item.MonitorId == monitorId && item.EndDate == null)
             .OrderByDescending(item => item.StartDate)
             .FirstOrDefaultAsync(cancellationToken);

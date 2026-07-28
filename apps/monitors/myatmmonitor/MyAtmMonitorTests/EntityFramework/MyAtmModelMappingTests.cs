@@ -16,8 +16,8 @@ public sealed class MyAtmModelMappingTests
     [DataRow(typeof(MyAtmAlertOccurrenceEntity), "my_atm_alert_occurrence")]
     public void MyAtmContext_MapsCanonicalTablesWithoutSchemas(Type entityClrType, string tableName)
     {
-        using var context = CreateContext();
-        var entityType = context.Model.FindEntityType(entityClrType);
+        using MyAtmMonitorContext context = CreateContext();
+        IEntityType? entityType = context.Model.FindEntityType(entityClrType);
 
         Assert.IsNotNull(entityType);
         Assert.AreEqual(tableName, entityType.GetTableName());
@@ -27,7 +27,7 @@ public sealed class MyAtmModelMappingTests
     [TestMethod]
     public void MyAtmContext_MapsCanonicalColumnsAndTimestampTypes()
     {
-        using var context = CreateContext();
+        using MyAtmMonitorContext context = CreateContext();
 
         AssertColumns(
             context.Model.FindEntityType(typeof(MyAtmDustLevelEntity))!,
@@ -117,16 +117,16 @@ public sealed class MyAtmModelMappingTests
     [TestMethod]
     public void MyAtmContext_PreservesKeysAndSharedMonitorIndex()
     {
-        using var context = CreateContext();
+        using MyAtmMonitorContext context = CreateContext();
 
         AssertKey(context, typeof(MyAtmDustLevelEntity), "SerialId", "SampleTime", "Avrg");
         AssertKey(context, typeof(MyAtmAccessoryInfoEntity), "SerialId", "SampleTime");
         AssertKey(context, typeof(MyAtmErrorMessageEntity), "Tag", "ErrorTime", "Error");
         AssertKey(context, typeof(MyAtmAlertOccurrenceEntity), "OccurrenceKey");
 
-        var monitor = context.Model.FindEntityType(typeof(MonitorEntity));
+        IEntityType? monitor = context.Model.FindEntityType(typeof(MonitorEntity));
         Assert.IsNotNull(monitor);
-        var index = monitor.GetIndexes().Single();
+        IIndex index = monitor.GetIndexes().Single();
         Assert.AreEqual("ix_monitor_serial_id_type_of_monitor", index.GetDatabaseName());
         CollectionAssert.AreEqual(
             new[] { "SerialId", "TypeOfMonitor" },
@@ -137,9 +137,9 @@ public sealed class MyAtmModelMappingTests
     [TestMethod]
     public void MyAtmContext_MapsOnlyTheCanonicalSharedDeliveryOutbox()
     {
-        using var context = CreateContext();
-        var occurrence = context.Model.FindEntityType(typeof(MyAtmAlertOccurrenceEntity));
-        var outbox = context.Model.FindEntityType(typeof(MonitorDeliveryOutboxEntity));
+        using MyAtmMonitorContext context = CreateContext();
+        IEntityType? occurrence = context.Model.FindEntityType(typeof(MyAtmAlertOccurrenceEntity));
+        IEntityType? outbox = context.Model.FindEntityType(typeof(MonitorDeliveryOutboxEntity));
 
         Assert.IsNotNull(occurrence);
         Assert.IsNotNull(outbox);
@@ -184,12 +184,12 @@ public sealed class MyAtmModelMappingTests
         params (string Property, string Column)[] expectedColumns)
     {
         Assert.HasCount(expectedColumns.Length, entityType.GetProperties());
-        foreach (var expected in expectedColumns)
+        foreach ((string Property, string Column) in expectedColumns)
         {
             Assert.AreEqual(
-                expected.Column,
-                entityType.FindProperty(expected.Property)!.GetColumnName(),
-                expected.Property);
+                Column,
+                entityType.FindProperty(Property)!.GetColumnName(),
+                Property);
         }
     }
 
@@ -198,7 +198,7 @@ public sealed class MyAtmModelMappingTests
         Type entityClrType,
         string propertyName)
     {
-        var property = context.Model.FindEntityType(entityClrType)!.FindProperty(propertyName);
+        IProperty? property = context.Model.FindEntityType(entityClrType)!.FindProperty(propertyName);
         Assert.IsNotNull(property);
         Assert.AreEqual("timestamp with time zone", property.GetRelationalTypeMapping().StoreType);
     }
@@ -208,12 +208,11 @@ public sealed class MyAtmModelMappingTests
         Type entityClrType,
         params string[] expectedProperties)
     {
-        var keyProperties = context.Model
+        string[] keyProperties = [.. context.Model
             .FindEntityType(entityClrType)!
             .FindPrimaryKey()!
             .Properties
-            .Select(property => property.Name)
-            .ToArray();
+            .Select(property => property.Name)];
         CollectionAssert.AreEqual(expectedProperties, keyProperties);
     }
 
@@ -223,7 +222,7 @@ public sealed class MyAtmModelMappingTests
         bool unique,
         params string[] properties)
     {
-        var index = entityType.GetIndexes().Single(candidate => candidate.GetDatabaseName() == databaseName);
+        IReadOnlyIndex index = entityType.GetIndexes().Single(candidate => candidate.GetDatabaseName() == databaseName);
         Assert.AreEqual(unique, index.IsUnique);
         CollectionAssert.AreEqual(
             properties,
@@ -232,8 +231,8 @@ public sealed class MyAtmModelMappingTests
 
     private static MyAtmMonitorContext CreateContext()
     {
-        var options = new MonitorDbOptions(new Dictionary<string, string>());
-        var dbOptions = new DbContextOptionsBuilder<MyAtmMonitorContext>()
+        MonitorDbOptions options = new(new Dictionary<string, string>());
+        DbContextOptions<MyAtmMonitorContext> dbOptions = new DbContextOptionsBuilder<MyAtmMonitorContext>()
             .UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata")
             .Options;
 

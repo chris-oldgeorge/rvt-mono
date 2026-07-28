@@ -16,8 +16,8 @@ public sealed class DurableAlertBackgroundServiceTests
     [TestMethod]
     public async Task RunIterationAsync_WhenApiIsEnabledAndQuartzIsDisabled_DispatchesOnePassAndCleansUp()
     {
-        var store = EmptyStore();
-        var worker = CreateWorker(store.Object, MonitorExecutionMode.Api, schedulerEnabled: false);
+        Mock<IAlertOutboxStore> store = EmptyStore();
+        DurableAlertBackgroundService worker = CreateWorker(store.Object, MonitorExecutionMode.Api, schedulerEnabled: false);
 
         await worker.RunIterationAsync(UtcNow, CancellationToken.None);
 
@@ -40,8 +40,8 @@ public sealed class DurableAlertBackgroundServiceTests
         bool apiEnabled,
         bool schedulerEnabled)
     {
-        var store = EmptyStore();
-        var worker = CreateWorker(store.Object, executionMode, schedulerEnabled, apiEnabled: apiEnabled);
+        Mock<IAlertOutboxStore> store = EmptyStore();
+        DurableAlertBackgroundService worker = CreateWorker(store.Object, executionMode, schedulerEnabled, apiEnabled: apiEnabled);
 
         await worker.RunIterationAsync(UtcNow, CancellationToken.None);
 
@@ -51,8 +51,8 @@ public sealed class DurableAlertBackgroundServiceTests
     [TestMethod]
     public async Task RunIterationAsync_PerformsCleanupAtMostOncePerUtcDay()
     {
-        var store = EmptyStore();
-        var worker = CreateWorker(store.Object, MonitorExecutionMode.Api, schedulerEnabled: false);
+        Mock<IAlertOutboxStore> store = EmptyStore();
+        DurableAlertBackgroundService worker = CreateWorker(store.Object, MonitorExecutionMode.Api, schedulerEnabled: false);
 
         await worker.RunIterationAsync(UtcNow, CancellationToken.None);
         await worker.RunIterationAsync(UtcNow.AddHours(6), CancellationToken.None);
@@ -74,7 +74,7 @@ public sealed class DurableAlertBackgroundServiceTests
     public async Task RunIterationAsync_WhenDispatchFails_LogsSafeFailureAndRunsCleanupAndLaterIterations()
     {
         const string rawFailure = "provider leaked ops@example.test and secret-token";
-        var store = new Mock<IAlertOutboxStore>();
+        Mock<IAlertOutboxStore> store = new();
         store.SetupSequence(x => x.ClaimNextDueAsync(
                 It.IsAny<DateTime>(),
                 It.IsAny<TimeSpan>(),
@@ -83,8 +83,8 @@ public sealed class DurableAlertBackgroundServiceTests
             .ReturnsAsync((ClaimedAlertDelivery?)null);
         store.Setup(x => x.DeleteCompletedBeforeAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
-        var logger = new TestLogger<DurableAlertBackgroundService>();
-        var worker = CreateWorker(
+        TestLogger<DurableAlertBackgroundService> logger = new();
+        DurableAlertBackgroundService worker = CreateWorker(
             store.Object,
             MonitorExecutionMode.Api,
             schedulerEnabled: false,
@@ -111,14 +111,14 @@ public sealed class DurableAlertBackgroundServiceTests
     public async Task RunIterationAsync_WhenCleanupFails_DoesNotRetryUntilNextUtcDayAndLogsSafely()
     {
         const string rawFailure = "database password=top-secret";
-        var store = EmptyStore();
+        Mock<IAlertOutboxStore> store = EmptyStore();
         store.SetupSequence(x => x.DeleteCompletedBeforeAsync(
                 It.IsAny<DateTime>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException(rawFailure))
             .ReturnsAsync(0);
-        var logger = new TestLogger<DurableAlertBackgroundService>();
-        var worker = CreateWorker(
+        TestLogger<DurableAlertBackgroundService> logger = new();
+        DurableAlertBackgroundService worker = CreateWorker(
             store.Object,
             MonitorExecutionMode.Api,
             schedulerEnabled: false,
@@ -143,8 +143,8 @@ public sealed class DurableAlertBackgroundServiceTests
     [TestMethod]
     public async Task StartAsync_InOneShotMode_ExitsImmediatelyWithoutPolling()
     {
-        var store = EmptyStore();
-        var worker = CreateWorker(
+        Mock<IAlertOutboxStore> store = EmptyStore();
+        DurableAlertBackgroundService worker = CreateWorker(
             store.Object,
             MonitorExecutionMode.OneShot,
             schedulerEnabled: false,
@@ -163,19 +163,19 @@ public sealed class DurableAlertBackgroundServiceTests
         bool apiEnabled = true,
         ILogger<DurableAlertBackgroundService>? logger = null)
     {
-        var options = new DurableAlertOptions();
-        var timeProvider = new Mock<TimeProvider>();
+        DurableAlertOptions options = new();
+        Mock<TimeProvider> timeProvider = new();
         timeProvider.Setup(x => x.GetUtcNow()).Returns(new DateTimeOffset(UtcNow));
-        var adapter = new Mock<IAlertDeliveryAdapter>();
+        Mock<IAlertDeliveryAdapter> adapter = new();
         adapter.SetupGet(x => x.Kind).Returns("MqttAlert");
-        var dispatcher = new DurableAlertDispatcher(
+        DurableAlertDispatcher dispatcher = new(
             store,
             [adapter.Object],
             Options.Create(options),
             timeProvider.Object,
             new TestLogger<DurableAlertDispatcher>());
-        var cleanup = new DurableAlertCleanupService(store, Options.Create(options), timeProvider.Object);
-        var configuration = new ConfigurationBuilder()
+        DurableAlertCleanupService cleanup = new(store, Options.Create(options), timeProvider.Object);
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["MonitorApi:Enabled"] = apiEnabled.ToString(),
@@ -195,7 +195,7 @@ public sealed class DurableAlertBackgroundServiceTests
 
     private static Mock<IAlertOutboxStore> EmptyStore()
     {
-        var store = new Mock<IAlertOutboxStore>();
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(
                 It.IsAny<DateTime>(),
                 It.IsAny<TimeSpan>(),

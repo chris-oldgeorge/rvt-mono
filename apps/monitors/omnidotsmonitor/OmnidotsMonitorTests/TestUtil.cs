@@ -15,12 +15,8 @@ using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Notifications.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Notifications.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace OmnidotsAdapterTests
 {
 
@@ -62,7 +58,7 @@ namespace OmnidotsAdapterTests
             dbClient = new Mock<IDBClient>();
             cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
             importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
-            var traceQueries = dbClient.As<IOmnidotsTraceQueries>();
+            Mock<IOmnidotsTraceQueries> traceQueries = dbClient.As<IOmnidotsTraceQueries>();
             mqttClient = new Mock<IMqttClient>();
             messageClient = new Mock<IMessageService>();
             return new OmnidotsApi(
@@ -100,8 +96,8 @@ namespace OmnidotsAdapterTests
         {
             try
             {
-                using var sr = new StreamReader(fileName);
-                var txt = sr.ReadToEnd();
+                using StreamReader sr = new(fileName);
+                string txt = sr.ReadToEnd();
                 Console.WriteLine(txt);
                 return txt;
             }
@@ -121,10 +117,9 @@ namespace OmnidotsAdapterTests
         public static bool VerifyAuthenticateForm(HttpContent httpContent)
         {
 
-            if (httpContent is MultipartFormDataContent)
+            if (httpContent is MultipartFormDataContent mfc)
             {
-                var mfc = (MultipartFormDataContent)httpContent;
-                var s = ReadContent(mfc).Result;
+                string s = ReadContent(mfc).Result;
 
                 if (!s.Contains(
                     string.Format("form-data; name=\"username\"\r\n\r\n{0}", RvtConfig.USER_ID)))
@@ -267,12 +262,14 @@ namespace OmnidotsAdapterTests
         public static bool AreEqual(List<VibrationMonitorDto> expected, List<VibrationMonitorDto> actual)
         {
             if (expected.Count != actual.Count)
-                return false;
-
-            for (var i = 0; i < expected.Count; i++)
             {
-                var a = actual[i];
-                var e = expected[i];
+                return false;
+            }
+
+            for (int i = 0; i < expected.Count; i++)
+            {
+                VibrationMonitorDto a = actual[i];
+                VibrationMonitorDto e = expected[i];
                 if (a.ListedAtTime < e.ListedAtTime.AddMinutes(-2) ||
                     a.ListedAtTime > e.ListedAtTime.AddMinutes(2))
                 {
@@ -313,8 +310,8 @@ namespace OmnidotsAdapterTests
         public static bool VerifyPeakRecordDtos(List<PeakRecordDto> dtos, int addMinutes, DateTime expectedStartTime,
                                                double fdom, double vtop, double vtopOverflow)
         {
-            var dto = dtos[0];
-            var expectedSampleTime = expectedStartTime.AddMinutes(addMinutes);
+            PeakRecordDto dto = dtos[0];
+            DateTime expectedSampleTime = expectedStartTime.AddMinutes(addMinutes);
             if (!expectedSampleTime.Equals(dto.SampleTime))
             {
                 return false;
@@ -350,7 +347,7 @@ namespace OmnidotsAdapterTests
                 return false;
             }
 
-            var row = table.Rows[0];
+            DataRow row = table.Rows[0];
             return expectedSampleTime.Equals((DateTime)row["SampleTime"]) &&
                    fdom.Equals((double)row["XFdom"]) &&
                    fdom.Equals((double)row["YFdom"]) &&
@@ -397,8 +394,8 @@ namespace OmnidotsAdapterTests
         internal static bool VerifyDateTime(DateTime expected, DateTime actual)
         {
 
-            var e = expected.Ticks / TimeSpan.TicksPerSecond;
-            var a = actual.Ticks / TimeSpan.TicksPerSecond;
+            long e = expected.Ticks / TimeSpan.TicksPerSecond;
+            long a = actual.Ticks / TimeSpan.TicksPerSecond;
 
             return e == a;
         }

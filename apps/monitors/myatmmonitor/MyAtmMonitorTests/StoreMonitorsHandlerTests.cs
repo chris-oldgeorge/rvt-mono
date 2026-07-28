@@ -2,6 +2,7 @@ using Moq;
 using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
+using MyAtm.Api.UseCases;
 using MyAtm.Model.Dto;
 
 namespace MyAtmMonitorTests;
@@ -12,9 +13,9 @@ public sealed class StoreMonitorsHandlerTests
     [TestMethod]
     public async Task RunAsync_DeviceDetailFails_PersistsSuccessfulDeviceAndContinuesToNextPage()
     {
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
-        var monitorCommands = new Mock<IMyAtmMonitorCommands>(MockBehavior.Strict);
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IMyAtmMonitorCommands> monitorCommands = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         http.Setup(client => client.GetAsync(
                 "/api/customers/123/devices?$skip=0&$top=2",
                 It.IsAny<CancellationToken>()))
@@ -37,9 +38,9 @@ public sealed class StoreMonitorsHandlerTests
         monitorCommands.Setup(commands => commands.WriteMonitorList(
             It.Is<List<DustMonitorDto>>(monitors =>
                 monitors.Count == 1 && monitors[0].SerialId == "22222")));
-        var handler = CreateHandler(http, monitorCommands, operational, maxPages: 5);
+        StoreMonitorsHandler handler = CreateHandler(http, monitorCommands, operational, maxPages: 5);
 
-        var exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
+        MyAtmJobAggregateException exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
             handler.RunAsync(123));
 
         Assert.HasCount(1, exception.Failures);
@@ -52,10 +53,10 @@ public sealed class StoreMonitorsHandlerTests
     [TestMethod]
     public async Task RunAsync_RepeatedFullPage_StopsWithoutFetchingDetailsTwice()
     {
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
-        var monitorCommands = new Mock<IMyAtmMonitorCommands>(MockBehavior.Strict);
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        var page = MyAtmFixture.DevicesResponseJson();
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IMyAtmMonitorCommands> monitorCommands = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
+        string page = MyAtmFixture.DevicesResponseJson();
         http.Setup(client => client.GetAsync(
                 "/api/customers/123/devices?$skip=0&$top=2",
                 It.IsAny<CancellationToken>()))
@@ -78,9 +79,9 @@ public sealed class StoreMonitorsHandlerTests
             "StoreMonitors page=2",
             It.Is<InvalidOperationException>(exception =>
                 exception.Message.Contains("repeated", StringComparison.OrdinalIgnoreCase))));
-        var handler = CreateHandler(http, monitorCommands, operational, maxPages: 5);
+        StoreMonitorsHandler handler = CreateHandler(http, monitorCommands, operational, maxPages: 5);
 
-        var exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
+        MyAtmJobAggregateException exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
             handler.RunAsync(123));
 
         Assert.HasCount(1, exception.Failures);
@@ -98,14 +99,14 @@ public sealed class StoreMonitorsHandlerTests
     [TestMethod]
     public async Task RunAsync_LastAllowedPageIsFull_FailsAsIncompleteAfterPersistingPage()
     {
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
-        var monitorCommands = new Mock<IMyAtmMonitorCommands>(MockBehavior.Strict);
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IMyAtmMonitorCommands> monitorCommands = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         http.Setup(client => client.GetAsync(
                 "/api/customers/123/devices?$skip=0&$top=2",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(MyAtmFixture.DevicesResponseJson());
-        foreach (var serialId in new[] { "11111", "22222" })
+        foreach (string? serialId in new[] { "11111", "22222" })
         {
             http.Setup(client => client.GetAsync(
                     $"/api/customers/123/devices/{serialId}",
@@ -118,9 +119,9 @@ public sealed class StoreMonitorsHandlerTests
             "StoreMonitors page=1",
             It.Is<InvalidOperationException>(exception =>
                 exception.Message.Contains("page limit", StringComparison.OrdinalIgnoreCase))));
-        var handler = CreateHandler(http, monitorCommands, operational, maxPages: 1);
+        StoreMonitorsHandler handler = CreateHandler(http, monitorCommands, operational, maxPages: 1);
 
-        var exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
+        MyAtmJobAggregateException exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
             handler.RunAsync(123));
 
         Assert.HasCount(1, exception.Failures);
@@ -135,7 +136,7 @@ public sealed class StoreMonitorsHandlerTests
         Mock<IMyAtmOperationalCommands> operational,
         int maxPages)
     {
-        var gateway = new MyAtmHttpGateway(
+        MyAtmHttpGateway gateway = new(
             http.Object,
             devicePageSize: 2,
             measurementPageSize: 2,

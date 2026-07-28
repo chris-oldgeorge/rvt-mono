@@ -21,10 +21,10 @@ public sealed class QueryValidationTests
     // Function summary: Verifies a filter naming a property the entity does not have is rejected.
     public async Task ReadFilteredAsync_UnknownFilterField_Throws()
     {
-        await using var context = CreateContext();
-        var repository = new CompanyRepository(context);
+        await using RVTDbContext context = CreateContext();
+        CompanyRepository repository = new(context);
 
-        var error = await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
+        QueryValidationException error = await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
             [new SingleFilter { Operation = Op.Equals, PropertyName = "NotAField", Value = "x" }],
             ByName,
             maximumRecords: 10,
@@ -38,11 +38,11 @@ public sealed class QueryValidationTests
     // Function summary: Verifies a misspelled filter no longer degrades into a match-everything query.
     public async Task ReadFilteredAsync_UnknownFilterField_DoesNotReturnEveryRow()
     {
-        await using var context = CreateContext();
+        await using RVTDbContext context = CreateContext();
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Alpha" });
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Beta" });
         await context.SaveChangesAsync();
-        var repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
         // The whole point: an entirely invalid filter used to build "WHERE true" and hand back the table.
         await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
@@ -57,10 +57,10 @@ public sealed class QueryValidationTests
     // Function summary: Verifies a sort naming a property the entity does not have is rejected.
     public async Task ReadFilteredAsync_UnknownSortField_Throws()
     {
-        await using var context = CreateContext();
-        var repository = new CompanyRepository(context);
+        await using RVTDbContext context = CreateContext();
+        CompanyRepository repository = new(context);
 
-        var error = await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
+        QueryValidationException error = await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
             [],
             [new OrderByProperty { OrderByColumn = "NotASortField" }],
             maximumRecords: 10,
@@ -74,13 +74,13 @@ public sealed class QueryValidationTests
     // Function summary: Verifies supplying no filters still legitimately matches every row.
     public async Task ReadFilteredAsync_NoFilters_StillMatchesEveryRow()
     {
-        await using var context = CreateContext();
+        await using RVTDbContext context = CreateContext();
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Alpha" });
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Beta" });
         await context.SaveChangesAsync();
-        var repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
-        var result = await repository.ReadFilteredAsync(
+        SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
             ByName,
             maximumRecords: 10,
@@ -93,7 +93,7 @@ public sealed class QueryValidationTests
     // Function summary: Creates an isolated in-memory domain context for query-builder tests.
     private static RVTDbContext CreateContext()
     {
-        var options = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 

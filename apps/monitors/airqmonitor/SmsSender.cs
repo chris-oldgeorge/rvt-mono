@@ -15,7 +15,7 @@ namespace Rvt.Monitor.Common.Communications
         private static readonly string API_KEY = Environment.GetEnvironmentVariable("RVT__SMS_API_KEY") ?? string.Empty;
         private static readonly string SENDER = Environment.GetEnvironmentVariable("RVT__SMS_SENDER") ?? "RvtAlert";
         private readonly bool DoSend =
-            bool.TryParse(Environment.GetEnvironmentVariable("RVT__SMS_ENABLED"), out var smsEnabled) && smsEnabled;
+            bool.TryParse(Environment.GetEnvironmentVariable("RVT__SMS_ENABLED"), out bool smsEnabled) && smsEnabled;
 
         internal bool SendSms(string recipient, string content)
         {
@@ -31,16 +31,16 @@ namespace Rvt.Monitor.Common.Communications
                 return false;
             }
 
-            var configuration = new Configuration()
+            Configuration configuration = new Configuration()
             {
                 BasePath = BASE_URL,
                 ApiKeyPrefix = "App",
                 ApiKey = API_KEY
             };
 
-            var sendSmsApi = new SendSmsApi(configuration);
+            SendSmsApi sendSmsApi = new SendSmsApi(configuration);
 
-            var smsMessage = new SmsTextualMessage()
+            SmsTextualMessage smsMessage = new SmsTextualMessage()
             {
                 From = SENDER,
                 Destinations = new List<SmsDestination>()
@@ -50,14 +50,14 @@ namespace Rvt.Monitor.Common.Communications
                 Text = content
             };
 
-            var smsRequest = new SmsAdvancedTextualRequest()
+            SmsAdvancedTextualRequest smsRequest = new SmsAdvancedTextualRequest()
             {
                 Messages = new List<SmsTextualMessage>() { smsMessage }
             };
 
             try
             {
-                var smsResponse = sendSmsApi.SendSmsMessage(smsRequest);
+                SmsAdvancedTextualResponse smsResponse = sendSmsApi.SendSmsMessage(smsRequest);
                 return true;
             }
             catch (ApiException apiException)

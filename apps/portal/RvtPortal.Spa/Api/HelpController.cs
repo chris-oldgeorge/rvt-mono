@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RvtPortal.Application.Common;
 using RvtPortal.Application.Help;
+using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Data;
 
@@ -24,8 +25,8 @@ public sealed class HelpController(
     public async Task<ActionResult<HelpOverviewResponse>> Query(
         [FromQuery] string? searchText = null)
     {
-        var actor = await CurrentActorAsync();
-        var result = await help.QueryPublishedAsync(
+        PortalUserContext actor = await CurrentActorAsync();
+        UseCaseResult<HelpOverviewModel> result = await help.QueryPublishedAsync(
             actor,
             searchText,
             HttpContext.RequestAborted);
@@ -41,8 +42,8 @@ public sealed class HelpController(
     public async Task<ActionResult<EntityResponse<HelpArticleResponse>>> GetArticle(
         string slug)
     {
-        var actor = await CurrentActorAsync();
-        var result = await help.GetPublishedArticleAsync(
+        PortalUserContext actor = await CurrentActorAsync();
+        UseCaseResult<HelpArticleModel> result = await help.GetPublishedArticleAsync(
             actor,
             slug,
             HttpContext.RequestAborted);
@@ -59,14 +60,14 @@ public sealed class HelpController(
     public async Task<ActionResult<EntityResponse<HelpArticleResponse>>> CreateArticle(
         HelpArticleMutationRequest request)
     {
-        var actor = await CurrentActorAsync();
-        var result = await help.CreateAsync(
+        PortalUserContext actor = await CurrentActorAsync();
+        UseCaseResult<HelpArticleModel> result = await help.CreateAsync(
             actor,
             HelpApiMapper.ToMutation(request),
             HttpContext.RequestAborted);
         if (result.Kind == UseCaseResultKind.Success && result.Value is not null)
         {
-            var response = ToEntityResponse(result.Value);
+            EntityResponse<HelpArticleResponse> response = ToEntityResponse(result.Value);
             return CreatedAtAction(
                 nameof(GetAdminArticle),
                 new { id = result.Value.Id },
@@ -87,8 +88,8 @@ public sealed class HelpController(
         [FromQuery] string? status = null,
         [FromQuery] string? contentType = null)
     {
-        var actor = await CurrentActorAsync();
-        var result = await help.QueryAdminAsync(
+        PortalUserContext actor = await CurrentActorAsync();
+        UseCaseResult<HelpAdminOverviewModel> result = await help.QueryAdminAsync(
             actor,
             HelpApiMapper.ToAdminQuery(searchText, status, contentType),
             HttpContext.RequestAborted);
@@ -105,8 +106,8 @@ public sealed class HelpController(
     public async Task<ActionResult<EntityResponse<HelpArticleResponse>>> GetAdminArticle(
         Guid id)
     {
-        var actor = await CurrentActorAsync();
-        var result = await help.GetAdminArticleAsync(
+        PortalUserContext actor = await CurrentActorAsync();
+        UseCaseResult<HelpArticleModel> result = await help.GetAdminArticleAsync(
             actor,
             id,
             HttpContext.RequestAborted);
@@ -125,8 +126,8 @@ public sealed class HelpController(
         Guid id,
         HelpArticleMutationRequest request)
     {
-        var actor = await CurrentActorAsync();
-        var result = await help.UpdateAsync(
+        PortalUserContext actor = await CurrentActorAsync();
+        UseCaseResult<HelpArticleModel> result = await help.UpdateAsync(
             actor,
             id,
             HelpApiMapper.ToMutation(request),
@@ -145,8 +146,8 @@ public sealed class HelpController(
         Guid id,
         HelpPublishRequest request)
     {
-        var actor = await CurrentActorAsync();
-        var result = await help.SetPublicationAsync(
+        PortalUserContext actor = await CurrentActorAsync();
+        UseCaseResult<HelpArticleModel> result = await help.SetPublicationAsync(
             actor,
             id,
             request.IsPublished,
@@ -163,8 +164,8 @@ public sealed class HelpController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MutationResponse>> DeleteArticle(Guid id)
     {
-        var actor = await CurrentActorAsync();
-        var result = await help.DeleteAsync(
+        PortalUserContext actor = await CurrentActorAsync();
+        UseCaseResult<HelpDeleteResult> result = await help.DeleteAsync(
             actor,
             id,
             HttpContext.RequestAborted);
@@ -178,7 +179,7 @@ public sealed class HelpController(
             });
     }
 
-    private Task<RvtPortal.Application.Identity.PortalUserContext>
+    private Task<PortalUserContext>
         CurrentActorAsync() =>
         currentUserContextFactory.CreateAsync(
             User,

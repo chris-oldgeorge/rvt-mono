@@ -28,16 +28,16 @@ public sealed class MyAtmFleetFailureSemanticsTests
     [TestMethod]
     public async Task StoreDustLevels_FailedEarlyMonitorAndRecorder_DoNotPreventLaterCommit()
     {
-        var now = new DateTime(2026, 7, 16, 12, 0, 0, DateTimeKind.Utc);
-        var first = CreateMonitor("11111", now.AddMinutes(-2));
-        var second = CreateMonitor("22222", now.AddMinutes(-2));
-        var primary = new IOException("vendor unavailable");
-        var recording = new InvalidOperationException("error store unavailable");
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
-        var monitorQueries = new Mock<IMyAtmMonitorQueries>(MockBehavior.Strict);
-        var ruleQueries = new Mock<IMyAtmRuleQueries>(MockBehavior.Strict);
-        var importCommands = new Mock<IMyAtmDustImportCommands>(MockBehavior.Strict);
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        DateTime now = new(2026, 7, 16, 12, 0, 0, DateTimeKind.Utc);
+        DustMonitorDto first = CreateMonitor("11111", now.AddMinutes(-2));
+        DustMonitorDto second = CreateMonitor("22222", now.AddMinutes(-2));
+        IOException primary = new("vendor unavailable");
+        InvalidOperationException recording = new("error store unavailable");
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IMyAtmMonitorQueries> monitorQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmRuleQueries> ruleQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmDustImportCommands> importCommands = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         http.Setup(client => client.GetAsync(
                 It.Is<string>(path => path.Contains(first.SerialId, StringComparison.Ordinal)),
                 It.IsAny<CancellationToken>()))
@@ -59,7 +59,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
                 $"StoreDustLevels SerialId={first.SerialId}",
                 It.IsAny<AdapterException>()))
             .Throws(recording);
-        var handler = new StoreDustLevelsHandler(
+        StoreDustLevelsHandler handler = new(
             new MyAtmHttpGateway(http.Object, devicePageSize: 100),
             new MyAtmMonitorReader(monitorQueries.Object, operational.Object, testLocal: false),
             ruleQueries.Object,
@@ -69,7 +69,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
             new FixedTimeProvider(now),
             maxPagesPerMonitorPerRun: 10);
 
-        var aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() =>
+        MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() =>
             handler.RunAsync<DeviceMeasurement>(123, Period.Minutes1));
 
         Assert.HasCount(
@@ -87,15 +87,15 @@ public sealed class MyAtmFleetFailureSemanticsTests
     [TestMethod]
     public async Task ProcessDustLevels_FailedEarlyRuleAndRecorder_DoNotPreventLaterRuleCommit()
     {
-        var now = new DateTime(2026, 7, 16, 12, 0, 0, DateTimeKind.Utc);
-        var first = CreateDeletedActiveRule("11111");
-        var second = CreateDeletedActiveRule("22222");
-        var primary = new IOException("commit unavailable");
-        var recording = new InvalidOperationException("error store unavailable");
-        var monitorQueries = new Mock<IMyAtmMonitorQueries>(MockBehavior.Strict);
-        var ruleQueries = new Mock<IMyAtmRuleQueries>(MockBehavior.Strict);
-        var commits = new Mock<IMyAtmAlertCommitCommands>(MockBehavior.Strict);
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        DateTime now = new(2026, 7, 16, 12, 0, 0, DateTimeKind.Utc);
+        RvtAlertRuleDto first = CreateDeletedActiveRule("11111");
+        RvtAlertRuleDto second = CreateDeletedActiveRule("22222");
+        IOException primary = new("commit unavailable");
+        InvalidOperationException recording = new("error store unavailable");
+        Mock<IMyAtmMonitorQueries> monitorQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmRuleQueries> ruleQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmAlertCommitCommands> commits = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         ruleQueries.Setup(queries => queries.ReadRules(Period.Hours8)).Returns([first, second]);
         commits.Setup(commands => commands.CommitAlertAsync(
                 It.Is<MyAtmAlertCommit>(commit => commit.RuleStateMutations.Single().RuleId == first.RuleId),
@@ -109,7 +109,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
                 $"ProcessDustLevels RuleId={first.RuleId} SerialId={first.SerialId}",
                 primary))
             .Throws(recording);
-        var handler = new ProcessDustLevelsHandler(
+        ProcessDustLevelsHandler handler = new(
             monitorQueries.Object,
             ruleQueries.Object,
             commits.Object,
@@ -118,7 +118,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
             new FixedTimeProvider(now),
             testLocal: false);
 
-        var aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() =>
+        MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() =>
             handler.RunAsync<AvgDeviceMeasurement>(123, Period.Hours8));
 
         Assert.HasCount(1, aggregate.Failures);
@@ -134,11 +134,11 @@ public sealed class MyAtmFleetFailureSemanticsTests
     [TestMethod]
     public async Task StoreDustLevels_RequestedCancellationStopsWithoutRecordingFailure()
     {
-        var monitor = CreateMonitor("11111", DateTime.UnixEpoch);
-        var monitorQueries = new Mock<IMyAtmMonitorQueries>(MockBehavior.Strict);
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        DustMonitorDto monitor = CreateMonitor("11111", DateTime.UnixEpoch);
+        Mock<IMyAtmMonitorQueries> monitorQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         monitorQueries.Setup(queries => queries.ReadMonitorList(123, null)).Returns([monitor]);
-        var handler = new StoreDustLevelsHandler(
+        StoreDustLevelsHandler handler = new(
             new MyAtmHttpGateway(Mock.Of<IHttpClient>(), devicePageSize: 100),
             new MyAtmMonitorReader(monitorQueries.Object, operational.Object, testLocal: false),
             Mock.Of<IMyAtmRuleQueries>(),
@@ -147,7 +147,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
             new MyAtmRuleEvaluator(),
             TimeProvider.System,
             maxPagesPerMonitorPerRun: 10);
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -159,11 +159,11 @@ public sealed class MyAtmFleetFailureSemanticsTests
     [TestMethod]
     public async Task ProcessDustLevels_RequestedCancellationStopsWithoutRecordingFailure()
     {
-        var ruleQueries = new Mock<IMyAtmRuleQueries>(MockBehavior.Strict);
-        var commits = new Mock<IMyAtmAlertCommitCommands>(MockBehavior.Strict);
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        Mock<IMyAtmRuleQueries> ruleQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmAlertCommitCommands> commits = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         ruleQueries.Setup(queries => queries.ReadRules(Period.Hours8)).Returns([CreateDeletedActiveRule("11111")]);
-        var handler = new ProcessDustLevelsHandler(
+        ProcessDustLevelsHandler handler = new(
             Mock.Of<IMyAtmMonitorQueries>(),
             ruleQueries.Object,
             commits.Object,
@@ -171,7 +171,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
             new MyAtmRuleProcessor(ruleQueries.Object, "https://portal.example/"),
             TimeProvider.System,
             testLocal: false);
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>

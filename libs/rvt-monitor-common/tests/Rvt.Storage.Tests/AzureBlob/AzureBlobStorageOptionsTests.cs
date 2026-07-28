@@ -9,7 +9,7 @@ public sealed class AzureBlobStorageOptionsTests
     [TestMethod]
     public void Bind_WhenNoSettings_UsesAzureDefaults()
     {
-        var options = AzureBlobStorageOptions.Bind(new ConfigurationBuilder().Build());
+        AzureBlobStorageOptions options = AzureBlobStorageOptions.Bind(new ConfigurationBuilder().Build());
 
         Assert.AreEqual("audiofiles", options.Container);
         Assert.AreEqual(string.Empty, options.Prefix);
@@ -20,7 +20,7 @@ public sealed class AzureBlobStorageOptionsTests
     [TestMethod]
     public void Bind_ReadsProviderNeutralSettings()
     {
-        var options = AzureBlobStorageOptions.Bind(CreateConfiguration(new()
+        AzureBlobStorageOptions options = AzureBlobStorageOptions.Bind(CreateConfiguration(new()
         {
             ["BlobStorage:Container"] = "recordings",
             ["BlobStorage:Prefix"] = "tenant-a",
@@ -37,7 +37,7 @@ public sealed class AzureBlobStorageOptionsTests
     [TestMethod]
     public void Bind_ReadsRvtColonAliases()
     {
-        var options = AzureBlobStorageOptions.Bind(CreateConfiguration(new()
+        AzureBlobStorageOptions options = AzureBlobStorageOptions.Bind(CreateConfiguration(new()
         {
             ["RVT:BLOB_CONTAINER"] = "recordings",
             ["RVT:BLOB_PREFIX"] = "tenant-a",
@@ -54,7 +54,7 @@ public sealed class AzureBlobStorageOptionsTests
     [TestMethod]
     public void Bind_ReadsLiteralRvtDoubleUnderscoreAliases()
     {
-        var options = AzureBlobStorageOptions.Bind(CreateConfiguration(new()
+        AzureBlobStorageOptions options = AzureBlobStorageOptions.Bind(CreateConfiguration(new()
         {
             ["RVT__BLOB_CONTAINER"] = "recordings",
             ["RVT__BLOB_PREFIX"] = "tenant-a",
@@ -71,7 +71,7 @@ public sealed class AzureBlobStorageOptionsTests
     [TestMethod]
     public void Bind_PrefersProviderNeutralSettingsOverAliases()
     {
-        var options = AzureBlobStorageOptions.Bind(CreateConfiguration(new()
+        AzureBlobStorageOptions options = AzureBlobStorageOptions.Bind(CreateConfiguration(new()
         {
             ["BlobStorage:Container"] = "neutral-container",
             ["BlobStorage:Prefix"] = "neutral-prefix",
@@ -98,7 +98,7 @@ public sealed class AzureBlobStorageOptionsTests
     [DataRow("RVT__AUDIO_FOLDER")]
     public void Bind_ReadsLegacyContainerAliases(string key)
     {
-        var options = AzureBlobStorageOptions.Bind(CreateConfiguration(new()
+        AzureBlobStorageOptions options = AzureBlobStorageOptions.Bind(CreateConfiguration(new()
         {
             [key] = "legacy-audio",
         }));
@@ -109,12 +109,12 @@ public sealed class AzureBlobStorageOptionsTests
     [TestMethod]
     public void Bind_WithCustomDefaultsAndLegacyKey_UsesReportingValues()
     {
-        var defaults = AzureBlobStorageOptions.Bind(
+        AzureBlobStorageOptions defaults = AzureBlobStorageOptions.Bind(
             new ConfigurationBuilder().Build(),
             defaultContainer: "pdfreports",
             defaultPrefix: "rvtreports",
             legacyContainerEnvironmentKey: "BLOB_REPORT_CONTAINER_NAME");
-        var alias = AzureBlobStorageOptions.Bind(
+        AzureBlobStorageOptions alias = AzureBlobStorageOptions.Bind(
             CreateConfiguration(new()
             {
                 ["RVT:BLOB_REPORT_CONTAINER_NAME"] = "legacy-reports",

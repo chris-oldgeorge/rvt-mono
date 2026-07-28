@@ -1,4 +1,4 @@
-﻿// File summary: Covers canonical database naming rules used by the database refactor.
+// File summary: Covers canonical database naming rules used by the database refactor.
 // Major updates:
 // - 2026-07-25 pending Removed retired-provider metadata cases and retained canonical Npgsql model coverage.
 // - 2026-06-25 pending Returned concrete CSV field lists for CA1859 analyzer cleanup.
@@ -112,10 +112,10 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the opt-in EF convention maps entity tables and scalar columns to canonical names.
     public void EfCanonicalMappingConvention_MapsTablesAndScalarColumns()
     {
-        using var context = new CanonicalMappingProbeContext();
+        using CanonicalMappingProbeContext context = new();
 
-        var company = context.Model.FindEntityType(typeof(Company)) ?? throw new InvalidOperationException("Company entity missing.");
-        var site = context.Model.FindEntityType(typeof(Site)) ?? throw new InvalidOperationException("Site entity missing.");
+        IEntityType company = context.Model.FindEntityType(typeof(Company)) ?? throw new InvalidOperationException("Company entity missing.");
+        IEntityType site = context.Model.FindEntityType(typeof(Site)) ?? throw new InvalidOperationException("Site entity missing.");
 
         Assert.Equal("company", company.GetTableName());
         Assert.Equal("company_name", company.FindProperty(nameof(Company.CompanyName))?.GetColumnName());
@@ -127,9 +127,9 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the opt-in EF convention maps single-column primary keys to id.
     public void EfCanonicalMappingConvention_MapsSingleColumnPrimaryKeysToId()
     {
-        using var context = new CanonicalMappingProbeContext();
+        using CanonicalMappingProbeContext context = new();
 
-        var contract = context.Model.FindEntityType(typeof(Contract)) ?? throw new InvalidOperationException("Contract entity missing.");
+        IEntityType contract = context.Model.FindEntityType(typeof(Contract)) ?? throw new InvalidOperationException("Contract entity missing.");
 
         Assert.Equal("id", contract.FindProperty(nameof(Contract.Id))?.GetColumnName());
     }
@@ -138,9 +138,9 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the opt-in EF convention maps foreign-key columns to referenced relation id names.
     public void EfCanonicalMappingConvention_MapsForeignKeysToReferencedRelationId()
     {
-        using var context = new CanonicalMappingProbeContext();
+        using CanonicalMappingProbeContext context = new();
 
-        var contract = context.Model.FindEntityType(typeof(Contract)) ?? throw new InvalidOperationException("Contract entity missing.");
+        IEntityType contract = context.Model.FindEntityType(typeof(Contract)) ?? throw new InvalidOperationException("Contract entity missing.");
 
         Assert.Equal("company_id", contract.FindProperty(nameof(Contract.CompanyId))?.GetColumnName());
         Assert.Equal("site_id", contract.FindProperty(nameof(Contract.SiteiD))?.GetColumnName());
@@ -150,9 +150,9 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the opt-in EF convention leaves ASP.NET Identity entity mappings under framework-managed names.
     public void EfCanonicalMappingConvention_SkipsAspNetIdentityEntities()
     {
-        using var context = new CanonicalMappingProbeContext();
+        using CanonicalMappingProbeContext context = new();
 
-        var role = context.Model.FindEntityType(typeof(IdentityRole)) ?? throw new InvalidOperationException("IdentityRole entity missing.");
+        IEntityType role = context.Model.FindEntityType(typeof(IdentityRole)) ?? throw new InvalidOperationException("IdentityRole entity missing.");
 
         Assert.Equal("AspNetRoles", role.GetTableName());
         Assert.Equal("Id", role.FindProperty(nameof(IdentityRole.Id))?.GetColumnName());
@@ -163,15 +163,15 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the live Postgres context maps to the physically migrated canonical development schema.
     public void RvtDbContext_UsesCanonicalNamesForPostgresProvider()
     {
-        var optionsBuilder = new DbContextOptionsBuilder<RVTDbContext>();
+        DbContextOptionsBuilder<RVTDbContext> optionsBuilder = new();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
             ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
-        using var context = new RVTDbContext(optionsBuilder.Options);
+        using RVTDbContext context = new(optionsBuilder.Options);
 
-        var company = context.Model.FindEntityType(typeof(Company)) ?? throw new InvalidOperationException("Company entity missing.");
-        var monitor = context.Model.FindEntityType(typeof(RVT.Entities.Monitor)) ?? throw new InvalidOperationException("Monitor entity missing.");
+        IEntityType company = context.Model.FindEntityType(typeof(Company)) ?? throw new InvalidOperationException("Company entity missing.");
+        IEntityType monitor = context.Model.FindEntityType(typeof(RVT.Entities.Monitor)) ?? throw new InvalidOperationException("Monitor entity missing.");
 
         Assert.Equal("company", company.GetTableName());
         Assert.Equal("company_name", company.FindProperty(nameof(Company.CompanyName))?.GetColumnName());
@@ -183,18 +183,18 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the live search context maps scaffolded search/data models to canonical schema objects.
     public void RvtSearchContext_UsesCanonicalNamesForSearchAndMeasurementModels()
     {
-        var optionsBuilder = new DbContextOptionsBuilder<RVTSearchContext>();
+        DbContextOptionsBuilder<RVTSearchContext> optionsBuilder = new();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
             ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
-        using var context = new RVTSearchContext(optionsBuilder.Options);
+        using RVTSearchContext context = new(optionsBuilder.Options);
 
-        var sensor = context.Model.FindEntityType(typeof(RVT.DataAccess.EntityModels.Models.OmnidotsSensor)) ??
+        IEntityType sensor = context.Model.FindEntityType(typeof(RVT.DataAccess.EntityModels.Models.OmnidotsSensor)) ??
             throw new InvalidOperationException("OmnidotsSensor entity missing.");
-        var peakLevel = context.Model.FindEntityType(typeof(RVT.DataAccess.EntityModels.Models.OmnidotsPeakLevel)) ??
+        IEntityType peakLevel = context.Model.FindEntityType(typeof(RVT.DataAccess.EntityModels.Models.OmnidotsPeakLevel)) ??
             throw new InvalidOperationException("OmnidotsPeakLevel entity missing.");
-        var monitorSearch = context.Model.FindEntityType(typeof(RVT.DataAccess.EntityModels.Models.MonitorSearch)) ??
+        IEntityType monitorSearch = context.Model.FindEntityType(typeof(RVT.DataAccess.EntityModels.Models.MonitorSearch)) ??
             throw new InvalidOperationException("MonitorSearch entity missing.");
 
         Assert.Equal("omnidots_sensor", sensor.GetTableName());
@@ -210,26 +210,26 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies every live search-context store mapping resolves to canonical identifiers.
     public void RvtSearchContext_AllStoreMappingsUseCanonicalNames()
     {
-        var optionsBuilder = new DbContextOptionsBuilder<RVTSearchContext>();
+        DbContextOptionsBuilder<RVTSearchContext> optionsBuilder = new();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
             ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
-        using var context = new RVTSearchContext(optionsBuilder.Options);
+        using RVTSearchContext context = new(optionsBuilder.Options);
 
-        foreach (var entityType in context.Model.GetEntityTypes())
+        foreach (IEntityType entityType in context.Model.GetEntityTypes())
         {
-            var tableName = entityType.GetTableName();
-            var viewName = entityType.GetViewName();
-            var relationName = viewName ?? tableName;
+            string? tableName = entityType.GetTableName();
+            string? viewName = entityType.GetViewName();
+            string? relationName = viewName ?? tableName;
             Assert.True(DatabaseNamingRules.IsCanonicalRelationName(relationName), $"{entityType.ClrType.Name} maps to non-canonical relation '{relationName}'.");
 
-            var storeObject = viewName is not null
+            StoreObjectIdentifier storeObject = viewName is not null
                 ? StoreObjectIdentifier.View(viewName, entityType.GetViewSchema())
                 : StoreObjectIdentifier.Table(tableName!, entityType.GetSchema());
-            foreach (var property in entityType.GetProperties())
+            foreach (IProperty property in entityType.GetProperties())
             {
-                var columnName = property.GetColumnName(storeObject);
+                string? columnName = property.GetColumnName(storeObject);
                 Assert.True(
                     DatabaseNamingRules.IsCanonicalColumnName(columnName),
                     $"{entityType.ClrType.Name}.{property.Name} maps to non-canonical column '{columnName}' on '{relationName}'.");

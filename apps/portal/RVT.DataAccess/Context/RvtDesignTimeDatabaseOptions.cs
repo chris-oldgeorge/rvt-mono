@@ -16,7 +16,7 @@ public static class RvtDesignTimeDatabaseOptions
     // Function summary: Builds design-time PostgreSQL options from RVT_EF_CONNECTION.
     public static RvtDatabaseOptions FromEnvironment()
     {
-        var connectionString = Environment.GetEnvironmentVariable("RVT_EF_CONNECTION");
+        string? connectionString = Environment.GetEnvironmentVariable("RVT_EF_CONNECTION");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(

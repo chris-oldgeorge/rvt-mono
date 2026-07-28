@@ -15,12 +15,12 @@ public sealed class StorageCompositionTests
     [TestMethod]
     public void AddSvantekStorage_MissingProvider_DefaultsToLocalWithAudioFolderDefaults()
     {
-        using var provider = CreateProvider();
+        using ServiceProvider provider = CreateProvider();
 
-        var client = provider
+        IObjectStorageClient client = provider
             .GetRequiredService<IObjectStorageClientFactory>()
             .GetRequiredClient(SvantekStorageComposition.SoundRecordingsResource);
-        var local = Assert.IsInstanceOfType<LocalObjectStorageClient>(client);
+        LocalObjectStorageClient local = Assert.IsInstanceOfType<LocalObjectStorageClient>(client);
 
         Assert.AreEqual(
             Path.GetFullPath("/data/rvt/blobs/audiofiles/probe.wav"),
@@ -30,7 +30,7 @@ public sealed class StorageCompositionTests
     [TestMethod]
     public void AddSvantekStorage_ProviderNeutralKey_SelectsLocal()
     {
-        using var provider = CreateProvider(new Dictionary<string, string?>
+        using ServiceProvider provider = CreateProvider(new Dictionary<string, string?>
         {
             ["BlobStorage:Provider"] = "Local",
         });
@@ -41,7 +41,7 @@ public sealed class StorageCompositionTests
     [TestMethod]
     public void AddSvantekStorage_RvtKey_SelectsAzureBlob()
     {
-        using var provider = CreateProvider(new Dictionary<string, string?>
+        using ServiceProvider provider = CreateProvider(new Dictionary<string, string?>
         {
             ["RVT:BLOB_PROVIDER"] = "AzureBlob",
             ["BlobStorage:AzureConnectionString"] = "UseDevelopmentStorage=true",
@@ -53,7 +53,7 @@ public sealed class StorageCompositionTests
     [TestMethod]
     public void AddSvantekStorage_LiteralRvtKey_SelectsS3()
     {
-        using var provider = CreateProvider(new Dictionary<string, string?>
+        using ServiceProvider provider = CreateProvider(new Dictionary<string, string?>
         {
             ["RVT__BLOB_PROVIDER"] = "S3",
             ["BlobStorage:S3Bucket"] = "sound-recordings",
@@ -66,7 +66,7 @@ public sealed class StorageCompositionTests
     [TestMethod]
     public void AddSvantekStorage_ProviderNeutralKey_HasPrecedenceOverRvtAliases()
     {
-        using var provider = CreateProvider(new Dictionary<string, string?>
+        using ServiceProvider provider = CreateProvider(new Dictionary<string, string?>
         {
             ["BlobStorage:Provider"] = "Local",
             ["RVT:BLOB_PROVIDER"] = "AzureBlob",
@@ -79,7 +79,7 @@ public sealed class StorageCompositionTests
     [TestMethod]
     public void AddSvantekStorage_BlankHigherPriorityKey_UsesNextConfiguredAlias()
     {
-        using var provider = CreateProvider(new Dictionary<string, string?>
+        using ServiceProvider provider = CreateProvider(new Dictionary<string, string?>
         {
             ["BlobStorage:Provider"] = " ",
             ["RVT:BLOB_PROVIDER"] = "AzureBlob",
@@ -93,14 +93,14 @@ public sealed class StorageCompositionTests
     [TestMethod]
     public void AddSvantekStorage_UnsupportedProvider_ThrowsExactSafeMessage()
     {
-        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
         {
             ["BlobStorage:Provider"] = "GoogleCloud",
         });
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(
             () => services.AddSvantekStorage(configuration));
 
         Assert.AreEqual(
@@ -111,8 +111,8 @@ public sealed class StorageCompositionTests
     private static ServiceProvider CreateProvider(
         IReadOnlyDictionary<string, string?>? settings = null)
     {
-        var configuration = BuildConfiguration(settings);
-        var services = new ServiceCollection();
+        IConfiguration configuration = BuildConfiguration(settings);
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSvantekMonitor(configuration);
         return services.BuildServiceProvider();

@@ -23,16 +23,16 @@ public sealed class DashboardBreachTimestamptzTests
     // Function summary: Verifies the default-date breach query executes against PostgreSQL instead of throwing on Kind.
     public async Task QueryAsync_WithDefaultDate_ExecutesAgainstRealPostgres()
     {
-        var connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        var options = new DbContextOptionsBuilder<RVTDbContext>().UseNpgsql(connectionString).Options;
-        await using var context = new RVTDbContext(options);
+        string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>().UseNpgsql(connectionString).Options;
+        await using RVTDbContext context = new(options);
 
-        var provider = new RvtDateTimeProvider(Options.Create(new RvtTimeZoneOptions { Local = "Europe/London" }));
-        var service = new DashboardBreachApplicationService(context, provider);
+        RvtDateTimeProvider provider = new(Options.Create(new RvtTimeZoneOptions { Local = "Europe/London" }));
+        DashboardBreachApplicationService service = new(context, provider);
 
         // request.Date == null is the path that used DateTime.Today (Kind=Local); before the fix this threw when
         // the bound reached notification_time. Executing at all is the assertion.
-        var result = await service.QueryAsync(
+        DashboardBreachResult result = await service.QueryAsync(
             new DashboardBreachQuery(null, new PageRequest(null, 1, 10, DashboardBreachApplicationService.DefaultSort, "asc")),
             CancellationToken.None);
 

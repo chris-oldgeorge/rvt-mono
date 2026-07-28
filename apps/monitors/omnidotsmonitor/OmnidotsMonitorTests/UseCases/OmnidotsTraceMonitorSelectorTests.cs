@@ -1,5 +1,6 @@
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
+using Omnidots.Model.Dto;
 
 namespace OmnidotsAdapterTests.UseCases;
 
@@ -9,7 +10,7 @@ public sealed class OmnidotsTraceMonitorSelectorTests
     [TestMethod]
     public void Select_DisabledCollection_ReturnsNoMonitors()
     {
-        var selected = OmnidotsTraceMonitorSelector.Select(
+        IReadOnlyList<VibrationMonitorDto> selected = OmnidotsTraceMonitorSelector.Select(
             OmnidotsFixture.MonitorsList(2),
             new Dictionary<string, DateTime>(),
             Options(enabled: false, maxMonitorsPerRun: 1),
@@ -21,7 +22,7 @@ public sealed class OmnidotsTraceMonitorSelectorTests
     [TestMethod]
     public void Select_AllowListFiltersFleet()
     {
-        var selected = OmnidotsTraceMonitorSelector.Select(
+        IReadOnlyList<VibrationMonitorDto> selected = OmnidotsTraceMonitorSelector.Select(
             OmnidotsFixture.MonitorsList(4),
             new Dictionary<string, DateTime>(),
             Options(allowedSerialIds: ["2", "4"], maxMonitorsPerRun: 4),
@@ -33,7 +34,7 @@ public sealed class OmnidotsTraceMonitorSelectorTests
     [TestMethod]
     public void Select_EmptyAllowListIncludesFleetAndAppliesLimit()
     {
-        var selected = OmnidotsTraceMonitorSelector.Select(
+        IReadOnlyList<VibrationMonitorDto> selected = OmnidotsTraceMonitorSelector.Select(
             OmnidotsFixture.MonitorsList(4),
             new Dictionary<string, DateTime>(),
             Options(maxMonitorsPerRun: 2),
@@ -45,7 +46,7 @@ public sealed class OmnidotsTraceMonitorSelectorTests
     [TestMethod]
     public void Select_OrdersUnseenThenOldestLatestTrace()
     {
-        var selected = OmnidotsTraceMonitorSelector.Select(
+        IReadOnlyList<VibrationMonitorDto> selected = OmnidotsTraceMonitorSelector.Select(
             OmnidotsFixture.MonitorsList(3),
             new Dictionary<string, DateTime>
             {
@@ -61,12 +62,12 @@ public sealed class OmnidotsTraceMonitorSelectorTests
     [TestMethod]
     public void Select_RotatesWithinEqualPriorityGroupWithoutMutatingFleet()
     {
-        var monitors = OmnidotsFixture.MonitorsList(4);
-        var originalOrder = monitors.Select(monitor => monitor.SerialId).ToArray();
+        List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(4);
+        string[] originalOrder = [.. monitors.Select(monitor => monitor.SerialId)];
 
-        var first = OmnidotsTraceMonitorSelector.Select(
+        IReadOnlyList<VibrationMonitorDto> first = OmnidotsTraceMonitorSelector.Select(
             monitors, new Dictionary<string, DateTime>(), Options(maxMonitorsPerRun: 2), rotationSlot: 0);
-        var second = OmnidotsTraceMonitorSelector.Select(
+        IReadOnlyList<VibrationMonitorDto> second = OmnidotsTraceMonitorSelector.Select(
             monitors, new Dictionary<string, DateTime>(), Options(maxMonitorsPerRun: 2), rotationSlot: 1);
 
         CollectionAssert.AreEqual(new[] { "1", "2" }, first.Select(monitor => monitor.SerialId).ToArray());

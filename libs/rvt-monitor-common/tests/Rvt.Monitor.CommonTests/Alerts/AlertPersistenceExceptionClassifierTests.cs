@@ -10,9 +10,9 @@ public sealed class AlertPersistenceExceptionClassifierTests
     [TestMethod]
     public void PostgreSqlUnique_IsOccurrenceConflictOnlyForExactConstraint()
     {
-        var conflict = AlertPersistenceExceptionClassifier.Classify(
+        Exception conflict = AlertPersistenceExceptionClassifier.Classify(
             PostgreSqlException(PostgresErrorCodes.UniqueViolation, "uq_alert_occurrence_source_key"));
-        var otherUnique = AlertPersistenceExceptionClassifier.Classify(
+        Exception otherUnique = AlertPersistenceExceptionClassifier.Classify(
             PostgreSqlException(
                 PostgresErrorCodes.UniqueViolation,
                 "uq_alert_delivery_outbox_delivery_key"));
@@ -29,7 +29,7 @@ public sealed class AlertPersistenceExceptionClassifierTests
     [DataRow(PostgresErrorCodes.DeadlockDetected)]
     public void PostgreSqlSerializationAndDeadlock_AreTransient(string sqlState)
     {
-        var classified = AlertPersistenceExceptionClassifier.Classify(
+        Exception classified = AlertPersistenceExceptionClassifier.Classify(
             PostgreSqlException(sqlState));
 
         Assert.IsInstanceOfType<AlertTransientPersistenceException>(classified);
@@ -39,7 +39,7 @@ public sealed class AlertPersistenceExceptionClassifierTests
     [TestMethod]
     public void WrappedPostgreSqlFailure_IsUnwrappedWithoutLeakingProviderText()
     {
-        var classified = AlertPersistenceExceptionClassifier.Classify(
+        Exception classified = AlertPersistenceExceptionClassifier.Classify(
             new DbUpdateException(
                 "EF provider sentinel",
                 PostgreSqlException(PostgresErrorCodes.SerializationFailure)));
@@ -51,7 +51,7 @@ public sealed class AlertPersistenceExceptionClassifierTests
     [TestMethod]
     public void UnknownPersistenceFailure_HasSafeTopLevelMessage()
     {
-        var classified = AlertPersistenceExceptionClassifier.Classify(
+        Exception classified = AlertPersistenceExceptionClassifier.Classify(
             new DbUpdateException(
                 "SELECT secret FROM alert WHERE destination='ops@example.test'",
                 new InvalidOperationException("connection=provider sentinel")));
@@ -63,7 +63,7 @@ public sealed class AlertPersistenceExceptionClassifierTests
     [TestMethod]
     public void PostgreSqlProviderFailureWithoutSqlState_HasSafeTopLevelMessage()
     {
-        var classified = AlertPersistenceExceptionClassifier.Classify(
+        Exception classified = AlertPersistenceExceptionClassifier.Classify(
             new NpgsqlException("connection=provider sentinel destination=ops@example.test"));
 
         Assert.IsInstanceOfType<InvalidOperationException>(classified);

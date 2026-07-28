@@ -71,10 +71,10 @@ public sealed class DashboardBreachApplicationService : IDashboardBreachApplicat
         // NotificationTime is timestamptz, so its query bounds must be Kind=Utc or Npgsql rejects them. The
         // request names a calendar day in the configured local zone (defaulting to local "today"); convert that
         // day's local midnight boundaries to UTC rather than comparing a local/Unspecified value directly.
-        var localDay = (request.Date ?? dateTimeProvider.UtcToLocal(dateTimeProvider.UtcNow)).Date;
-        var start = localDay.LocalToUtc(dateTimeProvider);
-        var end = localDay.AddDays(1).LocalToUtc(dateTimeProvider);
-        var query = domainContext.Notifications
+        DateTime localDay = (request.Date ?? dateTimeProvider.UtcToLocal(dateTimeProvider.UtcNow)).Date;
+        DateTime start = localDay.LocalToUtc(dateTimeProvider);
+        DateTime end = localDay.AddDays(1).LocalToUtc(dateTimeProvider);
+        IQueryable<DashboardBreachModel> query = domainContext.Notifications
             .AsNoTracking()
             .Where(notification =>
                 notification.Monitor.TypeOfMonitor == MonitorTypeEnum.Vibration &&
@@ -92,8 +92,8 @@ public sealed class DashboardBreachApplicationService : IDashboardBreachApplicat
                 Yvtop = (notification.AlertField ?? "").ToLower() == "yvtop" ? notification.Level : null,
                 Zvtop = (notification.AlertField ?? "").ToLower() == "zvtop" ? notification.Level : null
             });
-        var total = await query.CountAsync(cancellationToken);
-        var results = await ApplySort(query, request.Page.Sort, request.Page.SortDir)
+        int total = await query.CountAsync(cancellationToken);
+        List<DashboardBreachModel> results = await ApplySort(query, request.Page.Sort, request.Page.SortDir)
             .Skip((request.Page.Page - 1) * request.Page.PageSize)
             .Take(request.Page.PageSize)
             .ToListAsync(cancellationToken);
@@ -119,7 +119,7 @@ public sealed class DashboardBreachApplicationService : IDashboardBreachApplicat
         string sort,
         string sortDir)
     {
-        var descending = sortDir == PageSortDirections.Descending;
+        bool descending = sortDir == PageSortDirections.Descending;
         return sort.ToLowerInvariant() switch
         {
             "serialid" => descending ? query.OrderByDescending(item => item.SerialId) : query.OrderBy(item => item.SerialId),

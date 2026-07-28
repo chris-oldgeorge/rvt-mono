@@ -10,8 +10,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Data;
 using RvtPortal.Spa.Application.Sites;
+using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Application.Monitors;
 
@@ -48,7 +48,7 @@ public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationS
 
         if (user.IsInRole(RoleNames.RVTInstaller))
         {
-            var installerCompanyId = await CurrentUserCompanyIdAsync(user);
+            Guid? installerCompanyId = await CurrentUserCompanyIdAsync(user);
             return row.IsAssigned &&
                 row.CompanyId.HasValue &&
                 installerCompanyId.HasValue &&
@@ -66,18 +66,18 @@ public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationS
     // Function summary: Finds site ids visible to the current company user.
     private async Task<HashSet<Guid>> VisibleSiteIdsAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        var currentUserId = CurrentUserId(user);
+        Guid? currentUserId = CurrentUserId(user);
         if (!currentUserId.HasValue)
         {
             return [];
         }
 
-        var siteIds = await domainContext.SiteUsers
+        List<Guid> siteIds = await domainContext.SiteUsers
             .AsNoTracking()
             .Where(ActiveSiteAssignment.ForUser(currentUserId.Value, timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
-        return siteIds.ToHashSet();
+        return [.. siteIds];
     }
 
     // Function summary: Evaluates whether the current user has RVT administrator privileges.
@@ -95,14 +95,14 @@ public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationS
     // Function summary: Resolves the authenticated user id from Identity claims.
     private Guid? CurrentUserId(ClaimsPrincipal user)
     {
-        return Guid.TryParse(userManager.GetUserId(user) ?? user.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+        return Guid.TryParse(userManager.GetUserId(user) ?? user.FindFirstValue(ClaimTypes.NameIdentifier), out Guid userId)
             ? userId
             : null;
     }
 
     private async Task<Guid?> CurrentUserCompanyIdAsync(ClaimsPrincipal user)
     {
-        var userId = userManager.GetUserId(user) ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? userId = userManager.GetUserId(user) ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId))
         {
             return null;

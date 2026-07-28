@@ -7,12 +7,13 @@
 // - 2026-06-09 pending Shared latest metric query flow to reduce Sonar duplication.
 // - 2026-06-10 pending Removed redundant async/await from metric summary pass-through helpers.
 
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
+using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Querying;
 using RvtPortal.Spa.Application.Monitors;
-using System.Globalization;
 using MonitorEntity = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Api;
@@ -57,7 +58,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
 
     public async Task<MonitorMetricSummary?> BuildLatestBatteryAsync(MonitorEntity monitor)
     {
-        var omnidots = await searchContext.OmnidotsSensors
+        OmnidotsSensor? omnidots = await searchContext.OmnidotsSensors
             .AsNoTracking()
             .Where(sensor => sensor.SerialId == monitor.SerialId)
             .OrderByDescending(sensor => sensor.Lastseen)
@@ -67,7 +68,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
             return BuildMetric("Battery Charge", "batteryCharge", omnidots.BatteryCharge, "%", omnidots.Lastseen, "Omnidots sensor status");
         }
 
-        var svantek = await searchContext.SvantekMonitorStatuses
+        SvantekMonitorStatus? svantek = await searchContext.SvantekMonitorStatuses
             .AsNoTracking()
             .Where(status => status.SerialId == monitor.SerialId && status.Batterycharge.HasValue)
             .FirstOrDefaultAsync();
@@ -113,9 +114,9 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
 
         try
         {
-            var monitorType = deployment.Monitor.TypeOfMonitor;
-            var ownershipWindow = MonitorOwnershipWindowResolver.ForDeployment(deployment);
-            var data = await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
+            MonitorTypeEnum monitorType = deployment.Monitor.TypeOfMonitor;
+            MonitorOwnershipWindow ownershipWindow = MonitorOwnershipWindowResolver.ForDeployment(deployment);
+            MonitorData data = await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
                 DeploymentId: deployment.Id,
                 TraceId: null,
                 FilterOption: filter(monitorType),
@@ -151,7 +152,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
 
             if (data.VibrationLevels?.Value.FirstOrDefault() is { } vibration)
             {
-                var (field, value) = MaxAxis(vibration.Xvtop, vibration.Yvtop, vibration.Zvtop);
+                (string? field, double? value) = MaxAxis(vibration.Xvtop, vibration.Yvtop, vibration.Zvtop);
                 return BuildMetric(
                     averageMetric ? "Latest Peak" : "Latest Reading",
                     field,
@@ -232,7 +233,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
 
     private static DateTime? ParseStatusTime(string? value)
     {
-        return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed) ? parsed : null;
+        return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTime parsed) ? parsed : null;
     }
 
     private static string UnitForMonitorType(MonitorTypeEnum monitorType)

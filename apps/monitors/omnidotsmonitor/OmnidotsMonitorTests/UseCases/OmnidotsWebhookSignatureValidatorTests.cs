@@ -20,8 +20,8 @@ public sealed class OmnidotsWebhookSignatureValidatorTests
     [TestMethod]
     public void IsValid_AcceptsSignatureOverExactBodyBytes()
     {
-        var jsonBytes = Encoding.UTF8.GetBytes(Body);
-        var body = Encoding.UTF8.GetPreamble().Concat(jsonBytes).ToArray();
+        byte[] jsonBytes = Encoding.UTF8.GetBytes(Body);
+        byte[] body = [.. Encoding.UTF8.GetPreamble(), .. jsonBytes];
 
         Assert.IsTrue(validator.IsValid(body, ComputeSignature(body, Secret), Secret));
     }
@@ -30,7 +30,7 @@ public sealed class OmnidotsWebhookSignatureValidatorTests
     public void IsValid_DoesNotNormalizeInvalidUtf8BodyBytes()
     {
         byte[] body = [0x7b, 0x22, 0x76, 0x22, 0x3a, 0xff, 0x7d];
-        var signature = ComputeSignature(body, Secret);
+        string signature = ComputeSignature(body, Secret);
 
         Assert.IsTrue(validator.IsValid(body, signature, Secret));
 
@@ -55,7 +55,7 @@ public sealed class OmnidotsWebhookSignatureValidatorTests
     [TestMethod]
     public void IsValid_RejectsDigestForDifferentBodyOrSecret()
     {
-        var signature = ComputeSignature(Body, Secret);
+        string signature = ComputeSignature(Body, Secret);
 
         Assert.IsFalse(validator.IsValid(Body + " ", signature, Secret));
         Assert.IsFalse(validator.IsValid(Body, signature, Secret + "-different"));
@@ -67,7 +67,7 @@ public sealed class OmnidotsWebhookSignatureValidatorTests
     [DataRow("short-webhook-secret")]
     public void IsValid_RejectsUnusableConfiguredSecretEvenForMatchingHmac(string secret)
     {
-        var signature = ComputeSignature(Body, secret);
+        string signature = ComputeSignature(Body, secret);
 
         Assert.IsFalse(validator.IsValid(Body, signature, secret));
     }
@@ -75,7 +75,7 @@ public sealed class OmnidotsWebhookSignatureValidatorTests
     [TestMethod]
     public void IsValid_AcceptsSecretWithThirtyTwoUtf8Bytes()
     {
-        var secret = string.Concat(Enumerable.Repeat("é", 16));
+        string secret = string.Concat(Enumerable.Repeat("é", 16));
 
         Assert.IsTrue(validator.IsValid(Body, ComputeSignature(Body, secret), secret));
     }
@@ -83,21 +83,21 @@ public sealed class OmnidotsWebhookSignatureValidatorTests
     [TestMethod]
     public void IsValid_RejectsSecretWithInvalidUnicodeEvenForMatchingReplacementHmac()
     {
-        var secret = new string('\ud800', 1) + new string('w', 32);
-        var signature = ComputeSignature(Body, secret);
+        string secret = new string('\ud800', 1) + new string('w', 32);
+        string signature = ComputeSignature(Body, secret);
 
         Assert.IsFalse(validator.IsValid(Body, signature, secret));
     }
 
     private static string ComputeSignature(string body, string secret)
     {
-        var digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(body));
+        byte[] digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(body));
         return $"sha256={Convert.ToHexStringLower(digest)}";
     }
 
     private static string ComputeSignature(byte[] body, string secret)
     {
-        var digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), body);
+        byte[] digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), body);
         return $"sha256={Convert.ToHexStringLower(digest)}";
     }
 }

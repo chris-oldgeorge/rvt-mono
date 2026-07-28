@@ -38,8 +38,8 @@ public sealed class RuleAlertDeliveryPlanner
             throw new ArgumentException("Creation time must be UTC.", nameof(createdAt));
         }
 
-        var notificationId = MonitorDeliveryIdentity.CreateGuid($"notification:{correlationKey}");
-        var notification = new NotificationDto(
+        Guid notificationId = MonitorDeliveryIdentity.CreateGuid($"notification:{correlationKey}");
+        NotificationDto notification = new(
             notificationId,
             request.AlertTime,
             request.LimitOn,
@@ -50,7 +50,7 @@ public sealed class RuleAlertDeliveryPlanner
             request.AlertType,
             request.Field,
             request.MonitorId);
-        var payload = JsonSerializer.Serialize(new MonitorDeliveryPayloadV1(
+        string payload = JsonSerializer.Serialize(new MonitorDeliveryPayloadV1(
             notificationId,
             request.AlertTime,
             request.SerialId,
@@ -59,8 +59,8 @@ public sealed class RuleAlertDeliveryPlanner
             request.AlertType,
             request.Field,
             request.Level));
-        var deliveries = new List<MonitorDeliveryRequest>
-        {
+        List<MonitorDeliveryRequest> deliveries =
+        [
             CreateDelivery(
                 producer,
                 notificationId,
@@ -69,10 +69,10 @@ public sealed class RuleAlertDeliveryPlanner
                 "alert",
                 payload,
                 createdAt)
-        };
+        ];
 
-        var emailDestinations = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var contact in contacts)
+        HashSet<string> emailDestinations = new(StringComparer.Ordinal);
+        foreach (RvtContactDto contact in contacts)
         {
             if (!contact.Email ||
                 !contact.ShouldSendAtTime(request.AlertTime) ||
@@ -92,8 +92,8 @@ public sealed class RuleAlertDeliveryPlanner
                 createdAt));
         }
 
-        var smsDestinations = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var contact in contacts)
+        HashSet<string> smsDestinations = new(StringComparer.Ordinal);
+        foreach (RvtContactDto contact in contacts)
         {
             if (!contact.SMS ||
                 !contact.ShouldSendAtTime(request.AlertTime) ||
@@ -125,7 +125,7 @@ public sealed class RuleAlertDeliveryPlanner
         string payload,
         DateTime createdAt)
     {
-        var deliveryKey = $"{correlationKey}:{kind}:{destination}";
+        string deliveryKey = $"{correlationKey}:{kind}:{destination}";
         return new MonitorDeliveryRequest(
             MonitorDeliveryIdentity.CreateGuid($"outbox:{deliveryKey}"),
             producer,

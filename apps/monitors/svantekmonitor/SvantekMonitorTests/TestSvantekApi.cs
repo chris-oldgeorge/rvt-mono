@@ -1,16 +1,15 @@
-using Svantek.Api.Db;
-using Svantek.Api.Http;
-using Svantek.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-
-
+using Svantek.Api;
+using Svantek.Api.Db;
+using Svantek.Api.Http;
+using Svantek.Model.Dto;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
@@ -23,7 +22,7 @@ namespace SvantekMonitorTests
 
         public TestSvantekApi()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -33,7 +32,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreMonitors_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -54,7 +53,7 @@ namespace SvantekMonitorTests
             httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device3"), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
-            var expected = SvantekFixture.MonitorDtos(DateTime.UtcNow, NoiseMonitorStatus.ACTIVE);
+            List<NoiseMonitorDto> expected = SvantekFixture.MonitorDtos(DateTime.UtcNow, NoiseMonitorStatus.ACTIVE);
             dbClient.Verify(c => c.WriteMonitorList(
                             It.Is<List<NoiseMonitorDto>>(
                                 l => TestUtil.AreEqual(expected, l))), Times.Exactly(1));
@@ -67,10 +66,10 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestCheckForOfflineMonitors_MonitorsOfflineFor23Hours_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            var rules = SvantekFixture.OfflineRules();
+            List<RvtAlertRuleDto> rules = SvantekFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).
                 Returns(new List<NoiseMonitorDto>());
@@ -96,17 +95,17 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            var rules = SvantekFixture.OfflineRules();
+            List<RvtAlertRuleDto> rules = SvantekFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
 
-            var monitors = SvantekFixture.MonitorDtos(DateTime.UtcNow.AddMinutes(-minutesOffline), NoiseMonitorStatus.ACTIVE);
+            List<NoiseMonitorDto> monitors = SvantekFixture.MonitorDtos(DateTime.UtcNow.AddMinutes(-minutesOffline), NoiseMonitorStatus.ACTIVE);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).
                 Returns(monitors);
 
-            var contacts = SvantekFixture.AlertContacts();
+            List<RvtContactDto> contacts = SvantekFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(It.IsAny<Guid>(), out It.Ref<Guid>.IsAny)).Returns(contacts);
 
             testObj.CheckForOfflineMonitors();
@@ -119,7 +118,7 @@ namespace SvantekMonitorTests
             dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", "Sent ok"),
                 Times.Exactly(monitors.Count));
 
-            foreach (var m in monitors)
+            foreach (NoiseMonitorDto m in monitors)
             {
                 dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
                     n => n.MonitorId == m.Id &&

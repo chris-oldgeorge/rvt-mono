@@ -23,7 +23,7 @@ public static class MonitorApiEndpoints
         IConfiguration configuration = endpoints.ServiceProvider.GetRequiredService<IConfiguration>();
         string? apiKey = configuration["RVT:MONITOR_API_KEY"]
             ?? configuration["RVT__MONITOR_API_KEY"];
-        var apiKeyValidator = AirQApiKeyValidator.Create(apiKey);
+        AirQApiKeyValidator apiKeyValidator = AirQApiKeyValidator.Create(apiKey);
 
         endpoints.MapGet("/liveness", () => Results.Text(LivenessText(), "text/plain"));
 

@@ -13,7 +13,7 @@ public sealed class SvantekImportOptionsTests
     [TestMethod]
     public void Validate_UsesExactImportDefaults()
     {
-        var options = new SvantekImportOptions();
+        SvantekImportOptions options = new();
 
         options.Validate();
 
@@ -31,8 +31,8 @@ public sealed class SvantekImportOptionsTests
     [DataRow(nameof(SvantekImportOptions.WatermarkOverlap), -1L)]
     public void Validate_RejectsNonPositiveDurations(string propertyName, long ticks)
     {
-        var invalidValue = TimeSpan.FromTicks(ticks);
-        var options = propertyName switch
+        TimeSpan invalidValue = TimeSpan.FromTicks(ticks);
+        SvantekImportOptions options = propertyName switch
         {
             nameof(SvantekImportOptions.MaximumInitialBackfill) => new SvantekImportOptions
             {
@@ -55,7 +55,7 @@ public sealed class SvantekImportOptionsTests
     [TestMethod]
     public void Validate_RejectsRequestWindowLongerThanInitialBackfill()
     {
-        var options = new SvantekImportOptions
+        SvantekImportOptions options = new()
         {
             MaximumInitialBackfill = TimeSpan.FromHours(12),
             MaximumRequestWindow = TimeSpan.FromHours(12).Add(TimeSpan.FromTicks(1))
@@ -67,7 +67,7 @@ public sealed class SvantekImportOptionsTests
     [TestMethod]
     public void Validate_AllowsRequestWindowEqualToInitialBackfill()
     {
-        var options = new SvantekImportOptions
+        SvantekImportOptions options = new()
         {
             MaximumInitialBackfill = TimeSpan.FromHours(12),
             MaximumRequestWindow = TimeSpan.FromHours(12)
@@ -79,7 +79,7 @@ public sealed class SvantekImportOptionsTests
     [TestMethod]
     public void AddSvantekMonitor_BindsValidatedOptionsAndRegistersCalculator()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 [$"{SvantekImportOptions.SectionName}:MaximumInitialBackfill"] = "3.00:00:00",
@@ -87,35 +87,35 @@ public sealed class SvantekImportOptionsTests
                 [$"{SvantekImportOptions.SectionName}:WatermarkOverlap"] = "00:02:00"
             })
             .Build();
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSvantekMonitor(configuration);
 
-        using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<SvantekImportOptions>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        SvantekImportOptions options = provider.GetRequiredService<SvantekImportOptions>();
 
         Assert.AreEqual(TimeSpan.FromDays(3), options.MaximumInitialBackfill);
         Assert.AreEqual(TimeSpan.FromHours(6), options.MaximumRequestWindow);
         Assert.AreEqual(TimeSpan.FromMinutes(2), options.WatermarkOverlap);
         Assert.AreSame(options, provider.GetRequiredService<SvantekImportOptions>());
-        var calculator = provider.GetRequiredService<NoiseRequestWindowCalculator>();
+        NoiseRequestWindowCalculator calculator = provider.GetRequiredService<NoiseRequestWindowCalculator>();
         Assert.AreSame(calculator, provider.GetRequiredService<NoiseRequestWindowCalculator>());
     }
 
     [TestMethod]
     public void AddSvantekMonitor_RejectsInvalidBoundOptionsWhenResolved()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 [$"{SvantekImportOptions.SectionName}:MaximumRequestWindow"] = "00:00:00"
             })
             .Build();
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSvantekMonitor(configuration);
 
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
 
         Assert.ThrowsExactly<OptionsValidationException>(
             () => provider.GetRequiredService<SvantekImportOptions>());
@@ -124,7 +124,7 @@ public sealed class SvantekImportOptionsTests
     [TestMethod]
     public async Task AddSvantekMonitor_InvalidBoundOptionsFailHostStartupBeforeCalculatorResolution()
     {
-        using var host = new HostBuilder()
+        using IHost host = new HostBuilder()
             .ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {

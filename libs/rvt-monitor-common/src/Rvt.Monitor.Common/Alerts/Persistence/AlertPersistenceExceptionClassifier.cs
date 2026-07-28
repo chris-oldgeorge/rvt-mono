@@ -18,7 +18,7 @@ public static class AlertPersistenceExceptionClassifier
             return exception;
         }
 
-        var containsNpgsqlFailure = false;
+        bool containsNpgsqlFailure = false;
         for (Exception? current = exception; current is not null; current = current.InnerException)
         {
             if (current is PostgresException postgreSql)

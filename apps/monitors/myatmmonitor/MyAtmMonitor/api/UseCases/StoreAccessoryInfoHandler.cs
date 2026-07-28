@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
+using MyAtm.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Utilities;
 
@@ -38,33 +38,32 @@ namespace MyAtm.Api.UseCases
 
         public async Task RunAsync(int customerId, CancellationToken cancellationToken = default)
         {
-            var customerDtos = monitorReader.ReadMonitors(customerId);
+            List<DustMonitorDto>? customerDtos = monitorReader.ReadMonitors(customerId);
             if (customerDtos == null)
             {
                 return;
             }
 
-            var failures = new MyAtmFailureCollector(operationalCommands);
-            foreach (var customerDto in customerDtos)
+            MyAtmFailureCollector failures = new(operationalCommands);
+            foreach (DustMonitorDto customerDto in customerDtos)
             {
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var cursor = DateTimeUtil.AsUtc(
+                    DateTime cursor = DateTimeUtil.AsUtc(
                         measurementQueries.ReadLatestAccessoryTimestamp(customerDto.SerialId) ?? MyAtmApi.JAN1_1970);
-                    for (var pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
+                    for (int pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
                     {
-                        var page = await gateway.HttpGetAccessoryInfoPageAsync(
+                        MyAtmMeasurementPage<AccessoryInfo> page = await gateway.HttpGetAccessoryInfoPageAsync(
                             customerId,
                             customerDto.SerialId,
                             cursor,
                             cancellationToken);
-                        var dtos = page.Measurements
+                        List<AccessoryInfoDto> dtos = [.. page.Measurements
                             .Select(accessoryInfo => new AccessoryInfoDto(customerDto.SerialId, accessoryInfo))
                             .GroupBy(dto => DateTimeUtil.AsUtc(dto.SampleTime))
                             .Select(group => group.First())
-                            .OrderBy(dto => dto.SampleTime)
-                            .ToList();
+                            .OrderBy(dto => dto.SampleTime)];
 
                         RvtLogger.Logger.LogInformation(
                             "StoreAccessoryInfo page={PageNumber} number of dtos to insert={Count} serialId={SerialId} cursor={Cursor}",

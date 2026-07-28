@@ -45,8 +45,8 @@ public sealed class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyC
     // Function summary: Creates a company after validating its display name.
     public async Task<CompanyCommandResult> Handle(CreateCompanyCommand request, CancellationToken cancellationToken)
     {
-        var result = new CompanyCommandResult();
-        var companyName = await CompanyCommandWorkflow.ValidateCompanyNameAsync(
+        CompanyCommandResult result = new();
+        string? companyName = await CompanyCommandWorkflow.ValidateCompanyNameAsync(
             domainContext,
             request.Request.CompanyName,
             null,
@@ -57,7 +57,7 @@ public sealed class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyC
             return result;
         }
 
-        var company = new Company { Id = Guid.NewGuid(), CompanyName = companyName!, Contracts = [] };
+        Company company = new() { Id = Guid.NewGuid(), CompanyName = companyName!, Contracts = [] };
         domainContext.Companies.Add(company);
         result.CompanyId = company.Id;
         result.CompanyName = company.CompanyName;
@@ -78,15 +78,15 @@ public sealed class UpdateCompanyCommandHandler : IRequestHandler<UpdateCompanyC
     // Function summary: Updates a company name after validating uniqueness.
     public async Task<CompanyCommandResult> Handle(UpdateCompanyCommand request, CancellationToken cancellationToken)
     {
-        var result = new CompanyCommandResult { CompanyId = request.CompanyId };
-        var company = await domainContext.Companies.SingleOrDefaultAsync(item => item.Id == request.CompanyId, cancellationToken);
+        CompanyCommandResult result = new() { CompanyId = request.CompanyId };
+        Company? company = await domainContext.Companies.SingleOrDefaultAsync(item => item.Id == request.CompanyId, cancellationToken);
         if (company == null)
         {
             result.NotFound = true;
             return result;
         }
 
-        var companyName = await CompanyCommandWorkflow.ValidateCompanyNameAsync(
+        string? companyName = await CompanyCommandWorkflow.ValidateCompanyNameAsync(
             domainContext,
             request.Request.CompanyName,
             request.CompanyId,
@@ -118,33 +118,32 @@ public sealed class DeleteCompanyCommandHandler : IRequestHandler<DeleteCompanyC
     // Function summary: Deletes a company and removes its company-user account data in one transaction.
     public async Task<CompanyCommandResult> Handle(DeleteCompanyCommand request, CancellationToken cancellationToken)
     {
-        var result = new CompanyCommandResult { CompanyId = request.CompanyId };
-        var company = await domainContext.Companies.SingleOrDefaultAsync(item => item.Id == request.CompanyId, cancellationToken);
+        CompanyCommandResult result = new() { CompanyId = request.CompanyId };
+        Company? company = await domainContext.Companies.SingleOrDefaultAsync(item => item.Id == request.CompanyId, cancellationToken);
         if (company == null)
         {
             result.NotFound = true;
             return result;
         }
 
-        var companyUsers = await userManager.Users
+        List<ApplicationUser> companyUsers = await userManager.Users
             .Where(user => user.CompanyId == request.CompanyId)
             .ToListAsync(cancellationToken);
-        var userIds = companyUsers
-            .Select(user => Guid.TryParse(user.Id, out var userId) ? userId : (Guid?)null)
+        List<Guid> userIds = [.. companyUsers
+            .Select(user => Guid.TryParse(user.Id, out Guid userId) ? userId : (Guid?)null)
             .Where(userId => userId.HasValue)
-            .Select(userId => userId!.Value)
-            .ToList();
+            .Select(userId => userId!.Value)];
         if (userIds.Count > 0)
         {
-            var siteUsers = await domainContext.SiteUsers
+            List<SiteUsers> siteUsers = await domainContext.SiteUsers
                 .Where(siteUser => userIds.Contains(siteUser.UserId))
                 .ToListAsync(cancellationToken);
             domainContext.SiteUsers.RemoveRange(siteUsers);
         }
 
-        foreach (var user in companyUsers)
+        foreach (ApplicationUser? user in companyUsers)
         {
-            var deleteResult = await userManager.DeleteAsync(user);
+            IdentityResult deleteResult = await userManager.DeleteAsync(user);
             if (!deleteResult.Succeeded)
             {
                 CompanyCommandWorkflow.AddIdentityErrors(result.Errors, deleteResult.Errors);
@@ -171,7 +170,7 @@ internal static class CompanyCommandWorkflow
         Dictionary<string, string[]> errors,
         CancellationToken cancellationToken)
     {
-        var trimmedName = companyName?.Trim();
+        string? trimmedName = companyName?.Trim();
         if (string.IsNullOrWhiteSpace(trimmedName))
         {
             AddError(errors, nameof(CompanyMutationRequest.CompanyName), "Company name is required.");
@@ -184,7 +183,7 @@ internal static class CompanyCommandWorkflow
             return null;
         }
 
-        var exists = await domainContext.Companies.AnyAsync(
+        bool exists = await domainContext.Companies.AnyAsync(
             company =>
                 (!currentCompanyId.HasValue || company.Id != currentCompanyId.Value) &&
                 company.CompanyName.ToLower() == trimmedName.ToLower(),
@@ -200,7 +199,7 @@ internal static class CompanyCommandWorkflow
 
     public static void AddIdentityErrors(Dictionary<string, string[]> errors, IEnumerable<IdentityError> identityErrors)
     {
-        foreach (var error in identityErrors)
+        foreach (IdentityError error in identityErrors)
         {
             AddError(errors, error.Code, error.Description);
         }
@@ -208,7 +207,7 @@ internal static class CompanyCommandWorkflow
 
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }

@@ -1,10 +1,5 @@
 using MyAtm.Api;
 using MyAtm.Model.Dto;
-
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace MyAtmMonitorTests;
 
 [TestClass]
@@ -13,13 +8,13 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyReadMonitorFilter_WhenDisabled_ReturnsAllMonitors()
     {
-        var monitors = new List<DustMonitorDto>
-        {
+        List<DustMonitorDto> monitors =
+        [
             Monitor("R6025V", "21972"),
             Monitor("Other", "99999")
-        };
+        ];
 
-        var filtered = MyAtmTestLocalMonitorFilter.Apply(monitors, enabled: false);
+        List<DustMonitorDto> filtered = MyAtmTestLocalMonitorFilter.Apply(monitors, enabled: false);
 
         CollectionAssert.AreEqual(monitors, filtered);
     }
@@ -27,17 +22,17 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyReadMonitorFilter_WhenEnabled_ReturnsOnlyDemoDustMonitor()
     {
-        var target = Monitor("R6025V", "21972");
-        var sameSerialWrongFleet = Monitor("Other", "21972");
-        var sameFleetWrongSerial = Monitor("R6025V", "99999");
-        var monitors = new List<DustMonitorDto>
-        {
+        DustMonitorDto target = Monitor("R6025V", "21972");
+        DustMonitorDto sameSerialWrongFleet = Monitor("Other", "21972");
+        DustMonitorDto sameFleetWrongSerial = Monitor("R6025V", "99999");
+        List<DustMonitorDto> monitors =
+        [
             sameSerialWrongFleet,
             target,
             sameFleetWrongSerial
-        };
+        ];
 
-        var filtered = MyAtmTestLocalMonitorFilter.Apply(monitors, enabled: true);
+        List<DustMonitorDto> filtered = MyAtmTestLocalMonitorFilter.Apply(monitors, enabled: true);
 
         CollectionAssert.AreEqual(new[] { target }, filtered);
     }
@@ -45,11 +40,11 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyCatalogMonitorFilter_WhenEnabled_ReturnsOnlyDemoSerial()
     {
-        var target = Monitor(null, "21972");
-        var other = Monitor("R6025V", "99999");
-        var monitors = new List<DustMonitorDto> { other, target };
+        DustMonitorDto target = Monitor(null, "21972");
+        DustMonitorDto other = Monitor("R6025V", "99999");
+        List<DustMonitorDto> monitors = [other, target];
 
-        var filtered = MyAtmTestLocalMonitorFilter.ApplyCatalog(monitors, enabled: true);
+        List<DustMonitorDto> filtered = MyAtmTestLocalMonitorFilter.ApplyCatalog(monitors, enabled: true);
 
         CollectionAssert.AreEqual(new[] { target }, filtered);
     }

@@ -14,14 +14,14 @@ public sealed class CheckForOfflineMonitorsHandlerTests
     [TestMethod]
     public async Task RunAsync_InvalidTimezoneOnOneMonitor_ContinuesAndCommitsValidOfflineMonitor()
     {
-        var now = new DateTime(2026, 7, 16, 12, 0, 0, DateTimeKind.Utc);
-        var invalid = CreateMonitor("11111", "Invalid/Timezone", now.AddHours(-25));
-        var valid = CreateMonitor("22222", "UTC", now.AddHours(-25));
-        var ruleQueries = new Mock<IMyAtmRuleQueries>(MockBehavior.Strict);
-        var monitorQueries = new Mock<IMyAtmMonitorQueries>(MockBehavior.Strict);
-        var siteQueries = new Mock<IMyAtmSiteScheduleQueries>(MockBehavior.Strict);
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        var commits = new Mock<IMyAtmAlertCommitCommands>(MockBehavior.Strict);
+        DateTime now = new(2026, 7, 16, 12, 0, 0, DateTimeKind.Utc);
+        DustMonitorDto invalid = CreateMonitor("11111", "Invalid/Timezone", now.AddHours(-25));
+        DustMonitorDto valid = CreateMonitor("22222", "UTC", now.AddHours(-25));
+        Mock<IMyAtmRuleQueries> ruleQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmMonitorQueries> monitorQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmSiteScheduleQueries> siteQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
+        Mock<IMyAtmAlertCommitCommands> commits = new(MockBehavior.Strict);
         ruleQueries.Setup(queries => queries.ReadRules(null)).Returns(MyAtmFixture.OfflineRules());
         ruleQueries.Setup(queries => queries.ReadAlertContacts(valid.Id)).Returns([]);
         monitorQueries.Setup(queries => queries.ReadMonitorList(123, It.IsAny<DateTime?>()))
@@ -37,7 +37,7 @@ public sealed class CheckForOfflineMonitorsHandlerTests
                     commit.MonitorStateMutation.Offline == true),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
-        var handler = CreateHandler(
+        CheckForOfflineMonitorsHandler handler = CreateHandler(
             ruleQueries,
             monitorQueries,
             siteQueries,
@@ -45,7 +45,7 @@ public sealed class CheckForOfflineMonitorsHandlerTests
             commits,
             now);
 
-        var exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
+        MyAtmJobAggregateException exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
             handler.RunAsync(123));
 
         Assert.HasCount(1, exception.Failures);
@@ -62,13 +62,13 @@ public sealed class CheckForOfflineMonitorsHandlerTests
     [TestMethod]
     public async Task RunAsync_ElapsedWallClockIsClosedSiteTime_DoesNotMarkOffline()
     {
-        var now = new DateTime(2026, 7, 19, 12, 0, 0, DateTimeKind.Utc);
-        var monitor = CreateMonitor("11111", "UTC", now.AddDays(-2));
-        var ruleQueries = new Mock<IMyAtmRuleQueries>(MockBehavior.Strict);
-        var monitorQueries = new Mock<IMyAtmMonitorQueries>(MockBehavior.Strict);
-        var siteQueries = new Mock<IMyAtmSiteScheduleQueries>(MockBehavior.Strict);
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        var commits = new Mock<IMyAtmAlertCommitCommands>(MockBehavior.Strict);
+        DateTime now = new(2026, 7, 19, 12, 0, 0, DateTimeKind.Utc);
+        DustMonitorDto monitor = CreateMonitor("11111", "UTC", now.AddDays(-2));
+        Mock<IMyAtmRuleQueries> ruleQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmMonitorQueries> monitorQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmSiteScheduleQueries> siteQueries = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
+        Mock<IMyAtmAlertCommitCommands> commits = new(MockBehavior.Strict);
         ruleQueries.Setup(queries => queries.ReadRules(null)).Returns(MyAtmFixture.OfflineRules());
         monitorQueries.Setup(queries => queries.ReadMonitorList(123, It.IsAny<DateTime?>()))
             .Returns([monitor]);
@@ -77,7 +77,7 @@ public sealed class CheckForOfflineMonitorsHandlerTests
             WeekdayStart = TimeSpan.FromHours(8),
             WeekdayEnd = TimeSpan.FromHours(18)
         });
-        var handler = CreateHandler(
+        CheckForOfflineMonitorsHandler handler = CreateHandler(
             ruleQueries,
             monitorQueries,
             siteQueries,
@@ -100,8 +100,8 @@ public sealed class CheckForOfflineMonitorsHandlerTests
         Mock<IMyAtmAlertCommitCommands> commits,
         DateTime now)
     {
-        var reader = new MyAtmMonitorReader(monitorQueries.Object, operational.Object, testLocal: false);
-        var processor = new MyAtmRuleProcessor(ruleQueries.Object, "https://portal.example/");
+        MyAtmMonitorReader reader = new(monitorQueries.Object, operational.Object, testLocal: false);
+        MyAtmRuleProcessor processor = new(ruleQueries.Object, "https://portal.example/");
         return new CheckForOfflineMonitorsHandler(
             ruleQueries.Object,
             reader,

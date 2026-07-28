@@ -40,7 +40,7 @@ public sealed class MonitorDbTests
     [DataRow("oracle")]
     public void ValidateLegacyProvider_RejectsUnsupportedValueWithGlobalSafeMessage(string provider)
     {
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(
             () => MonitorDb.ValidateLegacyProvider(provider, null));
 
         Assert.AreEqual("PostgreSQL is the only supported database provider", exception.Message);
@@ -50,7 +50,7 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void MonitorDbOptions_StoresOnlyIdentifierMap()
     {
-        var options = new MonitorDbOptions(EmptyIdentifierMap);
+        MonitorDbOptions options = new(EmptyIdentifierMap);
 
         Assert.AreSame(EmptyIdentifierMap, options.IdentifierMap);
         CollectionAssert.AreEquivalent(
@@ -67,9 +67,9 @@ public sealed class MonitorDbTests
     {
         const string primaryKey = "RVT__DATABASE_PROVIDER";
         const string fallbackKey = "DatabaseProvider";
-        var previousPrimary = Environment.GetEnvironmentVariable(primaryKey);
-        var previousFallback = Environment.GetEnvironmentVariable(fallbackKey);
-        var identifierMap = new Dictionary<string, string>(StringComparer.Ordinal)
+        string? previousPrimary = Environment.GetEnvironmentVariable(primaryKey);
+        string? previousFallback = Environment.GetEnvironmentVariable(fallbackKey);
+        Dictionary<string, string> identifierMap = new(StringComparer.Ordinal)
         {
             ["measurements"] = "air_q_noise_level"
         };
@@ -79,7 +79,7 @@ public sealed class MonitorDbTests
             Environment.SetEnvironmentVariable(primaryKey, "postgresql");
             Environment.SetEnvironmentVariable(fallbackKey, "oracle");
 
-            var options = MonitorDbOptions.FromEnvironment(identifierMap);
+            MonitorDbOptions options = MonitorDbOptions.FromEnvironment(identifierMap);
 
             Assert.AreSame(identifierMap, options.IdentifierMap);
         }
@@ -93,7 +93,7 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void OpenConnection_UsesNpgsql()
     {
-        var exception = Assert.ThrowsExactly<NpgsqlException>(() =>
+        NpgsqlException exception = Assert.ThrowsExactly<NpgsqlException>(() =>
             MonitorDb.OpenConnection(
                 "Host=127.0.0.1;Port=1;Database=unreachable;Username=test;Password=test;Timeout=1"));
 
@@ -110,7 +110,7 @@ public sealed class MonitorDbTests
               AND EXTRACT(DOW FROM @day) = 6;
             """;
         using DbConnection connection = new NpgsqlConnection();
-        using var command = MonitorDb.CreateCommand(sql, connection);
+        using DbCommand command = MonitorDb.CreateCommand(sql, connection);
 
         Assert.IsInstanceOfType<NpgsqlCommand>(command);
         Assert.AreEqual(sql, command.CommandText);
@@ -121,7 +121,7 @@ public sealed class MonitorDbTests
     {
         using DbCommand command = new NpgsqlCommand();
 
-        var parameter = command.Parameters.AddWithValue("@value", null);
+        DbParameter parameter = command.Parameters.AddWithValue("@value", null);
 
         Assert.IsInstanceOfType<NpgsqlParameter>(parameter);
         Assert.AreEqual(DBNull.Value, parameter.Value);
@@ -130,11 +130,11 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void BulkInsert_RejectsUnsafeMappedTableBeforeOpeningConnection()
     {
-        var options = new MonitorDbOptions(new Dictionary<string, string>(StringComparer.Ordinal)
+        MonitorDbOptions options = new(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["measurements"] = "air_q_noise_level; DROP TABLE monitor;--"
         });
-        var table = new DataTable();
+        DataTable table = new();
         table.Columns.Add("serial_id", typeof(string));
 
         Assert.ThrowsExactly<InvalidOperationException>(() =>
@@ -144,11 +144,11 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void BulkInsert_RejectsUnsafeColumnBeforeOpeningConnection()
     {
-        var options = new MonitorDbOptions(new Dictionary<string, string>(StringComparer.Ordinal)
+        MonitorDbOptions options = new(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["measurements"] = "air_q_noise_level"
         });
-        var table = new DataTable();
+        DataTable table = new();
         table.Columns.Add("serial_id; DROP TABLE monitor;--", typeof(string));
 
         Assert.ThrowsExactly<InvalidOperationException>(() =>
@@ -158,7 +158,7 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void RequireMappedSqlIdentifier_ReturnsMappedIdentifierForAllowedKey()
     {
-        var allowed = new Dictionary<string, string>(StringComparer.Ordinal)
+        Dictionary<string, string> allowed = new(StringComparer.Ordinal)
         {
             ["noise"] = "air_q_noise_level",
             ["identity"] = "\"AspNetUsers\""
@@ -175,7 +175,7 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void RequireMappedSqlIdentifier_RejectsUnknownOrUnsafeMappedIdentifier()
     {
-        var allowed = new Dictionary<string, string>(StringComparer.Ordinal)
+        Dictionary<string, string> allowed = new(StringComparer.Ordinal)
         {
             ["noise"] = "air_q_noise_level",
             ["unsafe"] = "air_q_noise_level; DROP TABLE monitor;--"
@@ -213,10 +213,9 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void MonitorDb_ExposesNoRuntimeSqlRewriteEntryPoints()
     {
-        var publicMethods = typeof(MonitorDb)
+        string[] publicMethods = [.. typeof(MonitorDb)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Select(method => method.Name)
-            .ToArray();
+            .Select(method => method.Name)];
 
         CollectionAssert.DoesNotContain(publicMethods, "ResolveProvider");
         CollectionAssert.DoesNotContain(publicMethods, "SelectProviderSql");

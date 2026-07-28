@@ -1,17 +1,16 @@
 using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Configuration;
+using Rvt.Monitor.Common.Diagnostics;
+using Rvt.Monitor.Common.Mqtt;
+using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
 using Svantek.Model.Dto;
-using Microsoft.Extensions.Logging;
-using Moq;
-using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Mqtt;
-
-
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
@@ -23,7 +22,7 @@ namespace SvantekMonitorTests
     {
         public TestSvantekApiException()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -33,7 +32,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreMonitors_HandlesJsonExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -57,7 +56,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreMonitors_HandlesAdapterExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -82,7 +81,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreMonitors_HandlesMetaDataAdapterExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -120,7 +119,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreMonitors_HandlesExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -147,7 +146,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestReadMonitors_HandlesExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -173,7 +172,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevels_HandlesJsonExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -213,7 +212,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevels_HandlesAdapterExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -247,7 +246,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevels_HandlesExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -286,12 +285,12 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevelsForYesterday_HandlesJsonExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)))).
                                 Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah"));
@@ -319,12 +318,12 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevelsForYesterday_HandlesAdapterExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)))).
                                 Returns(Task<string>.Factory.StartNew(() => SvantekFixture.TooManyRequestsJson()));
@@ -351,12 +350,12 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevelsForYesterday_HandlesExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)))).
                     Throws(new IOException());
@@ -389,8 +388,8 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevelsForDate_HandlesJsonExceptionCorrectly()
         {
-            var dateStr = "2023-09-11";
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            string dateStr = "2023-09-11";
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -421,8 +420,8 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevelsForDate_HandlesAdapterExceptionCorrectly()
         {
-            var dateStr = "2023-09-11";
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            string dateStr = "2023-09-11";
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
@@ -452,8 +451,8 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevelsForDate_HandlesExceptionCorrectly()
         {
-            var dateStr = "2023-09-11";
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            string dateStr = "2023-09-11";
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                     out Mock<IDBClient> dbClient,
                                                     out Mock<IMqttClient> mqttClient,
                                                     out Mock<IMessageService> messageService);

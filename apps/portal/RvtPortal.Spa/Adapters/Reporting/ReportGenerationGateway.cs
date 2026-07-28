@@ -27,7 +27,7 @@ public sealed class ReportGenerationGateway : IReportGenerationGateway
     {
         try
         {
-            var response = await client.RequestGenerationAsync(
+            ReportGenerationRequestResponse? response = await client.RequestGenerationAsync(
                 reportRuleId,
                 new ReportGenerationRequest
                 {

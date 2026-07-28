@@ -35,14 +35,14 @@ public sealed class OmnidotsAlarmTranslator
         ValidateThreshold(alarms.AlarmLevel2);
         ValidateThreshold(alarms.AlarmLevel3);
 
-        var eventTime = ConvertEventTime(alarm.CreatedAt);
-        var (axis, level) = SelectMaximumAxis(xVtop.Value, yVtop.Value, zVtop.Value);
-        var (alertType, limit) = SelectSeverity(level, alarms);
-        var field = $"vtop {axis}";
-        var channels = alertType == AlertType.Ignore
+        DateTime eventTime = ConvertEventTime(alarm.CreatedAt);
+        (string? axis, double level) = SelectMaximumAxis(xVtop.Value, yVtop.Value, zVtop.Value);
+        (AlertType alertType, double limit) = SelectSeverity(level, alarms);
+        string field = $"vtop {axis}";
+        AlertDeliveryChannels channels = alertType == AlertType.Ignore
             ? AlertDeliveryChannels.None
             : AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms;
-        var message = string.Create(
+        string message = string.Create(
             CultureInfo.InvariantCulture,
             $"Vibration {alertType} {field} level={level} limit={limit}");
 
@@ -67,7 +67,7 @@ public sealed class OmnidotsAlarmTranslator
 
         try
         {
-            var unixMilliseconds = checked((long)(unixSeconds * 1000));
+            long unixMilliseconds = checked((long)(unixSeconds * 1000));
             return DateTimeOffset.FromUnixTimeMilliseconds(unixMilliseconds).UtcDateTime;
         }
         catch (ArgumentOutOfRangeException)

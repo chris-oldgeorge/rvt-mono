@@ -26,10 +26,10 @@ public static class AlertIdentity
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(sourceKeyHash);
 
-        var sourceBytes = StrictUtf8.GetBytes(source);
-        var identityBytes = new byte[
+        byte[] sourceBytes = StrictUtf8.GetBytes(source);
+        byte[] identityBytes = new byte[
             NotificationNamespaceBytes.Length + sourceBytes.Length + 1 + sourceKeyHash.Length];
-        var offset = 0;
+        int offset = 0;
 
         NotificationNamespaceBytes.CopyTo(identityBytes, offset);
         offset += NotificationNamespaceBytes.Length;
@@ -37,7 +37,7 @@ public static class AlertIdentity
         offset += sourceBytes.Length + 1;
         sourceKeyHash.CopyTo(identityBytes, offset);
 
-        var hash = SHA256.HashData(identityBytes);
+        byte[] hash = SHA256.HashData(identityBytes);
         hash[6] = (byte)((hash[6] & 0x0f) | 0x80);
         hash[8] = (byte)((hash[8] & 0x3f) | 0x80);
 

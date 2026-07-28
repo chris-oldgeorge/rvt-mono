@@ -23,7 +23,7 @@ public sealed class MyAtmMonitorOptions
     public MonitorDeliveryOptions ToDeliveryOptions(string insertTopic, string alertTopic)
     {
         Validate();
-        var deliveryOptions = new MonitorDeliveryOptions
+        MonitorDeliveryOptions deliveryOptions = new()
         {
             Producer = MonitorDeliveryProducers.MyAtm,
             InsertTopic = insertTopic,
@@ -43,7 +43,7 @@ public sealed class MyAtmMonitorOptions
 
     public void Validate()
     {
-        var failures = new List<string>();
+        List<string> failures = [];
         if (CustomerId <= 0)
         {
             failures.Add("CustomerId must be positive.");

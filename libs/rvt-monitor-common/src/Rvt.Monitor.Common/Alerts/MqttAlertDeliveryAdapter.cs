@@ -11,7 +11,7 @@ public sealed class MqttAlertDeliveryAdapter(IMonitorEventPublisher publisher) :
         ClaimedAlertDelivery delivery,
         CancellationToken cancellationToken)
     {
-        var envelope = AlertDeliveryAdapterValidation.ReadEnvelope(
+        AlertDeliveryEnvelope envelope = AlertDeliveryAdapterValidation.ReadEnvelope(
             delivery,
             Kind,
             destination => string.Equals(destination, "alert", StringComparison.Ordinal));

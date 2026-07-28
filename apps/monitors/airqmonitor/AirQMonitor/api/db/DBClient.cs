@@ -4,10 +4,10 @@ using AirQ.Model.Dto;
 using AirQMonitor.model.dto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
+using Rvt.Monitor.Common.Data.Queries;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -40,16 +40,16 @@ namespace AirQ.Api.Db
                 return;
             }
 
-            using var context = CreateContext();
-            var seen = new HashSet<DateTime>();
-            foreach (var dto in dtos)
+            using AirQMonitorContext context = CreateContext();
+            HashSet<DateTime> seen = [];
+            foreach (NoiseDto dto in dtos)
             {
                 if (!seen.Add(dto.SampleTime))
                 {
                     continue;
                 }
 
-                var exists = context.NoiseLevels.Any(row =>
+                bool exists = context.NoiseLevels.Any(row =>
                     row.SerialId == serialId &&
                     row.SampleTime == dto.SampleTime);
                 if (exists)
@@ -65,36 +65,33 @@ namespace AirQ.Api.Db
 
         public List<NoiseMonitorDto> ReadMonitorList(DateTime? lastDataTime)
         {
-            var cutoff = lastDataTime ?? AirQApi.JAN1_1970;
-            using var context = CreateContext();
+            DateTime cutoff = lastDataTime ?? AirQApi.JAN1_1970;
+            using AirQMonitorContext context = CreateContext();
 
-            var monitors = context.Monitors
+            List<MonitorEntity> monitors = [.. context.Monitors
                 .AsNoTracking()
                 .Where(row => row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE)
                 .Where(row => row.Manufacturer == "Turnkey")
                 .Where(row => row.FleetNr != null)
-                .Where(row => row.LastDataTime15Min == null || row.LastDataTime15Min >= cutoff)
-                .ToList();
+                .Where(row => row.LastDataTime15Min == null || row.LastDataTime15Min >= cutoff)];
 
-            var serialIds = monitors
+            HashSet<string> serialIds = monitors
                 .Select(row => row.SerialId)
                 .ToHashSet(StringComparer.Ordinal);
-            var statuses = context.MonitorStatuses
+            Dictionary<string, AirQMonitorStatusEntity> statuses = context.MonitorStatuses
                 .AsNoTracking()
                 .Where(row => serialIds.Contains(row.SerialId))
                 .ToDictionary(row => row.SerialId, StringComparer.Ordinal);
 
-            return monitors
-                .Select(row => AirQDbMapper.ToNoiseMonitorDto(row, statuses))
-                .ToList();
+            return [.. monitors.Select(row => AirQDbMapper.ToNoiseMonitorDto(row, statuses))];
         }
 
         public void WriteMonitorList(List<NoiseMonitorDto> monitors)
         {
-            using var context = CreateContext();
-            foreach (var dto in monitors)
+            using AirQMonitorContext context = CreateContext();
+            foreach (NoiseMonitorDto dto in monitors)
             {
-                var entity = context.Monitors.FirstOrDefault(row =>
+                MonitorEntity? entity = context.Monitors.FirstOrDefault(row =>
                     row.SerialId == dto.SerialId &&
                     row.TypeOfMonitor == dto.TypeOfMonitor);
 
@@ -115,8 +112,8 @@ namespace AirQ.Api.Db
 
         public void UpdateMonitorStatus(string serialId, NoiseMonitorStatus monitorStatus)
         {
-            using var context = CreateContext();
-            var status = context.MonitorStatuses.FirstOrDefault(row => row.SerialId == serialId);
+            using AirQMonitorContext context = CreateContext();
+            AirQMonitorStatusEntity? status = context.MonitorStatuses.FirstOrDefault(row => row.SerialId == serialId);
             if (status == null)
             {
                 return;
@@ -131,7 +128,7 @@ namespace AirQ.Api.Db
             RvtLogger.Logger.LogError("DBClient HandleException message={Value1} exception={Value2}",
                                        message, exception.Message);
 
-            using var context = CreateContext();
+            using AirQMonitorContext context = CreateContext();
             context.AirQErrorMessages.Add(new AirQErrorMessageEntity
             {
                 Tag = Truncate(message, 64),
@@ -143,8 +140,8 @@ namespace AirQ.Api.Db
 
         public void WriteLatestTimestamp(string serialId, DateTime lastDataTime)
         {
-            using var context = CreateContext();
-            var monitor = context.Monitors.FirstOrDefault(row =>
+            using AirQMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
                 row.SerialId == serialId &&
                 row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE);
             if (monitor == null)
@@ -158,7 +155,7 @@ namespace AirQ.Api.Db
 
         public List<RvtAlertRuleDto> ReadRules(string? serialNumber)
         {
-            using var context = CreateContext();
+            using AirQMonitorContext context = CreateContext();
 
             IQueryable<RvtAlertRuleEntity> query;
             if (serialNumber == null)
@@ -174,15 +171,14 @@ namespace AirQ.Api.Db
                         select rule;
             }
 
-            return query
+            return [.. query
                 .AsEnumerable()
-                .Select(rule => ToRuleDto(rule, serialNumber))
-                .ToList();
+                .Select(rule => ToRuleDto(rule, serialNumber))];
         }
 
         public List<RvtContactDto> ReadAlertContacts(Guid monitorId, out Guid siteId)
         {
-            using var context = CreateContext();
+            using AirQMonitorContext context = CreateContext();
 
             var contactRows = (from deployment in context.Deployments.AsNoTracking()
                                join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
@@ -204,19 +200,19 @@ namespace AirQ.Api.Db
 
             siteId = contactRows.FirstOrDefault()?.SiteId ?? Guid.Empty;
 
-            var userIds = contactRows
+            HashSet<string> userIds = contactRows
                 .Select(row => row.UserId.ToString())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var usersById = context.Users
+            Dictionary<string, AspNetUserEntity> usersById = context.Users
                 .AsNoTracking()
                 .Where(user => userIds.Contains(user.Id))
                 .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
 
-            return contactRows
+            return [.. contactRows
                 .Where(row => usersById.ContainsKey(row.UserId.ToString()))
                 .Select(row =>
                 {
-                    var user = usersById[row.UserId.ToString()];
+                    AspNetUserEntity user = usersById[row.UserId.ToString()];
                     return new RvtContactDto(
                         useEmail: row.Email,
                         useSms: row.SMS,
@@ -224,20 +220,19 @@ namespace AirQ.Api.Db
                         phoneNumber: user.PhoneNumber,
                         sendStartTime: row.StartTime,
                         sendEndTime: row.EndTime);
-                })
-                .ToList();
+                })];
         }
 
         public List<RvtContactDto> ReadAlertContacts(string serialId, out Guid siteId)
         {
-            using var context = CreateContext();
-            var monitorId = GetMonitorId(context, serialId);
+            using AirQMonitorContext context = CreateContext();
+            Guid monitorId = GetMonitorId(context, serialId);
             return ReadAlertContacts(monitorId, out siteId);
         }
 
         public void WriteNotification(NotificationDto dto)
         {
-            using var context = CreateContext();
+            using AirQMonitorContext context = CreateContext();
             context.Notifications.Add(new NotificationEntity
             {
                 Id = dto.Id,
@@ -256,7 +251,7 @@ namespace AirQ.Api.Db
 
         public bool HasOpenNotification(Guid monitorId, string alertField, AlertType alertType)
         {
-            using var context = CreateContext();
+            using AirQMonitorContext context = CreateContext();
 
             return context.Notifications
                 .AsNoTracking()
@@ -268,8 +263,8 @@ namespace AirQ.Api.Db
 
         public void UpdateAlertRule(RvtAlertRuleDto dto)
         {
-            using var context = CreateContext();
-            var rule = context.AlertRules.FirstOrDefault(row => row.Id == dto.RuleId);
+            using AirQMonitorContext context = CreateContext();
+            RvtAlertRuleEntity? rule = context.AlertRules.FirstOrDefault(row => row.Id == dto.RuleId);
             if (rule == null)
             {
                 return;
@@ -282,9 +277,9 @@ namespace AirQ.Api.Db
 
         public double GetAverageNoiseLevel(string serialNumber, string columnName, DateTime start, DateTime end)
         {
-            using var context = CreateContext();
-            var field = AirQAggregateFields.Resolve(columnName);
-            var query = context.NoiseLevels
+            using AirQMonitorContext context = CreateContext();
+            MonitorAggregateField<AirQNoiseLevelEntity> field = AirQAggregateFields.Resolve(columnName);
+            IQueryable<AirQNoiseLevelEntity> query = context.NoiseLevels
                 .Where(row => row.SerialId == serialNumber)
                 .Where(row => row.SampleTime > start && row.SampleTime <= end);
 
@@ -296,7 +291,7 @@ namespace AirQ.Api.Db
             RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
                 SensitiveLogRedactor.Redact(address), message);
 
-            using var context = CreateContext();
+            using AirQMonitorContext context = CreateContext();
             context.NotificationAudits.Add(new NotificationSentEntity
             {
                 Id = Guid.NewGuid(),
@@ -310,8 +305,8 @@ namespace AirQ.Api.Db
 
         public void SetMonitorOffline(Guid monitorId, bool offline)
         {
-            using var context = CreateContext();
-            var monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
+            using AirQMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
             if (monitor == null)
             {
                 return;
@@ -323,10 +318,8 @@ namespace AirQ.Api.Db
 
         public void ClearErrorMessages(DateTime before)
         {
-            using var context = CreateContext();
-            var messages = context.AirQErrorMessages
-                .Where(row => row.ErrorTime < before)
-                .ToList();
+            using AirQMonitorContext context = CreateContext();
+            List<AirQErrorMessageEntity> messages = [.. context.AirQErrorMessages.Where(row => row.ErrorTime < before)];
 
             context.AirQErrorMessages.RemoveRange(messages);
             context.SaveChanges();
@@ -334,8 +327,8 @@ namespace AirQ.Api.Db
 
         public SiteInfoDto ReadSiteInfo(Guid siteId)
         {
-            using var context = CreateContext();
-            var site = context.Sites
+            using AirQMonitorContext context = CreateContext();
+            SiteEntity? site = context.Sites
                 .AsNoTracking()
                 .FirstOrDefault(row => row.Id == siteId);
             if (site == null)
@@ -355,7 +348,7 @@ namespace AirQ.Api.Db
 
         public List<SiteMonitorsWithSiteHoursDto> ReadSiteMonitorsWithSiteHours(DateTime Day)
         {
-            using var context = CreateContext();
+            using AirQMonitorContext context = CreateContext();
 
             var query = from monitor in context.Monitors.AsNoTracking()
                         join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
@@ -373,31 +366,28 @@ namespace AirQ.Api.Db
             if (Day.DayOfWeek == DayOfWeek.Saturday)
             {
                 query = query.Where(row => row.Site.SatStartTime != null && row.Site.SatEndTime != null);
-                return query
+                return [.. query
                     .AsEnumerable()
-                    .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.SatStartTime!.Value, row.Site.SatEndTime!.Value))
-                    .ToList();
+                    .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.SatStartTime!.Value, row.Site.SatEndTime!.Value))];
             }
 
             if (Day.DayOfWeek == DayOfWeek.Sunday)
             {
                 query = query.Where(row => row.Site.SunStartTime != null && row.Site.SunEndTime != null);
-                return query
+                return [.. query
                     .AsEnumerable()
-                    .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.SunStartTime!.Value, row.Site.SunEndTime!.Value))
-                    .ToList();
+                    .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.SunStartTime!.Value, row.Site.SunEndTime!.Value))];
             }
 
             query = query.Where(row => row.Site.StartTime != null && row.Site.EndTime != null);
-            return query
+            return [.. query
                 .AsEnumerable()
-                .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.StartTime!.Value, row.Site.EndTime!.Value))
-                .ToList();
+                .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.StartTime!.Value, row.Site.EndTime!.Value))];
         }
 
         public void WriteDailyAverage(Guid siteId, Guid monitorId, string field, double level, DateTime timestamp)
         {
-            using var context = CreateContext();
+            using AirQMonitorContext context = CreateContext();
             context.SiteAverages.Add(new SiteAverageEntity
             {
                 Id = Guid.NewGuid(),
@@ -412,21 +402,21 @@ namespace AirQ.Api.Db
 
         public void Create8hourAverage(string serialId, DateTime SampleTime)
         {
-            using var context = CreateContext();
-            var existing = context.Noise8HourAverages.FirstOrDefault(row =>
+            using AirQMonitorContext context = CreateContext();
+            AirQNoise8HourAverageEntity? existing = context.Noise8HourAverages.FirstOrDefault(row =>
                 row.SerialId == serialId &&
                 row.SampleTime == SampleTime);
-            var samples = context.NoiseLevels
+            IQueryable<AirQNoiseLevelEntity> samples = context.NoiseLevels
                 .Where(row => row.SerialId == serialId)
                 .Where(row => row.SampleTime > SampleTime.AddHours(-8) && row.SampleTime <= SampleTime);
 
-            var sampleCount = samples.Count();
+            int sampleCount = samples.Count();
             if (sampleCount == 0)
             {
                 return;
             }
 
-            var average = new AirQNoise8HourAverageEntity
+            AirQNoise8HourAverageEntity average = new()
             {
                 SerialId = serialId,
                 SampleTime = SampleTime,
@@ -455,14 +445,14 @@ namespace AirQ.Api.Db
 
         private AirQMonitorContext CreateContext()
         {
-            var monitorOptions = AirQMonitorDbOptions.Current;
-            var options = MonitorDbContextOptionsFactory.CreateOptions<AirQMonitorContext>(ConnectionString);
+            MonitorDbOptions monitorOptions = AirQMonitorDbOptions.Current;
+            DbContextOptions<AirQMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<AirQMonitorContext>(ConnectionString);
             return new AirQMonitorContext(options, monitorOptions);
         }
 
         private static Guid GetMonitorId(AirQMonitorContext context, string serialId)
         {
-            var monitorId = context.Monitors
+            Guid monitorId = context.Monitors
                 .AsNoTracking()
                 .Where(row => row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE)
                 .Where(row => row.SerialId == serialId)
@@ -482,7 +472,7 @@ namespace AirQ.Api.Db
             string serialId,
             NoiseMonitorStatus dto)
         {
-            var entity = context.MonitorStatuses.FirstOrDefault(row => row.SerialId == serialId);
+            AirQMonitorStatusEntity? entity = context.MonitorStatuses.FirstOrDefault(row => row.SerialId == serialId);
             if (entity == null)
             {
                 entity = new AirQMonitorStatusEntity

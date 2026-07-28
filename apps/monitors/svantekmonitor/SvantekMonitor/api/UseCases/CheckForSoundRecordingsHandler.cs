@@ -3,6 +3,7 @@ using Svantek.Api.Db;
 using Svantek.Api.Http;
 using Svantek.Api.Storage;
 using Svantek.Model.Http;
+using SvantekMonitor.model.dto;
 
 namespace Svantek.Api.UseCases;
 
@@ -30,19 +31,19 @@ public sealed class CheckForSoundRecordingsHandler
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        var filesCache = new Dictionary<string, List<ProjectFile>>();
-        var alerts = await notificationQueries
+        Dictionary<string, List<ProjectFile>> filesCache = [];
+        List<NoiseNotificationLatest> alerts = await notificationQueries
             .ReadLatestNotificationAsync(cancellationToken)
             .ConfigureAwait(false);
-        var failures = new SvantekFailureCollector(operationalCommands);
+        SvantekFailureCollector failures = new(operationalCommands);
 
-        foreach (var alert in alerts)
+        foreach (NoiseNotificationLatest alert in alerts)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var dayCode = alert.NotificationTime.AddMinutes(-1).ToString("yyyyMMdd");
-                var audioFiles = await FindFilesAsync(
+                string dayCode = alert.NotificationTime.AddMinutes(-1).ToString("yyyyMMdd");
+                List<ProjectFile> audioFiles = await FindFilesAsync(
                     filesCache,
                     dayCode,
                     alert.NotificationTime,
@@ -55,10 +56,10 @@ public sealed class CheckForSoundRecordingsHandler
                     continue;
                 }
 
-                var audioFile = audioFiles.Count == 1
+                ProjectFile audioFile = audioFiles.Count == 1
                     ? audioFiles[0]
                     : audioFiles.MinBy(file => Math.Abs((file.triggerDate - alert.NotificationTime).TotalSeconds))!;
-                var content = await gateway.GetSoundFileAsync(
+                byte[] content = await gateway.GetSoundFileAsync(
                     alert.ProjectId,
                     alert.PointId,
                     audioFile.stationType,
@@ -66,8 +67,8 @@ public sealed class CheckForSoundRecordingsHandler
                     audioFile.stationSerial,
                     audioFile.filename,
                     cancellationToken).ConfigureAwait(false);
-                var fileName = $"{alert.NotificationId}.wav";
-                await using var stream = new MemoryStream(content, writable: false);
+                string fileName = $"{alert.NotificationId}.wav";
+                await using MemoryStream stream = new(content, writable: false);
                 await storage.WriteAsync(
                     new StorageWriteRequest(
                         StorageObjectKey.Parse(fileName),
@@ -99,16 +100,15 @@ public sealed class CheckForSoundRecordingsHandler
         int pointId,
         CancellationToken cancellationToken)
     {
-        var files = await FetchFilesAsync(
+        List<ProjectFile> files = await FetchFilesAsync(
             filesCache,
             dayCode,
             projectId,
             pointId,
             cancellationToken).ConfigureAwait(false);
-        return files
+        return [.. files
             .Where(file => file.triggerDate >= alertTime.AddSeconds(-averagePeriod) &&
-                           file.triggerDate <= alertTime)
-            .ToList();
+                           file.triggerDate <= alertTime)];
     }
 
     private async Task<List<ProjectFile>> FetchFilesAsync(
@@ -118,25 +118,23 @@ public sealed class CheckForSoundRecordingsHandler
         int pointId,
         CancellationToken cancellationToken)
     {
-        var listId = $"{projectId}:{pointId}:{dayCode}";
-        if (filesCache.TryGetValue(listId, out var cached))
+        string listId = $"{projectId}:{pointId}:{dayCode}";
+        if (filesCache.TryGetValue(listId, out List<ProjectFile>? cached))
         {
             return cached;
         }
 
-        var files = await gateway.GetProjectFilesAsync(
+        List<ProjectFile> files = await gateway.GetProjectFilesAsync(
             projectId.ToString(),
             pointId.ToString(),
             dayCode,
             cancellationToken: cancellationToken).ConfigureAwait(false);
-        foreach (var file in files)
+        foreach (ProjectFile file in files)
         {
             ValidateFileRow(file);
         }
 
-        var soundFiles = files
-            .Where(file => file.filename.Contains(".WAV", StringComparison.Ordinal))
-            .ToList();
+        List<ProjectFile> soundFiles = [.. files.Where(file => file.filename.Contains(".WAV", StringComparison.Ordinal))];
         filesCache.Add(listId, soundFiles);
         return soundFiles;
     }

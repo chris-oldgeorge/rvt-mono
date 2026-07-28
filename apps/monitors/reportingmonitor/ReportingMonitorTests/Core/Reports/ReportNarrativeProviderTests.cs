@@ -15,12 +15,12 @@ public sealed class ReportNarrativeProviderTests
     [Fact]
     public async Task OllamaProvider_ReturnsAiParagraphWhenEnabledAndServiceResponds()
     {
-        var provider = new OllamaReportNarrativeProvider(
+        OllamaReportNarrativeProvider provider = new(
             new HttpClient(new StubHandler("""{"response":"AI summary paragraph."}""", HttpStatusCode.OK)),
             new OllamaReportNarrativeOptions { Enabled = true, BaseUrl = "http://ollama.test", Model = "dev-model" });
-        var context = Context();
+        ReportNarrativeContext context = Context();
 
-        var narrative = await provider.CreateNarrativeAsync(context, CancellationToken.None);
+        string narrative = await provider.CreateNarrativeAsync(context, CancellationToken.None);
 
         Assert.Equal("AI summary paragraph.", narrative);
     }
@@ -28,12 +28,12 @@ public sealed class ReportNarrativeProviderTests
     [Fact]
     public async Task OllamaProvider_ReturnsDeterministicParagraphWhenDisabled()
     {
-        var provider = new OllamaReportNarrativeProvider(
+        OllamaReportNarrativeProvider provider = new(
             new HttpClient(new StubHandler("""{"response":"unused"}""", HttpStatusCode.OK)),
             new OllamaReportNarrativeOptions { Enabled = false });
-        var context = Context();
+        ReportNarrativeContext context = Context();
 
-        var narrative = await provider.CreateNarrativeAsync(context, CancellationToken.None);
+        string narrative = await provider.CreateNarrativeAsync(context, CancellationToken.None);
 
         Assert.Contains("North Site", narrative, StringComparison.Ordinal);
         Assert.Contains("Dust", narrative, StringComparison.Ordinal);
@@ -42,12 +42,12 @@ public sealed class ReportNarrativeProviderTests
     [Fact]
     public async Task OllamaProvider_ReturnsDeterministicParagraphWhenServiceFails()
     {
-        var provider = new OllamaReportNarrativeProvider(
+        OllamaReportNarrativeProvider provider = new(
             new HttpClient(new StubHandler("{}", HttpStatusCode.InternalServerError)),
             new OllamaReportNarrativeOptions { Enabled = true, BaseUrl = "http://ollama.test", Model = "dev-model" });
-        var context = Context();
+        ReportNarrativeContext context = Context();
 
-        var narrative = await provider.CreateNarrativeAsync(context, CancellationToken.None);
+        string narrative = await provider.CreateNarrativeAsync(context, CancellationToken.None);
 
         Assert.Contains("North Site", narrative, StringComparison.Ordinal);
         Assert.Contains("Dust", narrative, StringComparison.Ordinal);
@@ -55,8 +55,8 @@ public sealed class ReportNarrativeProviderTests
 
     private static ReportNarrativeContext Context()
     {
-        var fromUtc = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var summary = new ReportExecutiveSummary(
+        DateTimeOffset fromUtc = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        ReportExecutiveSummary summary = new(
             fromUtc,
             fromUtc.AddDays(1),
             [

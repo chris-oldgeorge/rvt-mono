@@ -16,9 +16,9 @@ public sealed class SchemaValidatorTests
     // Function summary: Verifies a schema that has everything the model maps produces no complaints.
     public void Compare_MatchingSchema_ReportsNothing()
     {
-        using var context = RelationalContext();
+        using RVTDbContext context = RelationalContext();
 
-        var mismatches = RvtSchemaValidator.Compare(context.Model, SchemaFromModel(context));
+        IReadOnlyList<SchemaMismatch> mismatches = RvtSchemaValidator.Compare(context.Model, SchemaFromModel(context));
 
         Assert.Empty(mismatches);
     }
@@ -27,14 +27,14 @@ public sealed class SchemaValidatorTests
     // Function summary: Verifies a table the model maps but the database lacks is reported.
     public void Compare_MissingRelation_IsReported()
     {
-        using var context = RelationalContext();
-        var schema = SchemaFromModel(context);
-        var dropped = RelationOf(context, typeof(RVT.Entities.Monitor));
+        using RVTDbContext context = RelationalContext();
+        Dictionary<string, IReadOnlySet<string>> schema = SchemaFromModel(context);
+        string dropped = RelationOf(context, typeof(RVT.Entities.Monitor));
         schema.Remove(dropped);
 
-        var mismatches = RvtSchemaValidator.Compare(context.Model, schema);
+        IReadOnlyList<SchemaMismatch> mismatches = RvtSchemaValidator.Compare(context.Model, schema);
 
-        var mismatch = Assert.Single(mismatches, item => item.Relation == dropped);
+        SchemaMismatch mismatch = Assert.Single(mismatches, item => item.Relation == dropped);
         Assert.Null(mismatch.Column);
         Assert.Contains("missing from the database", mismatch.Problem, StringComparison.Ordinal);
     }
@@ -43,20 +43,20 @@ public sealed class SchemaValidatorTests
     // Function summary: Verifies a column the model maps but the database lacks is reported against its property.
     public void Compare_MissingColumn_IsReported()
     {
-        using var context = RelationalContext();
-        var schema = SchemaFromModel(context);
-        var relation = RelationOf(context, typeof(RVT.Entities.Monitor));
+        using RVTDbContext context = RelationalContext();
+        Dictionary<string, IReadOnlySet<string>> schema = SchemaFromModel(context);
+        string relation = RelationOf(context, typeof(RVT.Entities.Monitor));
 
         // Exactly the failure this guards: the model maps Monitor.FleetNr to fleet_nr, but the database still
         // has the old mangled column, so every query touching it would fail at runtime.
-        var columns = new HashSet<string>(schema[relation], StringComparer.OrdinalIgnoreCase);
+        HashSet<string> columns = new(schema[relation], StringComparer.OrdinalIgnoreCase);
         columns.Remove("fleet_nr");
         columns.Add("fleet_row_count");
         schema[relation] = columns;
 
-        var mismatches = RvtSchemaValidator.Compare(context.Model, schema);
+        IReadOnlyList<SchemaMismatch> mismatches = RvtSchemaValidator.Compare(context.Model, schema);
 
-        var mismatch = Assert.Single(mismatches, item => item.Column == "fleet_nr");
+        SchemaMismatch mismatch = Assert.Single(mismatches, item => item.Column == "fleet_nr");
         Assert.Equal(relation, mismatch.Relation);
         Assert.Contains("Monitor.FleetNr", mismatch.Problem, StringComparison.Ordinal);
     }
@@ -64,25 +64,25 @@ public sealed class SchemaValidatorTests
     // Function summary: Builds the schema the model expects, as the shape the validator compares against.
     private static Dictionary<string, IReadOnlySet<string>> SchemaFromModel(DbContext context)
     {
-        var schema = new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var entityType in context.Model.GetEntityTypes())
+        Dictionary<string, IReadOnlySet<string>> schema = new(StringComparer.OrdinalIgnoreCase);
+        foreach (IEntityType entityType in context.Model.GetEntityTypes())
         {
-            var store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)
+            StoreObjectIdentifier? store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)
                 ?? StoreObjectIdentifier.Create(entityType, StoreObjectType.View);
             if (store == null)
             {
                 continue;
             }
 
-            if (!schema.TryGetValue(store.Value.Name, out var columns))
+            if (!schema.TryGetValue(store.Value.Name, out IReadOnlySet<string>? columns))
             {
                 columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 schema[store.Value.Name] = columns;
             }
 
-            foreach (var property in entityType.GetProperties())
+            foreach (IProperty property in entityType.GetProperties())
             {
-                var column = property.GetColumnName(store.Value);
+                string? column = property.GetColumnName(store.Value);
                 if (column != null)
                 {
                     ((HashSet<string>)columns).Add(column);
@@ -96,8 +96,8 @@ public sealed class SchemaValidatorTests
     // Function summary: Returns the physical relation name the model maps a CLR type to.
     private static string RelationOf(DbContext context, Type clrType)
     {
-        var entityType = context.Model.FindEntityType(clrType)!;
-        var store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)
+        IEntityType entityType = context.Model.FindEntityType(clrType)!;
+        StoreObjectIdentifier? store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)
             ?? StoreObjectIdentifier.Create(entityType, StoreObjectType.View);
         return store!.Value.Name;
     }

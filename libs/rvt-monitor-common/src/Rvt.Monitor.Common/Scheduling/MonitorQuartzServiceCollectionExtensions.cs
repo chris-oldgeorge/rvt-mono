@@ -15,8 +15,8 @@ public static class MonitorQuartzServiceCollectionExtensions
         string monitorName)
         where TDispatcher : class, IMonitorJobDispatcher
     {
-        var options = MonitorSchedulerOptions.Bind(configuration);
-        var infrastructure = MonitorInfrastructureOptions.Bind(configuration);
+        MonitorSchedulerOptions options = MonitorSchedulerOptions.Bind(configuration);
+        MonitorInfrastructureOptions infrastructure = MonitorInfrastructureOptions.Bind(configuration);
         if (!options.Enabled || !infrastructure.AllowsQuartzScheduler)
         {
             return services;
@@ -29,10 +29,10 @@ public static class MonitorQuartzServiceCollectionExtensions
             quartz.UseInMemoryStore();
             quartz.UseDefaultThreadPool(threadPool => threadPool.MaxConcurrency = 1);
 
-            var timeZone = ResolveTimeZone(options.TimeZoneId);
-            foreach (var schedule in options.GetEnabledJobs())
+            TimeZoneInfo timeZone = ResolveTimeZone(options.TimeZoneId);
+            foreach (MonitorJobSchedule schedule in options.GetEnabledJobs())
             {
-                var jobKey = new JobKey(schedule.Name, monitorName);
+                JobKey jobKey = new(schedule.Name, monitorName);
                 quartz.AddJob<MonitorQuartzJob>(job => job
                     .WithIdentity(jobKey)
                     .UsingJobData(MonitorQuartzJob.JobNameDataKey, schedule.Name));
@@ -55,8 +55,8 @@ public static class MonitorQuartzServiceCollectionExtensions
     private static void ValidateSchedules<TDispatcher>(MonitorSchedulerOptions options, string monitorName)
         where TDispatcher : class, IMonitorJobDispatcher
     {
-        var dispatcher = CreateDispatcherForValidation<TDispatcher>();
-        foreach (var schedule in options.GetEnabledJobs())
+        IMonitorJobDispatcher dispatcher = CreateDispatcherForValidation<TDispatcher>();
+        foreach (MonitorJobSchedule schedule in options.GetEnabledJobs())
         {
             if (string.IsNullOrWhiteSpace(schedule.Name))
             {

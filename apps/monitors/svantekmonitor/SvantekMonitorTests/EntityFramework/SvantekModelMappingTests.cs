@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Svantek.Api.Db.EntityFramework;
@@ -16,8 +17,8 @@ public sealed class SvantekModelMappingTests
     [DataRow(typeof(SvantekErrorMessageEntity), "svantek_error_message")]
     public void SvantekContext_MapsCanonicalTablesWithoutSchemas(Type entityClrType, string tableName)
     {
-        using var context = CreateContext();
-        var entityType = context.Model.FindEntityType(entityClrType);
+        using SvantekMonitorContext context = CreateContext();
+        IEntityType? entityType = context.Model.FindEntityType(entityClrType);
 
         Assert.IsNotNull(entityType);
         Assert.AreEqual(tableName, entityType.GetTableName());
@@ -27,7 +28,7 @@ public sealed class SvantekModelMappingTests
     [TestMethod]
     public void SvantekContext_MapsCanonicalColumnsAndTimestampTypes()
     {
-        using var context = CreateContext();
+        using SvantekMonitorContext context = CreateContext();
 
         AssertColumns(
             context.Model.FindEntityType(typeof(SvantekMonitorStatusEntity))!,
@@ -94,16 +95,16 @@ public sealed class SvantekModelMappingTests
     [TestMethod]
     public void SvantekContext_PreservesKeysAndSharedMonitorIndex()
     {
-        using var context = CreateContext();
+        using SvantekMonitorContext context = CreateContext();
 
         AssertKey(context, typeof(SvantekMonitorStatusEntity), "SerialId");
         AssertKey(context, typeof(SvantekNoiseLevelEntity), "SerialId", "SampleTime");
         AssertKey(context, typeof(SvantekNoise8HourAverageEntity), "SerialId", "SampleTime");
         AssertKey(context, typeof(SvantekErrorMessageEntity), "Tag", "ErrorTime", "Error");
 
-        var monitor = context.Model.FindEntityType(typeof(MonitorEntity));
+        IEntityType? monitor = context.Model.FindEntityType(typeof(MonitorEntity));
         Assert.IsNotNull(monitor);
-        var index = monitor.GetIndexes().Single();
+        IIndex index = monitor.GetIndexes().Single();
         Assert.AreEqual(
             "ix_monitor_serial_id_type_of_monitor",
             index.GetDatabaseName());
@@ -116,9 +117,9 @@ public sealed class SvantekModelMappingTests
     [TestMethod]
     public void SvantekContext_MapsCanonicalDeploymentAndNotificationProperties()
     {
-        using var context = CreateContext();
-        var deployment = context.Model.FindEntityType(typeof(DeploymentEntity));
-        var notification = context.Model.FindEntityType(typeof(NotificationEntity));
+        using SvantekMonitorContext context = CreateContext();
+        IEntityType? deployment = context.Model.FindEntityType(typeof(DeploymentEntity));
+        IEntityType? notification = context.Model.FindEntityType(typeof(NotificationEntity));
 
         Assert.IsNotNull(deployment);
         Assert.IsNull(deployment.FindProperty(nameof(DeploymentEntity.What2words)));
@@ -126,7 +127,7 @@ public sealed class SvantekModelMappingTests
             "what_3_words",
             deployment.FindProperty(nameof(DeploymentEntity.What3Words))!.GetColumnName());
         Assert.IsNotNull(notification);
-        var recordingLink = notification.FindProperty("RecordingLink");
+        IProperty? recordingLink = notification.FindProperty("RecordingLink");
         Assert.IsNotNull(recordingLink);
         Assert.AreEqual(
             "recording_link",
@@ -139,18 +140,18 @@ public sealed class SvantekModelMappingTests
     [TestMethod]
     public void SvantekContext_PreservesTextBooleanConversion()
     {
-        using var context = CreateContext();
-        var entityType = context.Model.FindEntityType(typeof(SvantekMonitorStatusEntity));
+        using SvantekMonitorContext context = CreateContext();
+        IEntityType? entityType = context.Model.FindEntityType(typeof(SvantekMonitorStatusEntity));
 
-        foreach (var propertyName in new[]
+        foreach (string? propertyName in new[]
                  {
                      nameof(SvantekMonitorStatusEntity.Active),
                      nameof(SvantekMonitorStatusEntity.IsOnline),
                      nameof(SvantekMonitorStatusEntity.IsBatteryCharging)
                  })
         {
-            var property = entityType!.FindProperty(propertyName)!;
-            var converter = property.GetTypeMapping().Converter;
+            IProperty property = entityType!.FindProperty(propertyName)!;
+            ValueConverter? converter = property.GetTypeMapping().Converter;
 
             Assert.IsNotNull(converter);
             Assert.AreEqual("text", property.GetRelationalTypeMapping().StoreType);
@@ -167,12 +168,12 @@ public sealed class SvantekModelMappingTests
         params (string Property, string Column)[] expectedColumns)
     {
         Assert.HasCount(expectedColumns.Length, entityType.GetProperties());
-        foreach (var expected in expectedColumns)
+        foreach ((string Property, string Column) in expectedColumns)
         {
             Assert.AreEqual(
-                expected.Column,
-                entityType.FindProperty(expected.Property)!.GetColumnName(),
-                expected.Property);
+                Column,
+                entityType.FindProperty(Property)!.GetColumnName(),
+                Property);
         }
     }
 
@@ -181,7 +182,7 @@ public sealed class SvantekModelMappingTests
         Type entityClrType,
         string propertyName)
     {
-        var property = context.Model.FindEntityType(entityClrType)!.FindProperty(propertyName);
+        IProperty? property = context.Model.FindEntityType(entityClrType)!.FindProperty(propertyName);
         Assert.IsNotNull(property);
         Assert.AreEqual("timestamp with time zone", property.GetRelationalTypeMapping().StoreType);
     }
@@ -191,19 +192,18 @@ public sealed class SvantekModelMappingTests
         Type entityClrType,
         params string[] expectedProperties)
     {
-        var keyProperties = context.Model
+        string[] keyProperties = [.. context.Model
             .FindEntityType(entityClrType)!
             .FindPrimaryKey()!
             .Properties
-            .Select(property => property.Name)
-            .ToArray();
+            .Select(property => property.Name)];
         CollectionAssert.AreEqual(expectedProperties, keyProperties);
     }
 
     private static SvantekMonitorContext CreateContext()
     {
-        var options = new MonitorDbOptions(new Dictionary<string, string>());
-        var dbOptions = new DbContextOptionsBuilder<SvantekMonitorContext>()
+        MonitorDbOptions options = new(new Dictionary<string, string>());
+        DbContextOptions<SvantekMonitorContext> dbOptions = new DbContextOptionsBuilder<SvantekMonitorContext>()
             .UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata")
             .Options;
 

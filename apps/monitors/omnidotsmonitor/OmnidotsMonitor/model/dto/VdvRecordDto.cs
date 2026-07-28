@@ -36,7 +36,7 @@ namespace Omnidots.Model.Dto
             X = x;
             Y = y;
             Z = z;
-            var offset = DateTimeOffset.FromUnixTimeMilliseconds((long)epocMillis);
+            DateTimeOffset offset = DateTimeOffset.FromUnixTimeMilliseconds((long)epocMillis);
             SampleTime = offset.DateTime;
             VdvX = vdvX;
             VdvY = vdvY;

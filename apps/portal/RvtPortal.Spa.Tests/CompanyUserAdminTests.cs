@@ -27,25 +27,25 @@ public class CompanyUserAdminTests
     // Function summary: Handles the company crud validates unique names and deletes company users workflow for this module.
     public async Task CompanyCrud_ValidatesUniqueNamesAndDeletesCompanyUsers()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
-        var companyUser = await factory.SeedUserAsync(
+        using SpaTestApplicationFactory factory = new();
+        Guid companyId = Guid.NewGuid();
+        ApplicationUser companyUser = await factory.SeedUserAsync(
             "company.member@rvt.test",
             Password,
             RoleNames.CompanyUser,
             companyId: companyId);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainCompaniesAsync(new Company { Id = companyId, CompanyName = "Alpha Monitoring", Contracts = [] });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var duplicate = await client.PostAsJsonAsync("/api/companies", new CompanyMutationRequest { CompanyName = "Alpha Monitoring" });
-        var create = await client.PostAsJsonAsync("/api/companies", new CompanyMutationRequest { CompanyName = "Beta Monitoring" });
-        var created = await create.Content.ReadFromJsonAsync<EntityResponse<CompanyDetailResponse>>();
-        var update = await client.PutAsJsonAsync($"/api/companies/{created!.Item!.Id}", new CompanyMutationRequest { CompanyName = "Beta Updated" });
-        var detail = await client.GetFromJsonAsync<EntityResponse<CompanyDetailResponse>>($"/api/companies/{created.Item.Id}");
-        var delete = await client.DeleteAsync($"/api/companies/{companyId}");
-        var deletedCompanyUser = await client.GetAsync($"/api/users/{companyUser.Id}");
+        HttpResponseMessage duplicate = await client.PostAsJsonAsync("/api/companies", new CompanyMutationRequest { CompanyName = "Alpha Monitoring" });
+        HttpResponseMessage create = await client.PostAsJsonAsync("/api/companies", new CompanyMutationRequest { CompanyName = "Beta Monitoring" });
+        EntityResponse<CompanyDetailResponse>? created = await create.Content.ReadFromJsonAsync<EntityResponse<CompanyDetailResponse>>();
+        HttpResponseMessage update = await client.PutAsJsonAsync($"/api/companies/{created!.Item!.Id}", new CompanyMutationRequest { CompanyName = "Beta Updated" });
+        EntityResponse<CompanyDetailResponse>? detail = await client.GetFromJsonAsync<EntityResponse<CompanyDetailResponse>>($"/api/companies/{created.Item.Id}");
+        HttpResponseMessage delete = await client.DeleteAsync($"/api/companies/{companyId}");
+        HttpResponseMessage deletedCompanyUser = await client.GetAsync($"/api/users/{companyUser.Id}");
 
         Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
@@ -59,21 +59,21 @@ public class CompanyUserAdminTests
     // Function summary: Applies r administration enforces role rules and supports status and link actions to the current configuration.
     public async Task UserAdministration_EnforcesRoleRulesAndSupportsStatusAndLinkActions()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new();
+        Guid companyId = Guid.NewGuid();
         await factory.SeedDomainCompaniesAsync(new Company { Id = companyId, CompanyName = "RVT Customer", Contracts = [] });
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedUserAsync(MasterEmail, Password, RoleNames.RVTMasterAdmin);
-        var existingCompanyUser = await factory.SeedUserAsync(
+        ApplicationUser existingCompanyUser = await factory.SeedUserAsync(
             "existing.company.user@rvt.test",
             Password,
             RoleNames.CompanyUser,
             companyId: companyId);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var list = await client.GetFromJsonAsync<QueryUsersResponse>($"/api/users?companyId={companyId}&sort=email");
-        var create = await client.PostAsJsonAsync("/api/users", new UserMutationRequest
+        QueryUsersResponse? list = await client.GetFromJsonAsync<QueryUsersResponse>($"/api/users?companyId={companyId}&sort=email");
+        HttpResponseMessage create = await client.PostAsJsonAsync("/api/users", new UserMutationRequest
         {
             Email = "new.company.user@rvt.test",
             Name = "New Company User",
@@ -82,19 +82,19 @@ public class CompanyUserAdminTests
             CompanyRole = "Project lead",
             MobilePhone = "07123456789"
         });
-        var created = await create.Content.ReadFromJsonAsync<EntityResponse<UserDetailResponse>>();
-        var resend = await client.PostAsync($"/api/users/{created!.Item!.Id}/resend-confirmation", null);
-        var reset = await client.PostAsync($"/api/users/{existingCompanyUser.Id}/reset-password-link", null);
-        var disable = await client.PostAsync($"/api/users/{created.Item.Id}/disable", null);
-        var disabled = await disable.Content.ReadFromJsonAsync<EntityResponse<UserDetailResponse>>();
-        var enable = await client.PostAsync($"/api/users/{created.Item.Id}/enable", null);
-        var masterUpdate = await client.PutAsJsonAsync($"/api/users/{(await factory.SeedUserAsync("second.master@rvt.test", Password, RoleNames.RVTMasterAdmin)).Id}", new UserMutationRequest
+        EntityResponse<UserDetailResponse>? created = await create.Content.ReadFromJsonAsync<EntityResponse<UserDetailResponse>>();
+        HttpResponseMessage resend = await client.PostAsync($"/api/users/{created!.Item!.Id}/resend-confirmation", null);
+        HttpResponseMessage reset = await client.PostAsync($"/api/users/{existingCompanyUser.Id}/reset-password-link", null);
+        HttpResponseMessage disable = await client.PostAsync($"/api/users/{created.Item.Id}/disable", null);
+        EntityResponse<UserDetailResponse>? disabled = await disable.Content.ReadFromJsonAsync<EntityResponse<UserDetailResponse>>();
+        HttpResponseMessage enable = await client.PostAsync($"/api/users/{created.Item.Id}/enable", null);
+        HttpResponseMessage masterUpdate = await client.PutAsJsonAsync($"/api/users/{(await factory.SeedUserAsync("second.master@rvt.test", Password, RoleNames.RVTMasterAdmin)).Id}", new UserMutationRequest
         {
             Email = "second.master@rvt.test",
             Name = "Blocked Master",
             Role = RoleNames.RVTMasterAdmin
         });
-        var delete = await client.DeleteAsync($"/api/users/{created.Item.Id}");
+        HttpResponseMessage delete = await client.DeleteAsync($"/api/users/{created.Item.Id}");
 
         Assert.NotNull(list);
         Assert.Contains(list!.Results, user => user.Id == existingCompanyUser.Id && user.CanEdit && user.CanDelete);
@@ -114,32 +114,32 @@ public class CompanyUserAdminTests
     // Function summary: Verifies admin user validation rejects duplicate emails and company users without a company.
     public async Task UserAdministration_RejectsDuplicateEmailAndMissingCompany()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new();
+        Guid companyId = Guid.NewGuid();
         await factory.SeedDomainCompaniesAsync(new Company { Id = companyId, CompanyName = "Validation Customer", Contracts = [] });
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var existing = await factory.SeedUserAsync(
+        ApplicationUser existing = await factory.SeedUserAsync(
             "existing.validation@rvt.test",
             Password,
             RoleNames.CompanyUser,
             companyId: companyId);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var duplicateEmail = await client.PostAsJsonAsync("/api/users", new UserMutationRequest
+        HttpResponseMessage duplicateEmail = await client.PostAsJsonAsync("/api/users", new UserMutationRequest
         {
             Email = existing.Email!,
             Name = "Duplicate Email",
             Role = RoleNames.CompanyUser,
             CompanyId = companyId
         });
-        var missingCompany = await client.PostAsJsonAsync("/api/users", new UserMutationRequest
+        HttpResponseMessage missingCompany = await client.PostAsJsonAsync("/api/users", new UserMutationRequest
         {
             Email = "missing.company@rvt.test",
             Name = "Missing Company",
             Role = RoleNames.CompanyUser
         });
-        var search = await client.GetFromJsonAsync<QueryUsersResponse>("/api/users?searchText=missing.company@rvt.test");
+        QueryUsersResponse? search = await client.GetFromJsonAsync<QueryUsersResponse>("/api/users?searchText=missing.company@rvt.test");
 
         Assert.Equal(HttpStatusCode.BadRequest, duplicateEmail.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, missingCompany.StatusCode);
@@ -150,10 +150,10 @@ public class CompanyUserAdminTests
     // Function summary: Handles the site assignments add contact and remove company users workflow for this module.
     public async Task SiteAssignments_AddContactAndRemoveCompanyUsers()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
-        var siteId = Guid.NewGuid();
-        var user = await factory.SeedUserAsync(
+        using SpaTestApplicationFactory factory = new();
+        Guid companyId = Guid.NewGuid();
+        Guid siteId = Guid.NewGuid();
+        ApplicationUser user = await factory.SeedUserAsync(
             "site.assignment.user@rvt.test",
             Password,
             RoleNames.CompanyUser,
@@ -163,27 +163,27 @@ public class CompanyUserAdminTests
             new Company { Id = companyId, CompanyName = "Site Assignment Co", Contracts = [] },
             new Site { Id = siteId, SiteName = "Athens Plant", Contracts = [] },
             new Contract { Id = Guid.NewGuid(), ContractNumber = "P3-001", CompanyId = companyId, SiteiD = siteId });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var initial = await client.GetFromJsonAsync<EntityResponse<SiteAssignmentResponse>>($"/api/users/site-assignments/{siteId}");
-        var add = await client.PostAsJsonAsync("/api/users/site-assignments", new SiteUserMutationRequest
+        EntityResponse<SiteAssignmentResponse>? initial = await client.GetFromJsonAsync<EntityResponse<SiteAssignmentResponse>>($"/api/users/site-assignments/{siteId}");
+        HttpResponseMessage add = await client.PostAsJsonAsync("/api/users/site-assignments", new SiteUserMutationRequest
         {
             SiteId = siteId,
             UserId = Guid.Parse(user.Id)
         });
-        var added = await add.Content.ReadFromJsonAsync<EntityResponse<SiteAssignmentResponse>>();
-        var notificationSetting = ReadNotificationSettingsFor(factory, Guid.Parse(user.Id), siteId);
-        var contact = await client.PostAsJsonAsync("/api/users/site-assignments/contact", new SiteUserMutationRequest
+        EntityResponse<SiteAssignmentResponse>? added = await add.Content.ReadFromJsonAsync<EntityResponse<SiteAssignmentResponse>>();
+        NotificationSettings? notificationSetting = ReadNotificationSettingsFor(factory, Guid.Parse(user.Id), siteId);
+        HttpResponseMessage contact = await client.PostAsJsonAsync("/api/users/site-assignments/contact", new SiteUserMutationRequest
         {
             SiteId = siteId,
             UserId = Guid.Parse(user.Id)
         });
-        var contacted = await contact.Content.ReadFromJsonAsync<EntityResponse<SiteAssignmentResponse>>();
-        var unset = await client.DeleteAsync($"/api/users/site-assignments/contact/{siteId}/{user.Id}");
-        var unsetResult = await unset.Content.ReadFromJsonAsync<EntityResponse<SiteAssignmentResponse>>();
-        var remove = await client.DeleteAsync($"/api/users/site-assignments/{siteId}/{user.Id}");
-        var removed = await remove.Content.ReadFromJsonAsync<EntityResponse<SiteAssignmentResponse>>();
+        EntityResponse<SiteAssignmentResponse>? contacted = await contact.Content.ReadFromJsonAsync<EntityResponse<SiteAssignmentResponse>>();
+        HttpResponseMessage unset = await client.DeleteAsync($"/api/users/site-assignments/contact/{siteId}/{user.Id}");
+        EntityResponse<SiteAssignmentResponse>? unsetResult = await unset.Content.ReadFromJsonAsync<EntityResponse<SiteAssignmentResponse>>();
+        HttpResponseMessage remove = await client.DeleteAsync($"/api/users/site-assignments/{siteId}/{user.Id}");
+        EntityResponse<SiteAssignmentResponse>? removed = await remove.Content.ReadFromJsonAsync<EntityResponse<SiteAssignmentResponse>>();
 
         Assert.Equal(siteId, initial?.Item?.SiteId);
         Assert.Contains(initial!.Item!.AvailableUsers, candidate => candidate.Id == user.Id);
@@ -230,9 +230,9 @@ public class CompanyUserAdminTests
         Guid userId,
         Guid siteId)
     {
-        using var scope = factory.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        var siteUser = context.SiteUsers.SingleOrDefault(item => item.UserId == userId && item.SiteId == siteId);
+        using IServiceScope scope = factory.Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        SiteUsers? siteUser = context.SiteUsers.SingleOrDefault(item => item.UserId == userId && item.SiteId == siteId);
         return siteUser == null
             ? null
             : context.NotificationSettings.SingleOrDefault(item => item.SiteUserId == siteUser.Id);

@@ -22,12 +22,12 @@ public sealed class SearchQueryExecutorTests
     public async Task ReadFilteredAsync_Unpaged_ReportsReturnedRowCount()
     {
         const int seededCompanies = 3;
-        await using var context = CreateContext();
+        await using RVTDbContext context = CreateContext();
         SeedCompanies(context, seededCompanies);
         await context.SaveChangesAsync();
-        var repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
-        var result = await repository.ReadFilteredAsync(
+        SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
             ByName,
             maximumRecords: 10,
@@ -46,12 +46,12 @@ public sealed class SearchQueryExecutorTests
     public async Task ReadFilteredAsync_Unpaged_FlagsTruncationWhenBoundIsHit()
     {
         const int maximumRecords = 2;
-        await using var context = CreateContext();
+        await using RVTDbContext context = CreateContext();
         SeedCompanies(context, 5);
         await context.SaveChangesAsync();
-        var repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
-        var result = await repository.ReadFilteredAsync(
+        SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
             ByName,
             maximumRecords,
@@ -68,12 +68,12 @@ public sealed class SearchQueryExecutorTests
     {
         const int seededCompanies = 5;
         const int pageSize = 2;
-        await using var context = CreateContext();
+        await using RVTDbContext context = CreateContext();
         SeedCompanies(context, seededCompanies);
         await context.SaveChangesAsync();
-        var repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
-        var result = await repository.ReadFilteredAsync(
+        SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
             ByName,
             maximumRecords: 0,
@@ -90,12 +90,12 @@ public sealed class SearchQueryExecutorTests
     // Function summary: Verifies a filter is applied in the query rather than after materialization.
     public async Task ReadFilteredAsync_AppliesFilter()
     {
-        await using var context = CreateContext();
+        await using RVTDbContext context = CreateContext();
         SeedCompanies(context, 4);
         await context.SaveChangesAsync();
-        var repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
-        var result = await repository.ReadFilteredAsync(
+        SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [new SingleFilter { Operation = Op.Equals, PropertyName = "CompanyName", Value = "Company 2" }],
             ByName,
             maximumRecords: 10,
@@ -109,7 +109,7 @@ public sealed class SearchQueryExecutorTests
     // Function summary: Seeds sequentially named companies so ordering assertions are deterministic.
     private static void SeedCompanies(RVTDbContext context, int count)
     {
-        for (var index = 1; index <= count; index++)
+        for (int index = 1; index <= count; index++)
         {
             context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = $"Company {index}" });
         }
@@ -118,7 +118,7 @@ public sealed class SearchQueryExecutorTests
     // Function summary: Creates an isolated in-memory domain context for read-path tests.
     private static RVTDbContext CreateContext()
     {
-        var options = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 

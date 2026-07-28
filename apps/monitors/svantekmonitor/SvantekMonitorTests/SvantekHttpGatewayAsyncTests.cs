@@ -27,9 +27,9 @@ public sealed class SvantekHttpGatewayAsyncTests
     [TestMethod]
     public async Task AsyncOperations_PassTheExactCancellationToken()
     {
-        using var cancellation = new CancellationTokenSource();
-        var token = cancellation.Token;
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
+        using CancellationTokenSource cancellation = new();
+        CancellationToken token = cancellation.Token;
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
         http.SetupSequence(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
@@ -51,13 +51,13 @@ public sealed class SvantekHttpGatewayAsyncTests
                 It.IsAny<MultipartFormDataContent>(),
                 token))
             .ReturnsAsync([82, 73, 70, 70]);
-        var gateway = new SvantekHttpGateway(http.Object, "test-api-key");
+        SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
-        var projects = await gateway.GetProjectsAsync(token);
-        var files = await gateway.GetProjectFilesAsync("7", "3", "20260713", cancellationToken: token);
-        var stations = await gateway.GetStationsAsync(token);
-        var data = await gateway.GetDataMultiAsync("7", [new MultiDataArgument { point = 3 }], token);
-        var sound = await gateway.GetSoundFileAsync(7, 3, "SV307", "20260713", "12345", "sound.wav", token);
+        List<Project> projects = await gateway.GetProjectsAsync(token);
+        List<ProjectFile> files = await gateway.GetProjectFilesAsync("7", "3", "20260713", cancellationToken: token);
+        List<Station> stations = await gateway.GetStationsAsync(token);
+        List<MultiData> data = await gateway.GetDataMultiAsync("7", [new MultiDataArgument { point = 3 }], token);
+        byte[] sound = await gateway.GetSoundFileAsync(7, 3, "SV307", "20260713", "12345", "sound.wav", token);
 
         Assert.HasCount(1, projects);
         Assert.HasCount(1, files);
@@ -70,36 +70,36 @@ public sealed class SvantekHttpGatewayAsyncTests
     [TestMethod]
     public async Task GetStationsAsync_AwaitsTheAdapterResponse()
     {
-        var response = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var http = new Mock<IHttpClient>();
+        TaskCompletionSource<string> response = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Mock<IHttpClient> http = new();
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
                 CancellationToken.None))
             .Returns(response.Task);
-        var gateway = new SvantekHttpGateway(http.Object, "test-api-key");
+        SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
-        var stationsTask = gateway.GetStationsAsync();
+        Task<List<Station>> stationsTask = gateway.GetStationsAsync();
 
         Assert.IsFalse(stationsTask.IsCompleted);
         response.SetResult(StationsJson);
-        var stations = await stationsTask;
+        List<Station> stations = await stationsTask;
         Assert.HasCount(1, stations);
     }
 
     [TestMethod]
     public async Task GetStationsAsync_WrapsNonCancellationAdapterFailure()
     {
-        var adapterFailure = new IOException("vendor unavailable");
-        var http = new Mock<IHttpClient>();
+        IOException adapterFailure = new("vendor unavailable");
+        Mock<IHttpClient> http = new();
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
                 CancellationToken.None))
             .ThrowsAsync(adapterFailure);
-        var gateway = new SvantekHttpGateway(http.Object, "test-api-key");
+        SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
-        var exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => gateway.GetStationsAsync());
+        AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => gateway.GetStationsAsync());
 
         Assert.AreEqual("GetStations", exception.Message);
         Assert.AreSame(adapterFailure, exception.InnerException);
@@ -108,18 +108,18 @@ public sealed class SvantekHttpGatewayAsyncTests
     [TestMethod]
     public async Task GetStationsAsync_PreservesCallerCancellationException()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
-        var expected = new OperationCanceledException(cancellation.Token);
-        var http = new Mock<IHttpClient>();
+        OperationCanceledException expected = new(cancellation.Token);
+        Mock<IHttpClient> http = new();
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
                 cancellation.Token))
             .ThrowsAsync(expected);
-        var gateway = new SvantekHttpGateway(http.Object, "test-api-key");
+        SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
-        var exception = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+        OperationCanceledException exception = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
             () => gateway.GetStationsAsync(cancellation.Token));
 
         Assert.AreSame(expected, exception);

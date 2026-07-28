@@ -13,7 +13,7 @@ public class TestAirQHttpTimeout
     [TestMethod]
     public void HttpWebClient_AppliesAnExplicitBoundedRequestTimeout()
     {
-        using var inner = new HttpClient();
+        using HttpClient inner = new();
 
         _ = new HttpWebClient<object>("https://airq.example.test", inner);
 
@@ -34,7 +34,7 @@ public class TestAirQHttpTimeout
     [TestMethod]
     public void HttpWebClient_SetsTheVendorBaseAddressAndAcceptHeader()
     {
-        using var inner = new HttpClient();
+        using HttpClient inner = new();
 
         _ = new HttpWebClient<object>("https://airq.example.test", inner);
 

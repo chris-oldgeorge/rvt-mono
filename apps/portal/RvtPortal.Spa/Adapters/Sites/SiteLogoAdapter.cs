@@ -44,7 +44,7 @@ public sealed class SiteLogoAdapter(ICustomerLogoStorage storage)
         Guid siteId,
         CancellationToken cancellationToken)
     {
-        var file = await storage.OpenReadAsync(siteId, cancellationToken);
+        StoredContentFile? file = await storage.OpenReadAsync(siteId, cancellationToken);
         return file is null
             ? null
             : new SiteLogoFile(

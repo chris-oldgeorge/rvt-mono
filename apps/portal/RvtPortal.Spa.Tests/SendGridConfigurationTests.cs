@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Rvt.Communication.SendGridMail;
@@ -13,7 +14,7 @@ public sealed class SendGridConfigurationTests
         string? emailEnabled,
         bool expectedEnabled)
     {
-        using var factory = new SpaTestApplicationFactory().WithWebHostBuilder(builder =>
+        using WebApplicationFactory<Program> factory = new SpaTestApplicationFactory().WithWebHostBuilder(builder =>
         {
             if (emailEnabled is not null)
             {
@@ -21,7 +22,7 @@ public sealed class SendGridConfigurationTests
             }
         });
 
-        var options = factory.Services
+        SendGridMailOptions options = factory.Services
             .GetRequiredService<IOptions<SendGridMailOptions>>()
             .Value;
 

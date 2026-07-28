@@ -5,6 +5,7 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
 using System.Data;
+using System.Data.Common;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -41,9 +42,9 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Verifies omitted and PostgreSQL-compatible legacy provider settings remain accepted.
     public void FromConfiguration_AcceptsOmittedAndPostgresLegacyProviderAliases(string? provider)
     {
-        var configuration = BuildConfiguration(provider);
+        IConfiguration configuration = BuildConfiguration(provider);
 
-        var options = RvtDatabaseOptions.FromConfiguration(configuration);
+        RvtDatabaseOptions options = RvtDatabaseOptions.FromConfiguration(configuration);
 
         Assert.Equal(ConnectionString, options.ConnectionString);
     }
@@ -58,7 +59,7 @@ public sealed class DatabaseProviderConfigurationTests
         string providerKey,
         string provider)
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 [providerKey] = provider,
@@ -66,7 +67,7 @@ public sealed class DatabaseProviderConfigurationTests
             })
             .Build();
 
-        var exception = Assert.Throws<InvalidOperationException>(
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
             () => RvtDatabaseOptions.FromConfiguration(configuration));
 
         Assert.Equal("PostgreSQL is the only supported database provider", exception.Message);
@@ -78,7 +79,7 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Reads connection, retry, timeout, schema-validation, and routine-schema settings.
     public void FromConfiguration_ReadsPostgresOptionsWithoutProviderSelection()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Database:ConnectionStringName"] = "PostgresConnection",
@@ -91,7 +92,7 @@ public sealed class DatabaseProviderConfigurationTests
             })
             .Build();
 
-        var options = RvtDatabaseOptions.FromConfiguration(configuration);
+        RvtDatabaseOptions options = RvtDatabaseOptions.FromConfiguration(configuration);
 
         Assert.Equal("PostgresConnection", options.ConnectionStringName);
         Assert.Equal(ConnectionString, options.ConnectionString);
@@ -106,11 +107,11 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Creates only Npgsql connections from both supported connection factory entry points.
     public void ConnectionFactories_CreateNpgsqlConnections()
     {
-        var options = CreateOptions();
-        var factory = new RvtDatabaseConnectionFactory(options);
+        RvtDatabaseOptions options = CreateOptions();
+        RvtDatabaseConnectionFactory factory = new(options);
 
-        using var factoryConnection = factory.CreateConnection();
-        using var extensionConnection = options.CreateDbConnection();
+        using DbConnection factoryConnection = factory.CreateConnection();
+        using DbConnection extensionConnection = options.CreateDbConnection();
 
         Assert.IsType<NpgsqlConnection>(factoryConnection);
         Assert.IsType<NpgsqlConnection>(extensionConnection);
@@ -121,10 +122,10 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Keeps both UseRvtDatabaseProvider overloads while configuring Npgsql in each case.
     public void UseRvtDatabaseProvider_AlwaysConfiguresNpgsql()
     {
-        var options = CreateOptions();
-        var connectionStringBuilder = new DbContextOptionsBuilder();
-        var sharedConnectionBuilder = new DbContextOptionsBuilder();
-        using var connection = new NpgsqlConnection(ConnectionString);
+        RvtDatabaseOptions options = CreateOptions();
+        DbContextOptionsBuilder connectionStringBuilder = new();
+        DbContextOptionsBuilder sharedConnectionBuilder = new();
+        using NpgsqlConnection connection = new(ConnectionString);
 
         connectionStringBuilder.UseRvtDatabaseProvider(options);
         sharedConnectionBuilder.UseRvtDatabaseProvider(options, connection);
@@ -143,14 +144,14 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Keeps all three design-time contexts on Npgsql with independent migration histories.
     public void DesignTimeFactories_UseNpgsqlAndDistinctMigrationHistories()
     {
-        var previousConnection = Environment.GetEnvironmentVariable("RVT_EF_CONNECTION");
+        string? previousConnection = Environment.GetEnvironmentVariable("RVT_EF_CONNECTION");
         Environment.SetEnvironmentVariable("RVT_EF_CONNECTION", ConnectionString);
 
         try
         {
-            using var domainContext = new RVTDbContextDesignTimeFactory().CreateDbContext([]);
-            using var searchContext = new RVTSearchContextDesignTimeFactory().CreateDbContext([]);
-            using var identityContext = new ApplicationDbContextDesignTimeFactory().CreateDbContext([]);
+            using RVTDbContext domainContext = new RVTDbContextDesignTimeFactory().CreateDbContext([]);
+            using RVTSearchContext searchContext = new RVTSearchContextDesignTimeFactory().CreateDbContext([]);
+            using ApplicationDbContext identityContext = new ApplicationDbContextDesignTimeFactory().CreateDbContext([]);
 
             Assert.Equal("Npgsql.EntityFrameworkCore.PostgreSQL", domainContext.Database.ProviderName);
             Assert.Equal("Npgsql.EntityFrameworkCore.PostgreSQL", searchContext.Database.ProviderName);
@@ -173,12 +174,12 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Fails EF tooling early with an actionable message when its connection is absent.
     public void DesignTimeOptions_WithoutConnection_ThrowsActionableFailure()
     {
-        var previousConnection = Environment.GetEnvironmentVariable("RVT_EF_CONNECTION");
+        string? previousConnection = Environment.GetEnvironmentVariable("RVT_EF_CONNECTION");
         Environment.SetEnvironmentVariable("RVT_EF_CONNECTION", null);
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
                 RvtDesignTimeDatabaseOptions.FromEnvironment);
 
             Assert.Contains("RVT_EF_CONNECTION", exception.Message, StringComparison.Ordinal);
@@ -194,11 +195,11 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Configures PostgreSQL function SQL as a text command for every stored routine call.
     public void StoredRoutineExecutor_ConfiguresPostgresFunctionTextCommand()
     {
-        var executor = CreateRoutineExecutor();
-        var method = typeof(RvtStoredRoutineExecutor).GetMethod(
+        RvtStoredRoutineExecutor executor = CreateRoutineExecutor();
+        MethodInfo method = typeof(RvtStoredRoutineExecutor).GetMethod(
             "ConfigureCommand",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
-        using var command = new NpgsqlCommand();
+        using NpgsqlCommand command = new();
         IReadOnlyCollection<RvtRoutineParameter> parameters =
         [
             new("siteId", Guid.Empty),
@@ -217,12 +218,12 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Validates PostgreSQL routine names before they are used in dynamic command text.
     public void StoredRoutineExecutor_RejectsUnsafePostgresRoutineNames()
     {
-        var executor = CreateRoutineExecutor();
-        var method = typeof(RvtStoredRoutineExecutor).GetMethod(
+        RvtStoredRoutineExecutor executor = CreateRoutineExecutor();
+        MethodInfo method = typeof(RvtStoredRoutineExecutor).GetMethod(
             "BuildPostgresRoutineName",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
 
-        var exception = Assert.Throws<TargetInvocationException>(
+        TargetInvocationException exception = Assert.Throws<TargetInvocationException>(
             () => method.Invoke(executor, ["public.Routine;drop table Users"]));
 
         Assert.IsType<ArgumentException>(exception.InnerException);
@@ -232,11 +233,11 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Validates routine parameter names before they are interpolated into PostgreSQL call text.
     public void StoredRoutineExecutor_RejectsUnsafeRoutineParameterNames()
     {
-        var method = typeof(RvtStoredRoutineExecutor).GetMethod(
+        MethodInfo method = typeof(RvtStoredRoutineExecutor).GetMethod(
             "NormalizeParameterName",
             BindingFlags.Static | BindingFlags.NonPublic)!;
 
-        var exception = Assert.Throws<TargetInvocationException>(
+        TargetInvocationException exception = Assert.Throws<TargetInvocationException>(
             () => method.Invoke(null, ["siteId);drop table Users"]));
 
         Assert.IsType<ArgumentException>(exception.InnerException);
@@ -252,12 +253,12 @@ public sealed class DatabaseProviderConfigurationTests
         string routineName,
         string expectedRoutineName)
     {
-        var executor = CreateRoutineExecutor();
-        var method = typeof(RvtStoredRoutineExecutor).GetMethod(
+        RvtStoredRoutineExecutor executor = CreateRoutineExecutor();
+        MethodInfo method = typeof(RvtStoredRoutineExecutor).GetMethod(
             "BuildPostgresRoutineName",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
 
-        var postgresRoutineName = method.Invoke(executor, [routineName]);
+        object? postgresRoutineName = method.Invoke(executor, [routineName]);
 
         Assert.Equal(expectedRoutineName, postgresRoutineName);
     }
@@ -265,7 +266,7 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Builds configuration with an optional legacy provider value.
     private static IConfiguration BuildConfiguration(string? provider)
     {
-        var values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["Database:ConnectionString"] = ConnectionString
         };
@@ -291,7 +292,7 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Builds the stored routine executor used by PostgreSQL safety tests.
     private static RvtStoredRoutineExecutor CreateRoutineExecutor()
     {
-        var options = CreateOptions();
+        RvtDatabaseOptions options = CreateOptions();
         return new RvtStoredRoutineExecutor(
             new RvtDatabaseConnectionFactory(options),
             Microsoft.Extensions.Options.Options.Create(options));
@@ -308,7 +309,7 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Reads the configured migrations-history table from a context's relational options.
     private static string GetMigrationsHistoryTable(DbContext context)
     {
-        var extension = context.GetService<IDbContextOptions>()
+        RelationalOptionsExtension extension = context.GetService<IDbContextOptions>()
             .Extensions
             .OfType<RelationalOptionsExtension>()
             .Single();

@@ -4,6 +4,7 @@
 // - 2026-06-09 pending Added MediatR query handler for critical monitor detail reads.
 // - 2026-06-10 pending Removed redundant async/await from deployment lookup helpers.
 
+using System.Security.Claims;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
@@ -38,7 +39,7 @@ public sealed class GetMonitorDetailQueryHandler : IRequestHandler<GetMonitorDet
     // Function summary: Handles monitor detail queries by monitor id or deployment id.
     public async Task<MonitorDetailResponse?> Handle(GetMonitorDetailQuery request, CancellationToken cancellationToken)
     {
-        var user = httpContextAccessor.HttpContext?.User;
+        ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
         if (user == null)
         {
             return null;
@@ -64,7 +65,7 @@ public sealed class GetMonitorDetailQueryHandler : IRequestHandler<GetMonitorDet
             return null;
         }
 
-        var detail = await detailReader.BuildAsync(monitor, deployment, user, cancellationToken);
+        MonitorDetailResponse detail = await detailReader.BuildAsync(monitor, deployment, user, cancellationToken);
         return await authorizationService.CanReadAsync(detail, user, cancellationToken) ? detail : null;
     }
 

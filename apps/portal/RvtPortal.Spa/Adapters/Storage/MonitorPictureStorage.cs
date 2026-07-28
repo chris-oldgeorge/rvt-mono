@@ -6,6 +6,7 @@
 // - 2026-06-25 pending Derived stored and served content type from the validated extension instead of client input.
 // - 2026-07-08 pending Added stored-picture delete support for failed database-save compensation.
 
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using RVT.BusinessLogic.Ports.Storage;
@@ -30,13 +31,13 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
 
     public async Task<string> SaveAsync(Guid deploymentId, IUploadedContent picture, CancellationToken cancellationToken)
     {
-        var fileName = $"{deploymentId:N}{Path.GetExtension(picture.FileName).ToLowerInvariant()}";
-        var blobClient = BuildBlobContainerClient();
+        string fileName = $"{deploymentId:N}{Path.GetExtension(picture.FileName).ToLowerInvariant()}";
+        BlobContainerClient? blobClient = BuildBlobContainerClient();
         if (blobClient != null)
         {
             await blobClient.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
-            var blob = blobClient.GetBlobClient(fileName);
-            await using var input = picture.OpenReadStream();
+            BlobClient blob = blobClient.GetBlobClient(fileName);
+            await using Stream input = picture.OpenReadStream();
             // Store the content type derived from the validated extension rather than
             // the client-supplied ContentType, which only had to start with "image/".
             await blob.UploadAsync(
@@ -46,10 +47,10 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
             return $"{BlobPrefix}{ContainerName()}/{fileName}";
         }
 
-        var directory = Path.Combine(ContentRoot(), "App_Data", "monitor-pictures");
+        string directory = Path.Combine(ContentRoot(), "App_Data", "monitor-pictures");
         Directory.CreateDirectory(directory);
-        var path = Path.Combine(directory, fileName);
-        await using var stream = File.Create(path);
+        string path = Path.Combine(directory, fileName);
+        await using FileStream stream = File.Create(path);
         await picture.CopyToAsync(stream, cancellationToken);
         return $"{LocalPrefix}{fileName}";
     }
@@ -61,9 +62,9 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
             return;
         }
 
-        if (TryParseBlobReference(storedLink, out var blobName))
+        if (TryParseBlobReference(storedLink, out string? blobName))
         {
-            var blobClient = BuildBlobContainerClient()?.GetBlobClient(blobName);
+            BlobClient? blobClient = BuildBlobContainerClient()?.GetBlobClient(blobName);
             if (blobClient != null)
             {
                 await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
@@ -77,13 +78,13 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
             return;
         }
 
-        var fileName = Path.GetFileName(storedLink);
+        string fileName = Path.GetFileName(storedLink);
         if (string.IsNullOrWhiteSpace(fileName))
         {
             return;
         }
 
-        var protectedPath = Path.Combine(ContentRoot(), "App_Data", "monitor-pictures", fileName);
+        string protectedPath = Path.Combine(ContentRoot(), "App_Data", "monitor-pictures", fileName);
         if (File.Exists(protectedPath))
         {
             File.Delete(protectedPath);
@@ -97,15 +98,15 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
             return null;
         }
 
-        if (TryParseBlobReference(storedLink, out var blobName))
+        if (TryParseBlobReference(storedLink, out string? blobName))
         {
-            var blobClient = BuildBlobContainerClient()?.GetBlobClient(blobName);
+            BlobClient? blobClient = BuildBlobContainerClient()?.GetBlobClient(blobName);
             if (blobClient == null || !await blobClient.ExistsAsync(cancellationToken))
             {
                 return null;
             }
 
-            var download = await blobClient.DownloadStreamingAsync(cancellationToken: cancellationToken);
+            Response<BlobDownloadStreamingResult> download = await blobClient.DownloadStreamingAsync(cancellationToken: cancellationToken);
             // Serve the content type derived from the known extension allowlist rather than
             // trusting whatever was stored on the blob, so an unexpected stored content type
             // cannot be reflected back to the browser.
@@ -117,14 +118,14 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
             return null;
         }
 
-        var fileName = Path.GetFileName(storedLink);
+        string fileName = Path.GetFileName(storedLink);
         if (string.IsNullOrWhiteSpace(fileName))
         {
             return null;
         }
 
-        var protectedPath = Path.Combine(ContentRoot(), "App_Data", "monitor-pictures", fileName);
-        var path = File.Exists(protectedPath)
+        string protectedPath = Path.Combine(ContentRoot(), "App_Data", "monitor-pictures", fileName);
+        string? path = File.Exists(protectedPath)
             ? protectedPath
             : LegacyStaticPath(fileName);
         if (path == null)
@@ -166,10 +167,10 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
 
     private string? LegacyStaticPath(string fileName)
     {
-        var webRoot = string.IsNullOrWhiteSpace(environment.WebRootPath)
+        string webRoot = string.IsNullOrWhiteSpace(environment.WebRootPath)
             ? Path.Combine(AppContext.BaseDirectory, "wwwroot")
             : environment.WebRootPath;
-        var legacyPath = Path.Combine(webRoot, "monitor-pictures", fileName);
+        string legacyPath = Path.Combine(webRoot, "monitor-pictures", fileName);
         return File.Exists(legacyPath) ? legacyPath : null;
     }
 
@@ -186,8 +187,8 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
             return false;
         }
 
-        var remainder = storedLink[BlobPrefix.Length..];
-        var separator = remainder.IndexOf('/', StringComparison.Ordinal);
+        string remainder = storedLink[BlobPrefix.Length..];
+        int separator = remainder.IndexOf('/', StringComparison.Ordinal);
         if (separator < 0 || separator == remainder.Length - 1)
         {
             return false;

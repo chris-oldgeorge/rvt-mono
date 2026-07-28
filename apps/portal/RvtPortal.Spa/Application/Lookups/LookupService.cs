@@ -80,7 +80,7 @@ namespace RvtPortal.Spa.Application.Lookups
         // Function summary: Returns combined contract, site, and company lookup suggestions from the contract search view.
         public Task<List<string>> ContractsSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
         {
-            var rows = searchContext.ContractSearches.AsNoTracking();
+            IQueryable<ContractSearch> rows = searchContext.ContractSearches.AsNoTracking();
             return LookupValuesAsync(
                 rows.Select(contract => contract.ContractNumber)
                     .Concat(rows.Select(contract => contract.CompanyName))
@@ -122,7 +122,7 @@ namespace RvtPortal.Spa.Application.Lookups
         // Function summary: Returns combined site, company, contract, and address lookup suggestions.
         public Task<List<string>> SitesSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
         {
-            var rows = searchContext.SiteSearches.AsNoTracking();
+            IQueryable<SiteSearch> rows = searchContext.SiteSearches.AsNoTracking();
             return LookupValuesAsync(
                 rows.Select(site => site.Contracts)
                     .Concat(rows.Select(site => site.SiteName))
@@ -136,7 +136,7 @@ namespace RvtPortal.Spa.Application.Lookups
         // Function summary: Returns site lookup suggestions scoped to a user.
         public Task<List<string>> SiteUserSearchAsync(Guid userId, string searchString, int take = 50, CancellationToken cancellationToken = default)
         {
-            var rows = searchContext.SiteUserSearches
+            IQueryable<SiteUserSearch> rows = searchContext.SiteUserSearches
                 .AsNoTracking()
                 .Where(site => site.UserId == userId);
             return LookupValuesAsync(
@@ -152,7 +152,7 @@ namespace RvtPortal.Spa.Application.Lookups
         // Function summary: Returns combined monitor, site, and contract lookup suggestions.
         public Task<List<string>> MonitorsSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
         {
-            var rows = searchContext.MonitorSearches.AsNoTracking();
+            IQueryable<MonitorSearch> rows = searchContext.MonitorSearches.AsNoTracking();
             return LookupValuesAsync(
                 rows.Select(monitor => monitor.ContractNumber)
                     .Concat(rows.Select(monitor => monitor.FleetNr))
@@ -217,7 +217,7 @@ namespace RvtPortal.Spa.Application.Lookups
         // Function summary: Returns monitor and contract suggestions scoped to a site.
         public Task<List<string>> MonitorsForSiteSearchAsync(Guid siteId, string searchString, int take = 50, CancellationToken cancellationToken = default)
         {
-            var rows = searchContext.MonitorSearches
+            IQueryable<MonitorSearch> rows = searchContext.MonitorSearches
                 .AsNoTracking()
                 .Where(monitor => monitor.SiteiD == siteId);
             return LookupValuesAsync(
@@ -244,7 +244,7 @@ namespace RvtPortal.Spa.Application.Lookups
         // Function summary: Returns monitor lookup suggestions scoped to a user.
         public Task<List<string>> MonitorUserSearchAsync(Guid userId, string searchString, int take = 50, CancellationToken cancellationToken = default)
         {
-            var rows = searchContext.MonitorUserSearches
+            IQueryable<MonitorUserSearch> rows = searchContext.MonitorUserSearches
                 .AsNoTracking()
                 .Where(monitor => monitor.UserId == userId);
             return LookupValuesAsync(
@@ -269,7 +269,7 @@ namespace RvtPortal.Spa.Application.Lookups
         // Function summary: Returns unscoped user lookup suggestions.
         public Task<List<string>> UserSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
         {
-            var rows = searchContext.UserSearches.AsNoTracking();
+            IQueryable<UserSearch> rows = searchContext.UserSearches.AsNoTracking();
             return LookupValuesAsync(
                 rows.Select(user => user.Email)
                     .Concat(rows.Select(user => user.Name))
@@ -282,7 +282,7 @@ namespace RvtPortal.Spa.Application.Lookups
         // Function summary: Returns company-scoped user lookup suggestions, optionally including RVT administrators.
         public Task<List<string>> UserSearchAsync(Guid companyId, string searchString, int take, bool includeAdmin = false, CancellationToken cancellationToken = default)
         {
-            var rows = searchContext.UserSearches.AsNoTracking();
+            IQueryable<UserSearch> rows = searchContext.UserSearches.AsNoTracking();
             rows = includeAdmin
                 ? rows.Where(user => user.CompanyId == companyId || user.Role == "RVTMasterAdmin" || user.Role == "RVTAdmin")
                 : rows.Where(user => user.CompanyId == companyId);
@@ -325,8 +325,8 @@ namespace RvtPortal.Spa.Application.Lookups
             int take,
             CancellationToken cancellationToken)
         {
-            var query = values.Where(value => value != null && value != "");
-            var normalizedSearch = NormalizeSearch(searchString);
+            IQueryable<string?> query = values.Where(value => value != null && value != "");
+            string normalizedSearch = NormalizeSearch(searchString);
             if (normalizedSearch.Length > 0)
             {
                 query = query.Where(value => value!.ToLower().Contains(normalizedSearch));

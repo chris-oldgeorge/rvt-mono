@@ -51,7 +51,7 @@ public class AuthController : ControllerBase
     // Function summary: Signs in a user through the auth application service.
     public async Task<ActionResult<AuthStateResponse>> Login(LoginRequest request)
     {
-        var result = await auth.LoginAsync(request, User.Identity?.IsAuthenticated == true);
+        AuthWorkflowResult<AuthStateResponse> result = await auth.LoginAsync(request, User.Identity?.IsAuthenticated == true);
         return result.Status switch
         {
             AuthWorkflowStatus.Success => result.Value!,
@@ -105,7 +105,7 @@ public class AuthController : ControllerBase
     // Function summary: Starts the forgot-password workflow using a generic public response.
     public async Task<ActionResult<MessageResponse>> ForgotPassword(ForgotPasswordRequest request)
     {
-        var result = await auth.ForgotPasswordAsync(request, BuildRequestOrigin());
+        AuthWorkflowResult<MessageResponse> result = await auth.ForgotPasswordAsync(request, BuildRequestOrigin());
         return result.Value!;
     }
 
@@ -118,7 +118,7 @@ public class AuthController : ControllerBase
     // Function summary: Resets a password through the auth application service.
     public async Task<ActionResult<MessageResponse>> ResetPassword(ResetPasswordRequest request)
     {
-        var result = await auth.ResetPasswordAsync(request);
+        AuthWorkflowResult<MessageResponse> result = await auth.ResetPasswordAsync(request);
         return result.Status == AuthWorkflowStatus.ValidationFailed
             ? IdentityErrors("Password reset failed", result.Errors)
             : result.Value!;
@@ -132,7 +132,7 @@ public class AuthController : ControllerBase
     // Function summary: Confirms a user's email from a confirmation link.
     public async Task<ActionResult<ConfirmEmailResponse>> ConfirmEmail([FromQuery] string? userId, [FromQuery] string? code)
     {
-        var result = await auth.ConfirmEmailAsync(userId, code);
+        AuthWorkflowResult<ConfirmEmailResponse> result = await auth.ConfirmEmailAsync(userId, code);
         return result.Status switch
         {
             AuthWorkflowStatus.Success => result.Value!,
@@ -163,7 +163,7 @@ public class AuthController : ControllerBase
         [FromQuery] string? email,
         [FromQuery] string? code)
     {
-        var result = await auth.ConfirmEmailChangeAsync(userId, email, code);
+        AuthWorkflowResult<ConfirmEmailResponse> result = await auth.ConfirmEmailChangeAsync(userId, email, code);
         return result.Status switch
         {
             AuthWorkflowStatus.Success => result.Value!,
@@ -191,7 +191,7 @@ public class AuthController : ControllerBase
     // Function summary: Sets the initial password after email confirmation.
     public async Task<ActionResult<AuthStateResponse>> SetInitialPassword(SetInitialPasswordRequest request)
     {
-        var result = await auth.SetInitialPasswordAsync(request);
+        AuthWorkflowResult<AuthStateResponse> result = await auth.SetInitialPasswordAsync(request);
         return result.Status switch
         {
             AuthWorkflowStatus.Success => result.Value!,
@@ -236,7 +236,7 @@ public class AuthController : ControllerBase
     // Function summary: Changes the signed-in user's password.
     public async Task<ActionResult<MessageResponse>> ChangePassword(ChangePasswordRequest request)
     {
-        var result = await auth.ChangePasswordAsync(User, request);
+        AuthWorkflowResult<MessageResponse> result = await auth.ChangePasswordAsync(User, request);
         return result.Status switch
         {
             AuthWorkflowStatus.Success => result.Value!,
@@ -251,7 +251,7 @@ public class AuthController : ControllerBase
     // Function summary: Retrieves the signed-in user's profile.
     public async Task<ActionResult<ProfileResponse>> Profile()
     {
-        var result = await auth.ProfileAsync(User);
+        AuthWorkflowResult<ProfileResponse> result = await auth.ProfileAsync(User);
         return result.Status == AuthWorkflowStatus.Unauthorized ? Unauthorized() : result.Value!;
     }
 
@@ -262,7 +262,7 @@ public class AuthController : ControllerBase
     // Function summary: Updates the signed-in user's profile.
     public async Task<ActionResult<ProfileResponse>> UpdateProfile(UpdateProfileRequest request)
     {
-        var result = await auth.UpdateProfileAsync(User, request);
+        AuthWorkflowResult<ProfileResponse> result = await auth.UpdateProfileAsync(User, request);
         return result.Status switch
         {
             AuthWorkflowStatus.Success => result.Value!,
@@ -295,7 +295,7 @@ public class AuthController : ControllerBase
     // Function summary: Builds a validation problem response from grouped Identity errors.
     private static BadRequestObjectResult IdentityErrors(string title, IReadOnlyDictionary<string, string[]> errors)
     {
-        var details = new ValidationProblemDetails(errors.ToDictionary(error => error.Key, error => error.Value))
+        ValidationProblemDetails details = new(errors.ToDictionary(error => error.Key, error => error.Value))
         {
             Title = title,
             Status = StatusCodes.Status400BadRequest

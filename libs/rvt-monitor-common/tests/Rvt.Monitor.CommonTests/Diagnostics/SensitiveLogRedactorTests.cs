@@ -19,7 +19,7 @@ public sealed class SensitiveLogRedactorTests
     [TestMethod]
     public void RedactUrl_MasksSensitiveQueryValuesAndKeepsOperationalContext()
     {
-        var redacted = SensitiveLogRedactor.RedactUrl(
+        string redacted = SensitiveLogRedactor.RedactUrl(
             "/latestData?userID=operator&token=very-secret-token&instrumentID=14768&user_auth=another-secret");
 
         Assert.AreEqual(
@@ -30,7 +30,7 @@ public sealed class SensitiveLogRedactorTests
     [TestMethod]
     public void RedactJson_MasksNestedSensitivePropertiesAndKeepsOtherValues()
     {
-        var redacted = SensitiveLogRedactor.RedactJson(
+        string redacted = SensitiveLogRedactor.RedactJson(
             "{\"token\":\"very-secret-token\",\"payload\":{\"secret\":\"webhook-secret\",\"serialId\":\"14768\"}}");
 
         StringAssert.Contains(redacted, "\"token\":\"very****\"");
@@ -43,7 +43,7 @@ public sealed class SensitiveLogRedactorTests
     [TestMethod]
     public void RedactJson_MasksSensitiveAssignmentsInAnUnparseablePayload()
     {
-        var redacted = SensitiveLogRedactor.RedactJson("token=unparseable-secret-payload");
+        string redacted = SensitiveLogRedactor.RedactJson("token=unparseable-secret-payload");
 
         Assert.AreEqual("token=unpa****", redacted);
     }
@@ -51,7 +51,7 @@ public sealed class SensitiveLogRedactorTests
     [TestMethod]
     public void RedactJson_PreservesAnUnstructuredOperationalError()
     {
-        var redacted = SensitiveLogRedactor.RedactJson("Too many requests!");
+        string redacted = SensitiveLogRedactor.RedactJson("Too many requests!");
 
         Assert.AreEqual("Too many requests!", redacted);
     }
@@ -64,7 +64,7 @@ public sealed class SensitiveLogRedactorTests
             BindingFlags.NonPublic | BindingFlags.Static);
 
         Assert.IsNotNull(patternField);
-        var pattern = patternField.GetValue(null) as Regex;
+        Regex? pattern = patternField.GetValue(null) as Regex;
 
         Assert.IsNotNull(pattern);
         Assert.AreEqual(TimeSpan.FromMilliseconds(100), pattern.MatchTimeout);
@@ -92,7 +92,7 @@ public sealed class SensitiveLogRedactorTests
     public void RedactJson_CompletesPromptlyAndDoesNotExposeLargeMalformedSensitiveAssignments()
     {
         string payload = "token=" + new string('a', 250_000) + new string(',', 10_000);
-        var started = Stopwatch.StartNew();
+        Stopwatch started = Stopwatch.StartNew();
 
         string redacted = SensitiveLogRedactor.RedactJson(payload);
 

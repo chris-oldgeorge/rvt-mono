@@ -18,15 +18,15 @@ public sealed class ServiceAssemblyTests
     [Fact]
     public void CommittedReportingDatabaseDefaultHasNoParsedCredentials()
     {
-        var configurationPath = FindRepositoryFile(
+        string configurationPath = FindRepositoryFile(
             "services/reporting/src/Rvt.Reporting.Service/appsettings.json");
         using var configuration = JsonDocument.Parse(File.ReadAllText(configurationPath));
-        var reportingDatabase = configuration.RootElement
+        string? reportingDatabase = configuration.RootElement
             .GetProperty("ConnectionStrings")
             .GetProperty("ReportingDatabase")
             .GetString();
 
-        var connectionString = Assert.IsType<string>(reportingDatabase);
+        string connectionString = Assert.IsType<string>(reportingDatabase);
         var builder = new NpgsqlConnectionStringBuilder(connectionString);
 
         Assert.True(string.IsNullOrEmpty(builder.Username));
@@ -69,7 +69,7 @@ public sealed class ServiceAssemblyTests
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {
-            var candidate = Path.Combine(directory.FullName, relativePath);
+            string candidate = Path.Combine(directory.FullName, relativePath);
             if (File.Exists(candidate))
             {
                 return candidate;

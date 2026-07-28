@@ -59,7 +59,7 @@ public sealed class SensitiveLogRedactorTests
     [TestMethod]
     public void SensitiveAssignmentPattern_UsesAFiniteMatchTimeout()
     {
-        var patternField = typeof(SensitiveLogRedactor).GetField(
+        FieldInfo? patternField = typeof(SensitiveLogRedactor).GetField(
             "SensitiveAssignmentPattern",
             BindingFlags.NonPublic | BindingFlags.Static);
 
@@ -73,17 +73,17 @@ public sealed class SensitiveLogRedactorTests
     [TestMethod]
     public void RedactSensitiveAssignments_FallsBackToRedactingTheWholePayloadWhenRegexTimesOut()
     {
-        var method = typeof(SensitiveLogRedactor).GetMethod(
+        MethodInfo? method = typeof(SensitiveLogRedactor).GetMethod(
             "RedactSensitiveAssignments",
             BindingFlags.NonPublic | BindingFlags.Static,
             binder: null,
             types: [typeof(string), typeof(Regex)],
             modifiers: null);
-        var timeoutPattern = new Regex("(a+)+$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(1));
-        var payload = new string('a', 20_000) + "!";
+        Regex timeoutPattern = new("(a+)+$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(1));
+        string payload = new string('a', 20_000) + "!";
 
         Assert.IsNotNull(method);
-        var redacted = method.Invoke(null, [payload, timeoutPattern]) as string;
+        string? redacted = method.Invoke(null, [payload, timeoutPattern]) as string;
 
         Assert.AreEqual(SensitiveLogRedactor.Redact(payload), redacted);
     }
@@ -91,10 +91,10 @@ public sealed class SensitiveLogRedactorTests
     [TestMethod]
     public void RedactJson_CompletesPromptlyAndDoesNotExposeLargeMalformedSensitiveAssignments()
     {
-        var payload = "token=" + new string('a', 250_000) + new string(',', 10_000);
+        string payload = "token=" + new string('a', 250_000) + new string(',', 10_000);
         var started = Stopwatch.StartNew();
 
-        var redacted = SensitiveLogRedactor.RedactJson(payload);
+        string redacted = SensitiveLogRedactor.RedactJson(payload);
 
         started.Stop();
         Assert.IsTrue(started.Elapsed < TimeSpan.FromSeconds(2));

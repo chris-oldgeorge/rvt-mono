@@ -18,26 +18,49 @@
   repository layout`), `b1433eb` (`style: satisfy repository layout
   standards`), `f44bf24` (`test: share monitor repository layout discovery`),
   `a7b84c2` (`test: expose Mapperly architecture diagnostics`), and `74de1f8`
-  (`test: prove R1 architecture guards reject mutations`). Merge commit
+  (`test: prove R1 architecture guards reject mutations`). Final fail-closed
+  portability hardening is recorded in `d459dbb` (`test: define fail-closed
+  repository layout`), `e9c98d1` (`fix: fail closed on repository layout
+  ambiguity`), `8584049` (`test: require actionable repository root
+  guidance`), `81ef27f` (`fix: guide relocated test hosts to explicit root`),
+  and `d1dfad6` (`style: use current MSTest string assertions`). Merge commit
   `c4b303b` reconciles the branch with current `origin/main`; it is not an R1
-  implementation unit. Task 4 changes only this state file and the
-  architecture review; it does not merge or modify `main`.
+  implementation unit. State commit `cb5fd5d` records the verified synchronized
+  main/origin state after the R1 code hardening. This documentation task does
+  not merge or modify `main`.
 - `Rvt.Monitor.IntegrationTesting.RepositoryLayout` is the shared monitor
   test-support authority for the monorepo root and repository-relative paths.
-  It requires `Rvt.Mono.slnx` plus either a normal `.git` directory or a
-  worktree `.git` file, searches the ordinary test output tree first, and
-  falls back to its compile-time source location when MSBuild output is
-  redirected outside the checkout.
+  It independently evaluates four candidates: test output, the
+  `[CallerFilePath]` source location, process current directory, and optional
+  `RVT_MONOREPO_ROOT`. Every discovered or configured root must contain
+  `Rvt.Mono.slnx` plus either a normal `.git` directory or a worktree `.git`
+  file. A configured root is validated directly and fails without fallback
+  when invalid. Existing path components are physically canonicalized so
+  aliases of one checkout collapse; candidates for distinct checkouts fail as
+  ambiguous instead of selecting one.
+- `RepositoryLayout.GetPath` accepts one or more segments, but each segment
+  must be a single non-empty, non-rooted repository-relative name: rooted
+  input, separators, null/blank values, `.` and `..` traversal, and an empty
+  segment collection are rejected. The normalized result is also required to
+  remain below the canonical repository root.
 - Eight MyATM and two Svantek repository-reading test files now use the shared
   helper. No AirQ, Omnidots, ReportingMonitor, Portal, shared-library,
   production monitor, database, package, or later-roadmap migration was
   absorbed.
-- Focused normal proof passed 4/4 helper tests, 38/38 MyATM tests, and 5/5
-  Svantek tests. The same 4/4, 38/38, and 5/5 suites passed with
-  `UseArtifactsOutput=true`, with all test assemblies rooted in a disposable
-  directory outside the repository. Restore/build/test execution was
-  deliberately serialized, then tests used `--no-build --no-restore`, because
-  this host's parallel MSBuild child nodes are unreliable.
+- Focused normal proof passed 19/19 helper tests, 38/38 MyATM tests, and 5/5
+  Svantek tests. The same 19/19, 38/38, and 5/5 suites passed with `CI=true`,
+  `UseArtifactsOutput=true`, external disposable artifacts, and
+  `RVT_MONOREPO_ROOT` set to the validated R1 checkout. Restore/build/test
+  execution was deliberately serialized, then tests used
+  `--no-build --no-restore`, because this host's parallel MSBuild child nodes
+  are unreliable.
+- The deterministic-CI proof also recorded one expected bounded RED without
+  `RVT_MONOREPO_ROOT`: compiler `PathMap` mapped `[CallerFilePath]` to
+  `/_/...`, VSTest moved the process current directory to the external
+  test-assembly directory, and output was external. Discovery failed closed
+  and named all candidates while instructing the operator to set
+  `RVT_MONOREPO_ROOT` to a validated root. The identical explicit-root
+  invocation passed; no hidden checkout inference was added.
 - `tests/verify-r1-architecture-guards.test.sh` created and removed a detached
   disposable worktree. It proved that Mapperly in the MyATM test project and a
   forbidden `Rvt.Monitor.Common` package dependency in the MyATM production
@@ -50,8 +73,10 @@
   - `libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/RepositoryLayout.cs`
     — shared repository-root and path authority;
   - `libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting.Tests/RepositoryLayoutTests.cs`
-    — output-tree discovery, source fallback, marker-pair rejection/failure,
-    and path-composition coverage;
+    — 19 direct cases covering output, source, current-directory, and configured
+    roots; invalid configuration; distinct-checkout ambiguity; physical alias
+    collapse; `.git` file/directory markers; actionable no-candidate failure;
+    and valid/rejected path composition;
   - eight repository-reading files under
     `apps/monitors/myatmmonitor/MyAtmMonitorTests/` and two under
     `apps/monitors/svantekmonitor/SvantekMonitorTests/` — shared-helper
@@ -61,11 +86,17 @@
   - `docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md`
     — authoritative checklist, with R1 checked complete.
 - Current R1 variable definitions:
-  - `RepositoryLayout._repositoryRoot` lazily resolves `Root`;
-    `GetPath(params string[] segments)` combines repository-relative paths;
-    `outputDirectory` and `sourceFilePath` are the two ordered discovery
-    inputs; `sourceDirectory`, `startDirectories`, `startDirectory`,
-    `directory`, and `gitPath` hold discovery state;
+  - `RepositoryRootEnvironmentVariable` names `RVT_MONOREPO_ROOT`;
+    `_pathComparer` supplies the platform path comparison, and
+    `_repositoryRoot` lazily resolves `Root`;
+  - `FindRepositoryRoot` receives `outputDirectory`, `sourceFilePath`,
+    `currentDirectory`, and `configuredRoot`; `sourceDirectory`, `candidates`,
+    `normalizedConfiguredRoot`, and `rootsByCanonicalPath` hold discovery,
+    validation, physical canonicalization, and ambiguity state;
+  - `RepositoryCandidate.Label` identifies `RVT_MONOREPO_ROOT`, output, source,
+    or current directory, while `RepositoryCandidate.Root` holds its canonical
+    checkout; `repositoryRoot`, `combinedPath`, and `rootPrefix` enforce the
+    `GetPath` below-root result;
   - the mutation harness uses `repo_root`, `temp_root`, `mutation_root`,
     `test_output`, `test_project`, `mapperly_project`, `consumer_project`,
     `mapperly_filter`, `source_filter`, and `baseline_filter`; and

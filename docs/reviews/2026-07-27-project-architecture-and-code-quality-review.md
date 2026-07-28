@@ -186,13 +186,22 @@ synchronous signatures only after the compatibility allowlist reaches zero.
 
 The MyATM and Svantek R1 repository-reading tests now resolve the checkout
 through the shared `Rvt.Monitor.IntegrationTesting.RepositoryLayout` helper.
-The helper recognizes `Rvt.Mono.slnx` plus either a normal `.git` directory or
-a worktree `.git` file, searches the ordinary test output tree first, and falls
-back to its compile-time source location when MSBuild artifacts are redirected
-outside the checkout.
+The helper independently evaluates the test output, `[CallerFilePath]` source,
+process current directory, and optional `RVT_MONOREPO_ROOT` candidates. Every
+root must contain `Rvt.Mono.slnx` plus either a normal `.git` directory or a
+worktree `.git` file. An explicitly configured root is validated without
+fallback; physical aliases of one checkout are collapsed, while distinct
+checkout candidates are rejected as ambiguous. Each `GetPath` argument must be
+one non-empty, non-rooted name with no separator or traversal, and the
+normalized result must remain below the canonical root.
 
-**Resolution (2026-07-28):** The focused normal and redirected-output suites
-both pass: 4/4 helper tests, 38/38 MyATM tests, and 5/5 Svantek tests. The
+**Resolution (2026-07-28):** The normal and deterministic-CI external-artifact
+suites both pass: 19/19 helper tests, 38/38 MyATM tests, and 5/5 Svantek tests.
+The CI proof sets a validated `RVT_MONOREPO_ROOT`. Its expected bounded
+no-environment RED demonstrates fail-closed behavior: compiler `PathMap`
+produces a `/_/...` caller-source path and VSTest relocates the current
+directory to external artifacts, so discovery fails with actionable
+`RVT_MONOREPO_ROOT` guidance instead of inspecting an inferred checkout. The
 disposable `tests/verify-r1-architecture-guards.test.sh` worktree harness also
 proves that a Mapperly reference in `MyAtmMonitorTests.csproj` and a forbidden
 `Rvt.Monitor.Common` package dependency in `MyAtmMonitor.csproj` are rejected
@@ -288,8 +297,8 @@ build/test guarded.
       tooling and machine-readable baselines remain part of R9.
 - [x] **R1 — Repair architecture guards.** Replace stale repository paths and
       prove the boundary tests fail for real violations. Completed 2026-07-28
-      with portable normal/redirected-output discovery and two disposable
-      mutation proofs.
+      with fail-closed normal/deterministic-CI external-artifact discovery,
+      explicit validated-root guidance, and two disposable mutation proofs.
 - [ ] **R2 — Align Help Admin with the release decision.** Shipment was
       explicitly approved and the application-boundary, role,
       stable-identity/focus, HTTP, and browser work is complete. R2 remains
@@ -335,11 +344,12 @@ At review time:
 - Portal architecture tests passed 44/44;
 - shared communication, storage, Common, ReportingMonitor, and relevant
   Omnidots architecture suites passed; and
-- R1 completion verification passed 4/4 shared repository-layout tests, 38/38
-  focused MyATM tests, and 5/5 focused Svantek tests in both normal and
-  externally redirected MSBuild output layouts; the Mapperly project-shape and
-  forbidden internal-package mutations were both rejected in a disposable
-  worktree.
+- R1 completion verification passed 19/19 shared repository-layout tests,
+  38/38 focused MyATM tests, and 5/5 focused Svantek tests in both normal and
+  deterministic-CI external-artifact layouts with a validated
+  `RVT_MONOREPO_ROOT`; the bounded no-environment CI case failed closed with
+  actionable root guidance, and the Mapperly project-shape and forbidden
+  internal-package mutations were both rejected in a disposable worktree.
 
 ## Suffixed sidecar-file investigation
 

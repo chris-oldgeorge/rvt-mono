@@ -1,5 +1,35 @@
 # Project State
 
+## Local main reconciled after Help Admin merge — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- The local integration checkout at `/Users/oldgeorge/Developer/rvt-mono` is
+  on `main`, fast-forwarded to `origin/main` commit `1e2fbf3`, and has one
+  intentionally retained local commit:
+  `244816b` (`build: include Portal communication projects in solution`).
+- The retained Visual Studio edit adds the in-repository
+  `Rvt.Communication.Abstractions` and `Rvt.Communication.SendGridMail`
+  projects, including their Debug/Release configuration mappings, to
+  `apps/portal/RvtPortal.Spa.sln`. This matches the direct project references
+  already used by `RvtPortal.Spa`.
+- The concurrent `RvtPortal.Spa.csproj` edit changed only the UTF-8 BOM and was
+  deliberately discarded as non-semantic formatting churn.
+- Recovery branch `codex/visual-studio-solution-reconcile` preserves the
+  pre-pull reconciliation commit as `d5aa349`.
+- Verification on reconciled `main`:
+  - `dotnet sln apps/portal/RvtPortal.Spa.sln list` resolves both communication
+    projects and all nine existing Portal projects;
+  - restore completed successfully for all eleven solution projects;
+  - the first parallel build exposed the host's known named-pipe permission
+    restriction in MSBuild child nodes (`MSB4166`);
+  - the identical serial Release build (`-m:1`) passed with 0 warnings and
+    0 errors.
+- This local reconciliation has not been pushed. `main` is intentionally ahead
+  of `origin/main` until the state-file update is committed and a later explicit
+  push is requested.
+- The Help Admin release remains `CONDITIONAL`; the zero-row release-database
+  URL-validation receipt gate is unchanged.
+
 ## Authoritative current checkpoint — Help Admin R2 conditional, R1 partial — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
@@ -4397,10 +4427,8 @@ Next-session instruction: Read project_state.md to get up to speed
   database. The exact zero-row receipt gate in the top checkpoint remains.
 - The host-owned feature worktree remains at
   `/private/tmp/rvt-mono-help-admin`.
-- The local main checkout at `/Users/oldgeorge/Developer/rvt-mono` was not
-  advanced because it contains uncommitted Visual Studio edits to
-  `apps/portal/RvtPortal.Spa.sln` and
-  `apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj`. Preserve and reconcile
-  those edits before updating that checkout from `origin/main`.
+- The local main checkout at `/Users/oldgeorge/Developer/rvt-mono` has been
+  reconciled and fast-forwarded. Its retained solution change and validation
+  are recorded in the top checkpoint.
 
 Next-session instruction: Read project_state.md to get up to speed

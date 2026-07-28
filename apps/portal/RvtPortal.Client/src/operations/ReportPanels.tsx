@@ -114,10 +114,10 @@ export function ReportsPanel({ locationPath, onNavigate, onRequestError }: Repor
     return <ReportRulesListPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
   }
   if (route.kind === 'new-rule') {
-    return <ReportRuleForm locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return <ReportRuleForm key="new-rule" locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
   }
   if (route.kind === 'edit-rule') {
-    return <ReportRuleForm ruleId={route.ruleId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return <ReportRuleForm key={route.ruleId} ruleId={route.ruleId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
   }
   if (route.kind === 'rule-users') {
     return <ReportRuleUsersPanel ruleId={route.ruleId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
@@ -456,7 +456,6 @@ function ReportRuleForm({
   const backPath = returnToOr(locationPath, '/reports/rules');
 
   useEffect(() => {
-    setNotice(null);
     if (ruleId) {
       getReportRule(ruleId)
         .then((response) => {
@@ -698,13 +697,13 @@ function ReportRuleUsersPanel({
   const handleAssignedSortChange = useGridSortHandler(setAssignedSortKey, setAssignedSortDir, setAssignedPage);
   const backPath = returnToOr(locationPath, '/reports/rules');
 
-  const loadUsers = useCallback(async (signal?: AbortSignal) => {
+  const refreshUsersAfterMutation = useCallback(async () => {
     setAvailable((current) => ({ ...current, isLoading: true, error: null }));
     setAssigned((current) => ({ ...current, isLoading: true, error: null }));
     try {
       const [availableResponse, assignedResponse] = await Promise.all([
-        queryReportRuleAvailableUsers(ruleId, availableQuery, { signal }),
-        queryReportRuleAssignedUsers(ruleId, assignedQuery, { signal })
+        queryReportRuleAvailableUsers(ruleId, availableQuery),
+        queryReportRuleAssignedUsers(ruleId, assignedQuery)
       ]);
       setContext((current) => contextFromPagedUsers(assignedResponse) ?? contextFromPagedUsers(availableResponse) ?? current);
       setAvailable(userGridFromResponse(availableResponse));
@@ -733,9 +732,55 @@ function ReportRuleUsersPanel({
 
   useEffect(() => {
     const controller = new AbortController();
-    loadUsers(controller.signal).catch(onRequestError);
+    const availableRequest = queryReportRuleAvailableUsers(ruleId, availableQuery, { signal: controller.signal });
+    const assignedRequest = queryReportRuleAssignedUsers(ruleId, assignedQuery, { signal: controller.signal });
+
+    Promise.resolve().then(() => {
+      if (controller.signal.aborted) {
+        return;
+      }
+      setAvailable((current) => ({ ...current, isLoading: true, error: null }));
+      setAssigned((current) => ({ ...current, isLoading: true, error: null }));
+    });
+
+    Promise.all([availableRequest, assignedRequest])
+      .then(([availableResponse, assignedResponse]) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setContext((current) => contextFromPagedUsers(assignedResponse) ?? contextFromPagedUsers(availableResponse) ?? current);
+        setAvailable(userGridFromResponse(availableResponse));
+        setAssigned(userGridFromResponse(assignedResponse));
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (isAbortError(err) || controller.signal.aborted) {
+          return;
+        }
+        getReportRuleUsers(ruleId)
+          .then((response) => {
+            if (controller.signal.aborted) {
+              return;
+            }
+            const item = response.item ?? null;
+            setContext(item ? contextFromAssignments(item) : null);
+            setAvailable(item ? userGridFromUsers(item.availableUsers, availableQuery) : emptyUserGrid());
+            setAssigned(item ? userGridFromUsers(item.assignedUsers, assignedQuery) : emptyUserGrid());
+            setError(null);
+          })
+          .catch((fallbackErr: unknown) => {
+            if (controller.signal.aborted) {
+              return;
+            }
+            const message = (fallbackErr as Error).message || (err as Error).message;
+            setAvailable((current) => ({ ...current, error: message, isLoading: false }));
+            setAssigned((current) => ({ ...current, error: message, isLoading: false }));
+            setError(message);
+            onRequestError(fallbackErr);
+          });
+      });
     return () => controller.abort();
-  }, [loadUsers, onRequestError]);
+  }, [assignedQuery, availableQuery, onRequestError, ruleId]);
 
   async function runMutation(action: () => Promise<{ item?: ReportUserAssignmentResponse | null }>) {
     setIsBusy(true);
@@ -745,7 +790,7 @@ function ReportRuleUsersPanel({
       if (response.item) {
         setContext(contextFromAssignments(response.item));
       }
-      await loadUsers();
+      await refreshUsersAfterMutation();
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);

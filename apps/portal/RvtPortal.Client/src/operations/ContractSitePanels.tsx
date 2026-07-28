@@ -64,6 +64,11 @@ import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
 import { ConfirmDialog, FormField, Notice, SubmitButton } from '../components/FormControls';
 import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
+import {
+  notificationSettingDraft,
+  withoutNotificationDraft,
+} from './notificationDrafts';
+import type { NotificationDraftOverrides } from './notificationDrafts';
 import type {
   ContractDetailResponse,
   ContractListItem,
@@ -1162,20 +1167,17 @@ function SiteAssignmentsPanel({
   const [selectedUserId, setSelectedUserId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const loadAssignments = useCallback(async () => {
-    try {
-      const response = await getSiteAssignments(siteId);
-      setAssignments(response.item ?? null);
-      setError(null);
-    } catch (err) {
-      setError((err as Error).message);
-      onRequestError(err);
-    }
-  }, [onRequestError, siteId]);
-
   useEffect(() => {
-    loadAssignments().catch(onRequestError);
-  }, [loadAssignments, onRequestError]);
+    getSiteAssignments(siteId)
+      .then((response) => {
+        setAssignments(response.item ?? null);
+        setError(null);
+      })
+      .catch((err: Error) => {
+        setError(err.message);
+        onRequestError(err);
+      });
+  }, [onRequestError, siteId]);
   async function runMutation(action: () => Promise<{ item?: SiteAssignmentResponse | null }>) {
     setIsBusy(true);
     setError(null);
@@ -1275,26 +1277,14 @@ function NotificationSettingsPanel({
   const visibleSettings = canManage
     ? settings.settings
     : settings.settings.filter((setting) => setting.userId.toLowerCase() === (currentUserId ?? '').toLowerCase());
-  const [drafts, setDrafts] = useState<Record<string, SiteNotificationSettingMutationRequest>>({});
+  const [draftOverrides, setDraftOverrides] = useState<NotificationDraftOverrides>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    const nextDrafts: Record<string, SiteNotificationSettingMutationRequest> = {};
-    settings.settings.forEach((setting) => {
-      nextDrafts[setting.siteUserId] = {
-        email: setting.email,
-        sms: setting.sms,
-        startTime: setting.startTime ?? '',
-        endTime: setting.endTime ?? ''
-      };
-    });
-    setDrafts(nextDrafts);
-  }, [settings]);
   async function handleSave(setting: SiteNotificationSettingItem) {
     setSavingId(setting.siteUserId);
     setError(null);
     try {
-      const draft = drafts[setting.siteUserId] ?? { email: setting.email, sms: setting.sms, startTime: '', endTime: '' };
+      const draft = notificationSettingDraft(setting, draftOverrides);
       const response = await updateSiteNotificationSetting(settings.siteId, setting.siteUserId, {
         email: draft.email,
         sms: draft.sms,
@@ -1307,6 +1297,7 @@ function NotificationSettingsPanel({
           ...settings,
           settings: settings.settings.map((item) => item.siteUserId === updatedItem.siteUserId ? updatedItem : item)
         });
+        setDraftOverrides((current) => withoutNotificationDraft(current, setting.siteUserId));
       }
     } catch (err) {
       setError((err as Error).message);
@@ -1316,11 +1307,11 @@ function NotificationSettingsPanel({
     }
   }
   // Function summary: Updates draft data for the current workflow.
-  function updateDraft(siteUserId: string, patch: Partial<SiteNotificationSettingMutationRequest>) {
-    setDrafts((current) => ({
+  function updateDraft(setting: SiteNotificationSettingItem, patch: Partial<SiteNotificationSettingMutationRequest>) {
+    setDraftOverrides((current) => ({
       ...current,
-      [siteUserId]: {
-        ...(current[siteUserId] ?? { email: false, sms: false, startTime: '', endTime: '' }),
+      [setting.siteUserId]: {
+        ...notificationSettingDraft(setting, current),
         ...patch
       }
     }));
@@ -1332,12 +1323,7 @@ function NotificationSettingsPanel({
       {visibleSettings.length > 0 && (
         <div className="settings-list">
           {visibleSettings.map((setting) => {
-            const draft = drafts[setting.siteUserId] ?? {
-              email: setting.email,
-              sms: setting.sms,
-              startTime: setting.startTime ?? '',
-              endTime: setting.endTime ?? ''
-            };
+            const draft = notificationSettingDraft(setting, draftOverrides);
             return (
               <div className="setting-row" key={setting.siteUserId}>
                 <div>
@@ -1345,23 +1331,23 @@ function NotificationSettingsPanel({
                   <span>{setting.siteContact ? 'Site contact' : setting.userEmail}</span>
                 </div>
                 <label className="checkbox-row">
-                  <input checked={draft.email} onChange={(event) => updateDraft(setting.siteUserId, { email: event.target.checked })} type="checkbox" />
+                  <input checked={draft.email} onChange={(event) => updateDraft(setting, { email: event.target.checked })} type="checkbox" />
                   <span>Email</span>
                 </label>
                 <label className="checkbox-row">
-                  <input checked={draft.sms} onChange={(event) => updateDraft(setting.siteUserId, { sms: event.target.checked })} type="checkbox" />
+                  <input checked={draft.sms} onChange={(event) => updateDraft(setting, { sms: event.target.checked })} type="checkbox" />
                   <span>SMS</span>
                 </label>
                 <input
                   aria-label={`${setting.userEmail} notification start time`}
                   value={draft.startTime ?? ''}
-                  onChange={(event) => updateDraft(setting.siteUserId, { startTime: event.target.value })}
+                  onChange={(event) => updateDraft(setting, { startTime: event.target.value })}
                   type="time"
                 />
                 <input
                   aria-label={`${setting.userEmail} notification end time`}
                   value={draft.endTime ?? ''}
-                  onChange={(event) => updateDraft(setting.siteUserId, { endTime: event.target.value })}
+                  onChange={(event) => updateDraft(setting, { endTime: event.target.value })}
                   type="time"
                 />
                 <button className="secondary-button" type="button" onClick={() => handleSave(setting)} disabled={savingId === setting.siteUserId}>

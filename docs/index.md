@@ -11,6 +11,9 @@ lives here under `docs/`.
 
 ## Development
 
+- [RVT engineering standards](development/engineering-standards.md)
+- [Engineering standards enforcement guide](development/engineering-standards-enforcement.md)
+- [Engineering standards enforcement report](reviews/2026-07-27-engineering-standards-enforcement-report.md)
 - [Portal development guidelines](development/portal/development-guidelines.md)
 - [Active Portal remediation plan](superpowers/plans/2026-07-22-rvt-portal-review-remediation.md)
 - [Monitor SonarQube guidance](development/monitors/sonarqube.md)

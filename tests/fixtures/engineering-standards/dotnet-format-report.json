@@ -1,0 +1,13 @@
+[
+  {
+    "FilePath": "/repo/src/Clock.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 7,
+        "CharNumber": 5,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "Fix formatting"
+      }
+    ]
+  }
+]

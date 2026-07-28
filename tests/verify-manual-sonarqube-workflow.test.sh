@@ -119,6 +119,258 @@ def workflow_steps(source)
   sequence(analyze.fetch("steps"), "analyze steps").map { |node| mapping(node, "step") }
 end
 
+def logical_shell_commands(source)
+  logical_lines = []
+  pending = ""
+
+  source.each_line do |physical_line|
+    stripped = physical_line.strip
+    next if stripped.empty? || stripped.start_with?("#")
+
+    continued = stripped.end_with?("\\")
+    fragment = continued ? stripped.delete_suffix("\\").rstrip : stripped
+    pending = [pending, fragment].reject(&:empty?).join(" ")
+
+    next if continued
+
+    logical_lines << pending
+    pending = ""
+  end
+
+  logical_lines << pending unless pending.empty?
+  logical_lines
+    .flat_map { |line| line.split(/[[:space:]]*(?:&&|\|\||;)[[:space:]]*/) }
+    .map { |command| command.strip.gsub(/[[:space:]]+/, " ") }
+    .reject(&:empty?)
+end
+
+def shell_command_words(command)
+  # Deliberately conservative: quoted/subshell command text is tokenized too,
+  # and shell control/redirection punctuation forms token boundaries, so
+  # ambiguous embedded or fused invocations fail closed.
+  command.tr(%q{"'()`<>|&}, "         ").split
+end
+
+def executable_basename(word)
+  word.to_s.tr("\\", "/").split("/").last.to_s.downcase
+end
+
+def dotnet_executable_word?(word)
+  %w[dotnet dotnet.exe].include?(executable_basename(word))
+end
+
+def npm_executable_word?(word)
+  %w[npm npm.cmd].include?(executable_basename(word))
+end
+
+def bounded_executable_token_occurrences(command, token)
+  words = shell_command_words(command)
+  words.each_index.count do |executable_index|
+    next false unless yield(words[executable_index])
+
+    next_executable_index = ((executable_index + 1)...words.length).find do |index|
+      yield(words[index])
+    end || words.length
+
+    words[(executable_index + 1)...next_executable_index].include?(token)
+  end
+end
+
+def monorepo_phase_occurrences(command, phase)
+  # Intentionally fail closed for targetless/root-directory invocations and
+  # quoted embedded command text; canonical command checks reject ambiguity.
+  bounded_executable_token_occurrences(command, phase) do |word|
+    dotnet_executable_word?(word)
+  end
+end
+
+def standards_occurrences(command)
+  command.scan(
+    %r{scripts/verify-engineering-standards\.sh(?=[[:space:]"']|\z)}
+  ).length
+end
+
+def npm_ci_occurrences(command)
+  # Intentionally fail closed for wrappers, arbitrary option/value pairs, and
+  # quoted embedded command text; an exact ci token before the next npm counts.
+  bounded_executable_token_occurrences(command, "ci") do |word|
+    npm_executable_word?(word)
+  end
+end
+
+def step_name(step)
+  step.key?("name") ? scalar(step.fetch("name"), "step name") : nil
+end
+
+def named_step_index(steps, name)
+  indexes = steps.each_index.select { |index| step_name(steps.fetch(index)) == name }
+  assert(indexes.length == 1, "#{name} step must occur exactly once")
+  indexes.fetch(0)
+end
+
+def run_commands(step, context)
+  assert(step.key?("run"), "#{context} must define a run command")
+  logical_shell_commands(scalar(step.fetch("run"), "#{context} run command"))
+end
+
+def workflow_invocation_positions(steps)
+  positions = []
+  steps.each_index do |step_index|
+    step = steps.fetch(step_index)
+    next unless step.key?("run")
+
+    commands = run_commands(step, step_name(step) || "unnamed step")
+    commands.each_index do |command_index|
+      yield(commands.fetch(command_index)).times do |occurrence_index|
+        positions << [step_index, command_index, occurrence_index]
+      end
+    end
+  end
+  positions
+end
+
+def exactly_one_workflow_invocation(steps, description, &block)
+  positions = workflow_invocation_positions(steps, &block)
+  assert(positions.length == 1, "#{description} must occur exactly once")
+  positions.fetch(0)
+end
+
+def before?(left, right)
+  (left <=> right) == -1
+end
+
+def assert_unconditional_step(step, context)
+  assert(!step.key?("if"), "#{context} must not define an if condition")
+  assert(
+    !step.key?("continue-on-error"),
+    "#{context} must not allow failures with continue-on-error"
+  )
+end
+
+def assert_engineering_standards_gate(steps)
+  node_indexes = steps.each_index.select do |index|
+    step = steps.fetch(index)
+    step.key?("uses") &&
+      scalar(step.fetch("uses"), "action reference").match?(
+        %r{\Aactions/setup-node@[0-9a-f]{40}\z}
+      )
+  end
+  assert(node_indexes.length == 1, "SHA-pinned Node setup must occur exactly once")
+  node_index = node_indexes.fetch(0)
+
+  install_index = named_step_index(steps, "Install Portal client dependencies")
+  restore_index = named_step_index(steps, "Restore monorepo")
+  standards_index = named_step_index(steps, "Verify engineering standards")
+  build_index = named_step_index(steps, "Build monorepo (Release)")
+  test_index = named_step_index(steps, "Collect .NET coverage")
+  portal_coverage_index = named_step_index(steps, "Collect Portal client coverage")
+
+  assert(
+    install_index == node_index + 1,
+    "Portal dependencies must be installed immediately after Node setup"
+  )
+
+  install_step = steps.fetch(install_index)
+  restore_step = steps.fetch(restore_index)
+  standards_step = steps.fetch(standards_index)
+  build_step = steps.fetch(build_index)
+  test_step = steps.fetch(test_index)
+  portal_coverage_step = steps.fetch(portal_coverage_index)
+
+  [
+    [install_step, "Install Portal client dependencies"],
+    [restore_step, "Restore monorepo"],
+    [standards_step, "Verify engineering standards"],
+    [build_step, "Build monorepo (Release)"]
+  ].each do |step, context|
+    assert_unconditional_step(step, context)
+  end
+
+  assert(
+    install_step.key?("working-directory") &&
+      scalar(install_step.fetch("working-directory"), "Portal install working directory") ==
+        "apps/portal/RvtPortal.Client",
+    "unexpected Portal install working directory"
+  )
+
+  canonical_commands = [
+    [install_step, ["npm ci"], "Portal dependency installation"],
+    [
+      restore_step,
+      ["dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel"],
+      "workflow monorepo restore"
+    ],
+    [
+      standards_step,
+      ["scripts/verify-engineering-standards.sh --base auto --head HEAD"],
+      "workflow standards verification"
+    ],
+    [
+      build_step,
+      [
+        "dotnet build Rvt.Mono.slnx --configuration Release --no-restore " \
+          "--no-incremental --nologo -m:1"
+      ],
+      "workflow Release build"
+    ]
+  ]
+  canonical_commands.each do |step, expected, description|
+    assert(
+      run_commands(step, description) == expected,
+      "#{description} must use exactly one canonical invocation"
+    )
+  end
+
+  npm_position = exactly_one_workflow_invocation(
+    steps,
+    "workflow npm ci"
+  ) { |command| npm_ci_occurrences(command) }
+  restore_position = exactly_one_workflow_invocation(
+    steps,
+    "workflow monorepo restore"
+  ) { |command| monorepo_phase_occurrences(command, "restore") }
+  standards_position = exactly_one_workflow_invocation(
+    steps,
+    "workflow standards verification"
+  ) { |command| standards_occurrences(command) }
+  build_position = exactly_one_workflow_invocation(
+    steps,
+    "workflow Release build"
+  ) { |command| monorepo_phase_occurrences(command, "build") }
+  test_position = exactly_one_workflow_invocation(
+    steps,
+    "workflow monorepo test"
+  ) { |command| monorepo_phase_occurrences(command, "test") }
+
+  assert(
+    before?(restore_position, standards_position) &&
+      before?(npm_position, standards_position),
+    ".NET restore and npm ci must precede standards verification"
+  )
+  assert(
+    before?(standards_position, build_position) &&
+      before?(build_position, test_position),
+    "standards verification must precede the Release build and monorepo test"
+  )
+
+  canonical_test =
+    "dotnet test Rvt.Mono.slnx --configuration Release --no-build " \
+      "--no-restore --nologo -m:1"
+  canonical_test_pattern = /"#{Regexp.escape(canonical_test)}"/
+  assert(
+    run_commands(test_step, "Collect .NET coverage").sum do |command|
+      command.scan(canonical_test_pattern).length
+    end == 1,
+    "workflow monorepo test must use exactly one canonical invocation"
+  )
+  assert(
+    run_commands(portal_coverage_step, "Collect Portal client coverage")
+      .sum { |command| npm_ci_occurrences(command) }
+      .zero?,
+    "Portal coverage must not reinstall dependencies"
+  )
+end
+
 def assert_database_lifecycle(steps)
   named_step = lambda do |name|
     steps.find { |step| step.key?("name") && scalar(step.fetch("name"), "step name") == name }
@@ -170,12 +422,22 @@ def assert_database_lifecycle(steps)
   assert(!cleanup_run.match?(/\bdocker\b/i), "database cleanup must not invoke Docker")
 
   begin_index = steps.index(named_step.call("Begin SonarQube analysis"))
-  build_index = steps.index(named_step.call("Restore and build monorepo"))
+  restore_index = steps.index(named_step.call("Restore monorepo"))
+  standards_index = steps.index(named_step.call("Verify engineering standards"))
+  build_index = steps.index(named_step.call("Build monorepo (Release)"))
   deploy_index = steps.index(named_step.call("Deploy Portal database"))
   coverage_index = steps.index(named_step.call("Collect .NET coverage"))
-  assert(begin_index < build_index && build_index < deploy_index && deploy_index < coverage_index, "database deployment must occur after scanner begin and build, before .NET coverage")
+  assert(
+    begin_index < restore_index &&
+      restore_index < standards_index &&
+      standards_index < build_index &&
+      build_index < deploy_index &&
+      deploy_index < coverage_index,
+    "database deployment must occur after scanner begin, restore, standards verification, and build, before .NET coverage"
+  )
 end
 
+assert_engineering_standards_gate(steps)
 assert_database_lifecycle(steps)
 
 install_tools = run.call("Install analysis tools")
@@ -199,10 +461,6 @@ begin_analysis = scalar(begin_step.fetch("run"), "Begin SonarQube analysis run c
   "/d:sonar.qualitygate.timeout=600"
 ].each { |required| assert(begin_analysis.include?(required), "scanner begin must contain #{required}") }
 
-build = run.call("Restore and build monorepo")
-assert(build.include?("dotnet restore Rvt.Mono.slnx --disable-parallel"), "workflow must restore the monorepo solution")
-assert(build.include?("dotnet build Rvt.Mono.slnx --configuration Release --no-restore --no-incremental --nologo -m:1"), "workflow must build the monorepo serially")
-
 coverage = run.call("Collect .NET coverage")
 assert(coverage.include?("dotnet test Rvt.Mono.slnx --configuration Release --no-build --no-restore --nologo -m:1"), "workflow must test the monorepo serially")
 assert(coverage.include?("-o artifacts/coverage/coverage.xml"), "workflow must emit .NET coverage XML")
@@ -212,7 +470,6 @@ portal_coverage = step_named.call("Collect Portal client coverage")
 assert(portal_coverage, "missing Collect Portal client coverage step")
 assert(scalar(portal_coverage.fetch("working-directory"), "Portal coverage working directory") == "apps/portal/RvtPortal.Client", "unexpected Portal coverage working directory")
 portal_coverage_run = scalar(portal_coverage.fetch("run"), "Portal coverage run command")
-assert(portal_coverage_run.include?("npm ci"), "Portal coverage must install locked dependencies")
 assert(portal_coverage_run.include?("npm run test:coverage"), "Portal coverage must run tests")
 assert(portal_coverage_run.include?("test -s coverage/lcov.info"), "Portal coverage must require nonempty LCOV")
 

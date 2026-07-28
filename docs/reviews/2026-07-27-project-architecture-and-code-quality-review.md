@@ -13,6 +13,12 @@ This document is the authoritative reference for the remaining architecture and
 code-quality remediation work identified during the post-adapter-split review.
 Update the status checklist as each remediation phase is completed.
 
+All remediation and subsequent code analysis MUST follow the
+[RVT Engineering Standards](../development/engineering-standards.md). New and
+modified logical units comply immediately; untouched legacy violations are
+reduced through the approved ratcheted baseline. Each phase maps its scope to
+applicable standard rule IDs and records its baseline delta.
+
 ## Executive assessment
 
 The communication and storage provider split is structurally sound. Provider
@@ -254,6 +260,9 @@ build/test guarded.
 
 ## Ordered remediation checklist
 
+- [x] **Standards foundation.** Approve and publish the repository-wide
+      engineering standard and ratcheted governance model. Automated root
+      tooling and machine-readable baselines remain part of R9.
 - [ ] **R1 — Repair architecture guards.** Replace stale repository paths and
       prove the boundary tests fail for real violations.
 - [ ] **R2 — Align Help Admin with the release decision.** Exclude it from the
@@ -271,8 +280,15 @@ build/test guarded.
       MQTT, messaging, and rule-processing call chains.
 - [ ] **R8 — Split selectable infrastructure from Common.** Do this only where
       independent host composition is required.
-- [ ] **R9 — Establish repository style/tooling baseline.** Normalize naming,
-      namespaces, analyzers, package management, and test conventions.
+- [x] **R9 — Implement repository standards enforcement.** The root
+      configuration, exact diagnostic baseline, exception and module policy,
+      changed-surface ratchet, frontend policy, local aggregate gate, CI gate,
+      mutation guards, operator guide, and evidence report are implemented.
+      This closes the shared enforcement foundation, not the legacy diagnostic
+      backlog. The final backend aggregate recorded 186 tests requiring a
+      dedicated PostgreSQL integration connection and 17 stale-layout
+      architecture failures already owned by R1; no production database was
+      used and no gate was weakened.
 - [ ] **R10 — Reduce Portal client/host structural size.** Extract routes,
       feature panels, date helpers, and composition extensions.
 - [ ] **R11 — Dispose of ambient untracked configuration.** Decide whether the

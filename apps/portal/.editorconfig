@@ -1,7 +1,6 @@
 #This editorConfig file is from the Dotnet Roslyn repository: https://github.com/dotnet/roslyn/blob/main/.editorconfig
 
-# top-most EditorConfig file
-root = true
+# Portal-specific EditorConfig settings
  
 # Don't use tabs for indentation.
 [*]
@@ -222,7 +221,7 @@ csharp_space_between_parentheses = false
 csharp_space_between_square_brackets = false
 
 # Blocks are allowed
-csharp_prefer_braces = true:silent
+csharp_prefer_braces = true:suggestion
 csharp_preserve_single_line_blocks = true
 csharp_preserve_single_line_statements = true
 

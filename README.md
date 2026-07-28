@@ -9,6 +9,11 @@ This repository contains four imported RVT modules:
 
 Start with the [documentation index](docs/index.md) for architecture,
 development, operations, release, database, module, and historical guidance.
+All new and modified logical units follow the
+[RVT Engineering Standards](docs/development/engineering-standards.md) under
+[ratcheted enforcement](docs/development/engineering-standards-enforcement.md).
+The current implementation and verification evidence are recorded in the
+[engineering standards enforcement report](docs/reviews/2026-07-27-engineering-standards-enforcement-report.md).
 
 Run the manual SonarQube Cloud workflow only from its dedicated trusted-code
 self-hosted runner; see the [operator guide](docs/operations/github-actions/self-hosted-sonar-runner.md).

@@ -87,6 +87,7 @@ import type {
   SortDirection,
 } from '../dtos';
 const pageSize = 10;
+type ListExecution<TQuery> = Readonly<{ query: TQuery }>;
 const siteOperatingDays: SiteOperatingHours[] = [
   { dayOfWeek: 1, dayName: 'Monday', startTime: '08:00', endTime: '18:00', isClosed: false },
   { dayOfWeek: 2, dayName: 'Tuesday', startTime: '08:00', endTime: '18:00', isClosed: false },
@@ -231,7 +232,7 @@ function ContractListPanel({ locationPath, onNavigate, onRequestError }: Operati
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'contractNumber');
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [error, setError] = useState<string | null>(null);
-  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryContractsRequest> | null>(null);
   const columns = useMemo<DataGridColumn<ContractListItem>[]>(
     () => [
       {
@@ -267,14 +268,14 @@ function ContractListPanel({ locationPath, onNavigate, onRequestError }: Operati
     }),
     [page, searchText, sortDir, sortKey],
   );
-  const requestKey = JSON.stringify(query);
-  const isLoading = completedRequestKey !== requestKey;
+  const execution = useMemo<ListExecution<QueryContractsRequest>>(() => ({ query }), [query]);
+  const isLoading = completedExecution !== execution;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
   const returnPath = currentRoutePath(locationPath);
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildContractsUrl({ searchText, page, sort: sortKey, sortDir }));
-    queryContracts(query, { signal: controller.signal })
+    queryContracts(execution.query, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) {
           return;
@@ -283,7 +284,7 @@ function ContractListPanel({ locationPath, onNavigate, onRequestError }: Operati
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       })
       .catch((err: Error) => {
         if (controller.signal.aborted || isAbortError(err)) {
@@ -291,10 +292,10 @@ function ContractListPanel({ locationPath, onNavigate, onRequestError }: Operati
         }
         setError(err.message);
         onRequestError(err);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
+  }, [execution, onRequestError, page, searchText, sortDir, sortKey]);
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
     setSearchText(value);
@@ -628,7 +629,7 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
     normalizeSortDirection(initialParams.get('sortDir') ?? 'Descending'),
   );
   const [error, setError] = useState<string | null>(null);
-  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QuerySitesRequest> | null>(null);
   const columns = useMemo<DataGridColumn<SiteListItem>[]>(
     () => [
       {
@@ -676,8 +677,8 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
     }),
     [includeArchived, page, searchText, sortDir, sortKey],
   );
-  const requestKey = JSON.stringify(query);
-  const isLoading = completedRequestKey !== requestKey;
+  const execution = useMemo<ListExecution<QuerySitesRequest>>(() => ({ query }), [query]);
+  const isLoading = completedExecution !== execution;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
   const returnPath = currentRoutePath(locationPath);
   useEffect(() => {
@@ -687,7 +688,7 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
       '',
       buildSitesUrl({ searchText, includeArchived, page, sort: sortKey, sortDir }),
     );
-    querySites(query, { signal: controller.signal })
+    querySites(execution.query, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) {
           return;
@@ -696,7 +697,7 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       })
       .catch((err: Error) => {
         if (controller.signal.aborted || isAbortError(err)) {
@@ -704,10 +705,10 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
         }
         setError(err.message);
         onRequestError(err);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [includeArchived, onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
+  }, [execution, includeArchived, onRequestError, page, searchText, sortDir, sortKey]);
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
     setSearchText(value);

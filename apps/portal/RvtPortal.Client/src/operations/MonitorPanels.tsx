@@ -74,6 +74,7 @@ import type {
 } from '../dtos';
 
 const pageSize = 10;
+type ListExecution<TQuery> = Readonly<{ query: TQuery }>;
 
 type MonitorsPanelProps = Readonly<{
   locationPath: string;
@@ -200,7 +201,7 @@ function MonitorListPanel({
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryMonitorsRequest> | null>(null);
   const [isAddingDefaults, setIsAddingDefaults] = useState(false);
   const columns = useMemo<DataGridColumn<MonitorListItem>[]>(
     () => [
@@ -248,8 +249,8 @@ function MonitorListPanel({
     }),
     [effectiveState, page, searchText, sortDir, sortKey],
   );
-  const requestKey = JSON.stringify(query);
-  const isLoading = completedRequestKey !== requestKey;
+  const execution = useMemo<ListExecution<QueryMonitorsRequest>>(() => ({ query }), [query]);
+  const isLoading = completedExecution !== execution;
   const returnPath = currentRoutePath(locationPath);
 
   useEffect(() => {
@@ -260,7 +261,7 @@ function MonitorListPanel({
       buildMonitorsUrl({ searchText, page, sort: sortKey, sortDir, state: effectiveState }),
     );
     const load = installerOnly ? queryInstallerMonitors : queryMonitors;
-    load(query, { signal: controller.signal })
+    load(execution.query, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) {
           return;
@@ -269,7 +270,7 @@ function MonitorListPanel({
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       })
       .catch((err: Error) => {
         if (controller.signal.aborted || isAbortError(err)) {
@@ -277,10 +278,10 @@ function MonitorListPanel({
         }
         setError(err.message);
         onRequestError(err);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [effectiveState, installerOnly, onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
+  }, [effectiveState, execution, installerOnly, onRequestError, page, searchText, sortDir, sortKey]);
 
   // Function summary: Handles the handle state workflow for this module.
   function handleState(nextState: MonitorListState) {
@@ -919,7 +920,8 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
   const [sortDir, setSortDir] = useState<SortDirection>('Ascending');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryMonitorsRequest> | null>(null);
+  const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryMonitorsRequest> | null>(null);
   const activeRequestController = useRef<AbortController | null>(null);
   const requestGeneration = useRef(0);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -949,8 +951,9 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
     }),
     [page, searchText, sortDir, sortKey],
   );
-  const requestKey = JSON.stringify(query);
-  const isLoading = completedRequestKey !== requestKey;
+  const effectExecution = useMemo<ListExecution<QueryMonitorsRequest>>(() => ({ query }), [query]);
+  const currentExecution = refreshExecution?.query === query ? refreshExecution : effectExecution;
+  const isLoading = completedExecution !== currentExecution;
 
   const claimRequest = useCallback(() => {
     activeRequestController.current?.abort();
@@ -971,10 +974,12 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
 
   // Function summary: Refreshes unattached monitor removal candidates after an event-owned mutation.
   const refreshMonitors = useCallback(async () => {
+    const execution: ListExecution<QueryMonitorsRequest> = { query };
     const { controller, generation } = claimRequest();
-    setCompletedRequestKey(null);
+    setRefreshExecution(execution);
+    setCompletedExecution(null);
     try {
-      const response = await queryUnattachedMonitors(query, { signal: controller.signal });
+      const response = await queryUnattachedMonitors(execution.query, { signal: controller.signal });
       if (!ownsRequest(controller, generation)) {
         return;
       }
@@ -982,20 +987,20 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
       setTotal(response.total);
       setTotalPages(response.totalPages);
       setError(null);
-      setCompletedRequestKey(requestKey);
+      setCompletedExecution(execution);
     } catch (err) {
       if (!ownsRequest(controller, generation) || isAbortError(err)) {
         return;
       }
       setError((err as Error).message);
       onRequestError(err);
-      setCompletedRequestKey(requestKey);
+      setCompletedExecution(execution);
     }
-  }, [claimRequest, onRequestError, ownsRequest, query, requestKey]);
+  }, [claimRequest, onRequestError, ownsRequest, query]);
 
   useEffect(() => {
     const { controller, generation } = claimRequest();
-    queryUnattachedMonitors(query, { signal: controller.signal })
+    queryUnattachedMonitors(effectExecution.query, { signal: controller.signal })
       .then((response) => {
         if (!ownsRequest(controller, generation)) {
           return;
@@ -1004,7 +1009,7 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(effectExecution);
       })
       .catch((err: Error) => {
         if (!ownsRequest(controller, generation) || isAbortError(err)) {
@@ -1012,10 +1017,10 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
         }
         setError(err.message);
         onRequestError(err);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(effectExecution);
       });
     return () => controller.abort();
-  }, [claimRequest, onRequestError, ownsRequest, query, requestKey]);
+  }, [claimRequest, effectExecution, onRequestError, ownsRequest]);
 
   // Function summary: Handles search text changes for unattached monitor removal candidates.
   function handleSearch(value: string) {

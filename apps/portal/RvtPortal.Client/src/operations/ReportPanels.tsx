@@ -62,6 +62,7 @@ import type {
 } from '../dtos';
 
 const pageSize = 10;
+type ListExecution<TQuery> = Readonly<{ query: TQuery }>;
 const dailyFrequency = 1;
 const weeklyFrequency = 2;
 const monthlyFrequency = 3;
@@ -164,7 +165,7 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
     normalizeSortDirection(initialParams.get('sortDir'), 'Descending'),
   );
   const [error, setError] = useState<string | null>(null);
-  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryCompaniesRequest> | null>(null);
 
   const query = useMemo<QueryCompaniesRequest>(
     () => ({
@@ -176,8 +177,8 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
     }),
     [page, searchText, sortDir, sortKey],
   );
-  const requestKey = JSON.stringify(query);
-  const isLoading = completedRequestKey !== requestKey;
+  const execution = useMemo<ListExecution<QueryCompaniesRequest>>(() => ({ query }), [query]);
+  const isLoading = completedExecution !== execution;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
   const returnPath = currentRoutePath(locationPath);
 
@@ -201,7 +202,7 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildReportsUrl({ searchText, page, sort: sortKey, sortDir }));
-    queryReports(query, { signal: controller.signal })
+    queryReports(execution.query, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) {
           return;
@@ -210,7 +211,7 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       })
       .catch((err: Error) => {
         if (controller.signal.aborted || isAbortError(err)) {
@@ -218,10 +219,10 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
         }
         setError(err.message);
         onRequestError(err);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
+  }, [execution, onRequestError, page, searchText, sortDir, sortKey]);
 
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
@@ -305,7 +306,8 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryReportRulesRequest> | null>(null);
+  const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryReportRulesRequest> | null>(null);
   const activeRequestController = useRef<AbortController | null>(null);
   const requestGeneration = useRef(0);
 
@@ -319,8 +321,9 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
     }),
     [page, searchText, sortDir, sortKey],
   );
-  const requestKey = JSON.stringify(query);
-  const isLoading = completedRequestKey !== requestKey;
+  const effectExecution = useMemo<ListExecution<QueryReportRulesRequest>>(() => ({ query }), [query]);
+  const currentExecution = refreshExecution?.query === query ? refreshExecution : effectExecution;
+  const isLoading = completedExecution !== currentExecution;
 
   const claimRequest = useCallback(() => {
     activeRequestController.current?.abort();
@@ -356,10 +359,12 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   );
 
   const refreshRules = useCallback(async () => {
+    const execution: ListExecution<QueryReportRulesRequest> = { query };
     const { controller, generation } = claimRequest();
-    setCompletedRequestKey(null);
+    setRefreshExecution(execution);
+    setCompletedExecution(null);
     try {
-      const response = await queryReportRules(query, { signal: controller.signal });
+      const response = await queryReportRules(execution.query, { signal: controller.signal });
       if (!ownsRequest(controller, generation)) {
         return;
       }
@@ -367,21 +372,21 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
       setTotal(response.total);
       setTotalPages(response.totalPages);
       setError(null);
-      setCompletedRequestKey(requestKey);
+      setCompletedExecution(execution);
     } catch (err) {
       if (!ownsRequest(controller, generation) || isAbortError(err)) {
         return;
       }
       setError((err as Error).message);
       onRequestError(err);
-      setCompletedRequestKey(requestKey);
+      setCompletedExecution(execution);
     }
-  }, [claimRequest, onRequestError, ownsRequest, query, requestKey]);
+  }, [claimRequest, onRequestError, ownsRequest, query]);
 
   useEffect(() => {
     const { controller, generation } = claimRequest();
     globalThis.history.replaceState(null, '', buildRulesUrl({ searchText, page, sort: sortKey, sortDir }));
-    queryReportRules(query, { signal: controller.signal })
+    queryReportRules(effectExecution.query, { signal: controller.signal })
       .then((response) => {
         if (!ownsRequest(controller, generation)) {
           return;
@@ -390,7 +395,7 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(effectExecution);
       })
       .catch((err: Error) => {
         if (!ownsRequest(controller, generation) || isAbortError(err)) {
@@ -398,10 +403,10 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
         }
         setError(err.message);
         onRequestError(err);
-        setCompletedRequestKey(requestKey);
+        setCompletedExecution(effectExecution);
       });
     return () => controller.abort();
-  }, [claimRequest, onRequestError, ownsRequest, page, query, requestKey, searchText, sortDir, sortKey]);
+  }, [claimRequest, effectExecution, onRequestError, ownsRequest, page, searchText, sortDir, sortKey]);
 
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {

@@ -769,6 +769,258 @@ describe('App', () => {
     expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
   });
 
+  it.each([
+    {
+      route: '/contracts',
+      endpoint: '/api/contracts',
+      searchPlaceholder: /search contracts/i,
+      oldText: 'RVT-C-001',
+      currentText: 'RVT-C-A2',
+      staleText: 'RVT-C-B',
+      page: contractPage,
+    },
+    {
+      route: '/sites',
+      endpoint: '/api/sites',
+      searchPlaceholder: /search sites/i,
+      oldText: 'RVT Test Site',
+      currentText: 'Current A2 Site',
+      staleText: 'Stale B Site',
+      page: sitePage,
+    },
+    {
+      route: '/monitors',
+      endpoint: '/api/monitors',
+      searchPlaceholder: /search monitors/i,
+      oldText: 'MON-ONLINE',
+      currentText: 'MON-A2',
+      staleText: 'MON-B',
+      page: monitorPage,
+    },
+    {
+      route: '/notifications',
+      endpoint: '/api/notifications',
+      searchPlaceholder: /search notifications/i,
+      oldText: 'PM10 > 50',
+      currentText: 'Current A2 threshold',
+      staleText: 'Stale B threshold',
+      page: notificationPage,
+    },
+    {
+      route: '/reports',
+      endpoint: '/api/reports',
+      searchPlaceholder: /search reports/i,
+      oldText: 'Weekly Compliance',
+      currentText: 'Current A2 Report',
+      staleText: 'Stale B Report',
+      page: generatedReportPage,
+    },
+  ])(
+    'keeps the repeated A2 $endpoint execution loading and authoritative',
+    async ({ route, endpoint, searchPlaceholder, oldText, currentText, staleText, page: pageFixture }) => {
+      globalThis.history.replaceState(null, '', route);
+      const bridgeRequest = deferredResponse();
+      const currentRequest = deferredResponse();
+      let emptyRequestCount = 0;
+      stubFetch({
+        auth: { isAuthenticated: true, user: adminUser },
+        routeOverride: (url) => {
+          if (url.pathname !== endpoint) {
+            return undefined;
+          }
+
+          const searchText = url.searchParams.get('searchText') ?? '';
+          if (searchText === 'bridge') {
+            return bridgeRequest.promise;
+          }
+          if (!searchText) {
+            emptyRequestCount += 1;
+            return emptyRequestCount === 1 ? undefined : currentRequest.promise;
+          }
+          return undefined;
+        },
+      });
+
+      render(<App />);
+
+      await screen.findByText(oldText);
+      const searchInput = screen.getByPlaceholderText(searchPlaceholder);
+      fireEvent.change(searchInput, { target: { value: 'bridge' } });
+      await waitFor(() =>
+        expect(
+          fetchedUrls().some(
+            (url) => url.pathname === endpoint && url.searchParams.get('searchText') === 'bridge',
+          ),
+        ).toBe(true),
+      );
+      fireEvent.change(searchInput, { target: { value: '' } });
+      await waitFor(() => expect(emptyRequestCount).toBe(2));
+
+      expect(screen.getByText('Loading data...')).toBeInTheDocument();
+      expect(screen.queryByText(oldText)).not.toBeInTheDocument();
+
+      await act(async () =>
+        currentRequest.resolve(jsonResponse(pageFixture(new URL(endpoint, 'http://localhost'), currentText))),
+      );
+      await screen.findByText(currentText);
+      await act(async () =>
+        bridgeRequest.resolve(
+          jsonResponse(pageFixture(new URL(`${endpoint}?searchText=bridge`, 'http://localhost'), staleText)),
+        ),
+      );
+
+      expect(screen.getByText(currentText)).toBeInTheDocument();
+      expect(screen.queryByText(staleText)).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+    },
+  );
+
+  it('keeps a repeated alert-level execution loading and authoritative', async () => {
+    globalThis.history.replaceState(null, '', '/monitors/monitor-id/alert-levels');
+    const bridgeRequest = deferredResponse();
+    const currentRequest = deferredResponse();
+    let ascendingRequestCount = 0;
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        if (url.pathname !== '/api/alert-levels') {
+          return undefined;
+        }
+
+        const sortDir = url.searchParams.get('sortDir') ?? 'Ascending';
+        if (sortDir === 'Descending') {
+          return bridgeRequest.promise;
+        }
+        ascendingRequestCount += 1;
+        return ascendingRequestCount === 1 ? undefined : currentRequest.promise;
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText('Peak');
+    fireEvent.click(screen.getByRole('button', { name: /parameter/i }));
+    await waitFor(() =>
+      expect(
+        fetchedUrls().some(
+          (url) => url.pathname === '/api/alert-levels' && url.searchParams.get('sortDir') === 'Descending',
+        ),
+      ).toBe(true),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /parameter/i }));
+    await waitFor(() => expect(ascendingRequestCount).toBe(2));
+
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.queryByText('Peak')).not.toBeInTheDocument();
+
+    await act(async () =>
+      currentRequest.resolve(
+        jsonResponse(
+          alertLevelPage(
+            new URL('/api/alert-levels?monitorId=monitor-id&sortDir=Ascending', 'http://localhost'),
+            'Current A2 parameter',
+          ),
+        ),
+      ),
+    );
+    await screen.findByText('Current A2 parameter');
+    await act(async () =>
+      bridgeRequest.resolve(
+        jsonResponse(
+          alertLevelPage(
+            new URL('/api/alert-levels?monitorId=monitor-id&sortDir=Descending', 'http://localhost'),
+            'Stale B parameter',
+          ),
+        ),
+      ),
+    );
+
+    expect(screen.getByText('Current A2 parameter')).toBeInTheDocument();
+    expect(screen.queryByText('Stale B parameter')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      route: '/monitors/unattached',
+      endpoint: '/api/monitors/unattached',
+      searchPlaceholder: /search unattached monitors/i,
+      oldText: 'SER-OLD-001',
+      currentText: 'SER-A2',
+      staleText: 'SER-B',
+      page: unattachedMonitorPage,
+    },
+    {
+      route: '/reports/rules',
+      endpoint: '/api/report-rules',
+      searchPlaceholder: /search rules/i,
+      oldText: 'Old Rule',
+      currentText: 'Current A2 Rule',
+      staleText: 'Stale B Rule',
+      page: reportRulePage,
+    },
+  ])(
+    'keeps the owned repeated A2 $endpoint execution loading and authoritative',
+    async ({ route, endpoint, searchPlaceholder, oldText, currentText, staleText, page: pageFixture }) => {
+      globalThis.history.replaceState(null, '', route);
+      const bridgeRequest = deferredResponse();
+      const currentRequest = deferredResponse();
+      let emptyRequestCount = 0;
+      stubFetch({
+        auth: { isAuthenticated: true, user: adminUser },
+        routeOverride: (url) => {
+          if (url.pathname !== endpoint) {
+            return undefined;
+          }
+
+          const searchText = url.searchParams.get('searchText') ?? '';
+          if (searchText === 'bridge') {
+            return bridgeRequest.promise;
+          }
+          if (!searchText) {
+            emptyRequestCount += 1;
+            return emptyRequestCount === 1
+              ? jsonResponse(pageFixture(url, oldText))
+              : currentRequest.promise;
+          }
+          return undefined;
+        },
+      });
+
+      render(<App />);
+
+      await screen.findByText(oldText);
+      const searchInput = screen.getByPlaceholderText(searchPlaceholder);
+      fireEvent.change(searchInput, { target: { value: 'bridge' } });
+      await waitFor(() =>
+        expect(
+          fetchedUrls().some(
+            (url) => url.pathname === endpoint && url.searchParams.get('searchText') === 'bridge',
+          ),
+        ).toBe(true),
+      );
+      fireEvent.change(searchInput, { target: { value: '' } });
+      await waitFor(() => expect(emptyRequestCount).toBe(2));
+
+      expect(screen.getByText('Loading data...')).toBeInTheDocument();
+      expect(screen.queryByText(oldText)).not.toBeInTheDocument();
+
+      await act(async () =>
+        currentRequest.resolve(jsonResponse(pageFixture(new URL(endpoint, 'http://localhost'), currentText))),
+      );
+      await screen.findByText(currentText);
+      await act(async () =>
+        bridgeRequest.resolve(
+          jsonResponse(pageFixture(new URL(`${endpoint}?searchText=bridge`, 'http://localhost'), staleText)),
+        ),
+      );
+
+      expect(screen.getByText(currentText)).toBeInTheDocument();
+      expect(screen.queryByText(staleText)).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+    },
+  );
+
   it('returns monitor edit forms to the filtered list that opened them', async () => {
     globalThis.history.replaceState(null, '', '/monitors?q=MON&page=2&sort=siteName&sortDir=Descending&state=online');
     stubFetch({ auth: { isAuthenticated: true, user: adminUser } });
@@ -905,6 +1157,8 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /remove monitor/i }));
     fireEvent.click(await screen.findByRole('button', { name: /^archive$/i }));
     await waitFor(() => expect(emptyQueryRequestCount).toBe(2));
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.queryByText('SER-OLD-001')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText(/search unattached monitors/i), { target: { value: 'current' } });
     await waitFor(() =>
@@ -1160,6 +1414,8 @@ describe('App', () => {
     await screen.findByText('Old Rule');
     fireEvent.click(screen.getByRole('button', { name: /delete report rule/i }));
     await waitFor(() => expect(emptyQueryRequestCount).toBe(2));
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.queryByText('Old Rule')).not.toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/search rules/i), { target: { value: 'current' } });
     await waitFor(() => expect(screen.getByText('Loading data...')).toBeInTheDocument());
 
@@ -2966,6 +3222,64 @@ function deferredResponse() {
   return { promise, resolve, reject };
 }
 
+// Function summary: Builds a contract list page fixture for request-execution tests.
+function contractPage(url: URL, contractNumber: string) {
+  return {
+    results: [
+      {
+        id: `${contractNumber.toLowerCase()}-id`,
+        contractNumber,
+        onHireDate: '2026-01-01T00:00:00Z',
+        offHireDate: null,
+        companyId: 'company-id',
+        companyName: 'RVT Group',
+        siteId: 'site-id',
+        siteName: 'RVT Test Site',
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'contractNumber',
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+  };
+}
+
+// Function summary: Builds a site list page fixture for request-execution tests.
+function sitePage(url: URL, siteName: string) {
+  return {
+    results: [
+      {
+        id: `${siteName.toLowerCase().replaceAll(' ', '-')}-id`,
+        siteName,
+        archived: false,
+        createDate: '2026-01-01T00:00:00Z',
+        siteAddress: '1 Test Street',
+        contracts: 'RVT-C-001',
+        companyId: 'company-id',
+        companyName: 'RVT Group',
+        siteContact: 'Company User',
+        monitorCount: 2,
+        openNotificationCount: 1,
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'siteName',
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+    isScopedToCurrentUser: false,
+  };
+}
+
 // Function summary: Builds a monitor list page fixture for stale-response tests.
 function monitorPage(url: URL, fleetNumber: string) {
   return {
@@ -3009,6 +3323,155 @@ function monitorPage(url: URL, fleetNumber: string) {
     isScopedToCurrentUser: false,
     canManage: true,
     canUseInstallerTools: true,
+  };
+}
+
+// Function summary: Builds a notification list page fixture for request-execution tests.
+function notificationPage(url: URL, limitName: string) {
+  return {
+    results: [
+      {
+        id: `${limitName.toLowerCase().replaceAll(' ', '-')}-id`,
+        monitorId: 'monitor-id',
+        deploymentId: 'deployment-id',
+        fleetNumber: 'MON-A2',
+        serialId: 'SER-P5',
+        typeOfMonitor: 'Dust',
+        alertType: 'Alert',
+        alertField: 'PM10',
+        limitOn: 50,
+        level: 61,
+        averagingPeriod: 900,
+        notificationTime: '2026-01-02T10:00:00Z',
+        closedTime: null,
+        closedByUser: null,
+        closedNote: null,
+        contractId: 'contract-id',
+        contractNumber: 'RVT-C-001',
+        siteId: 'site-id',
+        siteName: 'RVT Test Site',
+        companyId: 'company-id',
+        companyName: 'RVT Group',
+        limitName,
+        alertStatus: 'Open',
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'notificationTime',
+    sortDir: url.searchParams.get('sortDir') ?? 'Descending',
+    state: url.searchParams.get('state') ?? 'open',
+    canClose: true,
+  };
+}
+
+// Function summary: Builds a generated-report page fixture for request-execution tests.
+function generatedReportPage(url: URL, reportName: string) {
+  return {
+    results: [
+      {
+        id: `${reportName.toLowerCase().replaceAll(' ', '-')}-id`,
+        siteId: 'site-id',
+        siteName: 'RVT Test Site',
+        reportDate: '2026-01-07T08:00:00Z',
+        reportFrom: '2026-01-01T00:00:00Z',
+        reportTo: '2026-01-07T00:00:00Z',
+        reportLink: 'https://reports.rvt.test/current.pdf',
+        reportRuleId: 'report-rule-id',
+        frequency: 2,
+        frequencyLabel: 'Weekly',
+        reportName,
+        contracts: 'RVT-C-001',
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'reportDate',
+    sortDir: url.searchParams.get('sortDir') ?? 'Descending',
+  };
+}
+
+// Function summary: Builds an alert-level page fixture for request-execution tests.
+function alertLevelPage(url: URL, alertField: string) {
+  return {
+    monitorId: 'monitor-id',
+    serialId: 'SER-V1',
+    fleetNumber: 'VIB-A2',
+    typeOfMonitor: 'Vibration',
+    canManage: true,
+    options: {
+      monitorId: 'monitor-id',
+      serialId: 'SER-V1',
+      typeOfMonitor: 'Vibration',
+      alertFields: [{ value: alertField, label: alertField }],
+      alertTypes: [{ value: 'Alert', label: 'Alert' }],
+      averagingPeriods: [],
+    },
+    results: [
+      {
+        id: `${alertField.toLowerCase().replaceAll(' ', '-')}-id`,
+        monitorId: 'monitor-id',
+        serialId: 'SER-V1',
+        alertField,
+        limitOn: 8,
+        limitOff: 5,
+        alertType: 'Alert',
+        averagingPeriod: 0,
+        averagingPeriodLabel: '',
+        startTime: null,
+        endTime: null,
+        days: [],
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: '',
+    sort: url.searchParams.get('sort') ?? 'alertField',
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+  };
+}
+
+// Function summary: Builds a report-rule page fixture for request-execution tests.
+function reportRulePage(url: URL, reportName: string) {
+  return {
+    results: [
+      {
+        id: `${reportName.toLowerCase().replaceAll(' ', '-')}-id`,
+        siteId: 'site-id',
+        siteName: 'RVT Test Site',
+        frequency: 2,
+        frequencyLabel: 'Weekly',
+        dayOfWeek: 1,
+        dayOfMonth: null,
+        reportName,
+        lastGenerated: null,
+        canManage: true,
+        assignedUserCount: 1,
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'lastGenerated',
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
   };
 }
 

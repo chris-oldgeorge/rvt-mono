@@ -2,6 +2,8 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+"${repo_root}/tests/verify-engineering-standards-workflow.test.sh"
+
 temp_root="$(mktemp -d)"
 
 cleanup() {
@@ -71,7 +73,7 @@ def shell_command_words(command)
   # Deliberately conservative: quoted/subshell command text is tokenized too,
   # and shell control/redirection punctuation forms token boundaries, so
   # ambiguous embedded or fused invocations fail closed.
-  command.tr(%q{"'()<>|&}, "        ").split
+  command.tr(%q{"'()`<>|&}, "         ").split
 end
 
 def executable_basename(word)
@@ -148,7 +150,7 @@ def verify_build_script(path)
 
   canonical = {
     boundary: "bash scripts/verify-postgresql-only.sh .",
-    restore: 'dotnet restore "${solution}" --disable-parallel',
+    restore: 'dotnet restore "${solution}" --locked-mode --disable-parallel',
     standards: '"${repo_root}/scripts/verify-engineering-standards.sh" --working-tree',
     build: 'dotnet build "${solution}" --no-restore --nologo -m:1',
     test: 'dotnet test "${solution}" --no-build --nologo'
@@ -300,7 +302,7 @@ def verify_workflow(path)
     [install_step, ["npm ci"], "Portal dependency installation"],
     [
       restore_step,
-      ["dotnet restore Rvt.Mono.slnx --disable-parallel"],
+      ["dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel"],
       "workflow monorepo restore"
     ],
     [
@@ -482,6 +484,9 @@ when "npm-pipe"
 when "npm-background"
   needle = "          npm run test:coverage\n"
   [needle, "          npm ci& wait\n#{needle}"]
+when "npm-backtick-substitution"
+  needle = "          npm run test:coverage\n"
+  [needle, "          captured=`npm ci`\n#{needle}"]
 when "npm-redirected-chain"
   needle = "          npm run test:coverage\n"
   [needle, "          npm ci>/dev/null && npm ci>/dev/null\n#{needle}"]
@@ -648,6 +653,14 @@ when "pre-standards-background-restore"
   replacement =
     "      - name: Premature background restore\n" \
     "        run: dotnet restore& wait\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-backtick-build"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature captured build\n" \
+    "        run: captured=`dotnet build Rvt.Mono.slnx`\n" \
     "\n" \
     "#{needle}"
   [needle, replacement]
@@ -836,6 +849,8 @@ assert_workflow_mutation_rejected \
 assert_workflow_mutation_rejected \
   "npm-background" "npm ci with a fused background operator"
 assert_workflow_mutation_rejected \
+  "npm-backtick-substitution" "backtick-captured npm ci"
+assert_workflow_mutation_rejected \
   "npm-redirected-chain" "duplicate redirected npm ci commands"
 assert_workflow_mutation_rejected \
   "standards-continue-on-error" "non-blocking standards step"
@@ -947,6 +962,9 @@ assert_workflow_mutation_rejected \
 assert_workflow_mutation_rejected \
   "pre-standards-background-restore" \
   "background restore before standards verification"
+assert_workflow_mutation_rejected \
+  "pre-standards-backtick-build" \
+  "backtick-captured build before standards verification"
 assert_workflow_mutation_rejected \
   "pre-standards-redirected-chain" \
   "redirected build and test before standards verification"

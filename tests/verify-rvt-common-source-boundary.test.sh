@@ -45,7 +45,7 @@ fi
 
 expected_calls="${temp_dir}/expected-calls.log"
 cat > "${expected_calls}" <<EOF
-dotnet restore ${repo_root}/Rvt.Mono.slnx --disable-parallel
+dotnet restore ${repo_root}/Rvt.Mono.slnx --locked-mode --disable-parallel
 node ${repo_root}/scripts/engineering-standards/verify.mjs --working-tree
 dotnet build ${repo_root}/Rvt.Mono.slnx --no-restore --nologo -m:1
 dotnet test ${repo_root}/Rvt.Mono.slnx --no-build --nologo

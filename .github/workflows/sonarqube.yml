@@ -95,7 +95,7 @@ jobs:
             /d:sonar.qualitygate.timeout=600
 
       - name: Restore monorepo
-        run: dotnet restore Rvt.Mono.slnx --disable-parallel
+        run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel
 
       - name: Verify engineering standards
         run: scripts/verify-engineering-standards.sh --base auto --head HEAD

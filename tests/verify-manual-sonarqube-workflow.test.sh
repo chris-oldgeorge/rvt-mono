@@ -142,7 +142,7 @@ def shell_command_words(command)
   # Deliberately conservative: quoted/subshell command text is tokenized too,
   # and shell control/redirection punctuation forms token boundaries, so
   # ambiguous embedded or fused invocations fail closed.
-  command.tr(%q{"'()<>|&}, "        ").split
+  command.tr(%q{"'()`<>|&}, "         ").split
 end
 
 def executable_basename(word)
@@ -291,7 +291,7 @@ def assert_engineering_standards_gate(steps)
     [install_step, ["npm ci"], "Portal dependency installation"],
     [
       restore_step,
-      ["dotnet restore Rvt.Mono.slnx --disable-parallel"],
+      ["dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel"],
       "workflow monorepo restore"
     ],
     [

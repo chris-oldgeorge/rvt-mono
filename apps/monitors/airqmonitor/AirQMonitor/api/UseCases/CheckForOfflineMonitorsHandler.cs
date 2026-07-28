@@ -1,7 +1,6 @@
 using AirQ.Api.Db;
 using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;

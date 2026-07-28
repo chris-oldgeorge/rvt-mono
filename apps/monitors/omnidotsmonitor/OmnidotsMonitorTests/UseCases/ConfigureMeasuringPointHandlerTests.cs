@@ -97,7 +97,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
         string propertyValue)
     {
         ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
-        var json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"{SerialId}\",\"{propertyName}\":{propertyValue}}}";
+        string json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"{SerialId}\",\"{propertyName}\":{propertyValue}}}";
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
             handler.RunAsync(Bytes(json), CancellationToken.None));
@@ -110,7 +110,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     public async Task RunAsync_BlankSerialId_ThrowsJsonException()
     {
         ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
-        var json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"   \"}}";
+        string json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"   \"}}";
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
             handler.RunAsync(Bytes(json), CancellationToken.None));
@@ -129,7 +129,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     public async Task RunAsync_InvalidTuningValue_ThrowsJsonException(string propertyName, string propertyValue)
     {
         ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
-        var json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"{SerialId}\",\"{propertyName}\":{propertyValue}}}";
+        string json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"{SerialId}\",\"{propertyName}\":{propertyValue}}}";
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
             handler.RunAsync(Bytes(json), CancellationToken.None));
@@ -154,14 +154,14 @@ public sealed class ConfigureMeasuringPointHandlerTests
             out Mock<IHttpClient>? httpClient,
             out Mock<IOmnidotsMonitorQueries>? monitorQueries,
             out ConfigRequestCapture? capture);
-        var json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"{SerialId}\",\"level_alert\":10,\"level_caution\":7}}";
+        string json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"{SerialId}\",\"level_alert\":10,\"level_caution\":7}}";
 
         ConfigureMeasuringPointResult result = await handler.RunAsync(Bytes(json), CancellationToken.None);
 
         Assert.IsNotNull(capture.Request);
         Assert.AreEqual(WebhookUrl, capture.Request.WebhookRecipient!.Url);
         Assert.AreEqual(WebhookSecret, capture.Request.WebhookRecipient.Secret);
-        var responseJson = JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        string responseJson = JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         Assert.IsFalse(responseJson.Contains("serial", StringComparison.OrdinalIgnoreCase));
         Assert.AreEqual("{\"configured\":true}", responseJson);
         httpClient.VerifyAll();

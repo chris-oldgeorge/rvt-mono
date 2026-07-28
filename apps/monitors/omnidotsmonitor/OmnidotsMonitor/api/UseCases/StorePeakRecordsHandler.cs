@@ -1,10 +1,9 @@
 using System.Data;
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
-using Omnidots.Api.Http;
 using Omnidots.Api.Ports;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
+using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -44,12 +43,12 @@ namespace Omnidots.Api.UseCases
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogInformation("StorePeakRecords called");
-            var monitors = monitorReader.ReadMonitors();
+            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
             string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
-            var utcNow = DateTime.UtcNow;
+            DateTime utcNow = DateTime.UtcNow;
             await RunFleetAsync(monitors, async monitor =>
             {
-                var startTime = ResolvePeakStart(monitor);
+                DateTime startTime = ResolvePeakStart(monitor);
                 await StorePeakRecordsAsync(monitor: monitor, startTime: startTime, endTime: utcNow, token: token,
                     cancellationToken: cancellationToken);
             }, RecordFailure, cancellationToken);
@@ -57,7 +56,7 @@ namespace Omnidots.Api.UseCases
 
         private DateTime ResolvePeakStart(VibrationMonitorDto monitor)
         {
-            var cursor = cursorQueries.ReadImportCursor(
+            DateTime? cursor = cursorQueries.ReadImportCursor(
                 monitor.SerialId,
                 OmnidotsMeasurementSeries.Peak);
             if (cursor.HasValue)
@@ -65,7 +64,7 @@ namespace Omnidots.Api.UseCases
                 return cursor.Value.AddMinutes(-5);
             }
 
-            var latestMeasurement = cursorQueries.ReadLatestMeasurementTime(
+            DateTime? latestMeasurement = cursorQueries.ReadLatestMeasurementTime(
                 monitor.SerialId,
                 OmnidotsMeasurementSeries.Peak);
             if (latestMeasurement.HasValue)
@@ -73,8 +72,8 @@ namespace Omnidots.Api.UseCases
                 return latestMeasurement.Value.AddMinutes(-5);
             }
 
-            var deployDate = monitor.DeployDate ?? monitorQueries.ReadDeployStartDate(monitor.Id);
-            var fallback = monitor.LastDataTime.HasValue && monitor.LastDataTime.Value > deployDate
+            DateTime deployDate = monitor.DeployDate ?? monitorQueries.ReadDeployStartDate(monitor.Id);
+            DateTime fallback = monitor.LastDataTime.HasValue && monitor.LastDataTime.Value > deployDate
                 ? monitor.LastDataTime.Value
                 : deployDate;
             return fallback.AddMinutes(-5);
@@ -87,7 +86,7 @@ namespace Omnidots.Api.UseCases
             CancellationToken cancellationToken)
         {
             var failures = new List<OmnidotsMonitorFailure>();
-            foreach (var monitor in monitors)
+            foreach (VibrationMonitorDto monitor in monitors)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 try
@@ -121,7 +120,7 @@ namespace Omnidots.Api.UseCases
                 return -1;
             }
 
-            var records = await _gateway.GetPeakRecordsAsync(token: token, startTime: startTime, endTime: endTime,
+            PeakRecords records = await _gateway.GetPeakRecordsAsync(token: token, startTime: startTime, endTime: endTime,
                                                  measuringPointId: monitor.SerialId, cancellationToken: cancellationToken);
 
             DataTable table = new DataTable();
@@ -148,9 +147,9 @@ namespace Omnidots.Api.UseCases
             dc = table.Columns.Add("ZVtopOverflow", typeof(double));
             dc.AllowDBNull = true;
 
-            foreach (var sample in records!.Samples!.OrderBy(sample => sample.Timestamp))
+            foreach (PeakSample? sample in records!.Samples!.OrderBy(sample => sample.Timestamp))
             {
-                var row = table.NewRow();
+                DataRow row = table.NewRow();
                 row["SerialId"] = monitor.SerialId;
                 var offset = DateTimeOffset.FromUnixTimeMilliseconds((long)sample.Timestamp);
                 row["SampleTime"] = offset.DateTime;
@@ -177,12 +176,12 @@ namespace Omnidots.Api.UseCases
 
             if (table.Rows.Count > 0)
             {
-                var newestSampleAt = table.Rows
+                DateTime newestSampleAt = table.Rows
                     .Cast<DataRow>()
                     .Max(row => (DateTime)row["SampleTime"]);
-                var ps = DateTime.Now;
+                DateTime ps = DateTime.Now;
                 importCommands.ImportPeakRecords(monitor.SerialId, table, newestSampleAt);
-                var ts = DateTime.Now - ps;
+                TimeSpan ts = DateTime.Now - ps;
                 RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
                      monitor.SerialId, table.Rows.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / table.Rows.Count));
                 monitor.LastDataTime = newestSampleAt;

@@ -15,7 +15,7 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     {
         AzureIdentityGraphAccessTokenProvider provider = CreateProvider(new StubTokenCredential(new AccessToken("graph-_token", DateTimeOffset.MaxValue)));
 
-        var _token = await provider.GetAccessTokenAsync(CancellationToken.None);
+        string _token = await provider.GetAccessTokenAsync(CancellationToken.None);
 
         Assert.AreEqual("graph-_token", _token);
     }

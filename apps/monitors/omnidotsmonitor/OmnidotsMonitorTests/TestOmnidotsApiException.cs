@@ -7,13 +7,8 @@ using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Dto;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Notifications.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Notifications.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace OmnidotsAdapterTests
 {
 
@@ -95,12 +90,12 @@ namespace OmnidotsAdapterTests
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
 
-            var token = "XXX";
+            string token = "XXX";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
             Returns(OmnidotsFixture.AuthenticateTask(token));
 
-            var measuringPointsUrl = string.Format("/api/v1/list_measuring_points?token={0}", token);
+            string measuringPointsUrl = string.Format("/api/v1/list_measuring_points?token={0}", token);
             httpClient.Setup(c => c.GetAsync(measuringPointsUrl, It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask("bang"));
 
@@ -129,12 +124,12 @@ namespace OmnidotsAdapterTests
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
 
-            var token = "XXX";
+            string token = "XXX";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
             Returns(OmnidotsFixture.AuthenticateTask(token));
 
-            var measuringPointsUrl = string.Format("/api/v1/list_measuring_points?token={0}", token);
+            string measuringPointsUrl = string.Format("/api/v1/list_measuring_points?token={0}", token);
             httpClient.Setup(c => c.GetAsync(measuringPointsUrl, It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.ErrorJson()));
 
@@ -163,15 +158,15 @@ namespace OmnidotsAdapterTests
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
 
-            var token = "hghjadg";
-            var authUrl = "/api/v1/user/authenticate";
+            string token = "hghjadg";
+            string authUrl = "/api/v1/user/authenticate";
             httpClient.Setup(c => c.PostAsync(authUrl,
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                     Returns(OmnidotsFixture.AuthenticateTask(token));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(2));
 
-            var peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
+            string peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
             httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask("Blahh"));
 
@@ -211,15 +206,15 @@ namespace OmnidotsAdapterTests
                                                  out Mock<IMqttClient> mqttClient,
                                                   out Mock<IMessageService> messageClient);
 
-            var token = "hghjadg";
-            var authUrl = "/api/v1/user/authenticate";
+            string token = "hghjadg";
+            string authUrl = "/api/v1/user/authenticate";
             httpClient.Setup(c => c.PostAsync(authUrl,
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                     Returns(OmnidotsFixture.AuthenticateTask(token));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(2));
 
-            var peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
+            string peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
             httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.ErrorJson()));
 
@@ -258,7 +253,7 @@ namespace OmnidotsAdapterTests
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
-            var token = "peak-token";
+            string token = "peak-token";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask(token));
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(2));
@@ -290,7 +285,7 @@ namespace OmnidotsAdapterTests
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
-            var token = "veff-token";
+            string token = "veff-token";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask(token));
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(2));
@@ -322,7 +317,7 @@ namespace OmnidotsAdapterTests
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
-            var token = "vdv-token";
+            string token = "vdv-token";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask(token));
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(2));

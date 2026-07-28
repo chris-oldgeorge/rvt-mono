@@ -6,7 +6,6 @@ using Omnidots.Model.Config;
 using Omnidots.Model.Json;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
 namespace Omnidots.Api

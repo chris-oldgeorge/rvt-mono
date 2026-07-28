@@ -46,7 +46,7 @@ public sealed class ReportHeatmapTests
 
         for (int offset = 0; offset < dayCount; offset++)
         {
-            var day = new DateOnly(2026, 3, 1).AddDays(offset);
+            DateOnly day = new DateOnly(2026, 3, 1).AddDays(offset);
             string label = day.ToString("dd/MM", CultureInfo.InvariantCulture);
             Assert.Contains(label, svg, StringComparison.Ordinal);
         }
@@ -77,7 +77,7 @@ public sealed class ReportHeatmapTests
     private static ReportAlertHeatmap CreateHeatmap(int dayCount)
     {
         var start = new DateOnly(2026, 3, 1);
-        var cells = Enumerable.Range(0, dayCount)
+        ReportAlertHeatmapCell[] cells = Enumerable.Range(0, dayCount)
             .Select(offset => new ReportAlertHeatmapCell(start.AddDays(offset), 12, 1, 0, 80m))
             .ToArray();
         return new ReportAlertHeatmap(MonitorType.Noise, cells);
@@ -85,14 +85,14 @@ public sealed class ReportHeatmapTests
 
     private static decimal ParseViewBoxHeight(string svg)
     {
-        var match = Regex.Match(svg, @"viewBox=""0 0 (?<width>[\d.]+) (?<height>[\d.]+)""");
+        Match match = Regex.Match(svg, @"viewBox=""0 0 (?<width>[\d.]+) (?<height>[\d.]+)""");
         Assert.True(match.Success, "The rendered SVG must declare a viewBox.");
         return decimal.Parse(match.Groups["height"].Value, CultureInfo.InvariantCulture);
     }
 
     private static string InvokeBuildHeatmapSvg(ReportAlertHeatmap heatmap)
     {
-        var method = typeof(QuestPdfReportRenderer).GetMethod("BuildHeatmapSvg", BindingFlags.Static | BindingFlags.NonPublic);
+        MethodInfo? method = typeof(QuestPdfReportRenderer).GetMethod("BuildHeatmapSvg", BindingFlags.Static | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return Assert.IsType<string>(method.Invoke(null, [heatmap]));
     }

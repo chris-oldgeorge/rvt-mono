@@ -3,7 +3,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Ports;
 using Omnidots.Model.Json;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Utilities;
 
@@ -28,13 +27,13 @@ namespace Omnidots.Api.Http
         public async Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken = default)
         {
             using var content = new MultipartFormDataContent();
-            var values = new[]
+            KeyValuePair<string, string>[] values = new[]
             {
                 new KeyValuePair<string, string>("username", userId),
                 new KeyValuePair<string, string>("password", userAuth)
             };
 
-            foreach (var keyValuePair in values)
+            foreach (KeyValuePair<string, string> keyValuePair in values)
             {
                 content.Add(new StringContent(keyValuePair.Value),
                     String.Format("\"{0}\"", keyValuePair.Key));
@@ -49,7 +48,7 @@ namespace Omnidots.Api.Http
 
         public async Task<MeasuringPointsResponse> ListMeasuringPointsAsync(CancellationToken cancellationToken = default)
         {
-            var authentication = await AuthenticateAsync(cancellationToken);
+            TokenResponse authentication = await AuthenticateAsync(cancellationToken);
             string response = await DoListMeasuringPoints(authentication.Token!, cancellationToken);
             return ParseJson<MeasuringPointsResponse>(response);
         }
@@ -125,7 +124,7 @@ namespace Omnidots.Api.Http
             RvtLogger.Logger.LogDebug("DoGet path={Value1} startTime={Value2} endTime={Value3} measuringPointId={Value4}",
                                   path, startTime, endTime, measuringPointId);
 
-            var sb = new StringBuilder(path)
+            StringBuilder sb = new StringBuilder(path)
               .Append("?token=")
               .Append(token)
               .Append("&measuring_point_id=")
@@ -163,7 +162,7 @@ namespace Omnidots.Api.Http
                 {
                     RvtLogger.Logger.LogError(e, "Error parsing response JSON");
 
-                    var errorResponse = ParseErrorResponse(json);
+                    ErrorResponse? errorResponse = ParseErrorResponse(json);
                     if (errorResponse != null)
                     {
                         throw AdapterException.Of("Failed ! error message='" + SensitiveLogRedactor.RedactJson(errorResponse.Message) + "'");

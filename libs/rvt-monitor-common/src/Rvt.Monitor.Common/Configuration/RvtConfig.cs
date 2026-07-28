@@ -27,14 +27,14 @@ public sealed class RvtConfig
         Environment.GetEnvironmentVariable(name) ?? Configuration[name];
 
     private static bool GetBoolSetting(string name, bool defaultValue = false) =>
-        bool.TryParse(GetSetting(name), out var value) ? value : defaultValue;
+        bool.TryParse(GetSetting(name), out bool value) ? value : defaultValue;
 
     private static int GetIntSetting(string name, int defaultValue) =>
-        int.TryParse(GetSetting(name), out var value) ? value : defaultValue;
+        int.TryParse(GetSetting(name), out int value) ? value : defaultValue;
 
     private static IConfigurationRoot BuildConfiguration()
     {
-        var environmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+        string environmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
             ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
             ?? "Production";
 
@@ -50,7 +50,7 @@ public sealed class RvtConfig
         string baseDirectory,
         string entryAssemblyName)
     {
-        var normalized = NormalizeMonitorKind(monitorKind, baseDirectory, entryAssemblyName);
+        string normalized = NormalizeMonitorKind(monitorKind, baseDirectory, entryAssemblyName);
         return normalized switch
         {
             "airq" => new MonitorRuntimeDefaults(
@@ -103,15 +103,15 @@ public sealed class RvtConfig
     /// </remarks>
     private static string NormalizeMonitorKind(string? monitorKind, string baseDirectory, string entryAssemblyName)
     {
-        var candidates = new[] { monitorKind, entryAssemblyName, baseDirectory };
-        foreach (var candidate in candidates)
+        string?[] candidates = new[] { monitorKind, entryAssemblyName, baseDirectory };
+        foreach (string? candidate in candidates)
         {
             if (string.IsNullOrWhiteSpace(candidate))
             {
                 continue;
             }
 
-            var normalized = candidate.Replace("-", "", StringComparison.OrdinalIgnoreCase)
+            string normalized = candidate.Replace("-", "", StringComparison.OrdinalIgnoreCase)
                 .Replace("_", "", StringComparison.OrdinalIgnoreCase)
                 .Replace(".", "", StringComparison.OrdinalIgnoreCase)
                 .ToLowerInvariant();

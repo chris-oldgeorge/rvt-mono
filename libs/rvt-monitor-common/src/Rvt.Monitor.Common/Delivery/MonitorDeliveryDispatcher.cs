@@ -40,7 +40,7 @@ public sealed class MonitorDeliveryDispatcher
     public async Task DispatchDueAsync(CancellationToken cancellationToken = default)
     {
         var failures = new List<Exception>();
-        for (var index = 0; index < options.BatchSize; index++)
+        for (int index = 0; index < options.BatchSize; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             MonitorDeliveryMessage? message = await queries.ClaimNextDueAsync(
@@ -93,7 +93,7 @@ public sealed class MonitorDeliveryDispatcher
                 continue;
             }
 
-            var completed = await commands.CompleteAsync(
+            bool completed = await commands.CompleteAsync(
                 message.Id,
                 message.LeaseId,
                 DateTime.UtcNow,
@@ -138,8 +138,8 @@ public sealed class MonitorDeliveryDispatcher
                     .ConfigureAwait(false);
                 return null;
             case MonitorDeliveryKind.MqttAlert:
-                var prefix = message.Producer == MonitorDeliveryProducers.MyAtm ? "Dust" : "Noise";
-                var text = $"{prefix} {payload.AlertType} {payload.Field} level={payload.Level}";
+                string prefix = message.Producer == MonitorDeliveryProducers.MyAtm ? "Dust" : "Noise";
+                string text = $"{prefix} {payload.AlertType} {payload.Field} level={payload.Level}";
                 await PublishMqttAsync(options.AlertTopic, payload, text, cancellationToken)
                     .ConfigureAwait(false);
                 return null;
@@ -191,7 +191,7 @@ public sealed class MonitorDeliveryDispatcher
         List<Exception> failures,
         CancellationToken cancellationToken)
     {
-        var error = DeliveryError(exception);
+        string error = DeliveryError(exception);
         bool outcomeRecorded;
         if (terminal)
         {
@@ -309,7 +309,7 @@ public sealed class MonitorDeliveryDispatcher
 
     private static string DeliveryError(Exception exception)
     {
-        var error = exception is DeliveryException
+        string error = exception is DeliveryException
             ? exception.Message
             : $"Delivery failed ({exception.GetType().Name}).";
         return error.Length <= MaximumErrorLength ? error : error[..MaximumErrorLength];

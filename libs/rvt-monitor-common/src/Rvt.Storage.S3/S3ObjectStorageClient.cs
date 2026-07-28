@@ -149,7 +149,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
     {
         ArgumentNullException.ThrowIfNull(key);
 
-        var providerKey = GetProviderKey(key);
+        string providerKey = GetProviderKey(key);
         try
         {
             await client.GetObjectMetadataAsync(
@@ -197,7 +197,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
     public Uri GetObjectUri(StorageObjectKey key)
     {
         ArgumentNullException.ThrowIfNull(key);
-        var escapedProviderKey = string.Join(
+        string escapedProviderKey = string.Join(
             '/',
             GetProviderKey(key).Split('/').Select(Uri.EscapeDataString));
         return new Uri($"s3://{bucket}/{escapedProviderKey}");
@@ -299,7 +299,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
     private static StorageFailureKind ClassifyFailure(
         System.Net.HttpStatusCode statusCode)
     {
-        var status = (int)statusCode;
+        int status = (int)statusCode;
         return status switch
         {
             403 => StorageFailureKind.AccessDenied,

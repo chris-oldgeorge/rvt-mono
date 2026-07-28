@@ -4,7 +4,6 @@ using AirQ.Api.Ports;
 using AirQ.Common;
 using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace AirQ.Api.Http
@@ -50,7 +49,7 @@ namespace AirQ.Api.Http
             CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogInformation("AirQAdapter GetMetadata userId={Value1}", SensitiveLogRedactor.Redact(userId));
-            var response = await DoGetMetaData(userId, userAuth, serialId, cancellationToken);
+            string response = await DoGetMetaData(userId, userAuth, serialId, cancellationToken);
             return ParseResponse<List<MetaDataResponse>>(response);
         }
 
@@ -110,13 +109,13 @@ namespace AirQ.Api.Http
 
         private async Task<string> DoGetInstrumentList(string userId, string token, CancellationToken cancellationToken)
         {
-            var path = BuildQueryPath("/instrumentList", ("userID", userId), ("token", token));
+            string path = BuildQueryPath("/instrumentList", ("userID", userId), ("token", token));
             return await httpClient.GetAsync(path, cancellationToken);
         }
 
         private async Task<string> DoGetMetaData(string userId, string token, string serialId, CancellationToken cancellationToken)
         {
-            var path = BuildQueryPath("/latestMetaData", ("userID", userId), ("token", token), ("instrumentID", serialId));
+            string path = BuildQueryPath("/latestMetaData", ("userID", userId), ("token", token), ("instrumentID", serialId));
             RvtLogger.Logger.LogInformation("Path={Path}", SensitiveLogRedactor.RedactUrl(path));
             return await httpClient.GetAsync(path, cancellationToken);
         }
@@ -124,7 +123,7 @@ namespace AirQ.Api.Http
         private async Task<string> DoGetDataForDate(string userId, string token,
                                                     string instrumentId, string date, CancellationToken cancellationToken)
         {
-            var path = BuildQueryPath(
+            string path = BuildQueryPath(
                 "/dataForDate",
                 ("userID", userId),
                 ("date", date),
@@ -136,7 +135,7 @@ namespace AirQ.Api.Http
         private async Task<string> DoGetLatestData(string userId, string token,
                                                     string instrumentId, CancellationToken cancellationToken)
         {
-            var path = BuildQueryPath("/latestData", ("userID", userId), ("token", token), ("instrumentID", instrumentId));
+            string path = BuildQueryPath("/latestData", ("userID", userId), ("token", token), ("instrumentID", instrumentId));
             return await httpClient.GetAsync(path, cancellationToken);
         }
 
@@ -168,7 +167,7 @@ namespace AirQ.Api.Http
                         return new T(); // Return empty dataset
                     }
                     var sb = new StringBuilder(errors[0].Response!);
-                    for (var i = 1; i < errors.Count; i++)
+                    for (int i = 1; i < errors.Count; i++)
                     {
                         sb.Append(' ');
                         sb.Append(errors[i].Response);

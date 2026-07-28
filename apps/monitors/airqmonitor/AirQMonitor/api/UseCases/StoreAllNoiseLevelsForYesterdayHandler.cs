@@ -16,7 +16,7 @@ namespace AirQ.Api.UseCases
 
         public Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
         {
-            var dateStr = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string dateStr = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             return storeNoiseLevelsForDate.RunAsync(userId, userAuth, dateStr, cancellationToken);
         }
     }

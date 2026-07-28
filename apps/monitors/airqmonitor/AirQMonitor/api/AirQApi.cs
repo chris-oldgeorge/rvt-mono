@@ -4,7 +4,6 @@ using AirQ.Api.Ports;
 using AirQ.Api.UseCases;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
 namespace AirQ.Api

@@ -81,8 +81,8 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
 
         GraphFileAttachment[]? attachments = request.Attachments.Count == 0
             ? null
-            : request.Attachments.Select(ToSmallAttachment).ToArray();
-        var hasHtmlBody = !string.IsNullOrWhiteSpace(request.HtmlBody);
+            : [.. request.Attachments.Select(ToSmallAttachment)];
+        bool hasHtmlBody = !string.IsNullOrWhiteSpace(request.HtmlBody);
         var payload = new GraphSendMailRequest(
             new GraphMessage(
                 request.Subject,
@@ -92,7 +92,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
                 [new GraphRecipient(new GraphEmailAddress(request.Recipient))],
                 attachments),
             true);
-        var json = JsonSerializer.Serialize(payload, MicrosoftGraphJsonContext.Default.GraphSendMailRequest);
+        string json = JsonSerializer.Serialize(payload, MicrosoftGraphJsonContext.Default.GraphSendMailRequest);
         var uri = new Uri(
             GraphBaseUri,
             $"users/{Uri.EscapeDataString(options.SenderAddress)}/sendMail");
@@ -111,12 +111,12 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
             body,
             [new GraphRecipient(new GraphEmailAddress(request.Recipient))],
             null);
-        var senderPath = $"users/{Uri.EscapeDataString(options.SenderAddress)}";
+        string senderPath = $"users/{Uri.EscapeDataString(options.SenderAddress)}";
         var draftUri = new Uri(GraphBaseUri, $"{senderPath}/messages");
-        var draftJson = JsonSerializer.Serialize(
+        string draftJson = JsonSerializer.Serialize(
             draft,
             MicrosoftGraphJsonContext.Default.GraphMessage);
-        var draftBody = await SendAuthenticatedAsync(
+        string? draftBody = await SendAuthenticatedAsync(
             draftUri,
             draftJson,
             readResponseBody: true,
@@ -144,12 +144,12 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
                 "InvalidDraftResponse");
         }
 
-        var draftId = Uri.EscapeDataString(draftResponse.Id);
+        string draftId = Uri.EscapeDataString(draftResponse.Id);
         foreach (EmailAttachment attachment in request.Attachments)
         {
             if (attachment.Length < SmallAttachmentLimit)
             {
-                var attachmentJson = JsonSerializer.Serialize(
+                string attachmentJson = JsonSerializer.Serialize(
                     ToSmallAttachment(attachment),
                     MicrosoftGraphJsonContext.Default.GraphFileAttachment);
                 await SendAuthenticatedAsync(
@@ -186,10 +186,10 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
             attachment.FileName,
             attachment.Length,
             attachment.ContentType));
-        var json = JsonSerializer.Serialize(
+        string json = JsonSerializer.Serialize(
             request,
             MicrosoftGraphJsonContext.Default.GraphUploadSessionRequest);
-        var responseBody = await SendAuthenticatedAsync(
+        string? responseBody = await SendAuthenticatedAsync(
             new Uri(
                 GraphBaseUri,
                 $"{senderPath}/messages/{draftId}/attachments/createUploadSession"),
@@ -229,15 +229,15 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         CancellationToken cancellationToken)
     {
         using Stream stream = attachment.OpenRead();
-        var buffer = new byte[UploadChunkLength];
+        byte[] buffer = new byte[UploadChunkLength];
         long offset = 0;
         while (offset < attachment.Length)
         {
-            var requested = (int)Math.Min(buffer.Length, attachment.Length - offset);
-            var read = 0;
+            int requested = (int)Math.Min(buffer.Length, attachment.Length - offset);
+            int read = 0;
             while (read < requested)
             {
-                var current = await stream.ReadAsync(
+                int current = await stream.ReadAsync(
                     buffer.AsMemory(read, requested - read),
                     cancellationToken).ConfigureAwait(false);
                 if (current == 0)
@@ -393,7 +393,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
 
     private static GraphItemBody Body(EmailDeliveryRequest request)
     {
-        var hasHtmlBody = !string.IsNullOrWhiteSpace(request.HtmlBody);
+        bool hasHtmlBody = !string.IsNullOrWhiteSpace(request.HtmlBody);
         return new GraphItemBody(
             hasHtmlBody ? "HTML" : "Text",
             hasHtmlBody ? request.HtmlBody : request.PlainTextBody);

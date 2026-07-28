@@ -1,4 +1,3 @@
-using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Text.Json;
 using AirQ.Api;
@@ -8,13 +7,8 @@ using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests
 {
     [TestClass]
@@ -289,7 +283,7 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah"));
@@ -323,7 +317,7 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson()));
@@ -356,7 +350,7 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
                     Throws(new IOException());
@@ -387,7 +381,7 @@ namespace AirQMonitorTests
         [TestMethod]
         public async Task TestStoreNoiseLevelsForDate_HandlesJsonExceptionCorrectly()
         {
-            var dateStr = "2023-09-11";
+            string dateStr = "2023-09-11";
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
@@ -420,7 +414,7 @@ namespace AirQMonitorTests
         [TestMethod]
         public async Task TestStoreNoiseLevelsForDate_HandlesAdapterExceptionCorrectly()
         {
-            var dateStr = "2023-09-11";
+            string dateStr = "2023-09-11";
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
@@ -452,7 +446,7 @@ namespace AirQMonitorTests
         [TestMethod]
         public async Task TestStoreNoiseLevelsForDate_HandlesExceptionCorrectly()
         {
-            var dateStr = "2023-09-11";
+            string dateStr = "2023-09-11";
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                     out Mock<IDBClient> dbClient,
                                                     out Mock<IMqttClient> mqttClient,

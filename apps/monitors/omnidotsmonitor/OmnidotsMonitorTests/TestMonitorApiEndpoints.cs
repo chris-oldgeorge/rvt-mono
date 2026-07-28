@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
@@ -66,8 +65,8 @@ public sealed class TestMonitorApiEndpoints
     public async Task Webhook_MissingBlankMalformedOrMismatchedSignature_Returns401(string kind)
     {
         await using EndpointApp app = await EndpointApp.StartAsync();
-        var body = ValidWebhookBody();
-        var signature = kind switch
+        byte[] body = ValidWebhookBody();
+        string? signature = kind switch
         {
             "missing" => null,
             "blank" => string.Empty,
@@ -78,7 +77,7 @@ public sealed class TestMonitorApiEndpoints
 
         using HttpResponseMessage response = await app.Client.SendAsync(request);
 
-        var problem = await AssertProblemAsync(
+        string problem = await AssertProblemAsync(
             response,
             HttpStatusCode.Unauthorized,
             "Unauthorized webhook request.");
@@ -90,7 +89,7 @@ public sealed class TestMonitorApiEndpoints
     public async Task Webhook_MultipleSignatureValues_Returns401()
     {
         await using EndpointApp app = await EndpointApp.StartAsync();
-        var body = ValidWebhookBody();
+        byte[] body = ValidWebhookBody();
         using HttpRequestMessage request = CreateWebhookRequest(body, signature: null);
         request.Headers.TryAddWithoutValidation(
             OmnidotsProtocol.SIGNATURE_HEADER,
@@ -106,8 +105,8 @@ public sealed class TestMonitorApiEndpoints
     public async Task Webhook_CommaCombinedSignatureValue_Returns401()
     {
         await using EndpointApp app = await EndpointApp.StartAsync();
-        var body = ValidWebhookBody();
-        var signature = $"{Signature(body)},sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        byte[] body = ValidWebhookBody();
+        string signature = $"{Signature(body)},sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
         using HttpResponseMessage response = await app.Client.SendAsync(request);
@@ -135,13 +134,13 @@ public sealed class TestMonitorApiEndpoints
     public async Task Webhook_AuthenticatedMalformedJsonOrSchema_Returns400WithoutLeakage(string json)
     {
         await using EndpointApp app = await EndpointApp.StartAsync();
-        var body = Encoding.UTF8.GetBytes(json);
-        var signature = Signature(body);
+        byte[] body = Encoding.UTF8.GetBytes(json);
+        string signature = Signature(body);
         using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
         using HttpResponseMessage response = await app.Client.SendAsync(request);
 
-        var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "Invalid webhook payload.");
+        string problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "Invalid webhook payload.");
         AssertNoLeakage(problem, app.Logs, BodySentinel, signature, WebhookSecret);
         Assert.AreEqual(0, app.Ingress.AcceptCount);
     }
@@ -154,7 +153,7 @@ public sealed class TestMonitorApiEndpoints
         AlertIngressResult result = IngressResult(duplicate);
         var ingress = new CapturingIngress((_, _) => Task.FromResult(result));
         await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress);
-        var body = ValidWebhookBody();
+        byte[] body = ValidWebhookBody();
         using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body));
 
         using HttpResponseMessage response = await app.Client.SendAsync(request);
@@ -172,13 +171,13 @@ public sealed class TestMonitorApiEndpoints
             RawException,
             new InvalidOperationException($"{RawException}:{Destination}")));
         await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress);
-        var body = ValidWebhookBody();
-        var signature = Signature(body);
+        byte[] body = ValidWebhookBody();
+        string signature = Signature(body);
         using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
         using HttpResponseMessage response = await app.Client.SendAsync(request);
 
-        var problem = await AssertProblemAsync(
+        string problem = await AssertProblemAsync(
             response,
             HttpStatusCode.ServiceUnavailable,
             "Webhook temporarily unavailable.");
@@ -191,13 +190,13 @@ public sealed class TestMonitorApiEndpoints
         var ingress = new CapturingIngress((_, _) => throw new InvalidOperationException(
             $"{RawException}:{Destination}"));
         await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress);
-        var body = ValidWebhookBody();
-        var signature = Signature(body);
+        byte[] body = ValidWebhookBody();
+        string signature = Signature(body);
         using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
         using HttpResponseMessage response = await app.Client.SendAsync(request);
 
-        var problem = await AssertProblemAsync(
+        string problem = await AssertProblemAsync(
             response,
             HttpStatusCode.InternalServerError,
             "Webhook processing failed.");
@@ -208,7 +207,7 @@ public sealed class TestMonitorApiEndpoints
     public async Task Webhook_OversizedBody_Returns413()
     {
         await using EndpointApp app = await EndpointApp.StartAsync();
-        var body = new byte[BoundedJsonRequestReader.MaxBodyBytes + 1];
+        byte[] body = new byte[BoundedJsonRequestReader.MaxBodyBytes + 1];
         using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body));
 
         using HttpResponseMessage response = await app.Client.SendAsync(request);
@@ -221,7 +220,7 @@ public sealed class TestMonitorApiEndpoints
     public async Task Webhook_UnsupportedMediaType_Returns415()
     {
         await using EndpointApp app = await EndpointApp.StartAsync();
-        var body = ValidWebhookBody();
+        byte[] body = ValidWebhookBody();
         using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body), "text/plain");
 
         using HttpResponseMessage response = await app.Client.SendAsync(request);
@@ -237,7 +236,7 @@ public sealed class TestMonitorApiEndpoints
         OmnidotsApiSecurityOptions options = ValidOptions();
         options.WebhookConcurrencyLimit = 1;
         await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress, options: options);
-        var body = ValidWebhookBody();
+        byte[] body = ValidWebhookBody();
         using HttpRequestMessage firstRequest = CreateWebhookRequest(body, Signature(body));
         Task<HttpResponseMessage> firstResponseTask = app.Client.SendAsync(firstRequest);
         await ingress.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
@@ -263,7 +262,7 @@ public sealed class TestMonitorApiEndpoints
             "/configure-measuring-point",
             JsonContent(json), It.IsAny<CancellationToken>());
 
-        var problem = await AssertProblemAsync(
+        string problem = await AssertProblemAsync(
             response,
             HttpStatusCode.Unauthorized,
             "Unauthorized measuring point configuration request.");
@@ -281,7 +280,7 @@ public sealed class TestMonitorApiEndpoints
             "/configure-measuring-point",
             JsonContent(json), It.IsAny<CancellationToken>());
 
-        var problem = await AssertProblemAsync(
+        string problem = await AssertProblemAsync(
             response,
             HttpStatusCode.BadRequest,
             "Invalid measuring point configuration request.");
@@ -299,7 +298,7 @@ public sealed class TestMonitorApiEndpoints
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
         Assert.AreEqual("application/json", response.Content.Headers.ContentType?.MediaType);
-        var body = await response.Content.ReadAsStringAsync();
+        string body = await response.Content.ReadAsStringAsync();
         Assert.AreEqual("{\"configured\":true}", body);
         AssertNoLeakage(body, app.Logs, ConfigSecret, WebhookSecret, Destination, VendorResponse);
     }
@@ -341,7 +340,7 @@ public sealed class TestMonitorApiEndpoints
             "/configure-measuring-point",
             JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
 
-        var problem = await AssertProblemAsync(
+        string problem = await AssertProblemAsync(
             response,
             HttpStatusCode.BadGateway,
             "Measuring point vendor request failed.");
@@ -366,7 +365,7 @@ public sealed class TestMonitorApiEndpoints
             "/configure-measuring-point",
             JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
 
-        var problem = await AssertProblemAsync(
+        string problem = await AssertProblemAsync(
             response,
             HttpStatusCode.InternalServerError,
             "Measuring point configuration failed.");
@@ -411,7 +410,7 @@ public sealed class TestMonitorApiEndpoints
     {
         Assert.AreEqual(statusCode, response.StatusCode);
         Assert.AreEqual("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        var body = await response.Content.ReadAsStringAsync();
+        string body = await response.Content.ReadAsStringAsync();
         using var document = JsonDocument.Parse(body);
         Assert.AreEqual((int)statusCode, document.RootElement.GetProperty("status").GetInt32());
         Assert.AreEqual(title, document.RootElement.GetProperty("title").GetString());
@@ -423,8 +422,8 @@ public sealed class TestMonitorApiEndpoints
         CapturingLoggerProvider logs,
         params string?[] sentinels)
     {
-        var capturedLogs = string.Join(Environment.NewLine, logs.Messages);
-        foreach (var sentinel in sentinels.Where(value => !string.IsNullOrEmpty(value)))
+        string capturedLogs = string.Join(Environment.NewLine, logs.Messages);
+        foreach (string? sentinel in sentinels.Where(value => !string.IsNullOrEmpty(value)))
         {
             Assert.IsFalse(
                 responseBody.Contains(sentinel!, StringComparison.Ordinal),
@@ -472,7 +471,7 @@ public sealed class TestMonitorApiEndpoints
 
     private static string Signature(ReadOnlySpan<byte> body)
     {
-        var digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), body);
+        byte[] digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), body);
         return $"sha256={Convert.ToHexStringLower(digest)}";
     }
 

@@ -30,7 +30,7 @@ public static class DeliveryRetrySchedule
 
         TimeSpan exponential = Exponential(attemptCount, initialDelay, cap);
         TimeSpan requested = RequestedRetryAfter(exception);
-        var ticks = Math.Min(Math.Max(exponential.Ticks, requested.Ticks), cap.Ticks);
+        long ticks = Math.Min(Math.Max(exponential.Ticks, requested.Ticks), cap.Ticks);
         return TimeSpan.FromTicks(Math.Max(0, ticks));
     }
 
@@ -41,10 +41,10 @@ public static class DeliveryRetrySchedule
             return TimeSpan.Zero;
         }
 
-        var exponent = Math.Max(0, attemptCount - 1);
+        int exponent = Math.Max(0, attemptCount - 1);
         // Computed in double to allow a large exponent to saturate rather than
         // overflow the tick count before the cap is applied.
-        var ticks = initialDelay.Ticks * Math.Pow(2, exponent);
+        double ticks = initialDelay.Ticks * Math.Pow(2, exponent);
         return ticks >= cap.Ticks ? cap : TimeSpan.FromTicks((long)ticks);
     }
 

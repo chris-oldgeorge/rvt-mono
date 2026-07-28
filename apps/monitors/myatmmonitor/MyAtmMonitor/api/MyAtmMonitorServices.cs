@@ -8,7 +8,6 @@ using MyAtm.Api.Http;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
 using Rvt.Communication;
-using Rvt.Communication.Abstractions;
 using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
 using Rvt.Communication.TransmitSms;
@@ -157,7 +156,7 @@ public static class MyAtmMonitorServices
             }
             catch (Exception e)
             {
-                var dbClient = provider.GetRequiredService<IDBClient>();
+                IDBClient dbClient = provider.GetRequiredService<IDBClient>();
                 dbClient.HandleException("failed to start monitor application", e);
                 throw; // Need this to kill the instance.
             }

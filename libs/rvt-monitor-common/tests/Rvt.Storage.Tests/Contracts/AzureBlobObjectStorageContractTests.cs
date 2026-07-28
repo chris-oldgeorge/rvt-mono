@@ -150,7 +150,7 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var deleted = objects.Remove(providerKey);
+            bool deleted = objects.Remove(providerKey);
             return Task.FromResult(
                 Response.FromValue(deleted, new Mock<Response>(MockBehavior.Strict).Object));
         }

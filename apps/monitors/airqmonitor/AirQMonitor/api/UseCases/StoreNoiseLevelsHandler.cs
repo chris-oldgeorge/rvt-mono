@@ -3,7 +3,6 @@ using AirQ.Api.Ports;
 using AirQ.Model.Dto;
 using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Rules;

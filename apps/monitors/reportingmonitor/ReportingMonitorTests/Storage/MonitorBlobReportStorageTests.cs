@@ -17,7 +17,7 @@ public sealed class MonitorBlobReportStorageTests
         var report = new RenderedReport("report.pdf", "application/pdf", [1, 2, 3]);
         using var cancellation = new CancellationTokenSource();
 
-        var uri = await storage.StoreAsync(report, cancellation.Token);
+        Uri uri = await storage.StoreAsync(report, cancellation.Token);
 
         Assert.Equal(resolvedUri, uri);
         Assert.Equal(ReportingStorageResourceNames.Reports, factory.ResourceName);
@@ -41,7 +41,7 @@ public sealed class MonitorBlobReportStorageTests
             new RecordingObjectStorageClientFactory(client),
             resolver);
 
-        var uri = await storage.StoreAsync(
+        Uri uri = await storage.StoreAsync(
             new RenderedReport("report.pdf", "application/pdf", [1]),
             CancellationToken.None);
 

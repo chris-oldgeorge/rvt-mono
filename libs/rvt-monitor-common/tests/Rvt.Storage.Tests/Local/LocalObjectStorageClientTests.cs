@@ -33,7 +33,7 @@ public sealed class LocalObjectStorageClientTests
             Encoding.UTF8.GetBytes("recording-data"),
             copiedContent.ToArray());
 
-        var expectedPath = Path.Combine(
+        string expectedPath = Path.Combine(
             temporaryDirectory.Path,
             "recordings",
             "tenant-a",
@@ -83,7 +83,7 @@ public sealed class LocalObjectStorageClientTests
             Encoding.UTF8.GetBytes("replacement"),
             copiedContent.ToArray());
 
-        var targetDirectory = Path.Combine(temporaryDirectory.Path, "recordings", "tenant-a");
+        string targetDirectory = Path.Combine(temporaryDirectory.Path, "recordings", "tenant-a");
         Assert.IsEmpty(Directory.GetFiles(targetDirectory, ".*.tmp"));
         Assert.IsFalse(File.Exists(Path.Combine(targetDirectory, ".sample.wav.content-type")));
     }
@@ -116,7 +116,7 @@ public sealed class LocalObjectStorageClientTests
         await read.Content.CopyToAsync(copiedContent);
         CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("original"), copiedContent.ToArray());
 
-        var targetDirectory = Path.Combine(temporaryDirectory.Path, "recordings");
+        string targetDirectory = Path.Combine(temporaryDirectory.Path, "recordings");
         Assert.IsEmpty(Directory.GetFiles(targetDirectory, ".*.tmp"));
     }
 
@@ -142,12 +142,12 @@ public sealed class LocalObjectStorageClientTests
             new MemoryStream([1], writable: false),
             "audio/wav"));
 
-        var firstResult = await client.DeleteIfExistsAsync(key);
-        var secondResult = await client.DeleteIfExistsAsync(key);
+        bool firstResult = await client.DeleteIfExistsAsync(key);
+        bool secondResult = await client.DeleteIfExistsAsync(key);
 
         Assert.IsTrue(firstResult);
         Assert.IsFalse(secondResult);
-        var targetDirectory = Path.Combine(temporaryDirectory.Path, "recordings");
+        string targetDirectory = Path.Combine(temporaryDirectory.Path, "recordings");
         Assert.IsFalse(File.Exists(Path.Combine(targetDirectory, "sample.wav")));
         Assert.IsFalse(File.Exists(Path.Combine(targetDirectory, ".sample.wav.content-type")));
     }
@@ -246,7 +246,7 @@ public sealed class LocalObjectStorageClientTests
         using var outsideDirectory = new TemporaryDirectory();
         Directory.CreateDirectory(Path.Combine(localRoot.Path, "recordings"));
         Directory.CreateDirectory(outsideDirectory.Path);
-        var outsideTargetPath = Path.Combine(outsideDirectory.Path, "escape.wav");
+        string outsideTargetPath = Path.Combine(outsideDirectory.Path, "escape.wav");
         await File.WriteAllBytesAsync(outsideTargetPath, [9]);
 
         try
@@ -295,9 +295,9 @@ public sealed class LocalObjectStorageClientTests
             client.WriteAsync(CreateRequest(key.Value, [1]), cancellation.Token));
         Assert.IsFalse(Directory.Exists(temporaryDirectory.Path));
 
-        var targetDirectory = Path.Combine(temporaryDirectory.Path, "recordings");
+        string targetDirectory = Path.Combine(temporaryDirectory.Path, "recordings");
         Directory.CreateDirectory(targetDirectory);
-        var targetPath = Path.Combine(targetDirectory, "sample.wav");
+        string targetPath = Path.Combine(targetDirectory, "sample.wav");
         await File.WriteAllBytesAsync(targetPath, [9]);
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>

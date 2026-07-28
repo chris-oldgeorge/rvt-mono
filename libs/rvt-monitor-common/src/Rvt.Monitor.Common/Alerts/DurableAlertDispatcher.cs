@@ -37,7 +37,7 @@ public sealed class DurableAlertDispatcher
     public async Task DispatchAsync(CancellationToken cancellationToken = default)
     {
         var deadLetteredIds = new List<Guid>();
-        for (var index = 0; index < options.BatchSize; index++)
+        for (int index = 0; index < options.BatchSize; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             DateTime claimTime = timeProvider.GetUtcNow().UtcDateTime;
@@ -65,7 +65,7 @@ public sealed class DurableAlertDispatcher
                     timeoutCancellation.Token);
                 AlertDeliveryAudit? audit = await adapter.DeliverAsync(message, deliveryCancellation.Token);
                 DateTime outcomeTime = timeProvider.GetUtcNow().UtcDateTime;
-                var completed = await store.CompleteAsync(
+                bool completed = await store.CompleteAsync(
                     message.Id,
                     message.LeaseId,
                     outcomeTime,
@@ -82,15 +82,15 @@ public sealed class DurableAlertDispatcher
             }
             catch (Exception exception)
             {
-                var deadLetter = IsTerminal(exception, message.AttemptCount, options);
-                var safeError = exception is DeliveryException
+                bool deadLetter = IsTerminal(exception, message.AttemptCount, options);
+                string safeError = exception is DeliveryException
                     ? exception.Message
                     : $"Alert delivery failed ({exception.GetType().Name}).";
                 DateTime outcomeTime = timeProvider.GetUtcNow().UtcDateTime;
                 DateTime nextAttemptAt = deadLetter
                     ? outcomeTime
                     : outcomeTime.Add(RetryDelay(message.AttemptCount, exception, options));
-                var retried = await store.RetryAsync(
+                bool retried = await store.RetryAsync(
                     message.Id,
                     message.LeaseId,
                     nextAttemptAt,

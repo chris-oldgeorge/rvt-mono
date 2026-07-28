@@ -18,7 +18,7 @@ namespace Omnidots.Api.UseCases
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var cutOff = DateTime.UtcNow.AddDays(-7);
+            DateTime cutOff = DateTime.UtcNow.AddDays(-7);
             operationalCommands.ClearErrorMessages(cutOff);
 
             return Task.CompletedTask;

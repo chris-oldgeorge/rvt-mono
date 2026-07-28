@@ -5,13 +5,10 @@ using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests

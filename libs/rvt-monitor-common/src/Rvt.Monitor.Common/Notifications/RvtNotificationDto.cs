@@ -58,7 +58,7 @@ namespace Rvt.Monitor.Common.Notifications
 
         public string GetMessage()
         {
-            var notificationUrl = "";
+            string notificationUrl = "";
             if (AlertType == AlertType.Alert || AlertType == AlertType.Caution)
             {
                 notificationUrl = $"{RvtConfig.PORTAL_BASE_URL}Notification/View/{Id}";
@@ -73,7 +73,7 @@ namespace Rvt.Monitor.Common.Notifications
                     AveragingPeriod, DateTimeUtil.UtcToLocal(ClosedTime), ClosedByUser, notificationUrl);
             }
 
-            var prefix = Policy.NotificationStyle == MonitorNotificationStyle.Noise
+            string prefix = Policy.NotificationStyle == MonitorNotificationStyle.Noise
                 ? AveragingPeriod == 0 ? "Noise site average" : "Noise notification"
                 : "Alert";
 

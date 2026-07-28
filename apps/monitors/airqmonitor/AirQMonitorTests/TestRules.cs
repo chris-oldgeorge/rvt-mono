@@ -5,10 +5,8 @@ using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Model.Dto;
 using AirQ.Model.Http;
-using AirQMonitorTests;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Org.BouncyCastle.Tls;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
@@ -103,8 +101,8 @@ namespace AirQMonitorTests
 
             var startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
-            var alertLevel = 10.0;
-            var serialId = "MyDevice";
+            double alertLevel = 10.0;
+            string serialId = "MyDevice";
             var measurements1 = new List<SampleResponse> {
                         AirQFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
             var measurements2 = new List<SampleResponse> {
@@ -123,7 +121,7 @@ namespace AirQMonitorTests
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements1))).
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements2)));
 
-            var durationSeconds = 15 * 60;
+            int durationSeconds = 15 * 60;
             var ruleOn = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
                                                     AirQFixture.CreateActiveRuleActivity(startTime, startTime.AddSeconds(30)),
                                                     AlertType.Alert, false, false, DateTime.UtcNow, null);
@@ -181,9 +179,9 @@ namespace AirQMonitorTests
             // In this test we get 3 noise levels first 2 should trigger an alert third should remove the trigger
             var startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
-            var limitOn = 10.0;
-            var limitOff = 8.0;
-            var serialId = "MyDev1";
+            double limitOn = 10.0;
+            double limitOff = 8.0;
+            string serialId = "MyDev1";
             var alertingMeasurements =
                 new List<SampleResponse> { AirQFixture.CreateSampleResponse(startTime, serialId, limitOn) };
             var nonAlertingMeasurements =
@@ -197,7 +195,7 @@ namespace AirQMonitorTests
             List<RvtContactDto> contacts = AirQFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
-            var durationSeconds = 15 * 60;
+            int durationSeconds = 15 * 60;
             var rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
                                                     AirQFixture.CreateActiveRuleActivity(startTime.AddHours(-1), startTime.AddHours(1)),
                                                     AlertType.Alert, false, false, DateTime.UtcNow, null);
@@ -263,10 +261,10 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var serialId = "MyDev1XXX";
+            string serialId = "MyDev1XXX";
             var startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
-            var alertLevel = 10.0;
+            double alertLevel = 10.0;
             var measurements = new List<SampleResponse> { AirQFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
             List<NoiseMonitorDto> monitors = AirQFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
             dbClient.Setup(c => c.ReadMonitorList(null)).
@@ -280,7 +278,7 @@ namespace AirQMonitorTests
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
             AlertActivityTimeDto ruleActivity = AirQFixture.CreateActiveRuleActivity(null, null);
-            var durationSeconds = 15 * 60;
+            int durationSeconds = 15 * 60;
             DateTime created = DateTime.UtcNow;
             var rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
                                                    ruleActivity,
@@ -347,8 +345,8 @@ namespace AirQMonitorTests
 
             var startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
-            var alertLevel = 10.0;
-            var serialId = "MyDev1AbC";
+            double alertLevel = 10.0;
+            string serialId = "MyDev1AbC";
             var measurements = new List<SampleResponse> { AirQFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
             List<NoiseMonitorDto> monitors = AirQFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
             dbClient.Setup(c => c.ReadMonitorList(null)).
@@ -362,7 +360,7 @@ namespace AirQMonitorTests
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
             AlertActivityTimeDto ruleActivity = AirQFixture.CreateActiveRuleActivity(null, null);
-            var durationSeconds = 15 * 60;
+            int durationSeconds = 15 * 60;
             DateTime created = DateTime.UtcNow;
 
             var rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
@@ -445,9 +443,9 @@ namespace AirQMonitorTests
 
             var startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
-            var limitOn = 10.0;
-            var limitOff = 8.0;
-            var serialId = "MyDevice123";
+            double limitOn = 10.0;
+            double limitOff = 8.0;
+            string serialId = "MyDevice123";
             var measurements =
                           new List<SampleResponse> { AirQFixture.CreateSampleResponse(startTime, serialId, limitOn) };
 
@@ -461,7 +459,7 @@ namespace AirQMonitorTests
             var ruleId = Guid.NewGuid(); ;
             List<RvtContactDto> contacts = AirQFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-            var durationSeconds = 15 * 60;
+            int durationSeconds = 15 * 60;
             var rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
                                                     AirQFixture.CreateActiveRuleActivity(startTime.AddHours(-1), startTime.AddHours(1)),
                                                     AlertType.Alert, false, false, DateTime.UtcNow, null);
@@ -534,9 +532,9 @@ namespace AirQMonitorTests
             TimeSpan? sendStartTime = sendStartTimeStr == null ? null : TimeSpan.Parse(sendStartTimeStr);
             TimeSpan? sendEndTime = sendEndTimeStr == null ? null : TimeSpan.Parse(sendEndTimeStr);
 
-            var limitOn = 10.0;
-            var limitOff = 8.0;
-            var serialId = "MyDevice123";
+            double limitOn = 10.0;
+            double limitOff = 8.0;
+            string serialId = "MyDevice123";
             var measurements =
                           new List<SampleResponse> { AirQFixture.CreateSampleResponse(dataTime, serialId, limitOn) };
 
@@ -550,7 +548,7 @@ namespace AirQMonitorTests
             var ruleId = Guid.NewGuid();
             List<RvtContactDto> contacts = AirQFixture.AlertContacts(sendStartTime, sendEndTime);
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-            var durationSeconds = 15 * 60;
+            int durationSeconds = 15 * 60;
             var rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
                                                     AirQFixture.CreateActiveRuleActivity(dataTime.AddHours(-1), dataTime.AddHours(1)),
                                                     AlertType.Alert, false, false, DateTime.UtcNow, null);

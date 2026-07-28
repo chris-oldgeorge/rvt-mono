@@ -21,7 +21,7 @@ public static class MonitorApiEndpoints
     public static IEndpointRouteBuilder MapAirQMonitorApi(this IEndpointRouteBuilder endpoints)
     {
         IConfiguration configuration = endpoints.ServiceProvider.GetRequiredService<IConfiguration>();
-        var apiKey = configuration["RVT:MONITOR_API_KEY"]
+        string? apiKey = configuration["RVT:MONITOR_API_KEY"]
             ?? configuration["RVT__MONITOR_API_KEY"];
         var apiKeyValidator = AirQApiKeyValidator.Create(apiKey);
 
@@ -59,7 +59,7 @@ public static class MonitorApiEndpoints
             return Results.BadRequest();
         }
 
-        if (!TryGetCanonicalDate(request?.Date, out var canonicalDate))
+        if (!TryGetCanonicalDate(request?.Date, out string? canonicalDate))
         {
             return Results.BadRequest();
         }

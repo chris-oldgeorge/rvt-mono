@@ -3,7 +3,6 @@ using AirQ.Api.Ports;
 using AirQ.Model.Dto;
 using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace AirQ.Api.UseCases
@@ -45,7 +44,7 @@ namespace AirQ.Api.UseCases
 
                         continue;
                     }
-                    var serialId = monitor!.SerialId;
+                    string serialId = monitor!.SerialId;
 
                     cancellationToken.ThrowIfCancellationRequested();
                     try

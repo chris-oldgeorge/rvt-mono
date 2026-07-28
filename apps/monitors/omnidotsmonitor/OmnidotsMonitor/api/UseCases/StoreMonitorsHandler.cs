@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
-using Omnidots.Api.Http;
 using Omnidots.Api.Ports;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
+using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace Omnidots.Api.UseCases
@@ -32,9 +31,9 @@ namespace Omnidots.Api.UseCases
 
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
-            var measuringPointsResponse = await _gateway.ListMeasuringPointsAsync(cancellationToken);
+            MeasuringPointsResponse measuringPointsResponse = await _gateway.ListMeasuringPointsAsync(cancellationToken);
             var monitors = new List<VibrationMonitorDto>();
-            foreach (var mp in measuringPointsResponse.MeasuringPoints!)
+            foreach (MeasuringPoint mp in measuringPointsResponse.MeasuringPoints!)
             {
                 try
                 {

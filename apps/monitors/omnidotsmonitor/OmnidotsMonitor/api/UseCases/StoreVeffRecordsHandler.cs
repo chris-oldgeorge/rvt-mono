@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
-using Omnidots.Api.Http;
 using Omnidots.Api.Ports;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
+using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -43,10 +42,10 @@ namespace Omnidots.Api.UseCases
         public async Task RunAsync(TimeSpan lookback, CancellationToken cancellationToken = default)
         {
             string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
-            var monitors = monitorReader.ReadMonitors();
-            var utcNow = DateTime.UtcNow;
+            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
+            DateTime utcNow = DateTime.UtcNow;
             var failures = new List<OmnidotsMonitorFailure>();
-            foreach (var monitor in monitors)
+            foreach (VibrationMonitorDto monitor in monitors)
             {
 
                 if ("OmniDots guest".Equals(monitor.CustomerDisplayName))
@@ -56,8 +55,8 @@ namespace Omnidots.Api.UseCases
                 }
                 try
                 {
-                    var startTime = ResolveStart(monitor.SerialId, utcNow, lookback);
-                    var records = await _gateway.GetVeffRecordsAsync(token, startTime, utcNow, monitor.SerialId, cancellationToken);
+                    DateTime startTime = ResolveStart(monitor.SerialId, utcNow, lookback);
+                    VeffRecords records = await _gateway.GetVeffRecordsAsync(token, startTime, utcNow, monitor.SerialId, cancellationToken);
                     var dtos = records!.Samples!
                         .Select(sample => new VeffRecordDto(sample))
                         .OrderBy(dto => dto.SampleTime)
@@ -65,10 +64,10 @@ namespace Omnidots.Api.UseCases
 
                     if (dtos.Count > 0)
                     {
-                        var newestSampleAt = dtos[^1].SampleTime;
-                        var ps = DateTime.Now;
+                        DateTime newestSampleAt = dtos[^1].SampleTime;
+                        DateTime ps = DateTime.Now;
                         importCommands.ImportVeffRecords(monitor.SerialId, dtos, newestSampleAt);
-                        var ts = DateTime.Now - ps;
+                        TimeSpan ts = DateTime.Now - ps;
                         RvtLogger.Logger.LogInformation("InsertVeffRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
                              monitor.SerialId, dtos.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / dtos.Count));
 
@@ -99,10 +98,10 @@ namespace Omnidots.Api.UseCases
 
         private DateTime ResolveStart(string serialId, DateTime utcNow, TimeSpan lookback)
         {
-            var cursor = cursorQueries.ReadImportCursor(
+            DateTime? cursor = cursorQueries.ReadImportCursor(
                 serialId,
                 OmnidotsMeasurementSeries.Veff);
-            var latestMeasurement = cursor ?? cursorQueries.ReadLatestMeasurementTime(
+            DateTime? latestMeasurement = cursor ?? cursorQueries.ReadLatestMeasurementTime(
                 serialId,
                 OmnidotsMeasurementSeries.Veff);
             return latestMeasurement.HasValue

@@ -3,7 +3,6 @@ using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -54,18 +53,18 @@ public sealed class TestMonitorJobScheduling
             .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
 
         using ServiceProvider provider = LegacyJobProvider(api);
-        var earliestStartTime = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(2)).Subtract(TimeSpan.FromMinutes(5)).ToUnixTimeMilliseconds();
-        var earliestEndTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long earliestStartTime = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(2)).Subtract(TimeSpan.FromMinutes(5)).ToUnixTimeMilliseconds();
+        long earliestEndTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         Task<int> task = InvokeJobRunner(jobName, provider);
 
         Assert.AreEqual(0, await task);
-        var latestStartTime = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(2)).Subtract(TimeSpan.FromMinutes(5)).ToUnixTimeMilliseconds();
-        var latestEndTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long latestStartTime = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(2)).Subtract(TimeSpan.FromMinutes(5)).ToUnixTimeMilliseconds();
+        long latestEndTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
         Assert.IsNotNull(requestedUrl);
         IReadOnlyDictionary<string, string> query = ParseQuery(requestedUrl);
-        var startTime = long.Parse(query["start_time"]);
-        var endTime = long.Parse(query["end_time"]);
+        long startTime = long.Parse(query["start_time"]);
+        long endTime = long.Parse(query["end_time"]);
 
         Assert.IsGreaterThanOrEqualTo(earliestStartTime, startTime, $"start_time {startTime} was before {earliestStartTime}.");
         Assert.IsLessThanOrEqualTo(latestStartTime, startTime, $"start_time {startTime} was after {latestStartTime}.");
@@ -146,7 +145,7 @@ public sealed class TestMonitorJobScheduling
             .Returns(cursor.AddDays(-1));
         DateTime before = DateTime.UtcNow;
 
-        var result = await RunJob(api, "StorePeakRecordsLastDataTime");
+        int result = await RunJob(api, "StorePeakRecordsLastDataTime");
         DateTime after = DateTime.UtcNow;
 
         Assert.AreEqual(0, result);
@@ -263,7 +262,7 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public void AppSettings_ContainsStaggeredVeffAndVdvSchedules()
     {
-        var appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        string appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
         Assert.IsTrue(File.Exists(appSettingsPath), $"Expected appsettings at '{appSettingsPath}'.");
         using FileStream appSettings = File.OpenRead(appSettingsPath);
         IConfigurationRoot configuration = new ConfigurationBuilder()
@@ -307,7 +306,7 @@ public sealed class TestMonitorJobScheduling
             throw new AssertFailedException("DispatchAlerts must not resolve the legacy OmnidotsService."));
         using ServiceProvider provider = services.BuildServiceProvider();
 
-        var result = await InvokeJobRunner("DispatchAlerts", provider);
+        int result = await InvokeJobRunner("DispatchAlerts", provider);
 
         Assert.AreEqual(0, result);
         store.VerifyAll();
@@ -325,7 +324,7 @@ public sealed class TestMonitorJobScheduling
         ServiceCollection services = AlertJobServices(store.Object, new FixedTimeProvider(now));
         using ServiceProvider provider = services.BuildServiceProvider();
 
-        var result = await InvokeJobRunner("CleanupAlerts", provider);
+        int result = await InvokeJobRunner("CleanupAlerts", provider);
 
         Assert.AreEqual(0, result);
         store.VerifyAll();
@@ -376,7 +375,7 @@ public sealed class TestMonitorJobScheduling
         adapter.Setup(value => value.DeliverAsync(delivery, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("raw failure must remain internal"));
 
-        var exitCode = await MonitorHost.RunAsync<OmnidotsMonitorJobDispatcher>(
+        int exitCode = await MonitorHost.RunAsync<OmnidotsMonitorJobDispatcher>(
             OneShotArgs("DispatchAlerts"),
             "OmnidotsMonitor",
             _ => "DispatchAlerts",
@@ -432,7 +431,7 @@ public sealed class TestMonitorJobScheduling
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
-        var exitCode = await MonitorHost.RunAsync<OmnidotsMonitorJobDispatcher>(
+        int exitCode = await MonitorHost.RunAsync<OmnidotsMonitorJobDispatcher>(
             OneShotArgs("CleanupAlerts"),
             "OmnidotsMonitor",
             _ => "CleanupAlerts",
@@ -471,7 +470,7 @@ public sealed class TestMonitorJobScheduling
 
     private static IReadOnlyDictionary<string, string> ParseQuery(string url)
     {
-        var queryStart = url.IndexOf('?');
+        int queryStart = url.IndexOf('?');
         Assert.IsGreaterThanOrEqualTo(0, queryStart, $"URL '{url}' did not contain a query string.");
 
         return url[(queryStart + 1)..]

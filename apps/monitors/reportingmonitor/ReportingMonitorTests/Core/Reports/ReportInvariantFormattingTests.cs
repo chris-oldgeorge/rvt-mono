@@ -49,7 +49,7 @@ public sealed class ReportInvariantFormattingTests
     {
         var generatedAt = new DateTimeOffset(2026, 3, 9, 14, 5, 0, TimeSpan.Zero);
 
-        var chrome = WithCulture(
+        ReportChrome chrome = WithCulture(
             new CultureInfo("ar-SA"),
             () => QuestPdfReportRenderer.BuildReportChrome(
                 "Monthly report",
@@ -84,8 +84,8 @@ public sealed class ReportInvariantFormattingTests
 
     private static T WithCulture<T>(CultureInfo culture, Func<T> action)
     {
-        var previousCulture = CultureInfo.CurrentCulture;
-        var previousUiCulture = CultureInfo.CurrentUICulture;
+        CultureInfo previousCulture = CultureInfo.CurrentCulture;
+        CultureInfo previousUiCulture = CultureInfo.CurrentUICulture;
         try
         {
             CultureInfo.CurrentCulture = culture;

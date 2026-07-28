@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
@@ -34,9 +33,9 @@ namespace Omnidots.Api.UseCases
         public Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var monitors = monitorReader.ReadMonitors();
+            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
 
-            foreach (var monitor in monitors)
+            foreach (VibrationMonitorDto monitor in monitors)
             {
                 if (monitor.Sensor != null)
                 {
@@ -96,7 +95,7 @@ namespace Omnidots.Api.UseCases
         private void ProcessBatteryAlert(int batteryLevel, VibrationMonitorDto monitor, int alertLevel, AlertType alertType)
         {
             monitorCommands.SetMonitorBatteryStatus(monitor.Id, (byte)(alertType == AlertType.BatteryAlert ? 1 : 2));  //1 for alert and 2 for Caution
-            var createdTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow);
+            DateTime createdTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow);
 
             var notification = new NotificationDto(id: Guid.NewGuid(),
                 notificationTime: createdTime,

@@ -1,6 +1,5 @@
 using System.Net;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace AirQ.Api.Http
@@ -34,7 +33,7 @@ namespace AirQ.Api.Http
         {
             RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
             using HttpResponseMessage response = await httpClient.GetAsync(path, cancellationToken);
-            var reply = await response.Content.ReadAsStringAsync(cancellationToken);
+            string reply = await response.Content.ReadAsStringAsync(cancellationToken);
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 throw AdapterException.Of("HTTP ERROR response=", SensitiveLogRedactor.RedactJson(reply));

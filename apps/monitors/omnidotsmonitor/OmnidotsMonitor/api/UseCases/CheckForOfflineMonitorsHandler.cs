@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
 using Omnidots.Model.Config;
-using Rvt.Monitor.Common.Configuration;
+using Omnidots.Model.Dto;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
@@ -39,27 +39,27 @@ namespace Omnidots.Api.UseCases
         public Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var rules = ruleQueries.ReadRules(null);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = ruleQueries.ReadRules(null);
 
-            var utcNow = DateTime.UtcNow;
+            DateTime utcNow = DateTime.UtcNow;
             var failures = new List<OmnidotsMonitorFailure>();
-            foreach (var rule in rules)
+            foreach (Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule in rules)
             {
                 if (rule.Field == "offline-rule")
                 {
-                    var cutOff = utcNow.Subtract(new TimeSpan(hours: 0, minutes: 0, seconds: rule.AveragingPeriod));
-                    var offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
-                    var monitors = monitorReader.ReadMonitors(offlineDateTime);
+                    DateTime cutOff = utcNow.Subtract(new TimeSpan(hours: 0, minutes: 0, seconds: rule.AveragingPeriod));
+                    DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
+                    List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors(offlineDateTime);
 
-                    foreach (var monitor in monitors!)
+                    foreach (VibrationMonitorDto monitor in monitors!)
                     {
-                        var lastDataTime = monitor.LastDataTime != null
+                        DateTime lastDataTime = monitor.LastDataTime != null
                             ? AsUtc(DateTimeUtil.TruncateMillis((DateTime)monitor.LastDataTime))
                             : OmnidotsApi.JAN1_1970;
                         double diffInSeconds = offlineDateTime.Subtract(lastDataTime).TotalSeconds;
                         if (lastDataTime < cutOff) // remove all with less 24 hours already
                         {
-                            if (!TryResolveTimeZone(monitor.TimeZone, out var siteTimeZone))
+                            if (!TryResolveTimeZone(monitor.TimeZone, out TimeZoneInfo? siteTimeZone))
                             {
                                 var failure = new InvalidOperationException(
                                     "Monitor timezone is missing or invalid.");
@@ -74,7 +74,7 @@ namespace Omnidots.Api.UseCases
                             TimeSpan activeDuration;
                             try
                             {
-                                var siteTimes = monitorQueries.ReadSiteTimes(monitor.Id);
+                                SiteTimes siteTimes = monitorQueries.ReadSiteTimes(monitor.Id);
                                 activeDuration = SiteActiveDurationCalculator.Between(
                                     siteTimes,
                                     lastDataTime,

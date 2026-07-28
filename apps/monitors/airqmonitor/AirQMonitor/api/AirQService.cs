@@ -1,6 +1,5 @@
 using AirQ.Api.UseCases;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
 
 namespace AirQ.Api
 {

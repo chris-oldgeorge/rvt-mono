@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
-using Omnidots.Api.Http;
 using Omnidots.Api.Ports;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
+using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Utilities;
 
@@ -43,16 +43,16 @@ namespace Omnidots.Api.UseCases
         public async Task RunAsync(DateTime last, CancellationToken cancellationToken = default)
         {
             long startedAt = timeProvider.GetTimestamp();
-            var monitors = monitorReader.ReadMonitors(last);
+            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors(last);
             options.Validate();
-            var eligibleMonitors = EligibleMonitors(monitors);
-            var latestTraceEndTimes = options.Enabled
+            IReadOnlyList<VibrationMonitorDto> eligibleMonitors = EligibleMonitors(monitors);
+            IReadOnlyDictionary<string, DateTime> latestTraceEndTimes = options.Enabled
                 ? traceQueries.ReadLatestTraceEndTimes(
-                    eligibleMonitors.Select(monitor => monitor.SerialId).ToArray())
+                    [.. eligibleMonitors.Select(monitor => monitor.SerialId)])
                     ?? new Dictionary<string, DateTime>()
                 : new Dictionary<string, DateTime>();
             long rotationSlot = timeProvider.GetUtcNow().ToUnixTimeSeconds() / 300;
-            var selectedMonitors = OmnidotsTraceMonitorSelector.Select(
+            IReadOnlyList<VibrationMonitorDto> selectedMonitors = OmnidotsTraceMonitorSelector.Select(
                 monitors,
                 latestTraceEndTimes,
                 options,
@@ -70,11 +70,11 @@ namespace Omnidots.Api.UseCases
 
             string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
 
-            foreach (var monitor in selectedMonitors)
+            foreach (VibrationMonitorDto monitor in selectedMonitors)
             {
                 try
                 {
-                    var result = await ReadTracesAsync(token, monitor.SerialId, last, null, cancellationToken);
+                    TraceReadResult result = await ReadTracesAsync(token, monitor.SerialId, last, null, cancellationToken);
                     succeeded++;
                     tracesStored += result.TraceCount;
                     samplesStored += result.SampleCount;
@@ -106,7 +106,7 @@ namespace Omnidots.Api.UseCases
 
         private async Task<TraceReadResult> ReadTracesAsync(string token, string serialId, DateTime start, DateTime? end, CancellationToken cancellationToken)
         {
-            var tracesList = await _gateway.GetTracesListAsync(token, serialId, start, end, cancellationToken);
+            TracesListResponse tracesList = await _gateway.GetTracesListAsync(token, serialId, start, end, cancellationToken);
 
             if (tracesList.Traces == null)
             {
@@ -120,13 +120,13 @@ namespace Omnidots.Api.UseCases
 
             int traceCount = 0;
             int sampleCount = 0;
-            foreach (var traceInfo in tracesList.Traces)
+            foreach (TraceInfo traceInfo in tracesList.Traces)
             {
-                var tStart = DateTimeUtil.FromMillis(traceInfo.StartTime);
-                var tEnd = DateTimeUtil.FromMillis(traceInfo.EndTime);
+                DateTime tStart = DateTimeUtil.FromMillis(traceInfo.StartTime);
+                DateTime tEnd = DateTimeUtil.FromMillis(traceInfo.EndTime);
 
-                var tracesResponse = await _gateway.GetTracesAsync(token, serialId, tStart, tEnd, cancellationToken);
-                var traces = tracesResponse.Traces ?? [];
+                TracesReponse tracesResponse = await _gateway.GetTracesAsync(token, serialId, tStart, tEnd, cancellationToken);
+                List<TraceData> traces = tracesResponse.Traces ?? [];
                 RvtLogger.Logger.LogInformation("Number of traces={Value1}", traces.Count);
                 measurementCommands.WriteTraces(serialId, traces);
                 traceCount += traces.Count;
@@ -148,11 +148,11 @@ namespace Omnidots.Api.UseCases
 
             if (options.AllowedSerialIds.Length == 0)
             {
-                return monitors.ToArray();
+                return [.. monitors];
             }
 
             var allowedSerialIds = new HashSet<string>(options.AllowedSerialIds, StringComparer.OrdinalIgnoreCase);
-            return monitors.Where(monitor => allowedSerialIds.Contains(monitor.SerialId)).ToArray();
+            return [.. monitors.Where(monitor => allowedSerialIds.Contains(monitor.SerialId))];
         }
 
         private void LogSummary(

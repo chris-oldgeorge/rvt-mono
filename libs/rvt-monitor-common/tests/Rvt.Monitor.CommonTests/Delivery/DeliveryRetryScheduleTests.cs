@@ -121,7 +121,7 @@ public sealed class DeliveryRetryScheduleTests
             RetryCap = TimeSpan.FromSeconds(1800),
         };
 
-        for (var attempt = 1; attempt <= 10; attempt++)
+        for (int attempt = 1; attempt <= 10; attempt++)
         {
             TimeSpan fromAlerts = DeliveryRetrySchedule.NextDelay(
                 attempt,

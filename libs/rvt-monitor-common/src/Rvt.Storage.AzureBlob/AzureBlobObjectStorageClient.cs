@@ -188,7 +188,7 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
 
     private BlobClient GetBlobClient(StorageObjectKey key)
     {
-        var providerKey = string.IsNullOrEmpty(prefix)
+        string providerKey = string.IsNullOrEmpty(prefix)
             ? key.Value
             : $"{prefix}/{key.Value}";
         return containerClient.GetBlobClient(providerKey);

@@ -16,7 +16,7 @@ public sealed class LocalObjectStorageFailureContractTests
     public async Task WriteAsync_WhenTheRootIsAFile_ReportsThroughThePortContract()
     {
         using var temporary = new TemporaryDirectory();
-        var rootAsFile = Path.Combine(temporary.Path, "not-a-directory");
+        string rootAsFile = Path.Combine(temporary.Path, "not-a-directory");
         await File.WriteAllTextAsync(rootAsFile, "occupied");
         var client = new LocalObjectStorageClient(
             "recordings",

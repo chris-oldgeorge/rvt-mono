@@ -23,11 +23,11 @@ public sealed class ObjectStorageClientFactoryTests
     [TestMethod]
     public void Constructor_RejectsDuplicateResourceNames()
     {
-        ObjectStorageClientRegistration[] registrations = new[]
-        {
+        ObjectStorageClientRegistration[] registrations =
+        [
             new ObjectStorageClientRegistration("reports", new FakeObjectStorageClient()),
             new ObjectStorageClientRegistration("reports", new FakeObjectStorageClient()),
-        };
+        ];
 
         Assert.ThrowsExactly<ArgumentException>(() => new ObjectStorageClientFactory(registrations));
     }

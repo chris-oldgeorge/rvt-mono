@@ -37,7 +37,7 @@ namespace AirQ.Api.UseCases
             foreach (SiteMonitorsWithSiteHoursDto monitor in monitors)
             {
 
-                var level = ruleQueries.GetAverageNoiseLevel(serialNumber: monitor.SerialId,
+                double level = ruleQueries.GetAverageNoiseLevel(serialNumber: monitor.SerialId,
                                               columnName: "LAeq", // Assuming that is enough for now.
                                               start: date + monitor.StartTime!.Value,
                                               end: date + monitor.EndTime!.Value);

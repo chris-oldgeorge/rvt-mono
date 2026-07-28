@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
-using Omnidots.Api.Http;
 using Omnidots.Api.Ports;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
@@ -39,7 +38,7 @@ public class ConfigureMeasuringPointHandler
     {
         OmnidotsApiSecurityGuard.EnsureConfigurationReady(securityOptions);
 
-        using var document = ParseDocument(body);
+        using JsonDocument document = ParseDocument(body);
         string? suppliedSecret = ExtractSecret(document.RootElement);
         if (suppliedSecret is null ||
             !OmnidotsFixedTimeSecretComparer.Matches(suppliedSecret, securityOptions.ConfigSecret))
@@ -47,21 +46,21 @@ public class ConfigureMeasuringPointHandler
             throw new OmnidotsConfigurationAuthenticationException();
         }
 
-        var request = DeserializeRequest(body);
+        ConfigureMeasuringPointRequest request = DeserializeRequest(body);
         string serialId = ValidateRequest(request);
-        var vendorRequest = CreateConfigRequest(serialId, request);
+        ConfigRequest vendorRequest = CreateConfigRequest(serialId, request);
         string vendorBody = JsonSerializer.Serialize(vendorRequest);
 
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var authentication = await _gateway.AuthenticateAsync(cancellationToken);
+            TokenResponse authentication = await _gateway.AuthenticateAsync(cancellationToken);
             if (!authentication.Ok || string.IsNullOrWhiteSpace(authentication.Token))
             {
                 throw new OmnidotsVendorConfigurationException();
             }
 
-            var response = await _gateway.ConfigureMeasuringPointAsync(
+            OmnidotsResponse response = await _gateway.ConfigureMeasuringPointAsync(
                 authentication.Token,
                 serialId,
                 vendorBody,
@@ -87,7 +86,7 @@ public class ConfigureMeasuringPointHandler
     private static string? ExtractSecret(JsonElement root)
     {
         if (root.ValueKind != JsonValueKind.Object ||
-            !root.TryGetProperty("secret", out var secretElement) ||
+            !root.TryGetProperty("secret", out JsonElement secretElement) ||
             secretElement.ValueKind != JsonValueKind.String)
         {
             return null;
@@ -160,8 +159,8 @@ public class ConfigureMeasuringPointHandler
     private ConfigRequest CreateConfigRequest(string serialId, ConfigureMeasuringPointRequest request)
     {
         RvtLogger.Logger.LogInformation("CreateConfigRequest for serialId={SerialId}", serialId);
-        var monitor = monitorQueries.ReadMonitor(serialId);
-        var siteTimes = monitorQueries.ReadSiteTimes(monitor.Id);
+        VibrationMonitorDto monitor = monitorQueries.ReadMonitor(serialId);
+        SiteTimes siteTimes = monitorQueries.ReadSiteTimes(monitor.Id);
 
         double traceSaveLevel = request.TraceSaveLevel ?? 10.0;
         double tracePreTrigger = request.TracePreTrigger ?? 3.0;

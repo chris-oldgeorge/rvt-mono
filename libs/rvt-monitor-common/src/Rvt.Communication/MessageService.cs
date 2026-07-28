@@ -36,7 +36,7 @@ public sealed class MessageService(INotificationDeliveryService notificationDeli
     {
         ArgumentNullException.ThrowIfNull(contact);
         NotificationChannel channel = ToChannel(messsageType);
-        var destination = channel == NotificationChannel.Email
+        string? destination = channel == NotificationChannel.Email
             ? contact.EmailAddress
             : contact.PhoneNumber;
 

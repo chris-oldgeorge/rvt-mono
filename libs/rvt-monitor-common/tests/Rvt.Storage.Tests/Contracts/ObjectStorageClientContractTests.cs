@@ -96,8 +96,8 @@ public abstract class ObjectStorageClientContractTests
         var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "application/octet-stream");
 
-        var existingResult = await fixture.Client.DeleteIfExistsAsync(key);
-        var missingResult = await fixture.Client.DeleteIfExistsAsync(key);
+        bool existingResult = await fixture.Client.DeleteIfExistsAsync(key);
+        bool missingResult = await fixture.Client.DeleteIfExistsAsync(key);
 
         Assert.IsTrue(existingResult);
         Assert.IsFalse(missingResult);

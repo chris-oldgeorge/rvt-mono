@@ -17,7 +17,7 @@ public sealed class TestCheckForSoundRecordingStorage
     {
         var notificationId = Guid.Parse("4cb38822-3497-4650-bac0-82da974c1d28");
         var notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
-        byte[] soundContent = new byte[] { 82, 73, 70, 70, 1, 2, 3, 4 };
+        byte[] soundContent = [82, 73, 70, 70, 1, 2, 3, 4];
         string filesResponse = """
             {
               "status": "ok",
@@ -108,7 +108,7 @@ public sealed class TestCheckForSoundRecordingStorage
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
             TestObjectStorageFactory.ForSoundRecordings(storage));
 
-        var aggregate = await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(
+        SvantekJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(
             () => handler.RunAsync());
 
         Assert.AreEqual("CheckForSoundRecordings", aggregate.JobName);
@@ -158,7 +158,7 @@ public sealed class TestCheckForSoundRecordingStorage
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
             TestObjectStorageFactory.ForSoundRecordings(storage));
 
-        var aggregate = await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(
+        SvantekJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(
             () => handler.RunAsync());
 
         Assert.HasCount(1, aggregate.Failures);

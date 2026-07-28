@@ -3,17 +3,11 @@ using System.Text;
 using AirQ.Api;
 using AirQ.Api.UseCases;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Moq;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests;
 
 [TestClass]
@@ -47,9 +41,9 @@ public class TestMonitorApiEndpoints
         await using WebApplication app = await StartAppAsync("monitor-api-key", importer.Object);
         using HttpClient client = app.GetTestClient();
 
-        foreach (var suppliedKey in new string?[] { null, "wrong-api-key" })
+        foreach (string? suppliedKey in new string?[] { null, "wrong-api-key" })
         {
-            foreach (var body in new[] { string.Empty, "{" })
+            foreach (string? body in new[] { string.Empty, "{" })
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, "/store-noise-levels-for-date")
                 {
@@ -75,7 +69,7 @@ public class TestMonitorApiEndpoints
         await using WebApplication app = await StartAppAsync("monitor-api-key", importer.Object);
         using HttpClient client = app.GetTestClient();
 
-        foreach (var body in new[] { string.Empty, "{", "{}", "{\"date\":\"2026-7-14\"}" })
+        foreach (string? body in new[] { string.Empty, "{", "{}", "{\"date\":\"2026-7-14\"}" })
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "/store-noise-levels-for-date")
             {

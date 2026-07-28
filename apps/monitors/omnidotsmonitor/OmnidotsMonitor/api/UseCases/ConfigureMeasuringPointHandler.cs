@@ -6,6 +6,7 @@ using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
+using Omnidots.Api.Ports;
 
 namespace Omnidots.Api.UseCases;
 
@@ -18,12 +19,12 @@ public class ConfigureMeasuringPointHandler
     private const double MaximumTuningValue = 1_000_000;
     private const string InvalidRequestMessage = "Invalid measuring point configuration request.";
 
-    private readonly OmnidotsHttpGateway gateway;
+    private readonly IOmnidotsVendorGateway gateway;
     private readonly IOmnidotsMonitorQueries monitorQueries;
     private readonly OmnidotsApiSecurityOptions securityOptions;
 
     public ConfigureMeasuringPointHandler(
-        OmnidotsHttpGateway gateway,
+        IOmnidotsVendorGateway gateway,
         IOmnidotsMonitorQueries monitorQueries,
         OmnidotsApiSecurityOptions securityOptions)
     {
@@ -53,6 +54,7 @@ public class ConfigureMeasuringPointHandler
 
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var authentication = await gateway.AuthenticateAsync(cancellationToken);
             if (!authentication.Ok || string.IsNullOrWhiteSpace(authentication.Token))
             {

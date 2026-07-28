@@ -261,7 +261,7 @@ public sealed class TestMonitorApiEndpoints
 
         using var response = await app.Client.PostAsync(
             "/configure-measuring-point",
-            JsonContent(json));
+            JsonContent(json), It.IsAny<CancellationToken>());
 
         var problem = await AssertProblemAsync(
             response,
@@ -279,7 +279,7 @@ public sealed class TestMonitorApiEndpoints
 
         using var response = await app.Client.PostAsync(
             "/configure-measuring-point",
-            JsonContent(json));
+            JsonContent(json), It.IsAny<CancellationToken>());
 
         var problem = await AssertProblemAsync(
             response,
@@ -295,7 +295,7 @@ public sealed class TestMonitorApiEndpoints
 
         using var response = await app.Client.PostAsync(
             "/configure-measuring-point",
-            JsonContent(ValidConfigurationJson()));
+            JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
         Assert.AreEqual("application/json", response.Content.Headers.ContentType?.MediaType);
@@ -311,7 +311,7 @@ public sealed class TestMonitorApiEndpoints
         using var content = new ByteArrayContent(new byte[BoundedJsonRequestReader.MaxBodyBytes + 1]);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-        using var response = await app.Client.PostAsync("/configure-measuring-point", content);
+        using var response = await app.Client.PostAsync("/configure-measuring-point", content, It.IsAny<CancellationToken>());
 
         await AssertProblemAsync(response, HttpStatusCode.RequestEntityTooLarge, "Request body too large.");
     }
@@ -322,7 +322,7 @@ public sealed class TestMonitorApiEndpoints
         await using var app = await EndpointApp.StartAsync();
         using var content = new StringContent(ValidConfigurationJson(), Encoding.UTF8, "text/plain");
 
-        using var response = await app.Client.PostAsync("/configure-measuring-point", content);
+        using var response = await app.Client.PostAsync("/configure-measuring-point", content, It.IsAny<CancellationToken>());
 
         await AssertProblemAsync(response, HttpStatusCode.UnsupportedMediaType, "Unsupported media type.");
     }
@@ -333,13 +333,13 @@ public sealed class TestMonitorApiEndpoints
         var vendorClient = DefaultVendorClient();
         vendorClient.Setup(client => client.PostAsync(
                 "/api/v1/user/authenticate",
-                It.IsAny<HttpContent>()))
+                It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync($"{{\"ok\":false,\"message\":\"{VendorResponse}\"}}");
         await using var app = await EndpointApp.StartAsync(vendorClient: vendorClient);
 
         using var response = await app.Client.PostAsync(
             "/configure-measuring-point",
-            JsonContent(ValidConfigurationJson()));
+            JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
 
         var problem = await AssertProblemAsync(
             response,
@@ -364,7 +364,7 @@ public sealed class TestMonitorApiEndpoints
 
         using var response = await app.Client.PostAsync(
             "/configure-measuring-point",
-            JsonContent(ValidConfigurationJson()));
+            JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
 
         var problem = await AssertProblemAsync(
             response,
@@ -381,7 +381,7 @@ public sealed class TestMonitorApiEndpoints
         var vendorClient = DefaultVendorClient();
         vendorClient.Setup(client => client.PostAsync(
                 "/api/v1/user/authenticate",
-                It.IsAny<HttpContent>()))
+                It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Callback(() => entered.TrySetResult())
             .Returns(release.Task);
         var options = ValidOptions();
@@ -391,12 +391,12 @@ public sealed class TestMonitorApiEndpoints
             vendorClient: vendorClient);
         var firstResponseTask = app.Client.PostAsync(
             "/configure-measuring-point",
-            JsonContent(ValidConfigurationJson()));
+            JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
         using var secondResponse = await app.Client.PostAsync(
             "/configure-measuring-point",
-            JsonContent(ValidConfigurationJson()));
+            JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
 
         await AssertProblemAsync(secondResponse, HttpStatusCode.TooManyRequests, "Too many requests.");
         release.TrySetResult("{\"ok\":true,\"token\":\"test-token\"}");
@@ -497,11 +497,11 @@ public sealed class TestMonitorApiEndpoints
         var client = new Mock<IHttpClient>();
         client.Setup(value => value.PostAsync(
                 "/api/v1/user/authenticate",
-                It.IsAny<HttpContent>()))
+                It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"ok\":true,\"token\":\"test-token\"}");
         client.Setup(value => value.PostAsync(
                 "/api/v1/configure_measuring_point?token=test-token&measuring_point_id=23423",
-                It.IsAny<HttpContent>()))
+                It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"ok\":true}");
         return client;
     }

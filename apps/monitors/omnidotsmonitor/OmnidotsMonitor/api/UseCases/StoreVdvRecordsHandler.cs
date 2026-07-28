@@ -5,6 +5,7 @@ using Omnidots.Model.Dto;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
+using Omnidots.Api.Ports;
 
 namespace Omnidots.Api.UseCases
 {
@@ -13,7 +14,7 @@ namespace Omnidots.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiVibrationLevels).
     public class StoreVdvRecordsHandler
     {
-        private readonly OmnidotsHttpGateway gateway;
+        private readonly IOmnidotsVendorGateway gateway;
         private readonly OmnidotsMonitorReader monitorReader;
         private readonly IOmnidotsMonitorCommands monitorCommands;
         private readonly IOmnidotsImportCursorQueries cursorQueries;
@@ -22,7 +23,7 @@ namespace Omnidots.Api.UseCases
         private readonly IMonitorEventPublisher eventPublisher;
 
         public StoreVdvRecordsHandler(
-            OmnidotsHttpGateway gateway,
+            IOmnidotsVendorGateway gateway,
             OmnidotsMonitorReader monitorReader,
             IOmnidotsMonitorCommands monitorCommands,
             IOmnidotsImportCursorQueries cursorQueries,
@@ -39,9 +40,9 @@ namespace Omnidots.Api.UseCases
             this.eventPublisher = eventPublisher;
         }
 
-        public void Run(TimeSpan lookback)
+        public async Task RunAsync(TimeSpan lookback, CancellationToken cancellationToken = default)
         {
-            var token = gateway.Authenticate().Token!;
+            var token = (await gateway.AuthenticateAsync(cancellationToken)).Token!;
             var monitors = monitorReader.ReadMonitors();
             var utcNow = DateTime.UtcNow;
             var failures = new List<OmnidotsMonitorFailure>();
@@ -56,7 +57,7 @@ namespace Omnidots.Api.UseCases
                 try
                 {
                     var startTime = ResolveStart(monitor.SerialId, utcNow, lookback);
-                    var records = gateway.GetVdvRecords(token, startTime, utcNow, monitor.SerialId);
+                    var records = await gateway.GetVdvRecordsAsync(token, startTime, utcNow, monitor.SerialId, cancellationToken);
                     var dtos = records!.Samples!
                         .Select(sample => new VdvRecordDto(sample))
                         .OrderBy(dto => dto.SampleTime)

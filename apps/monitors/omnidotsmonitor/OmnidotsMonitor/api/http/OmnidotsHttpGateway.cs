@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Omnidots.Api.Ports;
 using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
@@ -11,7 +12,7 @@ namespace Omnidots.Api.Http
     // Summary: Vendor HTTP gateway for the Omnidots Honeycomb API - authentication, calls, and response parsing.
     // Major updates:
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApi, OmnidotsApiMonitors, OmnidotsApiVibrationLevels, OmnidotsApiTraces, OmnidotsApiConfiguration).
-    public class OmnidotsHttpGateway
+    public class OmnidotsHttpGateway : IOmnidotsVendorGateway
     {
         private readonly IHttpClient httpClient;
         private readonly string userId;
@@ -24,7 +25,7 @@ namespace Omnidots.Api.Http
             this.userAuth = userAuth;
         }
 
-        public TokenResponse Authenticate()
+        public async Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken = default)
         {
             using var content = new MultipartFormDataContent();
             var values = new[]
@@ -39,106 +40,87 @@ namespace Omnidots.Api.Http
                     String.Format("\"{0}\"", keyValuePair.Key));
             }
 
-            var response = DoAuthenticate(content).Result;
+            // The token flows into the request itself rather than being awaited
+            // around it, so a shutdown cancels the call instead of abandoning it.
+            var response = await DoAuthenticate(content, cancellationToken);
             RvtLogger.Logger.LogDebug("Authenticate response={Value1}", SensitiveLogRedactor.RedactJson(response));
             return ParseJson<TokenResponse>(response);
         }
 
-        public async Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken)
+        public async Task<MeasuringPointsResponse> ListMeasuringPointsAsync(CancellationToken cancellationToken = default)
         {
-            using var content = new MultipartFormDataContent();
-            var values = new[]
-            {
-                new KeyValuePair<string, string>("username", userId),
-                new KeyValuePair<string, string>("password", userAuth)
-            };
-
-            foreach (var keyValuePair in values)
-            {
-                content.Add(new StringContent(keyValuePair.Value),
-                    String.Format("\"{0}\"", keyValuePair.Key));
-            }
-
-            var response = await DoAuthenticate(content).WaitAsync(cancellationToken);
-            return ParseJson<TokenResponse>(response);
-        }
-
-        public MeasuringPointsResponse ListMeasuringPoints()
-        {
-            var response = DoListMeasuringPoints(Authenticate().Token!).Result;
+            var authentication = await AuthenticateAsync(cancellationToken);
+            var response = await DoListMeasuringPoints(authentication.Token!, cancellationToken);
             return ParseJson<MeasuringPointsResponse>(response);
         }
 
-        public PeakRecords GetPeakRecords(string token, DateTime startTime, DateTime? endTime, string measuringPointId)
+        public async Task<PeakRecords> GetPeakRecordsAsync(string token, DateTime startTime, DateTime? endTime, string measuringPointId, CancellationToken cancellationToken = default)
         {
-            var response = DoGet(path: "/api/v1/get_peak_records", token: token,
-                                     startTime: startTime, endTime: endTime, measuringPointId: measuringPointId).Result;
+            var response = await DoGet(path: "/api/v1/get_peak_records", token: token,
+                                     startTime: startTime, endTime: endTime, measuringPointId: measuringPointId,
+                                     cancellationToken: cancellationToken);
             return ParseJson<PeakRecords>(response);
         }
 
-        public VeffRecords GetVeffRecords(string token, DateTime startTime, DateTime? endTime, string measuringPointId)
+        public async Task<VeffRecords> GetVeffRecordsAsync(string token, DateTime startTime, DateTime? endTime, string measuringPointId, CancellationToken cancellationToken = default)
         {
-            var response = DoGet("/api/v1/get_veff_records", token,
-                 startTime, endTime, measuringPointId).Result;
+            var response = await DoGet("/api/v1/get_veff_records", token,
+                 startTime, endTime, measuringPointId, cancellationToken);
             return ParseJson<VeffRecords>(response);
         }
 
-        public VdvRecords GetVdvRecords(string token, DateTime startTime, DateTime? endTime, string measuringPointId)
+        public async Task<VdvRecords> GetVdvRecordsAsync(string token, DateTime startTime, DateTime? endTime, string measuringPointId, CancellationToken cancellationToken = default)
         {
-            var response = DoGet("/api/v1/get_vdv_records", token,
-                 startTime, endTime, measuringPointId).Result;
+            var response = await DoGet("/api/v1/get_vdv_records", token,
+                 startTime, endTime, measuringPointId, cancellationToken);
             return ParseJson<VdvRecords>(response);
         }
 
-        public TracesListResponse GetTracesList(string token, string measuringPointId, DateTime startTime, DateTime? endTime)
+        public async Task<TracesListResponse> GetTracesListAsync(string token, string measuringPointId, DateTime startTime, DateTime? endTime, CancellationToken cancellationToken = default)
         {
-            var json = DoGet(path: "/api/v1/get_traces_list",
+            var json = await DoGet(path: "/api/v1/get_traces_list",
                                token: token,
                                measuringPointId: measuringPointId,
                                startTime: startTime,
-                               endTime: endTime).Result;
+                               endTime: endTime,
+                               cancellationToken: cancellationToken);
             return ParseJson<TracesListResponse>(json);
         }
 
-        public TracesReponse GetTraces(string token, string measuringPointId, DateTime startTime, DateTime? endTime)
+        public async Task<TracesReponse> GetTracesAsync(string token, string measuringPointId, DateTime startTime, DateTime? endTime, CancellationToken cancellationToken = default)
         {
-            var tracesJson = DoGet(path: "/api/v1/get_traces",
+            var tracesJson = await DoGet(path: "/api/v1/get_traces",
                                            token: token,
                                            measuringPointId: measuringPointId,
                                            startTime: startTime,
-                                           endTime: endTime).Result;
+                                           endTime: endTime,
+                                           cancellationToken: cancellationToken);
             return ParseJson<TracesReponse>(tracesJson)!;
-        }
-
-        public OmnidotsResponse ConfigureMeasuringPoint(string token, string measuringPointId, string json)
-        {
-            var responsestring = DoConfigureMeasuringPoint(token, measuringPointId, json).Result;
-            return ParseJson<OmnidotsResponse>(responsestring);
         }
 
         public async Task<OmnidotsResponse> ConfigureMeasuringPointAsync(
             string token,
             string measuringPointId,
             string json,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken = default)
         {
-            var response = await DoConfigureMeasuringPoint(token, measuringPointId, json)
-                .WaitAsync(cancellationToken);
+            var response = await DoConfigureMeasuringPoint(token, measuringPointId, json, cancellationToken);
             return ParseJson<OmnidotsResponse>(response);
         }
 
-        private async Task<string> DoAuthenticate(MultipartFormDataContent content)
+        private async Task<string> DoAuthenticate(MultipartFormDataContent content, CancellationToken cancellationToken)
         {
-            return await httpClient.PostAsync("/api/v1/user/authenticate", content);
+            return await httpClient.PostAsync("/api/v1/user/authenticate", content, cancellationToken);
         }
 
-        private async Task<string> DoListMeasuringPoints(string token)
+        private async Task<string> DoListMeasuringPoints(string token, CancellationToken cancellationToken)
         {
-            return await httpClient.GetAsync(string.Format("/api/v1/list_measuring_points?token={0}", token));
+            return await httpClient.GetAsync(string.Format("/api/v1/list_measuring_points?token={0}", token), cancellationToken);
         }
 
         private async Task<string> DoGet(string path, string token,
-                                         DateTime startTime, DateTime? endTime, string measuringPointId)
+                                         DateTime startTime, DateTime? endTime, string measuringPointId,
+                                         CancellationToken cancellationToken)
         {
             RvtLogger.Logger.LogDebug("DoGet path={Value1} startTime={Value2} endTime={Value3} measuringPointId={Value4}",
                                   path, startTime, endTime, measuringPointId);
@@ -157,16 +139,16 @@ namespace Omnidots.Api.Http
                 .Append(DateTimeUtil.GetMillis((DateTime)endTime!));
             }
             var url = sb.ToString();
-            var response = await httpClient.GetAsync(url);
+            var response = await httpClient.GetAsync(url, cancellationToken);
             return response;
         }
 
-        private async Task<string> DoConfigureMeasuringPoint(string token, string measuringPointId, string json)
+        private async Task<string> DoConfigureMeasuringPoint(string token, string measuringPointId, string json, CancellationToken cancellationToken)
         {
             var path = string.Format("/api/v1/configure_measuring_point?token={0}&measuring_point_id={1}",
                                      token, measuringPointId);
             var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
-            return await httpClient.PostAsync(path, httpContent);
+            return await httpClient.PostAsync(path, httpContent, cancellationToken);
         }
 
         private static T ParseJson<T>(string json, bool isResponse = true)

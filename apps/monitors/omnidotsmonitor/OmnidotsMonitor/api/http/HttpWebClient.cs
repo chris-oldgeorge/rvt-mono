@@ -33,11 +33,11 @@ namespace Omnidots.Api.Http
             this.httpClient.Timeout = RequestTimeout;
         }
 
-        public async Task<string> GetAsync(string path)
+        public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
-            var response = await httpClient.GetAsync(path);
-            var reply = await response.Content.ReadAsStringAsync();
+            using var response = await httpClient.GetAsync(path, cancellationToken);
+            var reply = await response.Content.ReadAsStringAsync(cancellationToken);
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 throw AdapterException.Of("HTTP ERROR response=", SensitiveLogRedactor.RedactJson(reply));
@@ -46,7 +46,7 @@ namespace Omnidots.Api.Http
             return reply;
         }
 
-        public async Task<string> PostAsync(string path, HttpContent content)
+        public async Task<string> PostAsync(string path, HttpContent content, CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
 
@@ -63,7 +63,8 @@ namespace Omnidots.Api.Http
 
             using var response = await httpClient.SendAsync(
                 request,
-                HttpCompletionOption.ResponseHeadersRead);
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 RvtLogger.Logger.LogError(
@@ -72,7 +73,7 @@ namespace Omnidots.Api.Http
                 throw AdapterException.Of("Omnidots API request failed.");
             }
 
-            var reply = await response.Content.ReadAsStringAsync();
+            var reply = await response.Content.ReadAsStringAsync(cancellationToken);
             return reply;
         }
     }

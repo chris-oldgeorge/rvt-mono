@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Omnidots.Api.Db;
 using Omnidots.Api.Db.EntityFramework;
 using Omnidots.Api.Http;
+using Omnidots.Api.Ports;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Rvt.Communication;
@@ -95,7 +96,9 @@ public static class OmnidotsMonitorServices
                 options.PortalBaseUrl = RvtConfig.PORTAL_BASE_URL;
             }
         });
-        services.AddSingleton(provider => new OmnidotsHttpGateway(
+        // The composition root is the only place that knows which adapter
+        // implements the vendor port; consumers bind to the port alone.
+        services.AddSingleton<IOmnidotsVendorGateway>(provider => new OmnidotsHttpGateway(
             provider.GetRequiredService<IHttpClient>(),
             RvtConfig.USER_ID,
             RvtConfig.USER_AUTH));

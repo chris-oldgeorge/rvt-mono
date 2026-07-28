@@ -57,11 +57,26 @@
     `AggregateException`, so they asserted
     `InnerException is AggregateException`. With `await` the original
     exception propagates, and the assertions now pin that.
-- Still open: **Omnidots** retains the same blocking pattern (8 `.Result`
-  call sites in `OmnidotsHttpGateway`) and still discards the job token for 8
-  of its 11 jobs. Its vendor timeout bounds the stall. The AirQ work above is
-  the template to follow; Omnidots additionally needs its `IHttpClient.PostAsync`
-  made cancellable and has a much larger mock surface (394 tests).
+- **Omnidots is now fully asynchronous and cancellable too**, following the
+  same shape. Its 8 `.Result` call sites are gone, `IHttpClient.PostAsync` is
+  cancellable, and the job token reaches the vendor request for all jobs.
+  - `Omnidots.Api.Ports.IOmnidotsVendorGateway` is the driven port; the six
+    import use cases bind to it instead of the concrete `OmnidotsHttpGateway`,
+    and the composition root is now the only place naming the adapter.
+  - The two pre-existing async methods used `Task.WaitAsync(token)`, which
+    abandons the wait while the vendor request keeps running. The token now
+    flows into the request itself, so cancelling actually cancels.
+  - `ConfigureMeasuringPointHandler` checks cancellation before starting the
+    vendor call. Its test previously asserted `TaskCanceledException`, which
+    was an artifact of the abandoning `WaitAsync`; it now asserts
+    `OperationCanceledException`, the real contract.
+  - `RunFleet` became `RunFleetAsync` and checks cancellation per monitor, so a
+    stop takes effect between monitors rather than after the whole fleet.
+- **No blocking calls remain in any monitor import core.** Verified across all
+  five monitors. MyAtm's remaining `GetAwaiter().GetResult()` uses are dead
+  legacy sync wrappers in `MyAtmApi` with no callers — its job path is fully
+  async — plus a correct `SemaphoreSlim.WaitAsync` and a property named
+  `Result`. Removing those dead wrappers is minor, unstarted cleanup.
 - Also still open and intentionally untouched: the Omnidots
   `RVT__OMNIDOTS_USE_TOKEN` request-path token seam. It defaults to enabled, so
   changing it could alter how production authenticates against the vendor;

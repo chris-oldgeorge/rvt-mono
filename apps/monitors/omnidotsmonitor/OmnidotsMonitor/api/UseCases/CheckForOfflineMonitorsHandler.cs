@@ -36,8 +36,9 @@ namespace Omnidots.Api.UseCases
             this.ruleProcessor = ruleProcessor;
         }
 
-        public void Run()
+        public Task RunAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var rules = ruleQueries.ReadRules(null);
 
             var utcNow = DateTime.UtcNow;
@@ -143,6 +144,8 @@ namespace Omnidots.Api.UseCases
             {
                 throw new OmnidotsImportException("CheckForOfflineMonitors", failures);
             }
+
+            return Task.CompletedTask;
         }
 
         private static DateTime AsUtc(DateTime value) => value.Kind switch

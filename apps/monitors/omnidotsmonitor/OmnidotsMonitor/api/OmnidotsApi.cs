@@ -1,5 +1,6 @@
 using Omnidots.Api.Db;
 using Omnidots.Api.Http;
+using Omnidots.Api.Ports;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Omnidots.Model.Json;
@@ -25,7 +26,7 @@ namespace Omnidots.Api
             BatteryCaution = 2
         }
 
-        private readonly OmnidotsHttpGateway gateway;
+        private readonly IOmnidotsVendorGateway gateway;
         private readonly StoreMonitorsHandler storeMonitors;
         private readonly CheckForOfflineMonitorsHandler checkForOfflineMonitors;
         private readonly StorePeakRecordsHandler storePeakRecords;
@@ -146,27 +147,38 @@ namespace Omnidots.Api
                 timeProvider);
         }
 
-        public TokenResponse Authenticate() => gateway.Authenticate();
+        public Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken = default) =>
+            gateway.AuthenticateAsync(cancellationToken);
 
-        public void StoreMonitors() => storeMonitors.Run();
+        public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
+            storeMonitors.RunAsync(cancellationToken);
 
-        public void CheckForOfflineMonitors() => checkForOfflineMonitors.Run();
+        public Task CheckForOfflineMonitorsAsync(CancellationToken cancellationToken = default) =>
+            checkForOfflineMonitors.RunAsync(cancellationToken);
 
-        public void StorePeakRecordsLastDataTime() => storePeakRecords.Run();
+        public Task StorePeakRecordsLastDataTimeAsync(CancellationToken cancellationToken = default) =>
+            storePeakRecords.RunAsync(cancellationToken);
 
-        public void StorePeakRecordsLastDataTimeNew() => storePeakRecords.Run();
+        public Task StorePeakRecordsLastDataTimeNewAsync(CancellationToken cancellationToken = default) =>
+            storePeakRecords.RunAsync(cancellationToken);
 
-        public void StorePeakRecords(int minutesSinceLastExecuted) => storePeakRecords.Run();
+        public Task StorePeakRecordsAsync(int minutesSinceLastExecuted, CancellationToken cancellationToken = default) =>
+            storePeakRecords.RunAsync(cancellationToken);
 
-        public void StoreVeffRecords(TimeSpan lookback) => storeVeffRecords.Run(lookback);
+        public Task StoreVeffRecordsAsync(TimeSpan lookback, CancellationToken cancellationToken = default) =>
+            storeVeffRecords.RunAsync(lookback, cancellationToken);
 
-        public void StoreVdvRecords(TimeSpan lookback) => storeVdvRecords.Run(lookback);
+        public Task StoreVdvRecordsAsync(TimeSpan lookback, CancellationToken cancellationToken = default) =>
+            storeVdvRecords.RunAsync(lookback, cancellationToken);
 
-        public void StoreTraces(DateTime last) => storeTraces.Run(last);
+        public Task StoreTracesAsync(DateTime last, CancellationToken cancellationToken = default) =>
+            storeTraces.RunAsync(last, cancellationToken);
 
-        public void NotifyBatteryLevels() => notifyBatteryLevels.Run();
+        public Task NotifyBatteryLevelsAsync(CancellationToken cancellationToken = default) =>
+            notifyBatteryLevels.RunAsync(cancellationToken);
 
-        public void ClearOlderErrorMessages() => clearOlderErrorMessages.Run();
+        public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default) =>
+            clearOlderErrorMessages.RunAsync(cancellationToken);
 
         internal Task MonitoringAsync(CancellationToken cancellationToken = default) =>
             monitoring.RunAsync(cancellationToken);

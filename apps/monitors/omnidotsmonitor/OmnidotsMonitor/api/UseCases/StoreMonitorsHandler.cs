@@ -4,6 +4,7 @@ using Omnidots.Api.Http;
 using Omnidots.Model.Dto;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
+using Omnidots.Api.Ports;
 
 namespace Omnidots.Api.UseCases
 {
@@ -12,13 +13,13 @@ namespace Omnidots.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiMonitors).
     public class StoreMonitorsHandler
     {
-        private readonly OmnidotsHttpGateway gateway;
+        private readonly IOmnidotsVendorGateway gateway;
         private readonly IOmnidotsMonitorCommands monitorCommands;
         private readonly IOmnidotsOperationalCommands operationalCommands;
         private readonly bool testLocal;
 
         public StoreMonitorsHandler(
-            OmnidotsHttpGateway gateway,
+            IOmnidotsVendorGateway gateway,
             IOmnidotsMonitorCommands monitorCommands,
             IOmnidotsOperationalCommands operationalCommands,
             bool testLocal)
@@ -29,9 +30,9 @@ namespace Omnidots.Api.UseCases
             this.testLocal = testLocal;
         }
 
-        public void Run()
+        public async Task RunAsync(CancellationToken cancellationToken = default)
         {
-            var measuringPointsResponse = gateway.ListMeasuringPoints();
+            var measuringPointsResponse = await gateway.ListMeasuringPointsAsync(cancellationToken);
             var monitors = new List<VibrationMonitorDto>();
             foreach (var mp in measuringPointsResponse.MeasuringPoints!)
             {

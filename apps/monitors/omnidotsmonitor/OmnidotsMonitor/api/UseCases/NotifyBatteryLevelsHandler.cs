@@ -31,8 +31,9 @@ namespace Omnidots.Api.UseCases
             this.ruleProcessor = ruleProcessor;
         }
 
-        public void Run()
+        public Task RunAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var monitors = monitorReader.ReadMonitors();
 
             foreach (var monitor in monitors)
@@ -88,6 +89,8 @@ namespace Omnidots.Api.UseCases
                 }
 
             }
+
+            return Task.CompletedTask;
         }
 
         private void ProcessBatteryAlert(int batteryLevel, VibrationMonitorDto monitor, int alertLevel, AlertType alertType)

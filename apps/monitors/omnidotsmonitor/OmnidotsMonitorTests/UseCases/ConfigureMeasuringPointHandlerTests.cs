@@ -229,11 +229,11 @@ public sealed class ConfigureMeasuringPointHandlerTests
     {
         var handler = CreateHandler(out var httpClient, out var monitorQueries);
         SetupMonitor(monitorQueries);
-        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"ok\":true,\"token\":\"vendor-token\"}");
         httpClient.Setup(client => client.PostAsync(
                 "/api/v1/configure_measuring_point?token=vendor-token&measuring_point_id=23423",
-                It.IsAny<HttpContent>()))
+                It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"ok\":false,\"message\":\"raw-vendor-body-marker\"}");
 
         var exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
@@ -247,7 +247,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     {
         var handler = CreateHandler(out var httpClient, out var monitorQueries);
         SetupMonitor(monitorQueries);
-        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("raw-vendor-body-marker"));
 
         var exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
@@ -261,7 +261,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     {
         var handler = CreateHandler(out var httpClient, out var monitorQueries);
         SetupMonitor(monitorQueries);
-        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("raw-vendor-body-marker");
 
         var exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
@@ -275,11 +275,11 @@ public sealed class ConfigureMeasuringPointHandlerTests
     {
         var handler = CreateHandler(out var httpClient, out var monitorQueries);
         SetupMonitor(monitorQueries);
-        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"ok\":true,\"token\":\"vendor-token\"}");
         httpClient.Setup(client => client.PostAsync(
                 "/api/v1/configure_measuring_point?token=vendor-token&measuring_point_id=23423",
-                It.IsAny<HttpContent>()))
+                It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(AdapterException.Of("Omnidots API request failed."));
 
         var exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
@@ -294,12 +294,14 @@ public sealed class ConfigureMeasuringPointHandlerTests
         var handler = CreateHandler(out var httpClient, out var monitorQueries);
         SetupMonitor(monitorQueries);
         var pendingResponse = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Returns(pendingResponse.Task);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
-        await Assert.ThrowsExactlyAsync<TaskCanceledException>(() =>
+        // The token now reaches the vendor call itself; an already-cancelled
+        // request stops before the call rather than being abandoned around it.
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             handler.RunAsync(Bytes(ValidJson()), cancellation.Token));
 
         monitorQueries.VerifyAll();
@@ -315,12 +317,12 @@ public sealed class ConfigureMeasuringPointHandlerTests
         SetupMonitor(monitorQueries, siteTimes);
         capture = new ConfigRequestCapture();
         var requestCapture = capture;
-        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+        httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"ok\":true,\"token\":\"vendor-token\"}");
         httpClient.Setup(client => client.PostAsync(
                 "/api/v1/configure_measuring_point?token=vendor-token&measuring_point_id=23423",
-                It.IsAny<HttpContent>()))
-            .Callback<string, HttpContent>((_, content) =>
+                It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
+            .Callback<string, HttpContent, CancellationToken>((_, content, _) =>
                 requestCapture.Request = JsonSerializer.Deserialize<ConfigRequest>(
                     content.ReadAsStringAsync().GetAwaiter().GetResult()))
             .ReturnsAsync("{\"ok\":true}");

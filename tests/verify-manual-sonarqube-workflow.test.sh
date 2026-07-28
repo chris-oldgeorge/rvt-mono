@@ -9,10 +9,11 @@ if [[ ! -f "${workflow_path}" ]]; then
   exit 1
 fi
 
-ruby - "${workflow_path}" <<'RUBY'
+ruby - "${workflow_path}" "${repo_root}" <<'RUBY'
 require "psych"
 
 workflow_path = ARGV.fetch(0)
+repo_root = ARGV.fetch(1)
 document = Psych.parse_file(workflow_path)
 
 def assert(condition, message)
@@ -453,6 +454,46 @@ def assert_sonar_analysis_order(steps)
   )
 end
 
+def scanner_property_values(command, key)
+  prefix = "/d:#{key}="
+  token = command.split.find { |word| word.start_with?(prefix) }
+  return nil unless token
+
+  token.delete_prefix(prefix).split(",")
+end
+
+def assert_sonar_language_configuration(begin_analysis, repo_root)
+  postgres_suffixes = scanner_property_values(
+    begin_analysis,
+    "sonar.postgres.file.suffixes"
+  )
+  plsql_suffixes = scanner_property_values(
+    begin_analysis,
+    "sonar.plsql.file.suffixes"
+  )
+
+  python_sources = IO.popen(
+    ["git", "-C", repo_root, "ls-files", "--", "*.py"],
+    &:read
+  ).lines.map(&:strip).reject(&:empty?).select do |path|
+    File.file?(File.join(repo_root, path))
+  end
+  python_versions = scanner_property_values(begin_analysis, "sonar.python.version")
+  assert(
+    python_sources.empty? || (python_versions && !python_versions.empty?),
+    "tracked Python sources require an explicit sonar.python.version"
+  )
+
+  assert(
+    postgres_suffixes&.include?("sql"),
+    "PostgreSQL analysis must own the sql file suffix"
+  )
+  assert(
+    plsql_suffixes && !plsql_suffixes.include?("sql"),
+    "PL/SQL analysis must not own the PostgreSQL sql file suffix"
+  )
+end
+
 assert_engineering_standards_gate(steps)
 assert_sonar_analysis_order(steps)
 assert_database_lifecycle(steps)
@@ -467,6 +508,7 @@ assert(begin_step, "missing Begin SonarQube analysis step")
 begin_environment = mapping(begin_step.fetch("env"), "Begin SonarQube analysis env")
 assert(scalar(begin_environment.fetch("SONAR_TOKEN"), "scanner token") == "${{ secrets.SONAR_TOKEN }}", "scanner must use the SONAR_TOKEN secret")
 begin_analysis = scalar(begin_step.fetch("run"), "Begin SonarQube analysis run command")
+assert_sonar_language_configuration(begin_analysis, repo_root)
 [
   "/k:aileron-forward_rvt-mono",
   "/o:aileron-forward",

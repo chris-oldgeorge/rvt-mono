@@ -28,17 +28,17 @@ namespace MyAtm.Api.Db;
 public class DBClient : IDBClient
 {
 
-    private static readonly TimeSpan AlertSuppressionWindow = TimeSpan.FromMinutes(30);
-    private static readonly RuleAlertDeliveryPlanner DeliveryPlanner = new();
+    private static readonly TimeSpan _alertSuppressionWindow = TimeSpan.FromMinutes(30);
+    private static readonly RuleAlertDeliveryPlanner _deliveryPlanner = new();
 
-    private readonly string ConnectionString;
+    private readonly string _connectionString;
 
     public DBClient(string connectionString)
     {
         MonitorDb.ValidateLegacyProvider(
             Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
             Environment.GetEnvironmentVariable("DatabaseProvider"));
-        ConnectionString = connectionString;
+        _connectionString = connectionString;
     }
 
     public List<DustMonitorDto> ReadMonitorList(DateTime? lastDataTime)
@@ -756,13 +756,13 @@ public class DBClient : IDBClient
                 if (updated != 1)
                 {
                     await transaction.RollbackAsync(cancellationToken);
-                    return new MyAtmAlertCommitResult(false, Array.Empty<MonitorDeliveryRequest>());
+                    return new MyAtmAlertCommitResult(false, []);
                 }
             }
             else if (!await monitorQuery.AnyAsync(cancellationToken))
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return new MyAtmAlertCommitResult(false, Array.Empty<MonitorDeliveryRequest>());
+                return new MyAtmAlertCommitResult(false, []);
             }
         }
 
@@ -783,7 +783,7 @@ public class DBClient : IDBClient
             if (updated != 1)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return new MyAtmAlertCommitResult(false, Array.Empty<MonitorDeliveryRequest>());
+                return new MyAtmAlertCommitResult(false, []);
             }
         }
 
@@ -963,7 +963,7 @@ public class DBClient : IDBClient
     private MyAtmMonitorContext CreateContext()
     {
         MonitorDbOptions monitorOptions = MyAtmMonitorDbOptions.Current;
-        DbContextOptions<MyAtmMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<MyAtmMonitorContext>(ConnectionString);
+        DbContextOptions<MyAtmMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<MyAtmMonitorContext>(_connectionString);
         return new MyAtmMonitorContext(options, monitorOptions);
     }
 
@@ -1054,7 +1054,7 @@ public class DBClient : IDBClient
             return false;
         }
 
-        DateTime windowStart = triggeredAt.Subtract(AlertSuppressionWindow);
+        DateTime windowStart = triggeredAt.Subtract(_alertSuppressionWindow);
         List<MyAtmAlertOccurrenceEntity> persistedCandidates = await context.AlertOccurrences
             .AsNoTracking()
             .Where(row =>
@@ -1089,7 +1089,7 @@ public class DBClient : IDBClient
         AlertOccurrenceProposal proposal,
         string normalizedField,
         DateTime createdAt) =>
-        DeliveryPlanner.Plan(
+        _deliveryPlanner.Plan(
             new RuleNotificationRequest(
                 monitor.FleetNr ?? string.Empty,
                 monitor.SerialId,

@@ -22,29 +22,29 @@ public class StoreTracesHandler(
     TimeProvider timeProvider)
 {
     private readonly IOmnidotsVendorGateway _gateway = gateway;
-    private readonly OmnidotsMonitorReader monitorReader = monitorReader;
-    private readonly IOmnidotsMeasurementCommands measurementCommands = measurementCommands;
-    private readonly IOmnidotsOperationalCommands operationalCommands = operationalCommands;
-    private readonly IOmnidotsTraceQueries traceQueries = traceQueries;
-    private readonly OmnidotsTraceCollectionOptions options = options;
-    private readonly TimeProvider timeProvider = timeProvider;
+    private readonly OmnidotsMonitorReader _monitorReader = monitorReader;
+    private readonly IOmnidotsMeasurementCommands _measurementCommands = measurementCommands;
+    private readonly IOmnidotsOperationalCommands _operationalCommands = operationalCommands;
+    private readonly IOmnidotsTraceQueries _traceQueries = traceQueries;
+    private readonly OmnidotsTraceCollectionOptions _options = options;
+    private readonly TimeProvider _timeProvider = timeProvider;
 
     public async Task RunAsync(DateTime last, CancellationToken cancellationToken = default)
     {
-        long startedAt = timeProvider.GetTimestamp();
-        List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors(last);
-        options.Validate();
+        long startedAt = _timeProvider.GetTimestamp();
+        List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors(last);
+        _options.Validate();
         IReadOnlyList<VibrationMonitorDto> eligibleMonitors = EligibleMonitors(monitors);
-        IReadOnlyDictionary<string, DateTime> latestTraceEndTimes = options.Enabled
-            ? traceQueries.ReadLatestTraceEndTimes(
+        IReadOnlyDictionary<string, DateTime> latestTraceEndTimes = _options.Enabled
+            ? _traceQueries.ReadLatestTraceEndTimes(
                 [.. eligibleMonitors.Select(monitor => monitor.SerialId)])
                 ?? new Dictionary<string, DateTime>()
             : new Dictionary<string, DateTime>();
-        long rotationSlot = timeProvider.GetUtcNow().ToUnixTimeSeconds() / 300;
+        long rotationSlot = _timeProvider.GetUtcNow().ToUnixTimeSeconds() / 300;
         IReadOnlyList<VibrationMonitorDto> selectedMonitors = OmnidotsTraceMonitorSelector.Select(
             monitors,
             latestTraceEndTimes,
-            options,
+            _options,
             rotationSlot);
         List<OmnidotsMonitorFailure> failures = [];
         int succeeded = 0;
@@ -74,7 +74,7 @@ public class StoreTracesHandler(
                 failures.Add(OmnidotsMonitorFailure.Record(
                     monitor.SerialId,
                     e,
-                    () => operationalCommands.HandleException(msg, e)));
+                    () => _operationalCommands.HandleException(msg, e)));
             }
         }
 
@@ -117,7 +117,7 @@ public class StoreTracesHandler(
             TracesReponse tracesResponse = await _gateway.GetTracesAsync(token, serialId, tStart, tEnd, cancellationToken);
             List<TraceData> traces = tracesResponse.Traces ?? [];
             RvtLogger.Logger.LogInformation("Number of traces={Value1}", traces.Count);
-            measurementCommands.WriteTraces(serialId, traces);
+            _measurementCommands.WriteTraces(serialId, traces);
             traceCount += traces.Count;
             sampleCount += traces.Sum(trace => Math.Max(
                 trace.X?.Count ?? 0,
@@ -130,17 +130,17 @@ public class StoreTracesHandler(
     private IReadOnlyList<VibrationMonitorDto> EligibleMonitors(
         IReadOnlyCollection<VibrationMonitorDto> monitors)
     {
-        if (!options.Enabled)
+        if (!_options.Enabled)
         {
             return [];
         }
 
-        if (options.AllowedSerialIds.Length == 0)
+        if (_options.AllowedSerialIds.Length == 0)
         {
             return [.. monitors];
         }
 
-        HashSet<string> allowedSerialIds = new(options.AllowedSerialIds, StringComparer.OrdinalIgnoreCase);
+        HashSet<string> allowedSerialIds = new(_options.AllowedSerialIds, StringComparer.OrdinalIgnoreCase);
         return [.. monitors.Where(monitor => allowedSerialIds.Contains(monitor.SerialId))];
     }
 
@@ -161,7 +161,7 @@ public class StoreTracesHandler(
             failed,
             tracesStored,
             samplesStored,
-            timeProvider.GetElapsedTime(startedAt).TotalMilliseconds);
+            _timeProvider.GetElapsedTime(startedAt).TotalMilliseconds);
     }
 
     private sealed record TraceReadResult(int TraceCount, int SampleCount);

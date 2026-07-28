@@ -47,6 +47,8 @@ public sealed class ReportContentController : ControllerBase
         {
             ReportContentFailureKind.ServiceUnavailable => StatusCode(StatusCodes.Status503ServiceUnavailable),
             ReportContentFailureKind.Unauthorized => Unauthorized(),
+            ReportContentFailureKind.NotFound => throw new NotImplementedException(),
+            null => throw new NotImplementedException(),
             _ => NotFound()
         };
     }

@@ -13,17 +13,17 @@ namespace Omnidots.Api.Http;
 // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApi, OmnidotsApiMonitors, OmnidotsApiVibrationLevels, OmnidotsApiTraces, OmnidotsApiConfiguration).
 public class OmnidotsHttpGateway(IHttpClient httpClient, string userId, string userAuth) : IOmnidotsVendorGateway
 {
-    private readonly IHttpClient httpClient = httpClient;
-    private readonly string userId = userId;
-    private readonly string userAuth = userAuth;
+    private readonly IHttpClient _httpClient = httpClient;
+    private readonly string _userId = userId;
+    private readonly string _userAuth = userAuth;
 
     public async Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken = default)
     {
         using MultipartFormDataContent content = new();
         KeyValuePair<string, string>[] values =
         [
-            new KeyValuePair<string, string>("username", userId),
-            new KeyValuePair<string, string>("password", userAuth)
+            new KeyValuePair<string, string>("username", _userId),
+            new KeyValuePair<string, string>("password", _userAuth)
         ];
 
         foreach (KeyValuePair<string, string> keyValuePair in values)
@@ -102,12 +102,12 @@ public class OmnidotsHttpGateway(IHttpClient httpClient, string userId, string u
 
     private async Task<string> DoAuthenticate(MultipartFormDataContent content, CancellationToken cancellationToken)
     {
-        return await httpClient.PostAsync("/api/v1/user/authenticate", content, cancellationToken);
+        return await _httpClient.PostAsync("/api/v1/user/authenticate", content, cancellationToken);
     }
 
     private async Task<string> DoListMeasuringPoints(string token, CancellationToken cancellationToken)
     {
-        return await httpClient.GetAsync(string.Format("/api/v1/list_measuring_points?token={0}", token), cancellationToken);
+        return await _httpClient.GetAsync(string.Format("/api/v1/list_measuring_points?token={0}", token), cancellationToken);
     }
 
     private async Task<string> DoGet(string path, string token,
@@ -131,7 +131,7 @@ public class OmnidotsHttpGateway(IHttpClient httpClient, string userId, string u
             .Append(DateTimeUtil.GetMillis((DateTime)endTime!));
         }
         string url = sb.ToString();
-        string response = await httpClient.GetAsync(url, cancellationToken);
+        string response = await _httpClient.GetAsync(url, cancellationToken);
         return response;
     }
 
@@ -140,7 +140,7 @@ public class OmnidotsHttpGateway(IHttpClient httpClient, string userId, string u
         string path = string.Format("/api/v1/configure_measuring_point?token={0}&measuring_point_id={1}",
                                  token, measuringPointId);
         StringContent httpContent = new(json, Encoding.UTF8, "application/json");
-        return await httpClient.PostAsync(path, httpContent, cancellationToken);
+        return await _httpClient.PostAsync(path, httpContent, cancellationToken);
     }
 
     private static T ParseJson<T>(string json, bool isResponse = true)

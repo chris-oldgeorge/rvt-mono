@@ -10,16 +10,16 @@ public class ClearMonitorsOfflineFlagHandler(
     MyAtmMonitorReader monitorReader,
     IMyAtmMonitorCommands monitorCommands)
 {
-    private readonly MyAtmMonitorReader monitorReader = monitorReader;
-    private readonly IMyAtmMonitorCommands monitorCommands = monitorCommands;
+    private readonly MyAtmMonitorReader _monitorReader = monitorReader;
+    private readonly IMyAtmMonitorCommands _monitorCommands = monitorCommands;
 
     public void Run(int customerId)
     {
-        List<DustMonitorDto>? monitors = monitorReader.ReadMonitors(customerId);
+        List<DustMonitorDto>? monitors = _monitorReader.ReadMonitors(customerId);
 
         foreach (DustMonitorDto monitor in monitors!)
         {
-            monitorCommands.SetMonitorOffline(monitor.Id, false);
+            _monitorCommands.SetMonitorOffline(monitor.Id, false);
         }
     }
 }

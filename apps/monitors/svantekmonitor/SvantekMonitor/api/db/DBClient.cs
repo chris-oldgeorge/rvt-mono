@@ -23,14 +23,14 @@ namespace Svantek.Api.Db;
 // - 2026-06-20 EF migration: replaced DBUtil SQL calls with provider-aware EF Core operations.
 public class DBClient : IDBClient
 {
-    private readonly string ConnectionString;
+    private readonly string _connectionString;
 
     public DBClient(string connectionString)
     {
         MonitorDb.ValidateLegacyProvider(
             Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
             Environment.GetEnvironmentVariable("DatabaseProvider"));
-        ConnectionString = connectionString;
+        _connectionString = connectionString;
     }
 
     public void InsertNoiseDtos(List<NoiseDto> dtos)
@@ -820,7 +820,7 @@ public class DBClient : IDBClient
     private SvantekMonitorContext CreateContext()
     {
         MonitorDbOptions monitorOptions = SvantekMonitorDbOptions.Current;
-        DbContextOptions<SvantekMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<SvantekMonitorContext>(ConnectionString);
+        DbContextOptions<SvantekMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<SvantekMonitorContext>(_connectionString);
         return new SvantekMonitorContext(options, monitorOptions);
     }
 

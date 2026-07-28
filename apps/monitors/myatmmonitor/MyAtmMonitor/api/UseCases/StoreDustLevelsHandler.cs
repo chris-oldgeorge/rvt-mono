@@ -20,31 +20,31 @@ public sealed class StoreDustLevelsHandler(
     TimeProvider timeProvider,
     int maxPagesPerMonitorPerRun)
 {
-    private readonly MyAtmHttpGateway gateway = gateway;
-    private readonly MyAtmMonitorReader monitorReader = monitorReader;
-    private readonly IMyAtmRuleQueries ruleQueries = ruleQueries;
-    private readonly IMyAtmDustImportCommands dustImportCommands = dustImportCommands;
-    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
-    private readonly MyAtmRuleEvaluator ruleEvaluator = ruleEvaluator;
-    private readonly TimeProvider timeProvider = timeProvider;
-    private readonly int maxPagesPerMonitorPerRun = maxPagesPerMonitorPerRun;
+    private readonly MyAtmHttpGateway _gateway = gateway;
+    private readonly MyAtmMonitorReader _monitorReader = monitorReader;
+    private readonly IMyAtmRuleQueries _ruleQueries = ruleQueries;
+    private readonly IMyAtmDustImportCommands _dustImportCommands = dustImportCommands;
+    private readonly IMyAtmOperationalCommands _operationalCommands = operationalCommands;
+    private readonly MyAtmRuleEvaluator _ruleEvaluator = ruleEvaluator;
+    private readonly TimeProvider _timeProvider = timeProvider;
+    private readonly int _maxPagesPerMonitorPerRun = maxPagesPerMonitorPerRun;
 
     public async Task RunAsync<T>(
         int customerId,
         Period period,
         CancellationToken cancellationToken = default) where T : BaseDeviceMeasurement
     {
-        List<DustMonitorDto> monitors = monitorReader.ReadMonitors(customerId) ?? [];
-        MyAtmFailureCollector failures = new(operationalCommands);
+        List<DustMonitorDto> monitors = _monitorReader.ReadMonitors(customerId) ?? [];
+        MyAtmFailureCollector failures = new(_operationalCommands);
         foreach (DustMonitorDto monitor in monitors)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 DateTime cursor = DateTimeUtil.AsUtc(monitor.GetLastDataTime(period) ?? MyAtmApi.JAN1_1970);
-                for (int pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
+                for (int pageNumber = 0; pageNumber < _maxPagesPerMonitorPerRun; pageNumber++)
                 {
-                    MyAtmMeasurementPage<T> page = await gateway.HttpGetDeviceMeasurementPageAsync<T>(
+                    MyAtmMeasurementPage<T> page = await _gateway.HttpGetDeviceMeasurementPageAsync<T>(
                         customerId,
                         monitor.SerialId,
                         cursor,
@@ -60,16 +60,16 @@ public sealed class StoreDustLevelsHandler(
 
                     if (dtos.Count > 0)
                     {
-                        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
+                        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
                         DateTime pageWatermark = DateTimeUtil.AsUtc(page.NextCursor!.Value);
-                        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId, period) ?? [];
-                        MyAtmRuleEvaluation evaluation = ruleEvaluator.Evaluate(monitor, period, rules, dtos, utcNow);
+                        List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId, period) ?? [];
+                        MyAtmRuleEvaluation evaluation = _ruleEvaluator.Evaluate(monitor, period, rules, dtos, utcNow);
                         IReadOnlyList<Rvt.Monitor.Common.Rules.RvtContactDto> contacts =
                             evaluation.AlertOccurrences.Count == 0
                                 ? Array.Empty<Rvt.Monitor.Common.Rules.RvtContactDto>()
-                                : ruleQueries.ReadAlertContacts(monitor.Id);
+                                : _ruleQueries.ReadAlertContacts(monitor.Id);
                         List<AlertOccurrenceProposal> occurrences = [.. evaluation.AlertOccurrences.Select(proposal => proposal with { Contacts = contacts })];
-                        await dustImportCommands.CommitDustImportAsync(
+                        await _dustImportCommands.CommitDustImportAsync(
                             new MyAtmDustImportCommit(
                                 monitor,
                                 period,

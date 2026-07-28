@@ -22,17 +22,17 @@ public class StorePeakRecordsHandler(
     IMonitorEventPublisher eventPublisher)
 {
     private readonly IOmnidotsVendorGateway _gateway = gateway;
-    private readonly OmnidotsMonitorReader monitorReader = monitorReader;
-    private readonly IOmnidotsMonitorQueries monitorQueries = monitorQueries;
-    private readonly IOmnidotsImportCursorQueries cursorQueries = cursorQueries;
-    private readonly IOmnidotsMeasurementImportCommands importCommands = importCommands;
-    private readonly IOmnidotsOperationalCommands operationalCommands = operationalCommands;
-    private readonly IMonitorEventPublisher eventPublisher = eventPublisher;
+    private readonly OmnidotsMonitorReader _monitorReader = monitorReader;
+    private readonly IOmnidotsMonitorQueries _monitorQueries = monitorQueries;
+    private readonly IOmnidotsImportCursorQueries _cursorQueries = cursorQueries;
+    private readonly IOmnidotsMeasurementImportCommands _importCommands = importCommands;
+    private readonly IOmnidotsOperationalCommands _operationalCommands = operationalCommands;
+    private readonly IMonitorEventPublisher _eventPublisher = eventPublisher;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         RvtLogger.Logger.LogInformation("StorePeakRecords called");
-        List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
+        List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
         string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
         DateTime utcNow = DateTime.UtcNow;
         await RunFleetAsync(monitors, async monitor =>
@@ -45,7 +45,7 @@ public class StorePeakRecordsHandler(
 
     private DateTime ResolvePeakStart(VibrationMonitorDto monitor)
     {
-        DateTime? cursor = cursorQueries.ReadImportCursor(
+        DateTime? cursor = _cursorQueries.ReadImportCursor(
             monitor.SerialId,
             OmnidotsMeasurementSeries.Peak);
         if (cursor.HasValue)
@@ -53,7 +53,7 @@ public class StorePeakRecordsHandler(
             return cursor.Value.AddMinutes(-5);
         }
 
-        DateTime? latestMeasurement = cursorQueries.ReadLatestMeasurementTime(
+        DateTime? latestMeasurement = _cursorQueries.ReadLatestMeasurementTime(
             monitor.SerialId,
             OmnidotsMeasurementSeries.Peak);
         if (latestMeasurement.HasValue)
@@ -61,7 +61,7 @@ public class StorePeakRecordsHandler(
             return latestMeasurement.Value.AddMinutes(-5);
         }
 
-        DateTime deployDate = monitor.DeployDate ?? monitorQueries.ReadDeployStartDate(monitor.Id);
+        DateTime deployDate = monitor.DeployDate ?? _monitorQueries.ReadDeployStartDate(monitor.Id);
         DateTime fallback = monitor.LastDataTime.HasValue && monitor.LastDataTime.Value > deployDate
             ? monitor.LastDataTime.Value
             : deployDate;
@@ -171,12 +171,12 @@ public class StorePeakRecordsHandler(
                 .Cast<DataRow>()
                 .Max(row => (DateTime)row["SampleTime"]);
             DateTime ps = DateTime.Now;
-            importCommands.ImportPeakRecords(monitor.SerialId, table, newestSampleAt);
+            _importCommands.ImportPeakRecords(monitor.SerialId, table, newestSampleAt);
             TimeSpan ts = DateTime.Now - ps;
             RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
                  monitor.SerialId, table.Rows.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / table.Rows.Count));
             monitor.LastDataTime = newestSampleAt;
-            await eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
+            await _eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
         }
         else
         {
@@ -192,6 +192,6 @@ public class StorePeakRecordsHandler(
         failures.Add(OmnidotsMonitorFailure.Record(
             serialId,
             exception,
-            () => operationalCommands.HandleException(msg, exception)));
+            () => _operationalCommands.HandleException(msg, exception)));
     }
 }

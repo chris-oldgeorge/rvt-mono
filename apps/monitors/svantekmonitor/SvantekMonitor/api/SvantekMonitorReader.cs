@@ -9,14 +9,14 @@ namespace Svantek.Api;
 // - 2026-07-12 God-class split: extracted from the SvantekApi partials (SvantekApiMonitors).
 public class SvantekMonitorReader(ISvantekMonitorQueries monitorQueries, bool testLocal)
 {
-    private readonly ISvantekMonitorQueries monitorQueries = monitorQueries;
-    private readonly bool testLocal = testLocal;
+    private readonly ISvantekMonitorQueries _monitorQueries = monitorQueries;
+    private readonly bool _testLocal = testLocal;
 
     public List<NoiseMonitorReadDto> ReadMonitors(DateTime? lastDataTime = null)
     {
         try
         {
-            return SvantekTestLocalMonitorFilter.Apply(monitorQueries.ReadMonitorList(lastDataTime), testLocal);
+            return SvantekTestLocalMonitorFilter.Apply(_monitorQueries.ReadMonitorList(lastDataTime), _testLocal);
         }
         catch (Exception e)
         {
@@ -30,10 +30,10 @@ public class SvantekMonitorReader(ISvantekMonitorQueries monitorQueries, bool te
     {
         try
         {
-            List<NoiseMonitorReadDto> monitors = await monitorQueries
+            List<NoiseMonitorReadDto> monitors = await _monitorQueries
                 .ReadMonitorListAsync(lastDataTime, cancellationToken)
                 .ConfigureAwait(false);
-            return SvantekTestLocalMonitorFilter.Apply(monitors, testLocal);
+            return SvantekTestLocalMonitorFilter.Apply(monitors, _testLocal);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

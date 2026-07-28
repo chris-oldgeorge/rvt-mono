@@ -35,11 +35,11 @@ public interface IMonitorEventPublisher
 // - 2026-07-12 RvtConfig cleanup: topics are injected instead of read from static configuration.
 public class MonitorEventPublisher(IMqttClient mqttClient, string insertTopic, string alertTopic) : IMonitorEventPublisher
 {
-    private const string DataInsertedMessage = "Dto Inserted";
+    private const string _dataInsertedMessage = "Dto Inserted";
 
-    private readonly IMqttClient mqttClient = mqttClient;
-    private readonly string insertTopic = insertTopic;
-    private readonly string alertTopic = alertTopic;
+    private readonly IMqttClient _mqttClient = mqttClient;
+    private readonly string _insertTopic = insertTopic;
+    private readonly string _alertTopic = alertTopic;
 
     /// <summary>
     /// Blocking entry point retained only for the legacy synchronous rule
@@ -56,7 +56,7 @@ public class MonitorEventPublisher(IMqttClient mqttClient, string insertTopic, s
         string serialId,
         int? customerId = null,
         CancellationToken cancellationToken = default) =>
-        PublishAsync(insertTopic, timestamp, serialId, DataInsertedMessage, customerId, cancellationToken);
+        PublishAsync(_insertTopic, timestamp, serialId, _dataInsertedMessage, customerId, cancellationToken);
 
     public Task PublishAlertAsync(
         DateTime timestamp,
@@ -64,7 +64,7 @@ public class MonitorEventPublisher(IMqttClient mqttClient, string insertTopic, s
         string message,
         int? customerId = null,
         CancellationToken cancellationToken = default) =>
-        PublishAsync(alertTopic, timestamp, serialId, message, customerId, cancellationToken);
+        PublishAsync(_alertTopic, timestamp, serialId, message, customerId, cancellationToken);
 
     private Task PublishAsync(
         string topic,
@@ -78,6 +78,6 @@ public class MonitorEventPublisher(IMqttClient mqttClient, string insertTopic, s
             ? new RvtMqttMessage(timestamp, customerId.Value, serialId, message)
             : new RvtMqttMessage(timestamp, serialId, message);
 
-        return mqttClient.PublishAsync(topic, JsonSerializer.Serialize(mqttMessage), cancellationToken);
+        return _mqttClient.PublishAsync(topic, JsonSerializer.Serialize(mqttMessage), cancellationToken);
     }
 }

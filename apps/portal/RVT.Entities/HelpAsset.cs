@@ -2,7 +2,6 @@
 // Major updates:
 // - 2026-06-08 pending Added Help CMS asset entity for internal folder and external media references.
 
-using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace RVT.Entities;

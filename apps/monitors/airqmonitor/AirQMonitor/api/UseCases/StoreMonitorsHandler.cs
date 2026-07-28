@@ -15,16 +15,16 @@ public class StoreMonitorsHandler(
     AirQTestLocalMonitorFilter testLocalFilter)
 {
     private readonly IAirQVendorGateway _gateway = gateway;
-    private readonly IAirQMonitorCommands monitorCommands = monitorCommands;
-    private readonly IAirQOperationalCommands operationalCommands = operationalCommands;
-    private readonly AirQTestLocalMonitorFilter testLocalFilter = testLocalFilter;
+    private readonly IAirQMonitorCommands _monitorCommands = monitorCommands;
+    private readonly IAirQOperationalCommands _operationalCommands = operationalCommands;
+    private readonly AirQTestLocalMonitorFilter _testLocalFilter = testLocalFilter;
 
     public async Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
     {
         List<InstrumentResponse> monitors;
         try
         {
-            monitors = testLocalFilter.ApplyCatalog(await _gateway.GetMonitorsAsync(userId, userAuth, cancellationToken));
+            monitors = _testLocalFilter.ApplyCatalog(await _gateway.GetMonitorsAsync(userId, userAuth, cancellationToken));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -32,7 +32,7 @@ public class StoreMonitorsHandler(
         }
         catch (Exception e)
         {
-            operationalCommands.HandleException("StoreMonitors", e);
+            _operationalCommands.HandleException("StoreMonitors", e);
             throw;
         }
 
@@ -54,12 +54,12 @@ public class StoreMonitorsHandler(
             }
             catch (Exception e)
             {
-                operationalCommands.HandleException($"StoreMonitors SerialId={monitor.InstrumentID}", e);
+                _operationalCommands.HandleException($"StoreMonitors SerialId={monitor.InstrumentID}", e);
                 failures.Add(e);
             }
         }
 
-        monitorCommands.WriteMonitorList(dtos);
+        _monitorCommands.WriteMonitorList(dtos);
         if (failures.Count > 0)
         {
             throw new AggregateException("One or more AirQ monitor catalogue imports failed.", failures);
@@ -87,7 +87,7 @@ public class StoreMonitorsHandler(
         }
         catch (Exception e)
         {
-            operationalCommands.HandleException("GetMetaData", e);
+            _operationalCommands.HandleException("GetMetaData", e);
             return EmptyMetaData();
         }
 

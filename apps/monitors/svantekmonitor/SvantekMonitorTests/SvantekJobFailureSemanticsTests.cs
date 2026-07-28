@@ -12,10 +12,10 @@ namespace SvantekMonitorTests;
 [TestClass]
 public sealed class SvantekJobFailureSemanticsTests
 {
-    private static readonly string[] FailureIdentifiers =
+    private static readonly string[] _failureIdentifiers =
         ["StoreMonitors project 1", "StoreMonitors project 3"];
 
-    private const string ProjectsJson = """
+    private const string _projectsJson = """
         {
           "status": "ok",
           "projects": [
@@ -26,7 +26,7 @@ public sealed class SvantekJobFailureSemanticsTests
         }
         """;
 
-    private const string StationsJson = """
+    private const string _stationsJson = """
         {
           "status": "ok",
           "stations": [
@@ -53,8 +53,8 @@ public sealed class SvantekJobFailureSemanticsTests
                 It.IsAny<string>(),
                 It.IsAny<HttpContent>(),
                 token))
-            .ReturnsAsync(ProjectsJson)
-            .ReturnsAsync(StationsJson);
+            .ReturnsAsync(_projectsJson)
+            .ReturnsAsync(_stationsJson);
         Mock<ISvantekMonitorCommands> monitorCommands = new(MockBehavior.Strict);
         List<int> persistedProjects = [];
         monitorCommands.Setup(commands => commands.WriteMonitorListAsync(
@@ -89,9 +89,9 @@ public sealed class SvantekJobFailureSemanticsTests
         Assert.IsInstanceOfType<SvantekJobAggregateException>(observed, observed?.ToString());
         SvantekJobAggregateException aggregate = (SvantekJobAggregateException)observed;
 
-        CollectionAssert.AreEqual(expected, persistedProjects);
+        CollectionAssert.AreEqual(_expected, persistedProjects);
         CollectionAssert.AreEqual(
-            FailureIdentifiers,
+            _failureIdentifiers,
             recordedIdentifiers);
         Assert.AreEqual("StoreMonitors", aggregate.JobName);
         Assert.HasCount(2, aggregate.Failures);
@@ -160,5 +160,5 @@ public sealed class SvantekJobFailureSemanticsTests
 
     public TestContext TestContext { get; set; } = null!;
 
-    private static readonly int[] expected = [1, 2, 3];
+    private static readonly int[] _expected = [1, 2, 3];
 }

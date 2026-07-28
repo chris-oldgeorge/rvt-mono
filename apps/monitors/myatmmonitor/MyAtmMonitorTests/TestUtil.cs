@@ -44,7 +44,7 @@ public sealed class TestUtil
         dbClient.Setup(client => client.CommitDustImportAsync(
                 It.IsAny<MyAtmDustImportCommit>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new DustImportCommitResult([]));
         dbClient.Setup(client => client.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(),
@@ -54,7 +54,7 @@ public sealed class TestUtil
         dbClient.Setup(client => client.CommitAlertAsync(
                 It.IsAny<MyAtmAlertCommit>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new MyAtmAlertCommitResult(true, []));
         mqttClient = new Mock<IMqttClient>();
         messageClient = new Mock<IMessageService>();
         return new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, testLocal);

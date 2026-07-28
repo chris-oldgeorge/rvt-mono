@@ -176,7 +176,7 @@ public class TestOmnidotsApiException
 
         OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken));
         Assert.AreEqual("StorePeakRecords", exception.Operation);
-        CollectionAssert.AreEqual(expected, exception.Failures.Select(failure => failure.SerialId).ToArray());
+        CollectionAssert.AreEqual(_expected, exception.Failures.Select(failure => failure.SerialId).ToArray());
 
         httpClient.Verify(c => c.PostAsync(authUrl, It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         httpClient.Verify(c =>
@@ -224,7 +224,7 @@ public class TestOmnidotsApiException
 
         OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken));
         Assert.AreEqual("StorePeakRecords", exception.Operation);
-        CollectionAssert.AreEqual(expected, exception.Failures.Select(failure => failure.SerialId).ToArray());
+        CollectionAssert.AreEqual(_expected, exception.Failures.Select(failure => failure.SerialId).ToArray());
 
         httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
          It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -476,5 +476,5 @@ public class TestOmnidotsApiException
 
     public TestContext TestContext { get; set; } = null!;
 
-    private static readonly string[] expected = ["1", "2"];
+    private static readonly string[] _expected = ["1", "2"];
 }

@@ -16,21 +16,21 @@ public sealed class CheckForOfflineMonitorsHandler(
     ISvantekOperationalCommands operationalCommands,
     SvantekRuleProcessor ruleProcessor)
 {
-    private readonly ISvantekRuleQueries ruleQueries = ruleQueries;
-    private readonly SvantekMonitorReader monitorReader = monitorReader;
-    private readonly ISvantekMonitorCommands monitorCommands = monitorCommands;
-    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
-    private readonly SvantekRuleProcessor ruleProcessor = ruleProcessor;
+    private readonly ISvantekRuleQueries _ruleQueries = ruleQueries;
+    private readonly SvantekMonitorReader _monitorReader = monitorReader;
+    private readonly ISvantekMonitorCommands _monitorCommands = monitorCommands;
+    private readonly ISvantekOperationalCommands _operationalCommands = operationalCommands;
+    private readonly SvantekRuleProcessor _ruleProcessor = ruleProcessor;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        List<RvtAlertRuleDto> rules = [.. ruleQueries.ReadRules(null).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
-        List<NoiseMonitorReadDto> monitors = await monitorReader.ReadMonitorsAsync(
+        List<RvtAlertRuleDto> rules = [.. _ruleQueries.ReadRules(null).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
+        List<NoiseMonitorReadDto> monitors = await _monitorReader.ReadMonitorsAsync(
             lastDataTime: null,
             cancellationToken).ConfigureAwait(false);
         DateTime utcNow = DateTime.UtcNow;
-        SvantekFailureCollector failures = new(operationalCommands);
+        SvantekFailureCollector failures = new(_operationalCommands);
 
         foreach (NoiseMonitorReadDto monitor in monitors)
         {
@@ -53,8 +53,8 @@ public sealed class CheckForOfflineMonitorsHandler(
                         RvtLogger.Logger.LogInformation(
                             "Device serialId={SerialId} has not received data; marking offline",
                             monitor.SerialId);
-                        List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
-                        ruleProcessor.ProcessAlertForContacts(
+                        List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = _ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
+                        _ruleProcessor.ProcessAlertForContacts(
                             monitor.FleetNr,
                             monitor.SerialId,
                             utcNow,
@@ -66,7 +66,7 @@ public sealed class CheckForOfflineMonitorsHandler(
                             monitor.Id,
                             contacts);
                         monitor.Offline = true;
-                        await monitorCommands.SetMonitorOfflineAsync(
+                        await _monitorCommands.SetMonitorOfflineAsync(
                             monitor.Id,
                             offline: true,
                             cancellationToken).ConfigureAwait(false);
@@ -74,7 +74,7 @@ public sealed class CheckForOfflineMonitorsHandler(
                     else if (lastDataTime >= cutOff && monitor.Offline)
                     {
                         monitor.Offline = false;
-                        await monitorCommands.SetMonitorOfflineAsync(
+                        await _monitorCommands.SetMonitorOfflineAsync(
                             monitor.Id,
                             offline: false,
                             cancellationToken).ConfigureAwait(false);

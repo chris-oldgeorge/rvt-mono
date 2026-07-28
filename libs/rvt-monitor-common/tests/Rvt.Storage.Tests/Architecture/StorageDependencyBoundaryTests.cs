@@ -5,7 +5,7 @@ namespace Rvt.Storage.Tests.Architecture;
 [TestClass]
 public sealed class StorageDependencyBoundaryTests
 {
-    private static readonly string[] AzureStoragePackages = ["Azure.Identity", "Azure.Storage.Blobs"];
+    private static readonly string[] _azureStoragePackages = ["Azure.Identity", "Azure.Storage.Blobs"];
 
     [TestMethod]
     public void Common_ReferencesNoCloudProviderSdkPackages()
@@ -42,7 +42,7 @@ public sealed class StorageDependencyBoundaryTests
             "System.IO.FileStream");
     }
 
-    private static readonly string[] ExpectedAbstractionReference = ["Rvt.Storage.Abstractions"];
+    private static readonly string[] _expectedAbstractionReference = ["Rvt.Storage.Abstractions"];
 
     [TestMethod]
     public void Local_ReferencesNoCloudProviderSdk()
@@ -50,7 +50,7 @@ public sealed class StorageDependencyBoundaryTests
         StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Storage.Local");
 
         CollectionAssert.AreEquivalent(
-            ExpectedAbstractionReference,
+            _expectedAbstractionReference,
             project.ProjectReferences.ToArray());
         project.AssertPackagesExclude("Azure.", "AWSSDK.S3");
         project.AssertSourceExcludes("Azure.", "Amazon.");
@@ -62,10 +62,10 @@ public sealed class StorageDependencyBoundaryTests
         StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Storage.AzureBlob");
 
         CollectionAssert.AreEquivalent(
-            ExpectedAbstractionReference,
+            _expectedAbstractionReference,
             project.ProjectReferences.ToArray());
         CollectionAssert.IsSubsetOf(
-            AzureStoragePackages,
+            _azureStoragePackages,
             project.PackageReferences.ToArray());
         project.AssertPackagesExclude("AWSSDK.S3");
         project.AssertSourceIncludes("Azure.Storage.Blobs", "Azure.Identity");
@@ -78,7 +78,7 @@ public sealed class StorageDependencyBoundaryTests
         StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Storage.S3");
 
         CollectionAssert.AreEquivalent(
-            ExpectedAbstractionReference,
+            _expectedAbstractionReference,
             project.ProjectReferences.ToArray());
         CollectionAssert.Contains(project.PackageReferences.ToArray(), "AWSSDK.S3");
         project.AssertPackagesExclude("Azure.");
@@ -88,7 +88,7 @@ public sealed class StorageDependencyBoundaryTests
 
     private sealed class StorageProjectSnapshot
     {
-        private readonly CSharpDependencyAnalysis sourceAnalysis;
+        private readonly CSharpDependencyAnalysis _sourceAnalysis;
 
         private StorageProjectSnapshot(
             IReadOnlyCollection<string> packageReferences,
@@ -97,7 +97,7 @@ public sealed class StorageDependencyBoundaryTests
         {
             PackageReferences = packageReferences;
             ProjectReferences = projectReferences;
-            this.sourceAnalysis = sourceAnalysis;
+            this._sourceAnalysis = sourceAnalysis;
         }
 
         public IReadOnlyCollection<string> PackageReferences { get; }
@@ -170,7 +170,7 @@ public sealed class StorageDependencyBoundaryTests
             foreach (string requiredMarker in requiredMarkers)
             {
                 Assert.IsTrue(
-                    sourceAnalysis.UsesDependency(requiredMarker),
+                    _sourceAnalysis.UsesDependency(requiredMarker),
                     $"Expected production source to use '{requiredMarker}'.");
             }
         }
@@ -179,7 +179,7 @@ public sealed class StorageDependencyBoundaryTests
         {
             foreach (string forbiddenMarker in forbiddenMarkers)
             {
-                IReadOnlyCollection<string> matches = sourceAnalysis.GetSourceFilesUsing(forbiddenMarker);
+                IReadOnlyCollection<string> matches = _sourceAnalysis.GetSourceFilesUsing(forbiddenMarker);
                 Assert.IsEmpty(
                     matches,
                     $"Forbidden source dependency '{forbiddenMarker}' was found in: "

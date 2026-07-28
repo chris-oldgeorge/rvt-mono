@@ -160,6 +160,9 @@ public class DataController : ControllerBase
                 Title = "Trace not found",
                 Detail = $"Trace '{failure.EntityId}' was not found or is not visible to the current user."
             }),
+            DataWorkflowFailureKind.DeploymentNotFound => throw new NotImplementedException(),
+            DataWorkflowFailureKind.NoDataToDownload => throw new NotImplementedException(),
+            DataWorkflowFailureKind.NoTraceDataToDownload => throw new NotImplementedException(),
             _ => NotFound(ProblemDetailsFor(failure))
         };
     }
@@ -233,6 +236,8 @@ public class DataController : ControllerBase
                 Title = "No data to download",
                 Detail = "There are no matching records for this deployment and date range."
             },
+            DataWorkflowFailureKind.InvalidSort => throw new NotImplementedException(),
+            DataWorkflowFailureKind.InvalidTimestamp => throw new NotImplementedException(),
             _ => new ProblemDetails
             {
                 Title = "Data request failed",

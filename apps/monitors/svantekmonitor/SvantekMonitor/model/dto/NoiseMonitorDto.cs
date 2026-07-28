@@ -1,4 +1,3 @@
-using Svantek.Model.Http;
 using SvantekMonitor.model.dto;
 
 namespace Svantek.Model.Dto;

@@ -9,35 +9,35 @@ namespace AirQ.Api;
 // - 2026-07-12 TimerInfo removal: dropped the unused Azure Functions-era TimerInfo parameters.
 public sealed class AirQService(AirQApi airQApi) : IAirQDateImporter
 {
-    private readonly AirQApi airQApi = airQApi;
+    private readonly AirQApi _airQApi = airQApi;
 
     public Task StoreMonitorsAsync(CancellationToken cancellationToken = default)
     {
         // limit on get monitors is 24 times a day, get at 2 minutes past the hour.
-        return airQApi.StoreMonitorsAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, cancellationToken);
+        return _airQApi.StoreMonitorsAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, cancellationToken);
     }
 
     public Task CheckForOfflineMonitorsAsync(CancellationToken cancellationToken = default)
     {
-        return airQApi.CheckForOfflineMonitorsAsync(cancellationToken);
+        return _airQApi.CheckForOfflineMonitorsAsync(cancellationToken);
     }
 
     public Task StoreNoiseLevelsAsync(CancellationToken cancellationToken = default)
     {
         // data is updated every 15 mins at 0, 15, 30 and 45 mins past the hour
         // timer trigger is 5 minutes after this in case of delay
-        return airQApi.StoreNoiseLevelsAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, cancellationToken);
+        return _airQApi.StoreNoiseLevelsAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, cancellationToken);
     }
 
     public Task StoreNoiseLevelsForDateAsync(string date, CancellationToken cancellationToken = default)
     {
-        return airQApi.StoreNoiseLevelsForDateAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, date, cancellationToken);
+        return _airQApi.StoreNoiseLevelsForDateAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, date, cancellationToken);
     }
 
     public Task StoreAllNoiseLevelsForYesterdayAsync(CancellationToken cancellationToken = default)
     {
         // runs every day at 3 am
-        return airQApi.StoreAllNoiseLevelsForYesterdayAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, cancellationToken);
+        return _airQApi.StoreAllNoiseLevelsForYesterdayAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, cancellationToken);
     }
 
     public Task NotifySiteAveragesAsync(CancellationToken cancellationToken = default)
@@ -45,12 +45,12 @@ public sealed class AirQService(AirQApi airQApi) : IAirQDateImporter
 
         // fixme - problem with running at 00:05 means that users wont be notified
         // maybe split and run the collection at 00:05 and the notify at 09:00 next day
-        return airQApi.NotifySiteAveragesAsync(DateTime.Today.AddDays(-1), cancellationToken);
+        return _airQApi.NotifySiteAveragesAsync(DateTime.Today.AddDays(-1), cancellationToken);
     }
 
     public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default)
     {
-        return airQApi.ClearOlderErrorMessagesAsync(cancellationToken);
+        return _airQApi.ClearOlderErrorMessagesAsync(cancellationToken);
     }
 
 }

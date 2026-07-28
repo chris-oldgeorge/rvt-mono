@@ -17,15 +17,15 @@ public class StoreNoiseLevelsForDateHandler(
     IAirQOperationalCommands operationalCommands)
 {
     private readonly IAirQVendorGateway _gateway = gateway;
-    private readonly AirQMonitorReader monitorReader = monitorReader;
-    private readonly IAirQMeasurementCommands measurementCommands = measurementCommands;
-    private readonly IAirQOperationalCommands operationalCommands = operationalCommands;
+    private readonly AirQMonitorReader _monitorReader = monitorReader;
+    private readonly IAirQMeasurementCommands _measurementCommands = measurementCommands;
+    private readonly IAirQOperationalCommands _operationalCommands = operationalCommands;
 
     public async Task RunAsync(string userId, string userAuth, string dateStr, CancellationToken cancellationToken = default)
     {
         try
         {
-            List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
+            List<NoiseMonitorDto> monitors = _monitorReader.ReadMonitors();
             List<Exception> failures = [];
             foreach (NoiseMonitorDto monitor in monitors)
             {
@@ -48,7 +48,7 @@ public class StoreNoiseLevelsForDateHandler(
                     {
                         dtos.Add(new NoiseDto(sample));
                     }
-                    measurementCommands.InsertNoiseDtos(serialId, dtos);
+                    _measurementCommands.InsertNoiseDtos(serialId, dtos);
 
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -57,7 +57,7 @@ public class StoreNoiseLevelsForDateHandler(
                 }
                 catch (Exception e)
                 {
-                    operationalCommands.HandleException(string.Format("StoreAllNoiseLevelsForDate SerialId={0}", monitor.SerialId), e);
+                    _operationalCommands.HandleException(string.Format("StoreAllNoiseLevelsForDate SerialId={0}", monitor.SerialId), e);
                     failures.Add(e);
                 }
             }
@@ -77,7 +77,7 @@ public class StoreNoiseLevelsForDateHandler(
         }
         catch (Exception e)
         {
-            operationalCommands.HandleException("StoreAllNoiseLevelsForDate", e);
+            _operationalCommands.HandleException("StoreAllNoiseLevelsForDate", e);
             throw;
         }
     }

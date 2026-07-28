@@ -4,12 +4,8 @@
 // - 2026-06-10 pending Removed stale commented-out notification properties for Sonar maintainability.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace RVT.Entities;
 

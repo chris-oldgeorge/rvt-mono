@@ -1,5 +1,4 @@
 using Rvt.Reporting.Core.Models;
-using Rvt.Reporting.Core.Scheduling;
 
 namespace Rvt.Reporting.Core.Reports;
 

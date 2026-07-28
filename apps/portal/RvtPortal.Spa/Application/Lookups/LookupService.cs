@@ -33,21 +33,21 @@ public class LookupService : ILookupService
     private const int DefaultTake = 20;
     private const int MaximumTake = 50;
 
-    private readonly RVTDbContext dbContext;
-    private readonly RVTSearchContext searchContext;
+    private readonly RVTDbContext _dbContext;
+    private readonly RVTSearchContext _searchContext;
 
     // Function summary: Initializes lookup queries with scoped EF contexts so searches execute in the database.
     public LookupService(RVTDbContext dbContext, RVTSearchContext searchContext)
     {
-        this.dbContext = dbContext;
-        this.searchContext = searchContext;
+        _dbContext = dbContext;
+        _searchContext = searchContext;
     }
 
     // Function summary: Returns company-name lookup suggestions using a bounded domain query.
     public Task<List<string>> CompaniesSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
     {
         return LookupValuesAsync(
-            dbContext.Companies.AsNoTracking().Select(company => company.CompanyName),
+            _dbContext.Companies.AsNoTracking().Select(company => company.CompanyName),
             searchString,
             take,
             cancellationToken);
@@ -56,7 +56,7 @@ public class LookupService : ILookupService
     // Function summary: Returns combined contract, site, and company lookup suggestions from the contract search view.
     public Task<List<string>> ContractsSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
     {
-        IQueryable<ContractSearch> rows = searchContext.ContractSearches.AsNoTracking();
+        IQueryable<ContractSearch> rows = _searchContext.ContractSearches.AsNoTracking();
         return LookupValuesAsync(
             rows.Select(contract => contract.ContractNumber)
                 .Concat(rows.Select(contract => contract.CompanyName))
@@ -69,7 +69,7 @@ public class LookupService : ILookupService
     // Function summary: Returns combined site, company, contract, and address lookup suggestions.
     public Task<List<string>> SitesSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
     {
-        IQueryable<SiteSearch> rows = searchContext.SiteSearches.AsNoTracking();
+        IQueryable<SiteSearch> rows = _searchContext.SiteSearches.AsNoTracking();
         return LookupValuesAsync(
             rows.Select(site => site.Contracts)
                 .Concat(rows.Select(site => site.SiteName))
@@ -83,7 +83,7 @@ public class LookupService : ILookupService
     // Function summary: Returns combined monitor, site, and contract lookup suggestions.
     public Task<List<string>> MonitorsSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
     {
-        IQueryable<MonitorSearch> rows = searchContext.MonitorSearches.AsNoTracking();
+        IQueryable<MonitorSearch> rows = _searchContext.MonitorSearches.AsNoTracking();
         return LookupValuesAsync(
             rows.Select(monitor => monitor.ContractNumber)
                 .Concat(rows.Select(monitor => monitor.FleetNr))
@@ -97,7 +97,7 @@ public class LookupService : ILookupService
     public Task<List<string>> MonitorsNewSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
     {
         return LookupValuesAsync(
-            searchContext.MonitorSearches
+            _searchContext.MonitorSearches
                 .AsNoTracking()
                 .Where(monitor => monitor.FleetNr == null && (monitor.Active ?? false))
                 .Select(monitor => monitor.SerialId),
@@ -110,7 +110,7 @@ public class LookupService : ILookupService
     public Task<List<string>> MonitorsOnlineSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
     {
         return LookupValuesAsync(
-            searchContext.MonitorSearches
+            _searchContext.MonitorSearches
                 .AsNoTracking()
                 .Where(monitor => !(monitor.OffLine ?? true) && (monitor.Active ?? false))
                 .Select(monitor => monitor.FleetNr),
@@ -123,7 +123,7 @@ public class LookupService : ILookupService
     public Task<List<string>> MonitorsOfflineSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
     {
         return LookupValuesAsync(
-            searchContext.MonitorSearches
+            _searchContext.MonitorSearches
                 .AsNoTracking()
                 .Where(monitor => (monitor.OffLine ?? true) && (monitor.Active ?? false))
                 .Select(monitor => monitor.FleetNr),
@@ -135,7 +135,7 @@ public class LookupService : ILookupService
     // Function summary: Returns unscoped user lookup suggestions.
     public Task<List<string>> UserSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
     {
-        IQueryable<UserSearch> rows = searchContext.UserSearches.AsNoTracking();
+        IQueryable<UserSearch> rows = _searchContext.UserSearches.AsNoTracking();
         return LookupValuesAsync(
             rows.Select(user => user.Email)
                 .Concat(rows.Select(user => user.Name))
@@ -148,7 +148,7 @@ public class LookupService : ILookupService
     // Function summary: Returns company-scoped user lookup suggestions, optionally including RVT administrators.
     public Task<List<string>> UserSearchAsync(Guid companyId, string searchString, int take, bool includeAdmin = false, CancellationToken cancellationToken = default)
     {
-        IQueryable<UserSearch> rows = searchContext.UserSearches.AsNoTracking();
+        IQueryable<UserSearch> rows = _searchContext.UserSearches.AsNoTracking();
         rows = includeAdmin
             ? rows.Where(user => user.CompanyId == companyId || user.Role == "RVTMasterAdmin" || user.Role == "RVTAdmin")
             : rows.Where(user => user.CompanyId == companyId);

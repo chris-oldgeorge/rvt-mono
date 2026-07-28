@@ -6,7 +6,7 @@ namespace MyAtmMonitorTests;
 [TestClass]
 public class TestMonitorApiEndpoints
 {
-    private static readonly string[] expected =
+    private static readonly string[] _expected =
         [
             "/liveness",
             "/readiness"
@@ -28,6 +28,6 @@ public class TestMonitorApiEndpoints
             .OfType<RouteEndpoint>()
             .Select(endpoint => endpoint.RoutePattern.RawText)];
 
-        CollectionAssert.AreEquivalent(expected, routes);
+        CollectionAssert.AreEquivalent(_expected, routes);
     }
 }

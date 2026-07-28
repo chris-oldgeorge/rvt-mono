@@ -16,10 +16,10 @@ namespace MyAtm.Api.Http
         int measurementPageSize = 1000,
         int accessoryPageSize = 1000)
     {
-        private readonly IHttpClient httpClient = httpClient;
-        private readonly int devicePageSize = devicePageSize;
-        private readonly int measurementPageSize = measurementPageSize;
-        private readonly int accessoryPageSize = accessoryPageSize;
+        private readonly IHttpClient _httpClient = httpClient;
+        private readonly int _devicePageSize = devicePageSize;
+        private readonly int _measurementPageSize = measurementPageSize;
+        private readonly int _accessoryPageSize = accessoryPageSize;
 
         public async Task<List<Model.Json.Customer.DustMonitor>> HttpGetMonitorsAsync(
             int customerId,
@@ -93,7 +93,7 @@ namespace MyAtm.Api.Http
                     serialNumber,
                     period,
                     normalizedCursor,
-                    measurementPageSize,
+                    _measurementPageSize,
                     cancellationToken);
                 List<T> rawMeasurements = JsonSerializer.Deserialize<List<T>>(json)
                     ?? throw AdapterException.Of("HttpGetDeviceMeasurements returned null JSON array.");
@@ -108,7 +108,7 @@ namespace MyAtm.Api.Http
                     .Select(group => group.First())
                     .OrderBy(measurement => measurement.Timestamp)];
                 DateTime? nextCursor = measurements.Count == 0 ? null : measurements[^1].Timestamp;
-                return new MyAtmMeasurementPage<T>(measurements, nextCursor, rawMeasurements.Count >= measurementPageSize);
+                return new MyAtmMeasurementPage<T>(measurements, nextCursor, rawMeasurements.Count >= _measurementPageSize);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -154,7 +154,7 @@ namespace MyAtm.Api.Http
             try
             {
                 DateTime normalizedCursor = DateTimeUtil.AsUtc(cursor);
-                string json = await DoGetDeviceAccessoryInfoAsync(customerId, serialNumber, normalizedCursor, accessoryPageSize, cancellationToken);
+                string json = await DoGetDeviceAccessoryInfoAsync(customerId, serialNumber, normalizedCursor, _accessoryPageSize, cancellationToken);
                 List<AccessoryInfo> rawAccessoryInfo = JsonSerializer.Deserialize<List<AccessoryInfo>>(json)
                     ?? throw AdapterException.Of("HttpGetAccessoryInfos returned null JSON array.");
                 List<AccessoryInfo> accessoryInfo = [.. rawAccessoryInfo
@@ -168,7 +168,7 @@ namespace MyAtm.Api.Http
                     .Select(group => group.First())
                     .OrderBy(info => info.Timestamp)];
                 DateTime? nextCursor = accessoryInfo.Count == 0 ? null : accessoryInfo[^1].Timestamp;
-                return new MyAtmMeasurementPage<AccessoryInfo>(accessoryInfo, nextCursor, rawAccessoryInfo.Count >= accessoryPageSize);
+                return new MyAtmMeasurementPage<AccessoryInfo>(accessoryInfo, nextCursor, rawAccessoryInfo.Count >= _accessoryPageSize);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -184,12 +184,12 @@ namespace MyAtm.Api.Http
 
         private async Task<string> DoListMonitorsAsync(int customerId, int skip, CancellationToken cancellationToken)
         {
-            return await httpClient.GetAsync(string.Format("/api/customers/{0}/devices?$skip={1}&$top={2}", customerId, skip, devicePageSize), cancellationToken);
+            return await _httpClient.GetAsync(string.Format("/api/customers/{0}/devices?$skip={1}&$top={2}", customerId, skip, _devicePageSize), cancellationToken);
         }
 
         private async Task<string> DoGetDeviceInfoAsync(int customerId, string serialId, CancellationToken cancellationToken)
         {
-            return await httpClient.GetAsync(string.Format("/api/customers/{0}/devices/{1}", customerId, serialId), cancellationToken);
+            return await _httpClient.GetAsync(string.Format("/api/customers/{0}/devices/{1}", customerId, serialId), cancellationToken);
         }
 
         private async Task<string> DoGetDeviceMeasurementsAsync(
@@ -214,7 +214,7 @@ namespace MyAtm.Api.Http
                 Period.Hours24 => string.Format("{0}/daily?{1}", basePath, paging),
                 _ => throw AdapterException.Of("DoGetDeviceMeasurementsAsync Unknown Period " + period),
             };
-            return await httpClient.GetAsync(path, cancellationToken);
+            return await _httpClient.GetAsync(path, cancellationToken);
         }
 
         private async Task<string> DoGetDeviceAccessoryInfoAsync(
@@ -224,7 +224,7 @@ namespace MyAtm.Api.Http
             int pageSize,
             CancellationToken cancellationToken)
         {
-            return await httpClient.GetAsync(
+            return await _httpClient.GetAsync(
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "/api/customers/{0}/devices/{1}/measurements/accessory?$filter=timestamp gt {2}&$orderby=timestamp asc&$top={3}",

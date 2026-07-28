@@ -15,26 +15,26 @@ public sealed class StoreMonitorsHandler(
     int devicePageSize,
     int maxDevicePagesPerRun)
 {
-    private readonly MyAtmHttpGateway gateway = gateway;
-    private readonly IMyAtmMonitorCommands monitorCommands = monitorCommands;
-    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
-    private readonly bool testLocal = testLocal;
-    private readonly int devicePageSize = devicePageSize;
-    private readonly int maxDevicePagesPerRun = maxDevicePagesPerRun;
+    private readonly MyAtmHttpGateway _gateway = gateway;
+    private readonly IMyAtmMonitorCommands _monitorCommands = monitorCommands;
+    private readonly IMyAtmOperationalCommands _operationalCommands = operationalCommands;
+    private readonly bool _testLocal = testLocal;
+    private readonly int _devicePageSize = devicePageSize;
+    private readonly int _maxDevicePagesPerRun = maxDevicePagesPerRun;
 
     public async Task RunAsync(int customerId, CancellationToken cancellationToken = default)
     {
-        MyAtmFailureCollector failures = new(operationalCommands);
+        MyAtmFailureCollector failures = new(_operationalCommands);
         HashSet<string> fullPageFingerprints = new(StringComparer.Ordinal);
         int skip = 0;
 
-        for (int pageNumber = 1; pageNumber <= maxDevicePagesPerRun; pageNumber++)
+        for (int pageNumber = 1; pageNumber <= _maxDevicePagesPerRun; pageNumber++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             List<DustMonitor> devices;
             try
             {
-                devices = await gateway.HttpGetMonitorsAsync(customerId, skip, cancellationToken);
+                devices = await _gateway.HttpGetMonitorsAsync(customerId, skip, cancellationToken);
             }
             catch (Exception exception)
             {
@@ -42,7 +42,7 @@ public sealed class StoreMonitorsHandler(
                 break;
             }
 
-            bool isFullPage = devices.Count >= devicePageSize;
+            bool isFullPage = devices.Count >= _devicePageSize;
             if (isFullPage && !fullPageFingerprints.Add(Fingerprint(devices)))
             {
                 failures.Capture(
@@ -68,7 +68,7 @@ public sealed class StoreMonitorsHandler(
 
                 try
                 {
-                    DustMonitorInfo deviceInfo = await gateway.HttpGetDeviceInfoAsync(
+                    DustMonitorInfo deviceInfo = await _gateway.HttpGetDeviceInfoAsync(
                         customerId,
                         serialId,
                         cancellationToken);
@@ -80,12 +80,12 @@ public sealed class StoreMonitorsHandler(
                 }
             }
 
-            List<DustMonitorDto> filteredDtos = MyAtmTestLocalMonitorFilter.ApplyCatalog(dtos, testLocal);
+            List<DustMonitorDto> filteredDtos = MyAtmTestLocalMonitorFilter.ApplyCatalog(dtos, _testLocal);
             if (filteredDtos.Count > 0)
             {
                 try
                 {
-                    monitorCommands.WriteMonitorList(filteredDtos);
+                    _monitorCommands.WriteMonitorList(filteredDtos);
                 }
                 catch (Exception exception)
                 {
@@ -98,7 +98,7 @@ public sealed class StoreMonitorsHandler(
                 break;
             }
 
-            if (pageNumber == maxDevicePagesPerRun)
+            if (pageNumber == _maxDevicePagesPerRun)
             {
                 failures.Capture(
                     $"StoreMonitors page={pageNumber}",
@@ -109,7 +109,7 @@ public sealed class StoreMonitorsHandler(
 
             try
             {
-                skip = checked(skip + devicePageSize);
+                skip = checked(skip + _devicePageSize);
             }
             catch (OverflowException exception)
             {

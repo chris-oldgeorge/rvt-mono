@@ -305,6 +305,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
                     && siteUser.UserId == scope.UserId.Value
                     && siteUser.StartDate <= scope.NowUtc
                     && (!siteUser.EndDate.HasValue || siteUser.EndDate.Value >= scope.NowUtc))),
+            SiteAccessScopeKind.None => throw new NotImplementedException(),
             _ => sites.Where(_ => false)
         };
     }

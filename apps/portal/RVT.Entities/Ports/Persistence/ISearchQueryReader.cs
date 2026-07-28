@@ -2,10 +2,6 @@
 // Major updates:
 // - 2026-07-10 pending Introduced the persistence ports seam; moved the time-series reader contract out of the EF adapter into the core.
 
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using RVT.Entities.Querying;
 
 namespace RVT.Entities.Ports.Persistence;

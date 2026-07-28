@@ -26,29 +26,29 @@ public interface ICompanyService
 
 public class CompanyService : ICompanyService
 {
-    private readonly ICompanyRepository companyRepository;
-    private readonly RVTSearchContext searchContext;
+    private readonly ICompanyRepository _companyRepository;
+    private readonly RVTSearchContext _searchContext;
     // Function summary: Initializes this type with the dependencies required by its workflow.
     public CompanyService(ICompanyRepository companyRepository, RVTSearchContext searchContext)
     {
-        this.companyRepository = companyRepository;
-        this.searchContext = searchContext;
+        _companyRepository = companyRepository;
+        _searchContext = searchContext;
     }
     // Function summary: Retrieves one data for callers.
     public async Task<Company> ReadOneAsync(Guid Id)
     {
-        return (await companyRepository.GetByIdAsync(Id))!;
+        return (await _companyRepository.GetByIdAsync(Id))!;
     }
 
     // Function summary: Retrieves one with contracts data for callers.
     public Task<Company> ReadOneWithContractsAsync(Guid Id)
     {
-        return companyRepository.GetByIdWithContractsAsync(Id);
+        return _companyRepository.GetByIdWithContractsAsync(Id);
     }
     // Function summary: Retrieves all data for callers.
     public Task<IList<Company>> ReadAllAsync()
     {
-        return companyRepository.ReadAllAsync();
+        return _companyRepository.ReadAllAsync();
     }
 
     // Function summary: Handles the company exist workflow for this module.
@@ -61,14 +61,14 @@ public class CompanyService : ICompanyService
         {
             new SingleFilter{ Operation = Op.Equals, PropertyName = "CompanyName", Value = CompanyName }
     };
-        SearchQueryResult<Company> res = await companyRepository.ReadFilteredAsync(query, [.. orderBy], 100, new Paging { paged = true, page = 1, pageSize = 200 }, cancellationToken);
+        SearchQueryResult<Company> res = await _companyRepository.ReadFilteredAsync(query, [.. orderBy], 100, new Paging { paged = true, page = 1, pageSize = 200 }, cancellationToken);
         return res.RecordCount > 0;
     }
 
     // Function summary: Handles the search workflow for this module.
     public async Task<SearchQueryResult<CompanySearch>> Search(string CompanyName, int? page, OrderByDirectionEnum sortdir, string Sort, int PageSize, CancellationToken cancellationToken = default)
     {
-        IQueryable<CompanySearch> companies = searchContext.CompanySearches.AsNoTracking();
+        IQueryable<CompanySearch> companies = _searchContext.CompanySearches.AsNoTracking();
         if (!string.IsNullOrEmpty(CompanyName))
         {
             companies = companies.Where(company => company.CompanyName.Contains(CompanyName));

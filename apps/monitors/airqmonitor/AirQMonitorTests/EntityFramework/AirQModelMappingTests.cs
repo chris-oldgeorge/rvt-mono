@@ -79,7 +79,7 @@ public sealed class AirQModelMappingTests
         AssertTimestamp(context, typeof(AirQNoise8HourAverageEntity), nameof(AirQNoise8HourAverageEntity.SampleTime));
     }
 
-    private static readonly string[] expected = ["SerialId", "TypeOfMonitor"];
+    private static readonly string[] _expected = ["SerialId", "TypeOfMonitor"];
 
     [TestMethod]
     public void AirQContext_PreservesKeysAndSharedMonitorIndex()
@@ -98,7 +98,7 @@ public sealed class AirQModelMappingTests
             "ix_monitor_serial_id_type_of_monitor",
             index.GetDatabaseName());
         CollectionAssert.AreEqual(
-            expected,
+            _expected,
             index.Properties.Select(property => property.Name).ToArray());
         Assert.IsFalse(index.IsUnique);
     }

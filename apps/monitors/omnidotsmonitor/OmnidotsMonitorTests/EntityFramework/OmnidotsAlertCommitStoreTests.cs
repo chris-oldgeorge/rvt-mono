@@ -14,35 +14,35 @@ namespace OmnidotsMonitorTests.EntityFramework;
 [TestCategory("PostgreSqlIntegration")]
 public sealed class OmnidotsAlertCommitStoreTests
 {
-    private const string SerialId = "23423";
-    private const string DefaultEmail = " Ops@Example.Test ";
-    private const string DefaultPhone = " +15550001111 ";
-    private static readonly DateTime EventTime =
+    private const string _serialId = "23423";
+    private const string _defaultEmail = " Ops@Example.Test ";
+    private const string _defaultPhone = " +15550001111 ";
+    private static readonly DateTime _eventTime =
         new(2026, 7, 15, 10, 0, 0, DateTimeKind.Utc);
-    private static readonly Guid SiteId =
+    private static readonly Guid _siteId =
         Guid.Parse("22222222-2222-2222-2222-222222222222");
-    private static readonly Guid MonitorId =
+    private static readonly Guid _monitorId =
         Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    private static readonly Guid ContractId =
+    private static readonly Guid _contractId =
         Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private static readonly Guid UserId =
+    private static readonly Guid _userId =
         Guid.Parse("44444444-4444-4444-4444-444444444444");
-    private static readonly Guid SiteUserId =
+    private static readonly Guid _siteUserId =
         Guid.Parse("55555555-5555-5555-5555-555555555555");
-    private static readonly Guid NotificationSettingId =
+    private static readonly Guid _notificationSettingId =
         Guid.Parse("66666666-6666-6666-6666-666666666666");
-    private static readonly string[] MqttOnlyKinds = ["MqttAlert"];
-    private static readonly string[] ContactKinds = ["Email", "Sms"];
-    private static readonly string[] AllDeliveryKinds = ["MqttAlert", "Email", "Sms"];
+    private static readonly string[] _mqttOnlyKinds = ["MqttAlert"];
+    private static readonly string[] _contactKinds = ["Email", "Sms"];
+    private static readonly string[] _allDeliveryKinds = ["MqttAlert", "Email", "Sms"];
 
-    private static PostgreSqlIntegrationDatabase? database;
-    private IAlertCommitStore store = null!;
+    private static PostgreSqlIntegrationDatabase? _database;
+    private IAlertCommitStore _store = null!;
 
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext _)
     {
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
-        database = await PostgreSqlIntegrationDatabase.CreateAsync(
+        _database = await PostgreSqlIntegrationDatabase.CreateAsync(
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/create.postgres.sql"),
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
             timeout.Token);
@@ -51,24 +51,24 @@ public sealed class OmnidotsAlertCommitStoreTests
     [ClassCleanup]
     public static async Task ClassCleanup()
     {
-        if (database is not null)
+        if (_database is not null)
         {
-            await database.DisposeAsync();
+            await _database.DisposeAsync();
         }
     }
 
     [TestInitialize]
     public async Task TestInitialize()
     {
-        await database!.ResetAsync(
+        await _database!.ResetAsync(
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
             TestContext.CancellationToken);
         await SeedContactGraphAsync();
 
         MonitorDbOptions monitorOptions = new(
             new Dictionary<string, string>());
-        store = new EfAlertCommitStore<OmnidotsMonitorContext>(
-            new OmnidotsMonitorContextFactory(database.ConnectionString, monitorOptions),
+        _store = new EfAlertCommitStore<OmnidotsMonitorContext>(
+            new OmnidotsMonitorContextFactory(_database.ConnectionString, monitorOptions),
             new CautionAlertAcceptancePolicy());
     }
 
@@ -79,7 +79,7 @@ public sealed class OmnidotsAlertCommitStoreTests
             AlertType.Alert,
             AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms);
 
-        AlertCommitResult result = await store.CommitAsync(request, TestContext.CancellationToken);
+        AlertCommitResult result = await _store.CommitAsync(request, TestContext.CancellationToken);
 
         Assert.AreEqual(AlertOccurrenceOutcome.Accepted, result.Outcome);
         Assert.IsFalse(result.IsDuplicate);
@@ -88,7 +88,7 @@ public sealed class OmnidotsAlertCommitStoreTests
         Assert.AreEqual(1, await CountAsync("notification"));
         Assert.AreEqual(3, await CountAsync("alert_delivery_outbox"));
         CollectionAssert.AreEquivalent(
-            AllDeliveryKinds,
+            _allDeliveryKinds,
             await ReadStringsAsync("SELECT kind FROM alert_delivery_outbox"));
 
         foreach (string payload in await ReadStringsAsync("SELECT payload FROM alert_delivery_outbox"))
@@ -97,9 +97,9 @@ public sealed class OmnidotsAlertCommitStoreTests
             Assert.IsNotNull(envelope);
             Assert.AreEqual(1, envelope.Version);
             Assert.AreEqual(request.NotificationId, envelope.NotificationId);
-            Assert.AreEqual(EventTime, envelope.Timestamp);
+            Assert.AreEqual(_eventTime, envelope.Timestamp);
             Assert.AreEqual(AlertType.Alert, envelope.AlertType);
-            Assert.AreEqual(SerialId, envelope.SerialId);
+            Assert.AreEqual(_serialId, envelope.SerialId);
             Assert.AreEqual(42, envelope.CustomerId);
             Assert.AreEqual("test-fleet", envelope.FleetNr);
             Assert.AreEqual("Vibration threshold exceeded.", envelope.Message);
@@ -109,7 +109,7 @@ public sealed class OmnidotsAlertCommitStoreTests
     [TestMethod]
     public async Task CommitAsync_Ignore_CommitsOnlyIgnoredOccurrence()
     {
-        AlertCommitResult result = await store.CommitAsync(CommitRequest(
+        AlertCommitResult result = await _store.CommitAsync(CommitRequest(
             AlertType.Ignore,
             AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms), TestContext.CancellationToken);
 
@@ -123,14 +123,14 @@ public sealed class OmnidotsAlertCommitStoreTests
     [TestMethod]
     public async Task CommitAsync_RepeatedCaution_SuppressesSecondOccurrence()
     {
-        AlertCommitResult first = await store.CommitAsync(CommitRequest(
+        AlertCommitResult first = await _store.CommitAsync(CommitRequest(
             AlertType.Caution,
             AlertDeliveryChannels.None,
             hashSeed: 1), TestContext.CancellationToken);
-        AlertCommitResult second = await store.CommitAsync(CommitRequest(
+        AlertCommitResult second = await _store.CommitAsync(CommitRequest(
             AlertType.Caution,
             AlertDeliveryChannels.None,
-            eventTime: EventTime.AddMinutes(5),
+            eventTime: _eventTime.AddMinutes(5),
             hashSeed: 2), TestContext.CancellationToken);
 
         Assert.AreEqual(AlertOccurrenceOutcome.Accepted, first.Outcome);
@@ -143,14 +143,14 @@ public sealed class OmnidotsAlertCommitStoreTests
     [TestMethod]
     public async Task CommitAsync_CautionThenAlert_AcceptsEscalation()
     {
-        AlertCommitResult caution = await store.CommitAsync(CommitRequest(
+        AlertCommitResult caution = await _store.CommitAsync(CommitRequest(
             AlertType.Caution,
             AlertDeliveryChannels.None,
             hashSeed: 1), TestContext.CancellationToken);
-        AlertCommitResult alert = await store.CommitAsync(CommitRequest(
+        AlertCommitResult alert = await _store.CommitAsync(CommitRequest(
             AlertType.Alert,
             AlertDeliveryChannels.None,
-            eventTime: EventTime.AddMinutes(5),
+            eventTime: _eventTime.AddMinutes(5),
             hashSeed: 2), TestContext.CancellationToken);
 
         Assert.AreEqual(AlertOccurrenceOutcome.Accepted, caution.Outcome);
@@ -161,15 +161,15 @@ public sealed class OmnidotsAlertCommitStoreTests
     [TestMethod]
     public async Task CommitAsync_RepeatedAlert_SuppressesSecondOccurrence()
     {
-        await store.CommitAsync(CommitRequest(
+        await _store.CommitAsync(CommitRequest(
             AlertType.Alert,
             AlertDeliveryChannels.None,
             hashSeed: 1), TestContext.CancellationToken);
 
-        AlertCommitResult second = await store.CommitAsync(CommitRequest(
+        AlertCommitResult second = await _store.CommitAsync(CommitRequest(
             AlertType.Alert,
             AlertDeliveryChannels.None,
-            eventTime: EventTime.AddMinutes(5),
+            eventTime: _eventTime.AddMinutes(5),
             hashSeed: 2), TestContext.CancellationToken);
 
         Assert.AreEqual(AlertOccurrenceOutcome.Suppressed, second.Outcome);
@@ -179,14 +179,14 @@ public sealed class OmnidotsAlertCommitStoreTests
     [TestMethod]
     public async Task CommitAsync_NotificationAtLowerWindowBoundary_IsIncluded()
     {
-        DateTime incomingTime = EventTime.AddHours(1);
-        await store.CommitAsync(CommitRequest(
+        DateTime incomingTime = _eventTime.AddHours(1);
+        await _store.CommitAsync(CommitRequest(
             AlertType.Caution,
             AlertDeliveryChannels.None,
-            eventTime: EventTime,
+            eventTime: _eventTime,
             hashSeed: 1), TestContext.CancellationToken);
 
-        AlertCommitResult boundary = await store.CommitAsync(CommitRequest(
+        AlertCommitResult boundary = await _store.CommitAsync(CommitRequest(
             AlertType.Caution,
             AlertDeliveryChannels.None,
             eventTime: incomingTime,
@@ -199,16 +199,16 @@ public sealed class OmnidotsAlertCommitStoreTests
     [TestMethod]
     public async Task CommitAsync_NotificationAfterEventTime_IsExcluded()
     {
-        await store.CommitAsync(CommitRequest(
+        await _store.CommitAsync(CommitRequest(
             AlertType.Caution,
             AlertDeliveryChannels.None,
-            eventTime: EventTime.AddMinutes(1),
+            eventTime: _eventTime.AddMinutes(1),
             hashSeed: 1), TestContext.CancellationToken);
 
-        AlertCommitResult olderEvent = await store.CommitAsync(CommitRequest(
+        AlertCommitResult olderEvent = await _store.CommitAsync(CommitRequest(
             AlertType.Caution,
             AlertDeliveryChannels.None,
-            eventTime: EventTime,
+            eventTime: _eventTime,
             hashSeed: 2), TestContext.CancellationToken);
 
         Assert.AreEqual(AlertOccurrenceOutcome.Accepted, olderEvent.Outcome);
@@ -218,15 +218,15 @@ public sealed class OmnidotsAlertCommitStoreTests
     [TestMethod]
     public async Task CommitAsync_AlertThenCaution_DoesNotDowngrade()
     {
-        await store.CommitAsync(CommitRequest(
+        await _store.CommitAsync(CommitRequest(
             AlertType.Alert,
             AlertDeliveryChannels.None,
             hashSeed: 1), TestContext.CancellationToken);
 
-        AlertCommitResult caution = await store.CommitAsync(CommitRequest(
+        AlertCommitResult caution = await _store.CommitAsync(CommitRequest(
             AlertType.Caution,
             AlertDeliveryChannels.None,
-            eventTime: EventTime.AddMinutes(1),
+            eventTime: _eventTime.AddMinutes(1),
             hashSeed: 2), TestContext.CancellationToken);
 
         Assert.AreEqual(AlertOccurrenceOutcome.Suppressed, caution.Outcome);
@@ -244,12 +244,12 @@ public sealed class OmnidotsAlertCommitStoreTests
                 command.Parameters.AddWithValue("end", NpgsqlDbType.Time, new TimeSpan(12, 0, 0));
             });
 
-        await store.CommitAsync(CommitRequest(
+        await _store.CommitAsync(CommitRequest(
             AlertType.Alert,
             AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms), TestContext.CancellationToken);
 
         CollectionAssert.AreEqual(
-            MqttOnlyKinds,
+            _mqttOnlyKinds,
             await ReadStringsAsync("SELECT kind FROM alert_delivery_outbox ORDER BY kind"));
     }
 
@@ -263,13 +263,13 @@ public sealed class OmnidotsAlertCommitStoreTests
             "ops@example.test",
             "+15550001111");
 
-        await store.CommitAsync(CommitRequest(
+        await _store.CommitAsync(CommitRequest(
             AlertType.Alert,
             AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms), TestContext.CancellationToken);
 
         Assert.AreEqual(3, await CountAsync("alert_delivery_outbox"));
         CollectionAssert.AreEquivalent(
-            AllDeliveryKinds,
+            _allDeliveryKinds,
             await ReadStringsAsync("SELECT kind FROM alert_delivery_outbox"));
     }
 
@@ -285,17 +285,17 @@ public sealed class OmnidotsAlertCommitStoreTests
             command =>
             {
                 command.Parameters.AddWithValue("user_id", casedUserId);
-                command.Parameters.AddWithValue("site_user_id", SiteUserId);
+                command.Parameters.AddWithValue("site_user_id", _siteUserId);
                 command.Parameters.AddWithValue("user_id_text", casedUserId.ToString("D").ToUpperInvariant());
-                command.Parameters.AddWithValue("old_user_id_text", UserId.ToString("D"));
+                command.Parameters.AddWithValue("old_user_id_text", _userId.ToString("D"));
             });
 
-        await store.CommitAsync(CommitRequest(
+        await _store.CommitAsync(CommitRequest(
             AlertType.Alert,
             AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms), TestContext.CancellationToken);
 
         CollectionAssert.AreEquivalent(
-            ContactKinds,
+            _contactKinds,
             await ReadStringsAsync("SELECT kind FROM alert_delivery_outbox"));
     }
 
@@ -304,13 +304,13 @@ public sealed class OmnidotsAlertCommitStoreTests
     {
         await ExecuteAsync("DELETE FROM notification_setting; DELETE FROM site_user; DELETE FROM \"AspNetUsers\";");
 
-        await store.CommitAsync(CommitRequest(
+        await _store.CommitAsync(CommitRequest(
             AlertType.Alert,
             AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms), TestContext.CancellationToken);
 
         Assert.AreEqual(1, await CountAsync("alert_delivery_outbox"));
         CollectionAssert.AreEqual(
-            MqttOnlyKinds,
+            _mqttOnlyKinds,
             await ReadStringsAsync("SELECT kind FROM alert_delivery_outbox ORDER BY kind"));
     }
 
@@ -321,8 +321,8 @@ public sealed class OmnidotsAlertCommitStoreTests
             AlertType.Alert,
             AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms);
 
-        AlertCommitResult first = await store.CommitAsync(request, TestContext.CancellationToken);
-        AlertCommitResult replay = await store.CommitAsync(request, TestContext.CancellationToken);
+        AlertCommitResult first = await _store.CommitAsync(request, TestContext.CancellationToken);
+        AlertCommitResult replay = await _store.CommitAsync(request, TestContext.CancellationToken);
 
         Assert.IsFalse(first.IsDuplicate);
         Assert.IsTrue(replay.IsDuplicate);
@@ -342,7 +342,7 @@ public sealed class OmnidotsAlertCommitStoreTests
             AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms);
         Guid occurrenceId = Guid.NewGuid();
         string applicationName = $"rvt-duplicate-{Guid.NewGuid():N}";
-        string connectionString = new NpgsqlConnectionStringBuilder(database!.ConnectionString)
+        string connectionString = new NpgsqlConnectionStringBuilder(_database!.ConnectionString)
         {
             ApplicationName = applicationName
         }.ConnectionString;
@@ -352,7 +352,7 @@ public sealed class OmnidotsAlertCommitStoreTests
             new OmnidotsMonitorContextFactory(connectionString, monitorOptions),
             new CautionAlertAcceptancePolicy());
 
-        await using NpgsqlConnection blockingConnection = database.OpenConnection();
+        await using NpgsqlConnection blockingConnection = _database.OpenConnection();
         await blockingConnection.OpenAsync(TestContext.CancellationToken);
         await using NpgsqlTransaction blockingTransaction = await blockingConnection.BeginTransactionAsync(TestContext.CancellationToken);
         await using (NpgsqlCommand insert = new(
@@ -372,7 +372,7 @@ public sealed class OmnidotsAlertCommitStoreTests
             insert.Parameters.AddWithValue("id", occurrenceId);
             insert.Parameters.AddWithValue("source", request.Signal.Source);
             insert.Parameters.AddWithValue("source_key_hash", NpgsqlDbType.Bytea, request.SourceKeyHash);
-            insert.Parameters.AddWithValue("monitor_id", MonitorId);
+            insert.Parameters.AddWithValue("monitor_id", _monitorId);
             insert.Parameters.AddWithValue("serial_id", request.Signal.SerialId);
             insert.Parameters.AddWithValue("event_time", request.Signal.EventTime);
             insert.Parameters.AddWithValue("alert_type", (int)request.Signal.AlertType);
@@ -407,7 +407,7 @@ public sealed class OmnidotsAlertCommitStoreTests
             command => command.Parameters.AddWithValue("email", new string('x', 513)));
 
         InvalidOperationException exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
-            () => store.CommitAsync(CommitRequest(
+            () => _store.CommitAsync(CommitRequest(
                 AlertType.Alert,
                 AlertDeliveryChannels.Email), TestContext.CancellationToken));
 
@@ -431,7 +431,7 @@ public sealed class OmnidotsAlertCommitStoreTests
         };
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(
-            () => store.CommitAsync(request, TestContext.CancellationToken));
+            () => _store.CommitAsync(request, TestContext.CancellationToken));
 
         Assert.AreEqual(0, await CountAsync("alert_occurrence"));
         Assert.AreEqual(0, await CountAsync("notification"));
@@ -448,9 +448,9 @@ public sealed class OmnidotsAlertCommitStoreTests
         return new AlertCommitRequest(
             new AlertSignal(
                 "omnidots.webhook",
-                $"alarm/{SerialId}/{hashSeed}",
-                eventTime ?? EventTime,
-                SerialId,
+                $"alarm/{_serialId}/{hashSeed}",
+                eventTime ?? _eventTime,
+                _serialId,
                 alertType,
                 "Vtop",
                 7.5,
@@ -461,7 +461,7 @@ public sealed class OmnidotsAlertCommitStoreTests
                 TimeSpan.FromHours(1)),
             sourceKeyHash,
             AlertIdentity.CreateNotificationId("omnidots.webhook", sourceKeyHash),
-            EventTime.AddMinutes(2));
+            _eventTime.AddMinutes(2));
     }
 
     private static async Task SeedContactGraphAsync()
@@ -508,25 +508,25 @@ public sealed class OmnidotsAlertCommitStoreTests
             sql,
             command =>
             {
-                command.Parameters.AddWithValue("site_id", SiteId);
-                command.Parameters.AddWithValue("created_at", EventTime.AddYears(-1));
-                command.Parameters.AddWithValue("monitor_id", MonitorId);
-                command.Parameters.AddWithValue("serial_id", SerialId);
-                command.Parameters.AddWithValue("listed_at", EventTime.AddYears(-1));
-                command.Parameters.AddWithValue("contract_id", ContractId);
+                command.Parameters.AddWithValue("site_id", _siteId);
+                command.Parameters.AddWithValue("created_at", _eventTime.AddYears(-1));
+                command.Parameters.AddWithValue("monitor_id", _monitorId);
+                command.Parameters.AddWithValue("serial_id", _serialId);
+                command.Parameters.AddWithValue("listed_at", _eventTime.AddYears(-1));
+                command.Parameters.AddWithValue("contract_id", _contractId);
                 command.Parameters.AddWithValue(
                     "company_id",
                     Guid.Parse("33333333-3333-3333-3333-333333333333"));
                 command.Parameters.AddWithValue(
                     "deployment_id",
                     Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"));
-                command.Parameters.AddWithValue("user_id_text", UserId.ToString("D"));
-                command.Parameters.AddWithValue("email", DefaultEmail);
-                command.Parameters.AddWithValue("phone", DefaultPhone);
-                command.Parameters.AddWithValue("site_user_id", SiteUserId);
-                command.Parameters.AddWithValue("start_date", EventTime.AddYears(-1));
-                command.Parameters.AddWithValue("user_id", UserId);
-                command.Parameters.AddWithValue("setting_id", NotificationSettingId);
+                command.Parameters.AddWithValue("user_id_text", _userId.ToString("D"));
+                command.Parameters.AddWithValue("email", _defaultEmail);
+                command.Parameters.AddWithValue("phone", _defaultPhone);
+                command.Parameters.AddWithValue("site_user_id", _siteUserId);
+                command.Parameters.AddWithValue("start_date", _eventTime.AddYears(-1));
+                command.Parameters.AddWithValue("user_id", _userId);
+                command.Parameters.AddWithValue("setting_id", _notificationSettingId);
             });
     }
 
@@ -557,9 +557,9 @@ public sealed class OmnidotsAlertCommitStoreTests
                 command.Parameters.AddWithValue("email", email);
                 command.Parameters.AddWithValue("phone", phone);
                 command.Parameters.AddWithValue("site_user_id", siteUserId);
-                command.Parameters.AddWithValue("start_date", EventTime.AddYears(-1));
+                command.Parameters.AddWithValue("start_date", _eventTime.AddYears(-1));
                 command.Parameters.AddWithValue("user_id", userId);
-                command.Parameters.AddWithValue("site_id", SiteId);
+                command.Parameters.AddWithValue("site_id", _siteId);
                 command.Parameters.AddWithValue("setting_id", settingId);
             });
 
@@ -573,7 +573,7 @@ public sealed class OmnidotsAlertCommitStoreTests
             _ => throw new ArgumentOutOfRangeException(nameof(table))
         };
 
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(sql, connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
@@ -593,7 +593,7 @@ public sealed class OmnidotsAlertCommitStoreTests
         };
 
         List<string> values = [];
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(sql, connection);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
@@ -609,7 +609,7 @@ public sealed class OmnidotsAlertCommitStoreTests
         string sql,
         Action<NpgsqlCommand>? addParameters = null)
     {
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(sql, connection);
         addParameters?.Invoke(command);
@@ -622,7 +622,7 @@ public sealed class OmnidotsAlertCommitStoreTests
         while (true)
         {
             timeout.Token.ThrowIfCancellationRequested();
-            await using NpgsqlConnection connection = database!.OpenConnection();
+            await using NpgsqlConnection connection = _database!.OpenConnection();
             await connection.OpenAsync(timeout.Token);
             await using NpgsqlCommand command = new(
                 """

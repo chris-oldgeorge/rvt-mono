@@ -10,7 +10,7 @@ namespace Rvt.Communication.MicrosoftGraphMailTests;
 [TestClass]
 public sealed class MicrosoftGraphEmailAdapterTests
 {
-    private static readonly string[] ExpectedUploadRanges =
+    private static readonly string[] _expectedUploadRanges =
     [
         "bytes 0-3145727/7340032",
         "bytes 3145728-6291455/7340032",
@@ -285,7 +285,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]), TestContext.CancellationToken);
 
         CollectionAssert.AreEqual(
-            expected,
+            _expected,
             handler.Requests.Select(request => request.Uri.AbsolutePath).ToArray());
         FlowRecordedRequest upload = handler.Requests.Single(request => request.Method == HttpMethod.Put);
         Assert.IsNull(upload.Authorization);
@@ -411,7 +411,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
 
         FlowRecordedRequest[] chunks = [.. handler.Requests.Where(request => request.Method == HttpMethod.Put)];
         CollectionAssert.AreEqual(
-            ExpectedUploadRanges,
+            _expectedUploadRanges,
             chunks.Select(chunk => chunk.ContentRange).ToArray());
         Assert.IsTrue(chunks.All(chunk => chunk.ContentLength <= 3L * 1024 * 1024));
         Assert.IsTrue(chunks.All(chunk => chunk.Authorization is null));
@@ -749,7 +749,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
     private sealed class SequenceHandler(params (HttpStatusCode Status, string Body)[] responses)
         : HttpMessageHandler
     {
-        private readonly Queue<(HttpStatusCode Status, string Body)> pending = new(responses);
+        private readonly Queue<(HttpStatusCode Status, string Body)> _pending = new(responses);
 
         internal List<LargeRecordedRequest> Requests { get; } = [];
 
@@ -766,7 +766,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
                 request.Headers.Authorization?.ToString(),
                 request.Content?.Headers.ContentRange?.ToString(),
                 bytes.LongLength));
-            (HttpStatusCode Status, string Body) = pending.Dequeue();
+            (HttpStatusCode Status, string Body) = _pending.Dequeue();
             return new HttpResponseMessage(Status)
             {
                 Content = new StringContent(Body, Encoding.UTF8, "application/json")
@@ -796,7 +796,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
 
     public TestContext TestContext { get; set; } = null!;
 
-    private static readonly string[] expected =
+    private static readonly string[] _expected =
             [
                 "/v1.0/users/sender%40example.test/messages",
                 "/v1.0/users/sender%40example.test/messages/draft-id/attachments/createUploadSession",

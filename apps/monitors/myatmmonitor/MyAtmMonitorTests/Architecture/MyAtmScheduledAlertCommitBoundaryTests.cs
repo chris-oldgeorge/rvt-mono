@@ -6,7 +6,7 @@ namespace MyAtmMonitorTests.Architecture;
 [TestClass]
 public sealed class MyAtmScheduledAlertCommitBoundaryTests
 {
-    private static readonly string[] expected = ["CommitAlertAsync"];
+    private static readonly string[] _expected = ["CommitAlertAsync"];
 
     [TestMethod]
     [DataRow("ProcessDustLevelsHandler.cs", "CreateAggregateCommit,CreateDeletedRuleDeactivationCommit")]
@@ -26,7 +26,7 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
 
         Assert.Contains("IMyAtmAlertCommitCommands", source);
         CollectionAssert.AreEquivalent(
-            expected,
+            _expected,
             InvokedMethods(source, "alertCommitCommands"));
         CollectionAssert.AreEquivalent(
             expectedCommitFactories.Split(',', StringSplitOptions.RemoveEmptyEntries),

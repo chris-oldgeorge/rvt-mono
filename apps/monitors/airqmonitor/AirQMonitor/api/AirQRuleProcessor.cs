@@ -17,10 +17,10 @@ public class AirQRuleProcessor(
     IMessageService messageService,
     IMonitorEventPublisher eventPublisher)
 {
-    private readonly IAirQRuleQueries ruleQueries = ruleQueries;
-    private readonly IAirQOperationalCommands operationalCommands = operationalCommands;
-    private readonly IMessageService messageService = messageService;
-    private readonly IMonitorEventPublisher eventPublisher = eventPublisher;
+    private readonly IAirQRuleQueries _ruleQueries = ruleQueries;
+    private readonly IAirQOperationalCommands _operationalCommands = operationalCommands;
+    private readonly IMessageService _messageService = messageService;
+    private readonly IMonitorEventPublisher _eventPublisher = eventPublisher;
 
     //Using start and end here to determine the date range and if there is time in there for an average. Eg, if there is a 15 to check the 15 minute average.
     public void ProcessRulesV2(NoiseMonitorDto monitorDto, List<RvtAlertRuleDto> allrules, DateTime start, DateTime end, List<NoiseDto>? dtos)
@@ -94,7 +94,7 @@ public class AirQRuleProcessor(
                     string serialId = monitorDto.SerialId!;
                     foreach (RvtAlertRuleDto? rule in rules)
                     {
-                        double level = ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Starthour, Starthour.AddHours(1));
+                        double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Starthour, Starthour.AddHours(1));
                         previousAlert = ruleEvaluator.Evaluate(
                             NewRuleEvaluationRequest(monitorDto, end, end),
                             rule,
@@ -117,7 +117,7 @@ public class AirQRuleProcessor(
                     string serialId = monitorDto.SerialId!;
                     foreach (RvtAlertRuleDto? rule in rules)
                     {
-                        double level = ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Startday, Startday.AddDays(1));
+                        double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Startday, Startday.AddDays(1));
                         previousAlert = ruleEvaluator.Evaluate(
                             NewRuleEvaluationRequest(monitorDto, end, end),
                             rule,
@@ -132,8 +132,8 @@ public class AirQRuleProcessor(
 
     private NoiseRuleEvaluator CreateNoiseRuleEvaluator() =>
         new(
-            operationalCommands.UpdateAlertRule,
-            monitorId => ruleQueries.ReadAlertContacts(monitorId, out Guid _),
+            _operationalCommands.UpdateAlertRule,
+            monitorId => _ruleQueries.ReadAlertContacts(monitorId, out Guid _),
             (request, contacts) => ProcessAlertForContactsV2(
                 fleetNr: request.FleetNr,
                 serialId: request.SerialId,
@@ -145,7 +145,7 @@ public class AirQRuleProcessor(
                 field: request.Field,
                 monitorId: request.MonitorId,
                 contacts: contacts),
-            eventPublisher);
+            _eventPublisher);
 
     private static RuleEvaluationRequest NewRuleEvaluationRequest(
         NoiseMonitorDto monitorDto,
@@ -173,9 +173,9 @@ public class AirQRuleProcessor(
         )
     {
         RuleAlertNotificationDispatcher dispatcher = new(
-            messageService,
-            operationalCommands.WriteNotification,
-            operationalCommands.WriteNotificationAudit);
+            _messageService,
+            _operationalCommands.WriteNotification,
+            _operationalCommands.WriteNotificationAudit);
 
         dispatcher.ProcessAlertForContacts(
             new RuleNotificationRequest(

@@ -79,6 +79,17 @@ public class AuthController : ControllerBase
                 Detail = "Unknown error. Contact support",
                 Status = StatusCodes.Status401Unauthorized
             }),
+            AuthWorkflowStatus.InvalidCredentials => throw new NotImplementedException(),
+            AuthWorkflowStatus.Unauthorized => throw new NotImplementedException(),
+            AuthWorkflowStatus.MissingConfirmationValues => throw new NotImplementedException(),
+            AuthWorkflowStatus.MalformedConfirmationCode => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationCouldNotBeVerified => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.InitialPasswordUserNotFound => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailNotConfirmed => throw new NotImplementedException(),
+            AuthWorkflowStatus.PasswordAlreadySet => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.ValidationFailed => throw new NotImplementedException(),
             _ => Unauthorized(new ProblemDetails
             {
                 Title = "Sign in failed",
@@ -148,6 +159,19 @@ public class AuthController : ControllerBase
                 Detail = "The confirmation code is malformed.",
                 Status = StatusCodes.Status400BadRequest
             }),
+            AuthWorkflowStatus.AlreadySignedIn => throw new NotImplementedException(),
+            AuthWorkflowStatus.AccountDisabled => throw new NotImplementedException(),
+            AuthWorkflowStatus.LockedOut => throw new NotImplementedException(),
+            AuthWorkflowStatus.SignInNotAllowed => throw new NotImplementedException(),
+            AuthWorkflowStatus.InvalidCredentials => throw new NotImplementedException(),
+            AuthWorkflowStatus.Unauthorized => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationCouldNotBeVerified => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.InitialPasswordUserNotFound => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailNotConfirmed => throw new NotImplementedException(),
+            AuthWorkflowStatus.PasswordAlreadySet => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.ValidationFailed => throw new NotImplementedException(),
             _ => ConfirmationFailed()
         };
     }
@@ -180,6 +204,18 @@ public class AuthController : ControllerBase
                 Status = StatusCodes.Status400BadRequest
             }),
             AuthWorkflowStatus.ValidationFailed => IdentityErrors("Email change failed", result.Errors),
+            AuthWorkflowStatus.AlreadySignedIn => throw new NotImplementedException(),
+            AuthWorkflowStatus.AccountDisabled => throw new NotImplementedException(),
+            AuthWorkflowStatus.LockedOut => throw new NotImplementedException(),
+            AuthWorkflowStatus.SignInNotAllowed => throw new NotImplementedException(),
+            AuthWorkflowStatus.InvalidCredentials => throw new NotImplementedException(),
+            AuthWorkflowStatus.Unauthorized => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationCouldNotBeVerified => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.InitialPasswordUserNotFound => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailNotConfirmed => throw new NotImplementedException(),
+            AuthWorkflowStatus.PasswordAlreadySet => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailFailed => throw new NotImplementedException(),
             _ => ConfirmationFailed()
         };
     }
@@ -225,6 +261,16 @@ public class AuthController : ControllerBase
                 Detail = "The user's password has already been set.",
                 Status = StatusCodes.Status400BadRequest
             }),
+            AuthWorkflowStatus.AlreadySignedIn => throw new NotImplementedException(),
+            AuthWorkflowStatus.AccountDisabled => throw new NotImplementedException(),
+            AuthWorkflowStatus.LockedOut => throw new NotImplementedException(),
+            AuthWorkflowStatus.SignInNotAllowed => throw new NotImplementedException(),
+            AuthWorkflowStatus.InvalidCredentials => throw new NotImplementedException(),
+            AuthWorkflowStatus.Unauthorized => throw new NotImplementedException(),
+            AuthWorkflowStatus.MissingConfirmationValues => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.ValidationFailed => throw new NotImplementedException(),
             _ => IdentityErrors("Could not set password", result.Errors)
         };
     }
@@ -241,6 +287,20 @@ public class AuthController : ControllerBase
         {
             AuthWorkflowStatus.Success => result.Value!,
             AuthWorkflowStatus.Unauthorized => Unauthorized(),
+            AuthWorkflowStatus.AlreadySignedIn => throw new NotImplementedException(),
+            AuthWorkflowStatus.AccountDisabled => throw new NotImplementedException(),
+            AuthWorkflowStatus.LockedOut => throw new NotImplementedException(),
+            AuthWorkflowStatus.SignInNotAllowed => throw new NotImplementedException(),
+            AuthWorkflowStatus.InvalidCredentials => throw new NotImplementedException(),
+            AuthWorkflowStatus.MissingConfirmationValues => throw new NotImplementedException(),
+            AuthWorkflowStatus.MalformedConfirmationCode => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationCouldNotBeVerified => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.InitialPasswordUserNotFound => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailNotConfirmed => throw new NotImplementedException(),
+            AuthWorkflowStatus.PasswordAlreadySet => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.ValidationFailed => throw new NotImplementedException(),
             _ => IdentityErrors("Password change failed", result.Errors)
         };
     }
@@ -267,6 +327,20 @@ public class AuthController : ControllerBase
         {
             AuthWorkflowStatus.Success => result.Value!,
             AuthWorkflowStatus.Unauthorized => Unauthorized(),
+            AuthWorkflowStatus.AlreadySignedIn => throw new NotImplementedException(),
+            AuthWorkflowStatus.AccountDisabled => throw new NotImplementedException(),
+            AuthWorkflowStatus.LockedOut => throw new NotImplementedException(),
+            AuthWorkflowStatus.SignInNotAllowed => throw new NotImplementedException(),
+            AuthWorkflowStatus.InvalidCredentials => throw new NotImplementedException(),
+            AuthWorkflowStatus.MissingConfirmationValues => throw new NotImplementedException(),
+            AuthWorkflowStatus.MalformedConfirmationCode => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationCouldNotBeVerified => throw new NotImplementedException(),
+            AuthWorkflowStatus.ConfirmationFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.InitialPasswordUserNotFound => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailNotConfirmed => throw new NotImplementedException(),
+            AuthWorkflowStatus.PasswordAlreadySet => throw new NotImplementedException(),
+            AuthWorkflowStatus.EmailFailed => throw new NotImplementedException(),
+            AuthWorkflowStatus.ValidationFailed => throw new NotImplementedException(),
             _ => IdentityErrors("Profile update failed", result.Errors)
         };
     }

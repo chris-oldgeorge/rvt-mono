@@ -16,18 +16,18 @@ public class StoreMonitorsHandler(
     ISvantekOperationalCommands operationalCommands,
     bool testLocal)
 {
-    private readonly SvantekHttpGateway gateway = gateway;
-    private readonly ISvantekMonitorCommands monitorCommands = monitorCommands;
-    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
-    private readonly bool testLocal = testLocal;
+    private readonly SvantekHttpGateway _gateway = gateway;
+    private readonly ISvantekMonitorCommands _monitorCommands = monitorCommands;
+    private readonly ISvantekOperationalCommands _operationalCommands = operationalCommands;
+    private readonly bool _testLocal = testLocal;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         RvtLogger.Logger.LogDebug("StoreMonitors reading projects API");
-        List<Project> projects = await gateway.GetProjectsAsync(cancellationToken).ConfigureAwait(false);
+        List<Project> projects = await _gateway.GetProjectsAsync(cancellationToken).ConfigureAwait(false);
         RvtLogger.Logger.LogDebug("StoreMonitors reading stations API");
-        List<Station> stations = await gateway.GetStationsAsync(cancellationToken).ConfigureAwait(false);
-        SvantekFailureCollector failures = new(operationalCommands);
+        List<Station> stations = await _gateway.GetStationsAsync(cancellationToken).ConfigureAwait(false);
+        SvantekFailureCollector failures = new(_operationalCommands);
 
         foreach (Project project in projects)
         {
@@ -71,8 +71,8 @@ public class StoreMonitorsHandler(
                     });
                 }
 
-                await monitorCommands.WriteMonitorListAsync(
-                    SvantekTestLocalMonitorFilter.Apply(dtos, testLocal),
+                await _monitorCommands.WriteMonitorListAsync(
+                    SvantekTestLocalMonitorFilter.Apply(dtos, _testLocal),
                     cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception)

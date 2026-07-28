@@ -2,8 +2,6 @@
 // Major updates:
 // - 2026-06-08 pending Added Help CMS article entity for FAQ, documents, videos, and definitions.
 
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace RVT.Entities;

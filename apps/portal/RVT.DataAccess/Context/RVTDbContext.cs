@@ -7,7 +7,6 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using RVT.DataAccess.Configuration;
 
 namespace RVT.DataAccess.Context;
@@ -37,20 +36,20 @@ public class RVTDbContext : DbContext
     // Every runtime context now comes from AddDbContext with explicit options; EF tooling uses
     // RVTDbContextDesignTimeFactory.
 
-    public virtual DbSet<Entities.Company> Companies { get; set; }
-    public virtual DbSet<Entities.Contract> Contracts { get; set; }
-    public virtual DbSet<Entities.Site> Sites { get; set; }
-    public virtual DbSet<Entities.Deployment> Deployments { get; set; }
-    public virtual DbSet<Entities.SiteUsers> SiteUsers { get; set; }
-    public virtual DbSet<Entities.Monitor> MonitorsList { get; set; }
-    public virtual DbSet<Entities.Alertlevel> RvtAlertRules { get; set; }
-    public virtual DbSet<Entities.NotificationSettings> NotificationSettings { get; set; }
-    public virtual DbSet<Entities.Notification> Notifications { get; set; }
-    public virtual DbSet<Entities.SiteArchived> SiteArchived { get; set; }
-    public virtual DbSet<Entities.SiteOperatingHours> SiteOperatingHours { get; set; }
-    public virtual DbSet<Entities.HelpSection> HelpSections { get; set; }
-    public virtual DbSet<Entities.HelpArticle> HelpArticles { get; set; }
-    public virtual DbSet<Entities.HelpAsset> HelpAssets { get; set; }
+    public virtual DbSet<Entities.Company> Companies { get; set; } = null!;
+    public virtual DbSet<Entities.Contract> Contracts { get; set; } = null!;
+    public virtual DbSet<Entities.Site> Sites { get; set; } = null!;
+    public virtual DbSet<Entities.Deployment> Deployments { get; set; } = null!;
+    public virtual DbSet<Entities.SiteUsers> SiteUsers { get; set; } = null!;
+    public virtual DbSet<Entities.Monitor> MonitorsList { get; set; } = null!;
+    public virtual DbSet<Entities.Alertlevel> RvtAlertRules { get; set; } = null!;
+    public virtual DbSet<Entities.NotificationSettings> NotificationSettings { get; set; } = null!;
+    public virtual DbSet<Entities.Notification> Notifications { get; set; } = null!;
+    public virtual DbSet<Entities.SiteArchived> SiteArchived { get; set; } = null!;
+    public virtual DbSet<Entities.SiteOperatingHours> SiteOperatingHours { get; set; } = null!;
+    public virtual DbSet<Entities.HelpSection> HelpSections { get; set; } = null!;
+    public virtual DbSet<Entities.HelpArticle> HelpArticles { get; set; } = null!;
+    public virtual DbSet<Entities.HelpAsset> HelpAssets { get; set; } = null!;
 
     // Function summary: Configures provider-neutral domain relationships and indexes.
     protected override void OnModelCreating(ModelBuilder modelBuilder)

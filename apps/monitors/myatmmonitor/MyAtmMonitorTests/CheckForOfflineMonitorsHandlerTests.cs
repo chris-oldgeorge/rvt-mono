@@ -4,7 +4,6 @@ using MyAtm.Api.Db;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
 using MyAtm.Model.Dto;
-using Rvt.Monitor.Common.Delivery;
 
 namespace MyAtmMonitorTests;
 
@@ -36,7 +35,7 @@ public sealed class CheckForOfflineMonitorsHandlerTests
                     commit.MonitorStateMutation!.MonitorId == valid.Id &&
                     commit.MonitorStateMutation.Offline == true),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new MyAtmAlertCommitResult(true, []));
         CheckForOfflineMonitorsHandler handler = CreateHandler(
             ruleQueries,
             monitorQueries,
@@ -148,9 +147,9 @@ public sealed class CheckForOfflineMonitorsHandlerTests
 
     private sealed class FixedTimeProvider(DateTime now) : TimeProvider
     {
-        private readonly DateTimeOffset now = new DateTimeOffset(now);
+        private readonly DateTimeOffset _now = new(now);
 
-        public override DateTimeOffset GetUtcNow() => now;
+        public override DateTimeOffset GetUtcNow() => _now;
     }
 
     public TestContext TestContext { get; set; } = null!;

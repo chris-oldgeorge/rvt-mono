@@ -15,22 +15,22 @@ public sealed class NotifyBatteryLevelsHandler(
     ISvantekOperationalCommands operationalCommands,
     SvantekRuleProcessor ruleProcessor)
 {
-    private const int BatteryLevelPercentCaution = 20;
-    private const int BatteryLevelPercentAlert = 10;
-    private const string BatteryLevel = "Battery level";
+    private const int _batteryLevelPercentCaution = 20;
+    private const int _batteryLevelPercentAlert = 10;
+    private const string _batteryLevel = "Battery level";
 
-    private readonly SvantekMonitorReader monitorReader = monitorReader;
-    private readonly ISvantekRuleQueries ruleQueries = ruleQueries;
-    private readonly ISvantekMonitorCommands monitorCommands = monitorCommands;
-    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
-    private readonly SvantekRuleProcessor ruleProcessor = ruleProcessor;
+    private readonly SvantekMonitorReader _monitorReader = monitorReader;
+    private readonly ISvantekRuleQueries _ruleQueries = ruleQueries;
+    private readonly ISvantekMonitorCommands _monitorCommands = monitorCommands;
+    private readonly ISvantekOperationalCommands _operationalCommands = operationalCommands;
+    private readonly SvantekRuleProcessor _ruleProcessor = ruleProcessor;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        List<NoiseMonitorReadDto> monitors = await monitorReader.ReadMonitorsAsync(
+        List<NoiseMonitorReadDto> monitors = await _monitorReader.ReadMonitorsAsync(
             lastDataTime: null,
             cancellationToken).ConfigureAwait(false);
-        SvantekFailureCollector failures = new(operationalCommands);
+        SvantekFailureCollector failures = new(_operationalCommands);
 
         foreach (NoiseMonitorReadDto monitor in monitors)
         {
@@ -59,33 +59,33 @@ public sealed class NotifyBatteryLevelsHandler(
             monitor.SerialId,
             monitor.BatteryStatus);
 
-        if (batteryLevel <= BatteryLevelPercentAlert)
+        if (batteryLevel <= _batteryLevelPercentAlert)
         {
             if (monitor.BatteryStatus != SvantekApi.BatteryAlertType.BatteryAlert)
             {
                 await ProcessBatteryAlertAsync(
                     batteryLevel,
                     monitor,
-                    BatteryLevelPercentAlert,
+                    _batteryLevelPercentAlert,
                     AlertType.BatteryAlert,
                     cancellationToken).ConfigureAwait(false);
             }
         }
-        else if (batteryLevel <= BatteryLevelPercentCaution)
+        else if (batteryLevel <= _batteryLevelPercentCaution)
         {
             if (monitor.BatteryStatus != SvantekApi.BatteryAlertType.BatteryCaution)
             {
                 await ProcessBatteryAlertAsync(
                     batteryLevel,
                     monitor,
-                    BatteryLevelPercentCaution,
+                    _batteryLevelPercentCaution,
                     AlertType.BatteryCaution,
                     cancellationToken).ConfigureAwait(false);
             }
         }
         else if (monitor.BatteryStatus != SvantekApi.BatteryAlertType.Off)
         {
-            await monitorCommands.SetMonitorBatteryStatusAsync(
+            await _monitorCommands.SetMonitorBatteryStatusAsync(
                 monitor.Id,
                 batteryStatus: 0,
                 cancellationToken).ConfigureAwait(false);
@@ -100,13 +100,13 @@ public sealed class NotifyBatteryLevelsHandler(
         CancellationToken cancellationToken)
     {
         byte status = (byte)(alertType == AlertType.BatteryAlert ? 1 : 2);
-        await monitorCommands.SetMonitorBatteryStatusAsync(
+        await _monitorCommands.SetMonitorBatteryStatusAsync(
             monitor.Id,
             status,
             cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
-        List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
-        ruleProcessor.ProcessAlertForContacts(
+        List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = _ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
+        _ruleProcessor.ProcessAlertForContacts(
             monitor.FleetNr,
             monitor.SerialId,
             DateTimeUtil.TruncateMillis(DateTime.UtcNow),
@@ -114,7 +114,7 @@ public sealed class NotifyBatteryLevelsHandler(
             0,
             batteryLevel,
             alertType,
-            BatteryLevel,
+            _batteryLevel,
             monitor.Id,
             contacts);
     }

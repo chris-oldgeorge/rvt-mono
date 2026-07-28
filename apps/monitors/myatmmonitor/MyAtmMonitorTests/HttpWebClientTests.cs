@@ -152,14 +152,14 @@ public class HttpWebClientTests
 
     private sealed class QueueHttpMessageHandler(Queue<HttpResponseMessage> responses) : HttpMessageHandler
     {
-        private readonly Queue<HttpResponseMessage> responses = responses;
+        private readonly Queue<HttpResponseMessage> _responses = responses;
 
         public int RequestCount { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestCount++;
-            return Task.FromResult(responses.Dequeue());
+            return Task.FromResult(_responses.Dequeue());
         }
     }
 

@@ -11,7 +11,7 @@ namespace OmnidotsAdapterTests.UseCases;
 [TestClass]
 public sealed class ProcessWebhookHandlerTests
 {
-    private const string WebhookSecret = "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww";
+    private const string _webhookSecret = "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww";
 
     [TestMethod]
     public void PublicSurface_ContainsOnlyByteRunAsyncAndFocusedDependencies()
@@ -167,7 +167,7 @@ public sealed class ProcessWebhookHandlerTests
     private static OmnidotsApiSecurityOptions ValidOptions() => new()
     {
         WebhookUrl = "https://alerts.example.test/omnidots",
-        WebhookSecret = WebhookSecret,
+        WebhookSecret = _webhookSecret,
         ConfigSecret = "cccccccccccccccccccccccccccccccc",
         NotificationDelayMinutes = 5,
         WebhookConcurrencyLimit = 8,
@@ -180,14 +180,14 @@ public sealed class ProcessWebhookHandlerTests
 
     private static string Signature(ReadOnlySpan<byte> body)
     {
-        byte[] digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), body);
+        byte[] digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(_webhookSecret), body);
         return $"sha256={Convert.ToHexStringLower(digest)}";
     }
 
     private sealed class CapturingIngress(
         Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> accept) : IAlertIngressPort
     {
-        private readonly Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> accept = accept;
+        private readonly Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> _accept = accept;
 
         public CapturingIngress()
             : this((_, _) => Task.FromResult(new AlertIngressResult(
@@ -208,7 +208,7 @@ public sealed class ProcessWebhookHandlerTests
         {
             Signal = signal;
             CancellationToken = cancellationToken;
-            return accept(signal, cancellationToken);
+            return _accept(signal, cancellationToken);
         }
     }
 

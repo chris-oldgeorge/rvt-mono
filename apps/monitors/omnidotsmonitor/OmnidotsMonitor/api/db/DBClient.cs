@@ -30,8 +30,8 @@ public class DBClient :
     IOmnidotsMeasurementImportCommands,
     IOmnidotsTraceQueries
 {
-    private readonly string ConnectionString;
-    private readonly Action<OmnidotsMeasurementSeries, int>? BeforeImportSave;
+    private readonly string _connectionString;
+    private readonly Action<OmnidotsMeasurementSeries, int>? _beforeImportSave;
 
     public DBClient(string connectionString)
         : this(connectionString, null)
@@ -45,8 +45,8 @@ public class DBClient :
         MonitorDb.ValidateLegacyProvider(
             Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
             Environment.GetEnvironmentVariable("DatabaseProvider"));
-        ConnectionString = connectionString;
-        BeforeImportSave = beforeImportSave;
+        _connectionString = connectionString;
+        _beforeImportSave = beforeImportSave;
     }
 
     public void WriteMonitorList(List<VibrationMonitorDto> monitors)
@@ -663,7 +663,7 @@ public class DBClient :
     private OmnidotsMonitorContext CreateContext()
     {
         MonitorDbOptions monitorOptions = OmnidotsMonitorDbOptions.Current;
-        DbContextOptions<OmnidotsMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(ConnectionString);
+        DbContextOptions<OmnidotsMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(_connectionString);
         return new OmnidotsMonitorContext(options, monitorOptions);
     }
 
@@ -723,7 +723,7 @@ public class DBClient :
             try
             {
                 stageAttempt(context);
-                BeforeImportSave?.Invoke(series, attempt);
+                _beforeImportSave?.Invoke(series, attempt);
                 context.SaveChanges();
                 transaction.Commit();
                 return;

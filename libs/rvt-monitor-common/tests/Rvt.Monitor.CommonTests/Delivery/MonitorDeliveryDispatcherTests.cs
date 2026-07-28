@@ -11,8 +11,8 @@ namespace Rvt.Monitor.CommonTests.Delivery;
 [TestClass]
 public sealed class MonitorDeliveryDispatcherTests
 {
-    private static readonly TimeSpan TimingTolerance = TimeSpan.FromSeconds(2);
-    private static readonly string[] OutcomeAndSinkEvents = ["outcome", "sink"];
+    private static readonly TimeSpan _timingTolerance = TimeSpan.FromSeconds(2);
+    private static readonly string[] _outcomeAndSinkEvents = ["outcome", "sink"];
 
     [TestMethod]
     public async Task DispatchDueAsync_WhenNoRowIsDue_ClaimsOnceWithoutMutatingOrDelivering()
@@ -65,7 +65,7 @@ public sealed class MonitorDeliveryDispatcherTests
         Assert.AreEqual("Dust Alert LAeq level=75", document.RootElement.GetProperty("Message").GetString());
         Assert.AreEqual(JsonValueKind.Null, document.RootElement.GetProperty("CustomerId").ValueKind);
         CollectionAssert.AreEqual(
-            expected,
+            _expected,
             events);
         Assert.HasCount(2, harness.Queries.Claims);
         Assert.IsNull(harness.Commands.Completions.Single().Audit);
@@ -606,7 +606,7 @@ public sealed class MonitorDeliveryDispatcherTests
 
         await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
-        CollectionAssert.AreEqual(OutcomeAndSinkEvents, events);
+        CollectionAssert.AreEqual(_outcomeAndSinkEvents, events);
         Assert.HasCount(1, harness.Commands.Retries);
         Assert.IsTrue(harness.Logger.Messages.Any(entry =>
             entry.Contains("failure sink", StringComparison.OrdinalIgnoreCase) &&
@@ -616,7 +616,7 @@ public sealed class MonitorDeliveryDispatcherTests
     private static void AssertTimestampNear(DateTime expected, DateTime actual)
     {
         TimeSpan delta = (actual - expected).Duration();
-        Assert.IsLessThanOrEqualTo(TimingTolerance, delta, $"Expected {actual:O} within {TimingTolerance} of {expected:O}.");
+        Assert.IsLessThanOrEqualTo(_timingTolerance, delta, $"Expected {actual:O} within {_timingTolerance} of {expected:O}.");
     }
 
     private static MonitorDeliveryMessage Message(
@@ -665,13 +665,13 @@ public sealed class MonitorDeliveryDispatcherTests
 
     private sealed class RecordingQueries : IMonitorDeliveryOutboxQueries
     {
-        private readonly Queue<MonitorDeliveryMessage> messages = new();
+        private readonly Queue<MonitorDeliveryMessage> _messages = new();
 
         internal List<ClaimCall> Claims { get; } = [];
         internal Action? OnClaim { get; set; }
-        internal int Remaining => messages.Count;
+        internal int Remaining => _messages.Count;
 
-        internal void Enqueue(MonitorDeliveryMessage message) => messages.Enqueue(message);
+        internal void Enqueue(MonitorDeliveryMessage message) => _messages.Enqueue(message);
 
         public Task<MonitorDeliveryMessage?> ClaimNextDueAsync(
             string producer,
@@ -682,7 +682,7 @@ public sealed class MonitorDeliveryDispatcherTests
             cancellationToken.ThrowIfCancellationRequested();
             Claims.Add(new ClaimCall(producer, utcNow, leaseDuration, cancellationToken));
             OnClaim?.Invoke();
-            return Task.FromResult(messages.TryDequeue(out MonitorDeliveryMessage? message) ? message : null);
+            return Task.FromResult(_messages.TryDequeue(out MonitorDeliveryMessage? message) ? message : null);
         }
     }
 
@@ -811,5 +811,5 @@ public sealed class MonitorDeliveryDispatcherTests
 
     public TestContext TestContext { get; set; } = null!;
 
-    private static readonly string[] expected = ["claim", "deliver", "complete", "claim"];
+    private static readonly string[] _expected = ["claim", "deliver", "complete", "claim"];
 }

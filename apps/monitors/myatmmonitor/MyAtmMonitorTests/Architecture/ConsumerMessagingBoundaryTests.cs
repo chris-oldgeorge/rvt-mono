@@ -5,12 +5,12 @@ namespace MyAtmMonitorTests.Architecture;
 [TestClass]
 public sealed class ConsumerMessagingBoundaryTests
 {
-    private static readonly string[] SynchronousCompatibilityCallers =
+    private static readonly string[] _synchronousCompatibilityCallers =
     [
         "apps/monitors/myatmmonitor/MyAtmMonitor/api/MyAtmRuleProcessor.cs",
         "apps/monitors/omnidotsmonitor/OmnidotsMonitor/api/OmnidotsRuleProcessor.cs"
     ];
-    private static readonly string[] sourceArray =
+    private static readonly string[] _sourceArray =
             [
                 "apps/monitors/myatmmonitor/MyAtmMonitor",
                 "apps/monitors/omnidotsmonitor/OmnidotsMonitor"
@@ -20,14 +20,14 @@ public sealed class ConsumerMessagingBoundaryTests
     public void ObsoleteSynchronousMessageCallsAreLimitedToConsumerCompatibilityAllowlist()
     {
         string root = RepositoryLayout.Root;
-        string[] callers = [.. sourceArray.SelectMany(relativeDirectory => ReadProductionSource(root, relativeDirectory))
+        string[] callers = [.. _sourceArray.SelectMany(relativeDirectory => ReadProductionSource(root, relativeDirectory))
             .Where(file => file.Text.Contains(".Sendmessage(", StringComparison.Ordinal) ||
                 file.Text.Contains(".SendMessage(", StringComparison.Ordinal))
             .Select(file => file.RelativePath)
             .Order(StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(
-            SynchronousCompatibilityCallers.Order(StringComparer.Ordinal).ToArray(),
+            _synchronousCompatibilityCallers.Order(StringComparer.Ordinal).ToArray(),
             callers);
     }
 

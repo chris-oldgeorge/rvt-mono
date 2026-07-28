@@ -3,13 +3,12 @@ using MyAtm.Model.Dto;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 
 namespace MyAtm.Api;
 
 public sealed class MyAtmRuleEvaluator(MyAtmAlertTransitionEvaluator transitionEvaluator)
 {
-    private readonly MyAtmAlertTransitionEvaluator transitionEvaluator = transitionEvaluator;
+    private readonly MyAtmAlertTransitionEvaluator _transitionEvaluator = transitionEvaluator;
 
     public MyAtmRuleEvaluator()
         : this(new MyAtmAlertTransitionEvaluator())
@@ -36,7 +35,7 @@ public sealed class MyAtmRuleEvaluator(MyAtmAlertTransitionEvaluator transitionE
                     otherRule.AlertType == AlertType.Alert &&
                     MyAtmAlertTransitionEvaluator.NormalizeField(otherRule.Field) == MyAtmAlertTransitionEvaluator.NormalizeField(rule.Field) &&
                     states[otherRule.RuleId].IsActive);
-                MyAtmAlertTransition transition = transitionEvaluator.Evaluate(rule, IsActive, sample, alertForFieldIsActive);
+                MyAtmAlertTransition transition = _transitionEvaluator.Evaluate(rule, IsActive, sample, alertForFieldIsActive);
                 if (transition.IsActive != IsActive)
                 {
                     states[rule.RuleId] = (transition.IsActive, transition.Activated ? utcNow : Accessed);
@@ -57,7 +56,7 @@ public sealed class MyAtmRuleEvaluator(MyAtmAlertTransitionEvaluator transitionE
                     rule.LimitOn,
                     transition.Level!.Value,
                     sample.SampleTime,
-                    Array.Empty<RvtContactDto>()));
+                    []));
             }
         }
 

@@ -2,7 +2,6 @@
 // Major updates:
 // - 2026-06-08 pending Added Help CMS section entity for the SPA help module.
 
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace RVT.Entities;

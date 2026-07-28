@@ -304,7 +304,7 @@ public class TestMyAtmApiDevices
         List<MyAtmAlertCommit> commits = [];
         dbClient.Setup(c => c.CommitAlertAsync(It.IsAny<MyAtmAlertCommit>(), It.IsAny<CancellationToken>()))
             .Callback<MyAtmAlertCommit, CancellationToken>((commit, _) => commits.Add(commit))
-            .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new MyAtmAlertCommitResult(true, []));
 
         await testObj.CheckForOfflineMonitorsAsync(customerId, TestContext.CancellationToken);
 

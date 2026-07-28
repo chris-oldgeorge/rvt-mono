@@ -2,8 +2,6 @@
 // Major updates:
 // - 2026-07-14 pending Added so unknown filter/sort fields fail loudly instead of silently widening the result set.
 
-using System;
-
 namespace RVT.Entities.Querying;
 
 /// <summary>

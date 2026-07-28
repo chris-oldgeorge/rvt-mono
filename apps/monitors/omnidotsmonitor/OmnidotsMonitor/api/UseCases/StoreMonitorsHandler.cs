@@ -17,9 +17,9 @@ public class StoreMonitorsHandler(
     bool testLocal)
 {
     private readonly IOmnidotsVendorGateway _gateway = gateway;
-    private readonly IOmnidotsMonitorCommands monitorCommands = monitorCommands;
-    private readonly IOmnidotsOperationalCommands operationalCommands = operationalCommands;
-    private readonly bool testLocal = testLocal;
+    private readonly IOmnidotsMonitorCommands _monitorCommands = monitorCommands;
+    private readonly IOmnidotsOperationalCommands _operationalCommands = operationalCommands;
+    private readonly bool _testLocal = testLocal;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
@@ -35,10 +35,10 @@ public class StoreMonitorsHandler(
             catch (Exception e)
             {
                 RvtLogger.Logger.LogError(e, "StoreMonitors error with measuringPointId={Value1}", mp.Id);
-                operationalCommands.HandleException(string.Format("StoreMonitor id={0}", mp.Id), e);
+                _operationalCommands.HandleException(string.Format("StoreMonitor id={0}", mp.Id), e);
             }
         }
 
-        monitorCommands.WriteMonitorList(OmnidotsTestLocalMonitorFilter.ApplyCatalog(monitors, testLocal));
+        _monitorCommands.WriteMonitorList(OmnidotsTestLocalMonitorFilter.ApplyCatalog(monitors, _testLocal));
     }
 }

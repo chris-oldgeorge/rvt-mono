@@ -18,10 +18,10 @@ public class SvantekRuleProcessor(
     IMessageService messageService,
     IMonitorEventPublisher eventPublisher)
 {
-    private readonly ISvantekRuleQueries ruleQueries = ruleQueries;
-    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
-    private readonly IMessageService messageService = messageService;
-    private readonly IMonitorEventPublisher eventPublisher = eventPublisher;
+    private readonly ISvantekRuleQueries _ruleQueries = ruleQueries;
+    private readonly ISvantekOperationalCommands _operationalCommands = operationalCommands;
+    private readonly IMessageService _messageService = messageService;
+    private readonly IMonitorEventPublisher _eventPublisher = eventPublisher;
 
     private static bool CrossesOverIntervalExist(DateTime start, DateTime end, int average)
     {
@@ -123,7 +123,7 @@ public class SvantekRuleProcessor(
             string serialId = monitorDto.SerialId!;
             foreach (RvtAlertRuleDto rule in rules)
             {
-                double level = ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, StartTime, StartTime.AddSeconds(averagingPeriod));
+                double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, StartTime, StartTime.AddSeconds(averagingPeriod));
                 previousAlert = ruleEvaluator.Evaluate(
                     NewRuleEvaluationRequest(
                         monitorDto,
@@ -153,9 +153,9 @@ public class SvantekRuleProcessor(
     )
     {
         RuleAlertNotificationDispatcher dispatcher = new(
-            messageService,
-            operationalCommands.WriteNotification,
-            operationalCommands.WriteNotificationAudit);
+            _messageService,
+            _operationalCommands.WriteNotification,
+            _operationalCommands.WriteNotificationAudit);
 
         dispatcher.ProcessAlertForContacts(
             new RuleNotificationRequest(
@@ -173,8 +173,8 @@ public class SvantekRuleProcessor(
 
     private NoiseRuleEvaluator CreateNoiseRuleEvaluator() =>
         new(
-            operationalCommands.UpdateAlertRule,
-            monitorId => ruleQueries.ReadAlertContacts(monitorId, out Guid _),
+            _operationalCommands.UpdateAlertRule,
+            monitorId => _ruleQueries.ReadAlertContacts(monitorId, out Guid _),
             (request, contacts) => ProcessAlertForContacts(
                 fleetNr: request.FleetNr,
                 serialId: request.SerialId,
@@ -186,7 +186,7 @@ public class SvantekRuleProcessor(
                 field: request.Field,
                 monitorId: request.MonitorId,
                 contacts: contacts),
-            eventPublisher);
+            _eventPublisher);
 
     private static RuleEvaluationRequest NewRuleEvaluationRequest(
         NoiseMonitorReadDto monitorDto,

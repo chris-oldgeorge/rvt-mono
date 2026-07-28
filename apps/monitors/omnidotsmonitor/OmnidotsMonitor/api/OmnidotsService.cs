@@ -10,51 +10,51 @@ namespace Omnidots.Api;
 public class OmnidotsService(OmnidotsApi omnidotsApi)
 {
 
-    private readonly OmnidotsApi omnidotsApi = omnidotsApi;
+    private readonly OmnidotsApi _omnidotsApi = omnidotsApi;
 
     public Task StoreMonitorsAsync(CancellationToken cancellationToken = default)
     {
-        return omnidotsApi.StoreMonitorsAsync(cancellationToken);
+        return _omnidotsApi.StoreMonitorsAsync(cancellationToken);
     }
 
     public Task CheckForOfflineMonitorsAsync(CancellationToken cancellationToken = default)
     {
-        return omnidotsApi.CheckForOfflineMonitorsAsync(cancellationToken);
+        return _omnidotsApi.CheckForOfflineMonitorsAsync(cancellationToken);
     }
 
     public Task StorePeakRecordsLastDataTimeAsync(CancellationToken cancellationToken = default)
     {
-        return omnidotsApi.StorePeakRecordsLastDataTimeAsync(cancellationToken);
+        return _omnidotsApi.StorePeakRecordsLastDataTimeAsync(cancellationToken);
     }
 
     public Task StoreVeffRecordsAsync(TimeSpan lookback, CancellationToken cancellationToken = default)
     {
-        return omnidotsApi.StoreVeffRecordsAsync(lookback, cancellationToken);
+        return _omnidotsApi.StoreVeffRecordsAsync(lookback, cancellationToken);
     }
 
     public Task StoreVdvRecordsAsync(TimeSpan lookback, CancellationToken cancellationToken = default)
     {
-        return omnidotsApi.StoreVdvRecordsAsync(lookback, cancellationToken);
+        return _omnidotsApi.StoreVdvRecordsAsync(lookback, cancellationToken);
     }
 
     public Task StoreTracesAsync(DateTime since, CancellationToken cancellationToken = default)
     {
-        return omnidotsApi.StoreTracesAsync(since, cancellationToken);
+        return _omnidotsApi.StoreTracesAsync(since, cancellationToken);
     }
 
     public Task NotifyBatteryLevelsAsync(CancellationToken cancellationToken = default)
     {
-        return omnidotsApi.NotifyBatteryLevelsAsync(cancellationToken);
+        return _omnidotsApi.NotifyBatteryLevelsAsync(cancellationToken);
     }
 
     public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default)
     {
-        return omnidotsApi.ClearOlderErrorMessagesAsync(cancellationToken);
+        return _omnidotsApi.ClearOlderErrorMessagesAsync(cancellationToken);
     }
 
     public Task MonitoringAsync(CancellationToken cancellationToken = default)
     {
         RvtLogger.Logger.LogInformation("Starting Monitoring");
-        return omnidotsApi.MonitoringAsync(cancellationToken);
+        return _omnidotsApi.MonitoringAsync(cancellationToken);
     }
 }

@@ -28,7 +28,7 @@ public class TestMonitorApiEndpoints
         app.MapAirQMonitorApi();
 
         RouteEndpoint import = GetRoute(app, "/store-noise-levels-for-date");
-        CollectionAssert.AreEquivalent(expected, import.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods.ToList());
+        CollectionAssert.AreEquivalent(_expected, import.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods.ToList());
         Assert.IsNull(((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>().SingleOrDefault(endpoint => endpoint.RoutePattern.RawText == "/store-noise-levels-for-date" &&
                 endpoint.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods.Contains("GET")));
@@ -141,5 +141,5 @@ public class TestMonitorApiEndpoints
 
     public TestContext TestContext { get; set; } = null!;
 
-    private static readonly string[] expected = ["POST"];
+    private static readonly string[] _expected = ["POST"];
 }

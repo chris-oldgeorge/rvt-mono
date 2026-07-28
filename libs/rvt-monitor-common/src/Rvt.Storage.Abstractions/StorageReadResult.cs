@@ -6,7 +6,7 @@ public sealed class StorageReadResult(
     long? length,
     IDisposable? lease = null) : IAsyncDisposable
 {
-    private readonly IDisposable? lease = lease;
+    private readonly IDisposable? _lease = lease;
 
     public Stream Content { get; } = content ?? throw new ArgumentNullException(nameof(content));
 
@@ -22,7 +22,7 @@ public sealed class StorageReadResult(
         }
         finally
         {
-            lease?.Dispose();
+            _lease?.Dispose();
         }
     }
 }

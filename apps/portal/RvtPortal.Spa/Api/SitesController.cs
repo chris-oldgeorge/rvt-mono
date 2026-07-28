@@ -330,13 +330,17 @@ public class SitesController : ControllerBase
         {
             UseCaseResultKind.NotFound => SiteNotFound(siteId),
             UseCaseResultKind.Forbidden => Forbid(),
+            UseCaseResultKind.Success => throw new NotImplementedException(),
+            UseCaseResultKind.Validation => throw new NotImplementedException(),
+            UseCaseResultKind.Conflict => throw new NotImplementedException(),
+            UseCaseResultKind.ExternalServiceUnavailable => throw new NotImplementedException(),
             _ => StatusCode(
-                StatusCodes.Status500InternalServerError,
-                ApiProblems.Create(
-                    HttpContext,
-                    StatusCodes.Status500InternalServerError,
-                    "Unexpected application result.",
-                    "The customer logo could not be read."))
+                            StatusCodes.Status500InternalServerError,
+                            ApiProblems.Create(
+                                HttpContext,
+                                StatusCodes.Status500InternalServerError,
+                                "Unexpected application result.",
+                                "The customer logo could not be read."))
         };
     }
 

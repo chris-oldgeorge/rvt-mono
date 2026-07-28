@@ -2,8 +2,6 @@
 // Major updates:
 // - 2026-06-08 pending Added daily site operating-hours entity for SPA site scheduling.
 
-using System;
-
 namespace RVT.Entities;
 
 public class SiteOperatingHours : BaseEntity

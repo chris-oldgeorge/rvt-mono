@@ -14,7 +14,7 @@ public class HttpWebClient<T> : IHttpClient
     /// </summary>
     internal static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
-    private readonly HttpClient httpClient;
+    private readonly HttpClient _httpClient;
 
     public HttpWebClient(string baseUrl)
         : this(baseUrl, new HttpClient())
@@ -23,16 +23,16 @@ public class HttpWebClient<T> : IHttpClient
 
     internal HttpWebClient(string baseUrl, HttpClient httpClient)
     {
-        this.httpClient = httpClient;
-        this.httpClient.BaseAddress = new Uri(baseUrl);
-        this.httpClient.DefaultRequestHeaders.Add("accept", "application/json");
-        this.httpClient.Timeout = RequestTimeout;
+        this._httpClient = httpClient;
+        this._httpClient.BaseAddress = new Uri(baseUrl);
+        this._httpClient.DefaultRequestHeaders.Add("accept", "application/json");
+        this._httpClient.Timeout = RequestTimeout;
     }
 
     public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
     {
         RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
-        using HttpResponseMessage response = await httpClient.GetAsync(path, cancellationToken);
+        using HttpResponseMessage response = await _httpClient.GetAsync(path, cancellationToken);
         string reply = await response.Content.ReadAsStringAsync(cancellationToken);
         if (response.StatusCode != HttpStatusCode.OK)
         {

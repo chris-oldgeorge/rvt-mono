@@ -12,15 +12,15 @@ public class MyAtmMonitorReader(
     IMyAtmOperationalCommands operationalCommands,
     bool testLocal)
 {
-    private readonly IMyAtmMonitorQueries monitorQueries = monitorQueries;
-    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
-    private readonly bool testLocal = testLocal;
+    private readonly IMyAtmMonitorQueries _monitorQueries = monitorQueries;
+    private readonly IMyAtmOperationalCommands _operationalCommands = operationalCommands;
+    private readonly bool _testLocal = testLocal;
 
     public List<DustMonitorDto>? ReadMonitors(int customerId, DateTime? dateTime = null)
     {
         try
         {
-            return MyAtmTestLocalMonitorFilter.Apply(monitorQueries.ReadMonitorList(customerId, dateTime), testLocal);
+            return MyAtmTestLocalMonitorFilter.Apply(_monitorQueries.ReadMonitorList(customerId, dateTime), _testLocal);
         }
         catch (OperationCanceledException exception) when (exception.CancellationToken.IsCancellationRequested)
         {
@@ -43,7 +43,7 @@ public class MyAtmMonitorReader(
 
             try
             {
-                operationalCommands.HandleException("ReadMonitors", exception);
+                _operationalCommands.HandleException("ReadMonitors", exception);
             }
             catch (Exception operationalException)
             {

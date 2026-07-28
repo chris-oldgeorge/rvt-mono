@@ -114,19 +114,19 @@ public sealed class MonitorModelMappingTests
         Assert.Contains("Unsafe SQL identifier", exception.Message);
     }
 
-    private static readonly string[] MonitorDeliveryOutboxIndexes =
+    private static readonly string[] _monitorDeliveryOutboxIndexes =
     [
         "ix_monitor_delivery_outbox_due",
         "ix_monitor_delivery_outbox_notification_id",
         "uq_monitor_delivery_outbox_producer_delivery_key"
     ];
-    private static readonly string[] AlertOccurrenceIndexes =
+    private static readonly string[] _alertOccurrenceIndexes =
     [
         "ix_alert_occurrence_monitor_id",
         "ix_alert_occurrence_notification_id",
         "uq_alert_occurrence_source_key"
     ];
-    private static readonly string[] AlertDeliveryOutboxIndexes =
+    private static readonly string[] _alertDeliveryOutboxIndexes =
     [
         "ix_alert_delivery_outbox_due",
         "ix_alert_delivery_outbox_occurrence_id",
@@ -169,7 +169,7 @@ public sealed class MonitorModelMappingTests
             .FindProperty(nameof(MonitorDeliveryOutboxEntity.DeliveryKey))!
             .GetCollation());
         CollectionAssert.AreEqual(
-            MonitorDeliveryOutboxIndexes,
+            _monitorDeliveryOutboxIndexes,
             entity.GetIndexes()
                 .Select(index => index.GetDatabaseName())
                 .Order(StringComparer.Ordinal)
@@ -182,7 +182,7 @@ public sealed class MonitorModelMappingTests
         Assert.AreEqual(DeleteBehavior.SetNull, notificationForeignKey.DeleteBehavior);
     }
 
-    private static readonly string[] AlertOccurrenceConstraints =
+    private static readonly string[] _alertOccurrenceConstraints =
             [
                 "ck_alert_occurrence_outcome",
                 "ck_alert_occurrence_source_key_hash"
@@ -216,7 +216,7 @@ public sealed class MonitorModelMappingTests
             .Model
             .FindEntityType(typeof(AlertOccurrenceEntity))!;
         CollectionAssert.AreEqual(
-            AlertOccurrenceConstraints,
+            _alertOccurrenceConstraints,
             designTimeEntity.GetCheckConstraints()
                 .Select(constraint => constraint.Name)
                 .Order(StringComparer.Ordinal)
@@ -230,14 +230,14 @@ public sealed class MonitorModelMappingTests
             designTimeEntity.GetCheckConstraints().Single(constraint =>
                 constraint.Name == "ck_alert_occurrence_outcome").Sql);
         CollectionAssert.AreEqual(
-            AlertOccurrenceIndexes,
+            _alertOccurrenceIndexes,
             entity.GetIndexes()
                 .Select(index => index.GetDatabaseName())
                 .Order(StringComparer.Ordinal)
                 .ToArray());
     }
 
-    private static readonly string[] AlertDeliveryOutboxConstraints =
+    private static readonly string[] _alertDeliveryOutboxConstraints =
             [
                 "ck_alert_delivery_outbox_kind",
                 "ck_alert_delivery_outbox_status"
@@ -271,7 +271,7 @@ public sealed class MonitorModelMappingTests
             .Model
             .FindEntityType(typeof(AlertDeliveryOutboxEntity))!;
         CollectionAssert.AreEqual(
-            AlertDeliveryOutboxConstraints,
+            _alertDeliveryOutboxConstraints,
             designTimeEntity.GetCheckConstraints()
                 .Select(constraint => constraint.Name)
                 .Order(StringComparer.Ordinal)
@@ -285,7 +285,7 @@ public sealed class MonitorModelMappingTests
             designTimeEntity.GetCheckConstraints().Single(constraint =>
                 constraint.Name == "ck_alert_delivery_outbox_status").Sql);
         CollectionAssert.AreEqual(
-            AlertDeliveryOutboxIndexes,
+            _alertDeliveryOutboxIndexes,
             entity.GetIndexes()
                 .Select(index => index.GetDatabaseName())
                 .Order(StringComparer.Ordinal)

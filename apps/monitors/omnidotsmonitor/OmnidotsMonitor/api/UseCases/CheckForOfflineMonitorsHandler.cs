@@ -19,17 +19,17 @@ public class CheckForOfflineMonitorsHandler(
     IOmnidotsOperationalCommands operationalCommands,
     OmnidotsRuleProcessor ruleProcessor)
 {
-    private readonly IOmnidotsRuleQueries ruleQueries = ruleQueries;
-    private readonly OmnidotsMonitorReader monitorReader = monitorReader;
-    private readonly IOmnidotsMonitorQueries monitorQueries = monitorQueries;
-    private readonly IOmnidotsMonitorCommands monitorCommands = monitorCommands;
-    private readonly IOmnidotsOperationalCommands operationalCommands = operationalCommands;
-    private readonly OmnidotsRuleProcessor ruleProcessor = ruleProcessor;
+    private readonly IOmnidotsRuleQueries _ruleQueries = ruleQueries;
+    private readonly OmnidotsMonitorReader _monitorReader = monitorReader;
+    private readonly IOmnidotsMonitorQueries _monitorQueries = monitorQueries;
+    private readonly IOmnidotsMonitorCommands _monitorCommands = monitorCommands;
+    private readonly IOmnidotsOperationalCommands _operationalCommands = operationalCommands;
+    private readonly OmnidotsRuleProcessor _ruleProcessor = ruleProcessor;
 
     public Task RunAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = ruleQueries.ReadRules(null);
+        List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _ruleQueries.ReadRules(null);
 
         DateTime utcNow = DateTime.UtcNow;
         List<OmnidotsMonitorFailure> failures = [];
@@ -39,7 +39,7 @@ public class CheckForOfflineMonitorsHandler(
             {
                 DateTime cutOff = utcNow.Subtract(new TimeSpan(hours: 0, minutes: 0, seconds: rule.AveragingPeriod));
                 DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
-                List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors(offlineDateTime);
+                List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors(offlineDateTime);
 
                 foreach (VibrationMonitorDto monitor in monitors!)
                 {
@@ -57,14 +57,14 @@ public class CheckForOfflineMonitorsHandler(
                             failures.Add(OmnidotsMonitorFailure.Record(
                                 monitor.SerialId,
                                 failure,
-                                () => operationalCommands.HandleException(message, failure)));
+                                () => _operationalCommands.HandleException(message, failure)));
                             continue;
                         }
 
                         TimeSpan activeDuration;
                         try
                         {
-                            SiteTimes siteTimes = monitorQueries.ReadSiteTimes(monitor.Id);
+                            SiteTimes siteTimes = _monitorQueries.ReadSiteTimes(monitor.Id);
                             activeDuration = SiteActiveDurationCalculator.Between(
                                 siteTimes,
                                 lastDataTime,
@@ -77,7 +77,7 @@ public class CheckForOfflineMonitorsHandler(
                             failures.Add(OmnidotsMonitorFailure.Record(
                                 monitor.SerialId,
                                 failure,
-                                () => operationalCommands.HandleException(message, failure)));
+                                () => _operationalCommands.HandleException(message, failure)));
                             continue;
                         }
 
@@ -98,10 +98,10 @@ public class CheckForOfflineMonitorsHandler(
                                                                                alertType: AlertType.Offline,
                                                                                monitorId: monitor.Id);
 
-                                ruleProcessor.ProcessAlertForContacts(monitor, notification);
+                                _ruleProcessor.ProcessAlertForContacts(monitor, notification);
 
                                 monitor.Offline = true;
-                                monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
+                                _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                             }
                             else
                             {
@@ -113,7 +113,7 @@ public class CheckForOfflineMonitorsHandler(
                             if (monitor.Offline)
                             {
                                 monitor.Offline = false;
-                                monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
+                                _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                             }
                             RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data not offline (considering site hours) marking as online", monitor.SerialId);
                         }
@@ -123,7 +123,7 @@ public class CheckForOfflineMonitorsHandler(
                         if (monitor.Offline)
                         {
                             monitor.Offline = false;
-                            monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
+                            _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                         }
                         RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data not offline (less than 24 hours)  marking as online", monitor.SerialId);
                     }

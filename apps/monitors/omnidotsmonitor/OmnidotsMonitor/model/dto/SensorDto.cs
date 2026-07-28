@@ -1,5 +1,3 @@
-using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Utilities;
 
 namespace Omnidots.Model.Dto;

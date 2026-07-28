@@ -7,11 +7,11 @@ namespace MyAtm.Api.UseCases;
 // - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiMonitors).
 public class ClearOlderErrorMessagesHandler(IMyAtmOperationalCommands operationalCommands)
 {
-    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
+    private readonly IMyAtmOperationalCommands _operationalCommands = operationalCommands;
 
     public void Run()
     {
         DateTime cutOff = DateTime.UtcNow.AddDays(-7);
-        operationalCommands.ClearErrorMessages(cutOff);
+        _operationalCommands.ClearErrorMessages(cutOff);
     }
 }

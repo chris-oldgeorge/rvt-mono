@@ -11,9 +11,9 @@ public sealed class RuleAlertNotificationDispatcher(
     Action<NotificationDto> writeNotification,
     Action<Guid, string, string> writeNotificationAudit)
 {
-    private readonly IMessageService messageService = messageService;
-    private readonly Action<NotificationDto> writeNotification = writeNotification;
-    private readonly Action<Guid, string, string> writeNotificationAudit = writeNotificationAudit;
+    private readonly IMessageService _messageService = messageService;
+    private readonly Action<NotificationDto> _writeNotification = writeNotification;
+    private readonly Action<Guid, string, string> _writeNotificationAudit = writeNotificationAudit;
 
     public void ProcessAlertForContacts(RuleNotificationRequest request, List<RvtContactDto> contacts)
     {
@@ -76,7 +76,7 @@ public sealed class RuleAlertNotificationDispatcher(
             {
                 RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
                     SensitiveLogRedactor.Redact(contact.EmailAddress));
-                messageService.Sendmessage(
+                _messageService.Sendmessage(
                     messageToSend,
                     LegacyMessageChannel.Email,
                     contact.ToNotificationDto(),
@@ -110,7 +110,7 @@ public sealed class RuleAlertNotificationDispatcher(
             {
                 RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
                     SensitiveLogRedactor.Redact(contact.PhoneNumber));
-                messageService.Sendmessage(
+                _messageService.Sendmessage(
                     messageToSend,
                     LegacyMessageChannel.SMS,
                     contact.ToNotificationDto(),

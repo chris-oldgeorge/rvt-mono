@@ -7,7 +7,7 @@ namespace Svantek.Api.Http;
 
 public class HttpWebClient<T> : IHttpClient
 {
-    private readonly HttpClient httpClient;
+    private readonly HttpClient _httpClient;
 
     public HttpWebClient(string baseUrl)
         : this(baseUrl, new HttpClient())
@@ -16,11 +16,11 @@ public class HttpWebClient<T> : IHttpClient
 
     public HttpWebClient(string baseUrl, HttpClient httpClient)
     {
-        this.httpClient = httpClient;
-        this.httpClient.BaseAddress ??= new Uri(baseUrl);
-        if (!this.httpClient.DefaultRequestHeaders.Contains("accept"))
+        this._httpClient = httpClient;
+        this._httpClient.BaseAddress ??= new Uri(baseUrl);
+        if (!this._httpClient.DefaultRequestHeaders.Contains("accept"))
         {
-            this.httpClient.DefaultRequestHeaders.Add("accept", "application/json");
+            this._httpClient.DefaultRequestHeaders.Add("accept", "application/json");
         }
     }
 
@@ -28,7 +28,7 @@ public class HttpWebClient<T> : IHttpClient
     {
         RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
         using HttpRequestMessage request = new(HttpMethod.Get, path);
-        using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         string reply = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (response.StatusCode != HttpStatusCode.OK)
         {
@@ -47,7 +47,7 @@ public class HttpWebClient<T> : IHttpClient
         using HttpRequestMessage request = new(HttpMethod.Post, path);
         request.Content = content;
 
-        using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         string reply = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (response.StatusCode != HttpStatusCode.OK)
         {
@@ -65,7 +65,7 @@ public class HttpWebClient<T> : IHttpClient
         using HttpRequestMessage request = new(HttpMethod.Post, path);
         request.Content = content;
 
-        using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         byte[] reply = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
         if (response.StatusCode != HttpStatusCode.OK)
         {

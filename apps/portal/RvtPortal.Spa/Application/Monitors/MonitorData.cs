@@ -54,10 +54,10 @@ public class OmnidotsFourierData
 
 public class MonitorData
 {
-    private static readonly string DUST_MONITOR_NAME = "Air Quality Levels at Dust Monitor {0}";
-    private static readonly string NOISE_MONITOR_NAME = "Sound Levels at Noise Monitor {0}";
-    private static readonly string VIBRATION_MONITOR_NAME = "Vibration Levels at Vibration Monitor {0}";
-    private static readonly string VIBRATION_TRACES_MONITOR_NAME = "Traces at Vibration Monitor {0}";
+    private static readonly string dustMonitorName = "Air Quality Levels at Dust Monitor {0}";
+    private static readonly string noiseMonitorName = "Sound Levels at Noise Monitor {0}";
+    private static readonly string vibrationMonitorName = "Vibration Levels at Vibration Monitor {0}";
+    private static readonly string vibrationTracesMonitorName = "Traces at Vibration Monitor {0}";
 
     public RVT.Entities.Monitor? Monitor { get; set; }
     public DateTime MinDate { get; set; }
@@ -83,11 +83,11 @@ public class MonitorData
             switch ((MonitorTypeEnum)typeOfMonitor)
             {
                 case MonitorTypeEnum.Dust:
-                    return string.Format(CultureInfo.InvariantCulture, DUST_MONITOR_NAME, fleetNr ?? string.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
+                    return string.Format(CultureInfo.InvariantCulture, dustMonitorName, fleetNr ?? string.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
                 case MonitorTypeEnum.Noise:
-                    return string.Format(CultureInfo.InvariantCulture, NOISE_MONITOR_NAME, fleetNr ?? string.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
+                    return string.Format(CultureInfo.InvariantCulture, noiseMonitorName, fleetNr ?? string.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
                 case MonitorTypeEnum.Vibration:
-                    return string.Format(CultureInfo.InvariantCulture, traces ? VIBRATION_TRACES_MONITOR_NAME : VIBRATION_MONITOR_NAME, fleetNr ?? string.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
+                    return string.Format(CultureInfo.InvariantCulture, traces ? vibrationTracesMonitorName : vibrationMonitorName, fleetNr ?? string.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
                 default:
                     break;
             }
@@ -118,6 +118,7 @@ public class MonitorData
         {
             MonitorTypeEnum.Dust => 60,
             MonitorTypeEnum.Noise => 900,
+            MonitorTypeEnum.Vibration => throw new NotImplementedException(),
             _ => 0,
         };
     }

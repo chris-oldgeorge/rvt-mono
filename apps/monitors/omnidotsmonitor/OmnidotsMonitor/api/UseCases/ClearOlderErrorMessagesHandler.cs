@@ -7,14 +7,14 @@ namespace Omnidots.Api.UseCases;
 // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiTraces).
 public class ClearOlderErrorMessagesHandler(IOmnidotsOperationalCommands operationalCommands)
 {
-    private readonly IOmnidotsOperationalCommands operationalCommands = operationalCommands;
+    private readonly IOmnidotsOperationalCommands _operationalCommands = operationalCommands;
 
     public Task RunAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         DateTime cutOff = DateTime.UtcNow.AddDays(-7);
-        operationalCommands.ClearErrorMessages(cutOff);
+        _operationalCommands.ClearErrorMessages(cutOff);
 
         return Task.CompletedTask;
     }

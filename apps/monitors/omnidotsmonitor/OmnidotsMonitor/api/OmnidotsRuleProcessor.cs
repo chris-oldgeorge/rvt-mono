@@ -17,15 +17,15 @@ public class OmnidotsRuleProcessor(
     IMessageService messageService,
     string portalBaseUrl)
 {
-    private readonly IOmnidotsRuleQueries ruleQueries = ruleQueries;
-    private readonly IOmnidotsOperationalCommands operationalCommands = operationalCommands;
-    private readonly IMessageService messageService = messageService;
-    private readonly string portalBaseUrl = portalBaseUrl;
+    private readonly IOmnidotsRuleQueries _ruleQueries = ruleQueries;
+    private readonly IOmnidotsOperationalCommands _operationalCommands = operationalCommands;
+    private readonly IMessageService _messageService = messageService;
+    private readonly string _portalBaseUrl = portalBaseUrl;
 
     public void ProcessAlertForContacts(VibrationMonitorDto monitor, NotificationDto notification)
     {
-        operationalCommands.WriteNotification(notification);
-        List<RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id);
+        _operationalCommands.WriteNotification(notification);
+        List<RvtContactDto> contacts = _ruleQueries.ReadAlertContacts(monitor.Id);
 
         if (contacts != null && contacts.Count() > 0)
         {
@@ -63,8 +63,8 @@ public class OmnidotsRuleProcessor(
                     {
                         RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
                             SensitiveLogRedactor.Redact(contact.EmailAddress));
-                        messageService.Sendmessage(messageToSend, LegacyMessageChannel.Email, contact, monitor.FleetNr!, notificationUrl);
-                        operationalCommands.WriteNotificationAudit(notification.Id, contact.EmailAddress, NotificationConstants.SENT_OK);
+                        _messageService.Sendmessage(messageToSend, LegacyMessageChannel.Email, contact, monitor.FleetNr!, notificationUrl);
+                        _operationalCommands.WriteNotificationAudit(notification.Id, contact.EmailAddress, NotificationConstants.SENT_OK);
                     }
                     else
                     {
@@ -74,7 +74,7 @@ public class OmnidotsRuleProcessor(
                 }
                 catch (CommsException e)
                 {
-                    operationalCommands.WriteNotificationAudit(notification.Id, e.Address, e.Message);
+                    _operationalCommands.WriteNotificationAudit(notification.Id, e.Address, e.Message);
                 }
             }
             foreach (RvtContactDto? contact in contacts.Where(x => x.SMS))
@@ -85,8 +85,8 @@ public class OmnidotsRuleProcessor(
                     {
                         RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
                             SensitiveLogRedactor.Redact(contact.PhoneNumber));
-                        messageService.Sendmessage(messageToSend, LegacyMessageChannel.SMS, contact, monitor.FleetNr!, notificationUrl);
-                        operationalCommands.WriteNotificationAudit(notification.Id, contact.PhoneNumber!, NotificationConstants.SENT_OK);
+                        _messageService.Sendmessage(messageToSend, LegacyMessageChannel.SMS, contact, monitor.FleetNr!, notificationUrl);
+                        _operationalCommands.WriteNotificationAudit(notification.Id, contact.PhoneNumber!, NotificationConstants.SENT_OK);
                     }
                     else
                     {
@@ -96,7 +96,7 @@ public class OmnidotsRuleProcessor(
                 }
                 catch (CommsException e)
                 {
-                    operationalCommands.WriteNotificationAudit(notification.Id, e.Address, e.Message);
+                    _operationalCommands.WriteNotificationAudit(notification.Id, e.Address, e.Message);
                 }
 
             }

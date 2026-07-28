@@ -9,9 +9,9 @@ namespace MyAtm.Api.Http;
 public class HttpWebClient<T> : IHttpClient
 {
 
-    private readonly HttpClient httpClient;
-    private readonly MyAtmRequestPolicy requestPolicy;
-    private readonly int maxResponseBytes;
+    private readonly HttpClient _httpClient;
+    private readonly MyAtmRequestPolicy _requestPolicy;
+    private readonly int _maxResponseBytes;
 
 
     public HttpWebClient(string baseUrl, string token)
@@ -26,15 +26,15 @@ public class HttpWebClient<T> : IHttpClient
         MyAtmRequestPolicy requestPolicy,
         int maxResponseBytes = 4 * 1024 * 1024)
     {
-        this.httpClient = httpClient;
-        this.requestPolicy = requestPolicy;
-        this.maxResponseBytes = maxResponseBytes > 0
+        this._httpClient = httpClient;
+        this._requestPolicy = requestPolicy;
+        this._maxResponseBytes = maxResponseBytes > 0
             ? maxResponseBytes
             : throw new ArgumentOutOfRangeException(nameof(maxResponseBytes));
-        this.httpClient.BaseAddress = new Uri(baseUrl);
-        this.httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Api-Key", token);
-        this.httpClient.DefaultRequestHeaders.TryAddWithoutValidation("accept", "application/json");
-        this.httpClient.Timeout = TimeSpan.FromSeconds(15);
+        this._httpClient.BaseAddress = new Uri(baseUrl);
+        this._httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Api-Key", token);
+        this._httpClient.DefaultRequestHeaders.TryAddWithoutValidation("accept", "application/json");
+        this._httpClient.Timeout = TimeSpan.FromSeconds(15);
     }
 
     public HttpWebClient(
@@ -65,9 +65,9 @@ public class HttpWebClient<T> : IHttpClient
         */
         for (int attempt = 1; ; attempt++)
         {
-            await requestPolicy.WaitForPermitAsync(cancellationToken);
+            await _requestPolicy.WaitForPermitAsync(cancellationToken);
             using HttpRequestMessage request = new(HttpMethod.Get, path);
-            using HttpResponseMessage response = await httpClient.SendAsync(
+            using HttpResponseMessage response = await _httpClient.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
@@ -76,9 +76,9 @@ public class HttpWebClient<T> : IHttpClient
                 return await ReadBoundedContentAsync(response.Content, cancellationToken);
             }
 
-            if (requestPolicy.ShouldRetry(response.StatusCode, attempt))
+            if (_requestPolicy.ShouldRetry(response.StatusCode, attempt))
             {
-                await requestPolicy.DelayAsync(requestPolicy.GetRetryDelay(response, attempt), cancellationToken);
+                await _requestPolicy.DelayAsync(_requestPolicy.GetRetryDelay(response, attempt), cancellationToken);
                 continue;
             }
 
@@ -91,14 +91,14 @@ public class HttpWebClient<T> : IHttpClient
         CancellationToken cancellationToken)
     {
         long? contentLength = content.Headers.ContentLength;
-        if (contentLength.HasValue && contentLength.Value > maxResponseBytes)
+        if (contentLength.HasValue && contentLength.Value > _maxResponseBytes)
         {
-            throw AdapterException.Of($"HTTP response exceeded the configured {maxResponseBytes}-byte limit.");
+            throw AdapterException.Of($"HTTP response exceeded the configured {_maxResponseBytes}-byte limit.");
         }
 
         await using Stream source = await content.ReadAsStreamAsync(cancellationToken);
         using MemoryStream destination = new();
-        byte[] buffer = new byte[Math.Min(81920, maxResponseBytes)];
+        byte[] buffer = new byte[Math.Min(81920, _maxResponseBytes)];
         while (true)
         {
             int read = await source.ReadAsync(buffer, cancellationToken);
@@ -107,9 +107,9 @@ public class HttpWebClient<T> : IHttpClient
                 break;
             }
 
-            if (destination.Length + read > maxResponseBytes)
+            if (destination.Length + read > _maxResponseBytes)
             {
-                throw AdapterException.Of($"HTTP response exceeded the configured {maxResponseBytes}-byte limit.");
+                throw AdapterException.Of($"HTTP response exceeded the configured {_maxResponseBytes}-byte limit.");
             }
 
             await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);

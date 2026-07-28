@@ -12,10 +12,10 @@ public sealed class NoiseRuleEvaluator(
     Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts,
     IMonitorEventPublisher eventPublisher)
 {
-    private readonly Action<RvtAlertRuleDto> updateAlertRule = updateAlertRule;
-    private readonly Func<Guid, List<RvtContactDto>> readAlertContacts = readAlertContacts;
-    private readonly Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts = processAlertForContacts;
-    private readonly IMonitorEventPublisher eventPublisher = eventPublisher;
+    private readonly Action<RvtAlertRuleDto> _updateAlertRule = updateAlertRule;
+    private readonly Func<Guid, List<RvtContactDto>> _readAlertContacts = readAlertContacts;
+    private readonly Action<RuleNotificationRequest, List<RvtContactDto>> _processAlertForContacts = processAlertForContacts;
+    private readonly IMonitorEventPublisher _eventPublisher = eventPublisher;
 
     public Rvt.Monitor.Common.Notifications.AlertType Evaluate(
         RuleEvaluationRequest request,
@@ -121,7 +121,7 @@ public sealed class NoiseRuleEvaluator(
             level,
             rule.LimitOn,
             rule.LimitOff);
-        eventPublisher.PublishAlert(request.PublishTime, request.MonitorSerialId, text);
+        _eventPublisher.PublishAlert(request.PublishTime, request.MonitorSerialId, text);
 
         rule.IsActive = true;
         updateAlertRule(rule);

@@ -14,7 +14,7 @@ namespace MyAtmMonitorTests;
 [TestClass]
 public sealed class MyAtmOutboxDispatcherTests
 {
-    private static readonly TimeSpan TimingTolerance = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan _timingTolerance = TimeSpan.FromSeconds(2);
 
     [TestMethod]
     public async Task DispatchDueAsync_UsesMappedMyAtmTopicsLeaseAndMqttFormatting()
@@ -132,7 +132,7 @@ public sealed class MyAtmOutboxDispatcherTests
         Assert.HasCount(2, audits);
         Assert.IsTrue(audits.All(audit => audit.Result == NotificationConstants.SENT_OK));
         CollectionAssert.AreEquivalent(
-            expected,
+            _expected,
             audits.Select(audit => audit.Address).ToArray());
     }
 
@@ -318,7 +318,7 @@ public sealed class MyAtmOutboxDispatcherTests
     private static void AssertTimestampNear(DateTime expected, DateTime actual)
     {
         TimeSpan delta = (actual - expected).Duration();
-        Assert.IsLessThanOrEqualTo(TimingTolerance, delta);
+        Assert.IsLessThanOrEqualTo(_timingTolerance, delta);
     }
 
     private static MonitorDeliveryPayloadV1 CreatePayload() => new(
@@ -351,5 +351,5 @@ public sealed class MyAtmOutboxDispatcherTests
 
     public TestContext TestContext { get; set; } = null!;
 
-    private static readonly string[] expected = ["person@example.test", "447700900000"];
+    private static readonly string[] _expected = ["person@example.test", "447700900000"];
 }

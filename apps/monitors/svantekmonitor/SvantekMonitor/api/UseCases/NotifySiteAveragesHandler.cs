@@ -13,18 +13,18 @@ public sealed class NotifySiteAveragesHandler(
     ISvantekOperationalCommands operationalCommands,
     SvantekRuleProcessor ruleProcessor)
 {
-    private readonly ISvantekMonitorQueries monitorQueries = monitorQueries;
-    private readonly ISvantekRuleQueries ruleQueries = ruleQueries;
-    private readonly ISvantekMeasurementCommands measurementCommands = measurementCommands;
-    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
-    private readonly SvantekRuleProcessor ruleProcessor = ruleProcessor;
+    private readonly ISvantekMonitorQueries _monitorQueries = monitorQueries;
+    private readonly ISvantekRuleQueries _ruleQueries = ruleQueries;
+    private readonly ISvantekMeasurementCommands _measurementCommands = measurementCommands;
+    private readonly ISvantekOperationalCommands _operationalCommands = operationalCommands;
+    private readonly SvantekRuleProcessor _ruleProcessor = ruleProcessor;
 
     public async Task RunAsync(DateTime date, CancellationToken cancellationToken = default)
     {
-        List<SiteMonitorsWithSiteHoursDto> monitors = await monitorQueries
+        List<SiteMonitorsWithSiteHoursDto> monitors = await _monitorQueries
             .ReadSiteMonitorsWithSiteHoursAsync(date, cancellationToken)
             .ConfigureAwait(false);
-        SvantekFailureCollector failures = new(operationalCommands);
+        SvantekFailureCollector failures = new(_operationalCommands);
 
         foreach (SiteMonitorsWithSiteHoursDto monitor in monitors)
         {
@@ -38,13 +38,13 @@ public sealed class NotifySiteAveragesHandler(
 
                 DateTime periodStart = date + monitor.StartTime.Value;
                 DateTime periodEnd = date + monitor.EndTime.Value;
-                double level = ruleQueries.GetAverageNoiseLevel(
+                double level = _ruleQueries.GetAverageNoiseLevel(
                     monitor.SerialId,
                     "LAeq",
                     periodStart,
                     periodEnd);
 
-                await measurementCommands.WriteDailyAverageAsync(
+                await _measurementCommands.WriteDailyAverageAsync(
                     monitor.SiteId,
                     monitor.Id,
                     "lAeq",
@@ -69,7 +69,7 @@ public sealed class NotifySiteAveragesHandler(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        List<RvtAlertRuleDto> rules = [.. ruleQueries.ReadRules(monitor.SerialId)
+        List<RvtAlertRuleDto> rules = [.. _ruleQueries.ReadRules(monitor.SerialId)
             .Where(rule => rule.AveragingPeriod == 0 && rule.Field == "LAeq")
             .OrderBy(rule => rule.AlertType)];
         AlertType previousAlert = AlertType.Ignore;
@@ -82,8 +82,8 @@ public sealed class NotifySiteAveragesHandler(
                 if (rule.AlertType == AlertType.Alert ||
                     (previousAlert != AlertType.Alert && rule.AlertType == AlertType.Caution))
                 {
-                    List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
-                    ruleProcessor.ProcessAlertForContacts(
+                    List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = _ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
+                    _ruleProcessor.ProcessAlertForContacts(
                         monitor.FleetNr,
                         monitor.SerialId,
                         periodEnd,
@@ -95,14 +95,14 @@ public sealed class NotifySiteAveragesHandler(
                         monitor.Id,
                         contacts);
                     rule.IsActive = true;
-                    operationalCommands.UpdateAlertRule(rule);
+                    _operationalCommands.UpdateAlertRule(rule);
                     previousAlert = rule.AlertType;
                 }
             }
             else if (rule.LimitOff >= level && rule.IsActive)
             {
                 rule.IsActive = false;
-                operationalCommands.UpdateAlertRule(rule);
+                _operationalCommands.UpdateAlertRule(rule);
             }
             else if (rule.IsActive)
             {

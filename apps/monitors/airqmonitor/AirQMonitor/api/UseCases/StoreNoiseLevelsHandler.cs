@@ -23,19 +23,19 @@ public class StoreNoiseLevelsHandler(
     AirQRuleProcessor ruleProcessor)
 {
     private readonly IAirQVendorGateway _gateway = gateway;
-    private readonly AirQMonitorReader monitorReader = monitorReader;
-    private readonly IAirQRuleQueries ruleQueries = ruleQueries;
-    private readonly IAirQMonitorCommands monitorCommands = monitorCommands;
-    private readonly IAirQMeasurementCommands measurementCommands = measurementCommands;
-    private readonly IAirQOperationalCommands operationalCommands = operationalCommands;
-    private readonly IMonitorEventPublisher eventPublisher = eventPublisher;
-    private readonly AirQRuleProcessor ruleProcessor = ruleProcessor;
+    private readonly AirQMonitorReader _monitorReader = monitorReader;
+    private readonly IAirQRuleQueries _ruleQueries = ruleQueries;
+    private readonly IAirQMonitorCommands _monitorCommands = monitorCommands;
+    private readonly IAirQMeasurementCommands _measurementCommands = measurementCommands;
+    private readonly IAirQOperationalCommands _operationalCommands = operationalCommands;
+    private readonly IMonitorEventPublisher _eventPublisher = eventPublisher;
+    private readonly AirQRuleProcessor _ruleProcessor = ruleProcessor;
 
     public async Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
     {
         try
         {
-            List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
+            List<NoiseMonitorDto> monitors = _monitorReader.ReadMonitors();
             List<Exception> failures = [];
             foreach (NoiseMonitorDto monitor in monitors)
             {
@@ -65,7 +65,7 @@ public class StoreNoiseLevelsHandler(
 
                     if (dtos.Count > 0)
                     {
-                        measurementCommands.InsertNoiseDtos(monitor.SerialId, dtos);
+                        _measurementCommands.InsertNoiseDtos(monitor.SerialId, dtos);
                         //process 8 hour averages.
                         DateTime start = preLastDate;
                         DateTime end = dtos.Last().SampleTime;
@@ -80,21 +80,21 @@ public class StoreNoiseLevelsHandler(
                         while (endperiod <= end) // end of a period exist within the samples.
                         {
                             RvtLogger.Logger.LogInformation("Create average SerialId={Value1} number of endperiod={Value2}", monitor.SerialId, endperiod);
-                            measurementCommands.Create8hourAverage(monitor.SerialId, endperiod);
+                            _measurementCommands.Create8hourAverage(monitor.SerialId, endperiod);
                             start = start.AddHours(8);
                             endperiod = start.AddHours(8);
                         }
 
-                        monitorCommands.WriteLatestTimestamp(monitor.SerialId, lastDataTime);
+                        _monitorCommands.WriteLatestTimestamp(monitor.SerialId, lastDataTime);
                         if (monitor.Offline)
                         {
-                            monitorCommands.SetMonitorOffline(monitor.Id, false);
+                            _monitorCommands.SetMonitorOffline(monitor.Id, false);
                         }
 
-                        await eventPublisher.PublishDataInsertedAsync((DateTime)lastDataTime!, monitor.SerialId, cancellationToken: cancellationToken);
+                        await _eventPublisher.PublishDataInsertedAsync((DateTime)lastDataTime!, monitor.SerialId, cancellationToken: cancellationToken);
 
-                        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId);
-                        ruleProcessor.ProcessRulesV2(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos);
+                        List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId);
+                        _ruleProcessor.ProcessRulesV2(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos);
                     }
 
                 }
@@ -105,8 +105,8 @@ public class StoreNoiseLevelsHandler(
                 catch (Exception e)
                 {
                     monitor.MonitorStatus.ErrorCount++;
-                    monitorCommands.UpdateMonitorStatus(monitor.SerialId, monitor.MonitorStatus);
-                    operationalCommands.HandleException(string.Format("StoreNoiseLevels SerialId={0}", monitor.SerialId), e);
+                    _monitorCommands.UpdateMonitorStatus(monitor.SerialId, monitor.MonitorStatus);
+                    _operationalCommands.HandleException(string.Format("StoreNoiseLevels SerialId={0}", monitor.SerialId), e);
                     failures.Add(e);
                 }
             }
@@ -126,7 +126,7 @@ public class StoreNoiseLevelsHandler(
         }
         catch (Exception e)
         {
-            operationalCommands.HandleException("StoreNoiseLevels", e);
+            _operationalCommands.HandleException("StoreNoiseLevels", e);
             throw;
         }
     }

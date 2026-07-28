@@ -71,11 +71,11 @@ public class MonitorDataSearchFilters
 
 public class MonitorService : IMonitorService
 {
-    private readonly IMonitorRepository monitorRepository;
-    private readonly ISearchQueryReader timeSeries;
-    private readonly RVTSearchContext searchContext;
-    private readonly IDeploymentRepository deploymentRepository;
-    private readonly IRvtDateTimeProvider dateTimeProvider;
+    private readonly IMonitorRepository _monitorRepository;
+    private readonly ISearchQueryReader _timeSeries;
+    private readonly RVTSearchContext _searchContext;
+    private readonly IDeploymentRepository _deploymentRepository;
+    private readonly IRvtDateTimeProvider _dateTimeProvider;
     // Function summary: Initializes this type with the dependencies required by its workflow.
     public MonitorService(IMonitorRepository monitorRepository,
         IDeploymentRepository deploymentRepository,
@@ -83,23 +83,23 @@ public class MonitorService : IMonitorService
         RVTSearchContext searchContext,
         IRvtDateTimeProvider dateTimeProvider)
     {
-        this.monitorRepository = monitorRepository;
-        this.deploymentRepository = deploymentRepository;
-        this.timeSeries = timeSeries;
-        this.searchContext = searchContext;
-        this.dateTimeProvider = dateTimeProvider;
+        _monitorRepository = monitorRepository;
+        _deploymentRepository = deploymentRepository;
+        _timeSeries = timeSeries;
+        _searchContext = searchContext;
+        _dateTimeProvider = dateTimeProvider;
     }
 
     // Function summary: Retrieves one data for callers.
     public Task<Monitor?> ReadOneAsync(Guid Id)
     {
-        return monitorRepository.GetByIdAsync(Id);
+        return _monitorRepository.GetByIdAsync(Id);
     }
 
     // Function summary: Retrieves all data for callers.
     public Task<IList<Monitor>> ReadAllAsync()
     {
-        return monitorRepository.ReadAllAsync();
+        return _monitorRepository.ReadAllAsync();
     }
 
     #region AlertLevel
@@ -113,7 +113,7 @@ public class MonitorService : IMonitorService
     // Function summary: Handles the deployment read one workflow for this module.
     public Task<Deployment?> DeploymentReadOneAsync(Guid DeploymentId)
     {
-        return deploymentRepository.GetByIdAsync(DeploymentId);
+        return _deploymentRepository.GetByIdAsync(DeploymentId);
     }
     #endregion
 
@@ -124,8 +124,8 @@ public class MonitorService : IMonitorService
         if (AvrgDuration >= 86400)
         {
             // For 1 day averages, we need to use just the date and ignore the time
-            FromDate = FromDate.UtcToLocal(dateTimeProvider).Date;
-            ToDate = ToDate.UtcToLocal(dateTimeProvider).Date;
+            FromDate = FromDate.UtcToLocal(_dateTimeProvider).Date;
+            ToDate = ToDate.UtcToLocal(_dateTimeProvider).Date;
         }
         else
         {
@@ -154,7 +154,7 @@ public class MonitorService : IMonitorService
         int pageSize = PageSize ?? 1000000;
         Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-        return timeSeries.ReadFilteredAsync<MyAtmDustLevel, MyAtmDustLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.DustLevel, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<MyAtmDustLevel, MyAtmDustLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.DustLevel, cancellationToken);
     }
 
     // Function summary: Retrieves my atm dust levels8hour avg data for callers.
@@ -183,7 +183,7 @@ public class MonitorService : IMonitorService
         int pageSize = PageSize ?? 1000000;
         Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-        return timeSeries.ReadFilteredAsync<MyAtmDustLevel8hourAvg, MyAtmDustLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.DustLevelFromEightHour, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<MyAtmDustLevel8hourAvg, MyAtmDustLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.DustLevelFromEightHour, cancellationToken);
     }
 
 
@@ -216,7 +216,7 @@ public class MonitorService : IMonitorService
         int pageSize = PageSize ?? 1000000;
         Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-        return timeSeries.ReadFilteredAsync<NoiseLevel15minAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevel, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<NoiseLevel15minAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevel, cancellationToken);
     }
 
     // Function summary: Retrieves air qnoise levels1hour avg data for callers.
@@ -245,14 +245,14 @@ public class MonitorService : IMonitorService
         int pageSize = PageSize ?? 1000000;
         Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-        return timeSeries.ReadFilteredAsync<NoiseLevel1hourAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromHour, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<NoiseLevel1hourAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromHour, cancellationToken);
     }
 
     // Function summary: Retrieves air qnoise levels1day avg data for callers.
     public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1dayAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
     {
-        FromDate = FromDate.UtcToLocal(dateTimeProvider).Date;
-        ToDate = ToDate.UtcToLocal(dateTimeProvider).Date;
+        FromDate = FromDate.UtcToLocal(_dateTimeProvider).Date;
+        ToDate = ToDate.UtcToLocal(_dateTimeProvider).Date;
 
         List<OrderByProperty> orderBy = new();
         if (!string.IsNullOrEmpty(Sort))
@@ -274,14 +274,14 @@ public class MonitorService : IMonitorService
         int pageSize = PageSize ?? 1000000;
         Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-        return timeSeries.ReadFilteredAsync<NoiseLevel1dayAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromDay, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<NoiseLevel1dayAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromDay, cancellationToken);
     }
 
     // Function summary: Retrieves air qnoise levels site avg data for callers.
     public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevelsSiteAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
     {
-        FromDate = FromDate.UtcToLocal(dateTimeProvider).Date;
-        ToDate = ToDate.UtcToLocal(dateTimeProvider).Date;
+        FromDate = FromDate.UtcToLocal(_dateTimeProvider).Date;
+        ToDate = ToDate.UtcToLocal(_dateTimeProvider).Date;
 
         List<OrderByProperty> orderBy = new();
         if (!string.IsNullOrEmpty(Sort))
@@ -303,7 +303,7 @@ public class MonitorService : IMonitorService
         int pageSize = PageSize ?? 1000000;
         Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-        return timeSeries.ReadFilteredAsync<NoiseLevelSiteAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromSite, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<NoiseLevelSiteAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromSite, cancellationToken);
     }
 
     #endregion
@@ -338,30 +338,30 @@ public class MonitorService : IMonitorService
         Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
         if (duration.TotalHours < 1) //Samples every 2 second
         {
-            return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevel, cancellationToken);
+            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevel, cancellationToken);
         }
         else if (duration.TotalHours < 4) //Samples every 2 second
         {
-            return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel1min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom1Min, cancellationToken);
+            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel1min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom1Min, cancellationToken);
         }
         else if (duration.TotalDays < 1) //samples every 5min
         {
-            return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel5min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom5Min, cancellationToken);
+            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel5min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom5Min, cancellationToken);
         }
         else if (duration.TotalDays < 2) //samples every 15min
         {
-            return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel15min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom15Min, cancellationToken);
+            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel15min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom15Min, cancellationToken);
         }
         else //Samples every 20 min
         {
-            return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel20min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom20Min, cancellationToken);
+            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel20min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom20Min, cancellationToken);
         }
     }
 
     // Function summary: Retrieves vibration monitor status data for callers.
     public Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string SerialId)
     {
-        return searchContext.Set<OmnidotsMonitorStatus>()
+        return _searchContext.Set<OmnidotsMonitorStatus>()
             .Where(status => status.SerialId == SerialId)
             .FirstOrDefaultAsync();
     }
@@ -370,7 +370,7 @@ public class MonitorService : IMonitorService
     public async Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid TraceId, CancellationToken cancellationToken = default)
     {
         // TODO: What do we order traces by?
-        List<OmnidotsTrace> records = await searchContext.OmnidotsTraces
+        List<OmnidotsTrace> records = await _searchContext.OmnidotsTraces
             .AsNoTracking()
             .Where(trace => trace.TraceId == TraceId)
             .Take(1000000)
@@ -382,7 +382,7 @@ public class MonitorService : IMonitorService
     // Function summary: Handles the traces index read one workflow for this module.
     public async Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid Id)
     {
-        return await searchContext.Set<OmnidotsTracesIndex>().FindAsync(Id);
+        return await _searchContext.Set<OmnidotsTracesIndex>().FindAsync(Id);
     }
 
     #endregion

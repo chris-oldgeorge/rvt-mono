@@ -43,7 +43,7 @@ public sealed class TestRules
         dbClient.Setup(client => client.ReadAlertContacts(monitor.Id)).Returns(contacts);
         dbClient.Setup(client => client.CommitDustImportAsync(It.IsAny<MyAtmDustImportCommit>(), It.IsAny<CancellationToken>()))
             .Callback<MyAtmDustImportCommit, CancellationToken>((value, _) => commit = value)
-            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new DustImportCommitResult([]));
         dbClient.Setup(client => client.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
@@ -92,7 +92,7 @@ public sealed class TestRules
         dbClient.Setup(client => client.ReadRules(monitor.SerialId, Period.Minutes1)).Returns([rule]);
         dbClient.Setup(client => client.CommitDustImportAsync(It.IsAny<MyAtmDustImportCommit>(), It.IsAny<CancellationToken>()))
             .Callback<MyAtmDustImportCommit, CancellationToken>((value, _) => commit = value)
-            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new DustImportCommitResult([]));
         dbClient.Setup(client => client.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))

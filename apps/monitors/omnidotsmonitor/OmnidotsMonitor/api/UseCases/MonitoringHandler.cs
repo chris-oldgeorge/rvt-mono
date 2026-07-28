@@ -12,23 +12,23 @@ public class MonitoringHandler(
     IOmnidotsMonitoringNotifier notifier,
     TimeProvider timeProvider)
 {
-    private readonly OmnidotsMonitorReader monitorReader = monitorReader;
-    private readonly OmnidotsMonitoringOptions options = options;
-    private readonly IOmnidotsMonitoringNotifier notifier = notifier;
-    private readonly TimeProvider timeProvider = timeProvider;
-    private readonly TimeZoneInfo monitoringTimeZone = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZoneId);
+    private readonly OmnidotsMonitorReader _monitorReader = monitorReader;
+    private readonly OmnidotsMonitoringOptions _options = options;
+    private readonly IOmnidotsMonitoringNotifier _notifier = notifier;
+    private readonly TimeProvider _timeProvider = timeProvider;
+    private readonly TimeZoneInfo _monitoringTimeZone = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZoneId);
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        TimeSpan localTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, monitoringTimeZone).TimeOfDay;
-        if (localTime <= options.WindowStart || localTime >= options.WindowEnd)
+        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+        TimeSpan localTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, _monitoringTimeZone).TimeOfDay;
+        if (localTime <= _options.WindowStart || localTime >= _options.WindowEnd)
         {
             return;
         }
 
-        List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
+        List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
         if (monitors.Count == 0)
         {
             return;
@@ -36,10 +36,10 @@ public class MonitoringHandler(
 
         DateTime? newestLastDataTime = AsUtc(monitors.Max(x => x.LastDataTime));
         if (!newestLastDataTime.HasValue
-            || newestLastDataTime.Value < utcNow - options.StaleAfter)
+            || newestLastDataTime.Value < utcNow - _options.StaleAfter)
         {
-            await notifier.SendNoDataWarningAsync(
-                options.Recipient,
+            await _notifier.SendNoDataWarningAsync(
+                _options.Recipient,
                 utcNow,
                 cancellationToken).ConfigureAwait(false);
         }

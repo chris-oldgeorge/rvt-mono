@@ -17,13 +17,13 @@ public sealed class MyAtmRuleProcessor(
     string portalBaseUrl,
     RuleAlertDeliveryPlanner? deliveryPlanner = null)
 {
-    private readonly IMyAtmRuleQueries ruleQueries = ruleQueries;
-    private readonly MyAtmAlertTransitionEvaluator transitionEvaluator = new();
-    private readonly RuleAlertDeliveryPlanner deliveryPlanner = deliveryPlanner ?? new RuleAlertDeliveryPlanner();
-    private readonly string portalBaseUrl = portalBaseUrl;
-    private readonly IMyAtmOperationalCommands? legacyOperationalCommands;
-    private readonly IMessageService? legacyMessageService;
-    private readonly IMonitorEventPublisher? legacyEventPublisher;
+    private readonly IMyAtmRuleQueries _ruleQueries = ruleQueries;
+    private readonly MyAtmAlertTransitionEvaluator _transitionEvaluator = new();
+    private readonly RuleAlertDeliveryPlanner _deliveryPlanner = deliveryPlanner ?? new RuleAlertDeliveryPlanner();
+    private readonly string _portalBaseUrl = portalBaseUrl;
+    private readonly IMyAtmOperationalCommands? _legacyOperationalCommands;
+    private readonly IMessageService? _legacyMessageService;
+    private readonly IMonitorEventPublisher? _legacyEventPublisher;
 
     // Compatibility constructor for older in-process callers. Scheduled paths use the narrow constructor.
     public MyAtmRuleProcessor(
@@ -34,9 +34,9 @@ public sealed class MyAtmRuleProcessor(
         string portalBaseUrl)
         : this(ruleQueries, portalBaseUrl)
     {
-        legacyOperationalCommands = operationalCommands;
-        legacyMessageService = messageService;
-        legacyEventPublisher = eventPublisher;
+        _legacyOperationalCommands = operationalCommands;
+        _legacyMessageService = messageService;
+        _legacyEventPublisher = eventPublisher;
     }
 
     public MyAtmAlertCommit CreateAggregateCommit(
@@ -48,7 +48,7 @@ public sealed class MyAtmRuleProcessor(
         DateTime utcNow)
     {
         DustDto sample = AggregateSample(monitor.SerialId, end, rule.Field, level);
-        MyAtmAlertTransition transition = transitionEvaluator.Evaluate(rule, rule.IsActive, sample, alertForFieldIsActive);
+        MyAtmAlertTransition transition = _transitionEvaluator.Evaluate(rule, rule.IsActive, sample, alertForFieldIsActive);
         RuleStateMutation[] mutations =
         [
             new RuleStateMutation(rule.RuleId, rule.IsActive, rule.Accessed, transition.IsActive, end)
@@ -77,7 +77,7 @@ public sealed class MyAtmRuleProcessor(
             utcNow,
             occurrenceKey);
         return new MyAtmAlertCommit(
-            Array.Empty<RuleStateMutation>(),
+            [],
             new MyAtmMonitorStateMutation(monitor.Id, ExpectedOffline: false, Offline: true),
             [occurrence],
             utcNow);
@@ -85,16 +85,16 @@ public sealed class MyAtmRuleProcessor(
 
     public MyAtmAlertCommit CreateOnlineRecoveryCommit(DustMonitorDto monitor, DateTime utcNow) =>
         new(
-            Array.Empty<RuleStateMutation>(),
+            [],
             new MyAtmMonitorStateMutation(monitor.Id, ExpectedOffline: true, Offline: false),
-            Array.Empty<MyAtmAlertOccurrenceInput>(),
+            [],
             utcNow);
 
     public MyAtmAlertCommit CreateDeletedRuleDeactivationCommit(RvtAlertRuleDto rule, DateTime utcNow) =>
         new(
             [new RuleStateMutation(rule.RuleId, rule.IsActive, rule.Accessed, false, rule.Accessed)],
             null,
-            Array.Empty<MyAtmAlertOccurrenceInput>(),
+            [],
             utcNow);
 
     // Compatibility API: no scheduled handler calls this direct-delivery route.
@@ -112,7 +112,7 @@ public sealed class MyAtmRuleProcessor(
             rule.IsActive = true;
             rule.Accessed = utcNow;
             ProcessAlertForContacts(rule, level, end, monitorDto);
-            legacyEventPublisher!.PublishAlertAsync(
+            _legacyEventPublisher!.PublishAlertAsync(
                 end,
                 monitorDto.SerialId,
                 $"Dust Alert {rule.Field} level={level} exceeds limitOn/Off={rule.LimitOn}/{rule.LimitOff}",
@@ -129,20 +129,20 @@ public sealed class MyAtmRuleProcessor(
     {
         RequireLegacyDependencies();
         NotificationDto notification = new(ruleDto, level, alertTime, monitor.Id);
-        legacyOperationalCommands!.WriteNotification(notification);
-        foreach (Rvt.Monitor.Common.Rules.RvtContactDto? contact in (ruleQueries.ReadAlertContacts(monitor.Id) ?? []).Where(contact => contact.ShouldSendAtTime(alertTime)))
+        _legacyOperationalCommands!.WriteNotification(notification);
+        foreach (Rvt.Monitor.Common.Rules.RvtContactDto? contact in (_ruleQueries.ReadAlertContacts(monitor.Id) ?? []).Where(contact => contact.ShouldSendAtTime(alertTime)))
         {
             if (contact.Email && !string.IsNullOrWhiteSpace(contact.EmailAddress))
             {
-                legacyMessageService!.SendMessage(ToMessage(ruleDto.AlertType), LegacyMessageChannel.Email,
+                _legacyMessageService!.SendMessage(ToMessage(ruleDto.AlertType), LegacyMessageChannel.Email,
                     contact.ToNotificationDto(), monitor.FleetNr ?? string.Empty, NotificationUrl(notification.Id, ruleDto.AlertType));
-                legacyOperationalCommands.WriteNotificationAudit(notification.Id, contact.EmailAddress, NotificationConstants.SENT_OK);
+                _legacyOperationalCommands.WriteNotificationAudit(notification.Id, contact.EmailAddress, NotificationConstants.SENT_OK);
             }
             if (contact.SMS && !string.IsNullOrWhiteSpace(contact.PhoneNumber))
             {
-                legacyMessageService!.SendMessage(ToMessage(ruleDto.AlertType), LegacyMessageChannel.SMS,
+                _legacyMessageService!.SendMessage(ToMessage(ruleDto.AlertType), LegacyMessageChannel.SMS,
                     contact.ToNotificationDto(), monitor.FleetNr ?? string.Empty, NotificationUrl(notification.Id, ruleDto.AlertType));
-                legacyOperationalCommands.WriteNotificationAudit(notification.Id, contact.PhoneNumber, NotificationConstants.SENT_OK);
+                _legacyOperationalCommands.WriteNotificationAudit(notification.Id, contact.PhoneNumber, NotificationConstants.SENT_OK);
             }
         }
     }
@@ -161,12 +161,12 @@ public sealed class MyAtmRuleProcessor(
                     if (rule.IsActive)
                     {
                         rule.IsActive = false;
-                        legacyOperationalCommands!.UpdateAlertRule(rule);
+                        _legacyOperationalCommands!.UpdateAlertRule(rule);
                     }
                     continue;
                 }
 
-                MyAtmAlertTransition transition = transitionEvaluator.Evaluate(
+                MyAtmAlertTransition transition = _transitionEvaluator.Evaluate(
                     rule,
                     rule.IsActive,
                     dust,
@@ -180,7 +180,7 @@ public sealed class MyAtmRuleProcessor(
                 ProcessRule(monitorDto, rule, transition.Level.Value, dust.SampleTime, DateTime.UtcNow, previousAlert);
                 if (previousState != rule.IsActive)
                 {
-                    legacyOperationalCommands!.UpdateAlertRule(rule);
+                    _legacyOperationalCommands!.UpdateAlertRule(rule);
                 }
             }
         }
@@ -198,7 +198,7 @@ public sealed class MyAtmRuleProcessor(
     {
         string key = occurrenceKey ?? $"{monitor.Id:N}:{rule.RuleId:N}:{DateTimeUtil.AsUtc(triggeredAt):O}:{alertType}";
         string normalizedField = MyAtmAlertTransitionEvaluator.NormalizeField(rule.Field);
-        RuleAlertDeliveryPlan deliveryPlan = deliveryPlanner.Plan(
+        RuleAlertDeliveryPlan deliveryPlan = _deliveryPlanner.Plan(
             new RuleNotificationRequest(
                 monitor.FleetNr ?? string.Empty,
                 monitor.SerialId,
@@ -209,7 +209,7 @@ public sealed class MyAtmRuleProcessor(
                 alertType,
                 normalizedField,
                 monitor.Id),
-            ruleQueries.ReadAlertContacts(monitor.Id) ?? [],
+            _ruleQueries.ReadAlertContacts(monitor.Id) ?? [],
             MonitorDeliveryProducers.MyAtm,
             monitor.CustomerId,
             key,
@@ -256,7 +256,7 @@ public sealed class MyAtmRuleProcessor(
     };
 
     private string NotificationUrl(Guid notificationId, AlertType alertType) =>
-        alertType is AlertType.Alert or AlertType.Caution ? $"{portalBaseUrl}Notification/View/{notificationId}" : string.Empty;
+        alertType is AlertType.Alert or AlertType.Caution ? $"{_portalBaseUrl}Notification/View/{notificationId}" : string.Empty;
 
     private static LegacyMessageKind ToMessage(AlertType alertType) => alertType switch
     {
@@ -267,7 +267,7 @@ public sealed class MyAtmRuleProcessor(
 
     private void RequireLegacyDependencies()
     {
-        if (legacyOperationalCommands == null || legacyMessageService == null || legacyEventPublisher == null)
+        if (_legacyOperationalCommands == null || _legacyMessageService == null || _legacyEventPublisher == null)
         {
             throw new InvalidOperationException("Legacy direct notification processing is not configured for scheduled MyATM jobs.");
         }

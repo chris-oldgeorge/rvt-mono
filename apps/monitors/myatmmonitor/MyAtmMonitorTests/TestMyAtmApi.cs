@@ -109,7 +109,7 @@ public class TestMyAtmApi
         dbClient.Setup(client => client.ReadRules(It.IsAny<string>(), It.IsAny<Period>()))
             .Returns([]);
         dbClient.Setup(client => client.CommitDustImportAsync(It.IsAny<MyAtmDustImportCommit>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new DustImportCommitResult([]));
         dbClient.Setup(client => client.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
@@ -154,7 +154,7 @@ public class TestMyAtmApi
         dbClient.Setup(client => client.CommitDustImportAsync(
                 It.IsAny<MyAtmDustImportCommit>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new DustImportCommitResult([]));
 
         await testObj.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1, TestContext.CancellationToken);
 

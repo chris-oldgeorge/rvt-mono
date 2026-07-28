@@ -21,17 +21,17 @@ public class StoreVeffRecordsHandler(
     IMonitorEventPublisher eventPublisher)
 {
     private readonly IOmnidotsVendorGateway _gateway = gateway;
-    private readonly OmnidotsMonitorReader monitorReader = monitorReader;
-    private readonly IOmnidotsMonitorCommands monitorCommands = monitorCommands;
-    private readonly IOmnidotsImportCursorQueries cursorQueries = cursorQueries;
-    private readonly IOmnidotsMeasurementImportCommands importCommands = importCommands;
-    private readonly IOmnidotsOperationalCommands operationalCommands = operationalCommands;
-    private readonly IMonitorEventPublisher eventPublisher = eventPublisher;
+    private readonly OmnidotsMonitorReader _monitorReader = monitorReader;
+    private readonly IOmnidotsMonitorCommands _monitorCommands = monitorCommands;
+    private readonly IOmnidotsImportCursorQueries _cursorQueries = cursorQueries;
+    private readonly IOmnidotsMeasurementImportCommands _importCommands = importCommands;
+    private readonly IOmnidotsOperationalCommands _operationalCommands = operationalCommands;
+    private readonly IMonitorEventPublisher _eventPublisher = eventPublisher;
 
     public async Task RunAsync(TimeSpan lookback, CancellationToken cancellationToken = default)
     {
         string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
-        List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
+        List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
         DateTime utcNow = DateTime.UtcNow;
         List<OmnidotsMonitorFailure> failures = [];
         foreach (VibrationMonitorDto monitor in monitors)
@@ -54,13 +54,13 @@ public class StoreVeffRecordsHandler(
                 {
                     DateTime newestSampleAt = dtos[^1].SampleTime;
                     DateTime ps = DateTime.Now;
-                    importCommands.ImportVeffRecords(monitor.SerialId, dtos, newestSampleAt);
+                    _importCommands.ImportVeffRecords(monitor.SerialId, dtos, newestSampleAt);
                     TimeSpan ts = DateTime.Now - ps;
                     RvtLogger.Logger.LogInformation("InsertVeffRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
                          monitor.SerialId, dtos.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / dtos.Count));
 
-                    monitorCommands.SetMonitorOffline(monitor.Id, false);
-                    await eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
+                    _monitorCommands.SetMonitorOffline(monitor.Id, false);
+                    await _eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
                 }
                 else
                 {
@@ -74,7 +74,7 @@ public class StoreVeffRecordsHandler(
                 failures.Add(OmnidotsMonitorFailure.Record(
                     monitor.SerialId,
                     e,
-                    () => operationalCommands.HandleException(msg, e)));
+                    () => _operationalCommands.HandleException(msg, e)));
             }
         }
 
@@ -86,10 +86,10 @@ public class StoreVeffRecordsHandler(
 
     private DateTime ResolveStart(string serialId, DateTime utcNow, TimeSpan lookback)
     {
-        DateTime? cursor = cursorQueries.ReadImportCursor(
+        DateTime? cursor = _cursorQueries.ReadImportCursor(
             serialId,
             OmnidotsMeasurementSeries.Veff);
-        DateTime? latestMeasurement = cursor ?? cursorQueries.ReadLatestMeasurementTime(
+        DateTime? latestMeasurement = cursor ?? _cursorQueries.ReadLatestMeasurementTime(
             serialId,
             OmnidotsMeasurementSeries.Veff);
         return latestMeasurement.HasValue

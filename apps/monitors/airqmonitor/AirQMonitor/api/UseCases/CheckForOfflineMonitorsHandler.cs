@@ -17,15 +17,15 @@ public class CheckForOfflineMonitorsHandler(
     IAirQMonitorCommands monitorCommands,
     AirQRuleProcessor ruleProcessor)
 {
-    private readonly IAirQRuleQueries ruleQueries = ruleQueries;
-    private readonly AirQMonitorReader monitorReader = monitorReader;
-    private readonly IAirQMonitorCommands monitorCommands = monitorCommands;
-    private readonly AirQRuleProcessor ruleProcessor = ruleProcessor;
+    private readonly IAirQRuleQueries _ruleQueries = ruleQueries;
+    private readonly AirQMonitorReader _monitorReader = monitorReader;
+    private readonly IAirQMonitorCommands _monitorCommands = monitorCommands;
+    private readonly AirQRuleProcessor _ruleProcessor = ruleProcessor;
 
     public Task RunAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(null);
+        List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(null);
 
         DateTime utcNow = DateTime.UtcNow;
         foreach (RvtAlertRuleDto rule in rules)
@@ -34,7 +34,7 @@ public class CheckForOfflineMonitorsHandler(
             {
                 DateTime cutOff = utcNow.Subtract(new TimeSpan(hours: 0, minutes: 0, seconds: rule.AveragingPeriod));
                 DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
-                List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors(null);
+                List<NoiseMonitorDto> monitors = _monitorReader.ReadMonitors(null);
 
                 foreach (NoiseMonitorDto monitor in monitors!)
                 {
@@ -46,8 +46,8 @@ public class CheckForOfflineMonitorsHandler(
                         if (lastDataTime < cutOff)
                         {
                             RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
-                            List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
-                            ruleProcessor.ProcessAlertForContactsV2(fleetNr: monitor.FleetNr,
+                            List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = _ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
+                            _ruleProcessor.ProcessAlertForContactsV2(fleetNr: monitor.FleetNr,
                                                     serialId: monitor.SerialId!,
                                                     alertTime: DateTime.UtcNow,
                                                     limitOn: 0,
@@ -64,7 +64,7 @@ public class CheckForOfflineMonitorsHandler(
                             RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data has been recieved marking as online", monitor.SerialId);
                             monitor.Offline = false;
                         }
-                        monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
+                        _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                     }
                     else
                     {

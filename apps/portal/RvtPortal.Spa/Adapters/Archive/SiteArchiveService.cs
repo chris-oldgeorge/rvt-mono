@@ -46,12 +46,12 @@ public interface ISiteArchiveService
 
 internal class SiteArchiveService : ISiteArchiveService
 {
-    private readonly ISiteArchiveQueryCatalog queryCatalog;
-    private readonly ISiteArchiveQueryExecutor queryExecutor;
-    private readonly ISiteArchiveCsvWriter csvWriter;
-    private readonly ISiteArchiveWorkspaceFactory workspaceFactory;
-    private readonly IBlobStorageClientFactory blobStorageClientFactory;
-    private readonly BlobStorage config;
+    private readonly ISiteArchiveQueryCatalog _queryCatalog;
+    private readonly ISiteArchiveQueryExecutor _queryExecutor;
+    private readonly ISiteArchiveCsvWriter _csvWriter;
+    private readonly ISiteArchiveWorkspaceFactory _workspaceFactory;
+    private readonly IBlobStorageClientFactory _blobStorageClientFactory;
+    private readonly BlobStorage _config;
 
     // Function summary: Initializes this type with archive export collaborators resolved through dependency injection.
     public SiteArchiveService(
@@ -62,13 +62,13 @@ internal class SiteArchiveService : ISiteArchiveService
         IBlobStorageClientFactory blobStorageClientFactory,
         IConfiguration configuration)
     {
-        this.queryCatalog = queryCatalog;
-        this.queryExecutor = queryExecutor;
-        this.csvWriter = csvWriter;
-        this.workspaceFactory = workspaceFactory;
-        this.blobStorageClientFactory = blobStorageClientFactory;
-        config = new BlobStorage();
-        configuration.GetSection("BlobStorage").Bind(config);
+        _queryCatalog = queryCatalog;
+        _queryExecutor = queryExecutor;
+        _csvWriter = csvWriter;
+        _workspaceFactory = workspaceFactory;
+        _blobStorageClientFactory = blobStorageClientFactory;
+        _config = new BlobStorage();
+        configuration.GetSection("BlobStorage").Bind(_config);
     }
 
     // Function summary: Builds CSV archive files for a site, zips them, uploads the archive, and returns the archive URL.
@@ -78,13 +78,13 @@ internal class SiteArchiveService : ISiteArchiveService
         // marks the site archived and reports success even though no archive exists. The caller decides what
         // a failed export means (ArchiveAsync returns 503 and does not archive). The workspace is disposed on
         // the way out either way.
-        await using SiteArchiveWorkspace workspace = workspaceFactory.Create(siteId);
+        await using SiteArchiveWorkspace workspace = _workspaceFactory.Create(siteId);
         Directory.CreateDirectory(workspace.RootPath);
         Directory.CreateDirectory(workspace.FilesPath);
 
-        foreach (ArchiveCsvExport export in queryCatalog.CsvExports)
+        foreach (ArchiveCsvExport export in _queryCatalog.CsvExports)
         {
-            await export.WriteAsync(queryExecutor, csvWriter, workspace.FilesPath, siteId, cancellationToken);
+            await export.WriteAsync(_queryExecutor, _csvWriter, workspace.FilesPath, siteId, cancellationToken);
         }
 
         await DownloadReportsAsync(workspace.FilesPath, siteId, cancellationToken);
@@ -94,8 +94,8 @@ internal class SiteArchiveService : ISiteArchiveService
     // Function summary: Streams report links and downloads linked report blobs into the archive workspace.
     private async Task DownloadReportsAsync(string filesDirectory, Guid siteId, CancellationToken cancellationToken)
     {
-        await foreach (ReportArchiveRow? report in queryExecutor
-            .StreamAsync<ReportArchiveRow>(queryCatalog.ReportLinksSql, siteId, cancellationToken)
+        await foreach (ReportArchiveRow? report in _queryExecutor
+            .StreamAsync<ReportArchiveRow>(_queryCatalog.ReportLinksSql, siteId, cancellationToken)
             .WithCancellation(cancellationToken))
         {
             if (!string.IsNullOrWhiteSpace(report.ReportLink))
@@ -111,7 +111,7 @@ internal class SiteArchiveService : ISiteArchiveService
     {
         await System.IO.Compression.ZipFile.CreateFromDirectoryAsync(filesPath, zipFilePath, cancellationToken);
 
-        BlobContainerClient monitorContainerClient = RequiredContainer(config.ArchiveContainer);
+        BlobContainerClient monitorContainerClient = RequiredContainer(_config.ArchiveContainer);
 
         BlobClient blobClient = monitorContainerClient.GetBlobClient(blobName);
         await blobClient.UploadAsync(zipFilePath, true, cancellationToken);
@@ -152,7 +152,7 @@ internal class SiteArchiveService : ISiteArchiveService
                 exception);
         }
 
-        BlobContainerClient archiveContainer = RequiredContainer(config.ArchiveContainer);
+        BlobContainerClient archiveContainer = RequiredContainer(_config.ArchiveContainer);
         BlobClient candidateBlob = archiveContainer.GetBlobClient(
             $"{siteId:N}/site-archive.zip");
         BlobUriBuilder candidateArchive = new(candidateBlob.Uri);
@@ -210,15 +210,15 @@ internal class SiteArchiveService : ISiteArchiveService
     // Function summary: Creates a provider-specific site id parameter for focused archive security tests.
     private DbParameter CreateSiteIdParameter(Guid siteId)
     {
-        return queryExecutor.CreateSiteIdParameter(siteId);
+        return _queryExecutor.CreateSiteIdParameter(siteId);
     }
 
     // Function summary: Downloads a report blob into the archive workspace.
     private async Task BlobToFolder(string blobName, string downloadFolder, CancellationToken cancellationToken)
     {
         string downloadFilePath = Path.Combine(downloadFolder, blobName);
-        BlobContainerClient containerClient = RequiredContainer(config.ReportContainer);
-        BlobClient blobClient = containerClient.GetBlobClient($"{config.ReportFolder}/{blobName}");
+        BlobContainerClient containerClient = RequiredContainer(_config.ReportContainer);
+        BlobClient blobClient = containerClient.GetBlobClient($"{_config.ReportFolder}/{blobName}");
 
         if (await blobClient.ExistsAsync(cancellationToken))
         {
@@ -231,7 +231,7 @@ internal class SiteArchiveService : ISiteArchiveService
     // Function summary: Resolves a required archive container through the shared blob-client factory.
     private BlobContainerClient RequiredContainer(string containerName)
     {
-        return blobStorageClientFactory.CreateContainerClient(containerName)
+        return _blobStorageClientFactory.CreateContainerClient(containerName)
             ?? throw new InvalidOperationException("Blob storage is not configured for site archives.");
     }
 }

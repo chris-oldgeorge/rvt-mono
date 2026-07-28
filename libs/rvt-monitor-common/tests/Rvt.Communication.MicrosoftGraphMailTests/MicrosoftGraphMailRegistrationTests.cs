@@ -89,7 +89,7 @@ public sealed class MicrosoftGraphMailRegistrationTests
         await port.SendAsync(request, TestContext.CancellationToken);
 
         Assert.AreSame(port, provider.GetRequiredService<IEmailDeliveryPort>());
-        CollectionAssert.AreEqual(expected, clientFactory.RequestClientIds);
+        CollectionAssert.AreEqual(_expected, clientFactory.RequestClientIds);
     }
 
     private sealed class ExistingEmailDeliveryPort : IEmailDeliveryPort
@@ -107,13 +107,13 @@ public sealed class MicrosoftGraphMailRegistrationTests
     private sealed class RecordingHttpClientFactory(
         Func<int, HttpResponseMessage> responseFactory) : IHttpClientFactory
     {
-        private int clientId;
+        private int _clientId;
 
         internal List<int> RequestClientIds { get; } = [];
 
         public HttpClient CreateClient(string name)
         {
-            int currentClientId = ++clientId;
+            int currentClientId = ++_clientId;
             return new HttpClient(new RecordingHandler(
                 currentClientId,
                 RequestClientIds,
@@ -137,5 +137,5 @@ public sealed class MicrosoftGraphMailRegistrationTests
 
     public TestContext TestContext { get; set; } = null!;
 
-    private static readonly int[] expected = [1, 2];
+    private static readonly int[] _expected = [1, 2];
 }

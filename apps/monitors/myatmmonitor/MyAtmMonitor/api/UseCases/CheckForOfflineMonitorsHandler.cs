@@ -16,21 +16,21 @@ public sealed class CheckForOfflineMonitorsHandler(
     MyAtmRuleProcessor ruleProcessor,
     TimeProvider timeProvider)
 {
-    private readonly IMyAtmRuleQueries ruleQueries = ruleQueries;
-    private readonly MyAtmMonitorReader monitorReader = monitorReader;
-    private readonly IMyAtmSiteScheduleQueries siteScheduleQueries = siteScheduleQueries;
-    private readonly IMyAtmAlertCommitCommands alertCommitCommands = alertCommitCommands;
-    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
-    private readonly MyAtmRuleProcessor ruleProcessor = ruleProcessor;
-    private readonly TimeProvider timeProvider = timeProvider;
+    private readonly IMyAtmRuleQueries _ruleQueries = ruleQueries;
+    private readonly MyAtmMonitorReader _monitorReader = monitorReader;
+    private readonly IMyAtmSiteScheduleQueries _siteScheduleQueries = siteScheduleQueries;
+    private readonly IMyAtmAlertCommitCommands _alertCommitCommands = alertCommitCommands;
+    private readonly IMyAtmOperationalCommands _operationalCommands = operationalCommands;
+    private readonly MyAtmRuleProcessor _ruleProcessor = ruleProcessor;
+    private readonly TimeProvider _timeProvider = timeProvider;
 
     public async Task RunAsync(int customerId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        List<RvtAlertRuleDto> rules = [.. (ruleQueries.ReadRules(null) ?? []).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
-        List<DustMonitorDto> monitors = monitorReader.ReadMonitors(customerId) ?? [];
-        MyAtmFailureCollector failures = new(operationalCommands);
+        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+        List<RvtAlertRuleDto> rules = [.. (_ruleQueries.ReadRules(null) ?? []).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
+        List<DustMonitorDto> monitors = _monitorReader.ReadMonitors(customerId) ?? [];
+        MyAtmFailureCollector failures = new(_operationalCommands);
 
         foreach (DustMonitorDto monitor in monitors)
         {
@@ -56,7 +56,7 @@ public sealed class CheckForOfflineMonitorsHandler(
                         throw new InvalidOperationException("Monitor timezone is missing or invalid.");
                     }
 
-                    MyAtmSiteSchedule schedule = siteScheduleQueries.ReadSiteSchedule(monitor.Id);
+                    MyAtmSiteSchedule schedule = _siteScheduleQueries.ReadSiteSchedule(monitor.Id);
                     TimeSpan activeDuration = MyAtmSiteActiveDurationCalculator.Between(
                         schedule,
                         lastDataTime,
@@ -66,13 +66,13 @@ public sealed class CheckForOfflineMonitorsHandler(
                     {
                         if (!monitor.Offline)
                         {
-                            MyAtmAlertCommit commit = ruleProcessor.CreateOfflineCommit(
+                            MyAtmAlertCommit commit = _ruleProcessor.CreateOfflineCommit(
                                 monitor,
                                 rule,
                                 offlineDateTime.Subtract(lastDataTime).TotalSeconds,
                                 lastDataTime,
                                 utcNow);
-                            MyAtmAlertCommitResult result = await alertCommitCommands.CommitAlertAsync(commit, cancellationToken);
+                            MyAtmAlertCommitResult result = await _alertCommitCommands.CommitAlertAsync(commit, cancellationToken);
                             if (result.Applied)
                             {
                                 monitor.Offline = true;
@@ -107,8 +107,8 @@ public sealed class CheckForOfflineMonitorsHandler(
             return;
         }
 
-        MyAtmAlertCommitResult result = await alertCommitCommands.CommitAlertAsync(
-            ruleProcessor.CreateOnlineRecoveryCommit(monitor, utcNow),
+        MyAtmAlertCommitResult result = await _alertCommitCommands.CommitAlertAsync(
+            _ruleProcessor.CreateOnlineRecoveryCommit(monitor, utcNow),
             cancellationToken);
         if (result.Applied)
         {

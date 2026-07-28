@@ -13,7 +13,7 @@ namespace AirQ.Api.Http;
 // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApi, AirQApiMonitors, AirQApiMonitorsNoiseLevels).
 public class AirQHttpGateway(IHttpClient httpClient) : IAirQVendorGateway
 {
-    private readonly IHttpClient httpClient = httpClient;
+    private readonly IHttpClient _httpClient = httpClient;
 
     public async Task<List<InstrumentResponse>> GetMonitorsAsync(
         string userId,
@@ -105,14 +105,14 @@ public class AirQHttpGateway(IHttpClient httpClient) : IAirQVendorGateway
     private async Task<string> DoGetInstrumentList(string userId, string token, CancellationToken cancellationToken)
     {
         string path = BuildQueryPath("/instrumentList", ("userID", userId), ("token", token));
-        return await httpClient.GetAsync(path, cancellationToken);
+        return await _httpClient.GetAsync(path, cancellationToken);
     }
 
     private async Task<string> DoGetMetaData(string userId, string token, string serialId, CancellationToken cancellationToken)
     {
         string path = BuildQueryPath("/latestMetaData", ("userID", userId), ("token", token), ("instrumentID", serialId));
         RvtLogger.Logger.LogInformation("Path={Path}", SensitiveLogRedactor.RedactUrl(path));
-        return await httpClient.GetAsync(path, cancellationToken);
+        return await _httpClient.GetAsync(path, cancellationToken);
     }
 
     private async Task<string> DoGetDataForDate(string userId, string token,
@@ -124,14 +124,14 @@ public class AirQHttpGateway(IHttpClient httpClient) : IAirQVendorGateway
             ("date", date),
             ("token", token),
             ("instrumentID", instrumentId));
-        return await httpClient.GetAsync(path, cancellationToken);
+        return await _httpClient.GetAsync(path, cancellationToken);
     }
 
     private async Task<string> DoGetLatestData(string userId, string token,
                                                 string instrumentId, CancellationToken cancellationToken)
     {
         string path = BuildQueryPath("/latestData", ("userID", userId), ("token", token), ("instrumentID", instrumentId));
-        return await httpClient.GetAsync(path, cancellationToken);
+        return await _httpClient.GetAsync(path, cancellationToken);
     }
 
     #endregion // ApiCalls

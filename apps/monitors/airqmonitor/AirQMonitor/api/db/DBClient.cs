@@ -22,14 +22,14 @@ namespace AirQ.Api.Db;
 // - 2026-06-20 EF migration: replaced DBUtil SQL calls with provider-aware EF Core operations.
 public class DBClient : IDBClient
 {
-    private readonly string ConnectionString;
+    private readonly string _connectionString;
 
     public DBClient(string connectionString)
     {
         MonitorDb.ValidateLegacyProvider(
             Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
             Environment.GetEnvironmentVariable("DatabaseProvider"));
-        ConnectionString = connectionString;
+        _connectionString = connectionString;
     }
 
     public void InsertNoiseDtos(string serialId, List<NoiseDto> dtos)
@@ -441,7 +441,7 @@ public class DBClient : IDBClient
     private AirQMonitorContext CreateContext()
     {
         MonitorDbOptions monitorOptions = AirQMonitorDbOptions.Current;
-        DbContextOptions<AirQMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<AirQMonitorContext>(ConnectionString);
+        DbContextOptions<AirQMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<AirQMonitorContext>(_connectionString);
         return new AirQMonitorContext(options, monitorOptions);
     }
 

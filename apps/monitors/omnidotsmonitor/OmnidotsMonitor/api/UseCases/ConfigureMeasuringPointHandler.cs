@@ -17,24 +17,24 @@ public class ConfigureMeasuringPointHandler(
     IOmnidotsMonitorQueries monitorQueries,
     OmnidotsApiSecurityOptions securityOptions)
 {
-    private const double MinimumTuningValue = 0;
-    private const double MaximumTuningValue = 1_000_000;
-    private const string InvalidRequestMessage = "Invalid measuring point configuration request.";
+    private const double _minimumTuningValue = 0;
+    private const double _maximumTuningValue = 1_000_000;
+    private const string _invalidRequestMessage = "Invalid measuring point configuration request.";
 
     private readonly IOmnidotsVendorGateway _gateway = gateway;
-    private readonly IOmnidotsMonitorQueries monitorQueries = monitorQueries;
-    private readonly OmnidotsApiSecurityOptions securityOptions = securityOptions;
+    private readonly IOmnidotsMonitorQueries _monitorQueries = monitorQueries;
+    private readonly OmnidotsApiSecurityOptions _securityOptions = securityOptions;
 
     public async Task<ConfigureMeasuringPointResult> RunAsync(
         ReadOnlyMemory<byte> body,
         CancellationToken cancellationToken)
     {
-        OmnidotsApiSecurityGuard.EnsureConfigurationReady(securityOptions);
+        OmnidotsApiSecurityGuard.EnsureConfigurationReady(_securityOptions);
 
         using JsonDocument document = ParseDocument(body);
         string? suppliedSecret = ExtractSecret(document.RootElement);
         if (suppliedSecret is null ||
-            !OmnidotsFixedTimeSecretComparer.Matches(suppliedSecret, securityOptions.ConfigSecret))
+            !OmnidotsFixedTimeSecretComparer.Matches(suppliedSecret, _securityOptions.ConfigSecret))
         {
             throw new OmnidotsConfigurationAuthenticationException();
         }
@@ -142,8 +142,8 @@ public class ConfigureMeasuringPointHandler(
     {
         if (value is not null &&
             (!double.IsFinite(value.Value) ||
-             value.Value < MinimumTuningValue ||
-             value.Value > MaximumTuningValue))
+             value.Value < _minimumTuningValue ||
+             value.Value > _maximumTuningValue))
         {
             throw InvalidRequest();
         }
@@ -152,8 +152,8 @@ public class ConfigureMeasuringPointHandler(
     private ConfigRequest CreateConfigRequest(string serialId, ConfigureMeasuringPointRequest request)
     {
         RvtLogger.Logger.LogInformation("CreateConfigRequest for serialId={SerialId}", serialId);
-        VibrationMonitorDto monitor = monitorQueries.ReadMonitor(serialId);
-        SiteTimes siteTimes = monitorQueries.ReadSiteTimes(monitor.Id);
+        VibrationMonitorDto monitor = _monitorQueries.ReadMonitor(serialId);
+        SiteTimes siteTimes = _monitorQueries.ReadSiteTimes(monitor.Id);
 
         double traceSaveLevel = request.TraceSaveLevel ?? 10.0;
         double tracePreTrigger = request.TracePreTrigger ?? 3.0;
@@ -202,12 +202,12 @@ public class ConfigureMeasuringPointHandler(
                 AlarmLevel1 = false,
                 AlarmLevel2 = true,
                 AlarmLevel3 = true,
-                Url = securityOptions.WebhookUrl,
-                Secret = securityOptions.WebhookSecret,
+                Url = _securityOptions.WebhookUrl,
+                Secret = _securityOptions.WebhookSecret,
                 MeasuringPointAdministrator = true
             }
         };
     }
 
-    private static JsonException InvalidRequest() => new(InvalidRequestMessage);
+    private static JsonException InvalidRequest() => new(_invalidRequestMessage);
 }

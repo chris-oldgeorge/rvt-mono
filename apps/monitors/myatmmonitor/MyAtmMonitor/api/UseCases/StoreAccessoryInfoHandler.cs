@@ -19,32 +19,32 @@ public class StoreAccessoryInfoHandler(
     IMyAtmOperationalCommands operationalCommands,
     int maxPagesPerMonitorPerRun)
 {
-    private readonly MyAtmHttpGateway gateway = gateway;
-    private readonly MyAtmMonitorReader monitorReader = monitorReader;
-    private readonly IMyAtmAccessoryCommands accessoryCommands = accessoryCommands;
-    private readonly IMyAtmMeasurementQueries measurementQueries = measurementQueries;
-    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
-    private readonly int maxPagesPerMonitorPerRun = maxPagesPerMonitorPerRun;
+    private readonly MyAtmHttpGateway _gateway = gateway;
+    private readonly MyAtmMonitorReader _monitorReader = monitorReader;
+    private readonly IMyAtmAccessoryCommands _accessoryCommands = accessoryCommands;
+    private readonly IMyAtmMeasurementQueries _measurementQueries = measurementQueries;
+    private readonly IMyAtmOperationalCommands _operationalCommands = operationalCommands;
+    private readonly int _maxPagesPerMonitorPerRun = maxPagesPerMonitorPerRun;
 
     public async Task RunAsync(int customerId, CancellationToken cancellationToken = default)
     {
-        List<DustMonitorDto>? customerDtos = monitorReader.ReadMonitors(customerId);
+        List<DustMonitorDto>? customerDtos = _monitorReader.ReadMonitors(customerId);
         if (customerDtos == null)
         {
             return;
         }
 
-        MyAtmFailureCollector failures = new(operationalCommands);
+        MyAtmFailureCollector failures = new(_operationalCommands);
         foreach (DustMonitorDto customerDto in customerDtos)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 DateTime cursor = DateTimeUtil.AsUtc(
-                    measurementQueries.ReadLatestAccessoryTimestamp(customerDto.SerialId) ?? MyAtmApi.JAN1_1970);
-                for (int pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
+                    _measurementQueries.ReadLatestAccessoryTimestamp(customerDto.SerialId) ?? MyAtmApi.JAN1_1970);
+                for (int pageNumber = 0; pageNumber < _maxPagesPerMonitorPerRun; pageNumber++)
                 {
-                    MyAtmMeasurementPage<AccessoryInfo> page = await gateway.HttpGetAccessoryInfoPageAsync(
+                    MyAtmMeasurementPage<AccessoryInfo> page = await _gateway.HttpGetAccessoryInfoPageAsync(
                         customerId,
                         customerDto.SerialId,
                         cursor,
@@ -64,7 +64,7 @@ public class StoreAccessoryInfoHandler(
 
                     if (dtos.Count > 0)
                     {
-                        await accessoryCommands.InsertAccessoryPageAsync(dtos, cancellationToken);
+                        await _accessoryCommands.InsertAccessoryPageAsync(dtos, cancellationToken);
                     }
 
                     if (!page.HasMore || !page.NextCursor.HasValue || page.NextCursor <= cursor)

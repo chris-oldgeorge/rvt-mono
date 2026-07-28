@@ -16,8 +16,8 @@ namespace Rvt.Monitor.Common.Mqtt;
 // - 2026-07-12 DI composition: connects lazily on first publish instead of requiring an eager ConnectAsync at startup.
 public class RvtMqttClient : IMqttClient, IDisposable
 {
-    private readonly MQTTnet.Client.IMqttClient mqttClient;
-    private readonly SemaphoreSlim connectLock = new(1, 1);
+    private readonly MQTTnet.Client.IMqttClient _mqttClient;
+    private readonly SemaphoreSlim _connectLock = new(1, 1);
     private readonly MqttOptions _options;
 
     /// <summary>
@@ -33,7 +33,7 @@ public class RvtMqttClient : IMqttClient, IDisposable
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
-        mqttClient = new MqttFactory().CreateMqttClient();
+        _mqttClient = new MqttFactory().CreateMqttClient();
 
         Task _mqttClient_ConnectedAsync(MqttClientConnectedEventArgs arg)
         {
@@ -48,8 +48,8 @@ public class RvtMqttClient : IMqttClient, IDisposable
         }
         ;
 
-        mqttClient.ConnectedAsync += _mqttClient_ConnectedAsync;
-        mqttClient.DisconnectedAsync += _mqttClient_DisconnectedAsync;
+        _mqttClient.ConnectedAsync += _mqttClient_ConnectedAsync;
+        _mqttClient.DisconnectedAsync += _mqttClient_DisconnectedAsync;
 
     }
 
@@ -65,20 +65,20 @@ public class RvtMqttClient : IMqttClient, IDisposable
         }
 
         await EnsureConnectedAsync(cancellationToken);
-        await mqttClient.PublishStringAsync(topic, message, cancellationToken: cancellationToken);
+        await _mqttClient.PublishStringAsync(topic, message, cancellationToken: cancellationToken);
     }
 
     private async Task EnsureConnectedAsync(CancellationToken cancellationToken)
     {
-        if (mqttClient.IsConnected)
+        if (_mqttClient.IsConnected)
         {
             return;
         }
 
-        await connectLock.WaitAsync(cancellationToken);
+        await _connectLock.WaitAsync(cancellationToken);
         try
         {
-            if (!mqttClient.IsConnected && !await ConnectAsync(cancellationToken))
+            if (!_mqttClient.IsConnected && !await ConnectAsync(cancellationToken))
             {
                 throw AdapterException.Of("RVT MQTT client connection failed ");
             }
@@ -90,7 +90,7 @@ public class RvtMqttClient : IMqttClient, IDisposable
         }
         finally
         {
-            connectLock.Release();
+            _connectLock.Release();
         }
     }
 
@@ -126,8 +126,8 @@ public class RvtMqttClient : IMqttClient, IDisposable
             return;
         }
 
-        mqttClient.Dispose();
-        connectLock.Dispose();
+        _mqttClient.Dispose();
+        _connectLock.Dispose();
     }
 
     public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
@@ -139,7 +139,7 @@ public class RvtMqttClient : IMqttClient, IDisposable
             return true;
         }
 
-        MqttClientConnectResult ack = await mqttClient!.ConnectAsync(new MqttClientOptionsBuilder()
+        MqttClientConnectResult ack = await _mqttClient!.ConnectAsync(new MqttClientOptionsBuilder()
             .WithTcpServer(_options.Hostname, _options.Port)
             .WithClientId(_options.ClientId)
             .WithCredentials(_options.Username, "")

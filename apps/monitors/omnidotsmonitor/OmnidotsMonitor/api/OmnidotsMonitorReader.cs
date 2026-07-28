@@ -1,6 +1,5 @@
 using Omnidots.Api.Db;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace Omnidots.Api;
@@ -10,14 +9,14 @@ namespace Omnidots.Api;
 // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiMonitors).
 public class OmnidotsMonitorReader(IOmnidotsMonitorQueries monitorQueries, bool testLocal)
 {
-    private readonly IOmnidotsMonitorQueries monitorQueries = monitorQueries;
-    private readonly bool testLocal = testLocal;
+    private readonly IOmnidotsMonitorQueries _monitorQueries = monitorQueries;
+    private readonly bool _testLocal = testLocal;
 
     public List<VibrationMonitorDto> ReadMonitors(DateTime? lastDataTime = null)
     {
         try
         {
-            return OmnidotsTestLocalMonitorFilter.Apply(monitorQueries.ReadMonitorList(lastDataTime), testLocal);
+            return OmnidotsTestLocalMonitorFilter.Apply(_monitorQueries.ReadMonitorList(lastDataTime), _testLocal);
         }
         catch (Exception e)
         {

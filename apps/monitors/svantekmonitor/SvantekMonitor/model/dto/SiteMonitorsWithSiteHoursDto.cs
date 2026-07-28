@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.VisualBasic;
-
 namespace SvantekMonitor.model.dto;
 
 // Summary: Combines deployed Svantek monitor identity with the site hours used for reporting windows.

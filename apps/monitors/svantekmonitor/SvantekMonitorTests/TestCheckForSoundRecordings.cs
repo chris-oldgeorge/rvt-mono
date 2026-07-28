@@ -14,7 +14,7 @@ namespace SvantekMonitorTests;
 [TestClass]
 public class TestCheckForSoundRecordings
 {
-    private const string EmptyFilesResponse = "{\"status\":\"ok\",\"files\":[],\"files_size\":0}";
+    private const string _emptyFilesResponse = "{\"status\":\"ok\",\"files\":[],\"files_size\":0}";
 
     [TestMethod]
     public async Task TestCheckForSoundRecordings_FileListRefetchedEachRun_CachedWithinRun()
@@ -46,7 +46,7 @@ public class TestCheckForSoundRecordings
                 It.IsAny<string>(),
                 It.IsAny<HttpContent>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(EmptyFilesResponse);
+            .ReturnsAsync(_emptyFilesResponse);
 
         // Two consecutive runs on the same (singleton) api instance: the file list must be fetched
         // once per run - not served from a process-lifetime cache - or recordings uploaded to the

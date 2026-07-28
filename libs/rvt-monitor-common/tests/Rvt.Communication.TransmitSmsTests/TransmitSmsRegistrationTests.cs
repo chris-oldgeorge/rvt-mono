@@ -84,7 +84,7 @@ public sealed class TransmitSmsRegistrationTests
         await port.SendAsync(request, TestContext.CancellationToken);
 
         Assert.AreSame(port, provider.GetRequiredService<ISmsDeliveryPort>());
-        CollectionAssert.AreEqual(expected, clientFactory.RequestClientIds);
+        CollectionAssert.AreEqual(_expected, clientFactory.RequestClientIds);
     }
 
     private sealed class ExistingSmsDeliveryPort : ISmsDeliveryPort
@@ -95,13 +95,13 @@ public sealed class TransmitSmsRegistrationTests
 
     private sealed class RecordingHttpClientFactory : IHttpClientFactory
     {
-        private int clientId;
+        private int _clientId;
 
         internal List<int> RequestClientIds { get; } = [];
 
         public HttpClient CreateClient(string name)
         {
-            int currentClientId = ++clientId;
+            int currentClientId = ++_clientId;
             return new HttpClient(new RecordingHandler(currentClientId, RequestClientIds));
         }
 
@@ -127,5 +127,5 @@ public sealed class TransmitSmsRegistrationTests
 
     public TestContext TestContext { get; set; } = null!;
 
-    private static readonly int[] expected = [1, 2];
+    private static readonly int[] _expected = [1, 2];
 }

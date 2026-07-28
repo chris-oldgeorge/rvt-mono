@@ -199,7 +199,7 @@ Expected: every command exits `0`.
 
 Record the dedicated branch, old and new advisory counts, exact direct package versions, resolved `brace-expansion` and PostCSS security floors, test totals, lint warning count, build result, and repository policy results. Preserve Help Admin/R2 as separate conditional operator work.
 
-- [ ] **Step 2: Verify and commit the checkpoint**
+- [x] **Step 2: Verify and commit the checkpoint**
 
 Run:
 
@@ -212,7 +212,7 @@ git commit -m "docs: record Portal npm remediation"
 
 Expected: verification exits `0` and the commit contains only `project_state.md`.
 
-- [ ] **Step 3: Push the dedicated branch and open a draft PR**
+- [x] **Step 3: Push the dedicated branch and open a draft PR**
 
 Run:
 

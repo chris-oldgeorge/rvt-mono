@@ -26,11 +26,14 @@
 - The committed changed-range engineering-standards ratchet passed against
   `origin/main`. Both workflow contract tests passed, and `git diff --check`
   is clean.
+- Draft PR #6, `Remediate Portal npm advisories`, is open at
+  `https://github.com/chris-oldgeorge/rvt-mono/pull/6`. Exact-head Engineering
+  standards run `30355269311` passed every step.
 - No application runtime dependencies, application source behavior, database
   configuration, secrets, or Help Admin/R2 release-audit conditions changed.
-- Next step: commit this checkpoint, push
-  `codex/portal-npm-advisories`, open a draft PR against `main`, and monitor
-  the Engineering standards check.
+- Next step: review and accept PR #6. A separate lint-modernization task may
+  adopt the new ESLint 10 and React Hooks 7 recommended rules with deliberate
+  React source changes and regression coverage.
 
 ## Authoritative checkpoint: PR #5 merged into main — 2026-07-28
 

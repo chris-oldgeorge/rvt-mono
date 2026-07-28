@@ -1015,6 +1015,181 @@ describe('App', () => {
     },
   );
 
+  it('keeps a newer notification query authoritative over a delayed close and owns a normal refresh', async () => {
+    globalThis.history.replaceState(null, '', '/notifications');
+    const staleMutation = deferredResponse();
+    const currentQuery = deferredResponse();
+    const normalMutation = deferredResponse();
+    const normalRefresh = deferredResponse();
+    let mutationCount = 0;
+    let emptyQueryCount = 0;
+    let currentQueryCount = 0;
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/notifications/batch-close' && init?.method === 'POST') {
+          mutationCount += 1;
+          return mutationCount === 1 ? staleMutation.promise : normalMutation.promise;
+        }
+        if (url.pathname !== '/api/notifications') {
+          return undefined;
+        }
+
+        const searchText = url.searchParams.get('searchText') ?? '';
+        if (!searchText) {
+          emptyQueryCount += 1;
+          return jsonResponse(notificationPage(url, emptyQueryCount === 1 ? 'Old A threshold' : 'Stale A threshold'));
+        }
+        if (searchText === 'current') {
+          currentQueryCount += 1;
+          return currentQueryCount === 1 ? currentQuery.promise : normalRefresh.promise;
+        }
+        return undefined;
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText('Old A threshold');
+    fireEvent.click(screen.getByRole('checkbox', { name: /select notification mon-a2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /close 1/i }));
+    fireEvent.change(screen.getByPlaceholderText(/search notifications/i), { target: { value: 'current' } });
+    await waitFor(() => expect(currentQueryCount).toBe(1));
+    await act(async () =>
+      currentQuery.resolve(
+        jsonResponse(
+          notificationPage(new URL('/api/notifications?searchText=current', 'http://localhost'), 'Current B threshold'),
+        ),
+      ),
+    );
+    await screen.findByText('Current B threshold');
+
+    await act(async () =>
+      staleMutation.resolve(
+        jsonResponse({ requested: 1, closedIds: ['old-a-threshold-id'], forbiddenIds: [], missingIds: [] }),
+      ),
+    );
+
+    await screen.findByText(/closed 1 of 1 selected notifications/i);
+    expect(screen.getByText('Current B threshold')).toBeInTheDocument();
+    expect(screen.queryByText('Stale A threshold')).not.toBeInTheDocument();
+    expect(emptyQueryCount).toBe(1);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /select notification mon-a2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /close 1/i }));
+    await act(async () =>
+      normalMutation.resolve(
+        jsonResponse({ requested: 1, closedIds: ['current-b-threshold-id'], forbiddenIds: [], missingIds: [] }),
+      ),
+    );
+    await waitFor(() => expect(currentQueryCount).toBe(2));
+
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.queryByText('Current B threshold')).not.toBeInTheDocument();
+
+    await act(async () =>
+      normalRefresh.resolve(
+        jsonResponse(
+          notificationPage(
+            new URL('/api/notifications?searchText=current', 'http://localhost'),
+            'Refreshed B threshold',
+          ),
+        ),
+      ),
+    );
+
+    await screen.findByText('Refreshed B threshold');
+    expect(screen.queryByRole('button', { name: /close 1/i })).not.toBeInTheDocument();
+    expect(currentQueryCount).toBe(2);
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+  });
+
+  it('keeps a newer alert-level sort authoritative over a delayed delete and owns a normal refresh', async () => {
+    globalThis.history.replaceState(null, '', '/monitors/monitor-id/alert-levels');
+    const staleMutation = deferredResponse();
+    const currentQuery = deferredResponse();
+    const normalMutation = deferredResponse();
+    const normalRefresh = deferredResponse();
+    let mutationCount = 0;
+    let ascendingQueryCount = 0;
+    let descendingQueryCount = 0;
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname.startsWith('/api/alert-levels/') && init?.method === 'DELETE') {
+          mutationCount += 1;
+          return mutationCount === 1 ? staleMutation.promise : normalMutation.promise;
+        }
+        if (url.pathname !== '/api/alert-levels') {
+          return undefined;
+        }
+
+        const sortDir = url.searchParams.get('sortDir') ?? 'Ascending';
+        if (sortDir === 'Ascending') {
+          ascendingQueryCount += 1;
+          return jsonResponse(
+            alertLevelPage(url, ascendingQueryCount === 1 ? 'Old A parameter' : 'Stale A parameter', 'Dust'),
+          );
+        }
+        descendingQueryCount += 1;
+        return descendingQueryCount === 1 ? currentQuery.promise : normalRefresh.promise;
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText('Old A parameter');
+    fireEvent.click(screen.getByRole('button', { name: /delete alert level/i }));
+    fireEvent.click(screen.getByRole('button', { name: /parameter/i }));
+    await waitFor(() => expect(descendingQueryCount).toBe(1));
+    await act(async () =>
+      currentQuery.resolve(
+        jsonResponse(
+          alertLevelPage(
+            new URL('/api/alert-levels?monitorId=monitor-id&sortDir=Descending', 'http://localhost'),
+            'Current B parameter',
+            'Dust',
+          ),
+        ),
+      ),
+    );
+    await screen.findByText('Current B parameter');
+
+    await act(async () => staleMutation.resolve(jsonResponse({ message: 'Deleted' })));
+
+    await screen.findByText(/alert level has been deleted/i);
+    expect(screen.getByText('Current B parameter')).toBeInTheDocument();
+    expect(screen.queryByText('Stale A parameter')).not.toBeInTheDocument();
+    expect(ascendingQueryCount).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /delete alert level/i }));
+    await act(async () => normalMutation.resolve(jsonResponse({ message: 'Deleted' })));
+    await waitFor(() => expect(descendingQueryCount).toBe(2));
+
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.queryByText('Current B parameter')).not.toBeInTheDocument();
+
+    await act(async () =>
+      normalRefresh.resolve(
+        jsonResponse(
+          alertLevelPage(
+            new URL('/api/alert-levels?monitorId=monitor-id&sortDir=Descending', 'http://localhost'),
+            'Refreshed B parameter',
+            'Dust',
+          ),
+        ),
+      ),
+    );
+
+    await screen.findByText('Refreshed B parameter');
+    expect(descendingQueryCount).toBe(2);
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+  });
+
   it('returns monitor edit forms to the filtered list that opened them', async () => {
     globalThis.history.replaceState(null, '', '/monitors?q=MON&page=2&sort=siteName&sortDir=Descending&state=online');
     stubFetch({ auth: { isAuthenticated: true, user: adminUser } });
@@ -3348,6 +3523,7 @@ function notificationPage(url: URL, limitName: string) {
         companyName: 'RVT Group',
         limitName,
         alertStatus: 'Open',
+        canClose: true,
       },
     ],
     total: 1,
@@ -3396,17 +3572,17 @@ function generatedReportPage(url: URL, reportName: string) {
 }
 
 // Function summary: Builds an alert-level page fixture for request-execution tests.
-function alertLevelPage(url: URL, alertField: string) {
+function alertLevelPage(url: URL, alertField: string, typeOfMonitor = 'Vibration') {
   return {
     monitorId: 'monitor-id',
     serialId: 'SER-V1',
     fleetNumber: 'VIB-A2',
-    typeOfMonitor: 'Vibration',
+    typeOfMonitor,
     canManage: true,
     options: {
       monitorId: 'monitor-id',
       serialId: 'SER-V1',
-      typeOfMonitor: 'Vibration',
+      typeOfMonitor,
       alertFields: [{ value: alertField, label: alertField }],
       alertTypes: [{ value: 'Alert', label: 'Alert' }],
       averagingPeriods: [],

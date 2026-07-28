@@ -9,7 +9,7 @@
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
 import { Bell, Check, ChevronLeft, Edit3, Eye, Gauge, Plus, RefreshCcw, Save, Search, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   batchCloseNotifications,
@@ -115,6 +115,9 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryNotificationsRequest> | null>(null);
+  const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryNotificationsRequest> | null>(null);
+  const activeRequestController = useRef<AbortController | null>(null);
+  const requestGeneration = useRef(0);
   const [isClosing, setIsClosing] = useState(false);
   const showClosedNoteColumn = notifications.some((notification) => hasText(notification.closedNote));
   const returnPath = currentRoutePath(locationPath);
@@ -197,11 +200,56 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
     [page, searchText, sortDir, sortKey, state],
   );
   const execution = useMemo<ListExecution<QueryNotificationsRequest>>(() => ({ query }), [query]);
-  const isLoading = completedExecution !== execution;
+  const currentExecution = refreshExecution?.query === query ? refreshExecution : execution;
+  const isLoading = completedExecution !== currentExecution;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
 
-  useEffect(() => {
+  const claimRequest = useCallback(() => {
+    activeRequestController.current?.abort();
     const controller = new AbortController();
+    const generation = requestGeneration.current + 1;
+    requestGeneration.current = generation;
+    activeRequestController.current = controller;
+    return { controller, generation };
+  }, []);
+
+  const ownsRequest = useCallback(
+    (controller: AbortController, generation: number) =>
+      activeRequestController.current === controller &&
+      requestGeneration.current === generation &&
+      !controller.signal.aborted,
+    [],
+  );
+
+  const refreshNotifications = useCallback(async () => {
+    const nextExecution: ListExecution<QueryNotificationsRequest> = { query };
+    const { controller, generation } = claimRequest();
+    setRefreshExecution(nextExecution);
+    setCompletedExecution(null);
+    try {
+      const response = await queryNotifications(nextExecution.query, { signal: controller.signal });
+      if (!ownsRequest(controller, generation)) {
+        return;
+      }
+      setNotifications(response.results);
+      setTotal(response.total);
+      setTotalPages(response.totalPages);
+      setCanClose(response.canClose);
+      setSelectedIds(new Set());
+      setError(null);
+      setCompletedExecution(nextExecution);
+    } catch (err) {
+      if (!ownsRequest(controller, generation) || isAbortError(err)) {
+        return;
+      }
+      setError((err as Error).message);
+      onRequestError(err);
+      setCompletedExecution(nextExecution);
+    }
+  }, [claimRequest, onRequestError, ownsRequest, query]);
+
+  useEffect(() => {
+    const { controller, generation } = claimRequest();
     globalThis.history.replaceState(
       null,
       '',
@@ -209,7 +257,7 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
     );
     queryNotifications(execution.query, { signal: controller.signal })
       .then((response) => {
-        if (controller.signal.aborted) {
+        if (!ownsRequest(controller, generation)) {
           return;
         }
         setNotifications(response.results);
@@ -221,7 +269,7 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
         setCompletedExecution(execution);
       })
       .catch((err: Error) => {
-        if (controller.signal.aborted || isAbortError(err)) {
+        if (!ownsRequest(controller, generation) || isAbortError(err)) {
           return;
         }
         setError(err.message);
@@ -229,7 +277,7 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
         setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [execution, onRequestError, page, searchText, sortDir, sortKey, state]);
+  }, [claimRequest, execution, onRequestError, ownsRequest, page, searchText, sortDir, sortKey, state]);
 
   // Function summary: Maps ggle selected into the shape required by callers.
   function toggleSelected(id: string, checked: boolean) {
@@ -257,6 +305,7 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
   }
 
   async function handleBatchClose() {
+    const mutationGeneration = requestGeneration.current;
     setIsClosing(true);
     setNotice(null);
     setError(null);
@@ -264,12 +313,10 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
       const response = await batchCloseNotifications({ notificationIds: Array.from(selectedIds), note: closeNote });
       setNotice(`Closed ${response.closedIds.length} of ${response.requested} selected notifications.`);
       setCloseNote('');
-      const refreshed = await queryNotifications(query);
-      setNotifications(refreshed.results);
-      setTotal(refreshed.total);
-      setTotalPages(refreshed.totalPages);
-      setCanClose(refreshed.canClose);
-      setSelectedIds(new Set());
+      if (requestGeneration.current !== mutationGeneration) {
+        return;
+      }
+      await refreshNotifications();
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);
@@ -578,6 +625,9 @@ function AlertLevelsListPanel({
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryAlertLevelsRequest> | null>(null);
+  const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryAlertLevelsRequest> | null>(null);
+  const activeRequestController = useRef<AbortController | null>(null);
+  const requestGeneration = useRef(0);
   const manageAllowed = Boolean(canManage && response?.canManage);
   const backPath = returnToOr(locationPath, `/monitors/${monitorId}`);
   const returnPath = currentRoutePath(locationPath);
@@ -593,15 +643,56 @@ function AlertLevelsListPanel({
     [monitorId, page, sortDir, sortKey],
   );
   const execution = useMemo<ListExecution<QueryAlertLevelsRequest>>(() => ({ query }), [query]);
-  const isLoading = completedExecution !== execution;
+  const currentExecution = refreshExecution?.query === query ? refreshExecution : execution;
+  const isLoading = completedExecution !== currentExecution;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
 
-  useEffect(() => {
+  const claimRequest = useCallback(() => {
+    activeRequestController.current?.abort();
     const controller = new AbortController();
+    const generation = requestGeneration.current + 1;
+    requestGeneration.current = generation;
+    activeRequestController.current = controller;
+    return { controller, generation };
+  }, []);
+
+  const ownsRequest = useCallback(
+    (controller: AbortController, generation: number) =>
+      activeRequestController.current === controller &&
+      requestGeneration.current === generation &&
+      !controller.signal.aborted,
+    [],
+  );
+
+  const refreshAlertLevels = useCallback(async () => {
+    const nextExecution: ListExecution<QueryAlertLevelsRequest> = { query };
+    const { controller, generation } = claimRequest();
+    setRefreshExecution(nextExecution);
+    setCompletedExecution(null);
+    try {
+      const nextResponse = await queryAlertLevels(nextExecution.query, { signal: controller.signal });
+      if (!ownsRequest(controller, generation)) {
+        return;
+      }
+      setResponse(nextResponse);
+      setError(null);
+      setCompletedExecution(nextExecution);
+    } catch (err) {
+      if (!ownsRequest(controller, generation) || isAbortError(err)) {
+        return;
+      }
+      setError((err as Error).message);
+      onRequestError(err);
+      setCompletedExecution(nextExecution);
+    }
+  }, [claimRequest, onRequestError, ownsRequest, query]);
+
+  useEffect(() => {
+    const { controller, generation } = claimRequest();
     globalThis.history.replaceState(null, '', buildAlertLevelsUrl(monitorId, { page, sort: sortKey, sortDir }));
     queryAlertLevels(execution.query, { signal: controller.signal })
       .then((nextResponse) => {
-        if (controller.signal.aborted) {
+        if (!ownsRequest(controller, generation)) {
           return;
         }
         setResponse(nextResponse);
@@ -609,7 +700,7 @@ function AlertLevelsListPanel({
         setCompletedExecution(execution);
       })
       .catch((err: Error) => {
-        if (controller.signal.aborted || isAbortError(err)) {
+        if (!ownsRequest(controller, generation) || isAbortError(err)) {
           return;
         }
         setError(err.message);
@@ -617,19 +708,22 @@ function AlertLevelsListPanel({
         setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [execution, monitorId, onRequestError, page, sortDir, sortKey]);
+  }, [claimRequest, execution, monitorId, onRequestError, ownsRequest, page, sortDir, sortKey]);
 
   async function handleDelete(level: AlertLevelItem) {
     if (!globalThis.confirm(`Delete ${level.alertType} ${level.alertField} alert level?`)) {
       return;
     }
+    const mutationGeneration = requestGeneration.current;
     setNotice(null);
     setError(null);
     try {
       await deleteAlertLevel(level.id);
       setNotice('Alert level has been deleted.');
-      const refreshed = await queryAlertLevels(query);
-      setResponse(refreshed);
+      if (requestGeneration.current !== mutationGeneration) {
+        return;
+      }
+      await refreshAlertLevels();
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);

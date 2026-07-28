@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
-  existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   rmSync,
+  statSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -92,6 +95,7 @@ const expectedModulePolicy = {
     }
   ]
 };
+const centralPackageMetadataCache = new Map();
 
 function readJson(relativePath) {
   const absolutePath = path.join(repoRoot, relativePath);
@@ -193,6 +197,7 @@ function longestMatchingPolicy(projectPath, modulePolicy) {
   for (const module of modulePolicy.modules) {
     if (!isAtOrBelow(projectPath, module.path)) continue;
     matches.push({
+      modulePath: module.path,
       path: module.path,
       testFramework: module.testFramework,
       packageVersionPolicy: module.packageVersionPolicy
@@ -200,6 +205,7 @@ function longestMatchingPolicy(projectPath, modulePolicy) {
     for (const override of module.testFrameworkOverrides ?? []) {
       if (!isAtOrBelow(projectPath, override.path)) continue;
       matches.push({
+        modulePath: module.path,
         path: override.path,
         testFramework: override.testFramework,
         packageVersionPolicy: module.packageVersionPolicy
@@ -254,6 +260,14 @@ function normalizePackageId(packageId) {
   return packageId.toLowerCase();
 }
 
+function packageVersionMetadata(document) {
+  return (document.Items?.PackageVersion ?? []).map((item) => ({
+    include: item.Identity,
+    version: optionalMetadata(item.Version),
+    definingProjectFullPath: optionalMetadata(item.DefiningProjectFullPath)
+  }));
+}
+
 function evaluateProjectMetadata(root, projectPath) {
   assertExactPolicyPath(projectPath, 'project path');
   const document = parseMsBuildJson(
@@ -261,7 +275,8 @@ function evaluateProjectMetadata(root, projectPath) {
       'msbuild',
       path.join(root, projectPath),
       '-nologo',
-      '-getProperty:IsTestProject,ManagePackageVersionsCentrally,RestorePackagesWithLockFile',
+      '-getProperty:IsTestProject,ManagePackageVersionsCentrally,' +
+        'RestorePackagesWithLockFile,DirectoryPackagesPropsPath',
       '-getItem:PackageReference,PackageVersion'
     ], root),
     projectPath
@@ -271,10 +286,7 @@ function evaluateProjectMetadata(root, projectPath) {
     include: item.Identity,
     version: optionalMetadata(item.VersionOverride) ?? optionalMetadata(item.Version)
   }));
-  const packageVersions = (document.Items?.PackageVersion ?? []).map((item) => ({
-    include: item.Identity,
-    version: optionalMetadata(item.Version)
-  }));
+  const packageVersions = packageVersionMetadata(document);
   const normalizedPackageIds = new Set(
     packageReferences.map((reference) => normalizePackageId(reference.include))
   );
@@ -295,8 +307,65 @@ function evaluateProjectMetadata(root, projectPath) {
     managePackageVersionsCentrally:
       trueProperty(properties.ManagePackageVersionsCentrally),
     restorePackagesWithLockFile:
-      trueProperty(properties.RestorePackagesWithLockFile)
+      trueProperty(properties.RestorePackagesWithLockFile),
+    directoryPackagesPropsPath:
+      optionalMetadata(properties.DirectoryPackagesPropsPath)
   };
+}
+
+function evaluateCentralPackageMetadata(root, centralPath) {
+  assertExactPolicyPath(centralPath, 'central package path');
+  const cacheKey = canonicalExistingPath(path.join(root, centralPath));
+  const cached = centralPackageMetadataCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const document = parseMsBuildJson(
+    runDotnet([
+      'msbuild',
+      path.join(root, centralPath),
+      '-nologo',
+      '-getProperty:ManagePackageVersionsCentrally',
+      '-getItem:PackageVersion'
+    ], root),
+    centralPath
+  );
+  const metadata = {
+    managePackageVersionsCentrally:
+      trueProperty(document.Properties?.ManagePackageVersionsCentrally),
+    packageVersions: packageVersionMetadata(document)
+  };
+  centralPackageMetadataCache.set(cacheKey, metadata);
+  return metadata;
+}
+
+function lstatOrUndefined(absolutePath) {
+  try {
+    return lstatSync(absolutePath);
+  } catch (error) {
+    if (error.code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+function isRegularFile(absolutePath) {
+  return lstatOrUndefined(absolutePath)?.isFile() === true;
+}
+
+function canonicalExistingPath(absolutePath) {
+  return path.normalize(realpathSync(absolutePath));
+}
+
+function canonicalMetadataPath(root, candidate) {
+  if (candidate === undefined) return undefined;
+  const absolutePath = path.isAbsolute(candidate)
+    ? candidate
+    : path.resolve(root, candidate);
+  try {
+    return canonicalExistingPath(absolutePath);
+  } catch (error) {
+    if (error.code === 'ENOENT') return path.normalize(absolutePath);
+    throw error;
+  }
 }
 
 function solutionProjectPaths(root) {
@@ -333,13 +402,26 @@ function discoverGovernedProjectPaths(root, modulePolicy = expectedModulePolicy)
 
   function visit(directory, relativeDirectory) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      if (entry.isSymbolicLink()) continue;
       const relativePath = path.posix.join(relativeDirectory, entry.name);
       const absolutePath = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        if (!projectDiscoveryIgnoredDirectories.has(entry.name)) {
-          visit(absolutePath, relativePath);
+      if (projectDiscoveryIgnoredDirectories.has(entry.name)) continue;
+      if (entry.isSymbolicLink()) {
+        const isProjectLink = entry.name.toLowerCase().endsWith('.csproj');
+        let isDirectoryLink = false;
+        try {
+          isDirectoryLink = statSync(absolutePath).isDirectory();
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error;
         }
+        if (isProjectLink || isDirectoryLink) {
+          throw new Error(
+            `governed project inventory rejects symbolic link: ${relativePath}`
+          );
+        }
+        continue;
+      }
+      if (entry.isDirectory()) {
+        visit(absolutePath, relativePath);
       } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.csproj')) {
         assertExactPolicyPath(relativePath, 'discovered project path');
         projects.push(relativePath);
@@ -349,7 +431,16 @@ function discoverGovernedProjectPaths(root, modulePolicy = expectedModulePolicy)
 
   for (const module of modulePolicy.modules) {
     const moduleRoot = path.join(root, module.path);
-    if (existsSync(moduleRoot)) visit(moduleRoot, module.path);
+    const moduleRootStats = lstatOrUndefined(moduleRoot);
+    if (moduleRootStats?.isSymbolicLink()) {
+      throw new Error(`governed module root rejects symbolic link: ${module.path}`);
+    }
+    if (moduleRootStats?.isDirectory() !== true) {
+      throw new Error(
+        `governed module root must be an existing directory: ${module.path}`
+      );
+    }
+    visit(moduleRoot, module.path);
   }
   return projects.sort(compareCodePoints);
 }
@@ -369,14 +460,44 @@ function solutionProjects(root = repoRoot, modulePolicy = expectedModulePolicy) 
 
 function projectPolicyErrors(modulePolicy, projects, root = repoRoot) {
   const errors = [];
+  const centralPolicies = new Map();
   for (const module of modulePolicy.modules) {
     if (module.packageVersionPolicy === 'project-inline-legacy') continue;
     if (!projects.some((project) => isAtOrBelow(project.path, module.path))) continue;
     const centralPath = `${module.path}/Directory.Packages.props`;
-    if (!existsSync(path.join(root, centralPath))) {
+    const absoluteCentralPath = path.join(root, centralPath);
+    if (!isRegularFile(absoluteCentralPath)) {
       errors.push(
-        `${module.path}: ${module.packageVersionPolicy} requires ${centralPath}`
+        `${module.path}: ${module.packageVersionPolicy} requires ${centralPath} ` +
+        'as a regular file'
       );
+      continue;
+    }
+
+    const canonicalCentralPath = canonicalExistingPath(absoluteCentralPath);
+    const centralMetadata = evaluateCentralPackageMetadata(root, centralPath);
+    centralPolicies.set(module.path, {
+      canonicalPath: canonicalCentralPath,
+      path: centralPath
+    });
+    if (!centralMetadata.managePackageVersionsCentrally) {
+      errors.push(
+        `${centralPath} must enable central package management`
+      );
+    }
+    if (centralMetadata.packageVersions.length === 0) {
+      errors.push(`${centralPath} must define PackageVersion items`);
+    }
+    for (const packageVersion of centralMetadata.packageVersions) {
+      if (
+        canonicalMetadataPath(root, packageVersion.definingProjectFullPath) !==
+        canonicalCentralPath
+      ) {
+        errors.push(
+          `${centralPath}: PackageVersion ${packageVersion.include} must be ` +
+          `defined by ${centralPath}`
+        );
+      }
     }
   }
 
@@ -423,6 +544,17 @@ function projectPolicyErrors(modulePolicy, projects, root = repoRoot) {
         'ManagePackageVersionsCentrally=true'
       );
     }
+    const centralPolicy = centralPolicies.get(policy.modulePath);
+    if (
+      centralPolicy !== undefined &&
+      canonicalMetadataPath(root, project.directoryPackagesPropsPath) !==
+        centralPolicy.canonicalPath
+    ) {
+      errors.push(
+        `${project.path}: ${policy.packageVersionPolicy} must resolve ` +
+        `DirectoryPackagesPropsPath to ${centralPolicy.path}`
+      );
+    }
     if (inlineReferences.length > 0) {
       errors.push(
         `${project.path}: ${policy.packageVersionPolicy} forbids inline versions for ` +
@@ -438,6 +570,16 @@ function projectPolicyErrors(modulePolicy, projects, root = repoRoot) {
 
     const centrallyVersionedIds = new Set();
     for (const packageVersion of project.packageVersions) {
+      if (
+        centralPolicy !== undefined &&
+        canonicalMetadataPath(root, packageVersion.definingProjectFullPath) !==
+          centralPolicy.canonicalPath
+      ) {
+        errors.push(
+          `${project.path}: PackageVersion ${packageVersion.include} must originate ` +
+          `from ${centralPolicy.path}`
+        );
+      }
       if (packageVersion.version === undefined) {
         errors.push(
           `${project.path}: PackageVersion ${packageVersion.include} requires a Version`
@@ -466,9 +608,10 @@ function projectPolicyErrors(modulePolicy, projects, root = repoRoot) {
         path.posix.dirname(project.path),
         'packages.lock.json'
       );
-      if (!existsSync(path.join(root, lockPath))) {
+      if (!isRegularFile(path.join(root, lockPath))) {
         errors.push(
-          `${project.path}: module-central-locked requires packages.lock.json`
+          `${project.path}: module-central-locked requires packages.lock.json ` +
+          'to be a regular file'
         );
       }
     }
@@ -487,6 +630,28 @@ function withTemporaryRepository(files, action) {
     return action(root);
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+}
+
+const governedRootMarkerFiles = {
+  'apps/monitors/.keep': '',
+  'apps/portal/.keep': '',
+  'libs/rvt-monitor-common/.keep': '',
+  'services/reporting/.keep': ''
+};
+
+function createSymbolicLinkOrSkip(testContext, target, linkPath, type) {
+  try {
+    symlinkSync(target, linkPath, type);
+    return true;
+  } catch (error) {
+    if (['EACCES', 'ENOSYS', 'EPERM'].includes(error.code)) {
+      testContext.skip(
+        `symbolic-link mutation is unavailable on ${process.platform}: ${error.code}`
+      );
+      return false;
+    }
+    throw error;
   }
 }
 
@@ -841,8 +1006,276 @@ test('module-central-locked requires a colocated lock file for every project', (
   });
 });
 
+test('module-central rejects project-local central policy substituted for its root props', () => {
+  withTemporaryRepository({
+    'apps/monitors/Directory.Packages.props': '<Project />',
+    'apps/monitors/probe/Probe.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Example.Package" />
+    <PackageVersion Include="Example.Package" Version="1.2.3" />
+  </ItemGroup>
+</Project>
+`
+  }, (root) => {
+    const project = evaluateProjectMetadata(root, 'apps/monitors/probe/Probe.csproj');
+    const errors = projectPolicyErrors(expectedModulePolicy, [project], root).join('\n');
+    assert.match(
+      errors,
+      /apps\/monitors\/Directory\.Packages\.props must enable central package management/
+    );
+    assert.match(
+      errors,
+      /Probe\.csproj: PackageVersion Example\.Package must originate from apps\/monitors\/Directory\.Packages\.props/
+    );
+  });
+});
+
+test('module-central requires the exact module root central package path', () => {
+  withTemporaryRepository({
+    'apps/monitors/Directory.Packages.props': `
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Example.Package" Version="1.2.3" />
+  </ItemGroup>
+</Project>
+`,
+    'apps/monitors/probe/Directory.Packages.props': `
+<Project>
+  <Import Project="../Directory.Packages.props" />
+</Project>
+`,
+    'apps/monitors/probe/Probe.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Example.Package" />
+  </ItemGroup>
+</Project>
+`
+  }, (root) => {
+    const project = evaluateProjectMetadata(root, 'apps/monitors/probe/Probe.csproj');
+    assert.match(
+      projectPolicyErrors(expectedModulePolicy, [project], root).join('\n'),
+      /Probe\.csproj: module-central must resolve DirectoryPackagesPropsPath to apps\/monitors\/Directory\.Packages\.props/
+    );
+  });
+});
+
+test('governed project discovery rejects an absent module root', () => {
+  const markersWithoutReporting = { ...governedRootMarkerFiles };
+  delete markersWithoutReporting['services/reporting/.keep'];
+
+  withTemporaryRepository(markersWithoutReporting, (root) => {
+    assert.throws(
+      () => discoverGovernedProjectPaths(root),
+      /governed module root must be an existing directory: services\/reporting/
+    );
+  });
+});
+
+test('governed project discovery rejects a symbolic-link module root', (testContext) => {
+  const markersWithoutMonitors = { ...governedRootMarkerFiles };
+  delete markersWithoutMonitors['apps/monitors/.keep'];
+
+  withTemporaryRepository({
+    ...markersWithoutMonitors,
+    'external/.keep': ''
+  }, (root) => {
+    const linkPath = path.join(root, 'apps/monitors');
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    if (!createSymbolicLinkOrSkip(
+      testContext,
+      path.join(root, 'external'),
+      linkPath,
+      linkType
+    )) return;
+
+    assert.throws(
+      () => discoverGovernedProjectPaths(root),
+      /governed module root rejects symbolic link: apps\/monitors/
+    );
+  });
+});
+
+test('governed project discovery rejects a symbolic-link project', (testContext) => {
+  withTemporaryRepository({
+    ...governedRootMarkerFiles,
+    'external/External.csproj': '<Project Sdk="Microsoft.NET.Sdk" />',
+    'apps/monitors/linked/.keep': ''
+  }, (root) => {
+    const linkPath = path.join(root, 'apps/monitors/linked/Linked.csproj');
+    if (!createSymbolicLinkOrSkip(
+      testContext,
+      path.join(root, 'external/External.csproj'),
+      linkPath,
+      'file'
+    )) return;
+
+    assert.throws(
+      () => discoverGovernedProjectPaths(root),
+      /governed project inventory rejects symbolic link: apps\/monitors\/linked\/Linked\.csproj/
+    );
+  });
+});
+
+test('governed project discovery rejects a symbolic-link subtree', (testContext) => {
+  withTemporaryRepository({
+    ...governedRootMarkerFiles,
+    'external/External.csproj': '<Project Sdk="Microsoft.NET.Sdk" />'
+  }, (root) => {
+    const linkPath = path.join(root, 'apps/monitors/linked-subtree');
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    if (!createSymbolicLinkOrSkip(
+      testContext,
+      path.join(root, 'external'),
+      linkPath,
+      linkType
+    )) return;
+
+    assert.throws(
+      () => discoverGovernedProjectPaths(root),
+      /governed project inventory rejects symbolic link: apps\/monitors\/linked-subtree/
+    );
+  });
+});
+
+test('governed project discovery preserves named cache-directory exclusions', (testContext) => {
+  withTemporaryRepository({
+    ...governedRootMarkerFiles,
+    'external/Hidden.csproj': '<Project Sdk="Microsoft.NET.Sdk" />'
+  }, (root) => {
+    const linkPath = path.join(root, 'apps/monitors/node_modules');
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    if (!createSymbolicLinkOrSkip(
+      testContext,
+      path.join(root, 'external'),
+      linkPath,
+      linkType
+    )) return;
+
+    assert.deepEqual(discoverGovernedProjectPaths(root), []);
+  });
+});
+
+test('governed project discovery allows an unrelated symbolic-link file', (testContext) => {
+  withTemporaryRepository({
+    ...governedRootMarkerFiles,
+    'external/notes.txt': 'not project inventory'
+  }, (root) => {
+    const linkPath = path.join(root, 'apps/monitors/linked-notes.txt');
+    if (!createSymbolicLinkOrSkip(
+      testContext,
+      path.join(root, 'external/notes.txt'),
+      linkPath,
+      'file'
+    )) return;
+
+    assert.deepEqual(discoverGovernedProjectPaths(root), []);
+  });
+});
+
+test('module-central-locked rejects a directory in place of a lock file', () => {
+  withTemporaryRepository({
+    'libs/rvt-monitor-common/Directory.Build.props': `
+<Project>
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/Directory.Packages.props': `
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Example.Package" Version="1.0.0" />
+  </ItemGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/probe/Probe.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+`
+  }, (root) => {
+    mkdirSync(path.join(root, 'libs/rvt-monitor-common/probe/packages.lock.json'));
+    const project = evaluateProjectMetadata(
+      root,
+      'libs/rvt-monitor-common/probe/Probe.csproj'
+    );
+    assert.match(
+      projectPolicyErrors(expectedModulePolicy, [project], root).join('\n'),
+      /Probe\.csproj: module-central-locked requires packages\.lock\.json to be a regular file/
+    );
+  });
+});
+
+test('module-central-locked rejects an external lock-file symbolic link', (testContext) => {
+  withTemporaryRepository({
+    'libs/rvt-monitor-common/Directory.Build.props': `
+<Project>
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/Directory.Packages.props': `
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Example.Package" Version="1.0.0" />
+  </ItemGroup>
+</Project>
+`,
+    'libs/rvt-monitor-common/probe/Probe.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+`,
+    'external/packages.lock.json': '{}'
+  }, (root) => {
+    const linkPath = path.join(
+      root,
+      'libs/rvt-monitor-common/probe/packages.lock.json'
+    );
+    if (!createSymbolicLinkOrSkip(
+      testContext,
+      path.join(root, 'external/packages.lock.json'),
+      linkPath,
+      'file'
+    )) return;
+
+    const project = evaluateProjectMetadata(
+      root,
+      'libs/rvt-monitor-common/probe/Probe.csproj'
+    );
+    assert.match(
+      projectPolicyErrors(expectedModulePolicy, [project], root).join('\n'),
+      /Probe\.csproj: module-central-locked requires packages\.lock\.json to be a regular file/
+    );
+  });
+});
+
 test('governed project discovery rejects a project omitted from the solution', () => {
   withTemporaryRepository({
+    ...governedRootMarkerFiles,
     'Rvt.Mono.slnx': `
 <Solution>
   <Project Path="apps/monitors/listed/Listed.csproj" />

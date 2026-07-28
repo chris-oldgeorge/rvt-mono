@@ -622,22 +622,27 @@ internal const string TestRelation = "pg_temp.help_asset";
 ```
 
 Build the query from a private switch over an internal enum; never concatenate
-caller input. Keep the connection/transaction code in an internal overload:
+caller input. Keep transaction creation and row reading in ordinary internal
+production seams:
 
 ```csharp
+internal static Task<NpgsqlTransaction> BeginReadOnlyTransactionAsync(
+    NpgsqlConnection openConnection,
+    CancellationToken cancellationToken);
+
 internal static Task<IReadOnlyList<HelpAssetUrlAuditRow>> ReadRowsAsync(
     NpgsqlConnection openConnection,
+    NpgsqlTransaction transaction,
     HelpAssetRelation relation,
-    Func<NpgsqlConnection, NpgsqlTransaction, CancellationToken, Task>?
-        transactionProbe,
     CancellationToken cancellationToken);
 ```
 
-The production path opens the connection, passes `Production`, and supplies no
-probe. The opt-in test passes the already-open connection that owns the
-temporary table, selects `Temporary`, and uses `transactionProbe` only to
-assert transaction settings before the row query. The probe receives no URL or
-credential and is never reachable from CLI input.
+The production path opens the connection, creates the real read-only
+repeatable-read transaction, reads `Production`, and rolls back. The opt-in
+test passes the already-open connection that owns the temporary table, calls
+the same transaction factory, issues `SHOW` through that real transaction,
+then reads `Temporary` and rolls back. No callback or method that exists only
+for tests belongs in the production class.
 
 - [ ] **Step 4: Implement deterministic, secret-safe receipt writing**
 
@@ -734,8 +739,8 @@ CREATE TEMP TABLE help_asset (
 Insert the complete shared corpus with parameters before the audit transaction.
 Use the same open connection so its `pg_temp` schema remains visible. Exercise
 the production transaction factory and real row reader using the internal
-test-relation selection. Before rollback, use a test callback that runs inside
-that transaction to query:
+test-relation selection. Before rollback, issue these commands directly
+through the returned real transaction:
 
 ```sql
 SHOW transaction_read_only;

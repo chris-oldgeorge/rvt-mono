@@ -44,6 +44,11 @@ assert_output() {
     fail "expected output to contain '$1': $last_output"
 }
 
+assert_output_absent() {
+  [[ "$last_output" != *"$1"* ]] ||
+    fail "expected output not to contain '$1': $last_output"
+}
+
 assert_log_contains() {
   [[ -f "$last_repo/tool.log" ]] || fail "tool log is missing"
   rg -F -q -- "$1" "$last_repo/tool.log" ||
@@ -349,13 +354,15 @@ assert_log_contains "<src/NewClock.cs>"
 
 # Staged and unstaged hunks are independently part of the changed surface.
 create_repo staged-and-unstaged-hunks
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
 sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
 rm "$last_repo/src/Clock.cs.bak"
 git -C "$last_repo" add src/Clock.cs
 sed -i.bak 's/public int Minute/public int Month/' "$last_repo/src/Clock.cs"
 rm "$last_repo/src/Clock.cs.bak"
-write_json "$last_repo/baseline.json" \
-  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" \
   "5:IDE0055" "7:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
@@ -447,9 +454,11 @@ done
 
 # A diagnostic in a new file is rejected even when its whole-path count is stable.
 create_repo new-file-diagnostic
-printf 'namespace Sample;\npublic sealed class Added {}\n' > "$last_repo/src/Added.cs"
 write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Added.cs","count":1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
+printf 'namespace Sample;\npublic sealed class Added {}\n' > "$last_repo/src/Added.cs"
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Added.cs" "1:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --working-tree
@@ -459,10 +468,12 @@ assert_output "src/Added.cs:1"
 
 # A diagnostic on a changed line is rejected at a stable total.
 create_repo changed-line
-sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
-rm "$last_repo/src/Clock.cs.bak"
 write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --working-tree
@@ -472,9 +483,11 @@ assert_output "src/Clock.cs:5"
 
 # An unchanged-line legacy diagnostic is allowed only at or below baseline.
 create_repo unchanged-line
+cp "$source_root/tests/fixtures/engineering-standards/baseline.json" "$last_repo/baseline.json"
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
 sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
 rm "$last_repo/src/Clock.cs.bak"
-cp "$source_root/tests/fixtures/engineering-standards/baseline.json" "$last_repo/baseline.json"
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --working-tree
@@ -482,9 +495,11 @@ assert_status 0
 
 # A whole-path increase fails with baseline and observed counts.
 create_repo increase
+cp "$source_root/tests/fixtures/engineering-standards/baseline.json" "$last_repo/baseline.json"
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
 sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
 rm "$last_repo/src/Clock.cs.bak"
-cp "$source_root/tests/fixtures/engineering-standards/baseline.json" "$last_repo/baseline.json"
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" \
   "5:IDE0055" "7:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
@@ -495,10 +510,12 @@ assert_output "observed=2"
 
 # A decrease is reported without failing.
 create_repo decrease
-sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
-rm "$last_repo/src/Clock.cs.bak"
 write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --working-tree
@@ -932,6 +949,150 @@ rg -F -q "DirtyUnstagedMinute" "$last_repo/src/Clock.cs" ||
 worktree_count="$(git -C "$last_repo" worktree list --porcelain | rg -c '^worktree ')"
 [[ "$worktree_count" -eq 1 ]] ||
   fail "range verification leaked an isolated worktree"
+
+# Committed-range policy comes from the requested head, never the caller checkout.
+create_repo exact-range-policy-head
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Clock.cs
+git -C "$last_repo" commit -q -m "requested source head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 0
+requested_head_output="$last_output"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+write_json "$last_repo/baseline.json" '{"version":1,"entries":[]}'
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 0
+[[ "$last_output" == "$requested_head_output" ]] ||
+  fail "the same committed range changed result with the caller checkout"
+
+# A baseline increase in a committed range is a policy violation even when it
+# would make the simultaneous diagnostic pass.
+create_repo exact-range-baseline-widening
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add baseline.json src/Clock.cs
+git -C "$last_repo" commit -q -m "widen baseline with source"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 1
+assert_output "Baseline policy"
+
+# A dirty working-tree baseline cannot widen the trusted HEAD policy.
+create_repo working-tree-baseline-widening
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+run_verify --working-tree
+assert_status 1
+assert_output "Baseline policy"
+assert_log_absent
+
+# A new exact-path exception cannot authorize a source violation in the same range.
+create_repo exact-range-same-change-exception
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-NEW","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add exceptions.json src/Clock.cs
+git -C "$last_repo" commit -q -m "add exception with violation"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 1
+assert_output "changed surface"
+
+# A baseline decrease is enforced from the requested head and remains allowed.
+create_repo exact-range-baseline-decrease
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "legacy baseline"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add baseline.json src/Clock.cs
+git -C "$last_repo" commit -q -m "ratchet baseline down"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 0
+assert_output_absent "Baseline decrease:"
+
+# Trusted transition policy is mandatory, valid JSON, and a regular file.
+create_repo exact-range-missing-trusted-policy
+git -C "$last_repo" rm -q baseline.json
+git -C "$last_repo" commit -q -m "missing base policy"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/baseline.json" '{"version":1,"entries":[]}'
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add baseline.json src/Clock.cs
+git -C "$last_repo" commit -q -m "restore policy with source"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+run_verify --base "$base_revision" --head "$head_revision"
+assert_status 2
+assert_output "Policy path is missing"
+assert_log_absent
+
+create_repo exact-range-malformed-trusted-policy
+write_json "$last_repo/baseline.json" '{"version":1,"entries":[{"count":-1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "malformed base policy"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/baseline.json" '{"version":1,"entries":[]}'
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add baseline.json src/Clock.cs
+git -C "$last_repo" commit -q -m "repair policy with source"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+run_verify --base "$base_revision" --head "$head_revision"
+assert_status 2
+assert_output "baseline entry"
+assert_log_absent
+
+create_repo exact-range-symlinked-trusted-policy
+write_json "$last_repo/policy-target.json" '{"version":1,"entries":[]}'
+rm "$last_repo/baseline.json"
+ln -s policy-target.json "$last_repo/baseline.json"
+git -C "$last_repo" add baseline.json policy-target.json
+git -C "$last_repo" commit -q -m "symlinked base policy"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+rm "$last_repo/baseline.json"
+write_json "$last_repo/baseline.json" '{"version":1,"entries":[]}'
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add baseline.json src/Clock.cs
+git -C "$last_repo" commit -q -m "replace policy with source"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+run_verify --base "$base_revision" --head "$head_revision"
+assert_status 2
+assert_output "symlink"
+assert_log_absent
 
 create_repo exact-range-ignored-csharp
 mkdir -p "$last_repo/src/node_modules"
@@ -1494,11 +1655,13 @@ assert_output "Binary"
 assert_log_absent
 
 create_repo real-rename
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/RenamedClock.cs","count":1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved renamed-path baseline"
 git -C "$last_repo" mv src/Clock.cs src/RenamedClock.cs
 sed -i.bak 's/public int Hour/public int RenamedHour/' "$last_repo/src/RenamedClock.cs"
 rm "$last_repo/src/RenamedClock.cs.bak"
-write_json "$last_repo/baseline.json" \
-  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/RenamedClock.cs","count":1}]}'
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/RenamedClock.cs" "5:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
@@ -1508,10 +1671,12 @@ assert_output "changed surface"
 assert_log_contains "<src/RenamedClock.cs>"
 
 create_repo real-copy
-cp "$last_repo/src/Clock.cs" "$last_repo/src/CopiedClock.cs"
-git -C "$last_repo" add src/CopiedClock.cs
 write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/CopiedClock.cs","count":1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved copied-path baseline"
+cp "$last_repo/src/Clock.cs" "$last_repo/src/CopiedClock.cs"
+git -C "$last_repo" add src/CopiedClock.cs
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/CopiedClock.cs" "5:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \

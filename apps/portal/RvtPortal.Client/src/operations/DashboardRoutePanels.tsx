@@ -42,7 +42,7 @@ type CalendarMonthResult = Readonly<{
 }>;
 
 type CalendarDayResult = Readonly<{
-  selectedDate: string;
+  ownerKey: string;
   data: CalendarDayResponse;
 }>;
 
@@ -122,7 +122,10 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
   const activeMonthResult = monthResult?.requestKey === monthRequestKey ? monthResult : null;
   const monthData = activeMonthResult?.data ?? null;
   const monthError = activeMonthResult?.error ?? null;
-  const dayData = selectedDate && dayResult?.selectedDate === selectedDate ? dayResult.data : null;
+  const dayOwnerKey = monthData && selectedDate
+    ? `${monthData.deploymentId}:${monthData.monitorId}:${selectedDate}`
+    : null;
+  const dayData = dayOwnerKey && dayResult?.ownerKey === dayOwnerKey ? dayResult.data : null;
   const isLoading = Boolean(deploymentId) && monthResult?.requestKey !== monthRequestKey;
 
   useEffect(() => {
@@ -171,7 +174,7 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
   }, [deploymentId, month, monthRequestKey, onRequestError, year]);
 
   useEffect(() => {
-    if (!monthData || !selectedDate) {
+    if (!monthData || !selectedDate || !dayOwnerKey) {
       return;
     }
     const controller = new AbortController();
@@ -179,18 +182,18 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
     getCalendarDay({ monitorId: monthData.monitorId, ...date }, { signal: controller.signal })
       .then((response) => {
         if (!controller.signal.aborted) {
-          setDayResult({ selectedDate, data: response });
+          setDayResult({ ownerKey: dayOwnerKey, data: response });
         }
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
         setError(err.message);
         onRequestError(err);
       });
     return () => controller.abort();
-  }, [monthData, onRequestError, selectedDate]);
+  }, [dayOwnerKey, monthData, onRequestError, selectedDate]);
 
   // Function summary: Handles the move month workflow for this module.
   function moveMonth(direction: -1 | 1) {

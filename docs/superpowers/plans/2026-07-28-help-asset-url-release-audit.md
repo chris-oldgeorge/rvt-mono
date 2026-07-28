@@ -176,7 +176,6 @@ Create `HelpAssetUrlPolicyCases.All` as the single table of
 policy methods and assert all four expected outputs. Add focused facts proving:
 
 ```csharp
-Assert.Equal(512, HelpAssetUrlPolicy.MaximumLength);
 Assert.All(validResults, result => Assert.NotNull(result.CanonicalValue));
 Assert.All(invalidResults, result => Assert.Null(result.CanonicalValue));
 Assert.Equal(
@@ -449,7 +448,11 @@ the persisted expected code for every case. Add facts proving:
 - `ViolationCount == Violations.Count`;
 - outcome is exactly `pass` for zero findings and `blocked` otherwise;
 - receipt JSON has stable property/row order;
-- serialized JSON contains no raw input URL and no supplied credential marker.
+- serialized JSON contains no raw input URL.
+
+Connection-secret assertions belong to Task 4, where the release connection
+actually enters the orchestrator; do not add a tautological credential check
+to the pure classifier.
 
 Run:
 
@@ -795,23 +798,21 @@ git commit -m "test: prove Help URL audit transaction"
 - Add `RVT.ReleaseAudit` to the Portal solution and `/Apps/Portal/` in the root
   solution.
 
-- [ ] **Step 1: Add a failing no-SQL/source-authority assertion**
+- [ ] **Step 1: Prove the SQL artifact exists and the audit is unregistered**
 
-Add to the audit test suite a repository contract that asserts:
+Run these executable contract checks before changing the files:
 
-```csharp
-Assert.False(File.Exists(
-    Path.Combine(
-        repositoryRoot,
-        "apps",
-        "portal",
-        "docs",
-        "release",
-        "validate-help-asset-urls.sql")));
+```bash
+test ! -f apps/portal/docs/release/validate-help-asset-urls.sql
+dotnet sln apps/portal/RvtPortal.Spa.sln list |
+  rg -q 'RVT.ReleaseAudit/RVT.ReleaseAudit.csproj'
+dotnet sln Rvt.Mono.slnx list |
+  rg -q 'apps/portal/RVT.ReleaseAudit/RVT.ReleaseAudit.csproj'
 ```
 
-Also assert the audit project is listed by both solution files. Run the focused
-test. Expected: FAIL because the SQL exists and the project is unregistered.
+Expected: each check FAILS: the SQL file still exists and neither solution
+catalog registers the audit. These are pre-change executable checks, not
+permanent tests of source text or private file layout.
 
 - [ ] **Step 2: Delete SQL tests and artifact**
 

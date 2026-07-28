@@ -1363,10 +1363,12 @@ function stopLockSentinel(child) {
   if (child.exitCode === null && child.signalCode === null) child.kill();
 }
 
+const psCommand = process.platform === 'darwin' ? '/bin/ps' : '/usr/bin/ps';
+
 function observeLockSentinel(pid, token) {
   const aliveBefore = processIsAlive(pid);
   if (!aliveBefore) return 'dead';
-  const result = spawnSync('ps', ['-ww', '-o', 'command=', '-p', String(pid)], {
+  const result = spawnSync(psCommand, ['-ww', '-o', 'command=', '-p', String(pid)], {
     encoding: 'utf8',
     shell: false,
     env: { ...process.env, LC_ALL: 'C' }

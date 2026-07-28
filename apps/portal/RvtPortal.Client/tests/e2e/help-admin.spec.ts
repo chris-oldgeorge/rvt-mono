@@ -150,6 +150,29 @@ test('Help Admin supports the approved content lifecycle', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Help/FAQ' })).toHaveCount(0);
 });
 
+test('hidden Help Admin results remain visually hidden and non-actionable', async ({ page }) => {
+  await mockShell(page, () => ['RVTAdmin']);
+  await page.goto('/');
+
+  await page.evaluate(() => {
+    const results = document.createElement('div');
+    results.className = 'admin-help-list';
+    results.hidden = true;
+
+    const action = document.createElement('button');
+    action.textContent = 'Stale Help action';
+    results.append(action);
+    document.body.append(results);
+  });
+
+  const results = page.locator('.admin-help-list[hidden]');
+  const action = page.getByText('Stale Help action');
+
+  await expect(results).toHaveCSS('display', 'none');
+  await expect(action).not.toBeVisible();
+  await expect(action.click({ trial: true, timeout: 250 })).rejects.toThrow();
+});
+
 type HelpArticleFixture = {
   id: string;
   title: string;

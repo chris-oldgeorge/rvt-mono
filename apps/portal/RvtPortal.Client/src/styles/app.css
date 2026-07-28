@@ -1754,6 +1754,10 @@ th {
   gap: 10px;
 }
 
+.admin-help-list[hidden] {
+  display: none;
+}
+
 .help-admin-card {
   align-items: center;
   border: 1px solid var(--border);

@@ -381,12 +381,20 @@ public class CqrsArchitectureTests
     public void HelpController_DelegatesReadsToApplicationService()
     {
         var constructorParameters = ConstructorParameters(typeof(HelpController));
-        var serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Help.IHelpApplicationService");
+        var serviceInterface =
+            typeof(RvtPortal.Application.Help.IHelpApplicationService);
 
-        Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
+        Assert.Contains(typeof(ICurrentUserContextFactory), constructorParameters);
+        Assert.Contains(typeof(IApiResultMapper), constructorParameters);
         Assert.DoesNotContain(typeof(IMediator), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
+        Assert.DoesNotContain(
+            typeof(RvtPortal.Application.Help.Ports.IHelpReadPort),
+            constructorParameters);
+        Assert.DoesNotContain(
+            typeof(RvtPortal.Application.Help.Ports.IHelpWritePort),
+            constructorParameters);
     }
 
     [Fact]

@@ -2,6 +2,27 @@
 
 This log records the incremental ports-and-adapters refactor for the RVT Portal SPA backend.
 
+## 2026-07-28 - Help Application Boundary
+
+- Moved published and administrative Help use cases, authorization, validation,
+  contracts, and ports into BCL-only `RvtPortal.Application.Help`.
+- Added `EfHelpReadAdapter` with provider-translatable filters, direct
+  projections, and deterministic section/article/asset ordering.
+- Added `EfHelpWriteAdapter` with stable asset IDs, URL-derived
+  `InternalPath`, and staged-only persistence; `IApplicationUnitOfWork` owns one
+  save per mutation.
+- Removed the host-side Help service and MediatR command duplicate.
+- Standardized creation on `POST /api/help/admin/articles`; retained published
+  `/api/help` and `/api/help/articles/{slug}`.
+- Retained Help assets as URL metadata only and added a read-only release query
+  requiring zero incompatible persisted URLs.
+- Added independent application and HTTP role enforcement for both RVT
+  administrator roles, plus denial regressions for Company User and Installer.
+- Added immutable client row keys and deterministic keyboard focus after
+  create, update, publish, delete, add-asset, and remove-asset workflows.
+- Rollback disables the admin navigation/route and admin endpoints while
+  preserving the published Help surface and stored content.
+
 ## 2026-07-08
 
 - Started branch: `hexagonal-edges`.

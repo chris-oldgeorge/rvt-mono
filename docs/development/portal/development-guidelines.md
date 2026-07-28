@@ -78,6 +78,26 @@ Enforced by: `DataAccessWriteBoundaryTests`, `CqrsArchitectureTests`
 (`MutatingApplicationCommands_AreTransactional`, `ApiControllers_DoNotDependOnMediator`,
 and the per-controller delegation cases).
 
+### Help content invariants
+
+- **Help assets are URL metadata, not uploads.** Mutations accept only an
+  absolute HTTPS URL or a root-relative `/help-assets/` path. The server derives
+  `InternalPath`; clients must never submit it.
+- **Persisted Help asset IDs are immutable.** Updates edit matching assets in
+  place, create server IDs for new rows, remove omitted rows, and reject foreign
+  IDs before staging any change.
+- **Editable React rows need immutable UI identity.** Use the persisted asset ID
+  or a client-only random key. Never key an editable row by its title, value, or
+  array index; preserve and restore focus through ID/key-addressed refs.
+- **Release requires clean persisted URLs.** Run
+  `apps/portal/docs/release/validate-help-asset-urls.sql`; any returned row
+  blocks release until corrected deliberately.
+
+Enforced by: `HelpApplicationServiceTests`, `HelpAdapterTests`,
+`HelpCmsOperationsTests`,
+`CutoverReadinessTests.HelpAssetUrlReadinessQuery_IsReadOnlyAndComplete`,
+`HelpAdminPanel.test.tsx`, and `help-admin.spec.ts`.
+
 ## Ports and adapters
 
 - **External integrations sit behind a transport-neutral port** in

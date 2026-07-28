@@ -1,5 +1,6 @@
 ﻿// File summary: Renders Help/FAQ CMS administration tools for RVT admin users.
 // Major updates:
+// - 2026-07-28 Added immutable asset-row identity, persisted asset IDs, and deterministic focus restoration.
 // - 2026-06-29 pending Moved Help CMS slug generation to a tested linear helper for Sonar reliability.
 // - 2026-06-26 pending Added cancellation for Help admin list requests.
 // - 2026-06-25 pending Sorted Help content type filters with locale-aware comparison.
@@ -7,7 +8,7 @@
 // - 2026-06-10 pending Added admin Help/FAQ management page with create, edit, publish, and delete workflows.
 
 import { BookOpen, Edit3, EyeOff, Plus, Save, Search, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   createHelpArticle,
@@ -15,14 +16,14 @@ import {
   isAbortError,
   queryAdminHelp,
   setHelpArticlePublication,
-  updateHelpArticle
+  updateHelpArticle,
 } from '../api/client';
 import { ConfirmDialog, FormField, Notice, SubmitButton } from '../components/FormControls';
 import type {
   HelpAdminOverviewResponse,
   HelpArticleMutationRequest,
   HelpArticleResponse,
-  HelpAssetMutationRequest
+  HelpAssetMutationRequest,
 } from '../dtos';
 import { slugify } from './HelpAdminSlug';
 
@@ -31,7 +32,22 @@ type HelpAdminPanelProps = Readonly<{
   onRequestError: (error: unknown) => void;
 }>;
 
-const emptyArticleForm: HelpArticleMutationRequest = {
+type HelpAssetFormRow = HelpAssetMutationRequest & {
+  clientKey: string;
+};
+
+type HelpArticleForm = Omit<HelpArticleMutationRequest, 'assets'> & {
+  assets: HelpAssetFormRow[];
+};
+
+type PendingFocus =
+  | { kind: 'article'; id: string }
+  | { kind: 'publication'; id: string }
+  | { kind: 'asset'; clientKey: string }
+  | { kind: 'add-asset' }
+  | { kind: 'new-article' };
+
+const emptyArticleForm: HelpArticleForm = {
   sectionTitle: 'General',
   sectionSlug: 'general',
   title: '',
@@ -42,14 +58,14 @@ const emptyArticleForm: HelpArticleMutationRequest = {
   isPublished: false,
   sectionSortOrder: 1,
   sortOrder: 1,
-  assets: []
+  assets: [],
 };
 
 // Function summary: Renders the HelpAdminPanel React component and wires Help CMS management behavior.
 export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelProps) {
   const [overview, setOverview] = useState<HelpAdminOverviewResponse | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<HelpArticleResponse | null>(null);
-  const [form, setForm] = useState<HelpArticleMutationRequest>(emptyArticleForm);
+  const [form, setForm] = useState<HelpArticleForm>(emptyArticleForm);
   const [searchText, setSearchText] = useState('');
   const [status, setStatus] = useState('All');
   const [contentType, setContentType] = useState('All');
@@ -58,40 +74,74 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<HelpArticleResponse | null>(null);
+  const [pendingFocus, setPendingFocus] = useState<PendingFocus | null>(null);
+  const articleEditRefs = useRef(new Map<string, HTMLButtonElement>());
+  const articlePublicationRefs = useRef(new Map<string, HTMLButtonElement>());
+  const assetTitleRefs = useRef(new Map<string, HTMLInputElement>());
+  const addAssetButtonRef = useRef<HTMLButtonElement>(null);
+  const newArticleButtonRef = useRef<HTMLButtonElement>(null);
 
   const contentTypes = useMemo(() => {
     const values = new Set(['FAQ', 'Article', 'Document', 'Video', 'Definition']);
     overview?.articles.forEach((article) => values.add(article.contentType));
-    return ['All', ...Array.from(values).filter(Boolean).sort((left, right) => left.localeCompare(right))];
+    return [
+      'All',
+      ...Array.from(values)
+        .filter(Boolean)
+        .sort((left, right) => left.localeCompare(right)),
+    ];
   }, [overview]);
 
   // Function summary: Loads Help CMS admin article data.
-  const loadArticles = useCallback((signal?: AbortSignal) => {
-    setIsLoading(true);
-    queryAdminHelp({ searchText, status, contentType }, { signal })
-      .then((response) => {
+  const loadArticles = useCallback(
+    async (signal?: AbortSignal) => {
+      setIsLoading(true);
+      try {
+        const response = await queryAdminHelp({ searchText, status, contentType }, { signal });
         setOverview(response);
         setError(null);
-      })
-      .catch((err: Error) => {
-        if (isAbortError(err)) {
-          return;
+        return response;
+      } catch (err) {
+        if (!isAbortError(err)) {
+          setError((err as Error).message);
+          onRequestError(err);
         }
-        setError(err.message);
-        onRequestError(err);
-      })
-      .finally(() => {
+        return null;
+      } finally {
         if (!signal?.aborted) {
           setIsLoading(false);
         }
-      });
-  }, [contentType, onRequestError, searchText, status]);
+      }
+    },
+    [contentType, onRequestError, searchText, status],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
-    loadArticles(controller.signal);
+    void loadArticles(controller.signal);
     return () => controller.abort();
   }, [loadArticles]);
+
+  useEffect(() => {
+    if (!pendingFocus) {
+      return;
+    }
+
+    const target =
+      pendingFocus.kind === 'article'
+        ? articleEditRefs.current.get(pendingFocus.id)
+        : pendingFocus.kind === 'publication'
+          ? articlePublicationRefs.current.get(pendingFocus.id)
+          : pendingFocus.kind === 'asset'
+            ? assetTitleRefs.current.get(pendingFocus.clientKey)
+            : pendingFocus.kind === 'add-asset'
+              ? addAssetButtonRef.current
+              : newArticleButtonRef.current;
+    if (target) {
+      target.focus();
+      setPendingFocus(null);
+    }
+  }, [form.assets, overview, pendingFocus]);
 
   // Function summary: Selects a Help CMS article for editing.
   function editArticle(article: HelpArticleResponse) {
@@ -114,13 +164,17 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
     setError(null);
     setNotice(null);
     try {
+      const mutation = formToMutation(form);
       const saved = selectedArticle
-        ? await updateHelpArticle(selectedArticle.id, form)
-        : await createHelpArticle(form);
+        ? await updateHelpArticle(selectedArticle.id, mutation)
+        : await createHelpArticle(mutation);
       setSelectedArticle(saved.item ?? null);
       setForm(saved.item ? articleToForm(saved.item) : form);
       setNotice(selectedArticle ? 'Help article updated.' : 'Help article created.');
-      loadArticles();
+      if (saved.item) {
+        setPendingFocus({ kind: 'article', id: saved.item.id });
+      }
+      void loadArticles();
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);
@@ -132,13 +186,32 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
   // Function summary: Publishes or unpublishes a Help CMS article.
   async function togglePublication(article: HelpArticleResponse) {
     try {
+      const articlesBeforeRefresh = overview?.articles ?? [];
+      const changedIndex = articlesBeforeRefresh.findIndex((item) => item.id === article.id);
       const response = await setHelpArticlePublication(article.id, { isPublished: !article.isPublished });
       if (selectedArticle?.id === article.id && response.item) {
         setSelectedArticle(response.item);
         setForm(articleToForm(response.item));
       }
       setNotice(response.item?.isPublished ? 'Help article published.' : 'Help article moved to draft.');
-      loadArticles();
+      const refreshedOverview = await loadArticles();
+      if (!refreshedOverview) {
+        return;
+      }
+
+      const refreshedIds = new Set(refreshedOverview.articles.map((item) => item.id));
+      if (refreshedIds.has(article.id)) {
+        setPendingFocus({ kind: 'publication', id: article.id });
+        return;
+      }
+
+      const nextArticle = articlesBeforeRefresh.slice(changedIndex + 1).find((item) => refreshedIds.has(item.id));
+      const previousArticle = articlesBeforeRefresh
+        .slice(0, Math.max(changedIndex, 0))
+        .reverse()
+        .find((item) => refreshedIds.has(item.id));
+      const fallbackArticle = nextArticle ?? previousArticle ?? refreshedOverview.articles[0];
+      setPendingFocus(fallbackArticle ? { kind: 'publication', id: fallbackArticle.id } : { kind: 'new-article' });
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);
@@ -152,13 +225,17 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
     }
 
     try {
+      const articles = overview?.articles ?? [];
+      const deletedIndex = articles.findIndex((article) => article.id === deleteCandidate.id);
+      const nextArticle = deletedIndex >= 0 ? (articles[deletedIndex + 1] ?? articles[deletedIndex - 1]) : undefined;
       await deleteHelpArticle(deleteCandidate.id);
       if (selectedArticle?.id === deleteCandidate.id) {
         startNewArticle();
       }
       setDeleteCandidate(null);
       setNotice('Help article deleted.');
-      loadArticles();
+      setPendingFocus(nextArticle ? { kind: 'article', id: nextArticle.id } : { kind: 'new-article' });
+      void loadArticles();
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);
@@ -166,30 +243,40 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
   }
 
   // Function summary: Updates one Help CMS linked asset row in the form.
-  function updateAsset(index: number, nextAsset: HelpAssetMutationRequest) {
+  function updateAsset(index: number, nextAsset: HelpAssetFormRow) {
     setForm((current) => ({
       ...current,
-      assets: current.assets.map((asset, assetIndex) => assetIndex === index ? nextAsset : asset)
+      assets: current.assets.map((asset, assetIndex) => (assetIndex === index ? nextAsset : asset)),
     }));
   }
 
   // Function summary: Adds one linked asset row to the Help CMS form.
   function addAsset() {
+    const clientKey = newAssetClientKey();
     setForm((current) => ({
       ...current,
       assets: [
         ...current.assets,
-        { title: '', assetType: 'Document', url: '', internalPath: '', sortOrder: current.assets.length + 1 }
-      ]
+        {
+          clientKey,
+          title: '',
+          assetType: 'Document',
+          url: '',
+          sortOrder: current.assets.length + 1,
+        },
+      ],
     }));
+    setPendingFocus({ kind: 'asset', clientKey });
   }
 
   // Function summary: Removes one linked asset row from the Help CMS form.
   function removeAsset(index: number) {
+    const nextAsset = form.assets[index + 1] ?? form.assets[index - 1];
     setForm((current) => ({
       ...current,
-      assets: current.assets.filter((_, assetIndex) => assetIndex !== index)
+      assets: current.assets.filter((_, assetIndex) => assetIndex !== index),
     }));
+    setPendingFocus(nextAsset ? { kind: 'asset', clientKey: nextAsset.clientKey } : { kind: 'add-asset' });
   }
 
   return (
@@ -200,7 +287,7 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
             <p>Administration</p>
             <h2>Help/FAQ Management</h2>
           </div>
-          <button className="secondary-button" type="button" onClick={startNewArticle}>
+          <button className="secondary-button" type="button" onClick={startNewArticle} ref={newArticleButtonRef}>
             <Plus size={17} aria-hidden="true" />
             <span>New FAQ</span>
           </button>
@@ -208,7 +295,11 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
         <div className="admin-help-filters">
           <label className="search-box">
             <Search size={18} aria-hidden="true" />
-            <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search help content" />
+            <input
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="Search help content"
+            />
           </label>
           <label className="form-field compact-field">
             <span>Status</span>
@@ -221,7 +312,11 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
           <label className="form-field compact-field">
             <span>Type</span>
             <select value={contentType} onChange={(event) => setContentType(event.target.value)}>
-              {contentTypes.map((item) => <option value={item} key={item}>{item}</option>)}
+              {contentTypes.map((item) => (
+                <option value={item} key={item}>
+                  {item}
+                </option>
+              ))}
             </select>
           </label>
         </div>
@@ -230,25 +325,73 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
         {isLoading && <p className="muted-text">Loading help articles...</p>}
         <div className="admin-help-list">
           {overview?.articles.map((article) => (
-            <article className={selectedArticle?.id === article.id ? 'help-admin-card selected' : 'help-admin-card'} key={article.id}>
+            <article
+              className={selectedArticle?.id === article.id ? 'help-admin-card selected' : 'help-admin-card'}
+              key={article.id}
+            >
               <div>
                 <span className={article.isPublished ? 'status-chip success' : 'status-chip neutral'}>
                   {article.isPublished ? 'Published' : 'Draft'}
                 </span>
                 <strong>{article.title}</strong>
-                <p>{article.sectionTitle} / {article.contentType}</p>
+                <p>
+                  {article.sectionTitle} / {article.contentType}
+                </p>
               </div>
               <div className="row-actions">
-                <button className="icon-button" type="button" onClick={() => editArticle(article)} aria-label={`Edit ${article.title}`} title="Edit">
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => editArticle(article)}
+                  aria-label={`Edit ${article.title}`}
+                  title="Edit"
+                  ref={(element) => {
+                    if (element) {
+                      articleEditRefs.current.set(article.id, element);
+                    } else {
+                      articleEditRefs.current.delete(article.id);
+                    }
+                  }}
+                >
                   <Edit3 size={16} aria-hidden="true" />
                 </button>
-                <button className="icon-button" type="button" onClick={() => togglePublication(article)} aria-label={article.isPublished ? `Unpublish ${article.title}` : `Publish ${article.title}`} title={article.isPublished ? 'Unpublish' : 'Publish'}>
-                  {article.isPublished ? <EyeOff size={16} aria-hidden="true" /> : <BookOpen size={16} aria-hidden="true" />}
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => togglePublication(article)}
+                  aria-label={article.isPublished ? `Unpublish ${article.title}` : `Publish ${article.title}`}
+                  title={article.isPublished ? 'Unpublish' : 'Publish'}
+                  ref={(element) => {
+                    if (element) {
+                      articlePublicationRefs.current.set(article.id, element);
+                    } else {
+                      articlePublicationRefs.current.delete(article.id);
+                    }
+                  }}
+                >
+                  {article.isPublished ? (
+                    <EyeOff size={16} aria-hidden="true" />
+                  ) : (
+                    <BookOpen size={16} aria-hidden="true" />
+                  )}
                 </button>
-                <button className="icon-button" type="button" onClick={() => onNavigate(`/help/${article.slug}`)} aria-label={`Preview ${article.title}`} title="Preview" disabled={!article.isPublished}>
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => onNavigate(`/help/${article.slug}`)}
+                  aria-label={`Preview ${article.title}`}
+                  title="Preview"
+                  disabled={!article.isPublished}
+                >
                   <BookOpen size={16} aria-hidden="true" />
                 </button>
-                <button className="icon-button danger" type="button" onClick={() => setDeleteCandidate(article)} aria-label={`Delete ${article.title}`} title="Delete">
+                <button
+                  className="icon-button danger"
+                  type="button"
+                  onClick={() => setDeleteCandidate(article)}
+                  aria-label={`Delete ${article.title}`}
+                  title="Delete"
+                >
                   <Trash2 size={16} aria-hidden="true" />
                 </button>
               </div>
@@ -270,19 +413,39 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
         </div>
         <form className="form-grid compact-form help-admin-form" onSubmit={saveArticle}>
           <FormField label="Section">
-            <input value={form.sectionTitle} onChange={(event) => setForm({ ...form, sectionTitle: event.target.value, sectionSlug: slugify(event.target.value) })} />
+            <input
+              value={form.sectionTitle}
+              onChange={(event) =>
+                setForm({ ...form, sectionTitle: event.target.value, sectionSlug: slugify(event.target.value) })
+              }
+            />
           </FormField>
           <FormField label="Section slug">
-            <input value={form.sectionSlug} onChange={(event) => setForm({ ...form, sectionSlug: event.target.value })} />
+            <input
+              value={form.sectionSlug}
+              onChange={(event) => setForm({ ...form, sectionSlug: event.target.value })}
+            />
           </FormField>
           <FormField label="Title">
-            <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value, slug: selectedArticle ? form.slug : slugify(event.target.value) })} />
+            <input
+              value={form.title}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  title: event.target.value,
+                  slug: selectedArticle ? form.slug : slugify(event.target.value),
+                })
+              }
+            />
           </FormField>
           <FormField label="Slug">
             <input value={form.slug} onChange={(event) => setForm({ ...form, slug: event.target.value })} />
           </FormField>
           <FormField label="Type">
-            <select value={form.contentType} onChange={(event) => setForm({ ...form, contentType: event.target.value })}>
+            <select
+              value={form.contentType}
+              onChange={(event) => setForm({ ...form, contentType: event.target.value })}
+            >
               <option value="FAQ">FAQ</option>
               <option value="Article">Article</option>
               <option value="Document">Document</option>
@@ -298,14 +461,28 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
           </FormField>
           <div className="form-row">
             <FormField label="Section order">
-              <input value={form.sectionSortOrder} onChange={(event) => setForm({ ...form, sectionSortOrder: Number(event.target.value) || 0 })} type="number" min="0" />
+              <input
+                value={form.sectionSortOrder}
+                onChange={(event) => setForm({ ...form, sectionSortOrder: Number(event.target.value) || 0 })}
+                type="number"
+                min="0"
+              />
             </FormField>
             <FormField label="Article order">
-              <input value={form.sortOrder} onChange={(event) => setForm({ ...form, sortOrder: Number(event.target.value) || 0 })} type="number" min="0" />
+              <input
+                value={form.sortOrder}
+                onChange={(event) => setForm({ ...form, sortOrder: Number(event.target.value) || 0 })}
+                type="number"
+                min="0"
+              />
             </FormField>
           </div>
           <label className="checkbox-field">
-            <input type="checkbox" checked={form.isPublished} onChange={(event) => setForm({ ...form, isPublished: event.target.checked })} />
+            <input
+              type="checkbox"
+              checked={form.isPublished}
+              onChange={(event) => setForm({ ...form, isPublished: event.target.checked })}
+            />
             <span>Publish this content</span>
           </label>
           <div className="help-asset-editor">
@@ -314,28 +491,55 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
                 <p>Resources</p>
                 <h3>Linked assets</h3>
               </div>
-              <button className="secondary-button" type="button" onClick={addAsset}>
+              <button className="secondary-button" type="button" onClick={addAsset} ref={addAssetButtonRef}>
                 <Plus size={16} aria-hidden="true" />
                 <span>Add Asset</span>
               </button>
             </div>
             {form.assets.map((asset, index) => (
-              <div className="asset-row" key={`${asset.title}-${index}`}>
-                <input value={asset.title} onChange={(event) => updateAsset(index, { ...asset, title: event.target.value })} placeholder="Title" />
-                <select value={asset.assetType} onChange={(event) => updateAsset(index, { ...asset, assetType: event.target.value })}>
+              <div className="asset-row" key={asset.clientKey}>
+                <input
+                  value={asset.title}
+                  onChange={(event) => updateAsset(index, { ...asset, title: event.target.value })}
+                  placeholder="Title"
+                  ref={(element) => {
+                    if (element) {
+                      assetTitleRefs.current.set(asset.clientKey, element);
+                    } else {
+                      assetTitleRefs.current.delete(asset.clientKey);
+                    }
+                  }}
+                />
+                <select
+                  value={asset.assetType}
+                  onChange={(event) => updateAsset(index, { ...asset, assetType: event.target.value })}
+                >
                   <option value="Document">Document</option>
                   <option value="Video">Video</option>
                   <option value="Link">Link</option>
                 </select>
-                <input value={asset.url} onChange={(event) => updateAsset(index, { ...asset, url: event.target.value })} placeholder="URL" />
-                <button className="icon-button danger" type="button" onClick={() => removeAsset(index)} aria-label="Remove asset">
+                <input
+                  value={asset.url}
+                  onChange={(event) => updateAsset(index, { ...asset, url: event.target.value })}
+                  placeholder="URL"
+                />
+                <button
+                  className="icon-button danger"
+                  type="button"
+                  onClick={() => removeAsset(index)}
+                  aria-label="Remove asset"
+                >
                   <Trash2 size={16} aria-hidden="true" />
                 </button>
               </div>
             ))}
             {form.assets.length === 0 && <p className="muted-text">No linked assets.</p>}
           </div>
-          <SubmitButton icon={<Save size={17} aria-hidden="true" />} isSubmitting={isSaving} idleLabel={selectedArticle ? 'Save FAQ' : 'Create FAQ'} />
+          <SubmitButton
+            icon={<Save size={17} aria-hidden="true" />}
+            isSubmitting={isSaving}
+            idleLabel={selectedArticle ? 'Save FAQ' : 'Create FAQ'}
+          />
         </form>
       </section>
       <ConfirmDialog
@@ -351,7 +555,7 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
 }
 
 // Function summary: Converts a Help CMS response into the mutation form shape.
-function articleToForm(article: HelpArticleResponse): HelpArticleMutationRequest {
+function articleToForm(article: HelpArticleResponse): HelpArticleForm {
   return {
     sectionTitle: article.sectionTitle,
     sectionSlug: article.sectionSlug,
@@ -364,11 +568,23 @@ function articleToForm(article: HelpArticleResponse): HelpArticleMutationRequest
     sectionSortOrder: article.sectionSortOrder,
     sortOrder: article.sortOrder,
     assets: article.assets.map((asset) => ({
+      id: asset.id,
+      clientKey: `persisted:${asset.id}`,
       title: asset.title,
       assetType: asset.assetType,
       url: asset.url,
-      internalPath: asset.internalPath,
-      sortOrder: asset.sortOrder
-    }))
+      sortOrder: asset.sortOrder,
+    })),
   };
+}
+
+function formToMutation(form: HelpArticleForm): HelpArticleMutationRequest {
+  return {
+    ...form,
+    assets: form.assets.map(({ clientKey: _clientKey, ...asset }) => asset),
+  };
+}
+
+function newAssetClientKey() {
+  return `new:${globalThis.crypto.randomUUID()}`;
 }

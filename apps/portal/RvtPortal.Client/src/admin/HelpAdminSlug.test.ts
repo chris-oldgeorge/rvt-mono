@@ -1,6 +1,6 @@
-// File summary: Unit tests for Help/FAQ admin helpers.
+// File summary: Unit tests for Help/FAQ admin slug helpers.
 // Major updates:
-// - 2026-06-29 pending Added regression coverage for linear Help CMS slug generation.
+// - 2026-06-29 Added regression coverage for linear Help CMS slug generation.
 
 import { describe, expect, it } from 'vitest';
 import { slugify } from './HelpAdminSlug';

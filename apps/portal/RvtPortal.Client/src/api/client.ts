@@ -110,7 +110,7 @@ import type {
   UserMutationRequest,
   VibrationAlertLevelMutationRequest,
   VibrationAlertLevelResponse,
-  What3WordsConvertResponse
+  What3WordsConvertResponse,
 } from './openApiClient';
 const configuredApiBaseUrl = (import.meta.env.VITE_RVT_PORTAL_API_URL ?? '').trim();
 const configuredAllowedApiHosts = (import.meta.env.VITE_RVT_PORTAL_ALLOWED_API_HOSTS ?? '').trim();
@@ -122,11 +122,11 @@ const apiUnavailableMessage =
 const unsafeApiUrlMessage =
   'Blocked an unsafe API request URL. Only relative /api/ paths whose host is in VITE_RVT_PORTAL_ALLOWED_API_HOSTS are allowed.';
 const jsonHeaders = {
-  Accept: 'application/json'
+  Accept: 'application/json',
 };
 const sendJsonHeaders = {
   ...jsonHeaders,
-  'Content-Type': 'application/json'
+  'Content-Type': 'application/json',
 };
 export class ApiError extends Error {
   readonly status: number;
@@ -157,12 +157,21 @@ export function isAbortError(error: unknown) {
 async function getJson<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   return requestJson<T>(path, { method: 'GET' }, options);
 }
-async function sendJson<T>(path: string, method: 'POST' | 'PUT' | 'DELETE', body?: unknown, options: ApiRequestOptions = {}): Promise<T> {
-  return requestJson<T>(path, {
-    method,
-    headers: sendJsonHeaders,
-    body: body === undefined ? undefined : JSON.stringify(body)
-  }, options);
+async function sendJson<T>(
+  path: string,
+  method: 'POST' | 'PUT' | 'DELETE',
+  body?: unknown,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  return requestJson<T>(
+    path,
+    {
+      method,
+      headers: sendJsonHeaders,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    },
+    options,
+  );
 }
 async function requestJson<T>(path: string, init: RequestInit, options: ApiRequestOptions = {}): Promise<T> {
   const url = apiUrl(path);
@@ -172,7 +181,7 @@ async function requestJson<T>(path: string, init: RequestInit, options: ApiReque
       headers: jsonHeaders,
       credentials: 'include',
       signal: options.signal,
-      ...init
+      ...init,
     });
   } catch (error) {
     if (isAbortError(error)) {
@@ -183,9 +192,13 @@ async function requestJson<T>(path: string, init: RequestInit, options: ApiReque
   throwIfAborted(options.signal);
   if (!response.ok) {
     const problem = await readProblemDetails(response);
-    throw new ApiError(problem.message || `Request failed with ${response.status}`, response.status, problem.correlationId);
+    throw new ApiError(
+      problem.message || `Request failed with ${response.status}`,
+      response.status,
+      problem.correlationId,
+    );
   }
-  const body = await response.json() as T;
+  const body = (await response.json()) as T;
   throwIfAborted(options.signal);
   return body;
 }
@@ -258,7 +271,7 @@ function buildAllowedApiHosts(value: string, currentOrigin: string) {
     'localhost:5178',
     'localhost:5179',
     '127.0.0.1:5178',
-    '127.0.0.1:5179'
+    '127.0.0.1:5179',
   ]);
 
   for (const entry of value.split(',')) {
@@ -285,7 +298,7 @@ async function readProblemDetails(response: Response) {
   const correlationHeader = response.headers.get('x-correlation-id');
   const contentType = response.headers.get('content-type') ?? '';
   if (contentType.includes('application/problem+json') || contentType.includes('application/json')) {
-    const body = await response.json().catch(() => null) as {
+    const body = (await response.json().catch(() => null)) as {
       detail?: string;
       title?: string;
       errors?: Record<string, string[]>;
@@ -295,12 +308,12 @@ async function readProblemDetails(response: Response) {
     const validationErrors = body?.errors ? Object.values(body.errors).flat().join(' ') : null;
     return {
       message: validationErrors || body?.detail || body?.title || null,
-      correlationId: correlationHeader || body?.correlationId || body?.traceId || null
+      correlationId: correlationHeader || body?.correlationId || body?.traceId || null,
     };
   }
   return {
     message: await response.text().catch(() => null),
-    correlationId: correlationHeader
+    correlationId: correlationHeader,
   };
 }
 // Function summary: Retrieves health data for callers.
@@ -426,14 +439,14 @@ export function setSiteContactUser(request: SiteUserMutationRequest) {
 export function removeSiteContactUser(request: SiteUserMutationRequest) {
   return sendJson<EntityResponse<SiteAssignmentResponse>>(
     `/api/users/site-assignments/contact/${encodeURIComponent(request.siteId)}/${encodeURIComponent(request.userId)}`,
-    'DELETE'
+    'DELETE',
   );
 }
 // Function summary: Removes user from site data for the current workflow.
 export function removeUserFromSite(request: SiteUserMutationRequest) {
   return sendJson<EntityResponse<SiteAssignmentResponse>>(
     `/api/users/site-assignments/${encodeURIComponent(request.siteId)}/${encodeURIComponent(request.userId)}`,
-    'DELETE'
+    'DELETE',
   );
 }
 // Function summary: Handles the query contracts workflow for this module.
@@ -496,7 +509,7 @@ export function uploadSiteCustomerLogo(id: string, logo: File) {
   body.set('logo', logo);
   return requestJson<EntityResponse<SiteDetailResponse>>(`/api/sites/${encodeURIComponent(id)}/customer-logo`, {
     method: 'POST',
-    body
+    body,
   });
 }
 // Function summary: Deletes a customer logo image for a site.
@@ -508,25 +521,43 @@ export function archiveSite(id: string) {
   return sendJson<EntityResponse<SiteDetailResponse>>(`/api/sites/${encodeURIComponent(id)}/archive`, 'POST');
 }
 // Function summary: Handles the query site monitors workflow for this module.
-export function querySiteMonitors(siteId: string, request: QueryCompaniesRequest | URLSearchParams, options: ApiRequestOptions = {}) {
+export function querySiteMonitors(
+  siteId: string,
+  request: QueryCompaniesRequest | URLSearchParams,
+  options: ApiRequestOptions = {},
+) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
-  return getJson<QuerySiteMonitorsResponse>(`/api/sites/${encodeURIComponent(siteId)}/monitors?${params.toString()}`, options);
+  return getJson<QuerySiteMonitorsResponse>(
+    `/api/sites/${encodeURIComponent(siteId)}/monitors?${params.toString()}`,
+    options,
+  );
 }
 // Function summary: Handles the query site open notifications workflow for this module.
-export function querySiteOpenNotifications(siteId: string, request: QueryCompaniesRequest | URLSearchParams, options: ApiRequestOptions = {}) {
+export function querySiteOpenNotifications(
+  siteId: string,
+  request: QueryCompaniesRequest | URLSearchParams,
+  options: ApiRequestOptions = {},
+) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
-  return getJson<QuerySiteNotificationsResponse>(`/api/sites/${encodeURIComponent(siteId)}/notifications/open?${params.toString()}`, options);
+  return getJson<QuerySiteNotificationsResponse>(
+    `/api/sites/${encodeURIComponent(siteId)}/notifications/open?${params.toString()}`,
+    options,
+  );
 }
 // Function summary: Retrieves site notification settings data for callers.
 export function getSiteNotificationSettings(siteId: string) {
   return getJson<SiteNotificationSettingsResponse>(`/api/sites/${encodeURIComponent(siteId)}/notification-settings`);
 }
 // Function summary: Updates site notification setting data for the current workflow.
-export function updateSiteNotificationSetting(siteId: string, siteUserId: string, request: SiteNotificationSettingMutationRequest) {
+export function updateSiteNotificationSetting(
+  siteId: string,
+  siteUserId: string,
+  request: SiteNotificationSettingMutationRequest,
+) {
   return sendJson<EntityResponse<SiteNotificationSettingItem>>(
     `/api/sites/${encodeURIComponent(siteId)}/notification-settings/${encodeURIComponent(siteUserId)}`,
     'PUT',
-    request
+    request,
   );
 }
 // Function summary: Retrieves published Help CMS sections and article summaries for callers.
@@ -542,7 +573,10 @@ export function getHelpArticle(slug: string, options: ApiRequestOptions = {}) {
   return getJson<EntityResponse<HelpArticleResponse>>(`/api/help/articles/${encodeURIComponent(slug)}`, options);
 }
 // Function summary: Retrieves all Help CMS content for admin management.
-export function queryAdminHelp(request: { searchText?: string; status?: string; contentType?: string } = {}, options: ApiRequestOptions = {}) {
+export function queryAdminHelp(
+  request: { searchText?: string; status?: string; contentType?: string } = {},
+  options: ApiRequestOptions = {},
+) {
   return getJson<HelpAdminOverviewResponse>(pathWithQuery('/api/help/admin', toSearchParams(request)), options);
 }
 // Function summary: Retrieves a Help CMS article by id for admin editing.
@@ -551,15 +585,23 @@ export function getAdminHelpArticle(id: string) {
 }
 // Function summary: Creates Help CMS article data for admin users.
 export function createHelpArticle(request: HelpArticleMutationRequest) {
-  return sendJson<EntityResponse<HelpArticleResponse>>('/api/help/articles', 'POST', request);
+  return sendJson<EntityResponse<HelpArticleResponse>>('/api/help/admin/articles', 'POST', request);
 }
 // Function summary: Updates Help CMS article data for admin users.
 export function updateHelpArticle(id: string, request: HelpArticleMutationRequest) {
-  return sendJson<EntityResponse<HelpArticleResponse>>(`/api/help/admin/articles/${encodeURIComponent(id)}`, 'PUT', request);
+  return sendJson<EntityResponse<HelpArticleResponse>>(
+    `/api/help/admin/articles/${encodeURIComponent(id)}`,
+    'PUT',
+    request,
+  );
 }
 // Function summary: Publishes or unpublishes Help CMS article data for admin users.
 export function setHelpArticlePublication(id: string, request: HelpPublishRequest) {
-  return sendJson<EntityResponse<HelpArticleResponse>>(`/api/help/admin/articles/${encodeURIComponent(id)}/publication`, 'POST', request);
+  return sendJson<EntityResponse<HelpArticleResponse>>(
+    `/api/help/admin/articles/${encodeURIComponent(id)}/publication`,
+    'POST',
+    request,
+  );
 }
 // Function summary: Removes Help CMS article data for admin users.
 export function deleteHelpArticle(id: string) {
@@ -571,7 +613,10 @@ export function queryMonitors(request: QueryMonitorsRequest | URLSearchParams, o
   return getJson<QueryMonitorsResponse>(`/api/monitors?${params.toString()}`, options);
 }
 // Function summary: Handles the query unattached monitors workflow for this module.
-export function queryUnattachedMonitors(request: QueryMonitorsRequest | URLSearchParams, options: ApiRequestOptions = {}) {
+export function queryUnattachedMonitors(
+  request: QueryMonitorsRequest | URLSearchParams,
+  options: ApiRequestOptions = {},
+) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
   return getJson<QueryUnattachedMonitorsResponse>(`/api/monitors/unattached?${params.toString()}`, options);
 }
@@ -585,7 +630,9 @@ export function getMonitor(id: string) {
 }
 // Function summary: Retrieves monitor deployment data for callers.
 export function getMonitorDeployment(deploymentId: string) {
-  return getJson<EntityResponse<MonitorDetailResponse>>(`/api/monitors/deployments/${encodeURIComponent(deploymentId)}`);
+  return getJson<EntityResponse<MonitorDetailResponse>>(
+    `/api/monitors/deployments/${encodeURIComponent(deploymentId)}`,
+  );
 }
 // Function summary: Retrieves monitor removal impact data for callers.
 export function getMonitorRemovalImpact(id: string) {
@@ -601,12 +648,16 @@ export function uploadMonitorPicture(id: string, picture: File) {
   body.set('picture', picture);
   return requestJson<EntityResponse<MonitorDetailResponse>>(`/api/monitors/${encodeURIComponent(id)}/picture`, {
     method: 'POST',
-    body
+    body,
   });
 }
 // Function summary: Handles the set monitor fleet number workflow for this module.
 export function setMonitorFleetNumber(id: string, request: FleetNumberMutationRequest) {
-  return sendJson<EntityResponse<MonitorDetailResponse>>(`/api/monitors/${encodeURIComponent(id)}/fleet-number`, 'PUT', request);
+  return sendJson<EntityResponse<MonitorDetailResponse>>(
+    `/api/monitors/${encodeURIComponent(id)}/fleet-number`,
+    'PUT',
+    request,
+  );
 }
 // Function summary: Retrieves monitor assignment data for callers.
 export function getMonitorAssignment(siteId: string, contractId?: string | null) {
@@ -618,7 +669,11 @@ export function getMonitorAssignment(siteId: string, contractId?: string | null)
 }
 // Function summary: Registers monitor to contract for the current workflow.
 export function addMonitorToContract(id: string, request: MonitorAssignmentRequest) {
-  return sendJson<EntityResponse<MonitorDetailResponse>>(`/api/monitors/${encodeURIComponent(id)}/contract-assignment`, 'POST', request);
+  return sendJson<EntityResponse<MonitorDetailResponse>>(
+    `/api/monitors/${encodeURIComponent(id)}/contract-assignment`,
+    'POST',
+    request,
+  );
 }
 // Function summary: Removes monitor from contract data for the current workflow.
 export function removeMonitorFromContract(id: string) {
@@ -633,7 +688,10 @@ export function addDefaultMonitorAlertLevels() {
   return sendJson<DefaultMonitorsResponse>('/api/monitors/default-alert-levels', 'POST');
 }
 // Function summary: Handles the query installer monitors workflow for this module.
-export function queryInstallerMonitors(request: QueryMonitorsRequest | URLSearchParams, options: ApiRequestOptions = {}) {
+export function queryInstallerMonitors(
+  request: QueryMonitorsRequest | URLSearchParams,
+  options: ApiRequestOptions = {},
+) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
   return getJson<QueryMonitorsResponse>(`/api/installer/monitors?${params.toString()}`, options);
 }
@@ -643,7 +701,11 @@ export function getInstallerMonitor(id: string) {
 }
 // Function summary: Updates installer deployment data for the current workflow.
 export function updateInstallerDeployment(deploymentId: string, request: InstallerDeploymentMutationRequest) {
-  return sendJson<EntityResponse<MonitorDetailResponse>>(`/api/installer/deployments/${encodeURIComponent(deploymentId)}`, 'PUT', request);
+  return sendJson<EntityResponse<MonitorDetailResponse>>(
+    `/api/installer/deployments/${encodeURIComponent(deploymentId)}`,
+    'PUT',
+    request,
+  );
 }
 // Function summary: Retrieves installer monitor status data for callers.
 export function getInstallerMonitorStatus(id: string) {
@@ -682,11 +744,18 @@ export function createReportRule(request: ReportRuleMutationRequest) {
 }
 // Function summary: Updates report rule data for the current workflow.
 export function updateReportRule(id: string, request: ReportRuleMutationRequest) {
-  return sendJson<EntityResponse<ReportRuleDetailResponse>>(`/api/report-rules/${encodeURIComponent(id)}`, 'PUT', request);
+  return sendJson<EntityResponse<ReportRuleDetailResponse>>(
+    `/api/report-rules/${encodeURIComponent(id)}`,
+    'PUT',
+    request,
+  );
 }
 // Function summary: Queues an immediate report generation request for a report rule.
 export function requestReportRuleGeneration(id: string) {
-  return sendJson<ReportGenerationRequestResponse>(`/api/report-rules/${encodeURIComponent(id)}/generation-requests`, 'POST');
+  return sendJson<ReportGenerationRequestResponse>(
+    `/api/report-rules/${encodeURIComponent(id)}/generation-requests`,
+    'POST',
+  );
 }
 // Function summary: Removes report rule data for the current workflow.
 export function deleteReportRule(id: string) {
@@ -697,28 +766,49 @@ export function getReportRuleUsers(id: string) {
   return getJson<EntityResponse<ReportUserAssignmentResponse>>(`/api/report-rules/${encodeURIComponent(id)}/users`);
 }
 // Function summary: Queries users available for a report rule recipient assignment.
-export function queryReportRuleAvailableUsers(id: string, request: QueryCompaniesRequest | URLSearchParams, options: ApiRequestOptions = {}) {
+export function queryReportRuleAvailableUsers(
+  id: string,
+  request: QueryCompaniesRequest | URLSearchParams,
+  options: ApiRequestOptions = {},
+) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
-  return getJson<QueryReportRuleUsersResponse>(`/api/report-rules/${encodeURIComponent(id)}/available-users?${params.toString()}`, options);
+  return getJson<QueryReportRuleUsersResponse>(
+    `/api/report-rules/${encodeURIComponent(id)}/available-users?${params.toString()}`,
+    options,
+  );
 }
 // Function summary: Queries users already assigned to a report rule.
-export function queryReportRuleAssignedUsers(id: string, request: QueryCompaniesRequest | URLSearchParams, options: ApiRequestOptions = {}) {
+export function queryReportRuleAssignedUsers(
+  id: string,
+  request: QueryCompaniesRequest | URLSearchParams,
+  options: ApiRequestOptions = {},
+) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
-  return getJson<QueryReportRuleUsersResponse>(`/api/report-rules/${encodeURIComponent(id)}/assigned-users?${params.toString()}`, options);
+  return getJson<QueryReportRuleUsersResponse>(
+    `/api/report-rules/${encodeURIComponent(id)}/assigned-users?${params.toString()}`,
+    options,
+  );
 }
 // Function summary: Registers report rule user for the current workflow.
 export function addReportRuleUser(id: string, request: ReportUserMutationRequest) {
-  return sendJson<EntityResponse<ReportUserAssignmentResponse>>(`/api/report-rules/${encodeURIComponent(id)}/users`, 'POST', request);
+  return sendJson<EntityResponse<ReportUserAssignmentResponse>>(
+    `/api/report-rules/${encodeURIComponent(id)}/users`,
+    'POST',
+    request,
+  );
 }
 // Function summary: Removes report rule user data for the current workflow.
 export function removeReportRuleUser(id: string, userId: string) {
   return sendJson<EntityResponse<ReportUserAssignmentResponse>>(
     `/api/report-rules/${encodeURIComponent(id)}/users/${encodeURIComponent(userId)}`,
-    'DELETE'
+    'DELETE',
   );
 }
 // Function summary: Handles the query notifications workflow for this module.
-export function queryNotifications(request: QueryNotificationsRequest | URLSearchParams, options: ApiRequestOptions = {}) {
+export function queryNotifications(
+  request: QueryNotificationsRequest | URLSearchParams,
+  options: ApiRequestOptions = {},
+) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
   return getJson<QueryNotificationsResponse>(`/api/notifications?${params.toString()}`, options);
 }
@@ -728,7 +818,11 @@ export function getNotification(id: string) {
 }
 // Function summary: Handles the close notification workflow for this module.
 export function closeNotification(id: string, request: NotificationCloseRequest) {
-  return sendJson<EntityResponse<NotificationDetailResponse>>(`/api/notifications/${encodeURIComponent(id)}/close`, 'POST', request);
+  return sendJson<EntityResponse<NotificationDetailResponse>>(
+    `/api/notifications/${encodeURIComponent(id)}/close`,
+    'POST',
+    request,
+  );
 }
 // Function summary: Handles the batch close notifications workflow for this module.
 export function batchCloseNotifications(request: NotificationBatchCloseRequest) {
@@ -757,7 +851,11 @@ export function updateAlertLevel(id: string, request: AlertLevelMutationRequest)
 }
 // Function summary: Updates vibration alert levels data for the current workflow.
 export function updateVibrationAlertLevels(monitorId: string, request: VibrationAlertLevelMutationRequest) {
-  return sendJson<VibrationAlertLevelResponse>(`/api/alert-levels/monitors/${encodeURIComponent(monitorId)}/vibration`, 'PUT', request);
+  return sendJson<VibrationAlertLevelResponse>(
+    `/api/alert-levels/monitors/${encodeURIComponent(monitorId)}/vibration`,
+    'PUT',
+    request,
+  );
 }
 // Function summary: Removes alert level data for the current workflow.
 export function deleteAlertLevel(id: string) {
@@ -794,30 +892,51 @@ export function getCalendarDay(request: CalendarDayRequest, options: ApiRequestO
     monitorId: request.monitorId,
     year: String(request.year),
     month: String(request.month),
-    day: String(request.day)
+    day: String(request.day),
   });
   return getJson<CalendarDayResponse>(`/api/dashboard/calendar/day?${params.toString()}`, options);
 }
 // Function summary: Handles the query monitor data grid workflow for this module.
-export function queryMonitorDataGrid(deploymentId: string, request: MonitorDataGridRequest | URLSearchParams, options: ApiRequestOptions = {}) {
+export function queryMonitorDataGrid(
+  deploymentId: string,
+  request: MonitorDataGridRequest | URLSearchParams,
+  options: ApiRequestOptions = {},
+) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
-  return getJson<MonitorDataGridResponse>(`/api/data/deployments/${encodeURIComponent(deploymentId)}/grid?${params.toString()}`, options);
+  return getJson<MonitorDataGridResponse>(
+    `/api/data/deployments/${encodeURIComponent(deploymentId)}/grid?${params.toString()}`,
+    options,
+  );
 }
 // Function summary: Retrieves monitor graph data for callers.
-export function getMonitorGraph(deploymentId: string, request: MonitorGraphRequest | URLSearchParams, options: ApiRequestOptions = {}) {
+export function getMonitorGraph(
+  deploymentId: string,
+  request: MonitorGraphRequest | URLSearchParams,
+  options: ApiRequestOptions = {},
+) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
-  return getJson<MonitorGraphResponse>(`/api/data/deployments/${encodeURIComponent(deploymentId)}/graph?${params.toString()}`, options);
+  return getJson<MonitorGraphResponse>(
+    `/api/data/deployments/${encodeURIComponent(deploymentId)}/graph?${params.toString()}`,
+    options,
+  );
 }
 // Function summary: Handles the query monitor traces workflow for this module.
-export function queryMonitorTraces(deploymentId: string, request: TraceListRequest | URLSearchParams = {}, options: ApiRequestOptions = {}) {
+export function queryMonitorTraces(
+  deploymentId: string,
+  request: TraceListRequest | URLSearchParams = {},
+  options: ApiRequestOptions = {},
+) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
-  return getJson<TraceListResponse>(`/api/data/deployments/${encodeURIComponent(deploymentId)}/traces?${params.toString()}`, options);
+  return getJson<TraceListResponse>(
+    `/api/data/deployments/${encodeURIComponent(deploymentId)}/traces?${params.toString()}`,
+    options,
+  );
 }
 // Function summary: Retrieves monitor trace data for callers.
 export function getMonitorTrace(deploymentId: string, traceId: string, options: ApiRequestOptions = {}) {
   return getJson<TraceDetailResponse>(
     `/api/data/deployments/${encodeURIComponent(deploymentId)}/traces/${encodeURIComponent(traceId)}`,
-    options
+    options,
   );
 }
 // Function summary: Handles the download monitor data csv workflow for this module.
@@ -827,14 +946,16 @@ export function downloadMonitorDataCsv(deploymentId: string, request: MonitorDat
 }
 // Function summary: Handles the download monitor trace csv workflow for this module.
 export function downloadMonitorTraceCsv(deploymentId: string, traceId: string) {
-  return downloadFile(`/api/data/deployments/${encodeURIComponent(deploymentId)}/traces/${encodeURIComponent(traceId)}/download`);
+  return downloadFile(
+    `/api/data/deployments/${encodeURIComponent(deploymentId)}/traces/${encodeURIComponent(traceId)}/download`,
+  );
 }
 // Function summary: Handles the search lookup workflow for this module.
 export function searchLookup(
   kind: string,
   query: string,
   options: { take?: number; companyId?: string; includeAdmin?: boolean } = {},
-  requestOptions: ApiRequestOptions = {}
+  requestOptions: ApiRequestOptions = {},
 ) {
   const params = new URLSearchParams({ query, take: String(options.take ?? 8) });
   if (options.companyId) {
@@ -859,7 +980,7 @@ export async function downloadFile(path: string, init: RequestInit = {}): Promis
   try {
     response = await fetch(url, {
       credentials: 'include',
-      ...init
+      ...init,
     });
   } catch {
     throw new Error(apiUnavailableMessage);
@@ -867,14 +988,18 @@ export async function downloadFile(path: string, init: RequestInit = {}): Promis
 
   if (!response.ok) {
     const problem = await readProblemDetails(response);
-    throw new ApiError(problem.message || `Download failed with ${response.status}`, response.status, problem.correlationId);
+    throw new ApiError(
+      problem.message || `Download failed with ${response.status}`,
+      response.status,
+      problem.correlationId,
+    );
   }
 
   return {
     blob: await response.blob(),
     fileName: getFileName(response.headers.get('content-disposition')),
     contentType: response.headers.get('content-type') ?? 'application/octet-stream',
-    correlationId: response.headers.get('x-correlation-id')
+    correlationId: response.headers.get('x-correlation-id'),
   };
 }
 
@@ -891,7 +1016,7 @@ const stringSearchParams = [
   'date',
   'filterOption',
   'fromDate',
-  'toDate'
+  'toDate',
 ] as const;
 const numberSearchParams = ['page', 'pageSize'] as const;
 const booleanSearchParams = ['openAlerts'] as const;
@@ -903,7 +1028,11 @@ function pathWithQuery(path: string, params: URLSearchParams) {
 }
 
 // Function summary: Handles the set string search param workflow for this module.
-function setStringSearchParam(params: URLSearchParams, request: Record<string, unknown>, key: typeof stringSearchParams[number]) {
+function setStringSearchParam(
+  params: URLSearchParams,
+  request: Record<string, unknown>,
+  key: (typeof stringSearchParams)[number],
+) {
   const value = request[key];
   if (typeof value === 'string' && value) {
     params.set(key, value);
@@ -911,7 +1040,11 @@ function setStringSearchParam(params: URLSearchParams, request: Record<string, u
 }
 
 // Function summary: Handles the set number search param workflow for this module.
-function setNumberSearchParam(params: URLSearchParams, request: Record<string, unknown>, key: typeof numberSearchParams[number]) {
+function setNumberSearchParam(
+  params: URLSearchParams,
+  request: Record<string, unknown>,
+  key: (typeof numberSearchParams)[number],
+) {
   const value = request[key];
   if (typeof value === 'number') {
     params.set(key, String(value));
@@ -919,7 +1052,11 @@ function setNumberSearchParam(params: URLSearchParams, request: Record<string, u
 }
 
 // Function summary: Handles the set boolean search param workflow for this module.
-function setBooleanSearchParam(params: URLSearchParams, request: Record<string, unknown>, key: typeof booleanSearchParams[number]) {
+function setBooleanSearchParam(
+  params: URLSearchParams,
+  request: Record<string, unknown>,
+  key: (typeof booleanSearchParams)[number],
+) {
   const value = request[key];
   if (typeof value === 'boolean') {
     params.set(key, String(value));

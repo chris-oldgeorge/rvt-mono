@@ -46,7 +46,7 @@ merely to increase the project count.
 
 ## Material findings
 
-### 1. Help Admin release decision and runtime behavior disagree
+### 1. Help Admin release decision and runtime behavior disagree — implementation resolved; release gate pending
 
 The Portal release matrix says Help Admin is excluded, but the client still
 imports `HelpAdminPanel`, exposes `/admin/help` in navigation, resolves the
@@ -55,9 +55,25 @@ route, and renders the panel for administrators.
 **Impact:** The documented release surface is not the actual compiled release
 surface.
 
-**Required decision:** Either remove or production-disable the route and import,
-or reverse the exclusion decision and complete the missing release validation.
-The existing documented decision favors exclusion.
+**Resolution:** Shipment was explicitly approved. The complete Help slice now
+lives in BCL-only `RvtPortal.Application.Help`, depends on inward-owned
+read/write ports, and is implemented by EF adapters under
+`RvtPortal.Spa.Adapters.Help`. The controller is an HTTP-only adapter, the
+canonical create route is `POST /api/help/admin/articles`, and application plus
+HTTP authorization independently protect admin operations.
+
+Assets remain URL metadata only. Persisted rows must pass the HTTPS or
+`/help-assets/` policy; release requires
+`apps/portal/docs/release/validate-help-asset-urls.sql` to return zero rows
+when executed against every release database. No such release-database
+execution receipt is recorded yet, so Help Admin remains conditional. Each
+receipt must identify the environment/database, UTC execution time, script
+revision, and zero returned rows; a missing receipt or any returned row blocks
+release.
+Stable persisted asset IDs and client-only row keys are covered by focused
+regressions, and the browser journey covers create, publish, preview, edit,
+delete, and Company User denial. Rollback may disable the admin route/endpoints
+without disabling published `/help`.
 
 ### 2. Reporting has two divergent implementations
 
@@ -265,8 +281,12 @@ build/test guarded.
       tooling and machine-readable baselines remain part of R9.
 - [ ] **R1 — Repair architecture guards.** Replace stale repository paths and
       prove the boundary tests fail for real violations.
-- [ ] **R2 — Align Help Admin with the release decision.** Exclude it from the
-      production route/import surface unless shipment is explicitly approved.
+- [ ] **R2 — Align Help Admin with the release decision.** Shipment was
+      explicitly approved and the application-boundary, role,
+      stable-identity/focus, HTTP, browser, and read-only readiness-query work
+      is complete. R2 remains conditional until the readiness query is
+      executed against every release database and each recorded result is zero
+      rows.
 - [ ] **R3 — Select the authoritative reporting lineage.** Inventory unique
       behavior, migrate it, and merge/remove or rename duplicate projects.
 - [ ] **R4 — Retire dead Portal infrastructure.** Complete shared storage

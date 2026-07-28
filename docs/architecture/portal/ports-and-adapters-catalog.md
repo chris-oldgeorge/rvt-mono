@@ -5,7 +5,7 @@ This catalog records the current pragmatic "hexagonal at the edges" structure. T
 ## Rule Of Thumb
 
 - `RvtPortal.Spa.Api`: inbound HTTP adapter. It owns routes, auth attributes, request normalization, response status codes, and DTO mapping.
-- `RvtPortal.Application`: BCL-only application boundary for extracted slices. It owns Sites use cases, policies, transport-neutral contracts, results, and inward-facing ports.
+- `RvtPortal.Application`: BCL-only application boundary for extracted slices. It owns Sites and Help use cases, policies, transport-neutral contracts, results, and inward-facing ports.
 - `RVT.BusinessLogic`: legacy application/business boundary for slices not yet extracted. Move those slices deliberately and incrementally; do not move them opportunistically while changing unrelated behavior.
 - `RVT.DataAccess`: persistence adapter. It owns EF contexts, repositories, provider-specific database plumbing, and canonical database mappings.
 - `RvtPortal.Spa.Adapters`: host-owned outbound adapters for systems that need ASP.NET Core, HTTP, file paths, Blob clients, or Identity.
@@ -16,6 +16,7 @@ This catalog records the current pragmatic "hexagonal at the edges" structure. T
 |---|---|---|
 | `RvtPortal.Spa.Api.ReportRulesController` | `RVT.BusinessLogic.Reports.IReportRuleApplicationService` | Thin HTTP adapter for report-rule list/detail/options/mutations/recipients/manual generation. Keeps API routes and DTOs unchanged. |
 | `RvtPortal.Spa.Api.SitesController` | `RvtPortal.Application.Sites.ISiteApplicationService` | Complete Sites HTTP adapter. Routes, authorization attributes, payloads, request normalization, ProblemDetails mapping, and file responses remain at the HTTP edge. |
+| `RvtPortal.Spa.Api.HelpController` | `RvtPortal.Application.Help.IHelpApplicationService` | Published and administrative Help HTTP adapter. Admin creation uses `POST /api/help/admin/articles`; host attributes and application policy independently enforce roles. |
 | `RvtPortal.Spa.Api.MonitorsController` | MediatR monitor commands/readers plus storage port calls | Monitor picture upload wraps `IFormFile` in `FormFileUpload`; command handlers no longer depend on ASP.NET upload types. |
 | Other API controllers | Existing service/MediatR boundaries | These remain candidates for future incremental controller thinning, especially where controllers still query EF directly. |
 
@@ -31,6 +32,8 @@ This catalog records the current pragmatic "hexagonal at the edges" structure. T
 | `ISiteReadPort` | `RvtPortal.Application/Sites/Ports/ISiteReadPort.cs` | `RvtPortal.Spa.Adapters.Sites.EfSiteReadAdapter` | Materialized Sites reads with SQL-side filtering, counting, sorting, paging, and projection. |
 | `ISiteWritePort` | `RvtPortal.Application/Sites/Ports/ISiteWritePort.cs` | `RvtPortal.Spa.Adapters.Sites.EfSiteWriteAdapter` | Explicit staged Sites mutations and the relational conditional contract claim. |
 | `IApplicationUnitOfWork` | `RvtPortal.Application/Common/IApplicationUnitOfWork.cs` | `RvtPortal.Spa.Application.Common.EfCoreUnitOfWork` | Application-facing execute/save transaction semantics backed by the existing shared three-context transaction adapter. |
+| `IHelpReadPort` | `RvtPortal.Application/Help/Ports/IHelpReadPort.cs` | `RvtPortal.Spa.Adapters.Help.EfHelpReadAdapter` | Server-side published/admin filtering, deterministic ordering, projections, detail reads, and mutation validation data. |
+| `IHelpWritePort` | `RvtPortal.Application/Help/Ports/IHelpWritePort.cs` | `RvtPortal.Spa.Adapters.Help.EfHelpWriteAdapter` | Stages section/article changes and immutable asset reconciliation; the application unit of work owns the commit. |
 | `IPortalUserDirectory` | `RvtPortal.Application/Identity/IPortalUserDirectory.cs` | `RvtPortal.Spa.Api.PortalUserDirectory` | Application-owned Identity lookup port used by Sites and remaining legacy report-recipient workflows. |
 | `ISiteArchivePort` | `RvtPortal.Application/Sites/Ports/ISiteArchivePort.cs` | `RvtPortal.Spa.Adapters.Sites.SiteArchiveAdapter` | Creates the external site archive after the application management gate and before the application transaction records archive state. |
 | `ISiteLogoPort` | `RvtPortal.Application/Sites/Ports/ISiteLogoPort.cs` | `RvtPortal.Spa.Adapters.Sites.SiteLogoAdapter` | Saves, deletes, checks, and opens protected customer-logo content through BCL stream contracts. |
@@ -62,6 +65,20 @@ RvtPortal.Spa.Api.SitesController
 export, transaction entry, persistence, or response enrichment. The host role
 attribute remains an HTTP-edge defense, while the application boundary
 independently protects direct callers.
+
+```text
+RvtPortal.Spa.Api.HelpController
+  -> RvtPortal.Application.Help.IHelpApplicationService
+    -> IHelpReadPort / IHelpWritePort
+    -> IApplicationUnitOfWork
+      -> RvtPortal.Spa.Adapters.Help
+        -> EF Core / PostgreSQL
+```
+
+Help assets remain URL metadata. The application validator permits absolute
+HTTPS URLs or root-relative `/help-assets/` paths, and the write adapter derives
+`InternalPath`; the browser cannot supply it. Persisted asset IDs are immutable
+across edits.
 
 ## Follow-Up Candidates
 

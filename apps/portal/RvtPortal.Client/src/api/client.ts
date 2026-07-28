@@ -30,7 +30,6 @@ import type {
   ConfirmEmailResponse,
   EntityResponse,
   DefaultMonitorsResponse,
-  FleetNumberMutationRequest,
   ForgotPasswordRequest,
   GetHealthResponse,
   HelpAdminOverviewResponse,
@@ -52,11 +51,9 @@ import type {
   MonitorAssignmentContextResponse,
   MonitorAssignmentRequest,
   MonitorDetailResponse,
-  MonitorRemovalImpactResponse,
   MonitorRemovalRequest,
   MonitorRemovalResponse,
   MonitorMutationRequest,
-  MonitorOptionsResponse,
   MutationResponse,
   NotificationBatchCloseRequest,
   NotificationBatchCloseResponse,
@@ -74,8 +71,6 @@ import type {
   QueryContractsResponse,
   QueryMonitorsResponse,
   QueryUnattachedMonitorsResponse,
-  QuerySiteMonitorsResponse,
-  QuerySiteNotificationsResponse,
   QueryReportRulesRequest,
   QueryReportRulesResponse,
   QueryReportRuleUsersResponse,
@@ -85,7 +80,6 @@ import type {
   QueryUsersRequest,
   QueryUsersResponse,
   ReportGenerationRequestResponse,
-  ReportListItem,
   ReportRuleDetailResponse,
   ReportRuleMutationRequest,
   ReportRuleOptionsResponse,
@@ -520,30 +514,6 @@ export function deleteSiteCustomerLogo(id: string) {
 export function archiveSite(id: string) {
   return sendJson<EntityResponse<SiteDetailResponse>>(`/api/sites/${encodeURIComponent(id)}/archive`, 'POST');
 }
-// Function summary: Handles the query site monitors workflow for this module.
-export function querySiteMonitors(
-  siteId: string,
-  request: QueryCompaniesRequest | URLSearchParams,
-  options: ApiRequestOptions = {},
-) {
-  const params = request instanceof URLSearchParams ? request : toSearchParams(request);
-  return getJson<QuerySiteMonitorsResponse>(
-    `/api/sites/${encodeURIComponent(siteId)}/monitors?${params.toString()}`,
-    options,
-  );
-}
-// Function summary: Handles the query site open notifications workflow for this module.
-export function querySiteOpenNotifications(
-  siteId: string,
-  request: QueryCompaniesRequest | URLSearchParams,
-  options: ApiRequestOptions = {},
-) {
-  const params = request instanceof URLSearchParams ? request : toSearchParams(request);
-  return getJson<QuerySiteNotificationsResponse>(
-    `/api/sites/${encodeURIComponent(siteId)}/notifications/open?${params.toString()}`,
-    options,
-  );
-}
 // Function summary: Retrieves site notification settings data for callers.
 export function getSiteNotificationSettings(siteId: string) {
   return getJson<SiteNotificationSettingsResponse>(`/api/sites/${encodeURIComponent(siteId)}/notification-settings`);
@@ -578,10 +548,6 @@ export function queryAdminHelp(
   options: ApiRequestOptions = {},
 ) {
   return getJson<HelpAdminOverviewResponse>(pathWithQuery('/api/help/admin', toSearchParams(request)), options);
-}
-// Function summary: Retrieves a Help CMS article by id for admin editing.
-export function getAdminHelpArticle(id: string) {
-  return getJson<EntityResponse<HelpArticleResponse>>(`/api/help/admin/articles/${encodeURIComponent(id)}`);
 }
 // Function summary: Creates Help CMS article data for admin users.
 export function createHelpArticle(request: HelpArticleMutationRequest) {
@@ -620,23 +586,9 @@ export function queryUnattachedMonitors(
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
   return getJson<QueryUnattachedMonitorsResponse>(`/api/monitors/unattached?${params.toString()}`, options);
 }
-// Function summary: Retrieves monitor options data for callers.
-export function getMonitorOptions() {
-  return getJson<MonitorOptionsResponse>('/api/monitors/options');
-}
 // Function summary: Retrieves monitor data for callers.
 export function getMonitor(id: string) {
   return getJson<EntityResponse<MonitorDetailResponse>>(`/api/monitors/${encodeURIComponent(id)}`);
-}
-// Function summary: Retrieves monitor deployment data for callers.
-export function getMonitorDeployment(deploymentId: string) {
-  return getJson<EntityResponse<MonitorDetailResponse>>(
-    `/api/monitors/deployments/${encodeURIComponent(deploymentId)}`,
-  );
-}
-// Function summary: Retrieves monitor removal impact data for callers.
-export function getMonitorRemovalImpact(id: string) {
-  return getJson<MonitorRemovalImpactResponse>(`/api/monitors/${encodeURIComponent(id)}/removal-impact`);
 }
 // Function summary: Updates monitor data for the current workflow.
 export function updateMonitor(id: string, request: MonitorMutationRequest) {
@@ -650,14 +602,6 @@ export function uploadMonitorPicture(id: string, picture: File) {
     method: 'POST',
     body,
   });
-}
-// Function summary: Handles the set monitor fleet number workflow for this module.
-export function setMonitorFleetNumber(id: string, request: FleetNumberMutationRequest) {
-  return sendJson<EntityResponse<MonitorDetailResponse>>(
-    `/api/monitors/${encodeURIComponent(id)}/fleet-number`,
-    'PUT',
-    request,
-  );
 }
 // Function summary: Retrieves monitor assignment data for callers.
 export function getMonitorAssignment(siteId: string, contractId?: string | null) {
@@ -720,10 +664,6 @@ export function convertWhat3Words(what3words: string) {
 export function queryReports(request: QueryCompaniesRequest | URLSearchParams, options: ApiRequestOptions = {}) {
   const params = request instanceof URLSearchParams ? request : toSearchParams(request);
   return getJson<QueryReportsResponse>(`/api/reports?${params.toString()}`, options);
-}
-// Function summary: Retrieves report data for callers.
-export function getReport(id: string) {
-  return getJson<EntityResponse<ReportListItem>>(`/api/reports/${encodeURIComponent(id)}`);
 }
 // Function summary: Handles the query report rules workflow for this module.
 export function queryReportRules(request: QueryReportRulesRequest | URLSearchParams, options: ApiRequestOptions = {}) {

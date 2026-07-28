@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { ConfirmDialog, ErrorSummary, FormField, Notice, SubmitButton } from './FormControls';
+import { ConfirmDialog, FormField, Notice, SubmitButton } from './FormControls';
 
 describe('FormControls', () => {
   it('renders notices, validation summaries, and field errors', () => {
@@ -17,7 +17,6 @@ describe('FormControls', () => {
         <Notice tone="success" message="Saved" />
         <Notice tone="error" message="Failed" />
         <Notice tone="info" message="Review" />
-        <ErrorSummary errors={['Email is required']} />
         <FormField label="Email" error="Use a valid email">
           <input aria-label="Email" />
         </FormField>
@@ -28,7 +27,6 @@ describe('FormControls', () => {
     expect(screen.getByText('Saved').closest('output')).not.toHaveAttribute('role');
     expect(screen.getByText('Failed').closest('output')).toHaveAttribute('role', 'alert');
     expect(screen.getByText('Review').closest('output')).not.toHaveAttribute('role');
-    expect(screen.getByText('Email is required')).toBeInTheDocument();
     expect(screen.getByText('Use a valid email')).toBeInTheDocument();
   });
 

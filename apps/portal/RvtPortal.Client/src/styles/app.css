@@ -162,7 +162,6 @@ nav button:hover {
 
 .topbar,
 .panel-heading,
-.metrics,
 .metric,
 .status-pill,
 .search-box,
@@ -327,13 +326,6 @@ h2 {
 .secondary-button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
-}
-
-.metrics {
-  gap: 12px;
-  margin: 28px 0;
-  flex-wrap: wrap;
-  overflow-x: auto;
 }
 
 .metric {

@@ -117,13 +117,51 @@ assert_root_probe_diagnostic_absent() {
 require_file "$root_dir/.editorconfig"
 require_file "$root_dir/Directory.Build.props"
 
+is_hardened_npm_install() {
+  local path="$1"
+  local expected_command="$2"
+  local npm_ci_lines
+
+  grep -Fqx "$expected_command" "$path" || return 1
+  npm_ci_lines="$(grep -Ec '^[[:space:]]*(RUN[[:space:]]+)?npm[[:space:]]+ci([[:space:]]|$)' "$path" || true)"
+  [[ "$npm_ci_lines" == "1" ]]
+}
+
+assert_hardened_npm_install() {
+  local path="$1"
+  local expected_command="$2"
+  local description="$3"
+
+  is_hardened_npm_install "$path" "$expected_command" || fail "$description must contain exactly one executable npm ci invocation, using --ignore-scripts"
+}
+
+assert_npm_install_mutation_rejected() {
+  local source_path="$1"
+  local expected_command="$2"
+  local replacement_command="$3"
+  local description="$4"
+  local mutation_path="$temp_dir/$(basename "$source_path").mutation"
+
+  cp "$source_path" "$mutation_path"
+  sed -i.bak "s|$expected_command|$replacement_command|" "$mutation_path"
+  rm -f "$mutation_path.bak"
+
+  if is_hardened_npm_install "$mutation_path" "$expected_command"; then
+    fail "$description mutation bypassed the npm lifecycle-script guard"
+  fi
+
+  printf 'Rejected %s mutation.\n' "$description"
+}
+
 portal_frontend_verifier="$root_dir/apps/portal/scripts/verify-frontend.sh"
 portal_client_dockerfile="$root_dir/apps/portal/RvtPortal.Client/Dockerfile"
 
-grep -Fqx 'npm ci --ignore-scripts' "$portal_frontend_verifier" || fail "Portal frontend verifier must disable npm lifecycle scripts"
-! grep -Fqx 'npm ci' "$portal_frontend_verifier" || fail "Portal frontend verifier must not contain a bare npm ci install"
-grep -Fqx 'RUN npm ci --ignore-scripts' "$portal_client_dockerfile" || fail "Portal client Dockerfile must disable npm lifecycle scripts"
-! grep -Fqx 'RUN npm ci' "$portal_client_dockerfile" || fail "Portal client Dockerfile must not contain a bare npm ci install"
+assert_hardened_npm_install "$portal_frontend_verifier" 'npm ci --ignore-scripts' "Portal frontend verifier"
+assert_hardened_npm_install "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' "Portal client Dockerfile"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'npm ci # comment' "frontend verifier inline-comment bare install"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'npm ci ' "frontend verifier whitespace bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN npm ci # comment' "Dockerfile inline-comment bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN npm ci ' "Dockerfile whitespace bare install"
 
 declare -a representative_projects=(
   "apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj|latest|true"

@@ -4371,24 +4371,36 @@ Next-session instruction: Read project_state.md to get up to speed
 
 ## Current active state - Help Admin - 2026-07-28
 
-- The current branch is `codex/help-admin-application-boundary` in
-  `/private/tmp/rvt-mono-help-admin`. The implementation and prior
-  backend/client/browser/export evidence remain in place, with the
-  final-review URL-policy and publication-focus corrections described in the
-  authoritative top checkpoint.
+- Help Admin is integrated into `origin/main`; application-boundary merge
+  commit `a4b8749` contains current `main`, the Help feature history, the final
+  review corrections, and the standards-clean Svantek worktree-path repair.
+- The published feature ref is
+  `origin/codex/help-admin-application-boundary`. Pull request
+  `chris-oldgeorge/rvt-mono#4` is
+  `https://github.com/chris-oldgeorge/rvt-mono/pull/4`.
+- Final integration verification on the merged tree:
+  - exact committed-range engineering-standards verification passed;
+  - the complete aggregate .NET suite passed against a fully migrated,
+    post-load-deployed disposable TimescaleDB database, including 485 Portal,
+    392 Omnidots, 208 MyATM, 136 Svantek, 124 AirQ, 93 ReportingMonitor, and
+    all common/reporting/application test cases;
+  - client lint completed with zero errors and the two established Fast
+    Refresh warnings;
+  - all 78 client unit tests passed;
+  - the client production build passed;
+  - all five Playwright scenarios passed.
+- The disposable database and role `rvt_help_merge_9dfe74d` were removed after
+  verification.
 - R2 and Help Admin release are `CONDITIONAL`. No production/release database
   was accessed during this correction, and no receipt records execution of
   `apps/portal/docs/release/validate-help-asset-urls.sql` against every release
   database. The exact zero-row receipt gate in the top checkpoint remains.
-- The branch is published as
-  `origin/codex/help-admin-application-boundary`. Draft pull request
-  `chris-oldgeorge/rvt-mono#4` targets `main`:
-  `https://github.com/chris-oldgeorge/rvt-mono/pull/4`.
-- No merge has been performed. The draft PR records the stacked integration
-  history and must not be marked ready until the release-database gate is
-  satisfied.
-- R9/engineering standards are now merged into `main`; this branch contains
-  that merge. R1 remains a clean, no-implementation-commit partial branch at
-  `0675479` and must proceed separately.
+- The host-owned feature worktree remains at
+  `/private/tmp/rvt-mono-help-admin`.
+- The local main checkout at `/Users/oldgeorge/Developer/rvt-mono` was not
+  advanced because it contains uncommitted Visual Studio edits to
+  `apps/portal/RvtPortal.Spa.sln` and
+  `apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj`. Preserve and reconcile
+  those edits before updating that checkout from `origin/main`.
 
 Next-session instruction: Read project_state.md to get up to speed

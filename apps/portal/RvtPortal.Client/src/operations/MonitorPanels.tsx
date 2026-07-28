@@ -272,7 +272,7 @@ function MonitorListPanel({
         setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);

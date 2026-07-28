@@ -672,6 +672,103 @@ describe('App', () => {
     expect(screen.getByText('MON-FRESH')).toBeInTheDocument();
   });
 
+  it.each([
+    {
+      route: '/contracts',
+      endpoint: '/api/contracts',
+      searchPlaceholder: /search contracts/i,
+      currentText: 'RVT-C-001',
+    },
+    {
+      route: '/sites',
+      endpoint: '/api/sites',
+      searchPlaceholder: /search sites/i,
+      currentText: 'RVT Test Site',
+    },
+    {
+      route: '/monitors',
+      endpoint: '/api/monitors',
+      searchPlaceholder: /search monitors/i,
+      currentText: 'MON-ONLINE',
+    },
+    {
+      route: '/notifications',
+      endpoint: '/api/notifications',
+      searchPlaceholder: /search notifications/i,
+      currentText: 'MON-ONLINE',
+    },
+    {
+      route: '/reports',
+      endpoint: '/api/reports',
+      searchPlaceholder: /search reports/i,
+      currentText: 'Weekly Compliance',
+    },
+  ])(
+    'ignores a late generic failure from an aborted $endpoint list request',
+    async ({ route, endpoint, searchPlaceholder, currentText }) => {
+      globalThis.history.replaceState(null, '', route);
+      const staleRequest = deferredResponse();
+      let heldInitialRequest = false;
+      stubFetch({
+        auth: { isAuthenticated: true, user: adminUser },
+        routeOverride: (url) => {
+          if (url.pathname !== endpoint) {
+            return undefined;
+          }
+
+          const searchText = url.searchParams.get('searchText') ?? '';
+          if (!searchText && !heldInitialRequest) {
+            heldInitialRequest = true;
+            return staleRequest.promise;
+          }
+
+          return undefined;
+        },
+      });
+
+      render(<App />);
+
+      await waitFor(() => expect(heldInitialRequest).toBe(true));
+      fireEvent.change(await screen.findByPlaceholderText(searchPlaceholder), { target: { value: 'current' } });
+      await waitFor(() => expect(screen.getAllByText(currentText)[0]).toBeInTheDocument());
+
+      await act(async () => staleRequest.reject(new Error('Stale list failure')));
+
+      expect(screen.getAllByText(currentText)[0]).toBeInTheDocument();
+      expect(screen.queryByText('Stale list failure')).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+    },
+  );
+
+  it('ignores a late generic failure from an aborted alert-level list request', async () => {
+    globalThis.history.replaceState(null, '', '/monitors/monitor-id/alert-levels');
+    const staleRequest = deferredResponse();
+    let heldInitialRequest = false;
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        if (url.pathname === '/api/alert-levels' && !heldInitialRequest) {
+          heldInitialRequest = true;
+          return staleRequest.promise;
+        }
+
+        return undefined;
+      },
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(heldInitialRequest).toBe(true));
+    fireEvent.click(await screen.findByRole('button', { name: /parameter/i }));
+    await waitFor(() => expect(screen.getByText('Peak')).toBeInTheDocument());
+
+    await act(async () => staleRequest.reject(new Error('Stale alert-level failure')));
+
+    expect(screen.getByText('Peak')).toBeInTheDocument();
+    expect(screen.queryByText('Stale alert-level failure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+  });
+
   it('returns monitor edit forms to the filtered list that opened them', async () => {
     globalThis.history.replaceState(null, '', '/monitors?q=MON&page=2&sort=siteName&sortDir=Descending&state=online');
     stubFetch({ auth: { isAuthenticated: true, user: adminUser } });
@@ -2860,11 +2957,13 @@ function reportUserAssignments() {
 // Function summary: Builds a deferred response fixture so tests can resolve stale requests out of order.
 function deferredResponse() {
   let resolve!: (response: Response) => void;
-  const promise = new Promise<Response>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<Response>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
 
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 // Function summary: Builds a monitor list page fixture for stale-response tests.

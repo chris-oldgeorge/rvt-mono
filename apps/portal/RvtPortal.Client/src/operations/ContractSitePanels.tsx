@@ -286,7 +286,7 @@ function ContractListPanel({ locationPath, onNavigate, onRequestError }: Operati
         setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
@@ -699,7 +699,7 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
         setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);

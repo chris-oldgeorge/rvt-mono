@@ -220,7 +220,7 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
         setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
@@ -608,7 +608,7 @@ function AlertLevelsListPanel({
         setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
@@ -925,7 +925,7 @@ function VibrationAlertLevelForm({
         setCautionLevel(String(response.results.find((level) => level.alertType === 'Caution')?.limitOn ?? ''));
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);

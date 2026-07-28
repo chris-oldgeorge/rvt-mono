@@ -160,6 +160,14 @@ assert_npm_install_mutation_rejected() {
 portal_frontend_verifier="$root_dir/apps/portal/scripts/verify-frontend.sh"
 portal_client_dockerfile="$root_dir/apps/portal/RvtPortal.Client/Dockerfile"
 
+portal_runtime_stage="$(awk '
+  /^FROM / { stage = $0 "\n"; next }
+  { stage = stage $0 "\n" }
+  END { printf "%s", stage }
+' "$portal_client_dockerfile")"
+[[ "$portal_runtime_stage" == *$'USER 101:101\n'* ]] || fail "Portal client Dockerfile final runtime stage must run as UID/GID 101:101"
+[[ "$portal_runtime_stage" == *$'USER 101:101\nENTRYPOINT'* || "$portal_runtime_stage" == *$'USER 101:101\nCMD'* || "$portal_runtime_stage" == *$'USER 101:101\nEXPOSE'* ]] || fail "Portal client Dockerfile runtime user must be declared before runtime execution"
+
 assert_hardened_npm_install "$portal_frontend_verifier" 'npm ci --ignore-scripts' "Portal frontend verifier"
 assert_hardened_npm_install "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' "Portal client Dockerfile"
 assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'npm ci # comment' "frontend verifier inline-comment bare install"

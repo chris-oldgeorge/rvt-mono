@@ -74,6 +74,8 @@ import sys
 dockerfile = open(sys.argv[1], encoding="utf-8").read()
 assert "ARG RUNNER_VERSION=2.334.0" in dockerfile, "runner version must stay pinned"
 assert "ARG RUNNER_SHA256=f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4" in dockerfile, "runner checksum must stay pinned"
+assert "--proto '=https'" in dockerfile, "runner archive download must accept HTTPS only"
+assert "--proto-redir '=https'" in dockerfile, "runner archive download redirects must remain HTTPS only"
 assert "libssl3t64" in dockerfile, "Ubuntu Noble runner image must install libssl3t64"
 assert "liblttng-ust1t64" in dockerfile, "Ubuntu Noble runner image must install liblttng-ust1t64"
 assert "libkrb5-3" in dockerfile, "runner image must install the Kerberos runtime"

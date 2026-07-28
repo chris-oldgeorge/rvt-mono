@@ -3,8 +3,8 @@
 ## Authoritative checkpoint: Portal npm advisories remediated — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
-- Current branch: `codex/portal-npm-advisories`, forked from merged `main`
-  checkpoint `000f6c5`. The bounded implementation plan is
+- Current branch: `codex/portal-npm-advisories`, synchronized with merged
+  `main` checkpoint `b47b498`. The bounded implementation plan is
   `docs/superpowers/plans/2026-07-28-portal-npm-advisory-remediation.md`.
 - The Node 24 `npm audit --package-lock-only` baseline reported six
   high-severity advisories: the ESLint 9 dependency graph reached vulnerable
@@ -31,9 +31,35 @@
   standards run `30355269311` passed every step.
 - No application runtime dependencies, application source behavior, database
   configuration, secrets, or Help Admin/R2 release-audit conditions changed.
-- Next step: review and accept PR #6. A separate lint-modernization task may
-  adopt the new ESLint 10 and React Hooks 7 recommended rules with deliberate
-  React source changes and regression coverage.
+- PR #6 has been accepted. Next step: complete the refreshed post-integration
+  verification, merge it into `main`, and synchronize the local worktrees. A
+  separate lint-modernization task may adopt the new ESLint 10 and React Hooks
+  7 recommended rules with deliberate React source changes and regression
+  coverage.
+
+## Legacy Azure Pipelines removed — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Removed all eight imported Azure Pipeline definitions: paired main and
+  pull-request YAML files from the AirQ, MyATM, Omnidots, and Svantek monitor
+  module roots.
+- Removed the six matching Visual Studio solution-item entries from
+  `airqmonitor.sln`, `myatmmonitor.sln`, and `omnidotsmonitor.sln`.
+  `svantekmonitor.sln` contained no pipeline-file reference.
+- Repository-wide search now finds no Azure Pipeline filename or Azure
+  Pipelines/Azure DevOps reference outside this historical state record.
+- The three changed module solutions parse successfully and each still lists
+  its production and test project. The monorepo solution and layout guards
+  pass, the working-tree engineering-standards ratchet exits successfully,
+  and `git diff --check` passes.
+- CodeGraph synchronized the deletions. The refreshed index contains 1,130
+  files, 20,234 nodes, and 48,999 edges, with the indexed YAML count reduced
+  from 23 to 15.
+- The GitHub Engineering standards and on-demand SonarQube workflows remain
+  unchanged. Any Azure DevOps pipeline registered externally to a deleted YAML
+  path must also be deleted or repointed in Azure DevOps.
+- The pre-existing uncommitted local edit to
+  `apps/portal/RvtPortal.Spa/Properties/launchSettings.json` remains untouched.
 
 ## Authoritative checkpoint: PR #5 merged into main — 2026-07-28
 

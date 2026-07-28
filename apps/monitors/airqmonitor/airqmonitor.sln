@@ -11,8 +11,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		airqmonitor.sln = airqmonitor.sln
 		README.md = README.md
-		azure-pipelines.yml = azure-pipelines.yml
-		azure-pipelines-prs.yml = azure-pipelines-prs.yml
 	EndProjectSection
 EndProject
 Global

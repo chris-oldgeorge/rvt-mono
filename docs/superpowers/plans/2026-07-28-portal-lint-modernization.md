@@ -370,7 +370,6 @@ git commit -m "refactor: derive Portal shell and form state"
 **Files:**
 - Modify: `apps/portal/RvtPortal.Client/src/admin/AdminPanels.tsx:107-192,424-509`
 - Modify: `apps/portal/RvtPortal.Client/src/admin/HelpAdminPanel.tsx:80-124`
-- Modify: `apps/portal/RvtPortal.Client/src/admin/HelpAdminPanel.test.tsx`
 - Modify: `apps/portal/RvtPortal.Client/src/operations/HelpPanel.tsx:28-125`
 - Modify: `apps/portal/RvtPortal.Client/src/App.test.tsx`
 
@@ -475,7 +474,6 @@ Expected: no overlay errors in the three source files; focused tests pass.
 git add \
   apps/portal/RvtPortal.Client/src/admin/AdminPanels.tsx \
   apps/portal/RvtPortal.Client/src/admin/HelpAdminPanel.tsx \
-  apps/portal/RvtPortal.Client/src/admin/HelpAdminPanel.test.tsx \
   apps/portal/RvtPortal.Client/src/operations/HelpPanel.tsx \
   apps/portal/RvtPortal.Client/src/App.test.tsx
 git commit -m "refactor: modernize Portal administration effects"
@@ -487,7 +485,6 @@ git commit -m "refactor: modernize Portal administration effects"
 - Modify: `apps/portal/RvtPortal.Client/src/operations/DashboardPanels.tsx:60-90,170-222,271-302`
 - Modify: `apps/portal/RvtPortal.Client/src/operations/DashboardRoutePanels.tsx:31-65,100-175`
 - Modify: `apps/portal/RvtPortal.Client/src/operations/DataViewPanels.tsx:100-205`
-- Modify: `apps/portal/RvtPortal.Client/src/App.test.tsx`
 
 **Interfaces:**
 - Consumes: dashboard summary, site search, breach/alert, map, calendar, and data APIs
@@ -583,8 +580,7 @@ and passing focused tests.
 git add \
   apps/portal/RvtPortal.Client/src/operations/DashboardPanels.tsx \
   apps/portal/RvtPortal.Client/src/operations/DashboardRoutePanels.tsx \
-  apps/portal/RvtPortal.Client/src/operations/DataViewPanels.tsx \
-  apps/portal/RvtPortal.Client/src/App.test.tsx
+  apps/portal/RvtPortal.Client/src/operations/DataViewPanels.tsx
 git commit -m "refactor: modernize Portal dashboard effects"
 ```
 
@@ -949,12 +945,15 @@ dependency-remediation policy.
 
 ```bash
 npm run lint
-git diff --unified=0 origin/main -- apps/portal/RvtPortal.Client | \
-  rg '^\\+.*(eslint-disable|no-unassigned-vars.*off|no-useless-assignment.*off|preserve-caught-error.*off|react-hooks/.*(off|warn))'
+if git diff --unified=0 origin/main -- apps/portal/RvtPortal.Client | \
+  rg '^\\+.*(eslint-disable|no-unassigned-vars.*off|no-useless-assignment.*off|preserve-caught-error.*off|react-hooks/.*(off|warn))'; then
+  echo 'Prohibited lint suppression or downgrade found.'
+  exit 1
+fi
 ```
 
-Expected: lint exits `0` with exactly two Fast Refresh warnings. The `rg`
-pipeline exits `1` because no prohibited additions exist.
+Expected: lint exits `0` with exactly two Fast Refresh warnings. The
+suppression guard also exits `0` because no prohibited additions exist.
 
 - [ ] **Step 4: Run the complete client gate**
 

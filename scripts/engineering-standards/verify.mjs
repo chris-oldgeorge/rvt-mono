@@ -31,6 +31,7 @@ import {
 
 const ignoredPrefixes = [
   '.git/', '.worktrees/', '.codegraph/', 'artifacts/',
+  'apps/.nuget-packages/',
   'node_modules/', 'bin/', 'obj/', 'dist/', 'coverage/',
   'TestResults/', 'playwright-report/', 'test-results/'
 ];

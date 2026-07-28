@@ -76,6 +76,12 @@ jobs:
           dotnet tool install dotnet-coverage --tool-path .sonar --version 18.9.0
           dotnet tool install dotnet-ef --tool-path .sonar --version 10.0.10
 
+      - name: Restore monorepo
+        run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel
+
+      - name: Verify engineering standards
+        run: scripts/verify-engineering-standards.sh --base auto --head HEAD
+
       - name: Begin SonarQube analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -93,12 +99,6 @@ jobs:
             '/d:sonar.coverage.exclusions=apps/portal/database/**,apps/portal/RVT.DataAccess/Migrations/**,apps/portal/RVT.DataAccess/EntityModels/Models/**,apps/portal/RvtPortal.Client/dist/**,apps/portal/RvtPortal.Client/coverage/**,apps/portal/RvtPortal.Client/src/api/schema.d.ts,**/bin/**,**/obj/**' \
             /d:sonar.qualitygate.wait=true \
             /d:sonar.qualitygate.timeout=600
-
-      - name: Restore monorepo
-        run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel
-
-      - name: Verify engineering standards
-        run: scripts/verify-engineering-standards.sh --base auto --head HEAD
 
       - name: Build monorepo (Release)
         run: dotnet build Rvt.Mono.slnx --configuration Release --no-restore --no-incremental --nologo -m:1

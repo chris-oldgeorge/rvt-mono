@@ -30,26 +30,26 @@ function HelpOverviewPanel({ onNavigate, onRequestError }: Omit<HelpPanelProps, 
   const [searchText, setSearchText] = useState('');
   const [overview, setOverview] = useState<HelpOverviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedSearchText, setCompletedSearchText] = useState<string | null>(null);
+  const isLoading = completedSearchText !== searchText;
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
     queryHelp(searchText, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setOverview(response);
         setError(null);
+        setCompletedSearchText(searchText);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedSearchText(searchText);
       });
     return () => controller.abort();
   }, [onRequestError, searchText]);
@@ -100,26 +100,26 @@ function HelpOverviewPanel({ onNavigate, onRequestError }: Omit<HelpPanelProps, 
 function HelpArticlePanel({ slug, onNavigate, onRequestError }: Omit<HelpPanelProps, 'locationPath'> & Readonly<{ slug: string }>) {
   const [article, setArticle] = useState<HelpArticleResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedSlug, setCompletedSlug] = useState<string | null>(null);
+  const isLoading = completedSlug !== slug;
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
     getHelpArticle(slug, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setArticle(response.item ?? null);
         setError(null);
+        setCompletedSlug(slug);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedSlug(slug);
       });
     return () => controller.abort();
   }, [onRequestError, slug]);

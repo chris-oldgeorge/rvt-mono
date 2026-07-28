@@ -318,6 +318,11 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^companies$/i })).toBeInTheDocument());
     fireEvent.change(screen.getByPlaceholderText(/search companies/i), { target: { value: 'acme' } });
+    await screen.findByText('Acme Environmental');
+    fireEvent.change(screen.getByPlaceholderText(/search companies/i), { target: { value: 'a' } });
+    expect(screen.queryByText('Acme Environmental')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/search companies/i), { target: { value: 'acme' } });
     await waitFor(() => expect(screen.getByRole('button', { name: /^Acme Environmental$/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /^Acme Environmental$/i }));
 

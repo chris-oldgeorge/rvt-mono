@@ -113,10 +113,9 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'companyName');
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionResult, setSuggestionResult] = useState<{ query: string; results: string[] }>({ query: '', results: [] });
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   const columns = useMemo<DataGridColumn<CompanyListItem>[]>(() => [
     {
@@ -142,46 +141,54 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
     sort: sortKey,
     sortDir
   }), [page, searchText, sortDir, sortKey]);
+  const requestKey = JSON.stringify(query);
+  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const isLoading = completedRequestKey !== requestKey;
+  const suggestions = searchText.length >= 2 && suggestionResult.query === searchText
+    ? suggestionResult.results
+    : [];
   const returnPath = currentRoutePath(locationPath);
 
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildCompaniesUrl(searchText, page, sortKey, sortDir));
-    setIsLoading(true);
     queryCompanies(query, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setCompanies(response.results);
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
+        setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedRequestKey(requestKey);
       });
     return () => controller.abort();
-  }, [onRequestError, page, query, searchText, sortDir, sortKey]);
+  }, [onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
 
   useEffect(() => {
     if (searchText.length < 2) {
-      setSuggestions([]);
       return;
     }
     const controller = new AbortController();
     const handle = globalThis.setTimeout(() => {
       searchLookup('companies', searchText, {}, { signal: controller.signal })
-        .then((response) => setSuggestions(response.results))
+        .then((response) => {
+          if (!controller.signal.aborted) {
+            setSuggestionResult({ query: searchText, results: response.results });
+          }
+        })
         .catch((err: Error) => {
-          if (!isAbortError(err)) {
-            setSuggestions([]);
+          if (!controller.signal.aborted && !isAbortError(err)) {
+            setSuggestionResult({ query: searchText, results: [] });
           }
         });
     }, 180);
@@ -435,10 +442,9 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'email');
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionResult, setSuggestionResult] = useState<{ query: string; results: string[] }>({ query: '', results: [] });
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   const columns = useMemo<DataGridColumn<UserListItem>[]>(() => [
     { key: 'name', header: 'Name', sortable: true, render: (user) => user.name || 'None' },
@@ -458,47 +464,55 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
     sort: sortKey,
     sortDir
   }), [companyId, page, searchText, sortDir, sortKey]);
+  const requestKey = JSON.stringify(query);
+  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const isLoading = completedRequestKey !== requestKey;
+  const suggestions = searchText.length >= 2 && suggestionResult.query === searchText
+    ? suggestionResult.results
+    : [];
   const returnPath = currentRoutePath(locationPath);
   const companiesBackPath = returnToOr(locationPath, '/companies');
 
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildUsersUrl({ companyId, companyName, searchText, page, sort: sortKey, sortDir }));
-    setIsLoading(true);
     queryUsers(query, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setUsers(response.results);
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
+        setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedRequestKey(requestKey);
       });
     return () => controller.abort();
-  }, [companyId, companyName, onRequestError, page, query, searchText, sortDir, sortKey]);
+  }, [companyId, companyName, onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
 
   useEffect(() => {
     if (searchText.length < 2) {
-      setSuggestions([]);
       return;
     }
     const controller = new AbortController();
     const handle = globalThis.setTimeout(() => {
       searchLookup('users', searchText, { companyId: companyId ?? undefined }, { signal: controller.signal })
-        .then((response) => setSuggestions(response.results))
+        .then((response) => {
+          if (!controller.signal.aborted) {
+            setSuggestionResult({ query: searchText, results: response.results });
+          }
+        })
         .catch((err: Error) => {
-          if (!isAbortError(err)) {
-            setSuggestions([]);
+          if (!controller.signal.aborted && !isAbortError(err)) {
+            setSuggestionResult({ query: searchText, results: [] });
           }
         });
     }, 180);

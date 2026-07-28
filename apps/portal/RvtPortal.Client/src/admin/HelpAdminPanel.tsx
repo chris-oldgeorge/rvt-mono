@@ -71,7 +71,8 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
   const [contentType, setContentType] = useState('All');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<HelpArticleResponse | null>(null);
   const [pendingFocus, setPendingFocus] = useState<PendingFocus | null>(null);
@@ -91,36 +92,55 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
         .sort((left, right) => left.localeCompare(right)),
     ];
   }, [overview]);
+  const query = useMemo(() => ({ searchText, status, contentType }), [contentType, searchText, status]);
+  const requestKey = JSON.stringify(query);
+  const isLoading = isRefreshing || completedRequestKey !== requestKey;
 
   // Function summary: Loads Help CMS admin article data.
   const loadArticles = useCallback(
-    async (signal?: AbortSignal) => {
-      setIsLoading(true);
+    async () => {
+      setIsRefreshing(true);
       try {
-        const response = await queryAdminHelp({ searchText, status, contentType }, { signal });
+        const response = await queryAdminHelp(query);
         setOverview(response);
         setError(null);
+        setCompletedRequestKey(requestKey);
         return response;
       } catch (err) {
         if (!isAbortError(err)) {
           setError((err as Error).message);
           onRequestError(err);
+          setCompletedRequestKey(requestKey);
         }
         return null;
       } finally {
-        if (!signal?.aborted) {
-          setIsLoading(false);
-        }
+        setIsRefreshing(false);
       }
     },
-    [contentType, onRequestError, searchText, status],
+    [onRequestError, query, requestKey],
   );
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadArticles(controller.signal);
+    queryAdminHelp(query, { signal: controller.signal })
+      .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setOverview(response);
+        setError(null);
+        setCompletedRequestKey(requestKey);
+      })
+      .catch((err: Error) => {
+        if (controller.signal.aborted || isAbortError(err)) {
+          return;
+        }
+        setError(err.message);
+        onRequestError(err);
+        setCompletedRequestKey(requestKey);
+      });
     return () => controller.abort();
-  }, [loadArticles]);
+  }, [onRequestError, query, requestKey]);
 
   useEffect(() => {
     if (!pendingFocus) {

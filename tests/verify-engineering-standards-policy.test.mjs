@@ -95,7 +95,6 @@ const expectedModulePolicy = {
     }
   ]
 };
-const centralPackageMetadataCache = new Map();
 
 function readJson(relativePath) {
   const absolutePath = path.join(repoRoot, relativePath);
@@ -315,10 +314,6 @@ function evaluateProjectMetadata(root, projectPath) {
 
 function evaluateCentralPackageMetadata(root, centralPath) {
   assertExactPolicyPath(centralPath, 'central package path');
-  const cacheKey = canonicalExistingPath(path.join(root, centralPath));
-  const cached = centralPackageMetadataCache.get(cacheKey);
-  if (cached !== undefined) return cached;
-
   const document = parseMsBuildJson(
     runDotnet([
       'msbuild',
@@ -329,13 +324,11 @@ function evaluateCentralPackageMetadata(root, centralPath) {
     ], root),
     centralPath
   );
-  const metadata = {
+  return {
     managePackageVersionsCentrally:
       trueProperty(document.Properties?.ManagePackageVersionsCentrally),
     packageVersions: packageVersionMetadata(document)
   };
-  centralPackageMetadataCache.set(cacheKey, metadata);
-  return metadata;
 }
 
 function lstatOrUndefined(absolutePath) {
@@ -407,13 +400,21 @@ function discoverGovernedProjectPaths(root, modulePolicy = expectedModulePolicy)
       if (projectDiscoveryIgnoredDirectories.has(entry.name)) continue;
       if (entry.isSymbolicLink()) {
         const isProjectLink = entry.name.toLowerCase().endsWith('.csproj');
-        let isDirectoryLink = false;
-        try {
-          isDirectoryLink = statSync(absolutePath).isDirectory();
-        } catch (error) {
-          if (error.code !== 'ENOENT') throw error;
+        if (isProjectLink) {
+          throw new Error(
+            `governed project inventory rejects symbolic link: ${relativePath}`
+          );
         }
-        if (isProjectLink || isDirectoryLink) {
+        let targetStats;
+        try {
+          targetStats = statSync(absolutePath);
+        } catch (error) {
+          throw new Error(
+            `governed project inventory cannot inspect symbolic link target: ` +
+            `${relativePath}: ${error.code ?? error.message}`
+          );
+        }
+        if (!targetStats.isFile()) {
           throw new Error(
             `governed project inventory rejects symbolic link: ${relativePath}`
           );
@@ -1071,6 +1072,50 @@ test('module-central requires the exact module root central package path', () =>
   });
 });
 
+test('module-central reevaluates root central metadata after a same-root rewrite', () => {
+  const enabledCentralFile = `
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Example.Package" Version="1.2.3" />
+  </ItemGroup>
+</Project>
+`;
+  const disabledCentralFile = enabledCentralFile.replace(
+    '<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>',
+    '<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>'
+  );
+
+  withTemporaryRepository({
+    'apps/monitors/Directory.Packages.props': enabledCentralFile,
+    'apps/monitors/probe/Probe.csproj': `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Example.Package" />
+  </ItemGroup>
+</Project>
+`
+  }, (root) => {
+    const project = evaluateProjectMetadata(root, 'apps/monitors/probe/Probe.csproj');
+    assert.deepEqual(projectPolicyErrors(expectedModulePolicy, [project], root), []);
+
+    writeFileSync(
+      path.join(root, 'apps/monitors/Directory.Packages.props'),
+      disabledCentralFile,
+      'utf8'
+    );
+    assert.match(
+      projectPolicyErrors(expectedModulePolicy, [project], root).join('\n'),
+      /apps\/monitors\/Directory\.Packages\.props must enable central package management/
+    );
+  });
+});
+
 test('governed project discovery rejects an absent module root', () => {
   const markersWithoutReporting = { ...governedRootMarkerFiles };
   delete markersWithoutReporting['services/reporting/.keep'];
@@ -1181,6 +1226,24 @@ test('governed project discovery allows an unrelated symbolic-link file', (testC
     )) return;
 
     assert.deepEqual(discoverGovernedProjectPaths(root), []);
+  });
+});
+
+test('governed project discovery rejects a dangling symbolic-link subtree', (testContext) => {
+  withTemporaryRepository(governedRootMarkerFiles, (root) => {
+    const linkPath = path.join(root, 'apps/monitors/broken-subtree');
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    if (!createSymbolicLinkOrSkip(
+      testContext,
+      path.join(root, 'external/missing-subtree'),
+      linkPath,
+      linkType
+    )) return;
+
+    assert.throws(
+      () => discoverGovernedProjectPaths(root),
+      /governed project inventory cannot inspect symbolic link target: apps\/monitors\/broken-subtree/
+    );
   });
 });
 

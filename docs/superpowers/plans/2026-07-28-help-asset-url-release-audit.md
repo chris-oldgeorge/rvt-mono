@@ -265,8 +265,6 @@ git commit -m "feat: centralize Help asset URL policy"
 - Modify:
   `apps/portal/RvtPortal.Spa.Tests/HelpApplicationServiceTests.cs`
 - Modify:
-  `apps/portal/RvtPortal.Spa.Tests/CutoverReadinessTests.cs`
-- Modify:
   `apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj`
 
 **Interfaces:**
@@ -282,7 +280,7 @@ git commit -m "feat: centralize Help asset URL policy"
          Link="Help\HelpAssetUrlPolicyCases.cs" />
 ```
 
-- [ ] **Step 1: Convert mutation tests to the shared corpus and prove RED**
+- [ ] **Step 1: Convert mutation tests to the shared corpus**
 
 Replace the current hand-written accepted/rejected URL theories with one theory
 fed from `HelpAssetUrlPolicyCases.All`. For valid mutation cases, assert the
@@ -302,28 +300,22 @@ Assert.Contains(
         error.Message == expectedMessage);
 ```
 
-Add
-`HelpMutationValidator_DelegatesUrlParsingToApplicationPolicy` to
-`CutoverReadinessTests`. Read the validator source and assert it contains
-`HelpAssetUrlPolicy.ValidateMutationValue` and contains neither
-`IsSafeAssetUrl` nor `Uri.TryCreate`. This guard enforces the approved
-single-semantic-authority boundary instead of relying only on equivalent
-black-box results.
-
 Run:
 
 ```bash
 dotnet test \
   apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj \
   --configuration Release \
-  --filter \
-  'FullyQualifiedName~MutationValidator|FullyQualifiedName~HelpMutationValidator_DelegatesUrlParsingToApplicationPolicy' \
+  --filter 'FullyQualifiedName~MutationValidator' \
   --nologo
 ```
 
-Expected: the characterization corpus passes where old and new mutation
-behavior is equivalent, and the architecture guard FAILS because the old
-private `IsSafeAssetUrl` method still owns `Uri.TryCreate`.
+Expected: PASS. This is a behavior-preserving refactor, so the shared corpus is
+green characterization evidence before production code changes. Do not add a
+source-text/change-detector test for the private implementation; task and final
+diff review must verify that `HelpMutationValidator` calls
+`HelpAssetUrlPolicy.ValidateMutationValue` and contains no independent URI
+parsing.
 
 - [ ] **Step 2: Delegate mutation URL behavior**
 
@@ -375,7 +367,6 @@ value; HTTP-visible validation remains unchanged.
 git add \
   apps/portal/RvtPortal.Application/Help/HelpMutationValidator.cs \
   apps/portal/RvtPortal.Spa.Tests/HelpApplicationServiceTests.cs \
-  apps/portal/RvtPortal.Spa.Tests/CutoverReadinessTests.cs \
   apps/portal/RvtPortal.Spa.Tests/RvtPortal.Spa.Tests.csproj
 git commit -m "refactor: reuse Help asset URL policy"
 ```

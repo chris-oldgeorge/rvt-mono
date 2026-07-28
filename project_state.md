@@ -1,5 +1,40 @@
 # Project State
 
+## Authoritative checkpoint: Help audit and Portal email-toggle scopes — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Current authoritative head: `55cba79` (`feat: configure portal email
+  delivery`). This checkpoint supersedes every lower current-state or
+  next-step statement while preserving all lower sections as historical
+  evidence. The current branch remains
+  `codex/help-asset-url-release-audit`.
+- Help asset URL release-audit scope is implemented and remains `CONDITIONAL`:
+  Help Admin/R2 cannot be marked ready until an operator runs the deployed
+  audit against each target release database and retains a complete
+  zero-finding receipt. The Help audit checkpoint through `8f69d82` remains
+  accurate as historical implementation detail; commits `48f4121`, `400490d`,
+  `e5ef12d`, and `55cba79` follow it.
+- Portal email-toggle scope is complete. The changed source and test files are
+  `apps/portal/RvtPortal.Spa/ServiceCollectionExtensions.cs` and
+  `apps/portal/RvtPortal.Spa.Tests/SendGridConfigurationTests.cs`.
+  `RVT:EMAIL_ENABLED` controls `SendGridMailOptions.Enabled`; its environment
+  variable spelling is `RVT__Email_ENABLED` (configuration keys are
+  case-insensitive). An absent value defaults to `true`, and `false` disables
+  the SendGrid provider.
+- Portal registration preserves the existing `EmailConfiguration` API-key and
+  sender metadata behavior. It registers the same resolved options both
+  directly with `AddSendGridMail(sendGridMailOptions)` and through
+  `IOptions<SendGridMailOptions>` using `Options.Create`, so direct-provider
+  delivery and options consumers agree on the enabled state. It does not alter
+  credentials, deployment secrets, `EmailConfiguration`, `UseDebugEmail`, or
+  `Auth:SkipPasswordResetEmail` behavior.
+- Reported final test totals using
+  `/private/tmp/rvt-dotnet-sdk-10.0.302/dotnet` with `--no-restore --nologo`:
+  Application tests: 75 passed, 0 skipped, 0 failed (75 total); SPA tests:
+  546 passed, 11 opt-in PostgreSQL tests skipped, 0 failed (557 total);
+  combined: 621 passed, 11 skipped, 0 failed (632 total). `git diff --check`
+  passed after this checkpoint update.
+
 ## R2 Help asset URL release audit implemented; operator receipt pending — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

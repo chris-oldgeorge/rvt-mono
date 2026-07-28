@@ -154,18 +154,17 @@ export function validateExceptions(document, now = new Date()) {
 
     const hasPath = item.path !== undefined;
     const hasSymbol = item.symbol !== undefined;
-    if (hasPath === hasSymbol) {
+    if (hasSymbol) {
       throw new Error(
-        `${prefix} must define exactly one exact path or symbol scope`
+        `${prefix} symbol-scoped exceptions are not supported; use one exact path`
       );
     }
 
-    if (hasPath) {
-      validateExactRepositoryPath(item.path, `${prefix} path`);
-    } else {
-      validateExactSymbol(item.symbol, `${prefix} symbol`);
-      validateRuleSpecificValidator(item.validator, item.ruleId, prefix);
+    if (!hasPath) {
+      throw new Error(`${prefix} must define one exact path`);
     }
+
+    validateExactRepositoryPath(item.path, `${prefix} path`);
   }
 }
 
@@ -293,26 +292,6 @@ function validateIsoDate(value, label) {
     parsed.toISOString().slice(0, 10) !== value
   ) {
     throw new Error(`${label} must be a valid ISO date`);
-  }
-}
-
-function validateExactSymbol(value, label) {
-  assertNonEmptyString(value, label);
-  if (WILDCARD.test(value)) {
-    throw new Error(`${label} must be exact`);
-  }
-}
-
-function validateRuleSpecificValidator(validator, ruleId, label) {
-  if (
-    validator === null ||
-    typeof validator !== 'object' ||
-    Array.isArray(validator) ||
-    validator.ruleId !== ruleId ||
-    typeof validator.name !== 'string' ||
-    validator.name.trim() === ''
-  ) {
-    throw new Error(`${label} symbol scope requires a rule-specific validator`);
   }
 }
 

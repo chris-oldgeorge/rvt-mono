@@ -111,6 +111,22 @@ index_targets=(
   "history/monitors/evidence/2026-07-17-rvt-common-monitor-source-removal.md"
   "imports/source-manifest.md"
 )
+entry_point_paths=(
+  "README.md"
+  "README.md"
+  "README.md"
+  "$documentation_index"
+  "$documentation_index"
+  "$documentation_index"
+)
+entry_point_targets=(
+  "docs/development/engineering-standards.md"
+  "docs/development/engineering-standards-enforcement.md"
+  "docs/reviews/2026-07-27-engineering-standards-enforcement-report.md"
+  "development/engineering-standards.md"
+  "development/engineering-standards-enforcement.md"
+  "reviews/2026-07-27-engineering-standards-enforcement-report.md"
+)
 
 if [[ ! -f "$repo_root/$documentation_index" ]]; then
   report_failure "missing documentation index: $documentation_index"
@@ -121,6 +137,29 @@ else
     fi
   done
 fi
+
+for index in "${!entry_point_paths[@]}"; do
+  entry_point_path="${entry_point_paths[$index]}"
+  entry_point_target="${entry_point_targets[$index]}"
+
+  if [[ ! -f "$repo_root/$entry_point_path" ]]; then
+    report_failure "missing documentation entry point: $entry_point_path"
+    continue
+  fi
+  if ! rg --quiet --fixed-strings -- \
+    "]($entry_point_target)" "$repo_root/$entry_point_path"; then
+    report_failure \
+      "$entry_point_path is missing required link: $entry_point_target"
+  fi
+
+  resolved_entry_point_target="$(
+    normalize_path "$(dirname "$entry_point_path")/$entry_point_target"
+  )"
+  if [[ ! -f "$repo_root/$resolved_entry_point_target" ]]; then
+    report_failure \
+      "$entry_point_path required link target is missing: $entry_point_target"
+  fi
+done
 
 for retained_path in "${retained_paths[@]}"; do
   if [[ ! -f "$repo_root/$retained_path" ]]; then

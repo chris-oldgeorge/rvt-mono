@@ -109,6 +109,7 @@ Rules use stable identifiers grouped by category:
 | `ASY` | Asynchrony, cancellation, and concurrency |
 | `ERR` | Results, exceptions, and API errors |
 | `NET` | Outbound HTTP and external integrations |
+| `RES` | Resource, stream, and storage ownership |
 | `OBS` | Logging, metrics, tracing, and health |
 | `CFG` | Configuration, secrets, and host boundaries |
 | `TST` | Testing and executable architecture evidence |
@@ -139,7 +140,7 @@ but it does not replace a security assessment.
 An exception record contains:
 
 - stable exception ID and related rule ID;
-- owner and affected paths/symbols;
+- owner and affected exact path;
 - technical and compatibility justification;
 - introduced and next-review dates;
 - measurable removal condition and remediation link; and
@@ -147,6 +148,11 @@ An exception record contains:
 
 Blanket analyzer suppression, wildcard path exclusion, unexplained warning
 lists, and ownerless TODO comments are not valid exceptions.
+
+The normative standard also allows a symbol scope when a rule-specific
+validator both proves and applies that exact scope. R9 registers no such
+validator. Its executable exception model therefore fails closed on every
+symbol-scoped record and supports exact repository-relative paths only.
 
 ## Enforcement design
 

@@ -40,10 +40,11 @@ aggregate builds and GitHub Actions.
   weakened.
 - Baseline keys are tool, stable rule ID, and repository-relative POSIX path;
   counts are non-negative integers.
-- Exceptions require ID, rule ID, owner, exact path or symbol scope,
+- Exceptions require ID, rule ID, owner, exact path,
   justification, introduced date, review date, removal condition, and validation
-  text. Generic diagnostic exceptions use exact paths; symbol-scoped exceptions
-  require a rule-specific validator.
+  text. The normative standard allows symbol scope only with a rule-specific
+  validator that both proves and applies it. R9 has no registered symbol
+  validator, so this implementation rejects symbol-scoped exceptions.
 - Public APIs, serialized names, configuration keys, routes, database names,
   and persisted values remain compatibility contracts.
 - Generated, vendored, migration, dependency-cache, test-result, artifact, and
@@ -102,7 +103,7 @@ BLD-001, BLD-002, BLD-005
   `EnforceCodeStyleInBuild=false`; overriding the mode to `Strict` evaluates
   `EnforceCodeStyleInBuild=true`.
 
-- [ ] **Step 1: Write the failing evaluated-configuration test**
+- [x] **Step 1: Write the failing evaluated-configuration test**
 
 Create `tests/verify-engineering-configuration.test.sh`. It MUST exercise the
 configuration through the tools that consume it; it MUST NOT pass merely because
@@ -125,7 +126,7 @@ an expected XML or EditorConfig line exists.
 The production change that makes this test fail is a missing root MSBuild import
 or a nested EditorConfig that terminates root policy inheritance.
 
-- [ ] **Step 2: Run the hierarchy test and verify RED**
+- [x] **Step 2: Run the hierarchy test and verify RED**
 
 Run:
 
@@ -136,7 +137,7 @@ tests/verify-engineering-configuration.test.sh
 Expected: FAIL because the root configuration does not exist and the three nested
 EditorConfig files terminate inheritance, so evaluated root properties/rules are absent.
 
-- [ ] **Step 3: Add the root EditorConfig policy**
+- [x] **Step 3: Add the root EditorConfig policy**
 
 Create `.editorconfig`. Use suggestion-level style diagnostics initially; the
 changed-scope verifier in Task 3 owns the ratchet.
@@ -180,7 +181,7 @@ generated_code = true
 generated_code = true
 ```
 
-- [ ] **Step 4: Add root MSBuild policy and module imports**
+- [x] **Step 4: Add root MSBuild policy and module imports**
 
 Create `Directory.Build.props`:
 
@@ -208,7 +209,7 @@ Insert this immediately after `<Project>` in each module build file:
 Remove `root = true` from the three nested EditorConfig files. Preserve their
 module-specific rules.
 
-- [ ] **Step 5: Run hierarchy and repository guards for GREEN**
+- [x] **Step 5: Run hierarchy and repository guards for GREEN**
 
 ```bash
 tests/verify-engineering-configuration.test.sh
@@ -219,7 +220,7 @@ done
 
 Expected: hierarchy verification and every existing root guard pass.
 
-- [ ] **Step 6: Add a nested-root mutation case**
+- [x] **Step 6: Add a nested-root mutation case**
 
 In the temporary evaluation tree, append `root = true` to each copied nested
 EditorConfig in turn and prove the root-only `dotnet format` diagnostic disappears.
@@ -227,7 +228,7 @@ Also remove one copied module MSBuild import and prove at least one evaluated ro
 property disappears. Restore each mutant before the next case. The guard passes only
 after every representative mutation is observed failing for the intended reason.
 
-- [ ] **Step 7: Build the root solution**
+- [x] **Step 7: Build the root solution**
 
 ```bash
 dotnet restore Rvt.Mono.slnx --disable-parallel
@@ -238,7 +239,7 @@ Expected in default Ratchet mode: zero errors and no increase over the recorded
 warning count. Do not run the whole solution in Strict mode before the baseline is
 zero; Task 1 proves only the evaluated Strict promotion path.
 
-- [ ] **Step 8: Commit configuration hierarchy**
+- [x] **Step 8: Commit configuration hierarchy**
 
 ```bash
 git add .editorconfig Directory.Build.props \
@@ -279,7 +280,7 @@ git commit -m "build: establish shared engineering configuration"
 - `Result` is
   `{ changedSurfaceViolations: Diagnostic[], increases: Delta[], decreases: Delta[], unchanged: Delta[] }`.
 
-- [ ] **Step 1: Add realistic report fixtures**
+- [x] **Step 1: Add realistic report fixtures**
 
 The .NET fixture uses:
 
@@ -318,7 +319,7 @@ The ESLint fixture uses:
 ]
 ```
 
-- [ ] **Step 2: Write failing pure-model tests**
+- [x] **Step 2: Write failing pure-model tests**
 
 Use `node:test` and `node:assert/strict`. Include path normalization, outside-root
 rejection, duplicate/negative/fractional baseline rejection, expired exceptions,
@@ -343,7 +344,7 @@ test('reports a changed-scope baseline increase', () => {
 });
 ```
 
-- [ ] **Step 3: Run model tests for RED**
+- [x] **Step 3: Run model tests for RED**
 
 ```bash
 node --test tests/engineering-standards-model.test.mjs
@@ -351,7 +352,7 @@ node --test tests/engineering-standards-model.test.mjs
 
 Expected: FAIL because `model.mjs` does not exist.
 
-- [ ] **Step 4: Implement the pure model**
+- [x] **Step 4: Implement the pure model**
 
 Baseline keys MUST be constructed only through:
 
@@ -367,7 +368,7 @@ It never lets an exception match another rule or broader path. A reviewer still
 checks the complete changed logical unit because generic .NET/ESLint reports do
 not provide a shared cross-language syntax-tree boundary model.
 
-- [ ] **Step 5: Run model tests for GREEN**
+- [x] **Step 5: Run model tests for GREEN**
 
 ```bash
 node --test tests/engineering-standards-model.test.mjs
@@ -375,7 +376,7 @@ node --test tests/engineering-standards-model.test.mjs
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit the model**
+- [x] **Step 6: Commit the model**
 
 ```bash
 git add scripts/engineering-standards/model.mjs \
@@ -415,7 +416,7 @@ BLD-006, REV-001
   `RVT_STANDARDS_BASELINE_PATH`, and `RVT_STANDARDS_EXCEPTIONS_PATH`.
 - Exit codes: `0` compliant, `1` policy violation, `2` invocation/tool failure.
 
-- [ ] **Step 1: Write the end-to-end shell test and fake tools**
+- [x] **Step 1: Write the end-to-end shell test and fake tools**
 
 The test creates a temporary Git repository and fake .NET, ESLint, and Prettier
 commands. Required scenarios are: clean tree skips source tools; changed C#
@@ -427,7 +428,7 @@ baseline initialization succeeds once and is then refused; baseline update refus
 increases and writes decreases atomically; outside/generated/cache paths are
 rejected or excluded.
 
-- [ ] **Step 2: Run the verifier test for RED**
+- [x] **Step 2: Run the verifier test for RED**
 
 ```bash
 tests/verify-engineering-standards.test.sh
@@ -435,7 +436,7 @@ tests/verify-engineering-standards.test.sh
 
 Expected: FAIL because the verifier and wrapper do not exist.
 
-- [ ] **Step 3: Implement range and path resolution**
+- [x] **Step 3: Implement range and path resolution**
 
 Run Git with argument arrays. Working-tree mode uses:
 
@@ -466,7 +467,7 @@ const ignoredPrefixes = [
 ];
 ```
 
-- [ ] **Step 4: Implement .NET and frontend execution**
+- [x] **Step 4: Implement .NET and frontend execution**
 
 For changed C# files run:
 
@@ -497,7 +498,7 @@ surface rules apply only to working-tree and committed-range modes. Missing
 executables exit `2` with
 `run npm ci in apps/portal/RvtPortal.Client`.
 
-- [ ] **Step 5: Add the shell wrapper**
+- [x] **Step 5: Add the shell wrapper**
 
 ```bash
 #!/usr/bin/env bash
@@ -506,7 +507,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 exec node "${repo_root}/scripts/engineering-standards/verify.mjs" "$@"
 ```
 
-- [ ] **Step 6: Run verifier and model tests for GREEN**
+- [x] **Step 6: Run verifier and model tests for GREEN**
 
 ```bash
 node --test tests/engineering-standards-model.test.mjs
@@ -515,7 +516,7 @@ tests/verify-engineering-standards.test.sh
 
 Expected: all Node and shell scenarios pass.
 
-- [ ] **Step 7: Commit the verifier**
+- [x] **Step 7: Commit the verifier**
 
 ```bash
 git add scripts/engineering-standards/verify.mjs \
@@ -548,7 +549,7 @@ BLD-001, BLD-006
 - Adds local `prettier` version exactly `3.9.6`.
 - Adds TypeScript ESLint naming policy; legacy counts are captured in Task 5.
 
-- [ ] **Step 1: Add a deliberately non-compliant frontend fixture**
+- [x] **Step 1: Add a deliberately non-compliant frontend fixture**
 
 ```typescript
 export function formatMonitorId(monitor_id: number): string {
@@ -567,7 +568,7 @@ describe('formatMonitorId', () => {
 });
 ```
 
-- [ ] **Step 2: Prove the formatter is not yet repository-managed**
+- [x] **Step 2: Prove the formatter is not yet repository-managed**
 
 ```bash
 cd apps/portal/RvtPortal.Client
@@ -577,7 +578,7 @@ test ! -x node_modules/.bin/prettier
 Expected: pass, proving the repository has not yet installed its pinned
 formatter. Do not use `npx prettier`, because it may download an unpinned tool.
 
-- [ ] **Step 3: Install pinned Prettier and configuration**
+- [x] **Step 3: Install pinned Prettier and configuration**
 
 ```bash
 npm install --save-dev --save-exact prettier@3.9.6
@@ -608,7 +609,7 @@ test-results/
 src/api/schema.d.ts
 ```
 
-- [ ] **Step 4: Add ESLint naming convention**
+- [x] **Step 4: Add ESLint naming convention**
 
 ```javascript
 '@typescript-eslint/naming-convention': [
@@ -622,7 +623,7 @@ src/api/schema.d.ts
 Do not apply the rule to generated `src/api/schema.d.ts`. Make the generated
 file exclusion structural in ESLint configuration, not an inline suppression.
 
-- [ ] **Step 5: Run the local tools against the non-compliant fixture for RED**
+- [x] **Step 5: Run the local tools against the non-compliant fixture for RED**
 
 ```bash
 node_modules/.bin/eslint --max-warnings 0 src/test/engineeringStandardsFixture.ts
@@ -632,7 +633,7 @@ node_modules/.bin/prettier --check src/test/engineeringStandardsFixture.ts
 Expected: both commands fail. ESLint names `monitor_id`; Prettier reports the
 fixture as unformatted. Fix the policy or fixture if either command passes.
 
-- [ ] **Step 6: Correct fixture and verify GREEN**
+- [x] **Step 6: Correct fixture and verify GREEN**
 
 Rename `monitor_id` to `monitorId`, run Prettier, then run:
 
@@ -646,11 +647,11 @@ npm run test:run -- src/test/engineeringStandardsFixture.test.ts
 
 Expected: lint, format, and the focused Vitest test pass.
 
-- [ ] **Step 7: Remove the policy-only fixture**
+- [x] **Step 7: Remove the policy-only fixture**
 
 Delete both fixture files. The verifier shell test is the durable regression.
 
-- [ ] **Step 8: Run existing frontend gates**
+- [x] **Step 8: Run existing frontend gates**
 
 ```bash
 npm run lint
@@ -662,7 +663,7 @@ Expected: zero lint errors, all tests pass, and production build succeeds.
 Record warning counts by rule for Task 5; existing Fast Refresh and newly exposed
 legacy naming warnings are ratchet inputs, not reasons for blanket suppression.
 
-- [ ] **Step 9: Commit frontend enforcement**
+- [x] **Step 9: Commit frontend enforcement**
 
 ```bash
 git add apps/portal/RvtPortal.Client/.prettierrc.json \
@@ -751,7 +752,7 @@ REV-001
 }
 ```
 
-- [ ] **Step 1: Write failing policy tests**
+- [x] **Step 1: Write failing policy tests**
 
 Test that baseline entries are deterministically sorted and unique; counts are
 non-negative integers; generated/cache paths are absent; exceptions validate at
@@ -768,12 +769,12 @@ node --test tests/verify-engineering-standards-policy.test.mjs
 
 Expected: FAIL because the policy files do not exist.
 
-- [ ] **Step 2: Create exceptions and module policy**
+- [x] **Step 2: Create exceptions and module policy**
 
 Create the exact JSON shapes above. Do not create exceptions merely to make
 diagnostic capture pass; legacy diagnostics belong in `baseline.json`.
 
-- [ ] **Step 3: Capture actual diagnostics**
+- [x] **Step 3: Capture actual diagnostics**
 
 ```bash
 dotnet restore Rvt.Mono.slnx --disable-parallel
@@ -785,7 +786,7 @@ Expected: baseline JSON is written atomically with deterministic ordering.
 Re-running initialization is refused. The ordinary `--all --update-baseline`
 command produces no diff and can only reduce entries.
 
-- [ ] **Step 4: Review baseline exclusions**
+- [x] **Step 4: Review baseline exclusions**
 
 ```bash
 git diff -- eng/standards/baseline.json
@@ -796,7 +797,7 @@ rg -n '(^|/)(bin|obj|node_modules|dist|coverage|TestResults)/' \
 Expected: the first command shows normalized diagnostics; the second has no
 output. Do not manually delete legitimate diagnostics.
 
-- [ ] **Step 5: Run policy and ratchet tests for GREEN**
+- [x] **Step 5: Run policy and ratchet tests for GREEN**
 
 ```bash
 node --test tests/engineering-standards-model.test.mjs \
@@ -807,7 +808,7 @@ scripts/verify-engineering-standards.sh --working-tree
 
 Expected: all tests pass with no baseline increase.
 
-- [ ] **Step 6: Commit policy and baseline**
+- [x] **Step 6: Commit policy and baseline**
 
 ```bash
 git add eng/standards/baseline.json eng/standards/exceptions.json \
@@ -837,7 +838,7 @@ git commit -m "build: baseline legacy standards diagnostics"
   `scripts/verify-engineering-standards.sh --base auto --head HEAD` after .NET
   restore and `npm ci`, before build.
 
-- [ ] **Step 1: Write the failing integration-order test**
+- [x] **Step 1: Write the failing integration-order test**
 
 Copy the build script and workflow to a temporary root and assert:
 
@@ -850,7 +851,7 @@ Copy the build script and workflow to a temporary root and assert:
 
 Mutate a copy by removing the standards command and prove the test fails.
 
-- [ ] **Step 2: Run integration test for RED**
+- [x] **Step 2: Run integration test for RED**
 
 ```bash
 tests/verify-engineering-standards-integration.test.sh
@@ -858,7 +859,7 @@ tests/verify-engineering-standards-integration.test.sh
 
 Expected: FAIL because aggregate build and workflow do not invoke the verifier.
 
-- [ ] **Step 3: Update aggregate build order**
+- [x] **Step 3: Update aggregate build order**
 
 The resulting sequence in `scripts/build-mono.sh` is:
 
@@ -874,7 +875,7 @@ Update `tests/verify-rvt-common-source-boundary.test.sh` so its fake sequence
 still proves no pack/package-validation calls and recognizes the standards
 boundary without bypassing it.
 
-- [ ] **Step 4: Add the workflow gate**
+- [x] **Step 4: Add the workflow gate**
 
 In `.github/workflows/sonarqube.yml`:
 
@@ -898,7 +899,7 @@ scripts/verify-engineering-standards.sh --base auto --head HEAD
 
 All action references remain commit-SHA pinned.
 
-- [ ] **Step 5: Run integration and workflow guards for GREEN**
+- [x] **Step 5: Run integration and workflow guards for GREEN**
 
 ```bash
 tests/verify-engineering-standards-integration.test.sh
@@ -908,7 +909,7 @@ tests/verify-rvt-common-source-boundary.test.sh
 
 Expected: all pass, including the mutation case.
 
-- [ ] **Step 6: Run aggregate build sequence**
+- [x] **Step 6: Run aggregate build sequence**
 
 ```bash
 scripts/build-mono.sh
@@ -917,7 +918,7 @@ scripts/build-mono.sh
 Expected: standards verification, root build, and tests complete with zero new
 violations. Classify environment-dependent failures; do not weaken the gate.
 
-- [ ] **Step 7: Commit build and CI integration**
+- [x] **Step 7: Commit build and CI integration**
 
 ```bash
 git add scripts/build-mono.sh tests/verify-rvt-common-source-boundary.test.sh \
@@ -949,7 +950,7 @@ git commit -m "ci: enforce engineering standards ratchet"
 - Enforcement report maps every approved requirement to code, tests, and
   command evidence.
 
-- [ ] **Step 1: Write the enforcement guide**
+- [x] **Step 1: Write the enforcement guide**
 
 Document exact workflows:
 
@@ -977,7 +978,7 @@ dotnet build Rvt.Mono.slnx --no-restore --nologo -m:1 \
 Change the default to Strict only in a dedicated commit after both commands pass
 with an empty code-style baseline. Invalid or partial promotion evidence is rejected.
 
-- [ ] **Step 2: Update authoritative status documents**
+- [x] **Step 2: Update authoritative status documents**
 
 - Mark R9 complete only after Task 1–6 gates pass.
 - Change design status from `Approved for implementation` to `Implemented`.
@@ -985,7 +986,7 @@ with an empty code-style baseline. Invalid or partial promotion evidence is reje
 - Record branch, commits, baseline entry counts by tool, exact test commands,
   warnings, and remaining R1–R11 sequence in `project_state.md`.
 
-- [ ] **Step 3: Run complete standards test matrix**
+- [x] **Step 3: Run complete standards test matrix**
 
 ```bash
 node --test tests/engineering-standards-model.test.mjs \
@@ -998,7 +999,7 @@ scripts/verify-engineering-standards.sh --working-tree
 
 Expected: all pass with zero baseline increase.
 
-- [ ] **Step 4: Run every root guard**
+- [x] **Step 4: Run every root guard**
 
 ```bash
 for test_script in $(find tests -maxdepth 1 -type f -name '*.test.sh' | sort); do
@@ -1008,7 +1009,7 @@ done
 
 Expected: every root guard passes.
 
-- [ ] **Step 5: Run backend and frontend aggregate verification**
+- [x] **Step 5: Run backend and frontend aggregate verification**
 
 ```bash
 dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel
@@ -1025,13 +1026,13 @@ Expected: restore/build/frontend gates pass. Report exact test totals and
 classify environment-dependent failures without suppressing them. No new
 warning or baseline increase is accepted.
 
-- [ ] **Step 6: Prove real ratchet increases fail**
+- [x] **Step 6: Prove real ratchet increases fail**
 
 In a temporary copy, add one formatting violation to a changed C# file and one
 naming violation to a changed TypeScript file. Assert both tool/rule/path deltas
 are reported. Delete the temporary copy; do not alter production source.
 
-- [ ] **Step 7: Commit implementation evidence**
+- [x] **Step 7: Commit implementation evidence**
 
 ```bash
 git add docs/development/engineering-standards.md \

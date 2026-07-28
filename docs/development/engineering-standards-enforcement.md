@@ -91,11 +91,13 @@ recreated or widened.
 
 Exceptions live in
 [`eng/standards/exceptions.json`](../../eng/standards/exceptions.json). They
-must satisfy GOV-003, use exactly one exact path or exact symbol scope, and
-must not contain wildcards. Symbol exceptions additionally require a
-rule-specific validator. Review dates are UTC calendar dates in ISO
-`YYYY-MM-DD` form, must be later than introduction dates, and expired records
-fail verification.
+must satisfy GOV-003 and use exactly one exact repository-relative path without
+wildcards. The normative standard permits symbol scope only when a
+rule-specific validator proves and applies that scope. R9 has no registered
+symbol validator, so the current verifier rejects every symbol-scoped record
+instead of accepting an exception it cannot apply. Review dates are UTC
+calendar dates in ISO `YYYY-MM-DD` form, must be later than introduction dates,
+and expired records fail verification.
 
 A complete exact-path exception has this shape:
 

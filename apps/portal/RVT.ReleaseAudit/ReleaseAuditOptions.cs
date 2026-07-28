@@ -1,6 +1,7 @@
 // File summary: Parses the fail-closed Help asset URL release-audit command line.
 // Major updates:
 // - 2026-07-28 Added strict command, label, revision, and receipt-path validation.
+// - 2026-07-28 Rejected nonexistent directory-form receipt paths before orchestration.
 
 using System.Security;
 
@@ -65,7 +66,9 @@ internal sealed record ReleaseAuditOptions(
         try
         {
             var receiptPath = Path.GetFullPath(receipt);
-            return Directory.Exists(receiptPath)
+            return Path.EndsInDirectorySeparator(receiptPath)
+                || string.IsNullOrEmpty(Path.GetFileName(receiptPath))
+                || Directory.Exists(receiptPath)
                 ? null
                 : new ReleaseAuditOptions(environment, revision, receiptPath);
         }

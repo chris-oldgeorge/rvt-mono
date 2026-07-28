@@ -89,6 +89,31 @@ public sealed class HelpAssetUrlAuditTests
     }
 
     [Fact]
+    public async Task RunAsync_NonexistentDirectoryFormReceiptIsInvalidWithoutReadingEnvironmentOrCreatingPath()
+    {
+        var directoryPath = Path.Combine(
+            Path.GetTempPath(),
+            $"rvt-release-audit-directory-form-{Guid.NewGuid():N}");
+        var receiptArgument = directoryPath + Path.DirectorySeparatorChar;
+        var environmentRead = false;
+
+        var result = await RunProgramAsync(
+            args: ValidArguments(receiptArgument),
+            getEnvironmentVariable: _ =>
+            {
+                environmentRead = true;
+                return "Host=database.test;Database=rvt;Password=not-real";
+            });
+
+        Assert.Equal(ReleaseAuditProgram.InvalidInput, result.ExitCode);
+        Assert.Null(ReleaseAuditOptions.Parse(ValidArguments(receiptArgument)));
+        Assert.False(environmentRead);
+        Assert.False(Directory.Exists(directoryPath));
+        Assert.Empty(result.StandardOutput);
+        Assert.Equal(Usage, NormalizeNewLines(result.StandardError));
+    }
+
+    [Fact]
     public void Parse_RejectsFlagTokenUsedAsMissingValue()
     {
         Assert.Null(ReleaseAuditOptions.Parse(

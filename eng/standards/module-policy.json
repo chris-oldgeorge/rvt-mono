@@ -21,11 +21,6 @@
       "path": "libs/rvt-monitor-common",
       "testFramework": "MSTest",
       "packageVersionPolicy": "module-central-locked"
-    },
-    {
-      "path": "services/reporting",
-      "testFramework": "xUnit",
-      "packageVersionPolicy": "project-inline-legacy"
     }
   ]
 }

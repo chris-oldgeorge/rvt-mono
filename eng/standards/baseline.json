@@ -3964,144 +3964,6 @@
     },
     {
       "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Core/Reports/OneTimeReportContracts.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Core/Reports/ReportGenerationService.cs",
-      "count": 28
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Core/Reports/ReportInsightBuilder.cs",
-      "count": 9
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Core/Scheduling/ReportPeriodCalculator.cs",
-      "count": 5
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Data/Postgres/PostgresReportingRepository.cs",
-      "count": 50
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Messaging/ReportMessageSender.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Pdf/Documents/QuestPdfReportRenderer.cs",
-      "count": 51
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Service/Api/InternalApiKeyFilter.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Service/Api/ReportingEndpoints.cs",
-      "count": 4
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Service/Program.cs",
-      "count": 9
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Service/Scheduling/ScheduledReportsJob.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Storage/AzureBlob/AzureBlobReportStorage.cs",
-      "count": 3
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Storage/PortalContent/SpaCustomerLogoClient.cs",
-      "count": 4
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/src/Rvt.Reporting.Storage/ReportInsights/OllamaReportNarrativeProvider.cs",
-      "count": 5
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/tests/Rvt.Reporting.Core.Tests/Reports/OneTimeReportValidatorTests.cs",
-      "count": 10
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/tests/Rvt.Reporting.Core.Tests/Reports/ReportChromeTests.cs",
-      "count": 3
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/tests/Rvt.Reporting.Core.Tests/Reports/ReportGenerationServiceTests.cs",
-      "count": 2
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/tests/Rvt.Reporting.Core.Tests/Reports/ReportGraphTests.cs",
-      "count": 9
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/tests/Rvt.Reporting.Core.Tests/Reports/ReportInsightBuilderTests.cs",
-      "count": 7
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/tests/Rvt.Reporting.Core.Tests/Reports/ReportNarrativeProviderTests.cs",
-      "count": 6
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/tests/Rvt.Reporting.Core.Tests/Reports/ReportPeriodCalculatorTests.cs",
-      "count": 5
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/tests/Rvt.Reporting.Service.Tests/ReportMessageSenderTests.cs",
-      "count": 15
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0008",
-      "path": "services/reporting/tests/Rvt.Reporting.Service.Tests/TimescaleSchemaIntegrationTests.cs",
-      "count": 36
-    },
-    {
-      "tool": "dotnet-format-style",
       "ruleId": "IDE0010",
       "path": "apps/portal/RVT.Utilities/AzureBlobService.cs",
       "count": 1
@@ -4698,18 +4560,6 @@
       "tool": "dotnet-format-style",
       "ruleId": "IDE0060",
       "path": "apps/portal/RvtPortal.Spa/Application/Users/UserAccountWorkflowService.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0060",
-      "path": "services/reporting/src/Rvt.Reporting.Data/Postgres/PostgresReportingRepository.cs",
-      "count": 2
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0060",
-      "path": "services/reporting/src/Rvt.Reporting.Pdf/Documents/QuestPdfReportRenderer.cs",
       "count": 1
     },
     {
@@ -8446,60 +8296,6 @@
     },
     {
       "tool": "dotnet-format-style",
-      "ruleId": "IDE0290",
-      "path": "services/reporting/src/Rvt.Reporting.Core/Reports/ReportGenerationContracts.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0290",
-      "path": "services/reporting/src/Rvt.Reporting.Core/Reports/ReportGenerationService.cs",
-      "count": 2
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0290",
-      "path": "services/reporting/src/Rvt.Reporting.Data/Postgres/PostgresReportingRepository.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0290",
-      "path": "services/reporting/src/Rvt.Reporting.Service/Api/InternalApiKeyFilter.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0290",
-      "path": "services/reporting/src/Rvt.Reporting.Service/Scheduling/ScheduledReportsJob.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0290",
-      "path": "services/reporting/src/Rvt.Reporting.Storage/AzureBlob/AzureBlobReportStorage.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0290",
-      "path": "services/reporting/src/Rvt.Reporting.Storage/PortalContent/SpaCustomerLogoClient.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0290",
-      "path": "services/reporting/src/Rvt.Reporting.Storage/ReportInsights/OllamaReportNarrativeProvider.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0290",
-      "path": "services/reporting/tests/Rvt.Reporting.Core.Tests/Reports/ReportNarrativeProviderTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
       "ruleId": "IDE0300",
       "path": "apps/monitors/myatmmonitor/MyAtmMonitor/api/MyAtmRuleProcessor.cs",
       "count": 2
@@ -9127,30 +8923,6 @@
       "ruleId": "IDE0305",
       "path": "libs/rvt-monitor-common/tests/Rvt.Storage.Tests/Architecture/StorageDependencyBoundaryRegressionTests.cs",
       "count": 3
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0305",
-      "path": "services/reporting/src/Rvt.Reporting.Core/Models/ReportModels.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0305",
-      "path": "services/reporting/src/Rvt.Reporting.Core/Reports/ReportInsightBuilder.cs",
-      "count": 2
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0305",
-      "path": "services/reporting/src/Rvt.Reporting.Data/Postgres/PostgresReportingRepository.cs",
-      "count": 4
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0305",
-      "path": "services/reporting/src/Rvt.Reporting.Pdf/Documents/QuestPdfReportRenderer.cs",
-      "count": 1
     },
     {
       "tool": "dotnet-format-style",
@@ -11146,48 +10918,6 @@
     },
     {
       "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "services/reporting/src/Rvt.Reporting.Core/Reports/OneTimeReportContracts.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "services/reporting/src/Rvt.Reporting.Messaging/ReportMessageSender.cs",
-      "count": 3
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "services/reporting/src/Rvt.Reporting.Pdf/Documents/QuestPdfReportRenderer.cs",
-      "count": 2
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "services/reporting/src/Rvt.Reporting.Service/Api/InternalApiKeyFilter.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "services/reporting/src/Rvt.Reporting.Service/Scheduling/ScheduledReportsJob.cs",
-      "count": 2
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "services/reporting/src/Rvt.Reporting.Storage/PortalContent/SpaCustomerLogoClient.cs",
-      "count": 2
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "services/reporting/tests/Rvt.Reporting.Service.Tests/TimescaleSchemaIntegrationTests.cs",
-      "count": 2
-    },
-    {
-      "tool": "dotnet-format-style",
       "ruleId": "IDE2002",
       "path": "apps/portal/RVT.DataAccess/AlertLevelRepository.cs",
       "count": 1
@@ -11748,18 +11478,6 @@
       "tool": "dotnet-format-style",
       "ruleId": "IMPORTS",
       "path": "libs/rvt-monitor-common/tests/Rvt.Monitor.CommonTests/Alerts/DurableAlertDispatcherTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IMPORTS",
-      "path": "services/reporting/src/Rvt.Reporting.Pdf/Documents/QuestPdfReportRenderer.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IMPORTS",
-      "path": "services/reporting/tests/Rvt.Reporting.Core.Tests/Reports/ReportGraphTests.cs",
       "count": 1
     },
     {

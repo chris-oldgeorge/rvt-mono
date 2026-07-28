@@ -7,7 +7,7 @@ expected_moves=86
 output="$("$repo_root/scripts/verify-documentation-layout.sh")"
 printf '%s\n' "$output"
 grep -Fqx \
-  "Documentation layout verification passed ($expected_moves moves, 7 retained entry points)." \
+  "Documentation layout verification passed ($expected_moves moves, 6 retained entry points)." \
   <<<"$output"
 
 fixture_root="$(mktemp -d)"
@@ -31,8 +31,7 @@ mkdir -p \
   "$fixture_root/docs/reviews" \
   "$fixture_root/apps/monitors" \
   "$fixture_root/apps/portal" \
-  "$fixture_root/libs/rvt-monitor-common" \
-  "$fixture_root/services/reporting"
+  "$fixture_root/libs/rvt-monitor-common"
 
 cp "$repo_root/scripts/verify-documentation-layout.sh" \
   "$fixture_root/scripts/verify-documentation-layout.sh"
@@ -82,7 +81,6 @@ touch \
   "$fixture_root/apps/portal/README.md" \
   "$fixture_root/apps/portal/AGENTS.md" \
   "$fixture_root/libs/rvt-monitor-common/README.md" \
-  "$fixture_root/services/reporting/README.md" \
   "$fixture_root/docs/architecture/reporting/architecture.md" \
   "$fixture_root/docs/database/monitors/monitor-data-access-migration.md" \
   "$fixture_root/docs/development/portal/development-guidelines.md" \

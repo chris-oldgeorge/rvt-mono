@@ -122,8 +122,7 @@ public sealed class CommunicationsBoundaryTests
             {
                 "libs/rvt-monitor-common/src",
                 "apps/monitors",
-                "apps/portal",
-                "services/reporting"
+                "apps/portal"
             }
             .SelectMany(relative => ReadProductionSource(root, relative))
             .Where(file => file.Text.Contains(removedIdentity, StringComparison.Ordinal))

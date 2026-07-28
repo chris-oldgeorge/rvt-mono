@@ -60,7 +60,10 @@ lives here under `docs/`.
 
 ### Reporting
 
-- [Migration notes](modules/reporting/migration-notes.md)
+Reporting is implemented in `apps/monitors/reportingmonitor`; see also the
+[ReportingMonitor module guide](modules/monitors/reportingmonitor/README.md).
+
+- [Migration and consolidation notes](modules/reporting/migration-notes.md)
 
 ## History
 

@@ -121,7 +121,7 @@ declare -a representative_projects=(
   "apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj|latest|true"
   "apps/portal/RVT.Entities/RVT.Entities.csproj|latest-recommended|false"
   "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj|latest|false"
-  "services/reporting/src/Rvt.Reporting.Core/Rvt.Reporting.Core.csproj|latest-recommended|false"
+  "apps/monitors/reportingmonitor/Rvt.Reporting.Core/Rvt.Reporting.Core.csproj|latest|true"
 )
 
 for representative_project in "${representative_projects[@]}"; do
@@ -158,7 +158,6 @@ EOF
 declare -a editorconfig_modules=(
   "apps/monitors"
   "apps/portal"
-  "services/reporting"
 )
 
 for module_relative_path in "${editorconfig_modules[@]}"; do

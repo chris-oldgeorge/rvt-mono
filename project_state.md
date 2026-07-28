@@ -1,5 +1,68 @@
 # Project State
 
+## Authoritative checkpoint: reporting duplication consolidated — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Branch `fix/critical-consolidate-reporting-duplication` addresses the first
+  critical finding of
+  `docs/reviews/2026-07-28-full-codebase-review.md`.
+- The reporting stack existed twice. `apps/monitors/reportingmonitor` is now
+  the single authoritative implementation and the stale `services/reporting`
+  clone was deleted (50 tracked files). The `services/` module root no longer
+  exists.
+- The monitor copy was verified to be the functional superset before deletion:
+  it serves the same `/internal/reports/*` contract the portal calls, carries
+  the later corrections the clone never received (fail-closed constant-time
+  internal API-key auth, per-rule error isolation, transactional report
+  persistence, delivery-failure capture, narrow ports), owns an identical
+  database prerequisite script, and its test suite adds Architecture, Storage,
+  Messaging, EntityFramework, and endpoint coverage the deleted suite lacked.
+- No `.csproj` referenced `services/reporting`; the deletion required no
+  production code change in any other module.
+- Updated to match: `Rvt.Mono.slnx` (8 projects and the `/Services/*` folders
+  removed), `scripts/verify-mono-layout.sh`, `scripts/verify-mono-solution.sh`,
+  `scripts/verify-rvt-common-source-boundary.sh`,
+  `scripts/verify-documentation-layout.sh`, `eng/standards/module-policy.json`,
+  `eng/standards/baseline.json` (47 stale entries removed, deletions only),
+  three test harnesses, and `CommunicationsBoundaryTests.cs`.
+- Operator-facing documentation was corrected, not merely repointed: the
+  retired service used `ConnectionStrings__ReportingDatabase` and `Quartz__*`
+  keys, whereas ReportingMonitor uses `ConnectionStrings__DefaultConnection`,
+  `MonitorApi__Enabled`, and `MonitorScheduler__*`. Health endpoints are
+  `/liveness` and `/readiness`, not `/health/live` and `/health/ready`.
+- The `services/reporting` row in `docs/imports/source-manifest.md` is retained
+  and marked retired: it records import provenance and its pinned revision is
+  asserted by the layout guard.
+- Verification: aggregate build succeeded with zero warnings and zero errors;
+  all five repository guards, all seven repository shell test suites, and the
+  24 standards-policy tests passed. The full `dotnet test` run matches the
+  `main` baseline assembly-for-assembly, so this change introduced no new
+  failures. The 188 remaining failures are pre-existing and environmental
+  (they require `RVT__POSTGRES_INTEGRATION_CONNECTION`); this was confirmed by
+  running the same suite against unmodified `main` in a temporary worktree.
+- The pre-existing `RVTlogo.svg` executable-bit difference on the surviving
+  reportingmonitor asset remains unstaged and untouched.
+- Remaining critical findings from the review are not yet addressed: AirQ and
+  Omnidots blocking `.Result` import cores, AirQ/Svantek single-attempt alert
+  delivery, Graph transient-failure misclassification, and the PDF heatmap
+  clipping beyond eight days.
+
+## Authoritative checkpoint: merged branch cleanup — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- `origin` now contains only `main` at merge commit `0730041b`; all eight
+  verified-merged remote feature branches were deleted.
+- Seven verified-merged local branches were deleted. The clean owned worktree
+  `.worktrees/r1-architecture-guards` was removed and pruned first.
+- Local branch `codex/help-admin-application-boundary` remains because it is
+  attached to the clean but externally managed worktree
+  `/private/tmp/rvt-mono-help-admin`. Its remote branch is deleted.
+- Active unmerged local work remains on `codex/portal-lint-modernization`,
+  `codex/sonar-security-remediation`, and
+  `codex/visual-studio-solution-reconcile`; none was changed or deleted.
+- The two pre-existing SVG executable-bit differences in the primary checkout
+  remain unstaged and untouched. No variable definition changed.
+
 ## Authoritative checkpoint: Visual Studio SPA proxy repaired — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

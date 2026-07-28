@@ -122,9 +122,10 @@ ReportingMonitor keeps URI construction outside the generic storage port so
 persisted `report.report_link` values retain their established absolute
 formats: Local `file:`, Azure HTTPS, and S3 `s3:`.
 
-Portal blob-client/service unification and adoption by the independent
-`services/reporting` Azure report-storage adapter are explicitly future
-pending work; neither is part of the monitor-host migration.
+Portal blob-client/service unification is explicitly future pending work and is
+not part of the monitor-host migration. The formerly independent
+`services/reporting` Azure report-storage adapter was removed on 2026-07-28
+when reporting consolidated into `apps/monitors/reportingmonitor`.
 
 ### Shared email and SMS delivery
 

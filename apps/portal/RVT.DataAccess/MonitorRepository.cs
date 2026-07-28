@@ -6,7 +6,6 @@
 // - 2026-06-03 f5fd01e Added relational database support.
 // - 2026-06-09 pending Documented PostgreSQL canonical routine-name mapping for monitor status calls.
 
-using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RVT.Entities.Querying;
@@ -16,13 +15,11 @@ namespace RVT.DataAccess
 {
     public class MonitorRepository : GenericRepository<Monitor>, IMonitorRepository
     {
-        private readonly IRvtStoredRoutineExecutor routineExecutor;
 
         // Function summary: Handles the monitor repository workflow for this module.
-        public MonitorRepository(RVTDbContext ContextDB, IRvtStoredRoutineExecutor routineExecutor)
+        public MonitorRepository(RVTDbContext ContextDB)
             : base(ContextDB)
         {
-            this.routineExecutor = routineExecutor;
         }
 
         // Function summary: Retrieves filtered data for callers.

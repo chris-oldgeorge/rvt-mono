@@ -1,5 +1,3 @@
-using Rvt.Monitor.Common.Configuration;
-
 namespace Svantek.Api;
 
 // Summary: Cancellable scheduled entry points for Svantek monitor jobs.

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace Omnidots.Api

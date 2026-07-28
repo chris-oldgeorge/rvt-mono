@@ -6,7 +6,6 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
-using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 
 namespace RvtPortal.Spa.Api;

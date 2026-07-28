@@ -11,7 +11,6 @@
 // - 2026-06-10 pending Removed redundant async/await from repository pass-through service methods.
 // - 2026-06-10 pending Removed stale commented-out search methods for Sonar maintainability.
 
-using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using RVT.BusinessLogic;
 using RVT.DataAccess;
@@ -75,19 +74,16 @@ namespace RvtPortal.Spa.Application.Monitors
         private readonly IMonitorRepository monitorRepository;
         private readonly ISearchQueryReader timeSeries;
         private readonly RVTSearchContext searchContext;
-        private readonly IAlertlevelRepository alertlevelRepository;
         private readonly IDeploymentRepository deploymentRepository;
         private readonly IRvtDateTimeProvider dateTimeProvider;
         // Function summary: Initializes this type with the dependencies required by its workflow.
         public MonitorService(IMonitorRepository monitorRepository,
-            IAlertlevelRepository alertlevelRepository,
             IDeploymentRepository deploymentRepository,
             ISearchQueryReader timeSeries,
             RVTSearchContext searchContext,
             IRvtDateTimeProvider dateTimeProvider)
         {
             this.monitorRepository = monitorRepository;
-            this.alertlevelRepository = alertlevelRepository;
             this.deploymentRepository = deploymentRepository;
             this.timeSeries = timeSeries;
             this.searchContext = searchContext;

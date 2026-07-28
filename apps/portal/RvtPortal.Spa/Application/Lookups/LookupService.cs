@@ -12,8 +12,6 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
-using RVT.Entities;
-using Monitor = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Application.Lookups
 {

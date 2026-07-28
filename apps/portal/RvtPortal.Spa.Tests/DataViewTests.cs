@@ -125,7 +125,7 @@ public class DataViewTests
     public async Task MonitorService_TimeSeriesBounds_AreUnspecifiedAtDatabaseBoundary()
     {
         RecordingSearchQueryReader reader = new();
-        MonitorService service = new(null!, null!, null!, reader, null!, null!);
+        MonitorService service = new(null!, null!, reader, null!, null!);
         DateTime from = new(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
         DateTime to = from.AddHours(1);
 
@@ -146,7 +146,7 @@ public class DataViewTests
     public async Task MonitorService_TimeSeriesBounds_RejectNonUtcInputs(DateTimeKind kind)
     {
         RecordingSearchQueryReader reader = new();
-        MonitorService service = new(null!, null!, null!, reader, null!, null!);
+        MonitorService service = new(null!, null!, reader, null!, null!);
         DateTime from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
         DateTime to = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 15, 0, 0), kind);
 
@@ -358,7 +358,7 @@ public class DataViewTests
             INSERT INTO omnidots_trace (omnidots_trace_index_id, x, y, z)
             VALUES ({traceId}, {0.1}, {0.2}, {0.3})
             """);
-        MonitorService service = new(null!, null!, null!, null!, searchContext, null!);
+        MonitorService service = new(null!, null!, null!, searchContext, null!);
 
         SearchQueryResult<OmnidotsTrace> result = await service.GetVibrationTraces(traceId);
 

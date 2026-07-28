@@ -7,9 +7,9 @@ using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Dto;
 using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Configuration;
 namespace OmnidotsAdapterTests
 {
 

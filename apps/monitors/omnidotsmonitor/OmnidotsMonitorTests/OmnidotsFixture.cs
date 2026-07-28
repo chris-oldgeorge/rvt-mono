@@ -7,7 +7,6 @@ using System.Text.Json;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;

@@ -288,7 +288,6 @@ public sealed class SearchTimestampPostgresTests
         MonitorService monitorService = new(
             null!,
             null!,
-            null!,
             new SearchQueryReader(searchContext),
             searchContext,
             null!);

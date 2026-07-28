@@ -21,21 +21,38 @@ type DashboardRoutePanelProps = Readonly<{
   onRequestError: (error: unknown) => void;
 }>;
 
+type MapExecution = Readonly<{
+  siteId: string;
+}>;
+
 type MapResult = Readonly<{
-  requestKey: string;
+  execution: MapExecution;
   markers: MapMarkersResponse | null;
   error: string | null;
 }>;
 
+type CalendarMonthExecution = Readonly<{
+  deploymentId: string;
+  year: number;
+  month: number;
+}>;
+
 type CalendarMonthResult = Readonly<{
-  requestKey: string;
+  execution: CalendarMonthExecution;
   data: CalendarMonthResponse | null;
   error: string | null;
 }>;
 
+type CalendarDayExecution = Readonly<{
+  deploymentId: string;
+  monitorId: string;
+  selectedDate: string;
+}>;
+
 type CalendarDayResult = Readonly<{
-  ownerKey: string;
-  data: CalendarDayResponse;
+  execution: CalendarDayExecution;
+  data: CalendarDayResponse | null;
+  error: string | null;
 }>;
 
 // Function summary: Renders the MapPanel React component and wires its local UI behavior.
@@ -44,34 +61,34 @@ export function MapPanel({ locationPath, onRequestError }: DashboardRoutePanelPr
   const [siteId, setSiteId] = useState(initialParams.get('siteId') ?? '');
   const [sites, setSites] = useState<OptionItem[]>([]);
   const [mapResult, setMapResult] = useState<MapResult | null>(null);
-  const requestKey = siteId;
-  const activeResult = mapResult?.requestKey === requestKey ? mapResult : null;
+  const execution = useMemo<MapExecution>(() => ({ siteId }), [siteId]);
+  const activeResult = mapResult?.execution === execution ? mapResult : null;
   const markers = activeResult?.markers ?? null;
   const error = activeResult?.error ?? null;
-  const isLoading = mapResult?.requestKey !== requestKey;
+  const isLoading = mapResult?.execution !== execution;
 
   useEffect(() => {
     const controller = new AbortController();
-    globalThis.history.replaceState(null, '', `/maps${mapQuery(siteId)}`);
+    globalThis.history.replaceState(null, '', `/maps${mapQuery(execution.siteId)}`);
     Promise.all([
       getDashboardSummary({ signal: controller.signal }),
-      queryMapMarkers(mapMarkersRequest(siteId), { signal: controller.signal }),
+      queryMapMarkers(mapMarkersRequest(execution.siteId), { signal: controller.signal }),
     ])
       .then(([nextSummary, nextMarkers]) => {
         if (!controller.signal.aborted) {
           setSites(nextSummary.sites);
-          setMapResult({ requestKey, markers: nextMarkers, error: null });
+          setMapResult({ execution, markers: nextMarkers, error: null });
         }
       })
       .catch((err: Error) => {
         if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setMapResult({ requestKey, markers: null, error: err.message });
+        setMapResult({ execution, markers: null, error: err.message });
         onRequestError(err);
       });
     return () => controller.abort();
-  }, [onRequestError, requestKey, siteId]);
+  }, [execution, onRequestError]);
 
   return (
     <section className="panel">
@@ -113,14 +130,26 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
   const [monthResult, setMonthResult] = useState<CalendarMonthResult | null>(null);
   const [dayResult, setDayResult] = useState<CalendarDayResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const monthRequestKey = `${deploymentId}:${year}:${month}`;
-  const activeMonthResult = monthResult?.requestKey === monthRequestKey ? monthResult : null;
+  const monthExecution = useMemo<CalendarMonthExecution>(
+    () => ({ deploymentId, year, month }),
+    [deploymentId, month, year],
+  );
+  const activeMonthResult = monthResult?.execution === monthExecution ? monthResult : null;
   const monthData = activeMonthResult?.data ?? null;
   const monthError = activeMonthResult?.error ?? null;
-  const dayOwnerKey =
-    monthData && selectedDate ? `${monthData.deploymentId}:${monthData.monitorId}:${selectedDate}` : null;
-  const dayData = dayOwnerKey && dayResult?.ownerKey === dayOwnerKey ? dayResult.data : null;
-  const isLoading = Boolean(deploymentId) && monthResult?.requestKey !== monthRequestKey;
+  const dayDeploymentId = monthData?.deploymentId ?? null;
+  const dayMonitorId = monthData?.monitorId ?? null;
+  const dayExecution = useMemo<CalendarDayExecution | null>(
+    () =>
+      dayDeploymentId && dayMonitorId && selectedDate
+        ? { deploymentId: dayDeploymentId, monitorId: dayMonitorId, selectedDate }
+        : null,
+    [dayDeploymentId, dayMonitorId, selectedDate],
+  );
+  const activeDayResult = dayExecution && dayResult?.execution === dayExecution ? dayResult : null;
+  const dayData = activeDayResult?.data ?? null;
+  const dayError = activeDayResult?.error ?? null;
+  const isLoading = Boolean(deploymentId) && monthResult?.execution !== monthExecution;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -142,15 +171,19 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
   }, [deploymentId, onRequestError]);
 
   useEffect(() => {
-    if (!deploymentId) {
+    if (!monthExecution.deploymentId) {
       return;
     }
     const controller = new AbortController();
-    globalThis.history.replaceState(null, '', buildCalendarUrl(deploymentId, year, month));
-    getCalendarMonth({ deploymentId, year, month }, { signal: controller.signal })
+    globalThis.history.replaceState(
+      null,
+      '',
+      buildCalendarUrl(monthExecution.deploymentId, monthExecution.year, monthExecution.month),
+    );
+    getCalendarMonth(monthExecution, { signal: controller.signal })
       .then((response) => {
         if (!controller.signal.aborted) {
-          setMonthResult({ requestKey: monthRequestKey, data: response, error: null });
+          setMonthResult({ execution: monthExecution, data: response, error: null });
           setDeployments(response.deployments);
           setYear(response.year);
           setMonth(response.month);
@@ -161,33 +194,33 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
         if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setMonthResult({ requestKey: monthRequestKey, data: null, error: err.message });
+        setMonthResult({ execution: monthExecution, data: null, error: err.message });
         onRequestError(err);
       });
     return () => controller.abort();
-  }, [deploymentId, month, monthRequestKey, onRequestError, year]);
+  }, [monthExecution, onRequestError]);
 
   useEffect(() => {
-    if (!monthData || !selectedDate || !dayOwnerKey) {
+    if (!dayExecution) {
       return;
     }
     const controller = new AbortController();
-    const date = parseCalendarDate(selectedDate);
-    getCalendarDay({ monitorId: monthData.monitorId, ...date }, { signal: controller.signal })
+    const date = parseCalendarDate(dayExecution.selectedDate);
+    getCalendarDay({ monitorId: dayExecution.monitorId, ...date }, { signal: controller.signal })
       .then((response) => {
         if (!controller.signal.aborted) {
-          setDayResult({ ownerKey: dayOwnerKey, data: response });
+          setDayResult({ execution: dayExecution, data: response, error: null });
         }
       })
       .catch((err: Error) => {
         if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setError(err.message);
+        setDayResult({ execution: dayExecution, data: null, error: err.message });
         onRequestError(err);
       });
     return () => controller.abort();
-  }, [dayOwnerKey, monthData, onRequestError, selectedDate]);
+  }, [dayExecution, onRequestError]);
 
   // Function summary: Handles the move month workflow for this module.
   function moveMonth(direction: -1 | 1) {
@@ -228,7 +261,9 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
             </button>
           </div>
         </div>
-        {(monthError ?? error) && <Notice tone="error" message={monthError ?? error ?? ''} />}
+        {(monthError ?? dayError ?? error) && (
+          <Notice tone="error" message={monthError ?? dayError ?? error ?? ''} />
+        )}
         {isLoading && <LoadingInline label="Loading calendar" />}
         {monthData && (
           <>

@@ -59,8 +59,23 @@ type DataViewsPanelProps = Readonly<{
   onRequestError: (error: unknown) => void;
 }>;
 
+type DataViewQuery = Readonly<{
+  deploymentId: string;
+  mode: PanelMode;
+  filterOption: string;
+  fromDate: string;
+  toDate: string;
+  page: number;
+  sort: string;
+  sortDir: SortDirection;
+}>;
+
+type RequestExecution<T> = Readonly<{
+  query: T;
+}>;
+
 type DataViewResult = Readonly<{
-  requestKey: string;
+  execution: RequestExecution<DataViewQuery>;
   grid: MonitorDataGridResponse | null;
   graph: MonitorGraphResponse | null;
   traces: TraceListResponse | null;
@@ -68,8 +83,9 @@ type DataViewResult = Readonly<{
 }>;
 
 type TraceDetailResult = Readonly<{
-  ownerKey: string;
+  execution: RequestExecution<Readonly<{ deploymentId: string; traceId: string }>>;
   item: TraceDetailResponse | null;
+  error: string | null;
 }>;
 
 type FilterOptionsResult = Readonly<{
@@ -96,31 +112,29 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const requestKey = useMemo(
-    () =>
-      JSON.stringify({
-        deploymentId,
-        mode,
-        filterOption,
-        fromDate,
-        toDate,
-        page,
-        sort,
-        sortDir,
-      }),
+  const query = useMemo<DataViewQuery>(
+    () => ({ deploymentId, mode, filterOption, fromDate, toDate, page, sort, sortDir }),
     [deploymentId, filterOption, fromDate, mode, page, sort, sortDir, toDate],
   );
-  const activeResult = dataViewResult?.requestKey === requestKey ? dataViewResult : null;
+  const execution = useMemo<RequestExecution<DataViewQuery>>(() => ({ query }), [query]);
+  const activeResult = dataViewResult?.execution === execution ? dataViewResult : null;
   const grid = activeResult?.grid ?? null;
   const graph = activeResult?.graph ?? null;
   const traces = activeResult?.traces ?? null;
-  const traceDetailOwnerKey =
-    mode === 'traces' && deploymentId && selectedTraceId ? `${deploymentId}:${selectedTraceId}` : null;
-  const traceDetail =
-    traceDetailOwnerKey && traceDetailResult?.ownerKey === traceDetailOwnerKey ? traceDetailResult.item : null;
+  const traceDetailExecution = useMemo<RequestExecution<Readonly<{ deploymentId: string; traceId: string }>> | null>(
+    () =>
+      mode === 'traces' && deploymentId && selectedTraceId
+        ? { query: { deploymentId, traceId: selectedTraceId } }
+        : null,
+    [deploymentId, mode, selectedTraceId],
+  );
+  const activeTraceDetailResult =
+    traceDetailExecution && traceDetailResult?.execution === traceDetailExecution ? traceDetailResult : null;
+  const traceDetail = activeTraceDetailResult?.item ?? null;
+  const traceDetailError = activeTraceDetailResult?.error ?? null;
   const filterOptions = filterOptionsResult?.deploymentId === deploymentId ? filterOptionsResult.items : [];
   const requestError = activeResult?.error ?? null;
-  const isLoading = Boolean(deploymentId) && dataViewResult?.requestKey !== requestKey;
+  const isLoading = Boolean(deploymentId) && dataViewResult?.execution !== execution;
 
   const handleError = useCallback(
     (err: unknown) => {
@@ -158,10 +172,11 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
   }, [deploymentId, onRequestError]);
 
   useEffect(() => {
-    if (!deploymentId) {
+    if (!execution.query.deploymentId) {
       return;
     }
 
+    const { deploymentId, filterOption, fromDate, mode, page, sort, sortDir, toDate } = execution.query;
     globalThis.history.replaceState(
       null,
       '',
@@ -173,7 +188,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
       queryMonitorDataGrid(deploymentId, request, { signal: controller.signal })
         .then((response) => {
           if (!controller.signal.aborted) {
-            setDataViewResult({ requestKey, grid: response, graph: null, traces: null, error: null });
+            setDataViewResult({ execution, grid: response, graph: null, traces: null, error: null });
             setFilterOptionsResult({ deploymentId, items: response.filterOptions });
             setError(null);
             setFilterOptionFromResponse(response.filterOption);
@@ -181,7 +196,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
         })
         .catch((err: Error) => {
           if (!isAbortError(err) && !controller.signal.aborted) {
-            setDataViewResult({ requestKey, grid: null, graph: null, traces: null, error: err.message });
+            setDataViewResult({ execution, grid: null, graph: null, traces: null, error: err.message });
             onRequestError(err);
           }
         });
@@ -192,7 +207,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
       getMonitorGraph(deploymentId, graphRequest(request), { signal: controller.signal })
         .then((response) => {
           if (!controller.signal.aborted) {
-            setDataViewResult({ requestKey, grid: null, graph: response, traces: null, error: null });
+            setDataViewResult({ execution, grid: null, graph: response, traces: null, error: null });
             setFilterOptionsResult({ deploymentId, items: response.filterOptions });
             setError(null);
             setFilterOptionFromResponse(response.filterOption);
@@ -200,7 +215,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
         })
         .catch((err: Error) => {
           if (!isAbortError(err) && !controller.signal.aborted) {
-            setDataViewResult({ requestKey, grid: null, graph: null, traces: null, error: err.message });
+            setDataViewResult({ execution, grid: null, graph: null, traces: null, error: err.message });
             onRequestError(err);
           }
         });
@@ -210,7 +225,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
     queryMonitorTraces(deploymentId, traceRequest(request), { signal: controller.signal })
       .then((response) => {
         if (!controller.signal.aborted) {
-          setDataViewResult({ requestKey, grid: null, graph: null, traces: response, error: null });
+          setDataViewResult({ execution, grid: null, graph: null, traces: response, error: null });
           setError(null);
           const firstTrace = response.traces[0];
           setSelectedTraceId((current) => current || firstTrace?.id || '');
@@ -218,45 +233,43 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
       })
       .catch((err: Error) => {
         if (!isAbortError(err) && !controller.signal.aborted) {
-          setDataViewResult({ requestKey, grid: null, graph: null, traces: null, error: err.message });
+          setDataViewResult({ execution, grid: null, graph: null, traces: null, error: err.message });
           onRequestError(err);
         }
       });
     return () => controller.abort();
   }, [
-    deploymentId,
-    filterOption,
-    fromDate,
-    mode,
+    execution,
     onRequestError,
-    page,
-    requestKey,
     setFilterOptionFromResponse,
-    sort,
-    sortDir,
-    toDate,
   ]);
 
   useEffect(() => {
-    if (!traceDetailOwnerKey) {
+    if (!traceDetailExecution) {
       return;
     }
 
     const controller = new AbortController();
-    const traceId = selectedTraceId;
-    getMonitorTrace(deploymentId, traceId, { signal: controller.signal })
+    getMonitorTrace(traceDetailExecution.query.deploymentId, traceDetailExecution.query.traceId, {
+      signal: controller.signal,
+    })
       .then((item) => {
         if (!controller.signal.aborted) {
-          setTraceDetailResult({ ownerKey: traceDetailOwnerKey, item });
+          setTraceDetailResult({ execution: traceDetailExecution, item, error: null });
         }
       })
       .catch((err: Error) => {
         if (!isAbortError(err) && !controller.signal.aborted) {
-          handleError(err);
+          setTraceDetailResult({
+            execution: traceDetailExecution,
+            item: null,
+            error: err.message,
+          });
+          onRequestError(err);
         }
       });
     return () => controller.abort();
-  }, [deploymentId, handleError, selectedTraceId, traceDetailOwnerKey]);
+  }, [onRequestError, traceDetailExecution]);
 
   // Function summary: Handles the handle mode workflow for this module.
   function handleMode(nextMode: PanelMode) {
@@ -392,7 +405,9 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
             ))}
           </div>
         )}
-        {(requestError ?? error) && <Notice tone="error" message={requestError ?? error ?? ''} />}
+        {(requestError ?? traceDetailError ?? error) && (
+          <Notice tone="error" message={requestError ?? traceDetailError ?? error ?? ''} />
+        )}
         {notice && <Notice tone="success" message={notice} />}
         {isLoading && <LoadingInline label="Loading data" />}
         {mode === 'grid' && grid && (

@@ -45,16 +45,24 @@ type DashboardSummaryResult = Readonly<{
   error: string | null;
 }>;
 
+type RequestExecution<T> = Readonly<{
+  query: T;
+}>;
+
 type SiteSearchResult = Readonly<{
-  requestKey: string;
+  execution: RequestExecution<QuerySitesRequest>;
   sites: SiteListItem[];
   total: number;
   totalPages: number;
   error: string | null;
 }>;
 
+type BreachesAlertsExecution = Readonly<{
+  date: string;
+}>;
+
 type BreachesAlertsResult = Readonly<{
-  requestKey: string;
+  execution: BreachesAlertsExecution;
   response: BreachesAlertsResponse | null;
   error: string | null;
 }>;
@@ -192,13 +200,13 @@ function DashboardSiteSearch({
     }),
     [page, searchText, sortDir, sortKey],
   );
-  const requestKey = useMemo(() => JSON.stringify(query), [query]);
-  const activeResult = siteSearchResult?.requestKey === requestKey ? siteSearchResult : null;
+  const execution = useMemo<RequestExecution<QuerySitesRequest>>(() => ({ query }), [query]);
+  const activeResult = siteSearchResult?.execution === execution ? siteSearchResult : null;
   const sites = activeResult?.sites ?? [];
   const total = activeResult?.total ?? 0;
   const totalPages = activeResult?.totalPages ?? 0;
   const error = activeResult?.error ?? null;
-  const isLoading = siteSearchResult?.requestKey !== requestKey;
+  const isLoading = siteSearchResult?.execution !== execution;
   const handleSortChange = useCallback((key: string, direction: GridSortDirection) => {
     setSortKey(key);
     setSortDir(direction);
@@ -207,11 +215,11 @@ function DashboardSiteSearch({
 
   useEffect(() => {
     const controller = new AbortController();
-    querySites(query, { signal: controller.signal })
+    querySites(execution.query, { signal: controller.signal })
       .then((response) => {
         if (!controller.signal.aborted) {
           setSiteSearchResult({
-            requestKey,
+            execution,
             sites: response.results,
             total: response.total,
             totalPages: response.totalPages,
@@ -223,11 +231,11 @@ function DashboardSiteSearch({
         if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setSiteSearchResult({ requestKey, sites: [], total: 0, totalPages: 0, error: err.message });
+        setSiteSearchResult({ execution, sites: [], total: 0, totalPages: 0, error: err.message });
         onRequestError(err);
       });
     return () => controller.abort();
-  }, [onRequestError, query, requestKey]);
+  }, [execution, onRequestError]);
 
   return (
     <section className="panel">
@@ -288,33 +296,33 @@ function DashboardSiteSearch({
 function BreachesAlertsWidget({ onRequestError }: Readonly<{ onRequestError: (error: unknown) => void }>) {
   const [date, setDate] = useState(todayInputValue());
   const [breachesAlertsResult, setBreachesAlertsResult] = useState<BreachesAlertsResult | null>(null);
-  const requestKey = date;
-  const activeResult = breachesAlertsResult?.requestKey === requestKey ? breachesAlertsResult : null;
+  const execution = useMemo<BreachesAlertsExecution>(() => ({ date }), [date]);
+  const activeResult = breachesAlertsResult?.execution === execution ? breachesAlertsResult : null;
   const response = activeResult?.response ?? null;
   const error = activeResult?.error ?? null;
-  const isLoading = breachesAlertsResult?.requestKey !== requestKey;
+  const isLoading = breachesAlertsResult?.execution !== execution;
 
   useEffect(() => {
     const controller = new AbortController();
     queryBreachesAlerts(
-      { date, page: 1, pageSize: 8, sort: 'notificationTime', sortDir: 'Descending' },
+      { date: execution.date, page: 1, pageSize: 8, sort: 'notificationTime', sortDir: 'Descending' },
       { signal: controller.signal },
     )
       .then((nextResponse) => {
         if (controller.signal.aborted) {
           return;
         }
-        setBreachesAlertsResult({ requestKey, response: nextResponse, error: null });
+        setBreachesAlertsResult({ execution, response: nextResponse, error: null });
       })
       .catch((err: Error) => {
         if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setBreachesAlertsResult({ requestKey, response: null, error: err.message });
+        setBreachesAlertsResult({ execution, response: null, error: err.message });
         onRequestError(err);
       });
     return () => controller.abort();
-  }, [date, onRequestError, requestKey]);
+  }, [execution, onRequestError]);
 
   return (
     <section className="panel">

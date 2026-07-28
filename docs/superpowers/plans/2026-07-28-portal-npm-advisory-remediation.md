@@ -68,8 +68,13 @@ docker run --rm \
   'cp -R /source /tmp/client &&
    cd /tmp/client &&
    npm install --package-lock-only --ignore-scripts &&
+   npm update postcss --package-lock-only --ignore-scripts &&
    cp package-lock.json /output/package-lock.json'
 ```
+
+The explicit `npm update postcss` is required because `npm install
+--package-lock-only` preserves an already-locked vulnerable PostCSS release
+when it still satisfies Vite's semver range.
 
 Expected: the lock resolves ESLint 10.8.0, `brace-expansion` 5.0.8 or newer, and PostCSS 8.5.18 or newer.
 
@@ -97,7 +102,7 @@ git commit -m "build: remediate Portal npm advisories"
 ### Task 2: Prove ESLint 10 and the patched build graph preserve behavior
 
 **Files:**
-- Verify: `apps/portal/RvtPortal.Client/eslint.config.js`
+- Modify: `apps/portal/RvtPortal.Client/eslint.config.js`
 - Verify: `apps/portal/RvtPortal.Client/src/**/*.ts`
 - Verify: `apps/portal/RvtPortal.Client/src/**/*.tsx`
 
@@ -105,7 +110,34 @@ git commit -m "build: remediate Portal npm advisories"
 - Consumes: the regenerated package lock from Task 1
 - Produces: lint, test, and production-build evidence under Node 24
 
-- [ ] **Step 1: Install and run the complete Portal verification gate**
+- [ ] **Step 1: Verify the upgraded presets expose the policy delta**
+
+Run the Node 24 install and `npm run lint` command from the complete gate
+below before changing `eslint.config.js`.
+
+Expected: the audit is clean, but lint fails because React Hooks 7 adds React
+Compiler rules to `recommended` and `@eslint/js` 10 adds
+`no-unassigned-vars`, `no-useless-assignment`, and `preserve-caught-error`.
+
+- [ ] **Step 2: Preserve the established lint contract**
+
+Replace the spread of `reactHooks.configs.recommended.rules` with:
+
+```js
+'react-hooks/rules-of-hooks': 'error',
+'react-hooks/exhaustive-deps': 'warn',
+```
+
+Explicitly keep the three newly recommended ESLint 10 rules out of this
+security-only scope:
+
+```js
+'no-unassigned-vars': 'off',
+'no-useless-assignment': 'off',
+'preserve-caught-error': 'off',
+```
+
+- [ ] **Step 3: Install and run the complete Portal verification gate**
 
 Run:
 
@@ -124,7 +156,7 @@ docker run --rm \
 
 Expected: npm install succeeds without peer conflicts; lint has zero errors and only the two existing Fast Refresh warnings; all 78 Vitest tests pass; Vite production build succeeds; audit reports zero vulnerabilities.
 
-- [ ] **Step 2: Inspect the resolved security floors**
+- [ ] **Step 4: Inspect the resolved security floors**
 
 Run:
 
@@ -141,7 +173,7 @@ for (const name of ["eslint", "brace-expansion", "postcss"]) {
 
 Expected: no ESLint 9, no `brace-expansion` version below 5.0.8, and no PostCSS version below 8.5.18.
 
-- [ ] **Step 3: Run repository policy verification**
+- [ ] **Step 5: Run repository policy verification**
 
 Run:
 

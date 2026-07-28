@@ -1,0 +1,52 @@
+name: Engineering standards
+
+on: pull_request
+
+permissions:
+  contents: read
+
+concurrency:
+  group: engineering-standards-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  engineering-standards:
+    name: Engineering standards
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: apps/portal/RvtPortal.Client/package-lock.json
+
+      - name: Install Portal client dependencies
+        working-directory: apps/portal/RvtPortal.Client
+        run: npm ci
+
+      - name: Restore monorepo
+        run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel
+
+      - name: Verify standards model and module policy
+        run: node --test tests/engineering-standards-model.test.mjs tests/verify-engineering-standards-policy.test.mjs
+
+      - name: Verify engineering configuration
+        run: tests/verify-engineering-configuration.test.sh
+
+      - name: Verify automatic workflow contract
+        run: tests/verify-engineering-standards-workflow.test.sh
+
+      - name: Verify changed-range engineering standards
+        run: scripts/verify-engineering-standards.sh --base auto --head HEAD

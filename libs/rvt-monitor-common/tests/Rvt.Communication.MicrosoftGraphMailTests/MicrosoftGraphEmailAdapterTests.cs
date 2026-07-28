@@ -58,7 +58,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
         Assert.IsFalse(json.RootElement.GetProperty("message").TryGetProperty("attachments", out _));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(HttpStatusCode.RequestTimeout, DeliveryFailureKind.Transient)]
     [DataRow((HttpStatusCode)429, DeliveryFailureKind.Transient)]
     [DataRow(HttpStatusCode.InternalServerError, DeliveryFailureKind.Transient)]

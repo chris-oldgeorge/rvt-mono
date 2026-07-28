@@ -18,7 +18,7 @@ public sealed class SharedRuntimeCompatibilityTests
         RvtLogger.CreateLogger(factory, nameof(SharedRuntimeCompatibilityTests));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(AlertType.Alert, LegacyMessageKind.Alert)]
     [DataRow(AlertType.Caution, LegacyMessageKind.Caution)]
     [DataRow(AlertType.Offline, LegacyMessageKind.Offline)]
@@ -132,8 +132,8 @@ public sealed class SharedRuntimeCompatibilityTests
             .Where(property => property.Name == nameof(Rvt.Monitor.Common.Rules.RvtContactDto.ContactMethod))
             .ToList();
 
-        Assert.AreEqual(1, reflectedContactMethodProperties.Count);
-        Assert.AreEqual(1, serializedContactMethodProperties.Count);
+        Assert.HasCount(1, reflectedContactMethodProperties);
+        Assert.HasCount(1, serializedContactMethodProperties);
     }
 
     [TestMethod]

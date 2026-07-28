@@ -20,7 +20,7 @@ public sealed class BoundedJsonRequestReaderTests
     [DataRow(null)]
     [DataRow("")]
     [DataRow("text/plain")]
-    [DataTestMethod]
+    [TestMethod]
     public async Task ReadAsync_MissingOrNonJsonMediaType_ThrowsUnsupportedMediaType(string? contentType)
     {
         var request = CreateRequest("{}"u8.ToArray(), contentType);
@@ -31,7 +31,7 @@ public sealed class BoundedJsonRequestReaderTests
 
     [DataRow(null)]
     [DataRow("identity")]
-    [DataTestMethod]
+    [TestMethod]
     public async Task ReadAsync_NoEncodingOrIdentityEncoding_ReturnsBody(string? contentEncoding)
     {
         var request = CreateRequest("{}"u8.ToArray(), "application/json");
@@ -47,7 +47,7 @@ public sealed class BoundedJsonRequestReaderTests
 
     [DataRow("gzip")]
     [DataRow("identity, gzip")]
-    [DataTestMethod]
+    [TestMethod]
     public async Task ReadAsync_NonIdentityEncoding_ThrowsUnsupportedMediaType(string contentEncoding)
     {
         var request = CreateRequest("{}"u8.ToArray(), "application/json");
@@ -87,7 +87,7 @@ public sealed class BoundedJsonRequestReaderTests
 
         var result = await BoundedJsonRequestReader.ReadAsync(request, CancellationToken.None);
 
-        Assert.AreEqual(BoundedJsonRequestReader.MaxBodyBytes, result.Length);
+        Assert.HasCount(BoundedJsonRequestReader.MaxBodyBytes, result);
         CollectionAssert.AreEqual(body, result);
     }
 

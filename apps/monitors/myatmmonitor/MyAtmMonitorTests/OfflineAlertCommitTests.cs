@@ -58,8 +58,8 @@ public sealed class OfflineAlertCommitTests
 
         Assert.IsNotNull(commit);
         Assert.AreEqual(monitor.Id, commit.MonitorStateMutation!.MonitorId);
-        Assert.AreEqual(false, commit.MonitorStateMutation.ExpectedOffline);
-        Assert.AreEqual(true, commit.MonitorStateMutation.Offline);
+        Assert.IsFalse(commit.MonitorStateMutation.ExpectedOffline);
+        Assert.IsTrue(commit.MonitorStateMutation.Offline);
         Assert.HasCount(1, commit.Occurrences);
         var occurrence = commit.Occurrences[0];
         Assert.AreEqual(AlertType.Offline, occurrence.AlertType);
@@ -119,8 +119,8 @@ public sealed class OfflineAlertCommitTests
         await api.CheckForOfflineMonitorsAsync(customerId);
 
         Assert.IsNotNull(commit);
-        Assert.AreEqual(true, commit.MonitorStateMutation!.ExpectedOffline);
-        Assert.AreEqual(false, commit.MonitorStateMutation.Offline);
+        Assert.IsTrue(commit.MonitorStateMutation!.ExpectedOffline);
+        Assert.IsFalse(commit.MonitorStateMutation.Offline);
         Assert.IsEmpty(commit.Occurrences);
         dbClient.Verify(client => client.ReadAlertContacts(It.IsAny<Guid>()), Times.Never);
         messageService.VerifyNoOtherCalls();

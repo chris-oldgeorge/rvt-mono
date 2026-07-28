@@ -168,13 +168,13 @@ namespace MyAtmMonitorTests
         [DataRow("2023-11-21T12:00:00Z", "2023-11-21T13:59:00Z", 5, 5)]
         [DataRow("2023-11-21T12:00:00Z", "2023-11-21T15:00:00Z", 5, 5)]
         [DataRow("2023-11-21T12:00:00Z", "2023-11-21T16:00:00Z", 5, 5)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestMonitorsList(string lastDate, string queryDate, int numMonitors, int numExpectedMonitors)
         {
             DateTime? lastDataTime = String.IsNullOrEmpty(lastDate) ? null : ParseUtc(lastDate);
             DateTime? queryLastdataTime = String.IsNullOrEmpty(queryDate) ? null : ParseUtc(queryDate);
             var monitorsIn = CreateMonitorsList(numMonitors, 987);
-            Assert.AreEqual(numMonitors, monitorsIn.Count);
+            Assert.HasCount(numMonitors, monitorsIn);
             testObj!.WriteMonitorList(monitorsIn);
 
             foreach (var monitorIn in monitorsIn)
@@ -192,7 +192,7 @@ namespace MyAtmMonitorTests
             }
 
             var monitorsOut = testObj.ReadMonitorList(queryLastdataTime);
-            Assert.AreEqual(numExpectedMonitors, monitorsOut.Count);
+            Assert.HasCount(numExpectedMonitors, monitorsOut);
             Assert.IsTrue(TestUtil.VerifyMonitorList(monitorsIn, monitorsOut));
 
         }
@@ -205,7 +205,7 @@ namespace MyAtmMonitorTests
             connection.Open();
 
             var rules = testObj!.ReadRules(null);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
 
             var rule = rules[0];
 
@@ -218,7 +218,7 @@ namespace MyAtmMonitorTests
             Assert.AreEqual(0, rule.LimitOn);
             Assert.AreEqual(0, rule.LimitOff);
             Assert.AreEqual(24 * 60 * 60, rule.AveragingPeriod);
-            Assert.IsNotNull(rule.Created);
+            Assert.AreNotEqual(default, rule.Created);
             Assert.IsNull(rule.Accessed);
             Assert.IsNull(rule.RuleActiveTime.StartTime);
             Assert.IsNull(rule.RuleActiveTime.EndTime);
@@ -247,7 +247,7 @@ namespace MyAtmMonitorTests
             }
 
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
             var NUM_RULES = 10;
@@ -265,7 +265,7 @@ namespace MyAtmMonitorTests
             }
 
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(NUM_RULES, rules.Count);
+            Assert.HasCount(NUM_RULES, rules);
 
             var orderedRules = rules.OrderBy(o => o.Field).ToList();
 
@@ -286,7 +286,7 @@ namespace MyAtmMonitorTests
                 Assert.AreEqual(isEven, rule.RuleActiveTime.Sundays);
                 Assert.AreEqual(isEven ? startTime : null, rule.RuleActiveTime.StartTime);
                 Assert.AreEqual(isEven ? endTime : null, rule.RuleActiveTime.EndTime);
-                Assert.IsNotNull(rule.Created);
+                Assert.AreNotEqual(default, rule.Created);
             }
         }
 
@@ -309,13 +309,13 @@ namespace MyAtmMonitorTests
             }
 
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(numMonitors, monitorsOut.Count);
+            Assert.HasCount(numMonitors, monitorsOut);
             var monitorId = monitorsOut[0].Id;
             var serialId = monitorsOut[0].SerialId;
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 44, serialId, monitorId);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "mytestemail@bbb.com";
             var phoneNo = "01234567890";
             var startTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddHours(-1));
@@ -329,10 +329,10 @@ namespace MyAtmMonitorTests
             InsertContact(connection, monitorsOut[1].Id, ContactMethod.Email, email, phoneNo, Guid.NewGuid());
 
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(2, contacts.Count);
+            Assert.HasCount(2, contacts);
 
             var alertContacts = testObj.ReadAlertContacts(monitorId);
-            Assert.AreEqual(1, alertContacts.Count);
+            Assert.HasCount(1, alertContacts);
             var ac = alertContacts[0];
             Assert.AreEqual(ContactMethod.Email, ac.ContactMethod);
             Assert.AreEqual(email, ac.EmailAddress);
@@ -388,7 +388,7 @@ namespace MyAtmMonitorTests
             var customerId = 851;
 
             var monitors = CreateMonitorsList(1, customerId, "wrst_monitor");
-            Assert.AreEqual(1, monitors.Count);
+            Assert.HasCount(1, monitors);
 
             testObj!.WriteMonitorList(monitors);
 
@@ -408,7 +408,7 @@ namespace MyAtmMonitorTests
             testObj.WriteLatestTimestamp(serialId, lastDataTime24Hour, Period.Hours24);
 
             monitors = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitors.Count);
+            Assert.HasCount(1, monitors);
 
             var monitor = monitors[0];
             Assert.AreEqual(lastDataTimeMin, monitor.LastDataTime1Min);
@@ -435,20 +435,20 @@ namespace MyAtmMonitorTests
             }
 
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 10, serialId, monitorId, AlertType.Caution);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "foobob@bbb.com";
             var phoneNo = "01238867890";
             var siteUserId = Guid.NewGuid();
             InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo, siteUserId);
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(1, contacts.Count);
+            Assert.HasCount(1, contacts);
 
             var dt = ParseUtc("2023-10-18T11:19:00");
             var alertIn = new NotificationDto(rules[0], 99.876, dt, monitorId);
@@ -462,7 +462,7 @@ namespace MyAtmMonitorTests
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
             {
                 var alerts = ReadNotifications(connection);
-                Assert.AreEqual(1, alerts.Count);
+                Assert.HasCount(1, alerts);
 
                 var alertOut = alerts[0];
 
@@ -492,7 +492,7 @@ namespace MyAtmMonitorTests
             Assert.IsTrue(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
             Assert.IsTrue(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
-            Assert.AreEqual(2, ReadNotifications(connection).Count);
+            Assert.HasCount(2, ReadNotifications(connection));
         }
 
         [TestMethod]
@@ -531,7 +531,7 @@ namespace MyAtmMonitorTests
         [DataRow(AlertType.Caution, AlertType.Caution, true)]
         [DataRow(AlertType.Alert, AlertType.Caution, false)]
         [DataRow(AlertType.Alert, AlertType.Alert, true)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestHasOpenNotification(AlertType existing, AlertType alertType, bool expectedResult)
         {
             var connectionString = database!.ConnectionString;
@@ -549,19 +549,19 @@ namespace MyAtmMonitorTests
             }
 
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId, alertType);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "foobob@bbb.com";
             var phoneNo = "01238867890";
             var siteUserId = Guid.NewGuid();
             InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo, siteUserId);
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(1, contacts.Count);
+            Assert.HasCount(1, contacts);
 
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
@@ -600,12 +600,12 @@ namespace MyAtmMonitorTests
             }
 
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
             InsertAlertRule(connection, 721, serialId, monitorId);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
 
             var rule = rules[0];
 
@@ -615,7 +615,7 @@ namespace MyAtmMonitorTests
             testObj.UpdateAlertRule(rules[0]);
 
             var updatedRules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, updatedRules.Count);
+            Assert.HasCount(1, updatedRules);
             Assert.AreEqual(isActive, updatedRules[0].IsActive);
 
         }
@@ -1014,7 +1014,7 @@ namespace MyAtmMonitorTests
             Assert.AreEqual(secondId, claim.Id);
             CollectionAssert.AreEqual(new[] { firstId }, claimant.CompetingClaimIds);
             Assert.AreEqual(2, claimant.CandidateSelectionCount);
-            Assert.IsTrue(claimant.CandidateSelectionCount <= 3);
+            Assert.IsLessThanOrEqualTo(3, claimant.CandidateSelectionCount);
             Assert.AreEqual("Pending", ReadScalarString(connection, $"SELECT status FROM monitor_delivery_outbox WHERE id = '{thirdId}';"));
         }
 
@@ -1174,7 +1174,7 @@ namespace MyAtmMonitorTests
                 testObj.SetMonitorOffline(m.Id, true);
             }
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             foreach (var m in monitorsOut)
             {
                 Assert.IsTrue(m.Offline);
@@ -1219,7 +1219,7 @@ namespace MyAtmMonitorTests
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();
             var dtos = ReadDustDtos(connection);
-            Assert.AreEqual(1, dtos.Count);
+            Assert.HasCount(1, dtos);
         }
 
         [TestMethod]
@@ -1239,7 +1239,7 @@ namespace MyAtmMonitorTests
             connection.Open();
             var dtos = ReadDustDtos(connection);
 
-            Assert.AreEqual(1, dtos.Count);
+            Assert.HasCount(1, dtos);
         }
 
         [TestMethod]
@@ -1300,20 +1300,20 @@ namespace MyAtmMonitorTests
             }
 
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "bad-email";
             var phoneNo = "bad-phonenumber";
             var siteUserId = Guid.NewGuid();
             InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo, siteUserId);
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(1, contacts.Count);
+            Assert.HasCount(1, contacts);
 
             var dt = ParseUtc("2023-10-18T11:19:00");
             var notificationIn = new NotificationDto(rules[0], 99.876, dt, monitorId);
@@ -1323,7 +1323,7 @@ namespace MyAtmMonitorTests
             testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
 
             var notifications = ReadNotifications(connection);
-            Assert.AreEqual(1, notifications.Count);
+            Assert.HasCount(1, notifications);
 
             var notificationOut = notifications[0];
 
@@ -1337,7 +1337,7 @@ namespace MyAtmMonitorTests
             Assert.AreEqual(notificationIn.MonitorId, notificationOut.MonitorId);
 
             var audits = ReadNotificationsSent(connection);
-            Assert.AreEqual(1, audits.Count);
+            Assert.HasCount(1, audits);
             var audit = audits[0];
 
             Assert.IsInstanceOfType(audit["Id"], typeof(Guid));

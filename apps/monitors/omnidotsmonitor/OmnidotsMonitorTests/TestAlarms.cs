@@ -83,14 +83,14 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(7, z.vtop!.AlarmLimits!.AlarmLevel2);
             Assert.AreEqual(10, z.vtop!.AlarmLimits!.AlarmLevel3);
 
-            Assert.AreEqual(null, alarm.Data.Category);
+            Assert.IsNull(alarm.Data.Category);
             Assert.AreEqual(0.20000000298023224, alarm.Data.DataSaveLevel);
             Assert.AreEqual(2, alarm.Data.MeasurementDuration);
             Assert.AreEqual(10, alarm.Data.TraceSaveLevel);
             Assert.AreEqual(3000, alarm.Data.TracePreTrigger);
             Assert.AreEqual(3000, alarm.Data.TracePostTrigger);
-            Assert.AreEqual(null, alarm.Data.MeasuringType);
-            Assert.AreEqual(null, alarm.Data.VibrationType);
+            Assert.IsNull(alarm.Data.MeasuringType);
+            Assert.IsNull(alarm.Data.VibrationType);
             Assert.AreEqual(30, alarm.Data.AlarmLevel);
             Assert.AreEqual("BS7385_250Hz", alarm.Data.GuideLine);
             Assert.AreEqual(180, alarm.Data.TraceTimeLimit);
@@ -103,7 +103,7 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(23423, alarm.MeasuringPointId);
 
             var txt = "Alarm level 1: Your measuring point WOHEPU-82022 (WOHEPU), measured an exceedance";
-            Assert.IsTrue(alarm.Text!.StartsWith(txt));
+            Assert.StartsWith(txt, alarm.Text);
 
 
             //    var axes = alarm.Data.Axes!;
@@ -128,7 +128,7 @@ namespace OmnidotsAdapterTests
             Assert.IsNotNull(alarm);
             Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_ONLINE, alarm.Category);
             Assert.AreEqual("success", alarm.Level);
-            Assert.AreEqual(null, alarm.CreatedAt);
+            Assert.IsNull(alarm.CreatedAt);
 
             Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
             Assert.AreEqual(1701854384.887, alarm!.Data!.Datetime);
@@ -150,7 +150,7 @@ namespace OmnidotsAdapterTests
             Assert.IsNotNull(alarm);
             Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_OFFLINE, alarm.Category);
             Assert.AreEqual("error", alarm.Level);
-            Assert.AreEqual(null, alarm.CreatedAt);
+            Assert.IsNull(alarm.CreatedAt);
 
             Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
             Assert.AreEqual(1701798511.988, alarm!.Data!.Datetime);
@@ -160,7 +160,7 @@ namespace OmnidotsAdapterTests
 
             Assert.IsNull(alarm.Data.Category);
             var txt = "Your measuring point WOHEPU-82022 (WOHEPU) stopped measuring on Dec. 5, 2023, 5:48:31 p.m. GMT";
-            Assert.IsTrue(alarm.Text!.StartsWith(txt));
+            Assert.StartsWith(txt, alarm.Text);
         }
 
         [TestMethod]
@@ -202,7 +202,7 @@ namespace OmnidotsAdapterTests
         [DataRow("testdata/alarm_ignore.json", "vtop z", AlertType.Ignore, 4.057920932769775, 3)]
         [DataRow("testdata/alarm_caution.json", "vtop y", AlertType.Caution, 7.1234567890, 7)]
         [DataRow("testdata/alarm_alert.json", "vtop x", AlertType.Alert, 11.1234567890, 10)]
-        [DataTestMethod]
+        [TestMethod]
         public void TestAlarmTriggers_OutputCorrectValues_Success(string filename,
                                                                   string expectedAxis,
                                                                   AlertType expectedAlertType,

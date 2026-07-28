@@ -33,7 +33,7 @@ public sealed class TestMonitorJobScheduling
             "TestMonitorJobScheduling");
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("StoreVeffRecords", "/api/v1/get_veff_records")]
     [DataRow("StoreVdvRecords", "/api/v1/get_vdv_records")]
     public async Task RunAsync_ImportsRequestedVibrationSeriesWithinPastWindow(string jobName, string endpoint)
@@ -66,10 +66,10 @@ public sealed class TestMonitorJobScheduling
         var startTime = long.Parse(query["start_time"]);
         var endTime = long.Parse(query["end_time"]);
 
-        Assert.IsTrue(startTime >= earliestStartTime, $"start_time {startTime} was before {earliestStartTime}.");
-        Assert.IsTrue(startTime <= latestStartTime, $"start_time {startTime} was after {latestStartTime}.");
-        Assert.IsTrue(endTime >= earliestEndTime, $"end_time {endTime} was before {earliestEndTime}.");
-        Assert.IsTrue(endTime <= latestEndTime, $"end_time {endTime} was after {latestEndTime}.");
+        Assert.IsGreaterThanOrEqualTo(earliestStartTime, startTime, $"start_time {startTime} was before {earliestStartTime}.");
+        Assert.IsLessThanOrEqualTo(latestStartTime, startTime, $"start_time {startTime} was after {latestStartTime}.");
+        Assert.IsGreaterThanOrEqualTo(earliestEndTime, endTime, $"end_time {endTime} was before {earliestEndTime}.");
+        Assert.IsLessThanOrEqualTo(latestEndTime, endTime, $"end_time {endTime} was after {latestEndTime}.");
         httpClient.Verify(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()), Times.Once);
     }
 
@@ -288,8 +288,8 @@ public sealed class TestMonitorJobScheduling
     {
         var dispatcher = new OmnidotsMonitorJobDispatcher();
 
-        Assert.IsTrue(dispatcher.SupportedJobNames.Contains("DispatchAlerts"));
-        Assert.IsTrue(dispatcher.SupportedJobNames.Contains("CleanupAlerts"));
+        Assert.Contains("DispatchAlerts", dispatcher.SupportedJobNames);
+        Assert.Contains("CleanupAlerts", dispatcher.SupportedJobNames);
     }
 
     [TestMethod]
@@ -471,7 +471,7 @@ public sealed class TestMonitorJobScheduling
     private static IReadOnlyDictionary<string, string> ParseQuery(string url)
     {
         var queryStart = url.IndexOf('?');
-        Assert.IsTrue(queryStart >= 0, $"URL '{url}' did not contain a query string.");
+        Assert.IsGreaterThanOrEqualTo(0, queryStart, $"URL '{url}' did not contain a query string.");
 
         return url[(queryStart + 1)..]
             .Split('&', StringSplitOptions.RemoveEmptyEntries)

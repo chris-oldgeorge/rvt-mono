@@ -15,6 +15,10 @@ last_repo=
 last_output=
 last_status=0
 
+# Test overrides model local invocation by default, even when this harness is
+# itself launched by a CI runner. Focused cases opt back into GitHub Actions.
+export GITHUB_ACTIONS=false
+
 cleanup() {
   sleep 30 &
   cleanup_pid_probe=$!
@@ -42,6 +46,11 @@ assert_status() {
 assert_output() {
   [[ "$last_output" == *"$1"* ]] ||
     fail "expected output to contain '$1': $last_output"
+}
+
+assert_output_absent() {
+  [[ "$last_output" != *"$1"* ]] ||
+    fail "expected output not to contain '$1': $last_output"
 }
 
 assert_log_contains() {
@@ -191,6 +200,26 @@ run_verify_default_commands() {
   set -e
 }
 
+run_verify_in_github_actions_with_override() {
+  local override_name="$1"
+  local override_value="$2"
+
+  set +e
+  last_output="$(
+    cd "$last_repo"
+    unset RVT_STANDARDS_DOTNET_COMMAND
+    unset RVT_STANDARDS_PRETTIER_COMMAND
+    unset RVT_STANDARDS_ESLINT_COMMAND
+    unset RVT_STANDARDS_BASELINE_PATH
+    unset RVT_STANDARDS_EXCEPTIONS_PATH
+    export GITHUB_ACTIONS=true
+    export "${override_name}=${override_value}"
+    scripts/verify-engineering-standards.sh --working-tree 2>&1
+  )"
+  last_status=$?
+  set -e
+}
+
 write_dotnet_report() {
   local destination="$1"
   local file_path="$2"
@@ -274,11 +303,19 @@ EOF
 cat > "$fake_bin/fake-prettier" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+unsupported_svg=0
 printf 'prettier cwd=<%s>' "$PWD" >> "$RVT_FAKE_LOG"
 for argument in "$@"; do
   printf ' <%s>' "$argument" >> "$RVT_FAKE_LOG"
+  if [[ "$argument" == *.svg ]]; then
+    unsupported_svg=1
+  fi
 done
 printf '\n' >> "$RVT_FAKE_LOG"
+if [[ "$unsupported_svg" -eq 1 ]]; then
+  printf '[error] No parser could be inferred for SVG input.\n' >&2
+  exit 2
+fi
 if [[ -n "$RVT_FAKE_PRETTIER_OUTPUT" ]]; then
   printf '%s\n' "$RVT_FAKE_PRETTIER_OUTPUT"
 fi
@@ -288,13 +325,27 @@ EOF
 cat > "$fake_bin/fake-eslint" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+has_ignored_schema=0
+has_ordinary_warning=0
+suppress_ignored_warning=0
+quiet=0
 printf 'eslint cwd=<%s>' "$PWD" >> "$RVT_FAKE_LOG"
 for argument in "$@"; do
   printf ' <%s>' "$argument" >> "$RVT_FAKE_LOG"
+  case "$argument" in
+    --no-warn-ignored) suppress_ignored_warning=1 ;;
+    --quiet) quiet=1 ;;
+    src/api/schema.d.ts) has_ignored_schema=1 ;;
+    src/warning.ts) has_ordinary_warning=1 ;;
+  esac
 done
 printf '\n' >> "$RVT_FAKE_LOG"
 if [[ -n "$RVT_FAKE_ESLINT_REPORT" ]]; then
   cat "$RVT_FAKE_ESLINT_REPORT"
+elif [[ "$has_ignored_schema" -eq 1 && "$suppress_ignored_warning" -eq 0 ]]; then
+  printf '[{"filePath":"%s/src/api/schema.d.ts","messages":[{"ruleId":null,"fatal":false,"severity":1,"message":"File ignored because of a matching ignore pattern. Use \\"--no-ignore\\" to disable file ignore settings or use \\"--no-warn-ignored\\" to suppress this warning.","nodeType":null}]}]\n' "$PWD"
+elif [[ "$has_ordinary_warning" -eq 1 && "$quiet" -eq 0 ]]; then
+  printf '[{"filePath":"%s/src/warning.ts","messages":[{"ruleId":"react-refresh/only-export-components","fatal":false,"severity":1,"message":"Fast refresh only works when a file only exports components.","line":1}]}]\n' "$PWD"
 else
   printf '[]\n'
 fi
@@ -302,6 +353,33 @@ exit "$RVT_FAKE_ESLINT_STATUS"
 EOF
 chmod +x "$fake_bin/fake-dotnet" "$fake_bin/fake-prettier" "$fake_bin/fake-eslint"
 ln -s "$fake_bin/fake-dotnet" "$default_bin/dotnet"
+
+# GitHub Actions must reject every command and policy-path override before
+# policy loading or source tools can be influenced.
+for override_name in \
+  RVT_STANDARDS_DOTNET_COMMAND \
+  RVT_STANDARDS_PRETTIER_COMMAND \
+  RVT_STANDARDS_ESLINT_COMMAND \
+  RVT_STANDARDS_BASELINE_PATH \
+  RVT_STANDARDS_EXCEPTIONS_PATH; do
+  create_repo "github-actions-${override_name}"
+  run_verify_in_github_actions_with_override "$override_name" "unsafe"
+  assert_status 2
+  assert_output "$override_name"
+  assert_output "GITHUB_ACTIONS=true"
+  assert_log_absent
+done
+
+# The same test-only injection boundary remains available outside CI.
+create_repo local-override-support
+printf '\n' >> "$last_repo/src/Clock.cs"
+printf 'export const changed = 43;\n' \
+  >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+run_verify --working-tree
+assert_status 0
+assert_log_contains "dotnet <--sentinel> <two words>"
+assert_log_contains "prettier cwd=<$last_repo/apps/portal/RvtPortal.Client>"
+assert_log_contains "eslint cwd=<$last_repo/apps/portal/RvtPortal.Client>"
 
 # Clean changed-scope checks do not invoke source tools.
 create_repo clean
@@ -327,13 +405,15 @@ assert_log_contains "<src/NewClock.cs>"
 
 # Staged and unstaged hunks are independently part of the changed surface.
 create_repo staged-and-unstaged-hunks
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
 sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
 rm "$last_repo/src/Clock.cs.bak"
 git -C "$last_repo" add src/Clock.cs
 sed -i.bak 's/public int Minute/public int Month/' "$last_repo/src/Clock.cs"
 rm "$last_repo/src/Clock.cs.bak"
-write_json "$last_repo/baseline.json" \
-  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" \
   "5:IDE0055" "7:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
@@ -365,29 +445,58 @@ assert_status 0
 assert_log_contains "prettier cwd=<$last_repo/apps/portal/RvtPortal.Client>"
 assert_log_contains "<--list-different> <src/app.ts>"
 assert_log_contains "eslint cwd=<$last_repo/apps/portal/RvtPortal.Client>"
-assert_log_contains "<--format> <json> <src/app.ts>"
+assert_log_contains "<--format> <json>"
+assert_log_contains "<src/app.ts>"
 
-# Every supported Portal text extension is formatted; TS module forms are linted.
+# Removing --no-warn-ignored from the production ESLint invocation makes the
+# fake pinned-engine boundary emit ESLint 9.39.4's nonfatal null-rule notice,
+# which the verifier must continue to reject rather than normalize heuristically.
+create_repo eslint-structurally-ignored-generated-file
+mkdir -p "$last_repo/apps/portal/RvtPortal.Client/src/api"
+printf 'export interface GeneratedSchema {}\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/api/schema.d.ts"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/src/api/schema.d.ts
+git -C "$last_repo" commit -q -m "tracked generated schema"
+run_verify --all
+assert_status 0
+assert_log_contains "<--no-warn-ignored>"
+assert_log_contains "<src/api/schema.d.ts>"
+
+# Adding --quiet to the production invocation would make this fake pinned-engine
+# boundary suppress a legitimate non-ignored warning and this changed-file check fail.
+create_repo eslint-ordinary-warning
+printf 'export const warning = 1;\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/warning.ts"
+run_verify --working-tree
+assert_status 1
+assert_output "react-refresh/only-export-components"
+
+# Every Prettier-supported Portal text extension is formatted; explicitly selected
+# unsupported text remains validated without being sent to Prettier.
 create_repo portal-supported-extensions
 declare -a prettier_extensions=(
   css html js jsx json md mdx scss ts tsx yaml yml
-  mjs cjs mts cts svg graphql gql
+  mjs cjs mts cts graphql gql
 )
 for extension in "${prettier_extensions[@]}"; do
   candidate="$last_repo/apps/portal/RvtPortal.Client/src/extension.$extension"
   case "$extension" in
     json) printf '{}\n' > "$candidate" ;;
     yaml|yml) printf 'value: true\n' > "$candidate" ;;
-    svg) printf '<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n' > "$candidate" ;;
     graphql|gql) printf 'query Viewer { viewer { id } }\n' > "$candidate" ;;
     *) printf 'export const extensionValue = true;\n' > "$candidate" ;;
   esac
 done
+printf '<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/extension.svg"
 run_verify --working-tree
 assert_status 0
 for extension in "${prettier_extensions[@]}"; do
   assert_log_contains "<src/extension.$extension>"
 done
+if rg -F -q -- "<src/extension.svg>" "$last_repo/tool.log"; then
+  fail "Prettier received explicitly selected unsupported SVG input"
+fi
 for extension in ts tsx mts cts; do
   rg -F "eslint cwd=" "$last_repo/tool.log" |
     rg -F -q -- "<src/extension.$extension>" ||
@@ -396,9 +505,11 @@ done
 
 # A diagnostic in a new file is rejected even when its whole-path count is stable.
 create_repo new-file-diagnostic
-printf 'namespace Sample;\npublic sealed class Added {}\n' > "$last_repo/src/Added.cs"
 write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Added.cs","count":1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
+printf 'namespace Sample;\npublic sealed class Added {}\n' > "$last_repo/src/Added.cs"
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Added.cs" "1:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --working-tree
@@ -408,10 +519,12 @@ assert_output "src/Added.cs:1"
 
 # A diagnostic on a changed line is rejected at a stable total.
 create_repo changed-line
-sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
-rm "$last_repo/src/Clock.cs.bak"
 write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --working-tree
@@ -421,9 +534,11 @@ assert_output "src/Clock.cs:5"
 
 # An unchanged-line legacy diagnostic is allowed only at or below baseline.
 create_repo unchanged-line
+cp "$source_root/tests/fixtures/engineering-standards/baseline.json" "$last_repo/baseline.json"
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
 sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
 rm "$last_repo/src/Clock.cs.bak"
-cp "$source_root/tests/fixtures/engineering-standards/baseline.json" "$last_repo/baseline.json"
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --working-tree
@@ -431,9 +546,11 @@ assert_status 0
 
 # A whole-path increase fails with baseline and observed counts.
 create_repo increase
+cp "$source_root/tests/fixtures/engineering-standards/baseline.json" "$last_repo/baseline.json"
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
 sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
 rm "$last_repo/src/Clock.cs.bak"
-cp "$source_root/tests/fixtures/engineering-standards/baseline.json" "$last_repo/baseline.json"
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" \
   "5:IDE0055" "7:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
@@ -444,10 +561,12 @@ assert_output "observed=2"
 
 # A decrease is reported without failing.
 create_repo decrease
-sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
-rm "$last_repo/src/Clock.cs.bak"
 write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --working-tree
@@ -601,6 +720,23 @@ cmp -s "$last_repo/baseline.before" "$last_repo/baseline.json" ||
   fail "refused baseline update changed the file"
 cmp -s "$last_repo/exceptions.before" "$last_repo/exceptions.json" ||
   fail "baseline update widened exceptions"
+
+# A semantically unchanged update preserves the installed document across dates.
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"generatedAt":"2000-01-01","entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+cp "$last_repo/baseline.json" "$last_repo/baseline.before"
+baseline_hash_before="$(git hash-object "$last_repo/baseline.json")"
+write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --all --update-baseline
+assert_status 0
+baseline_hash_after="$(git hash-object "$last_repo/baseline.json")"
+set +e
+cmp -s "$last_repo/baseline.before" "$last_repo/baseline.json"
+baseline_cmp_status=$?
+set -e
+[[ "$baseline_cmp_status" -eq 0 && "$baseline_hash_before" == "$baseline_hash_after" ]] ||
+  fail "unchanged cross-date baseline update rewrote bytes: cmp=$baseline_cmp_status before=$baseline_hash_before after=$baseline_hash_after"
 
 write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
@@ -865,6 +1001,254 @@ worktree_count="$(git -C "$last_repo" worktree list --porcelain | rg -c '^worktr
 [[ "$worktree_count" -eq 1 ]] ||
   fail "range verification leaked an isolated worktree"
 
+# Committed-range policy comes from the requested head, never the caller checkout.
+create_repo exact-range-policy-head
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved baseline"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Clock.cs
+git -C "$last_repo" commit -q -m "requested source head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 0
+requested_head_output="$last_output"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+write_json "$last_repo/baseline.json" '{"version":1,"entries":[]}'
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 0
+[[ "$last_output" == "$requested_head_output" ]] ||
+  fail "the same committed range changed result with the caller checkout"
+
+# A baseline increase in a committed range is a policy violation even when it
+# would make the simultaneous diagnostic pass.
+create_repo exact-range-baseline-widening
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add baseline.json src/Clock.cs
+git -C "$last_repo" commit -q -m "widen baseline with source"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 1
+assert_output "Baseline policy"
+
+# A dirty working-tree baseline cannot widen the trusted HEAD policy.
+create_repo working-tree-baseline-widening
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+run_verify --working-tree
+assert_status 1
+assert_output "Baseline policy"
+assert_log_absent
+
+# A new exact-path exception cannot authorize a source violation in the same range.
+create_repo exact-range-same-change-exception
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-NEW","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add exceptions.json src/Clock.cs
+git -C "$last_repo" commit -q -m "add exception with violation"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 1
+assert_output "changed surface"
+
+# An exception that is unchanged across a committed range remains active.
+create_repo exact-range-existing-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve existing exception"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Clock.cs
+git -C "$last_repo" commit -q -m "change excepted source"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 0
+
+# Removing an exception in a committed range takes effect immediately.
+create_repo exact-range-removed-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve removable exception"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/exceptions.json" '{"version":1,"exceptions":[]}'
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add exceptions.json src/Clock.cs
+git -C "$last_repo" commit -q -m "remove exception with source change"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 1
+assert_output "changed surface"
+
+# Editing any authorization field creates a new, not-yet-trusted exception.
+create_repo exact-range-edited-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve original exception"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"other-team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add exceptions.json src/Clock.cs
+git -C "$last_repo" commit -q -m "edit exception owner with source change"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 1
+assert_output "changed surface"
+
+# Working-tree policy uses the same current/trusted exception intersection.
+create_repo working-tree-existing-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve working-tree exception"
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --working-tree
+assert_status 0
+
+create_repo working-tree-removed-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve removable working-tree exception"
+write_json "$last_repo/exceptions.json" '{"version":1,"exceptions":[]}'
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --working-tree
+assert_status 1
+assert_output "changed surface"
+
+create_repo working-tree-edited-exception
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+git -C "$last_repo" add exceptions.json
+git -C "$last_repo" commit -q -m "approve original working-tree exception"
+write_json "$last_repo/exceptions.json" \
+  '{"version":1,"exceptions":[{"id":"EX-CLOCK","ruleId":"IDE0055","owner":"other-team","path":"src/Clock.cs","justification":"temporary migration","introducedOn":"2026-07-28","reviewOn":"2026-08-30","removalCondition":"remove diagnostic","validation":"verified"}]}'
+sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --working-tree
+assert_status 1
+assert_output "changed surface"
+
+# A baseline decrease is enforced from the requested head and remains allowed.
+create_repo exact-range-baseline-decrease
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "legacy baseline"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add baseline.json src/Clock.cs
+git -C "$last_repo" commit -q -m "ratchet baseline down"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+write_dotnet_report "$last_repo/dotnet.json" "src/Clock.cs" "5:IDE0055"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 0
+assert_output_absent "Baseline decrease:"
+
+# Trusted transition policy is mandatory, valid JSON, and a regular file.
+create_repo exact-range-missing-trusted-policy
+git -C "$last_repo" rm -q baseline.json
+git -C "$last_repo" commit -q -m "missing base policy"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/baseline.json" '{"version":1,"entries":[]}'
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add baseline.json src/Clock.cs
+git -C "$last_repo" commit -q -m "restore policy with source"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+run_verify --base "$base_revision" --head "$head_revision"
+assert_status 2
+assert_output "Policy path is missing"
+assert_log_absent
+
+create_repo exact-range-malformed-trusted-policy
+write_json "$last_repo/baseline.json" '{"version":1,"entries":[{"count":-1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "malformed base policy"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+write_json "$last_repo/baseline.json" '{"version":1,"entries":[]}'
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add baseline.json src/Clock.cs
+git -C "$last_repo" commit -q -m "repair policy with source"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+run_verify --base "$base_revision" --head "$head_revision"
+assert_status 2
+assert_output "baseline entry"
+assert_log_absent
+
+create_repo exact-range-symlinked-trusted-policy
+write_json "$last_repo/policy-target.json" '{"version":1,"entries":[]}'
+rm "$last_repo/baseline.json"
+ln -s policy-target.json "$last_repo/baseline.json"
+git -C "$last_repo" add baseline.json policy-target.json
+git -C "$last_repo" commit -q -m "symlinked base policy"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+rm "$last_repo/baseline.json"
+write_json "$last_repo/baseline.json" '{"version":1,"entries":[]}'
+sed -i.bak 's/public int Second/public int Millisecond/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add baseline.json src/Clock.cs
+git -C "$last_repo" commit -q -m "replace policy with source"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+run_verify --base "$base_revision" --head "$head_revision"
+assert_status 2
+assert_output "symlink"
+assert_log_absent
+
 create_repo exact-range-ignored-csharp
 mkdir -p "$last_repo/src/node_modules"
 printf 'namespace Ignored;\n' > "$last_repo/src/node_modules/Ignored.cs"
@@ -892,6 +1276,20 @@ printf '\0changed font\n' > "$last_repo/apps/portal/RvtPortal.Client/src/font.wo
 git -C "$last_repo" add apps/portal/RvtPortal.Client/src/icon.ico \
   apps/portal/RvtPortal.Client/src/font.woff2
 git -C "$last_repo" commit -q -m "changed Portal binaries"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_status 0
+assert_log_absent
+
+# Unsupported Portal text is still a validated source input, but an SVG-only
+# committed range does not require or provision a Prettier installation.
+create_repo exact-range-unsupported-portal-text
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf '<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/public/rvt-mark.svg"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/public/rvt-mark.svg
+git -C "$last_repo" commit -q -m "tracked unsupported Portal text"
 head_revision="$(git -C "$last_repo" rev-parse HEAD)"
 git -C "$last_repo" checkout -q --detach "$base_revision"
 run_verify_default_commands --base "$base_revision" --head "$head_revision"
@@ -1168,6 +1566,33 @@ RVT_FAKE_PRETTIER_OUTPUT="src/app.ts" RVT_FAKE_PRETTIER_STATUS=1 \
 assert_status 1
 assert_output "Prettier"
 
+# Supported GraphQL still fails closed for formatting differences and
+# syntax/internal status 2 after unsupported text is filtered.
+create_repo supported-prettier-graphql-format
+printf 'query Viewer{viewer{id}}\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/query.graphql"
+RVT_FAKE_PRETTIER_OUTPUT="src/query.graphql" RVT_FAKE_PRETTIER_STATUS=1 \
+  run_verify --working-tree
+assert_status 1
+assert_output "Prettier"
+
+create_repo supported-prettier-graphql-syntax
+printf 'query Viewer {\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/query.graphql"
+RVT_FAKE_PRETTIER_STATUS=2 run_verify --working-tree
+assert_status 2
+assert_output "internal/configuration status 2"
+
+create_repo prettier-unexpected-skipped-svg-report
+printf 'query Viewer { viewer { id } }\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/query.graphql"
+printf '<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/src/skipped.svg"
+RVT_FAKE_PRETTIER_OUTPUT="src/skipped.svg" RVT_FAKE_PRETTIER_STATUS=1 \
+  run_verify --working-tree
+assert_status 2
+assert_output "unexpected path"
+
 # Missing/malformed accepted reports and invalid test overrides are tool failures.
 create_repo abnormal-whitespace-missing-report
 printf '\n' >> "$last_repo/src/Clock.cs"
@@ -1215,6 +1640,25 @@ write_eslint_report "$last_repo/eslint.json" \
 RVT_FAKE_ESLINT_STATUS=2 RVT_FAKE_ESLINT_REPORT="$last_repo/eslint.json" \
   run_verify --working-tree
 assert_status 2
+assert_output "internal/configuration status 2"
+
+create_repo eslint-fatal-parser-diagnostic
+printf 'export const broken = ;\n' >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+write_json "$last_repo/eslint.json" \
+  "[{\"filePath\":\"$last_repo/apps/portal/RvtPortal.Client/src/app.ts\",\"messages\":[{\"ruleId\":null,\"fatal\":true,\"severity\":2,\"message\":\"Parsing error: Expression expected.\",\"line\":2}]}]"
+RVT_FAKE_ESLINT_STATUS=1 RVT_FAKE_ESLINT_REPORT="$last_repo/eslint.json" \
+  run_verify --working-tree
+assert_status 1
+assert_output "eslint/fatal-parse-error"
+
+create_repo eslint-nonfatal-null-rule
+printf 'export const changed = 43;\n' >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+write_json "$last_repo/eslint.json" \
+  "[{\"filePath\":\"$last_repo/apps/portal/RvtPortal.Client/src/app.ts\",\"messages\":[{\"ruleId\":null,\"fatal\":false,\"severity\":1,\"message\":\"Malformed nonfatal diagnostic.\",\"line\":2}]}]"
+RVT_FAKE_ESLINT_REPORT="$last_repo/eslint.json" run_verify --working-tree
+assert_status 2
+assert_output "ESLint report is invalid"
+assert_output "rule ID"
 
 create_repo missing-report
 printf '\n' >> "$last_repo/src/Clock.cs"
@@ -1347,12 +1791,32 @@ assert_status 2
 assert_output "Binary"
 assert_log_absent
 
+create_repo binary-unsupported-portal-text
+printf '\0binary SVG\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/public/rvt-mark.svg"
+run_verify --working-tree
+assert_status 2
+assert_output "Binary"
+assert_log_absent
+
+create_repo inventory-binary-unsupported-portal-text
+printf '\0tracked binary SVG\n' \
+  > "$last_repo/apps/portal/RvtPortal.Client/public/rvt-mark.svg"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/public/rvt-mark.svg
+git -C "$last_repo" commit -q -m "tracked binary unsupported Portal text"
+run_verify --all
+assert_status 2
+assert_output "Binary"
+assert_log_absent
+
 create_repo real-rename
+write_json "$last_repo/baseline.json" \
+  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/RenamedClock.cs","count":1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved renamed-path baseline"
 git -C "$last_repo" mv src/Clock.cs src/RenamedClock.cs
 sed -i.bak 's/public int Hour/public int RenamedHour/' "$last_repo/src/RenamedClock.cs"
 rm "$last_repo/src/RenamedClock.cs.bak"
-write_json "$last_repo/baseline.json" \
-  '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/RenamedClock.cs","count":1}]}'
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/RenamedClock.cs" "5:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
@@ -1362,10 +1826,12 @@ assert_output "changed surface"
 assert_log_contains "<src/RenamedClock.cs>"
 
 create_repo real-copy
-cp "$last_repo/src/Clock.cs" "$last_repo/src/CopiedClock.cs"
-git -C "$last_repo" add src/CopiedClock.cs
 write_json "$last_repo/baseline.json" \
   '{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/CopiedClock.cs","count":1}]}'
+git -C "$last_repo" add baseline.json
+git -C "$last_repo" commit -q -m "approved copied-path baseline"
+cp "$last_repo/src/Clock.cs" "$last_repo/src/CopiedClock.cs"
+git -C "$last_repo" add src/CopiedClock.cs
 write_dotnet_report "$last_repo/dotnet.json" "$last_repo/src/CopiedClock.cs" "5:IDE0055"
 RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
 RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \

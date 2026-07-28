@@ -1,3 +1,4 @@
+using System.Reflection;
 using Rvt.Monitor.Common.Delivery;
 
 namespace Rvt.Monitor.CommonTests.Delivery;
@@ -8,8 +9,17 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Contracts_UseCanonicalProducerAndEnumValues()
     {
-        Assert.AreEqual("MyAtm", MonitorDeliveryProducers.MyAtm);
-        Assert.AreEqual("Svantek", MonitorDeliveryProducers.Svantek);
+        var myAtmField = typeof(MonitorDeliveryProducers).GetField(
+            nameof(MonitorDeliveryProducers.MyAtm),
+            BindingFlags.Public | BindingFlags.Static);
+        var svantekField = typeof(MonitorDeliveryProducers).GetField(
+            nameof(MonitorDeliveryProducers.Svantek),
+            BindingFlags.Public | BindingFlags.Static);
+
+        Assert.IsNotNull(myAtmField);
+        Assert.IsNotNull(svantekField);
+        Assert.AreEqual("MyAtm", (string?)myAtmField.GetRawConstantValue());
+        Assert.AreEqual("Svantek", (string?)svantekField.GetRawConstantValue());
         Assert.IsTrue(MonitorDeliveryProducers.IsKnown("MyAtm"));
         Assert.IsTrue(MonitorDeliveryProducers.IsKnown("Svantek"));
         Assert.IsFalse(MonitorDeliveryProducers.IsKnown("myatm"));

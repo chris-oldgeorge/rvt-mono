@@ -10,7 +10,7 @@ public sealed class DurableAlertServiceTests
 {
     private static readonly DateTime CreatedAt = new(2026, 7, 15, 10, 0, 0, DateTimeKind.Utc);
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(false)]
     [DataRow(true)]
     public async Task AcceptAsync_CalculatesIdentityAndReturnsStoreResult(bool isDuplicate)
@@ -86,7 +86,7 @@ public sealed class DurableAlertServiceTests
         await AssertRejectedAsync(null!, typeof(ArgumentNullException));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(nameof(AlertSignal.Source))]
     [DataRow(nameof(AlertSignal.SourceEventKey))]
     [DataRow(nameof(AlertSignal.SerialId))]
@@ -97,7 +97,7 @@ public sealed class DurableAlertServiceTests
         await AssertRejectedAsync(WithText(ValidSignal(), propertyName, " \t"), typeof(ArgumentException));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(nameof(AlertSignal.Source), 129)]
     [DataRow(nameof(AlertSignal.SourceEventKey), 513)]
     [DataRow(nameof(AlertSignal.SerialId), 129)]
@@ -158,7 +158,7 @@ public sealed class DurableAlertServiceTests
             Times.Once);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(nameof(AlertSignal.Source), 65)]
     [DataRow(nameof(AlertSignal.SourceEventKey), 257)]
     [DataRow(nameof(AlertSignal.SerialId), 65)]
@@ -173,7 +173,7 @@ public sealed class DurableAlertServiceTests
             typeof(ArgumentException));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(DateTimeKind.Local)]
     [DataRow(DateTimeKind.Unspecified)]
     public async Task AcceptAsync_RejectsNonUtcEventTimeBeforeCallingStore(DateTimeKind kind)
@@ -185,7 +185,7 @@ public sealed class DurableAlertServiceTests
             typeof(ArgumentException));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(nameof(AlertSignal.Level), double.NaN)]
     [DataRow(nameof(AlertSignal.Level), double.PositiveInfinity)]
     [DataRow(nameof(AlertSignal.Level), double.NegativeInfinity)]
@@ -203,7 +203,7 @@ public sealed class DurableAlertServiceTests
         await AssertRejectedAsync(signal, typeof(ArgumentOutOfRangeException));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(AlertType.Offline)]
     [DataRow(AlertType.BatteryAlert)]
     [DataRow(AlertType.BatteryCaution)]
@@ -215,7 +215,7 @@ public sealed class DurableAlertServiceTests
             typeof(ArgumentOutOfRangeException));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(AlertType.Alert)]
     [DataRow(AlertType.Caution)]
     [DataRow(AlertType.Ignore)]
@@ -224,7 +224,7 @@ public sealed class DurableAlertServiceTests
         await AssertAcceptedAsync(ValidSignal() with { AlertType = alertType });
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(8)]
     [DataRow(9)]
     [DataRow(-1)]
@@ -235,7 +235,7 @@ public sealed class DurableAlertServiceTests
             typeof(ArgumentOutOfRangeException));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(0)]
     [DataRow(1)]
     [DataRow(2)]
@@ -258,7 +258,7 @@ public sealed class DurableAlertServiceTests
             typeof(ArgumentOutOfRangeException));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(0)]
     [DataRow(-1)]
     public async Task AcceptAsync_RejectsNonpositiveSuppressionWindowBeforeCallingStore(int ticks)

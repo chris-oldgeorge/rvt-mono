@@ -4,10 +4,12 @@
   <PropertyGroup>
     <DefaultItemExcludes>$(DefaultItemExcludes);**/._*</DefaultItemExcludes>
     <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectName)').EndsWith('Tests'))">
-    <NoWarn>$(NoWarn);MSTEST0001;MSTEST0017;MSTEST0030;MSTEST0032;MSTEST0037;MSTEST0044;MSTEST0052</NoWarn>
+    <WarningsAsErrors>$(WarningsAsErrors);MSTEST0001;MSTEST0017;MSTEST0030;MSTEST0032;MSTEST0037;MSTEST0044;MSTEST0052</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

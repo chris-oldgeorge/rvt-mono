@@ -10,6 +10,8 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     {
         var fixturePath = Path.Combine(
             FindRepoRoot(),
+            "apps",
+            "monitors",
             "svantekmonitor",
             "SvantekMonitorTests",
             "testdata",
@@ -57,6 +59,8 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     {
         var testDataPath = Path.Combine(
             FindRepoRoot(),
+            "apps",
+            "monitors",
             "svantekmonitor",
             "SvantekMonitorTests",
             "testdata");
@@ -74,7 +78,7 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
             sql,
             @"(?is)\bINSERT\s+INTO\s+rvt_alert_rule\b.*?;");
 
-        Assert.AreEqual(1, offlineRuleInserts.Count, "The reset script must seed exactly one offline rule.");
+        Assert.HasCount(1, offlineRuleInserts, "The reset script must seed exactly one offline rule.");
 
         var offlineRuleInsert = offlineRuleInserts[0].Value;
         Assert.Contains("'00000000-0000-0000-0000-000000000001'", offlineRuleInsert);
@@ -90,6 +94,8 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     {
         var patchPath = Path.Combine(
             FindRepoRoot(),
+            "apps",
+            "monitors",
             "svantekmonitor",
             "SvantekMonitor",
             "postgres",
@@ -115,6 +121,8 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     {
         var patchPath = Path.Combine(
             FindRepoRoot(),
+            "apps",
+            "monitors",
             "svantekmonitor",
             "SvantekMonitor",
             "postgres",

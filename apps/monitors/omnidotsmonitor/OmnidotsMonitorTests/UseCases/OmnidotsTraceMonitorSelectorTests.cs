@@ -15,7 +15,7 @@ public sealed class OmnidotsTraceMonitorSelectorTests
             Options(enabled: false, maxMonitorsPerRun: 1),
             rotationSlot: 0);
 
-        Assert.AreEqual(0, selected.Count);
+        Assert.IsEmpty(selected);
     }
 
     [TestMethod]

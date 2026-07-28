@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,8 +18,14 @@ public sealed class DurableAlertOptionsTests
     public void Defaults_AreTheApprovedDurableDeliveryValues()
     {
         var options = new DurableAlertOptions();
+        var sectionNameField = typeof(DurableAlertOptions).GetField(
+            nameof(DurableAlertOptions.SectionName),
+            BindingFlags.Public | BindingFlags.Static);
 
-        Assert.AreEqual("Alerts:DurableDelivery", DurableAlertOptions.SectionName);
+        Assert.IsNotNull(sectionNameField);
+        Assert.AreEqual(
+            "Alerts:DurableDelivery",
+            (string?)sectionNameField.GetRawConstantValue());
         Assert.AreEqual(50, options.BatchSize);
         Assert.AreEqual(120, options.LeaseSeconds);
         Assert.AreEqual(90, options.DeliveryTimeoutSeconds);
@@ -30,7 +37,7 @@ public sealed class DurableAlertOptionsTests
         Assert.AreEqual("https://www.rvtcloud.com/", options.PortalBaseUrl);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(nameof(DurableAlertOptions.BatchSize))]
     [DataRow(nameof(DurableAlertOptions.LeaseSeconds))]
     [DataRow(nameof(DurableAlertOptions.DeliveryTimeoutSeconds))]
@@ -76,7 +83,7 @@ public sealed class DurableAlertOptionsTests
         }
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(120, 120)]
     [DataRow(121, 120)]
     public void Validator_RejectsTimeoutThatIsNotShorterThanLease(int timeout, int lease)
@@ -102,7 +109,7 @@ public sealed class DurableAlertOptionsTests
         Assert.IsTrue(new DurableAlertOptionsValidator().Validate(null, options).Failed);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("")]
     [DataRow("relative/path")]
     public void Validator_RejectsMissingOrNonAbsolutePortalBaseUrl(string portalBaseUrl)

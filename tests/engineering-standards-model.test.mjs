@@ -311,7 +311,7 @@ test('validateExceptions accepts reviewOn one day after introducedOn', () => {
   ));
 });
 
-test('validateExceptions rejects wildcard paths and unvalidated symbol scopes', () => {
+test('validateExceptions rejects wildcard paths and unsupported symbol scopes', () => {
   assert.throws(
     () => validateExceptions(
       { version: 1, exceptions: [exception({ path: 'src/**/*.cs' })] },
@@ -333,9 +333,9 @@ test('validateExceptions rejects wildcard paths and unvalidated symbol scopes', 
       },
       new Date('2026-07-27T00:00:00Z')
     ),
-    /rule-specific validator/i
+    /symbol-scoped exceptions are not supported/i
   );
-  assert.doesNotThrow(
+  assert.throws(
     () => validateExceptions(
       {
         version: 1,
@@ -348,7 +348,8 @@ test('validateExceptions rejects wildcard paths and unvalidated symbol scopes', 
         ]
       },
       new Date('2026-07-27T00:00:00Z')
-    )
+    ),
+    /symbol-scoped exceptions are not supported.*exact path/i
   );
 });
 

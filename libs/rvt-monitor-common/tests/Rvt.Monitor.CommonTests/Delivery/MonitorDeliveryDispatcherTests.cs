@@ -20,7 +20,7 @@ public sealed class MonitorDeliveryDispatcherTests
 
         await harness.Dispatcher.DispatchDueAsync();
 
-        Assert.AreEqual(1, harness.Queries.Claims.Count);
+        Assert.HasCount(1, harness.Queries.Claims);
         Assert.AreEqual(MonitorDeliveryProducers.Svantek, harness.Queries.Claims.Single().Producer);
         Assert.AreEqual(TimeSpan.FromMinutes(2), harness.Queries.Claims.Single().LeaseDuration);
         Assert.IsEmpty(harness.Commands.Outcomes);
@@ -66,7 +66,7 @@ public sealed class MonitorDeliveryDispatcherTests
         CollectionAssert.AreEqual(
             new[] { "claim", "deliver", "complete", "claim" },
             events);
-        Assert.AreEqual(2, harness.Queries.Claims.Count);
+        Assert.HasCount(2, harness.Queries.Claims);
         Assert.IsNull(harness.Commands.Completions.Single().Audit);
     }
 
@@ -218,7 +218,7 @@ public sealed class MonitorDeliveryDispatcherTests
 
         await harness.Dispatcher.DispatchDueAsync();
 
-        Assert.AreEqual(50, harness.Queries.Claims.Count);
+        Assert.HasCount(50, harness.Queries.Claims);
         Assert.HasCount(50, harness.Commands.Completions);
         Assert.AreEqual(1, harness.Queries.Remaining);
     }
@@ -271,7 +271,7 @@ public sealed class MonitorDeliveryDispatcherTests
         Assert.IsEmpty(harness.Commands.DeadLetters);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(DeliveryFailureKind.Permanent)]
     [DataRow(DeliveryFailureKind.Configuration)]
     public async Task DispatchDueAsync_NonTransientTypedFailureDeadLettersImmediately(
@@ -422,7 +422,7 @@ public sealed class MonitorDeliveryDispatcherTests
         Assert.HasCount(1, error.Failures);
         Assert.AreEqual(malformed.Id, harness.Commands.DeadLetters.Single().Id);
         Assert.AreEqual(valid.Id, harness.Commands.Completions.Single().Id);
-        Assert.AreEqual(3, harness.Queries.Claims.Count);
+        Assert.HasCount(3, harness.Queries.Claims);
     }
 
     [TestMethod]
@@ -485,7 +485,7 @@ public sealed class MonitorDeliveryDispatcherTests
 
         Assert.IsEmpty(harness.Commands.Outcomes);
         Assert.IsEmpty(harness.FailureSink.Failures);
-        Assert.AreEqual(1, harness.Queries.Claims.Count);
+        Assert.HasCount(1, harness.Queries.Claims);
     }
 
     [TestMethod]

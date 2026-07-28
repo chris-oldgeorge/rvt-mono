@@ -118,20 +118,20 @@ require_file "$root_dir/.editorconfig"
 require_file "$root_dir/Directory.Build.props"
 
 declare -a representative_projects=(
-  "apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj|latest"
-  "apps/portal/RVT.Entities/RVT.Entities.csproj|latest-recommended"
-  "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj|latest"
-  "services/reporting/src/Rvt.Reporting.Core/Rvt.Reporting.Core.csproj|latest-recommended"
+  "apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj|latest|true"
+  "apps/portal/RVT.Entities/RVT.Entities.csproj|latest-recommended|false"
+  "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj|latest|false"
+  "services/reporting/src/Rvt.Reporting.Core/Rvt.Reporting.Core.csproj|latest-recommended|false"
 )
 
 for representative_project in "${representative_projects[@]}"; do
-  IFS='|' read -r project_relative_path expected_analysis_level <<< "$representative_project"
+  IFS='|' read -r project_relative_path expected_analysis_level expected_code_style_enforcement <<< "$representative_project"
   project="$root_dir/$project_relative_path"
   assert_property "$project" Nullable enable
   assert_property "$project" ImplicitUsings enable
   assert_property "$project" AnalysisLevel "$expected_analysis_level"
   assert_property "$project" RvtEngineeringStandardsMode Ratchet
-  assert_property "$project" EnforceCodeStyleInBuild false
+  assert_property "$project" EnforceCodeStyleInBuild "$expected_code_style_enforcement"
   assert_property "$project" Deterministic true
 done
 

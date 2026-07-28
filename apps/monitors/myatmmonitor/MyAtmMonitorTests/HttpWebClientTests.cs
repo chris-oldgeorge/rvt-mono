@@ -96,7 +96,7 @@ public class HttpWebClientTests
         Assert.IsTrue(delays.Any(delay => delay == TimeSpan.FromSeconds(3)));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(HttpStatusCode.RequestTimeout)]
     [DataRow(HttpStatusCode.InternalServerError)]
     [DataRow(HttpStatusCode.BadGateway)]
@@ -121,7 +121,7 @@ public class HttpWebClientTests
         var result = await subject.GetAsync("devices");
 
         Assert.AreEqual("[]", result);
-        Assert.IsTrue(delays.Count >= 1, "A transient response must schedule a retry delay.");
+        Assert.IsGreaterThanOrEqualTo(1, delays.Count, "A transient response must schedule a retry delay.");
     }
 
     [TestMethod]

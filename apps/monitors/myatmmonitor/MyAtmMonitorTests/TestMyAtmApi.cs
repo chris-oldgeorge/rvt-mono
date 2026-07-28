@@ -211,7 +211,7 @@ namespace MyAtmMonitorTests
             messageClient.VerifyNoOtherCalls();
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(Period.Minutes15, "/15min")]
         [DataRow(Period.Hours1, "/hourly")]
         [DataRow(Period.Hours24, "/daily")]

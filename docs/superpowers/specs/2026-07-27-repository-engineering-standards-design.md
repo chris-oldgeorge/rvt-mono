@@ -1,6 +1,6 @@
 # Repository Engineering Standards Design
 
-**Status:** Approved for implementation
+**Status:** Implemented
 
 **Date:** 2026-07-27
 
@@ -109,6 +109,7 @@ Rules use stable identifiers grouped by category:
 | `ASY` | Asynchrony, cancellation, and concurrency |
 | `ERR` | Results, exceptions, and API errors |
 | `NET` | Outbound HTTP and external integrations |
+| `RES` | Resource, stream, and storage ownership |
 | `OBS` | Logging, metrics, tracing, and health |
 | `CFG` | Configuration, secrets, and host boundaries |
 | `TST` | Testing and executable architecture evidence |
@@ -139,7 +140,7 @@ but it does not replace a security assessment.
 An exception record contains:
 
 - stable exception ID and related rule ID;
-- owner and affected paths/symbols;
+- owner and affected exact path;
 - technical and compatibility justification;
 - introduced and next-review dates;
 - measurable removal condition and remediation link; and
@@ -147,6 +148,11 @@ An exception record contains:
 
 Blanket analyzer suppression, wildcard path exclusion, unexplained warning
 lists, and ownerless TODO comments are not valid exceptions.
+
+The normative standard also allows a symbol scope when a rule-specific
+validator both proves and applies that exact scope. R9 registers no such
+validator. Its executable exception model therefore fails closed on every
+symbol-scoped record and supports exact repository-relative paths only.
 
 ## Enforcement design
 
@@ -207,5 +213,18 @@ The user approved the following sections in sequence:
 4. async, error, HTTP, time, storage, observability, and host reliability; and
 5. testing, analysis evidence, package hygiene, and automated enforcement.
 
-No design question remains open. Implementation planning begins only after the
-user reviews the committed specification.
+No design question remains open. The approved implementation is recorded in
+the
+[engineering standards enforcement report](../../reviews/2026-07-27-engineering-standards-enforcement-report.md)
+and operated through the
+[engineering standards enforcement guide](../../development/engineering-standards-enforcement.md).
+
+The R9 enforcement deliverable is implemented: its focused model, policy,
+configuration, verifier, local-build, and workflow guards pass; every root
+shell guard passes; the backend compiles; frontend lint, tests, and production
+build pass; and temporary real C# and TypeScript mutations are rejected.
+Repository-wide backend tests are not represented as globally green: the
+completion evidence records 186 tests that require a dedicated PostgreSQL
+integration connection and 17 existing architecture tests assigned to R1 for
+stale monorepo layout assumptions. Those classified outcomes neither weaken
+the R9 gates nor close R1.

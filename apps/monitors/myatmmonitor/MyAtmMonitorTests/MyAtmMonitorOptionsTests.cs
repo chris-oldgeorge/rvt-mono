@@ -36,7 +36,7 @@ public sealed class MyAtmMonitorOptionsTests
         Assert.AreEqual(120, options.OutboxLeaseSeconds);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(0, 120)]
     [DataRow(120, 120)]
     [DataRow(121, 120)]

@@ -40,11 +40,12 @@ const dotnetTools = {
   style: 'dotnet-format-style',
   analyzers: 'dotnet-format-analyzers'
 };
-const portalSourceExtensions = new Set([
+const portalPrettierExtensions = new Set([
   '.css', '.html', '.js', '.jsx', '.json', '.md', '.mdx',
   '.scss', '.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs',
-  '.svg', '.graphql', '.gql', '.yaml', '.yml'
+  '.graphql', '.gql', '.yaml', '.yml'
 ]);
+const portalSourceExtensions = new Set([...portalPrettierExtensions, '.svg']);
 const portalBinaryExtensions = new Set([
   '.eot', '.gif', '.ico', '.jpeg', '.jpg', '.pdf', '.png',
   '.ttf', '.webp', '.woff', '.woff2'
@@ -67,6 +68,24 @@ const dependencyInputPathspecs = [
   `${portalPrefix}pnpm-lock.yaml`,
   `${portalPrefix}pnpm-lock.yml`,
   `${portalPrefix}yarn.lock`
+];
+const exceptionAuthorizationFields = [
+  'id',
+  'ruleId',
+  'owner',
+  'path',
+  'justification',
+  'introducedOn',
+  'reviewOn',
+  'removalCondition',
+  'validation'
+];
+const githubActionsForbiddenOverrides = [
+  'RVT_STANDARDS_DOTNET_COMMAND',
+  'RVT_STANDARDS_PRETTIER_COMMAND',
+  'RVT_STANDARDS_ESLINT_COMMAND',
+  'RVT_STANDARDS_BASELINE_PATH',
+  'RVT_STANDARDS_EXCEPTIONS_PATH'
 ];
 
 class PolicyError extends Error {}
@@ -137,6 +156,19 @@ function parseArguments(argv) {
   }
 
   return parsed;
+}
+
+function assertNoGitHubActionsOverrides() {
+  if (process.env.GITHUB_ACTIONS !== 'true') return;
+
+  const configured = githubActionsForbiddenOverrides.filter(
+    (name) => process.env[name] !== undefined
+  );
+  if (configured.length === 0) return;
+
+  throw new InvocationError(
+    `Environment overrides are forbidden when GITHUB_ACTIONS=true: ${configured.join(', ')}`
+  );
 }
 
 function setMode(parsed, mode) {
@@ -265,6 +297,9 @@ function resolveScope(repoRoot, options) {
       newPaths: new Set(),
       changedRanges: new Map(),
       executionRoot: repoRoot,
+      policyRoot: repoRoot,
+      trustedPolicyRoot: undefined,
+      prepare() {},
       cleanup() {}
     };
   }
@@ -284,15 +319,23 @@ function resolveScope(repoRoot, options) {
     const added = gitLines(repoRoot, [
       'diff', '--name-only', '--diff-filter=A', 'HEAD'
     ]);
-    return {
-      ...finalizeChangedScope(repoRoot, {
+    const finalized = finalizeChangedScope(repoRoot, {
       paths: [...new Set([...tracked, ...untracked])],
       patch,
       newPaths: new Set([...added, ...untracked]),
       untracked: new Set(untracked)
-      }),
+    });
+    const trustedPolicy = materializeRevision(
+      repoRoot,
+      resolveRevision(repoRoot, 'HEAD')
+    );
+    return {
+      ...finalized,
       executionRoot: repoRoot,
-      cleanup() {}
+      policyRoot: repoRoot,
+      trustedPolicyRoot: trustedPolicy.root,
+      prepare() {},
+      cleanup: trustedPolicy.cleanup
     };
   }
 
@@ -309,23 +352,49 @@ function resolveScope(repoRoot, options) {
   const added = gitLines(repoRoot, [
     'diff', '--name-only', '--diff-filter=A', range.base, range.head
   ]);
-  const materialized = materializeRevision(repoRoot, range.head);
+  const materializedHead = materializeRevision(repoRoot, range.head);
+  let materializedBase;
   try {
-    provisionRangePrerequisites(repoRoot, materialized.root, range.head, tracked);
+    materializedBase = materializeRevision(repoRoot, range.base);
     return {
-      ...finalizeChangedScope(materialized.root, {
+      ...finalizeChangedScope(materializedHead.root, {
         paths: tracked,
         patch,
         newPaths: new Set(added),
         untracked: new Set()
       }),
-      executionRoot: materialized.root,
-      cleanup: materialized.cleanup
+      executionRoot: materializedHead.root,
+      policyRoot: materializedHead.root,
+      trustedPolicyRoot: materializedBase.root,
+      prepare() {
+        provisionRangePrerequisites(
+          repoRoot,
+          materializedHead.root,
+          range.head,
+          tracked
+        );
+      },
+      cleanup() {
+        cleanupMaterializedRevisions([materializedBase, materializedHead]);
+      }
     };
   } catch (error) {
-    materialized.cleanup();
+    cleanupMaterializedRevisions([materializedBase, materializedHead]);
     throw error;
   }
+}
+
+function cleanupMaterializedRevisions(materializedRevisions) {
+  let firstError;
+  for (const materialized of materializedRevisions) {
+    if (materialized === undefined) continue;
+    try {
+      materialized.cleanup();
+    } catch (error) {
+      firstError ??= error;
+    }
+  }
+  if (firstError !== undefined) throw firstError;
 }
 
 function materializeRevision(repoRoot, revision) {
@@ -362,7 +431,7 @@ function provisionRangePrerequisites(repoRoot, executionRoot, requestedHead, cha
   const needsDotnet =
     process.env.RVT_STANDARDS_DOTNET_COMMAND === undefined &&
     applicable.some((item) => item.endsWith('.cs'));
-  const portalPaths = applicable.filter((item) => item.startsWith(portalPrefix));
+  const portalPaths = applicable.filter(isPortalPrettierPath);
   const needsPrettier =
     process.env.RVT_STANDARDS_PRETTIER_COMMAND === undefined &&
     portalPaths.length > 0;
@@ -619,6 +688,13 @@ function isSourcePath(candidate) {
   );
 }
 
+function isPortalPrettierPath(candidate) {
+  return (
+    candidate.startsWith(portalPrefix) &&
+    portalPrettierExtensions.has(path.posix.extname(candidate).toLowerCase())
+  );
+}
+
 function validateSourceFile(repoRoot, candidate) {
   validateSourceBoundary(repoRoot, candidate);
   const absolute = path.join(repoRoot, candidate);
@@ -702,14 +778,36 @@ function baselineMap(document) {
   return new Map(document.entries.map((entry) => [diagnosticKey(entry), entry.count]));
 }
 
-function loadPolicy(repoRoot, options) {
+function loadPolicy(repoRoot, scope, options) {
+  const current = loadPolicyAtRoot(
+    repoRoot,
+    scope.policyRoot,
+    options
+  );
+  if (scope.trustedPolicyRoot === undefined) return current;
+
+  const trusted = loadPolicyAtRoot(
+    repoRoot,
+    scope.trustedPolicyRoot,
+    { ...options, initialize: false }
+  );
+  assertBaselineDoesNotWiden(current.baseline, trusted.baseline);
+  return {
+    ...current,
+    exceptions: intersectAuthorizedExceptions(current.exceptions, trusted.exceptions)
+  };
+}
+
+function loadPolicyAtRoot(repoRoot, policyRoot, options) {
   const baselinePath = resolvePolicyPath(
     repoRoot,
+    policyRoot,
     process.env.RVT_STANDARDS_BASELINE_PATH ?? 'eng/standards/baseline.json',
     options.initialize
   );
   const exceptionsPath = resolvePolicyPath(
     repoRoot,
+    policyRoot,
     process.env.RVT_STANDARDS_EXCEPTIONS_PATH ?? 'eng/standards/exceptions.json'
   );
   const exceptionDocument = readJsonDocument(exceptionsPath, 'Exceptions document');
@@ -743,12 +841,36 @@ function loadPolicy(repoRoot, options) {
   };
 }
 
-function resolvePolicyPath(repoRoot, candidate, allowMissingLeaf = false) {
+function assertBaselineDoesNotWiden(current, trusted) {
+  const widened = [...current].find(
+    ([key, count]) => count > (trusted.get(key) ?? 0)
+  );
+  if (widened === undefined) return;
+  const [key, count] = widened;
+  throw new PolicyError(
+    `Baseline policy cannot increase ${key}: trusted=${trusted.get(key) ?? 0} requested=${count}`
+  );
+}
+
+function intersectAuthorizedExceptions(current, trusted) {
+  const trustedIdentities = new Set(trusted.map(exceptionAuthorizationIdentity));
+  return current.filter(
+    (exception) => trustedIdentities.has(exceptionAuthorizationIdentity(exception))
+  );
+}
+
+function exceptionAuthorizationIdentity(exception) {
+  return JSON.stringify(
+    exceptionAuthorizationFields.map((field) => exception[field])
+  );
+}
+
+function resolvePolicyPath(repoRoot, policyRoot, candidate, allowMissingLeaf = false) {
   if (typeof candidate !== 'string' || candidate.trim() === '') {
     throw new InvocationError('Policy path override must be a non-empty path');
   }
-  const absolute = path.resolve(repoRoot, candidate);
-  const relative = path.relative(repoRoot, absolute);
+  const requestedAbsolute = path.resolve(repoRoot, candidate);
+  const relative = path.relative(repoRoot, requestedAbsolute);
   if (
     relative === '..' ||
     relative.startsWith(`..${path.sep}`) ||
@@ -756,7 +878,8 @@ function resolvePolicyPath(repoRoot, candidate, allowMissingLeaf = false) {
   ) {
     throw new InvocationError(`Policy path is outside repository root: ${candidate}`);
   }
-  validateContainedPath(repoRoot, absolute, 'Policy path', allowMissingLeaf);
+  const absolute = path.join(policyRoot, relative);
+  validateContainedPath(policyRoot, absolute, 'Policy path', allowMissingLeaf);
   return absolute;
 }
 
@@ -793,7 +916,7 @@ function collectDiagnostics(repoRoot, scope) {
 
   const dotnetPaths = applicable.filter((item) => item.endsWith('.cs')).sort();
   const portalPaths = applicable
-    .filter((item) => item.startsWith(portalPrefix))
+    .filter(isPortalPrettierPath)
     .sort();
   const diagnostics = [];
   const immediateViolations = [];
@@ -956,7 +1079,7 @@ function runPortalTools({ repoRoot, paths, inventory, immediateViolations }) {
   if (typescriptPaths.length === 0) return diagnostics;
   const eslintResult = runProcess(
     eslint,
-    ['--format', 'json', ...typescriptPaths],
+    ['--format', 'json', '--no-warn-ignored', ...typescriptPaths],
     clientRoot,
     'ESLint'
   );
@@ -1144,6 +1267,15 @@ function updateBaselineMonotonically(repoRoot, filePath, candidate) {
         `Concurrent baseline update would increase ${diagnosticKey(widened)}`
       );
     }
+    const unchanged =
+      candidate.entries.length === live.size &&
+      candidate.entries.every(
+        (entry) => live.get(diagnosticKey(entry)) === entry.count
+      );
+    if (unchanged) {
+      assertOwnedLock(lockPath, owner);
+      return;
+    }
     writeBaselineAtomically(
       filePath,
       candidate,
@@ -1318,11 +1450,14 @@ function repositoryRoot() {
 function main() {
   const options = parseArguments(process.argv.slice(2));
   if (options.help) return 0;
+  assertNoGitHubActionsOverrides();
   const repoRoot = repositoryRoot();
-  const policy = loadPolicy(repoRoot, options);
   const scope = resolveScope(repoRoot, options);
+  let policy;
   let execution;
   try {
+    policy = loadPolicy(repoRoot, scope, options);
+    scope.prepare();
     execution = collectDiagnostics(scope.executionRoot, scope);
   } finally {
     scope.cleanup();

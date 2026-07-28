@@ -292,9 +292,15 @@ build/test guarded.
       MQTT, messaging, and rule-processing call chains.
 - [ ] **R8 — Split selectable infrastructure from Common.** Do this only where
       independent host composition is required.
-- [ ] **R9 — Implement repository standards enforcement.** Introduce the root
-      baseline, ratchet existing violations, and normalize naming, namespaces,
-      analyzers, package management, and test conventions.
+- [x] **R9 — Implement repository standards enforcement.** The root
+      configuration, exact diagnostic baseline, exception and module policy,
+      changed-surface ratchet, frontend policy, local aggregate gate, CI gate,
+      mutation guards, operator guide, and evidence report are implemented.
+      This closes the shared enforcement foundation, not the legacy diagnostic
+      backlog. The final backend aggregate recorded 186 tests requiring a
+      dedicated PostgreSQL integration connection and 17 stale-layout
+      architecture failures already owned by R1; no production database was
+      used and no gate was weakened.
 - [ ] **R10 — Reduce Portal client/host structural size.** Extract routes,
       feature panels, date helpers, and composition extensions.
 - [ ] **R11 — Dispose of ambient untracked configuration.** Decide whether the

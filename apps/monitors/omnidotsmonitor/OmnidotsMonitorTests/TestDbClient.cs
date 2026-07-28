@@ -498,7 +498,7 @@ namespace OmnidotsAdapterTests
         {
             var connectionString = database!.ConnectionString;
 
-            Assert.AreEqual(expected.Count, actual.Count);
+            Assert.HasCount(expected.Count, actual);
             var orderedmonitorsOut = actual.OrderBy(o => o.SerialId).ToList();
             Assert.IsTrue(TestUtil.AreEqual(expected, orderedmonitorsOut));
 
@@ -536,7 +536,7 @@ namespace OmnidotsAdapterTests
 
                 testObj!.ReadMonitor("bad-serial-id");
             });
-            Assert.AreEqual(exception.Message, "No monitor with SerialId='bad-serial-id'");
+            Assert.AreEqual("No monitor with SerialId='bad-serial-id'", exception.Message);
         }
 
         [TestMethod]
@@ -550,7 +550,7 @@ namespace OmnidotsAdapterTests
             var monitorsIn = OmnidotsFixture.MonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
             var NUM_RULES = 10;
@@ -568,7 +568,7 @@ namespace OmnidotsAdapterTests
             }
 
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(NUM_RULES, rules.Count);
+            Assert.HasCount(NUM_RULES, rules);
 
             var orderedRules = rules.OrderBy(o => o.Field).ToList();
 
@@ -589,7 +589,7 @@ namespace OmnidotsAdapterTests
                 Assert.AreEqual(isEven, rule.RuleActiveTime.Sundays);
                 Assert.AreEqual(isEven ? startTime : null, rule.RuleActiveTime.StartTime);
                 Assert.AreEqual(isEven ? endTime : null, rule.RuleActiveTime.EndTime);
-                Assert.IsNotNull(rule.Created);
+                Assert.AreNotEqual(default, rule.Created);
             }
         }
 
@@ -609,7 +609,7 @@ namespace OmnidotsAdapterTests
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 44, serialId, monitorId);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "mytestemail@bbb.com";
             var phoneNo = "01234567890";
             var startTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddHours(-1));
@@ -623,10 +623,10 @@ namespace OmnidotsAdapterTests
             InsertContact(connection, monitorsIn[1].Id, ContactMethod.Email, email, phoneNo, Guid.NewGuid());
 
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(2, contacts.Count);
+            Assert.HasCount(2, contacts);
 
             var alertContacts = testObj.ReadAlertContacts(monitorId);
-            Assert.AreEqual(1, alertContacts.Count);
+            Assert.HasCount(1, alertContacts);
             var ac = alertContacts[0];
             Assert.AreEqual(ContactMethod.Email, ac.ContactMethod);
             Assert.AreEqual(email, ac.EmailAddress);
@@ -675,7 +675,7 @@ namespace OmnidotsAdapterTests
         {
 
             var monitors = OmnidotsFixture.MonitorsList(1);
-            Assert.AreEqual(1, monitors.Count);
+            Assert.HasCount(1, monitors);
 
             testObj!.WriteMonitorList(monitors);
 
@@ -683,7 +683,7 @@ namespace OmnidotsAdapterTests
             testObj.WriteLatestTimestamp("1", lastDataTime);
 
             monitors = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitors.Count);
+            Assert.HasCount(1, monitors);
 
             var monitor = monitors[0];
             Assert.AreEqual(lastDataTime, monitor.LastDataTime);
@@ -701,20 +701,20 @@ namespace OmnidotsAdapterTests
             var monitorsIn = OmnidotsFixture.MonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "foobob@bbb.com";
             var phoneNo = "01238867890";
             var siteUserId = Guid.NewGuid();
             InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo, siteUserId);
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(1, contacts.Count);
+            Assert.HasCount(1, contacts);
 
             var dt = DateTime.Parse("2023-10-18T11:19:00Z").ToUniversalTime();
             var alertIn = new NotificationDto(id: Guid.NewGuid(),
@@ -731,7 +731,7 @@ namespace OmnidotsAdapterTests
             testObj.WriteNotification(alertIn);
 
             var alerts = ReadNotifications(connection);
-            Assert.AreEqual(1, alerts.Count);
+            Assert.HasCount(1, alerts);
 
             var alertOut = alerts[0];
 
@@ -745,7 +745,7 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(alertIn.MonitorId, alertOut.MonitorId);
 
             var notifictions = testObj.ReadNotifications(monitorId, dt.AddMinutes(-5));
-            Assert.AreEqual(1, notifictions.Count);
+            Assert.HasCount(1, notifictions);
             var notifiction = notifictions[0];
             Assert.AreEqual(alertIn.Id, notifiction.Id);
             Assert.AreEqual(alertIn.Level, notifiction.Level);
@@ -767,12 +767,12 @@ namespace OmnidotsAdapterTests
             var monitorsIn = OmnidotsFixture.MonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
             InsertAlertRule(connection, 721, serialId, monitorId);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
 
             var rule = rules[0];
 
@@ -782,7 +782,7 @@ namespace OmnidotsAdapterTests
             testObj.UpdateAlertRule(rules[0]);
 
             var updatedRules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, updatedRules.Count);
+            Assert.HasCount(1, updatedRules);
         }
 
         [TestMethod]
@@ -811,7 +811,7 @@ namespace OmnidotsAdapterTests
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();
             var dtos = ReadPeakRecords(connection);
-            Assert.AreEqual(1, dtos.Count);
+            Assert.HasCount(1, dtos);
             var dtoOut = dtos[0];
 
             Assert.IsTrue(TestUtil.VerifyDateTime(sampleTime, dtoOut.SampleTime));
@@ -851,15 +851,15 @@ namespace OmnidotsAdapterTests
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();
             var dtos = ReadPeakRecords(connection);
-            Assert.AreEqual(1, dtos.Count);
+            Assert.HasCount(1, dtos);
             var dtoOut = dtos[0];
 
             Assert.IsTrue(TestUtil.VerifyDateTime(sampleTime, dtoOut.SampleTime));
-            Assert.AreEqual(null, dtoOut!.X);
+            Assert.IsNull(dtoOut!.X);
             Assert.AreEqual(y.Fdom, dtoOut!.Y!.Fdom);
             Assert.AreEqual(y.Vtop, dtoOut!.Y!.Vtop);
             Assert.AreEqual(y.VtopOverflow, dtoOut!.Y!.VtopOverflow);
-            Assert.AreEqual(null, dtoOut!.Z);
+            Assert.IsNull(dtoOut!.Z);
         }
 
         [TestMethod]
@@ -887,7 +887,7 @@ namespace OmnidotsAdapterTests
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();
             var dtos = ReadVeffRecords(connection);
-            Assert.AreEqual(1, dtos.Count);
+            Assert.HasCount(1, dtos);
             var dtoOut = dtos[0];
 
             Assert.IsTrue(TestUtil.VerifyDateTime(sampleTime, dtoOut.SampleTime));
@@ -929,7 +929,7 @@ namespace OmnidotsAdapterTests
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();
             var dtos = ReadVdvRecords(connection);
-            Assert.AreEqual(1, dtos.Count);
+            Assert.HasCount(1, dtos);
             var dtoOut = dtos[0];
 
             Assert.IsTrue(TestUtil.VerifyDateTime(sampleTime, dtoOut.SampleTime));
@@ -993,20 +993,20 @@ namespace OmnidotsAdapterTests
             var monitorsIn = OmnidotsFixture.MonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
             var monitorsOut = testObj.ReadMonitorList(null);
-            Assert.AreEqual(1, monitorsOut.Count);
+            Assert.HasCount(1, monitorsOut);
             var monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId);
             var rules = testObj!.ReadRules(serialId);
-            Assert.AreEqual(1, rules.Count);
+            Assert.HasCount(1, rules);
             var email = "bad-email";
             var phoneNo = "bad-phonenumber";
             var siteUserId = Guid.NewGuid();
             InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo, siteUserId);
             var contacts = ReadContacts(connection, siteUserId);
-            Assert.AreEqual(1, contacts.Count);
+            Assert.HasCount(1, contacts);
 
             var dt = DateTime.Parse("2023-10-18T11:19:00Z").ToUniversalTime();
             var notificationIn = new NotificationDto(id: Guid.NewGuid(),
@@ -1024,7 +1024,7 @@ namespace OmnidotsAdapterTests
             testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
 
             var notifications = ReadNotifications(connection);
-            Assert.AreEqual(1, notifications.Count);
+            Assert.HasCount(1, notifications);
 
             var notificationOut = notifications[0];
 
@@ -1038,7 +1038,7 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(notificationIn.MonitorId, notificationOut.MonitorId);
 
             var audits = ReadNotificationsSent(connection);
-            Assert.AreEqual(1, audits.Count);
+            Assert.HasCount(1, audits);
             var audit = audits[0];
 
             Assert.IsInstanceOfType(audit["Id"], typeof(Guid));
@@ -1080,7 +1080,7 @@ namespace OmnidotsAdapterTests
 
             var tds = ReadTraces(database!.ConnectionString, serialId);
 
-            Assert.AreEqual(tracesResponse.Traces!.Count, tds.Count);
+            Assert.HasCount(tracesResponse.Traces!.Count, tds);
 
             for (var i = 0; i < tds.Count; i++)
             {
@@ -1089,16 +1089,16 @@ namespace OmnidotsAdapterTests
 
                 Assert.AreEqual(expected.StartTime, actual.StartTime);
                 Assert.AreEqual(expected.EndTime, actual.EndTime);
-                Assert.AreEqual(expected.X!.Count, actual.X!.Count);
-                Assert.AreEqual(expected.Y!.Count, actual.Y!.Count);
-                Assert.AreEqual(expected.Z!.Count, actual.Z!.Count);
+                Assert.HasCount(expected.X!.Count, actual.X!);
+                Assert.HasCount(expected.Y!.Count, actual.Y!);
+                Assert.HasCount(expected.Z!.Count, actual.Z!);
 
                 CollectionAssert.AreEqual(expected.X, actual.X);
                 CollectionAssert.AreEqual(expected.Y, actual.Y);
                 CollectionAssert.AreEqual(expected.Z, actual.Z);
 
             }
-            Assert.AreEqual(tracesResponse.Traces!.Count, tds.Count);
+            Assert.HasCount(tracesResponse.Traces!.Count, tds);
 
         }
 
@@ -1119,7 +1119,7 @@ namespace OmnidotsAdapterTests
             testObj.WriteTraces(serialId, [trace]);
 
             var storedTraces = ReadTraces(database!.ConnectionString, serialId);
-            Assert.AreEqual(2, storedTraces.Count, "Trace replay retains the append-only compatibility behavior.");
+            Assert.HasCount(2, storedTraces, "Trace replay retains the append-only compatibility behavior.");
             foreach (var storedTrace in storedTraces)
             {
                 CollectionAssert.AreEqual(trace.X, storedTrace.TraceData.X);
@@ -1161,7 +1161,7 @@ namespace OmnidotsAdapterTests
 
             var result = testObj!.ReadLatestTraceEndTimes(["trace-a", "trace-b", "missing"]);
 
-            Assert.AreEqual(2, result.Count);
+            Assert.HasCount(2, result);
             Assert.AreEqual(serialANew, result["trace-a"]);
             Assert.AreEqual(serialB, result["trace-b"]);
         }

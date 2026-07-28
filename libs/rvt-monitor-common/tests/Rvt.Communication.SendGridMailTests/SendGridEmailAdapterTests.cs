@@ -37,7 +37,7 @@ public sealed class SendGridEmailAdapterTests
         Assert.AreEqual(Convert.ToBase64String(new byte[] { 1, 2, 3 }), sentAttachment.Content);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(HttpStatusCode.RequestTimeout, DeliveryFailureKind.Transient)]
     [DataRow((HttpStatusCode)429, DeliveryFailureKind.Transient)]
     [DataRow(HttpStatusCode.InternalServerError, DeliveryFailureKind.Transient)]

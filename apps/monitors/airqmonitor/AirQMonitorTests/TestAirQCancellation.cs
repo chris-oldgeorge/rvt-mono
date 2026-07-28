@@ -78,7 +78,7 @@ public class TestAirQCancellation
         AirQHttpGateway gateway = new(httpClient.Object);
         DateTime watermark = new(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        LatestSamplesResult result = await gateway.GetLatestSamplesAsync("user", "auth", "Device1", watermark);
+        LatestSamplesResult result = await gateway.GetLatestSamplesAsync("user", "auth", "Device1", watermark, TestContext.CancellationToken);
 
         Assert.IsNotNull(result.Samples);
         Assert.AreEqual(watermark, result.LatestDateTime);
@@ -169,4 +169,6 @@ public class TestAirQCancellation
             });
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

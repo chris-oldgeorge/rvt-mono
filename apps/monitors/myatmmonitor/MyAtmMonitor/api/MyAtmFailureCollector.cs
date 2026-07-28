@@ -3,15 +3,10 @@ using MyAtm.Api.Db;
 
 namespace MyAtm.Api;
 
-public sealed class MyAtmFailureCollector
+public sealed class MyAtmFailureCollector(IMyAtmOperationalCommands operationalCommands)
 {
-    private readonly IMyAtmOperationalCommands operationalCommands;
+    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
     private readonly List<MyAtmJobFailure> failures = [];
-
-    public MyAtmFailureCollector(IMyAtmOperationalCommands operationalCommands)
-    {
-        this.operationalCommands = operationalCommands;
-    }
 
     public void Capture(
         string identifier,

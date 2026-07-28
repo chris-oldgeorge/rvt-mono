@@ -12,25 +12,18 @@ using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 namespace MyAtm.Api;
 
 // Keeps legacy synchronous notification APIs for unsupported callers and builds pure scheduled commits.
-public sealed class MyAtmRuleProcessor
+public sealed class MyAtmRuleProcessor(
+    IMyAtmRuleQueries ruleQueries,
+    string portalBaseUrl,
+    RuleAlertDeliveryPlanner? deliveryPlanner = null)
 {
-    private readonly IMyAtmRuleQueries ruleQueries;
+    private readonly IMyAtmRuleQueries ruleQueries = ruleQueries;
     private readonly MyAtmAlertTransitionEvaluator transitionEvaluator = new();
-    private readonly RuleAlertDeliveryPlanner deliveryPlanner;
-    private readonly string portalBaseUrl;
+    private readonly RuleAlertDeliveryPlanner deliveryPlanner = deliveryPlanner ?? new RuleAlertDeliveryPlanner();
+    private readonly string portalBaseUrl = portalBaseUrl;
     private readonly IMyAtmOperationalCommands? legacyOperationalCommands;
     private readonly IMessageService? legacyMessageService;
     private readonly IMonitorEventPublisher? legacyEventPublisher;
-
-    public MyAtmRuleProcessor(
-        IMyAtmRuleQueries ruleQueries,
-        string portalBaseUrl,
-        RuleAlertDeliveryPlanner? deliveryPlanner = null)
-    {
-        this.ruleQueries = ruleQueries;
-        this.portalBaseUrl = portalBaseUrl;
-        this.deliveryPlanner = deliveryPlanner ?? new RuleAlertDeliveryPlanner();
-    }
 
     // Compatibility constructor for older in-process callers. Scheduled paths use the narrow constructor.
     public MyAtmRuleProcessor(
@@ -62,7 +55,7 @@ public sealed class MyAtmRuleProcessor
         ];
         MyAtmAlertOccurrenceInput[] occurrences = transition.Activated
             ? [CreateOccurrence(monitor, rule, transition.Level!.Value, end, rule.AlertType, includeMqtt: true, utcNow)]
-            : Array.Empty<MyAtmAlertOccurrenceInput>();
+            : [];
         return new MyAtmAlertCommit(mutations, null, occurrences, utcNow);
     }
 

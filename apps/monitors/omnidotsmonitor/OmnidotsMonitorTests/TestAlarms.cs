@@ -5,222 +5,221 @@ using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-namespace OmnidotsAdapterTests
+namespace OmnidotsAdapterTests;
+
+
+[TestClass]
+public class TestAlarms
 {
 
-    [TestClass]
-    public class TestAlarms
+    public TestAlarms()
     {
-
-        public TestAlarms()
+        ILoggerFactory factory = LoggerFactory.Create(builder =>
         {
-            ILoggerFactory factory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
-            });
-            RvtLogger.CreateLogger(factory, "TestAlarms");
-        }
+            builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
+        });
+        RvtLogger.CreateLogger(factory, "TestAlarms");
+    }
 
 
-        [TestMethod]
-        public void TestParseAlarmJson()
-        {
-            string json = TestUtil.ReadTextFromFile("testdata/alarm_ignore.json");
-            AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
+    [TestMethod]
+    public void TestParseAlarmJson()
+    {
+        string json = TestUtil.ReadTextFromFile("testdata/alarm_ignore.json");
+        AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
-            Assert.IsNotNull(alarm);
-            Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_GUIDELINE_ALARM, alarm.Category);
-            Assert.AreEqual("warning", alarm.Level);
-            Assert.AreEqual(1702317013.999, alarm.CreatedAt);
+        Assert.IsNotNull(alarm);
+        Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_GUIDELINE_ALARM, alarm.Category);
+        Assert.AreEqual("warning", alarm.Level);
+        Assert.AreEqual(1702317013.999, alarm.CreatedAt);
 
-            Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
-            Assert.AreEqual("WOHEPU-82022", alarm!.Data!.MeasuringPoint);
-            Assert.AreEqual("", alarm!.Data!.AlarmNames!.AlarmLevel1);
-            Assert.AreEqual("", alarm!.Data!.AlarmNames!.AlarmLevel2);
-            Assert.AreEqual("", alarm!.Data!.AlarmNames!.Alarm_level3);
-            Assert.AreEqual(1702317013.999, alarm.Data.CreatedAt);
-            Assert.AreEqual(30, alarm!.Data!.Alarms!.AlarmLevel1);
-            Assert.AreEqual(70, alarm!.Data!.Alarms!.AlarmLevel2);
-            Assert.AreEqual(100, alarm!.Data!.Alarms!.AlarmLevel3);
+        Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
+        Assert.AreEqual("WOHEPU-82022", alarm!.Data!.MeasuringPoint);
+        Assert.AreEqual("", alarm!.Data!.AlarmNames!.AlarmLevel1);
+        Assert.AreEqual("", alarm!.Data!.AlarmNames!.AlarmLevel2);
+        Assert.AreEqual("", alarm!.Data!.AlarmNames!.Alarm_level3);
+        Assert.AreEqual(1702317013.999, alarm.Data.CreatedAt);
+        Assert.AreEqual(30, alarm!.Data!.Alarms!.AlarmLevel1);
+        Assert.AreEqual(70, alarm!.Data!.Alarms!.AlarmLevel2);
+        Assert.AreEqual(100, alarm!.Data!.Alarms!.AlarmLevel3);
 
-            AlarmFdomVtop x = alarm!.Data!.Axes!.X!;
-            Assert.AreEqual(17.5, x.fdom);
-            Assert.AreEqual(1.6326589584350586, x.vtop!.Value);
-            Assert.AreEqual(16.326589584350586, x.vtop!.GuideLineOverflow);
-            Assert.AreEqual(10, x.vtop!.GuideLineLimit);
-            Assert.AreEqual(54.421965281168625, x.vtop!.AlarmLimitOverflows!.AlarmLevel1);
-            Assert.AreEqual(23.323699406215123, x.vtop!.AlarmLimitOverflows!.AlarmLevel2);
-            Assert.AreEqual(16.326589584350586, x.vtop!.AlarmLimitOverflows!.AlarmLevel3);
-            Assert.AreEqual(3, x.vtop!.AlarmLimits!.AlarmLevel1);
-            Assert.AreEqual(7, x.vtop!.AlarmLimits!.AlarmLevel2);
-            Assert.AreEqual(10, x.vtop!.AlarmLimits!.AlarmLevel3);
+        AlarmFdomVtop x = alarm!.Data!.Axes!.X!;
+        Assert.AreEqual(17.5, x.fdom);
+        Assert.AreEqual(1.6326589584350586, x.vtop!.Value);
+        Assert.AreEqual(16.326589584350586, x.vtop!.GuideLineOverflow);
+        Assert.AreEqual(10, x.vtop!.GuideLineLimit);
+        Assert.AreEqual(54.421965281168625, x.vtop!.AlarmLimitOverflows!.AlarmLevel1);
+        Assert.AreEqual(23.323699406215123, x.vtop!.AlarmLimitOverflows!.AlarmLevel2);
+        Assert.AreEqual(16.326589584350586, x.vtop!.AlarmLimitOverflows!.AlarmLevel3);
+        Assert.AreEqual(3, x.vtop!.AlarmLimits!.AlarmLevel1);
+        Assert.AreEqual(7, x.vtop!.AlarmLimits!.AlarmLevel2);
+        Assert.AreEqual(10, x.vtop!.AlarmLimits!.AlarmLevel3);
 
-            AlarmFdomVtop y = alarm!.Data!.Axes!.Y!;
-            Assert.AreEqual(17.5, y.fdom);
-            Assert.AreEqual(0.7223203182220459, y.vtop!.Value);
-            Assert.AreEqual(7.223203182220458, y.vtop!.GuideLineOverflow);
-            Assert.AreEqual(10, y.vtop!.GuideLineLimit);
-            Assert.AreEqual(24.07734394073486, y.vtop!.AlarmLimitOverflows!.AlarmLevel1);
-            Assert.AreEqual(10.31886168888637, y.vtop!.AlarmLimitOverflows!.AlarmLevel2);
-            Assert.AreEqual(7.223203182220458, y.vtop!.AlarmLimitOverflows!.AlarmLevel3);
-            Assert.AreEqual(3, y.vtop!.AlarmLimits!.AlarmLevel1);
-            Assert.AreEqual(7, y.vtop!.AlarmLimits!.AlarmLevel2);
-            Assert.AreEqual(10, y.vtop!.AlarmLimits!.AlarmLevel3);
+        AlarmFdomVtop y = alarm!.Data!.Axes!.Y!;
+        Assert.AreEqual(17.5, y.fdom);
+        Assert.AreEqual(0.7223203182220459, y.vtop!.Value);
+        Assert.AreEqual(7.223203182220458, y.vtop!.GuideLineOverflow);
+        Assert.AreEqual(10, y.vtop!.GuideLineLimit);
+        Assert.AreEqual(24.07734394073486, y.vtop!.AlarmLimitOverflows!.AlarmLevel1);
+        Assert.AreEqual(10.31886168888637, y.vtop!.AlarmLimitOverflows!.AlarmLevel2);
+        Assert.AreEqual(7.223203182220458, y.vtop!.AlarmLimitOverflows!.AlarmLevel3);
+        Assert.AreEqual(3, y.vtop!.AlarmLimits!.AlarmLevel1);
+        Assert.AreEqual(7, y.vtop!.AlarmLimits!.AlarmLevel2);
+        Assert.AreEqual(10, y.vtop!.AlarmLimits!.AlarmLevel3);
 
-            AlarmFdomVtop z = alarm!.Data!.Axes!.Z!;
-            Assert.AreEqual(17.5, z.fdom);
-            Assert.AreEqual(4.057920932769775, z.vtop!.Value);
-            Assert.AreEqual(40.579209327697754, z.vtop!.GuideLineOverflow);
-            Assert.AreEqual(10, z.vtop!.GuideLineLimit);
-            Assert.AreEqual(135.26403109232587, z.vtop!.AlarmLimitOverflows!.AlarmLevel1);
-            Assert.AreEqual(57.970299039568225, z.vtop!.AlarmLimitOverflows!.AlarmLevel2);
-            Assert.AreEqual(40.579209327697754, z.vtop!.AlarmLimitOverflows!.AlarmLevel3);
-            Assert.AreEqual(3, z.vtop!.AlarmLimits!.AlarmLevel1);
-            Assert.AreEqual(7, z.vtop!.AlarmLimits!.AlarmLevel2);
-            Assert.AreEqual(10, z.vtop!.AlarmLimits!.AlarmLevel3);
+        AlarmFdomVtop z = alarm!.Data!.Axes!.Z!;
+        Assert.AreEqual(17.5, z.fdom);
+        Assert.AreEqual(4.057920932769775, z.vtop!.Value);
+        Assert.AreEqual(40.579209327697754, z.vtop!.GuideLineOverflow);
+        Assert.AreEqual(10, z.vtop!.GuideLineLimit);
+        Assert.AreEqual(135.26403109232587, z.vtop!.AlarmLimitOverflows!.AlarmLevel1);
+        Assert.AreEqual(57.970299039568225, z.vtop!.AlarmLimitOverflows!.AlarmLevel2);
+        Assert.AreEqual(40.579209327697754, z.vtop!.AlarmLimitOverflows!.AlarmLevel3);
+        Assert.AreEqual(3, z.vtop!.AlarmLimits!.AlarmLevel1);
+        Assert.AreEqual(7, z.vtop!.AlarmLimits!.AlarmLevel2);
+        Assert.AreEqual(10, z.vtop!.AlarmLimits!.AlarmLevel3);
 
-            Assert.IsNull(alarm.Data.Category);
-            Assert.AreEqual(0.20000000298023224, alarm.Data.DataSaveLevel);
-            Assert.AreEqual(2, alarm.Data.MeasurementDuration);
-            Assert.AreEqual(10, alarm.Data.TraceSaveLevel);
-            Assert.AreEqual(3000, alarm.Data.TracePreTrigger);
-            Assert.AreEqual(3000, alarm.Data.TracePostTrigger);
-            Assert.IsNull(alarm.Data.MeasuringType);
-            Assert.IsNull(alarm.Data.VibrationType);
-            Assert.AreEqual(30, alarm.Data.AlarmLevel);
-            Assert.AreEqual("BS7385_250Hz", alarm.Data.GuideLine);
-            Assert.AreEqual(180, alarm.Data.TraceTimeLimit);
-            Assert.AreEqual("unspecified", alarm.Data.BuildingLevel);
-            Assert.AreEqual("On", alarm.Data.VectorRnabled);
-            Assert.AreEqual("Off", alarm.Data.VdvEnabled);
-            Assert.AreEqual("On", alarm.Data.VtopEnabled);
-            Assert.AreEqual("Off", alarm.Data.AtopEnabled);
-            Assert.AreEqual("Off", alarm.Data.NoiseSavingEnabled);
-            Assert.AreEqual(23423, alarm.MeasuringPointId);
+        Assert.IsNull(alarm.Data.Category);
+        Assert.AreEqual(0.20000000298023224, alarm.Data.DataSaveLevel);
+        Assert.AreEqual(2, alarm.Data.MeasurementDuration);
+        Assert.AreEqual(10, alarm.Data.TraceSaveLevel);
+        Assert.AreEqual(3000, alarm.Data.TracePreTrigger);
+        Assert.AreEqual(3000, alarm.Data.TracePostTrigger);
+        Assert.IsNull(alarm.Data.MeasuringType);
+        Assert.IsNull(alarm.Data.VibrationType);
+        Assert.AreEqual(30, alarm.Data.AlarmLevel);
+        Assert.AreEqual("BS7385_250Hz", alarm.Data.GuideLine);
+        Assert.AreEqual(180, alarm.Data.TraceTimeLimit);
+        Assert.AreEqual("unspecified", alarm.Data.BuildingLevel);
+        Assert.AreEqual("On", alarm.Data.VectorRnabled);
+        Assert.AreEqual("Off", alarm.Data.VdvEnabled);
+        Assert.AreEqual("On", alarm.Data.VtopEnabled);
+        Assert.AreEqual("Off", alarm.Data.AtopEnabled);
+        Assert.AreEqual("Off", alarm.Data.NoiseSavingEnabled);
+        Assert.AreEqual(23423, alarm.MeasuringPointId);
 
-            string txt = "Alarm level 1: Your measuring point WOHEPU-82022 (WOHEPU), measured an exceedance";
-            Assert.StartsWith(txt, alarm.Text);
-
-
-            //    var axes = alarm.Data.Axes!;
-
-            //axes.GetTriggeringAlarmInfo(out char axis, out AlertType alertType,
-            //                            out double level, out double limit);
+        string txt = "Alarm level 1: Your measuring point WOHEPU-82022 (WOHEPU), measured an exceedance";
+        Assert.StartsWith(txt, alarm.Text);
 
 
-            //Assert.AreEqual('z', axis);
-            //Assert.AreEqual(AlertType.Ignore, alertType);
-            //Assert.AreEqual(z.vtop!.Value, level);
-            //Assert.AreEqual(z.vtop!.AlarmLimits.AlarmLevel1, limit);
+        //    var axes = alarm.Data.Axes!;
 
-        }
+        //axes.GetTriggeringAlarmInfo(out char axis, out AlertType alertType,
+        //                            out double level, out double limit);
 
-        [TestMethod]
-        public void TestParseOnlineJson()
-        {
-            string json = TestUtil.ReadTextFromFile("testdata/online.json");
-            AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
-            Assert.IsNotNull(alarm);
-            Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_ONLINE, alarm.Category);
-            Assert.AreEqual("success", alarm.Level);
-            Assert.IsNull(alarm.CreatedAt);
+        //Assert.AreEqual('z', axis);
+        //Assert.AreEqual(AlertType.Ignore, alertType);
+        //Assert.AreEqual(z.vtop!.Value, level);
+        //Assert.AreEqual(z.vtop!.AlarmLimits.AlarmLevel1, limit);
 
-            Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
-            Assert.AreEqual(1701854384.887, alarm!.Data!.Datetime);
-            Assert.IsNull(alarm!.Data!.AlarmNames);
-            Assert.IsNull(alarm!.Data!.Alarms);
-            Assert.IsNull(alarm!.Data!.Axes);
+    }
 
-            Assert.IsNull(alarm.Data.Category);
-            Assert.AreEqual("Your measuring point WOHEPU-82022 (WOHEPU) went online on Dec. 6, 2023, 9:19:44 a.m. GMT.",
-                alarm.Text!);
-        }
+    [TestMethod]
+    public void TestParseOnlineJson()
+    {
+        string json = TestUtil.ReadTextFromFile("testdata/online.json");
+        AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
-        [TestMethod]
-        public void TestParseOfflineJson()
-        {
-            string json = TestUtil.ReadTextFromFile("testdata/stop_clipping.json");
-            AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
+        Assert.IsNotNull(alarm);
+        Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_ONLINE, alarm.Category);
+        Assert.AreEqual("success", alarm.Level);
+        Assert.IsNull(alarm.CreatedAt);
 
-            Assert.IsNotNull(alarm);
-            Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_OFFLINE, alarm.Category);
-            Assert.AreEqual("error", alarm.Level);
-            Assert.IsNull(alarm.CreatedAt);
+        Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
+        Assert.AreEqual(1701854384.887, alarm!.Data!.Datetime);
+        Assert.IsNull(alarm!.Data!.AlarmNames);
+        Assert.IsNull(alarm!.Data!.Alarms);
+        Assert.IsNull(alarm!.Data!.Axes);
 
-            Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
-            Assert.AreEqual(1701798511.988, alarm!.Data!.Datetime);
-            Assert.IsNull(alarm!.Data!.AlarmNames);
-            Assert.IsNull(alarm!.Data!.Alarms);
-            Assert.IsNull(alarm!.Data!.Axes);
+        Assert.IsNull(alarm.Data.Category);
+        Assert.AreEqual("Your measuring point WOHEPU-82022 (WOHEPU) went online on Dec. 6, 2023, 9:19:44 a.m. GMT.",
+            alarm.Text!);
+    }
 
-            Assert.IsNull(alarm.Data.Category);
-            string txt = "Your measuring point WOHEPU-82022 (WOHEPU) stopped measuring on Dec. 5, 2023, 5:48:31 p.m. GMT";
-            Assert.StartsWith(txt, alarm.Text);
-        }
+    [TestMethod]
+    public void TestParseOfflineJson()
+    {
+        string json = TestUtil.ReadTextFromFile("testdata/stop_clipping.json");
+        AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
-        [TestMethod]
-        public void AlarmDataV2_MissingNestedObjectsRemainObservableAsNull()
-        {
-            AlarmDataV2? missingData = JsonSerializer.Deserialize<AlarmDataV2>("{}");
-            AlarmDataV2? missingAlarmAndAxes = JsonSerializer.Deserialize<AlarmDataV2>("""
-                {"data":{}}
-                """);
-            AlarmDataV2? missingAxes = JsonSerializer.Deserialize<AlarmDataV2>("""
-                {"data":{"alarms":{},"axes":{}}}
-                """);
-            AlarmDataV2? missingVtop = JsonSerializer.Deserialize<AlarmDataV2>("""
-                {"data":{"alarms":{},"axes":{"x":{},"y":{},"z":{}}}}
-                """);
+        Assert.IsNotNull(alarm);
+        Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_OFFLINE, alarm.Category);
+        Assert.AreEqual("error", alarm.Level);
+        Assert.IsNull(alarm.CreatedAt);
 
-            Assert.IsNotNull(missingData);
-            Assert.IsNull(missingData.Data1);
+        Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
+        Assert.AreEqual(1701798511.988, alarm!.Data!.Datetime);
+        Assert.IsNull(alarm!.Data!.AlarmNames);
+        Assert.IsNull(alarm!.Data!.Alarms);
+        Assert.IsNull(alarm!.Data!.Axes);
 
-            Assert.IsNotNull(missingAlarmAndAxes);
-            Assert.IsNotNull(missingAlarmAndAxes.Data1);
-            Assert.IsNull(missingAlarmAndAxes.Data1.Alarms);
-            Assert.IsNull(missingAlarmAndAxes.Data1.Axes);
+        Assert.IsNull(alarm.Data.Category);
+        string txt = "Your measuring point WOHEPU-82022 (WOHEPU) stopped measuring on Dec. 5, 2023, 5:48:31 p.m. GMT";
+        Assert.StartsWith(txt, alarm.Text);
+    }
 
-            Assert.IsNotNull(missingAxes);
-            Assert.IsNotNull(missingAxes.Data1?.Axes);
-            Assert.IsNull(missingAxes.Data1.Axes.X);
-            Assert.IsNull(missingAxes.Data1.Axes.Y);
-            Assert.IsNull(missingAxes.Data1.Axes.Z);
+    [TestMethod]
+    public void AlarmDataV2_MissingNestedObjectsRemainObservableAsNull()
+    {
+        AlarmDataV2? missingData = JsonSerializer.Deserialize<AlarmDataV2>("{}");
+        AlarmDataV2? missingAlarmAndAxes = JsonSerializer.Deserialize<AlarmDataV2>("""
+            {"data":{}}
+            """);
+        AlarmDataV2? missingAxes = JsonSerializer.Deserialize<AlarmDataV2>("""
+            {"data":{"alarms":{},"axes":{}}}
+            """);
+        AlarmDataV2? missingVtop = JsonSerializer.Deserialize<AlarmDataV2>("""
+            {"data":{"alarms":{},"axes":{"x":{},"y":{},"z":{}}}}
+            """);
 
-            Assert.IsNotNull(missingVtop);
-            Assert.IsNull(missingVtop.Data1?.Axes?.X?.Vtop);
-            Assert.IsNull(missingVtop.Data1?.Axes?.Y?.Vtop);
-            Assert.IsNull(missingVtop.Data1?.Axes?.Z?.Vtop);
-        }
+        Assert.IsNotNull(missingData);
+        Assert.IsNull(missingData.Data1);
+
+        Assert.IsNotNull(missingAlarmAndAxes);
+        Assert.IsNotNull(missingAlarmAndAxes.Data1);
+        Assert.IsNull(missingAlarmAndAxes.Data1.Alarms);
+        Assert.IsNull(missingAlarmAndAxes.Data1.Axes);
+
+        Assert.IsNotNull(missingAxes);
+        Assert.IsNotNull(missingAxes.Data1?.Axes);
+        Assert.IsNull(missingAxes.Data1.Axes.X);
+        Assert.IsNull(missingAxes.Data1.Axes.Y);
+        Assert.IsNull(missingAxes.Data1.Axes.Z);
+
+        Assert.IsNotNull(missingVtop);
+        Assert.IsNull(missingVtop.Data1?.Axes?.X?.Vtop);
+        Assert.IsNull(missingVtop.Data1?.Axes?.Y?.Vtop);
+        Assert.IsNull(missingVtop.Data1?.Axes?.Z?.Vtop);
+    }
 
 
 
-        [DataRow("testdata/alarm_ignore.json", "vtop z", AlertType.Ignore, 4.057920932769775, 3)]
-        [DataRow("testdata/alarm_caution.json", "vtop y", AlertType.Caution, 7.1234567890, 7)]
-        [DataRow("testdata/alarm_alert.json", "vtop x", AlertType.Alert, 11.1234567890, 10)]
-        [TestMethod]
-        public void TestAlarmTriggers_OutputCorrectValues_Success(string filename,
-                                                                  string expectedAxis,
-                                                                  AlertType expectedAlertType,
-                                                                  double expectedLevel,
-                                                                  double expectedLimit)
-        {
-            string json = TestUtil.ReadTextFromFile(filename);
-            AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
+    [DataRow("testdata/alarm_ignore.json", "vtop z", AlertType.Ignore, 4.057920932769775, 3)]
+    [DataRow("testdata/alarm_caution.json", "vtop y", AlertType.Caution, 7.1234567890, 7)]
+    [DataRow("testdata/alarm_alert.json", "vtop x", AlertType.Alert, 11.1234567890, 10)]
+    [TestMethod]
+    public void TestAlarmTriggers_OutputCorrectValues_Success(string filename,
+                                                              string expectedAxis,
+                                                              AlertType expectedAlertType,
+                                                              double expectedLevel,
+                                                              double expectedLimit)
+    {
+        string json = TestUtil.ReadTextFromFile(filename);
+        AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
-            Assert.IsNotNull(alarm);
-            Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_GUIDELINE_ALARM, alarm.Category);
-            Assert.AreEqual("warning", alarm.Level);
-            Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
-            Assert.AreEqual("WOHEPU-82022", alarm!.Data!.MeasuringPoint);
+        Assert.IsNotNull(alarm);
+        Assert.AreEqual(OmnidotsProtocol.MSG_SENSOR_GUIDELINE_ALARM, alarm.Category);
+        Assert.AreEqual("warning", alarm.Level);
+        Assert.AreEqual("WOHEPU", alarm!.Data!.Sensor);
+        Assert.AreEqual("WOHEPU-82022", alarm!.Data!.MeasuringPoint);
 
-            Guid monitorId = Guid.NewGuid();
-            NotificationDto notification = alarm.GetNotification(monitorId);
+        Guid monitorId = Guid.NewGuid();
+        NotificationDto notification = alarm.GetNotification(monitorId);
 
-            Assert.AreEqual(expectedAxis, notification.AlertField);
-            Assert.AreEqual(expectedAlertType, notification.AlertType);
-            Assert.AreEqual(expectedLevel, notification.Level);
-            Assert.AreEqual(expectedLimit, notification.LimitOn);
-        }
+        Assert.AreEqual(expectedAxis, notification.AlertField);
+        Assert.AreEqual(expectedAlertType, notification.AlertType);
+        Assert.AreEqual(expectedLevel, notification.Level);
+        Assert.AreEqual(expectedLimit, notification.LimitOn);
     }
 }

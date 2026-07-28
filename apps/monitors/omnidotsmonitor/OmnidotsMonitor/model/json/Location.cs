@@ -1,17 +1,15 @@
 using System.Text.Json.Serialization;
 
-namespace Omnidots.Model.Json
+namespace Omnidots.Model.Json;
+
+
+public class Location
 {
+    [JsonRequired]
+    [JsonPropertyName("latitude")]
+    public double Latitude { get; set; }
 
-    public class Location
-    {
-        [JsonRequired]
-        [JsonPropertyName("latitude")]
-        public double Latitude { get; set; }
-
-        [JsonRequired]
-        [JsonPropertyName("longitude")]
-        public double Longitude { get; set; }
-    }
-
+    [JsonRequired]
+    [JsonPropertyName("longitude")]
+    public double Longitude { get; set; }
 }

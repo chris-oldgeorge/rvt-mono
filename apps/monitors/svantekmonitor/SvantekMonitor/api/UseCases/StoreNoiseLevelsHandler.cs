@@ -11,41 +11,28 @@ using SvantekMonitor.model.dto;
 namespace Svantek.Api.UseCases;
 
 // Summary: Reads Svantek noise samples, persists them, updates latest timestamps, and evaluates alert rules.
-public sealed class StoreNoiseLevelsHandler
+public sealed class StoreNoiseLevelsHandler(
+    SvantekHttpGateway gateway,
+    SvantekMonitorReader monitorReader,
+    ISvantekRuleQueries ruleQueries,
+    ISvantekMonitorCommands monitorCommands,
+    ISvantekMeasurementCommands measurementCommands,
+    ISvantekOperationalCommands operationalCommands,
+    SvantekRuleProcessor ruleProcessor,
+    NoiseRequestWindowCalculator windowCalculator,
+    TimeProvider? timeProvider = null)
 {
     private const string VendorDateFormat = "yyyy-MM-dd HH:mm:ss";
 
-    private readonly SvantekHttpGateway gateway;
-    private readonly SvantekMonitorReader monitorReader;
-    private readonly ISvantekRuleQueries ruleQueries;
-    private readonly ISvantekMonitorCommands monitorCommands;
-    private readonly ISvantekMeasurementCommands measurementCommands;
-    private readonly ISvantekOperationalCommands operationalCommands;
-    private readonly SvantekRuleProcessor ruleProcessor;
-    private readonly NoiseRequestWindowCalculator windowCalculator;
-    private readonly TimeProvider timeProvider;
-
-    public StoreNoiseLevelsHandler(
-        SvantekHttpGateway gateway,
-        SvantekMonitorReader monitorReader,
-        ISvantekRuleQueries ruleQueries,
-        ISvantekMonitorCommands monitorCommands,
-        ISvantekMeasurementCommands measurementCommands,
-        ISvantekOperationalCommands operationalCommands,
-        SvantekRuleProcessor ruleProcessor,
-        NoiseRequestWindowCalculator windowCalculator,
-        TimeProvider? timeProvider = null)
-    {
-        this.gateway = gateway;
-        this.monitorReader = monitorReader;
-        this.ruleQueries = ruleQueries;
-        this.monitorCommands = monitorCommands;
-        this.measurementCommands = measurementCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleProcessor = ruleProcessor;
-        this.windowCalculator = windowCalculator;
-        this.timeProvider = timeProvider ?? TimeProvider.System;
-    }
+    private readonly SvantekHttpGateway gateway = gateway;
+    private readonly SvantekMonitorReader monitorReader = monitorReader;
+    private readonly ISvantekRuleQueries ruleQueries = ruleQueries;
+    private readonly ISvantekMonitorCommands monitorCommands = monitorCommands;
+    private readonly ISvantekMeasurementCommands measurementCommands = measurementCommands;
+    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
+    private readonly SvantekRuleProcessor ruleProcessor = ruleProcessor;
+    private readonly NoiseRequestWindowCalculator windowCalculator = windowCalculator;
+    private readonly TimeProvider timeProvider = timeProvider ?? TimeProvider.System;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {

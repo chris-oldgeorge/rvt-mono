@@ -4,14 +4,9 @@ using Rvt.Monitor.Common.Delivery;
 namespace MyAtm.Api;
 
 // Summary: Records only terminal shared-delivery failures in the MyAtm operational error log.
-public sealed class MyAtmDeliveryFailureSink : IMonitorDeliveryFailureSink
+public sealed class MyAtmDeliveryFailureSink(IMyAtmOperationalCommands operationalCommands) : IMonitorDeliveryFailureSink
 {
-    private readonly IMyAtmOperationalCommands operationalCommands;
-
-    public MyAtmDeliveryFailureSink(IMyAtmOperationalCommands operationalCommands)
-    {
-        this.operationalCommands = operationalCommands ?? throw new ArgumentNullException(nameof(operationalCommands));
-    }
+    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands ?? throw new ArgumentNullException(nameof(operationalCommands));
 
     public Task RecordFailureAsync(
         MonitorDeliveryMessage message,

@@ -12,196 +12,189 @@ using Rvt.Monitor.Common.Rules;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
-namespace MyAtmMonitorTests
+namespace MyAtmMonitorTests;
+
+
+public sealed class MyAtmFixture
 {
-
-    public sealed class MyAtmFixture
+    public static string DevicesResponseJson()
     {
-        public static string DevicesResponseJson()
-        {
-            return TestUtil.ReadTextFromFile("testdata/devices.json");
-        }
+        return TestUtil.ReadTextFromFile("testdata/devices.json");
+    }
 
-        public static string DeviceInfoResponseJson(string serialNumber)
-        {
-            string json = TestUtil.ReadTextFromFile("testdata/device_info.json");
-            DustMonitorInfo? deviceInfo = JsonSerializer.Deserialize<DustMonitorInfo>(json);
-            deviceInfo!.SerialNumber = serialNumber;
-            return JsonSerializer.Serialize(deviceInfo);
-        }
+    public static string DeviceInfoResponseJson(string serialNumber)
+    {
+        string json = TestUtil.ReadTextFromFile("testdata/device_info.json");
+        DustMonitorInfo? deviceInfo = JsonSerializer.Deserialize<DustMonitorInfo>(json);
+        deviceInfo!.SerialNumber = serialNumber;
+        return JsonSerializer.Serialize(deviceInfo);
+    }
 
-        public static string AccessoryResponseJson()
-        {
-            return TestUtil.ReadTextFromFile("testdata/accessory.json");
-        }
+    public static string AccessoryResponseJson()
+    {
+        return TestUtil.ReadTextFromFile("testdata/accessory.json");
+    }
 
-        public static List<RvtContactDto> AlertContacts(TimeSpan? sendStartTime = null, TimeSpan? sendEndTime = null)
-        {
-            return
-            [
-                new RvtContactDto(ContactMethod.Email, "baz@bob.org", (string?)null,true,false, sendStartTime, sendEndTime)
-            ];
-        }
+    public static List<RvtContactDto> AlertContacts(TimeSpan? sendStartTime = null, TimeSpan? sendEndTime = null)
+    {
+        return
+        [
+            new RvtContactDto(ContactMethod.Email, "baz@bob.org", (string?)null,true,false, sendStartTime, sendEndTime)
+        ];
+    }
 
-        public static List<DustMonitorDto> CustomerDeviceDtos(DateTime? lastDataTime, bool singleItem = false)
+    public static List<DustMonitorDto> CustomerDeviceDtos(DateTime? lastDataTime, bool singleItem = false)
+    {
+        string json = DevicesResponseJson();
+        List<DustMonitor> devices = JsonSerializer.Deserialize<List<DustMonitor>>(json)!;
+        List<DustMonitorDto> dtos = [];
+        foreach (DustMonitor device in devices)
         {
-            string json = DevicesResponseJson();
-            List<DustMonitor> devices = JsonSerializer.Deserialize<List<DustMonitor>>(json)!;
-            List<DustMonitorDto> dtos = [];
-            foreach (DustMonitor device in devices)
+            string deviceJson = DeviceInfoResponseJson(device.SerialNumber!);
+            DustMonitorInfo deviceInfo = JsonSerializer.Deserialize<DustMonitorInfo>(deviceJson)!;
+            DustMonitorDto dto = new(deviceInfo)
             {
-                string deviceJson = DeviceInfoResponseJson(device.SerialNumber!);
-                DustMonitorInfo deviceInfo = JsonSerializer.Deserialize<DustMonitorInfo>(deviceJson)!;
-                DustMonitorDto dto = new(deviceInfo)
-                {
-                    LastDataTime1Min = lastDataTime,
-                    FleetNr = "Fnr" + device.SerialNumber!.ToString(), //Instead fo fleetNr using the serial
-                };
-                dtos.Add(dto);
-                if (singleItem)
-                {
-                    break;
-                }
-            }
-            return dtos;
-
-        }
-
-        public static string MeasurementsResponseJson(Period period)
-        {
-
-            switch (period)
-            {
-                case Period.Minutes1:
-                    return TestUtil.ReadTextFromFile("testdata/measurements.json");
-                case Period.Minutes15:
-                case Period.Hours1:
-                case Period.Hours8:
-                case Period.Hours24:
-                    return TestUtil.ReadTextFromFile("testdata/measurements_avg.json");
-                default:
-                    throw AdapterException.Of("MeasurementsResponseJson Unknown Period " + period);
-            }
-            ;
-        }
-
-        public static AvgDeviceMeasurement CreateAvgDeviceMeasurement(DateTime timestamp, double pm1, double pm2_5, double pm10)
-        {
-
-            return new AvgDeviceMeasurement
-            {
-                Avrg = 60,
-                Timestamp = timestamp,
-                Pm1 = new AvgVal
-                {
-                    Avg = pm1
-                },
-                Pm2_5 = new AvgVal
-                {
-                    Avg = pm2_5
-                },
-                Pm10 = new AvgVal
-                {
-                    Avg = pm10
-                },
-                PmTotal = new AvgVal
-                {
-                    Avg = pm1 + pm2_5 + pm10
-                },
-                Weather_t = new AvgVal
-                {
-                    Avg = 20.83439
-                },
-                Weather_p = new AvgVal
-                {
-                    Avg = 1020
-                },
-                Weather_rh = new AvgVal
-                {
-                    Avg = 59.61567
-                }
+                LastDataTime1Min = lastDataTime,
+                FleetNr = "Fnr" + device.SerialNumber!.ToString(), //Instead fo fleetNr using the serial
             };
-        }
-
-        public static DeviceMeasurement CreateDeviceMeasurement(DateTime timestamp, double pm1, double pm2_5, double pm10)
-        {
-
-            return new DeviceMeasurement
+            dtos.Add(dto);
+            if (singleItem)
             {
-                Avrg = 60,
-                Timestamp = timestamp,
-                Pm1 = pm1,
-                Pm2_5 = pm2_5,
-                Pm10 = pm10,
-                PmTotal = pm1 + pm2_5 + pm10,
-                Weather_t = 20.83439,
-                Weather_p = 1020,
-                Weather_rh = 59.61567
-            };
-        }
-
-        public static string MeasurementsResponseJson(int numMeasuements, DateTime startTime, double startLevel = 1.0, double levelInc = 0.5)
-        {
-
-            List<DeviceMeasurement> measurements = [];
-            for (int i = 0; i < numMeasuements; i++)
-            {
-                double level = startLevel + (levelInc * i);
-                measurements.Insert(0,
-                    CreateDeviceMeasurement(startTime.AddMinutes(i), level * 4, level * 2, level));
+                break;
             }
-            return JsonSerializer.Serialize(measurements);
         }
+        return dtos;
 
-        public static AlertActivityTimeDto CreateActiveRuleActivity(DateTime? start, DateTime? end)
+    }
+
+    public static string MeasurementsResponseJson(Period period)
+    {
+
+        return period switch
         {
+            Period.Minutes1 => TestUtil.ReadTextFromFile("testdata/measurements.json"),
+            Period.Minutes15 or Period.Hours1 or Period.Hours8 or Period.Hours24 => TestUtil.ReadTextFromFile("testdata/measurements_avg.json"),
+            _ => throw AdapterException.Of("MeasurementsResponseJson Unknown Period " + period),
+        };
+        ;
+    }
 
-            if (start != null)
-            {
-                start = ((DateTime)start).ToUniversalTime();
-            }
-            if (end != null)
-            {
-                end = ((DateTime)end).ToUniversalTime();
-            }
-            return new AlertActivityTimeDto
-            {
-                Weekdays = true,
-                Sundays = true,
-                Saturdays = true,
-                StartTime = start != null ? ((DateTime)start!).TimeOfDay : null,
-                EndTime = end != null ? ((DateTime)end!).TimeOfDay : null
-            };
+    public static AvgDeviceMeasurement CreateAvgDeviceMeasurement(DateTime timestamp, double pm1, double pm2_5, double pm10)
+    {
 
-        }
-
-        internal static List<RvtAlertRuleDto> OfflineRules()
+        return new AvgDeviceMeasurement
         {
+            Avrg = 60,
+            Timestamp = timestamp,
+            Pm1 = new AvgVal
+            {
+                Avg = pm1
+            },
+            Pm2_5 = new AvgVal
+            {
+                Avg = pm2_5
+            },
+            Pm10 = new AvgVal
+            {
+                Avg = pm10
+            },
+            PmTotal = new AvgVal
+            {
+                Avg = pm1 + pm2_5 + pm10
+            },
+            Weather_t = new AvgVal
+            {
+                Avg = 20.83439
+            },
+            Weather_p = new AvgVal
+            {
+                Avg = 1020
+            },
+            Weather_rh = new AvgVal
+            {
+                Avg = 59.61567
+            }
+        };
+    }
 
-            List<RvtAlertRuleDto> rules =
-            [
-                new(ruleId: Guid.NewGuid(),
-                          serialId: null,
-                          field: "offline-rule",
-                          limitOn: 0,
-                          limitOff: 0,
-                          averagingPeriod: 24 * 60 * 60,
-                          ruleActivityTime: new AlertActivityTimeDto
-                          {
-                              Weekdays = true,
-                              Saturdays = true,
-                              Sundays = true,
-                              StartTime = null,
-                              EndTime = null
-                          },
-                        alertType: AlertType.Offline,
-                        isActive: true,
-                        isDeleted: false,
-                        created: DateTime.UtcNow,
-                        accessed: null)
-            ];
+    public static DeviceMeasurement CreateDeviceMeasurement(DateTime timestamp, double pm1, double pm2_5, double pm10)
+    {
 
-            return rules;
+        return new DeviceMeasurement
+        {
+            Avrg = 60,
+            Timestamp = timestamp,
+            Pm1 = pm1,
+            Pm2_5 = pm2_5,
+            Pm10 = pm10,
+            PmTotal = pm1 + pm2_5 + pm10,
+            Weather_t = 20.83439,
+            Weather_p = 1020,
+            Weather_rh = 59.61567
+        };
+    }
+
+    public static string MeasurementsResponseJson(int numMeasuements, DateTime startTime, double startLevel = 1.0, double levelInc = 0.5)
+    {
+
+        List<DeviceMeasurement> measurements = [];
+        for (int i = 0; i < numMeasuements; i++)
+        {
+            double level = startLevel + (levelInc * i);
+            measurements.Insert(0,
+                CreateDeviceMeasurement(startTime.AddMinutes(i), level * 4, level * 2, level));
         }
+        return JsonSerializer.Serialize(measurements);
+    }
+
+    public static AlertActivityTimeDto CreateActiveRuleActivity(DateTime? start, DateTime? end)
+    {
+
+        if (start != null)
+        {
+            start = ((DateTime)start).ToUniversalTime();
+        }
+        if (end != null)
+        {
+            end = ((DateTime)end).ToUniversalTime();
+        }
+        return new AlertActivityTimeDto
+        {
+            Weekdays = true,
+            Sundays = true,
+            Saturdays = true,
+            StartTime = start != null ? ((DateTime)start!).TimeOfDay : null,
+            EndTime = end != null ? ((DateTime)end!).TimeOfDay : null
+        };
+
+    }
+
+    internal static List<RvtAlertRuleDto> OfflineRules()
+    {
+
+        List<RvtAlertRuleDto> rules =
+        [
+            new(ruleId: Guid.NewGuid(),
+                      serialId: null,
+                      field: "offline-rule",
+                      limitOn: 0,
+                      limitOff: 0,
+                      averagingPeriod: 24 * 60 * 60,
+                      ruleActivityTime: new AlertActivityTimeDto
+                      {
+                          Weekdays = true,
+                          Saturdays = true,
+                          Sundays = true,
+                          StartTime = null,
+                          EndTime = null
+                      },
+                    alertType: AlertType.Offline,
+                    isActive: true,
+                    isDeleted: false,
+                    created: DateTime.UtcNow,
+                    accessed: null)
+        ];
+
+        return rules;
     }
 }

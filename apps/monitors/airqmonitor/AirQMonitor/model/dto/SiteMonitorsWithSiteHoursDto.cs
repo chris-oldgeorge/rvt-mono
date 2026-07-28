@@ -1,37 +1,21 @@
-namespace AirQMonitor.model.dto
+namespace AirQMonitor.model.dto;
+
+public class SiteMonitorsWithSiteHoursDto(Guid monitorId,
+    string fleetnr,
+    string serialId,
+    int typeOfMonitor,
+    bool offline,
+    Guid siteId,
+    string? siteName,
+    TimeSpan? startTime, TimeSpan? endTime)
 {
-    public class SiteMonitorsWithSiteHoursDto
-    {
-        public Guid Id { get; }
-        public string FleetNr { get; }
-        public string SerialId { get; }
-        public int TypeOfMonitor { get; }
-        public bool Offline { get; set; }
-        public Guid SiteId { get; }
-        public string? SiteName { get; }
-        public TimeSpan? StartTime { get; }
-        public TimeSpan? EndTime { get; }
-
-        public SiteMonitorsWithSiteHoursDto(Guid monitorId,
-            string fleetnr,
-            string serialId,
-            int typeOfMonitor,
-            bool offline,
-            Guid siteId,
-            string? siteName,
-            TimeSpan? startTime, TimeSpan? endTime)
-
-        {
-            Id = monitorId;
-            FleetNr = fleetnr;
-            SerialId = serialId;
-            TypeOfMonitor = typeOfMonitor;
-            Offline = offline;
-            SiteId = siteId;
-            SiteName = siteName;
-            StartTime = startTime;
-            EndTime = endTime;
-
-        }
-    }
+    public Guid Id { get; } = monitorId;
+    public string FleetNr { get; } = fleetnr;
+    public string SerialId { get; } = serialId;
+    public int TypeOfMonitor { get; } = typeOfMonitor;
+    public bool Offline { get; set; } = offline;
+    public Guid SiteId { get; } = siteId;
+    public string? SiteName { get; } = siteName;
+    public TimeSpan? StartTime { get; } = startTime;
+    public TimeSpan? EndTime { get; } = endTime;
 }

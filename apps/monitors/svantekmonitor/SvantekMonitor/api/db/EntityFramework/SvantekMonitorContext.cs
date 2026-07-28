@@ -7,13 +7,8 @@ using Rvt.Monitor.Common.Data.EntityFramework;
 
 namespace Svantek.Api.Db.EntityFramework;
 
-public sealed class SvantekMonitorContext : MonitorDbContextBase
+public sealed class SvantekMonitorContext(DbContextOptions<SvantekMonitorContext> options, MonitorDbOptions monitorOptions) : MonitorDbContextBase(options, monitorOptions)
 {
-    public SvantekMonitorContext(DbContextOptions<SvantekMonitorContext> options, MonitorDbOptions monitorOptions)
-        : base(options, monitorOptions)
-    {
-    }
-
     public DbSet<SvantekMonitorStatusEntity> SvantekMonitorStatus => Set<SvantekMonitorStatusEntity>();
     public DbSet<SvantekNoiseLevelEntity> NoiseLevels => Set<SvantekNoiseLevelEntity>();
     public DbSet<SvantekNoise8HourAverageEntity> Noise8HourAverages => Set<SvantekNoise8HourAverageEntity>();

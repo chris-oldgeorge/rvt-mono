@@ -5,6 +5,8 @@ namespace Rvt.Storage.Tests.Abstractions;
 [TestClass]
 public sealed class StorageReadResultTests
 {
+    private static readonly string[] expected = ["content", "lease"];
+
     [TestMethod]
     public async Task DisposeAsync_DisposesContentThenProviderLease()
     {
@@ -16,7 +18,7 @@ public sealed class StorageReadResultTests
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             async () => await result.DisposeAsync());
 
-        CollectionAssert.AreEqual(new[] { "content", "lease" }, events);
+        CollectionAssert.AreEqual(expected, events);
     }
 
     private sealed class RecordingStream(List<string> events, bool throwOnDispose) : Stream

@@ -1,17 +1,9 @@
 namespace Rvt.Monitor.Common.Alerts.Persistence;
 
-public sealed class AlertTransientPersistenceException : Exception
+public sealed class AlertTransientPersistenceException(string message, Exception innerException) : Exception(message, innerException)
 {
-    public AlertTransientPersistenceException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-    }
 }
 
-public sealed class AlertOccurrenceConflictException : Exception
+public sealed class AlertOccurrenceConflictException(Exception innerException) : Exception("The alert occurrence already exists.", innerException)
 {
-    public AlertOccurrenceConflictException(Exception innerException)
-        : base("The alert occurrence already exists.", innerException)
-    {
-    }
 }

@@ -56,7 +56,7 @@ public sealed class MyAtmOutboxDispatcherTests
             mqttClient.Object,
             notificationDelivery.Object);
 
-        await dispatcher.DispatchDueAsync();
+        await dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.HasCount(2, publications);
         Assert.AreEqual("myatm/alerts", publications[0].Topic);
@@ -120,7 +120,7 @@ public sealed class MyAtmOutboxDispatcherTests
             notificationDelivery.Object,
             new MyAtmMonitorOptions { PortalBaseUrl = "https://portal.example.test/root/" });
 
-        await dispatcher.DispatchDueAsync();
+        await dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.HasCount(2, requests);
         Assert.AreEqual(NotificationChannel.Email, requests[0].Channel);
@@ -132,7 +132,7 @@ public sealed class MyAtmOutboxDispatcherTests
         Assert.HasCount(2, audits);
         Assert.IsTrue(audits.All(audit => audit.Result == NotificationConstants.SENT_OK));
         CollectionAssert.AreEquivalent(
-            new[] { "person@example.test", "447700900000" },
+            expected,
             audits.Select(audit => audit.Address).ToArray());
     }
 
@@ -170,7 +170,7 @@ public sealed class MyAtmOutboxDispatcherTests
             mqttClient.Object,
             notificationDelivery.Object);
 
-        await dispatcher.DispatchDueAsync();
+        await dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.HasCount(3, retries);
         AssertTimestampNear(startedAt.AddSeconds(30), retries[0].NextAttemptAt);
@@ -222,7 +222,7 @@ public sealed class MyAtmOutboxDispatcherTests
             notificationDelivery.Object);
 
         MonitorDeliveryDispatchException exception = await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
-            () => dispatcher.DispatchDueAsync());
+            () => dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         Assert.HasCount(1, exception.Failures);
         Assert.IsNotNull(failureAudit);
@@ -268,7 +268,7 @@ public sealed class MyAtmOutboxDispatcherTests
             mqttClient.Object,
             notificationDelivery.Object);
 
-        await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(() => dispatcher.DispatchDueAsync());
+        await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(() => dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         commands.Verify(command => command.DeadLetterAsync(
             message.Id,
@@ -290,8 +290,8 @@ public sealed class MyAtmOutboxDispatcherTests
         MyAtmDeliveryFailureSink sink = new(operationalCommands.Object);
         MonitorDeliveryMessage message = CreateMessage(MonitorDeliveryKind.MqttAlert, "", CreatePayload(), attemptCount: 1);
 
-        await sink.RecordFailureAsync(message, "transient", terminal: false);
-        await sink.RecordFailureAsync(message, "terminal", terminal: true);
+        await sink.RecordFailureAsync(message, "transient", terminal: false, TestContext.CancellationToken);
+        await sink.RecordFailureAsync(message, "terminal", terminal: true, TestContext.CancellationToken);
 
         operationalCommands.Verify(command => command.HandleException(
             "Outbox delivery dead-lettered",
@@ -348,4 +348,8 @@ public sealed class MyAtmOutboxDispatcherTests
             JsonSerializer.Serialize(payload),
             attemptCount,
             Guid.NewGuid());
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly string[] expected = ["person@example.test", "447700900000"];
 }

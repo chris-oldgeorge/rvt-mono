@@ -8,18 +8,12 @@ namespace Rvt.Reporting.Storage.PortalContent;
 /// Fetches customer report logos from the SPA backend internal report-content API.
 /// Major updates: 2026-06-24 added optional customer-logo integration for report branding.
 /// </summary>
-public sealed class SpaCustomerLogoClient : ICustomerLogoProvider
+public sealed class SpaCustomerLogoClient(HttpClient httpClient, IOptions<SpaCustomerLogoClientOptions> options) : ICustomerLogoProvider
 {
     private const long MaximumLogoBytes = 2 * 1024 * 1024;
     private const string InternalKeyHeader = "X-RVT-Internal-Key";
-    private readonly HttpClient _httpClient;
-    private readonly SpaCustomerLogoClientOptions _options;
-
-    public SpaCustomerLogoClient(HttpClient httpClient, IOptions<SpaCustomerLogoClientOptions> options)
-    {
-        _httpClient = httpClient;
-        _options = options.Value;
-    }
+    private readonly HttpClient _httpClient = httpClient;
+    private readonly SpaCustomerLogoClientOptions _options = options.Value;
 
     public async Task<CustomerLogo?> GetSiteLogoAsync(Guid siteId, CancellationToken cancellationToken)
     {

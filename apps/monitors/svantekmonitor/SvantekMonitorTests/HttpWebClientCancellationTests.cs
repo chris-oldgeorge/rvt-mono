@@ -53,7 +53,7 @@ public sealed class HttpWebClientCancellationTests
             requestContent,
             cancellation.Token);
 
-        CollectionAssert.AreEqual(new byte[] { 82, 73, 70, 70 }, result);
+        CollectionAssert.AreEqual("RIFF"u8.ToArray(), result);
         Assert.IsTrue(requestContent.IsDisposed);
         Assert.IsTrue(responseContent.IsDisposed);
     }
@@ -74,7 +74,7 @@ public sealed class HttpWebClientCancellationTests
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(
-            () => operation.WaitAsync(TimeSpan.FromSeconds(2)));
+            () => operation.WaitAsync(TimeSpan.FromSeconds(2), TestContext.CancellationToken));
         Assert.IsTrue(responseContent.IsDisposed);
     }
 
@@ -127,18 +127,13 @@ public sealed class HttpWebClientCancellationTests
         }
     }
 
-    private sealed class TrackingContent : HttpContent
+    private sealed class TrackingContent(byte[] value) : HttpContent
     {
-        private readonly byte[] value;
+        private readonly byte[] value = value;
 
         public TrackingContent(string value)
             : this(Encoding.UTF8.GetBytes(value))
         {
-        }
-
-        public TrackingContent(byte[] value)
-        {
-            this.value = value;
         }
 
         public bool IsDisposed { get; private set; }
@@ -215,4 +210,6 @@ public sealed class HttpWebClientCancellationTests
             base.Dispose(disposing);
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

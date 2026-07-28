@@ -10,36 +10,24 @@ using Rvt.Monitor.Common.Utilities;
 namespace MyAtm.Api.UseCases;
 
 // Fetches and atomically stores new dust pages; delivery is handled by the independent outbox job.
-public sealed class StoreDustLevelsHandler
+public sealed class StoreDustLevelsHandler(
+    MyAtmHttpGateway gateway,
+    MyAtmMonitorReader monitorReader,
+    IMyAtmRuleQueries ruleQueries,
+    IMyAtmDustImportCommands dustImportCommands,
+    IMyAtmOperationalCommands operationalCommands,
+    MyAtmRuleEvaluator ruleEvaluator,
+    TimeProvider timeProvider,
+    int maxPagesPerMonitorPerRun)
 {
-    private readonly MyAtmHttpGateway gateway;
-    private readonly MyAtmMonitorReader monitorReader;
-    private readonly IMyAtmRuleQueries ruleQueries;
-    private readonly IMyAtmDustImportCommands dustImportCommands;
-    private readonly IMyAtmOperationalCommands operationalCommands;
-    private readonly MyAtmRuleEvaluator ruleEvaluator;
-    private readonly TimeProvider timeProvider;
-    private readonly int maxPagesPerMonitorPerRun;
-
-    public StoreDustLevelsHandler(
-        MyAtmHttpGateway gateway,
-        MyAtmMonitorReader monitorReader,
-        IMyAtmRuleQueries ruleQueries,
-        IMyAtmDustImportCommands dustImportCommands,
-        IMyAtmOperationalCommands operationalCommands,
-        MyAtmRuleEvaluator ruleEvaluator,
-        TimeProvider timeProvider,
-        int maxPagesPerMonitorPerRun)
-    {
-        this.gateway = gateway;
-        this.monitorReader = monitorReader;
-        this.ruleQueries = ruleQueries;
-        this.dustImportCommands = dustImportCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleEvaluator = ruleEvaluator;
-        this.timeProvider = timeProvider;
-        this.maxPagesPerMonitorPerRun = maxPagesPerMonitorPerRun;
-    }
+    private readonly MyAtmHttpGateway gateway = gateway;
+    private readonly MyAtmMonitorReader monitorReader = monitorReader;
+    private readonly IMyAtmRuleQueries ruleQueries = ruleQueries;
+    private readonly IMyAtmDustImportCommands dustImportCommands = dustImportCommands;
+    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
+    private readonly MyAtmRuleEvaluator ruleEvaluator = ruleEvaluator;
+    private readonly TimeProvider timeProvider = timeProvider;
+    private readonly int maxPagesPerMonitorPerRun = maxPagesPerMonitorPerRun;
 
     public async Task RunAsync<T>(
         int customerId,

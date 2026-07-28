@@ -12,6 +12,11 @@ public sealed class RuleAlertDeliveryPlannerTests
     private static readonly DateTime AlertTime = new(2026, 7, 15, 10, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime CreatedAt = new(2026, 7, 15, 10, 0, 5, DateTimeKind.Utc);
     private static readonly Guid MonitorId = Guid.Parse("11111111-2222-3333-4444-555555555555");
+    private static readonly string[] expected = ["alert", "first@example.test", "second@example.test", "441111111111"];
+    private static readonly string[] DeduplicatedEmailDestinations =
+        ["duplicate@example.test", "DUPLICATE@example.test"];
+    private static readonly string[] DeduplicatedSmsDestinations =
+        ["442222222222", "441111111111"];
 
     [TestMethod]
     [DataRow(AlertType.Alert)]
@@ -69,7 +74,7 @@ public sealed class RuleAlertDeliveryPlannerTests
             },
             plan.Deliveries.Select(delivery => delivery.Kind).ToArray());
         CollectionAssert.AreEqual(
-            new[] { "alert", "first@example.test", "second@example.test", "441111111111" },
+            expected,
             plan.Deliveries.Select(delivery => delivery.Destination).ToArray());
 
         string[] expectedKeys =
@@ -149,7 +154,7 @@ public sealed class RuleAlertDeliveryPlannerTests
             CreatedAt);
 
         CollectionAssert.AreEqual(
-            new[] { "duplicate@example.test", "DUPLICATE@example.test" },
+            DeduplicatedEmailDestinations,
             plan.Deliveries
                 .Where(delivery => delivery.Kind == MonitorDeliveryKind.Email)
                 .Select(delivery => delivery.Destination)
@@ -176,7 +181,7 @@ public sealed class RuleAlertDeliveryPlannerTests
             CreatedAt);
 
         CollectionAssert.AreEqual(
-            new[] { "442222222222", "441111111111" },
+            DeduplicatedSmsDestinations,
             plan.Deliveries
                 .Where(delivery => delivery.Kind == MonitorDeliveryKind.Sms)
                 .Select(delivery => delivery.Destination)

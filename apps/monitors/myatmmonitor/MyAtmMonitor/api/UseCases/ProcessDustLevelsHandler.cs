@@ -8,33 +8,22 @@ using Rvt.Monitor.Common.Utilities;
 namespace MyAtm.Api.UseCases;
 
 // Evaluates each completed aggregate period and persists its state transition through one atomic commit.
-public sealed class ProcessDustLevelsHandler
+public sealed class ProcessDustLevelsHandler(
+    IMyAtmMonitorQueries monitorQueries,
+    IMyAtmRuleQueries ruleQueries,
+    IMyAtmAlertCommitCommands alertCommitCommands,
+    IMyAtmOperationalCommands operationalCommands,
+    MyAtmRuleProcessor ruleProcessor,
+    TimeProvider timeProvider,
+    bool testLocal)
 {
-    private readonly IMyAtmMonitorQueries monitorQueries;
-    private readonly IMyAtmRuleQueries ruleQueries;
-    private readonly IMyAtmAlertCommitCommands alertCommitCommands;
-    private readonly IMyAtmOperationalCommands operationalCommands;
-    private readonly MyAtmRuleProcessor ruleProcessor;
-    private readonly TimeProvider timeProvider;
-    private readonly bool testLocal;
-
-    public ProcessDustLevelsHandler(
-        IMyAtmMonitorQueries monitorQueries,
-        IMyAtmRuleQueries ruleQueries,
-        IMyAtmAlertCommitCommands alertCommitCommands,
-        IMyAtmOperationalCommands operationalCommands,
-        MyAtmRuleProcessor ruleProcessor,
-        TimeProvider timeProvider,
-        bool testLocal)
-    {
-        this.monitorQueries = monitorQueries;
-        this.ruleQueries = ruleQueries;
-        this.alertCommitCommands = alertCommitCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleProcessor = ruleProcessor;
-        this.timeProvider = timeProvider;
-        this.testLocal = testLocal;
-    }
+    private readonly IMyAtmMonitorQueries monitorQueries = monitorQueries;
+    private readonly IMyAtmRuleQueries ruleQueries = ruleQueries;
+    private readonly IMyAtmAlertCommitCommands alertCommitCommands = alertCommitCommands;
+    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
+    private readonly MyAtmRuleProcessor ruleProcessor = ruleProcessor;
+    private readonly TimeProvider timeProvider = timeProvider;
+    private readonly bool testLocal = testLocal;
 
     public async Task RunAsync<T>(int customerId, Period period, CancellationToken cancellationToken = default)
         where T : BaseDeviceMeasurement

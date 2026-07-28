@@ -8,31 +8,22 @@ using SvantekMonitor.model.dto;
 namespace Svantek.Api.UseCases;
 
 // Summary: Raises battery caution/alert notifications from monitor battery charge levels.
-public sealed class NotifyBatteryLevelsHandler
+public sealed class NotifyBatteryLevelsHandler(
+    SvantekMonitorReader monitorReader,
+    ISvantekRuleQueries ruleQueries,
+    ISvantekMonitorCommands monitorCommands,
+    ISvantekOperationalCommands operationalCommands,
+    SvantekRuleProcessor ruleProcessor)
 {
     private const int BatteryLevelPercentCaution = 20;
     private const int BatteryLevelPercentAlert = 10;
     private const string BatteryLevel = "Battery level";
 
-    private readonly SvantekMonitorReader monitorReader;
-    private readonly ISvantekRuleQueries ruleQueries;
-    private readonly ISvantekMonitorCommands monitorCommands;
-    private readonly ISvantekOperationalCommands operationalCommands;
-    private readonly SvantekRuleProcessor ruleProcessor;
-
-    public NotifyBatteryLevelsHandler(
-        SvantekMonitorReader monitorReader,
-        ISvantekRuleQueries ruleQueries,
-        ISvantekMonitorCommands monitorCommands,
-        ISvantekOperationalCommands operationalCommands,
-        SvantekRuleProcessor ruleProcessor)
-    {
-        this.monitorReader = monitorReader;
-        this.ruleQueries = ruleQueries;
-        this.monitorCommands = monitorCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleProcessor = ruleProcessor;
-    }
+    private readonly SvantekMonitorReader monitorReader = monitorReader;
+    private readonly ISvantekRuleQueries ruleQueries = ruleQueries;
+    private readonly ISvantekMonitorCommands monitorCommands = monitorCommands;
+    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
+    private readonly SvantekRuleProcessor ruleProcessor = ruleProcessor;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {

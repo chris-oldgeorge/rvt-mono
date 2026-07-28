@@ -8,25 +8,24 @@ using RVT.DataAccess.Context;
 using RVT.Entities;
 using RVT.Entities.Querying;
 
-namespace RVT.DataAccess
-{
-    public class CompanyRepository : GenericRepository<Company>, ICompanyRepository
-    {
-        // Function summary: Initializes this type with the dependencies required by its workflow.
-        public CompanyRepository(RVTDbContext ContextDB)
-            : base(ContextDB)
-        {
-        }
-        // Function summary: Retrieves by ID with contracts data for callers.
-        public async Task<Company> GetByIdWithContractsAsync(Guid Id)
-        {
-            return (await base.GetByIdAsync(Id, "Contracts"))!;
-        }
-        // Function summary: Retrieves filtered data for callers.
-        public Task<SearchQueryResult<Company>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default)
-        {
-            return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.paged, pagedata.page, pagedata.pageSize, cancellationToken);
-        }
+namespace RVT.DataAccess;
 
+public class CompanyRepository : GenericRepository<Company>, ICompanyRepository
+{
+    // Function summary: Initializes this type with the dependencies required by its workflow.
+    public CompanyRepository(RVTDbContext ContextDB)
+        : base(ContextDB)
+    {
     }
+    // Function summary: Retrieves by ID with contracts data for callers.
+    public async Task<Company> GetByIdWithContractsAsync(Guid Id)
+    {
+        return (await base.GetByIdAsync(Id, "Contracts"))!;
+    }
+    // Function summary: Retrieves filtered data for callers.
+    public Task<SearchQueryResult<Company>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default)
+    {
+        return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.paged, pagedata.page, pagedata.pageSize, cancellationToken);
+    }
+
 }

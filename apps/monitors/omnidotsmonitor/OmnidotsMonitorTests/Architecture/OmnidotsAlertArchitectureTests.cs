@@ -74,8 +74,8 @@ public sealed class OmnidotsAlertArchitectureTests
     {
         using IHost host = CreateHost(apiEnabled: false, validSecurity: false);
 
-        await host.StartAsync();
-        await host.StopAsync();
+        await host.StartAsync(TestContext.CancellationToken);
+        await host.StopAsync(TestContext.CancellationToken);
     }
 
     [TestMethod]
@@ -84,7 +84,7 @@ public sealed class OmnidotsAlertArchitectureTests
         using IHost host = CreateHost(apiEnabled: true, validSecurity: false);
 
         OptionsValidationException exception = await Assert.ThrowsExactlyAsync<OptionsValidationException>(
-            () => host.StartAsync());
+            () => host.StartAsync(TestContext.CancellationToken));
 
         Assert.AreEqual(Options.DefaultName, exception.OptionsName);
         Assert.Contains(OmnidotsApiSecurityValidation.FailureMessage, exception.Failures);
@@ -208,4 +208,6 @@ public sealed class OmnidotsAlertArchitectureTests
         Assert.IsNotNull(directory, "Could not locate the repository root from the test output directory.");
         return File.ReadAllText(Path.Combine(directory.FullName, relativePath));
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

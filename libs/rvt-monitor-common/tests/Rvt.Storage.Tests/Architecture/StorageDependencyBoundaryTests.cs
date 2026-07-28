@@ -5,6 +5,8 @@ namespace Rvt.Storage.Tests.Architecture;
 [TestClass]
 public sealed class StorageDependencyBoundaryTests
 {
+    private static readonly string[] AzureStoragePackages = ["Azure.Identity", "Azure.Storage.Blobs"];
+
     [TestMethod]
     public void Common_ReferencesNoCloudProviderSdkPackages()
     {
@@ -40,13 +42,15 @@ public sealed class StorageDependencyBoundaryTests
             "System.IO.FileStream");
     }
 
+    private static readonly string[] ExpectedAbstractionReference = ["Rvt.Storage.Abstractions"];
+
     [TestMethod]
     public void Local_ReferencesNoCloudProviderSdk()
     {
         StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Storage.Local");
 
         CollectionAssert.AreEquivalent(
-            new[] { "Rvt.Storage.Abstractions" },
+            ExpectedAbstractionReference,
             project.ProjectReferences.ToArray());
         project.AssertPackagesExclude("Azure.", "AWSSDK.S3");
         project.AssertSourceExcludes("Azure.", "Amazon.");
@@ -58,10 +62,10 @@ public sealed class StorageDependencyBoundaryTests
         StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Storage.AzureBlob");
 
         CollectionAssert.AreEquivalent(
-            new[] { "Rvt.Storage.Abstractions" },
+            ExpectedAbstractionReference,
             project.ProjectReferences.ToArray());
         CollectionAssert.IsSubsetOf(
-            new[] { "Azure.Identity", "Azure.Storage.Blobs" },
+            AzureStoragePackages,
             project.PackageReferences.ToArray());
         project.AssertPackagesExclude("AWSSDK.S3");
         project.AssertSourceIncludes("Azure.Storage.Blobs", "Azure.Identity");
@@ -74,7 +78,7 @@ public sealed class StorageDependencyBoundaryTests
         StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Storage.S3");
 
         CollectionAssert.AreEquivalent(
-            new[] { "Rvt.Storage.Abstractions" },
+            ExpectedAbstractionReference,
             project.ProjectReferences.ToArray());
         CollectionAssert.Contains(project.PackageReferences.ToArray(), "AWSSDK.S3");
         project.AssertPackagesExclude("Azure.");

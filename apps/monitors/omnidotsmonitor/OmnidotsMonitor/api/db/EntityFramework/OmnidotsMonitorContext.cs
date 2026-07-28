@@ -6,13 +6,8 @@ using Rvt.Monitor.Common.Data.EntityFramework;
 
 namespace Omnidots.Api.Db.EntityFramework;
 
-public sealed class OmnidotsMonitorContext : MonitorDbContextBase
+public sealed class OmnidotsMonitorContext(DbContextOptions<OmnidotsMonitorContext> options, MonitorDbOptions monitorOptions) : MonitorDbContextBase(options, monitorOptions)
 {
-    public OmnidotsMonitorContext(DbContextOptions<OmnidotsMonitorContext> options, MonitorDbOptions monitorOptions)
-        : base(options, monitorOptions)
-    {
-    }
-
     public DbSet<OmnidotsMonitorStatusEntity> MonitorStatuses => Set<OmnidotsMonitorStatusEntity>();
     public DbSet<OmnidotsSensorEntity> Sensors => Set<OmnidotsSensorEntity>();
     public DbSet<OmnidotsPeakLevelEntity> PeakLevels => Set<OmnidotsPeakLevelEntity>();

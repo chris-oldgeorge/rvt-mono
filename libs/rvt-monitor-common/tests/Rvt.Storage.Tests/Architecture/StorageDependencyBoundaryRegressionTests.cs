@@ -6,6 +6,8 @@ namespace Rvt.Storage.Tests.Architecture;
 [TestClass]
 public sealed class StorageDependencyBoundaryRegressionTests
 {
+    private static readonly string[] expected = ["Allowed.Package", "Updated.Package"];
+
     [TestMethod]
     public void ProjectDependencyReader_RecognizesUpdateAndHonorsRemove()
     {
@@ -26,7 +28,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
             "PackageReference");
 
         CollectionAssert.AreEquivalent(
-            new[] { "Allowed.Package", "Updated.Package" },
+            expected,
             identities.ToArray());
     }
 

@@ -4,13 +4,8 @@ using Rvt.Monitor.Common.Data.EntityFramework;
 
 namespace ReportingMonitor.Api.Db.EntityFramework;
 
-public sealed class ReportingMonitorContext : MonitorDbContextBase
+public sealed class ReportingMonitorContext(DbContextOptions<ReportingMonitorContext> options, MonitorDbOptions monitorOptions) : MonitorDbContextBase(options, monitorOptions)
 {
-    public ReportingMonitorContext(DbContextOptions<ReportingMonitorContext> options, MonitorDbOptions monitorOptions)
-        : base(options, monitorOptions)
-    {
-    }
-
     public DbSet<ReportRuleEntity> ReportRules => Set<ReportRuleEntity>();
     public DbSet<ReportEntity> Reports => Set<ReportEntity>();
     public DbSet<ReportSentEntity> ReportSends => Set<ReportSentEntity>();

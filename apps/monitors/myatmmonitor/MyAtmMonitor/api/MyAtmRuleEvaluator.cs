@@ -7,18 +7,13 @@ using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 
 namespace MyAtm.Api;
 
-public sealed class MyAtmRuleEvaluator
+public sealed class MyAtmRuleEvaluator(MyAtmAlertTransitionEvaluator transitionEvaluator)
 {
-    private readonly MyAtmAlertTransitionEvaluator transitionEvaluator;
+    private readonly MyAtmAlertTransitionEvaluator transitionEvaluator = transitionEvaluator;
 
     public MyAtmRuleEvaluator()
         : this(new MyAtmAlertTransitionEvaluator())
     {
-    }
-
-    public MyAtmRuleEvaluator(MyAtmAlertTransitionEvaluator transitionEvaluator)
-    {
-        this.transitionEvaluator = transitionEvaluator;
     }
 
     public MyAtmRuleEvaluation Evaluate(

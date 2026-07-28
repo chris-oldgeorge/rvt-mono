@@ -63,7 +63,7 @@ public sealed class SvantekHttpGatewayAsyncTests
         Assert.HasCount(1, files);
         Assert.HasCount(1, stations);
         Assert.HasCount(1, data);
-        CollectionAssert.AreEqual(new byte[] { 82, 73, 70, 70 }, sound);
+        CollectionAssert.AreEqual("RIFF"u8.ToArray(), sound);
         http.VerifyAll();
     }
 
@@ -79,7 +79,7 @@ public sealed class SvantekHttpGatewayAsyncTests
             .Returns(response.Task);
         SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
-        Task<List<Station>> stationsTask = gateway.GetStationsAsync();
+        Task<List<Station>> stationsTask = gateway.GetStationsAsync(TestContext.CancellationToken);
 
         Assert.IsFalse(stationsTask.IsCompleted);
         response.SetResult(StationsJson);
@@ -99,7 +99,7 @@ public sealed class SvantekHttpGatewayAsyncTests
             .ThrowsAsync(adapterFailure);
         SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
-        AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => gateway.GetStationsAsync());
+        AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => gateway.GetStationsAsync(TestContext.CancellationToken));
 
         Assert.AreEqual("GetStations", exception.Message);
         Assert.AreSame(adapterFailure, exception.InnerException);
@@ -124,4 +124,6 @@ public sealed class SvantekHttpGatewayAsyncTests
 
         Assert.AreSame(expected, exception);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

@@ -16,6 +16,17 @@ public sealed class CommunicationsBoundaryTests
     [
         "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rules/RuleAlertNotificationDispatcher.cs"
     ];
+    private static readonly string[] ActiveSourceRoots =
+    [
+        "libs/rvt-monitor-common/src",
+        "apps/monitors",
+        "apps/portal"
+    ];
+    private static readonly string[] RemovedProjectReferenceFiles =
+    [
+        "libs/rvt-monitor-common/rvt-common.sln",
+        "Rvt.Mono.slnx"
+    ];
 
     [TestMethod]
     public void CommonContainsNoLegacyTransportOrProviderPackage()
@@ -117,20 +128,10 @@ public sealed class CommunicationsBoundaryTests
 
         Assert.IsFalse(Directory.Exists(removedProject));
 
-        string[] activeReferences = [.. new[]
-            {
-                "libs/rvt-monitor-common/src",
-                "apps/monitors",
-                "apps/portal"
-            }
-            .SelectMany(relative => ReadProductionSource(root, relative))
+        string[] activeReferences = [.. ActiveSourceRoots.SelectMany(relative => ReadProductionSource(root, relative))
             .Where(file => file.Text.Contains(removedIdentity, StringComparison.Ordinal))
             .Select(file => file.RelativePath)
-            .Concat(new[]
-            {
-                "libs/rvt-monitor-common/rvt-common.sln",
-                "Rvt.Mono.slnx"
-            }
+            .Concat(RemovedProjectReferenceFiles
             .Where(relative => File.ReadAllText(Path.Combine(root, relative))
                 .Contains(removedIdentity, StringComparison.Ordinal)))
             .Order(StringComparer.Ordinal)];

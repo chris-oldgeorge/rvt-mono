@@ -48,12 +48,7 @@ public sealed class TestMonitorApiEndpoints
             .OfType<RouteEndpoint>()
             .Select(endpoint => endpoint.RoutePattern.RawText)];
 
-        CollectionAssert.AreEquivalent(new[]
-        {
-            "/liveness",
-            "/configure-measuring-point",
-            "/webhook"
-        }, routes);
+        CollectionAssert.AreEquivalent(expected, routes);
     }
 
     [DataRow("missing")]
@@ -74,7 +69,7 @@ public sealed class TestMonitorApiEndpoints
         };
         using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
-        using HttpResponseMessage response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
 
         string problem = await AssertProblemAsync(
             response,
@@ -94,7 +89,7 @@ public sealed class TestMonitorApiEndpoints
             OmnidotsProtocol.SIGNATURE_HEADER,
             [Signature(body), "sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]);
 
-        using HttpResponseMessage response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
 
         await AssertProblemAsync(response, HttpStatusCode.Unauthorized, "Unauthorized webhook request.");
         Assert.AreEqual(0, app.Ingress.AcceptCount);
@@ -108,7 +103,7 @@ public sealed class TestMonitorApiEndpoints
         string signature = $"{Signature(body)},sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
-        using HttpResponseMessage response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
 
         await AssertProblemAsync(response, HttpStatusCode.Unauthorized, "Unauthorized webhook request.");
         Assert.AreEqual(0, app.Ingress.AcceptCount);
@@ -121,7 +116,7 @@ public sealed class TestMonitorApiEndpoints
         byte[] body = [0x7b, 0x22, 0x78, 0x22, 0x3a, 0xff, 0x7d];
         using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body));
 
-        using HttpResponseMessage response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
 
         await AssertProblemAsync(response, HttpStatusCode.BadRequest, "Invalid webhook payload.");
         Assert.AreEqual(0, app.Ingress.AcceptCount);
@@ -137,7 +132,7 @@ public sealed class TestMonitorApiEndpoints
         string signature = Signature(body);
         using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
-        using HttpResponseMessage response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
 
         string problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "Invalid webhook payload.");
         AssertNoLeakage(problem, app.Logs, BodySentinel, signature, WebhookSecret);
@@ -155,11 +150,11 @@ public sealed class TestMonitorApiEndpoints
         byte[] body = ValidWebhookBody();
         using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body));
 
-        using HttpResponseMessage response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
         Assert.AreEqual("application/json", response.Content.Headers.ContentType?.MediaType);
-        Assert.AreEqual("{\"processed\":true}", await response.Content.ReadAsStringAsync());
+        Assert.AreEqual("{\"processed\":true}", await response.Content.ReadAsStringAsync(TestContext.CancellationToken));
         Assert.AreEqual(1, ingress.AcceptCount);
     }
 
@@ -174,7 +169,7 @@ public sealed class TestMonitorApiEndpoints
         string signature = Signature(body);
         using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
-        using HttpResponseMessage response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
 
         string problem = await AssertProblemAsync(
             response,
@@ -193,7 +188,7 @@ public sealed class TestMonitorApiEndpoints
         string signature = Signature(body);
         using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
-        using HttpResponseMessage response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
 
         string problem = await AssertProblemAsync(
             response,
@@ -209,7 +204,7 @@ public sealed class TestMonitorApiEndpoints
         byte[] body = new byte[BoundedJsonRequestReader.MaxBodyBytes + 1];
         using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body));
 
-        using HttpResponseMessage response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
 
         await AssertProblemAsync(response, HttpStatusCode.RequestEntityTooLarge, "Request body too large.");
         Assert.AreEqual(0, app.Ingress.AcceptCount);
@@ -222,7 +217,7 @@ public sealed class TestMonitorApiEndpoints
         byte[] body = ValidWebhookBody();
         using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body), "text/plain");
 
-        using HttpResponseMessage response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
 
         await AssertProblemAsync(response, HttpStatusCode.UnsupportedMediaType, "Unsupported media type.");
         Assert.AreEqual(0, app.Ingress.AcceptCount);
@@ -237,11 +232,11 @@ public sealed class TestMonitorApiEndpoints
         await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress, options: options);
         byte[] body = ValidWebhookBody();
         using HttpRequestMessage firstRequest = CreateWebhookRequest(body, Signature(body));
-        Task<HttpResponseMessage> firstResponseTask = app.Client.SendAsync(firstRequest);
-        await ingress.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Task<HttpResponseMessage> firstResponseTask = app.Client.SendAsync(firstRequest, TestContext.CancellationToken);
+        await ingress.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
         using HttpRequestMessage secondRequest = CreateWebhookRequest(body, Signature(body));
 
-        using HttpResponseMessage secondResponse = await app.Client.SendAsync(secondRequest);
+        using HttpResponseMessage secondResponse = await app.Client.SendAsync(secondRequest, TestContext.CancellationToken);
 
         await AssertProblemAsync(secondResponse, HttpStatusCode.TooManyRequests, "Too many requests.");
         Assert.AreEqual(1, ingress.AcceptCount);
@@ -297,7 +292,7 @@ public sealed class TestMonitorApiEndpoints
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
         Assert.AreEqual("application/json", response.Content.Headers.ContentType?.MediaType);
-        string body = await response.Content.ReadAsStringAsync();
+        string body = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
         Assert.AreEqual("{\"configured\":true}", body);
         AssertNoLeakage(body, app.Logs, ConfigSecret, WebhookSecret, Destination, VendorResponse);
     }
@@ -390,7 +385,7 @@ public sealed class TestMonitorApiEndpoints
         Task<HttpResponseMessage> firstResponseTask = app.Client.PostAsync(
             "/configure-measuring-point",
             JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.CancellationToken);
 
         using HttpResponseMessage secondResponse = await app.Client.PostAsync(
             "/configure-measuring-point",
@@ -578,18 +573,13 @@ public sealed class TestMonitorApiEndpoints
         }
     }
 
-    private class CapturingIngress : IAlertIngressPort
+    private class CapturingIngress(Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> accept) : IAlertIngressPort
     {
-        private readonly Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> accept;
+        private readonly Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> accept = accept;
 
         public CapturingIngress()
             : this((_, _) => Task.FromResult(IngressResult(duplicate: false)))
         {
-        }
-
-        public CapturingIngress(Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> accept)
-        {
-            this.accept = accept;
         }
 
         public int AcceptCount { get; protected set; }
@@ -652,4 +642,13 @@ public sealed class TestMonitorApiEndpoints
             }
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly string[] expected =
+        [
+            "/liveness",
+            "/configure-measuring-point",
+            "/webhook"
+        ];
 }

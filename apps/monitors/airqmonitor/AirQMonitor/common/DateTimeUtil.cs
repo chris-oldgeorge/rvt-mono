@@ -1,11 +1,10 @@
 
-namespace AirQ.Common
+namespace AirQ.Common;
+
+public sealed class DateTimeUtil
 {
-    public sealed class DateTimeUtil
+    public static DateTime ToUtc(DateTime dateTime)
     {
-        public static DateTime ToUtc(DateTime dateTime)
-        {
-            return TimeZoneInfo.ConvertTime((DateTime)dateTime!, TimeZoneInfo.Utc);
-        }
+        return TimeZoneInfo.ConvertTime((DateTime)dateTime!, TimeZoneInfo.Utc);
     }
 }

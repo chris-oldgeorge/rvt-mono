@@ -115,7 +115,7 @@ public sealed class SvantekJobCancellationTests
             () => runMethod.Invoke(dispatcher, ["StoreMonitors", CancellationToken.None]));
         InvalidOperationException exception = Assert.IsInstanceOfType<InvalidOperationException>(invocation.InnerException);
 
-        StringAssert.Contains(exception.Message, nameof(ISvantekMonitorJobs));
+        Assert.Contains(nameof(ISvantekMonitorJobs), exception.Message);
     }
 
     [TestMethod]

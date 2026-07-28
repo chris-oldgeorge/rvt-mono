@@ -6,27 +6,18 @@ using SvantekMonitor.model.dto;
 namespace Svantek.Api.UseCases;
 
 // Summary: Writes daily site noise averages and alerts contacts on site-hours rule breaches.
-public sealed class NotifySiteAveragesHandler
+public sealed class NotifySiteAveragesHandler(
+    ISvantekMonitorQueries monitorQueries,
+    ISvantekRuleQueries ruleQueries,
+    ISvantekMeasurementCommands measurementCommands,
+    ISvantekOperationalCommands operationalCommands,
+    SvantekRuleProcessor ruleProcessor)
 {
-    private readonly ISvantekMonitorQueries monitorQueries;
-    private readonly ISvantekRuleQueries ruleQueries;
-    private readonly ISvantekMeasurementCommands measurementCommands;
-    private readonly ISvantekOperationalCommands operationalCommands;
-    private readonly SvantekRuleProcessor ruleProcessor;
-
-    public NotifySiteAveragesHandler(
-        ISvantekMonitorQueries monitorQueries,
-        ISvantekRuleQueries ruleQueries,
-        ISvantekMeasurementCommands measurementCommands,
-        ISvantekOperationalCommands operationalCommands,
-        SvantekRuleProcessor ruleProcessor)
-    {
-        this.monitorQueries = monitorQueries;
-        this.ruleQueries = ruleQueries;
-        this.measurementCommands = measurementCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleProcessor = ruleProcessor;
-    }
+    private readonly ISvantekMonitorQueries monitorQueries = monitorQueries;
+    private readonly ISvantekRuleQueries ruleQueries = ruleQueries;
+    private readonly ISvantekMeasurementCommands measurementCommands = measurementCommands;
+    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
+    private readonly SvantekRuleProcessor ruleProcessor = ruleProcessor;
 
     public async Task RunAsync(DateTime date, CancellationToken cancellationToken = default)
     {

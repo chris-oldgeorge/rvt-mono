@@ -1,12 +1,10 @@
 using System.Text.Json.Serialization;
 
-namespace Svantek.Model.Http
+namespace Svantek.Model.Http;
+
+
+public class ErrorResponse
 {
-
-    public class ErrorResponse
-    {
-        [JsonRequired]
-        public string? Response { get; set; }
-    }
-
+    [JsonRequired]
+    public string? Response { get; set; }
 }

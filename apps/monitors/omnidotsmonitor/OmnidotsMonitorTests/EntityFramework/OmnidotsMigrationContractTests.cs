@@ -69,11 +69,11 @@ public sealed class OmnidotsMigrationContractTests
             "DROP COLUMN IF EXISTS sample_index",
             "DROP TABLE IF EXISTS omnidots_import_cursor",
             "COMMIT;");
-        StringAssert.Matches(
-            rawScript,
+        Assert.MatchesRegex(
             new Regex(
                 @"-- WARNING: Dropping sample_index permanently discards trace sample ordering metadata\.\r?\nALTER TABLE IF EXISTS omnidots_trace\s+DROP COLUMN IF EXISTS sample_index;",
-                RegexOptions.CultureInvariant));
+                RegexOptions.CultureInvariant),
+            rawScript);
     }
 
     [TestMethod]

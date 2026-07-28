@@ -19,6 +19,9 @@ public sealed class OmnidotsTraceMonitorSelectorTests
         Assert.IsEmpty(selected);
     }
 
+    private static readonly string[] AllowedSerialIds = ["2", "4"];
+    private static readonly string[] SecondRotationSerialIds = ["3", "4"];
+
     [TestMethod]
     public void Select_AllowListFiltersFleet()
     {
@@ -28,8 +31,10 @@ public sealed class OmnidotsTraceMonitorSelectorTests
             Options(allowedSerialIds: ["2", "4"], maxMonitorsPerRun: 4),
             rotationSlot: 0);
 
-        CollectionAssert.AreEqual(new[] { "2", "4" }, selected.Select(monitor => monitor.SerialId).ToArray());
+        CollectionAssert.AreEqual(AllowedSerialIds, selected.Select(monitor => monitor.SerialId).ToArray());
     }
+
+    private static readonly string[] LimitedSerialIds = ["1", "2"];
 
     [TestMethod]
     public void Select_EmptyAllowListIncludesFleetAndAppliesLimit()
@@ -40,8 +45,10 @@ public sealed class OmnidotsTraceMonitorSelectorTests
             Options(maxMonitorsPerRun: 2),
             rotationSlot: 0);
 
-        CollectionAssert.AreEqual(new[] { "1", "2" }, selected.Select(monitor => monitor.SerialId).ToArray());
+        CollectionAssert.AreEqual(LimitedSerialIds, selected.Select(monitor => monitor.SerialId).ToArray());
     }
+
+    private static readonly string[] LatestTraceOrder = ["3", "2", "1"];
 
     [TestMethod]
     public void Select_OrdersUnseenThenOldestLatestTrace()
@@ -56,7 +63,7 @@ public sealed class OmnidotsTraceMonitorSelectorTests
             Options(maxMonitorsPerRun: 3),
             rotationSlot: 0);
 
-        CollectionAssert.AreEqual(new[] { "3", "2", "1" }, selected.Select(monitor => monitor.SerialId).ToArray());
+        CollectionAssert.AreEqual(LatestTraceOrder, selected.Select(monitor => monitor.SerialId).ToArray());
     }
 
     [TestMethod]
@@ -70,8 +77,8 @@ public sealed class OmnidotsTraceMonitorSelectorTests
         IReadOnlyList<VibrationMonitorDto> second = OmnidotsTraceMonitorSelector.Select(
             monitors, new Dictionary<string, DateTime>(), Options(maxMonitorsPerRun: 2), rotationSlot: 1);
 
-        CollectionAssert.AreEqual(new[] { "1", "2" }, first.Select(monitor => monitor.SerialId).ToArray());
-        CollectionAssert.AreEqual(new[] { "3", "4" }, second.Select(monitor => monitor.SerialId).ToArray());
+        CollectionAssert.AreEqual(LimitedSerialIds, first.Select(monitor => monitor.SerialId).ToArray());
+        CollectionAssert.AreEqual(SecondRotationSerialIds, second.Select(monitor => monitor.SerialId).ToArray());
         CollectionAssert.AreEqual(originalOrder, monitors.Select(monitor => monitor.SerialId).ToArray());
     }
 

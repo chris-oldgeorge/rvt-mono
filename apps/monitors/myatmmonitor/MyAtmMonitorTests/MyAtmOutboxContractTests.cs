@@ -66,11 +66,12 @@ public sealed class MyAtmOutboxContractTests
         await Assert.ThrowsExactlyAsync<ArgumentException>(() => queries.ClaimNextDueAsync(
             "myatm",
             DateTime.UtcNow,
-            TimeSpan.FromMinutes(2)));
+            TimeSpan.FromMinutes(2), TestContext.CancellationToken));
     }
 
     private static System.Reflection.MethodInfo FindMethod<T>(string name, int? parameterCount = null) =>
         typeof(T).GetMethods()
             .Single(method => method.Name == name && (parameterCount == null || method.GetParameters().Length == parameterCount));
 
+    public TestContext TestContext { get; set; } = null!;
 }

@@ -21,218 +21,217 @@ using Azure.Storage.Blobs.Models;
 using Azure.Storage.Blobs.Specialized;
 using RvtPortal.Spa.Adapters.Storage;
 
-namespace RvtPortal.Spa.Adapters.Archive
+namespace RvtPortal.Spa.Adapters.Archive;
+
+public class BlobStorage
 {
-    public class BlobStorage
+    public string blobConnectionString { get; set; } = string.Empty;
+    public string MonitorImagesContainer { get; set; } = string.Empty;
+    public string ArchiveContainer { get; set; } = string.Empty;
+    public string ReportContainer { get; set; } = string.Empty;
+    public string ReportFolder { get; set; } = string.Empty;
+}
+
+public interface ISiteArchiveService
+{
+    // Function summary: Builds a site archive export and returns its stored archive URL; throws if it fails.
+    Task<string> Process(Guid siteId, CancellationToken cancellationToken);
+
+    // Function summary: Reconciles the stable candidate against durable archive metadata.
+    Task DeleteSupersededAsync(
+        Guid siteId,
+        string durableArchiveUrl,
+        CancellationToken cancellationToken);
+}
+
+internal class SiteArchiveService : ISiteArchiveService
+{
+    private readonly ISiteArchiveQueryCatalog queryCatalog;
+    private readonly ISiteArchiveQueryExecutor queryExecutor;
+    private readonly ISiteArchiveCsvWriter csvWriter;
+    private readonly ISiteArchiveWorkspaceFactory workspaceFactory;
+    private readonly IBlobStorageClientFactory blobStorageClientFactory;
+    private readonly BlobStorage config;
+
+    // Function summary: Initializes this type with archive export collaborators resolved through dependency injection.
+    public SiteArchiveService(
+        ISiteArchiveQueryCatalog queryCatalog,
+        ISiteArchiveQueryExecutor queryExecutor,
+        ISiteArchiveCsvWriter csvWriter,
+        ISiteArchiveWorkspaceFactory workspaceFactory,
+        IBlobStorageClientFactory blobStorageClientFactory,
+        IConfiguration configuration)
     {
-        public string blobConnectionString { get; set; } = string.Empty;
-        public string MonitorImagesContainer { get; set; } = string.Empty;
-        public string ArchiveContainer { get; set; } = string.Empty;
-        public string ReportContainer { get; set; } = string.Empty;
-        public string ReportFolder { get; set; } = string.Empty;
+        this.queryCatalog = queryCatalog;
+        this.queryExecutor = queryExecutor;
+        this.csvWriter = csvWriter;
+        this.workspaceFactory = workspaceFactory;
+        this.blobStorageClientFactory = blobStorageClientFactory;
+        config = new BlobStorage();
+        configuration.GetSection("BlobStorage").Bind(config);
     }
 
-    public interface ISiteArchiveService
+    // Function summary: Builds CSV archive files for a site, zips them, uploads the archive, and returns the archive URL.
+    public async Task<string> Process(Guid siteId, CancellationToken cancellationToken)
     {
-        // Function summary: Builds a site archive export and returns its stored archive URL; throws if it fails.
-        Task<string> Process(Guid siteId, CancellationToken cancellationToken);
+        // Failures propagate. A swallowed failure that returns an empty URL is worse than throwing: the caller
+        // marks the site archived and reports success even though no archive exists. The caller decides what
+        // a failed export means (ArchiveAsync returns 503 and does not archive). The workspace is disposed on
+        // the way out either way.
+        await using SiteArchiveWorkspace workspace = workspaceFactory.Create(siteId);
+        Directory.CreateDirectory(workspace.RootPath);
+        Directory.CreateDirectory(workspace.FilesPath);
 
-        // Function summary: Reconciles the stable candidate against durable archive metadata.
-        Task DeleteSupersededAsync(
-            Guid siteId,
-            string durableArchiveUrl,
-            CancellationToken cancellationToken);
+        foreach (ArchiveCsvExport export in queryCatalog.CsvExports)
+        {
+            await export.WriteAsync(queryExecutor, csvWriter, workspace.FilesPath, siteId, cancellationToken);
+        }
+
+        await DownloadReportsAsync(workspace.FilesPath, siteId, cancellationToken);
+        return await ZipAndUpload(workspace.FilesPath, workspace.ZipPath, workspace.BlobName, cancellationToken);
     }
 
-    internal class SiteArchiveService : ISiteArchiveService
+    // Function summary: Streams report links and downloads linked report blobs into the archive workspace.
+    private async Task DownloadReportsAsync(string filesDirectory, Guid siteId, CancellationToken cancellationToken)
     {
-        private readonly ISiteArchiveQueryCatalog queryCatalog;
-        private readonly ISiteArchiveQueryExecutor queryExecutor;
-        private readonly ISiteArchiveCsvWriter csvWriter;
-        private readonly ISiteArchiveWorkspaceFactory workspaceFactory;
-        private readonly IBlobStorageClientFactory blobStorageClientFactory;
-        private readonly BlobStorage config;
-
-        // Function summary: Initializes this type with archive export collaborators resolved through dependency injection.
-        public SiteArchiveService(
-            ISiteArchiveQueryCatalog queryCatalog,
-            ISiteArchiveQueryExecutor queryExecutor,
-            ISiteArchiveCsvWriter csvWriter,
-            ISiteArchiveWorkspaceFactory workspaceFactory,
-            IBlobStorageClientFactory blobStorageClientFactory,
-            IConfiguration configuration)
+        await foreach (ReportArchiveRow? report in queryExecutor
+            .StreamAsync<ReportArchiveRow>(queryCatalog.ReportLinksSql, siteId, cancellationToken)
+            .WithCancellation(cancellationToken))
         {
-            this.queryCatalog = queryCatalog;
-            this.queryExecutor = queryExecutor;
-            this.csvWriter = csvWriter;
-            this.workspaceFactory = workspaceFactory;
-            this.blobStorageClientFactory = blobStorageClientFactory;
-            config = new BlobStorage();
-            configuration.GetSection("BlobStorage").Bind(config);
-        }
-
-        // Function summary: Builds CSV archive files for a site, zips them, uploads the archive, and returns the archive URL.
-        public async Task<string> Process(Guid siteId, CancellationToken cancellationToken)
-        {
-            // Failures propagate. A swallowed failure that returns an empty URL is worse than throwing: the caller
-            // marks the site archived and reports success even though no archive exists. The caller decides what
-            // a failed export means (ArchiveAsync returns 503 and does not archive). The workspace is disposed on
-            // the way out either way.
-            await using SiteArchiveWorkspace workspace = workspaceFactory.Create(siteId);
-            Directory.CreateDirectory(workspace.RootPath);
-            Directory.CreateDirectory(workspace.FilesPath);
-
-            foreach (ArchiveCsvExport export in queryCatalog.CsvExports)
+            if (!string.IsNullOrWhiteSpace(report.ReportLink))
             {
-                await export.WriteAsync(queryExecutor, csvWriter, workspace.FilesPath, siteId, cancellationToken);
-            }
-
-            await DownloadReportsAsync(workspace.FilesPath, siteId, cancellationToken);
-            return await ZipAndUpload(workspace.FilesPath, workspace.ZipPath, workspace.BlobName, cancellationToken);
-        }
-
-        // Function summary: Streams report links and downloads linked report blobs into the archive workspace.
-        private async Task DownloadReportsAsync(string filesDirectory, Guid siteId, CancellationToken cancellationToken)
-        {
-            await foreach (ReportArchiveRow? report in queryExecutor
-                .StreamAsync<ReportArchiveRow>(queryCatalog.ReportLinksSql, siteId, cancellationToken)
-                .WithCancellation(cancellationToken))
-            {
-                if (!string.IsNullOrWhiteSpace(report.ReportLink))
-                {
-                    string filename = Path.GetFileName(new Uri(report.ReportLink).AbsolutePath);
-                    await BlobToFolder(filename, filesDirectory, cancellationToken);
-                }
+                string filename = Path.GetFileName(new Uri(report.ReportLink).AbsolutePath);
+                await BlobToFolder(filename, filesDirectory, cancellationToken);
             }
         }
+    }
 
-        // Function summary: Creates an archive zip from exported files, uploads it to blob storage, and returns its URL.
-        public async Task<string> ZipAndUpload(string filesPath, string zipFilePath, string blobName, CancellationToken cancellationToken)
+    // Function summary: Creates an archive zip from exported files, uploads it to blob storage, and returns its URL.
+    public async Task<string> ZipAndUpload(string filesPath, string zipFilePath, string blobName, CancellationToken cancellationToken)
+    {
+        await System.IO.Compression.ZipFile.CreateFromDirectoryAsync(filesPath, zipFilePath, cancellationToken);
+
+        BlobContainerClient monitorContainerClient = RequiredContainer(config.ArchiveContainer);
+
+        BlobClient blobClient = monitorContainerClient.GetBlobClient(blobName);
+        await blobClient.UploadAsync(zipFilePath, true, cancellationToken);
+
+        BlockBlobClient blob = monitorContainerClient.GetBlockBlobClient(blobName);
+        return blob.Uri.AbsoluteUri;
+    }
+
+    public async Task DeleteSupersededAsync(
+        Guid siteId,
+        string durableArchiveUrl,
+        CancellationToken cancellationToken)
+    {
+        if (!Uri.TryCreate(
+                durableArchiveUrl,
+                UriKind.Absolute,
+                out Uri? durableUri)
+            || (durableUri.Scheme != Uri.UriSchemeHttps
+                && durableUri.Scheme != Uri.UriSchemeHttp)
+            || !string.IsNullOrEmpty(durableUri.UserInfo)
+            || !string.IsNullOrEmpty(durableUri.Fragment))
         {
-            await System.IO.Compression.ZipFile.CreateFromDirectoryAsync(filesPath, zipFilePath, cancellationToken);
-
-            BlobContainerClient monitorContainerClient = RequiredContainer(config.ArchiveContainer);
-
-            BlobClient blobClient = monitorContainerClient.GetBlobClient(blobName);
-            await blobClient.UploadAsync(zipFilePath, true, cancellationToken);
-
-            BlockBlobClient blob = monitorContainerClient.GetBlockBlobClient(blobName);
-            return blob.Uri.AbsoluteUri;
+            throw new InvalidOperationException(
+                "The durable archive URL is not a verifiable absolute blob URL.");
         }
 
-        public async Task DeleteSupersededAsync(
-            Guid siteId,
-            string durableArchiveUrl,
-            CancellationToken cancellationToken)
+        BlobUriBuilder durableArchive;
+        try
         {
-            if (!Uri.TryCreate(
-                    durableArchiveUrl,
-                    UriKind.Absolute,
-                    out Uri? durableUri)
-                || (durableUri.Scheme != Uri.UriSchemeHttps
-                    && durableUri.Scheme != Uri.UriSchemeHttp)
-                || !string.IsNullOrEmpty(durableUri.UserInfo)
-                || !string.IsNullOrEmpty(durableUri.Fragment))
-            {
-                throw new InvalidOperationException(
-                    "The durable archive URL is not a verifiable absolute blob URL.");
-            }
-
-            BlobUriBuilder durableArchive;
-            try
-            {
-                durableArchive = new BlobUriBuilder(durableUri);
-            }
-            catch (Exception exception) when (
-                exception is ArgumentException
-                or UriFormatException)
-            {
-                throw new InvalidOperationException(
-                    "The durable archive URL is not a verifiable absolute blob URL.",
-                    exception);
-            }
-
-            BlobContainerClient archiveContainer = RequiredContainer(config.ArchiveContainer);
-            BlobClient candidateBlob = archiveContainer.GetBlobClient(
-                $"{siteId:N}/site-archive.zip");
-            BlobUriBuilder candidateArchive = new(candidateBlob.Uri);
-            if (!IdentifiesConfiguredContainer(
-                    durableUri,
-                    durableArchive,
-                    candidateBlob.Uri,
-                    candidateArchive))
-            {
-                throw new InvalidOperationException(
-                    "The durable archive URL does not identify a blob in the configured archive account and container.");
-            }
-
-            if (string.Equals(
-                    durableArchive.BlobName,
-                    candidateArchive.BlobName,
-                    StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            await candidateBlob.DeleteIfExistsAsync(
-                DeleteSnapshotsOption.IncludeSnapshots,
-                cancellationToken: cancellationToken);
+            durableArchive = new BlobUriBuilder(durableUri);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+            or UriFormatException)
+        {
+            throw new InvalidOperationException(
+                "The durable archive URL is not a verifiable absolute blob URL.",
+                exception);
         }
 
-        private static bool IdentifiesConfiguredContainer(
-            Uri durableUri,
-            BlobUriBuilder durableArchive,
-            Uri candidateUri,
-            BlobUriBuilder candidateArchive)
+        BlobContainerClient archiveContainer = RequiredContainer(config.ArchiveContainer);
+        BlobClient candidateBlob = archiveContainer.GetBlobClient(
+            $"{siteId:N}/site-archive.zip");
+        BlobUriBuilder candidateArchive = new(candidateBlob.Uri);
+        if (!IdentifiesConfiguredContainer(
+                durableUri,
+                durableArchive,
+                candidateBlob.Uri,
+                candidateArchive))
         {
-            return string.Equals(
-                    durableUri.Scheme,
-                    candidateUri.Scheme,
-                    StringComparison.OrdinalIgnoreCase)
-                && string.Equals(
-                    durableUri.IdnHost,
-                    candidateUri.IdnHost,
-                    StringComparison.OrdinalIgnoreCase)
-                && durableUri.Port == candidateUri.Port
-                && !string.IsNullOrWhiteSpace(durableArchive.AccountName)
-                && string.Equals(
-                    durableArchive.AccountName,
-                    candidateArchive.AccountName,
-                    StringComparison.Ordinal)
-                && !string.IsNullOrWhiteSpace(durableArchive.BlobContainerName)
-                && string.Equals(
-                    durableArchive.BlobContainerName,
-                    candidateArchive.BlobContainerName,
-                    StringComparison.Ordinal)
-                && !string.IsNullOrWhiteSpace(durableArchive.BlobName);
+            throw new InvalidOperationException(
+                "The durable archive URL does not identify a blob in the configured archive account and container.");
         }
 
-        // Function summary: Creates a provider-specific site id parameter for focused archive security tests.
-        private DbParameter CreateSiteIdParameter(Guid siteId)
+        if (string.Equals(
+                durableArchive.BlobName,
+                candidateArchive.BlobName,
+                StringComparison.Ordinal))
         {
-            return queryExecutor.CreateSiteIdParameter(siteId);
+            return;
         }
 
-        // Function summary: Downloads a report blob into the archive workspace.
-        private async Task BlobToFolder(string blobName, string downloadFolder, CancellationToken cancellationToken)
-        {
-            string downloadFilePath = Path.Combine(downloadFolder, blobName);
-            BlobContainerClient containerClient = RequiredContainer(config.ReportContainer);
-            BlobClient blobClient = containerClient.GetBlobClient($"{config.ReportFolder}/{blobName}");
+        await candidateBlob.DeleteIfExistsAsync(
+            DeleteSnapshotsOption.IncludeSnapshots,
+            cancellationToken: cancellationToken);
+    }
 
-            if (await blobClient.ExistsAsync(cancellationToken))
-            {
-                Response<BlobDownloadInfo> response = await blobClient.DownloadAsync(cancellationToken);
-                await using FileStream fileStream = File.Create(downloadFilePath);
-                await response.Value.Content.CopyToAsync(fileStream, cancellationToken);
-            }
-        }
+    private static bool IdentifiesConfiguredContainer(
+        Uri durableUri,
+        BlobUriBuilder durableArchive,
+        Uri candidateUri,
+        BlobUriBuilder candidateArchive)
+    {
+        return string.Equals(
+                durableUri.Scheme,
+                candidateUri.Scheme,
+                StringComparison.OrdinalIgnoreCase)
+            && string.Equals(
+                durableUri.IdnHost,
+                candidateUri.IdnHost,
+                StringComparison.OrdinalIgnoreCase)
+            && durableUri.Port == candidateUri.Port
+            && !string.IsNullOrWhiteSpace(durableArchive.AccountName)
+            && string.Equals(
+                durableArchive.AccountName,
+                candidateArchive.AccountName,
+                StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(durableArchive.BlobContainerName)
+            && string.Equals(
+                durableArchive.BlobContainerName,
+                candidateArchive.BlobContainerName,
+                StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(durableArchive.BlobName);
+    }
 
-        // Function summary: Resolves a required archive container through the shared blob-client factory.
-        private BlobContainerClient RequiredContainer(string containerName)
+    // Function summary: Creates a provider-specific site id parameter for focused archive security tests.
+    private DbParameter CreateSiteIdParameter(Guid siteId)
+    {
+        return queryExecutor.CreateSiteIdParameter(siteId);
+    }
+
+    // Function summary: Downloads a report blob into the archive workspace.
+    private async Task BlobToFolder(string blobName, string downloadFolder, CancellationToken cancellationToken)
+    {
+        string downloadFilePath = Path.Combine(downloadFolder, blobName);
+        BlobContainerClient containerClient = RequiredContainer(config.ReportContainer);
+        BlobClient blobClient = containerClient.GetBlobClient($"{config.ReportFolder}/{blobName}");
+
+        if (await blobClient.ExistsAsync(cancellationToken))
         {
-            return blobStorageClientFactory.CreateContainerClient(containerName)
-                ?? throw new InvalidOperationException("Blob storage is not configured for site archives.");
+            Response<BlobDownloadInfo> response = await blobClient.DownloadAsync(cancellationToken);
+            await using FileStream fileStream = File.Create(downloadFilePath);
+            await response.Value.Content.CopyToAsync(fileStream, cancellationToken);
         }
+    }
+
+    // Function summary: Resolves a required archive container through the shared blob-client factory.
+    private BlobContainerClient RequiredContainer(string containerName)
+    {
+        return blobStorageClientFactory.CreateContainerClient(containerName)
+            ?? throw new InvalidOperationException("Blob storage is not configured for site archives.");
     }
 }

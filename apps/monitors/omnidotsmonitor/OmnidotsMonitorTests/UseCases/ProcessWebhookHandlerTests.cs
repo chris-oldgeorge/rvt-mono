@@ -42,7 +42,7 @@ public sealed class ProcessWebhookHandlerTests
         ProcessWebhookHandler handler = CreateHandler(ingress);
         byte[] body = ValidBody();
 
-        await handler.RunAsync(body, Signature(body));
+        await handler.RunAsync(body, Signature(body), TestContext.CancellationToken);
 
         Assert.IsNotNull(ingress.Signal);
         Assert.AreEqual(Convert.ToHexStringLower(SHA256.HashData(body)), ingress.Signal.SourceEventKey);
@@ -56,7 +56,7 @@ public sealed class ProcessWebhookHandlerTests
         byte[] json = ValidBody();
         byte[] body = [.. Encoding.UTF8.GetPreamble(), .. json];
 
-        await handler.RunAsync(body, Signature(body));
+        await handler.RunAsync(body, Signature(body), TestContext.CancellationToken);
 
         Assert.IsNotNull(ingress.Signal);
         Assert.AreEqual(Convert.ToHexStringLower(SHA256.HashData(body)), ingress.Signal.SourceEventKey);
@@ -71,7 +71,7 @@ public sealed class ProcessWebhookHandlerTests
         byte[] body = [.. preamble, .. preamble, .. ValidBody()];
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
-            handler.RunAsync(body, Signature(body)));
+            handler.RunAsync(body, Signature(body), TestContext.CancellationToken));
 
         Assert.IsNull(ingress.Signal);
     }
@@ -84,7 +84,7 @@ public sealed class ProcessWebhookHandlerTests
         byte[] body = [0x7b, 0x22, 0x64, 0x61, 0x74, 0x61, 0x22, 0x3a, 0xff, 0x7d];
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
-            handler.RunAsync(body, Signature(body)));
+            handler.RunAsync(body, Signature(body), TestContext.CancellationToken));
 
         Assert.IsNull(ingress.Signal);
     }
@@ -100,7 +100,7 @@ public sealed class ProcessWebhookHandlerTests
         mutated[^2] = mutated[^2] == (byte)'3' ? (byte)'4' : (byte)'3';
 
         await Assert.ThrowsExactlyAsync<OmnidotsWebhookAuthenticationException>(() =>
-            handler.RunAsync(mutated, signature));
+            handler.RunAsync(mutated, signature, TestContext.CancellationToken));
 
         Assert.IsNull(ingress.Signal);
     }
@@ -134,7 +134,7 @@ public sealed class ProcessWebhookHandlerTests
         ProcessWebhookHandler handler = CreateHandler(ingress);
         byte[] body = ValidBody();
 
-        AlertIngressResult result = await handler.RunAsync(body, Signature(body));
+        AlertIngressResult result = await handler.RunAsync(body, Signature(body), TestContext.CancellationToken);
 
         Assert.AreSame(duplicate, result);
     }
@@ -153,7 +153,7 @@ public sealed class ProcessWebhookHandlerTests
         byte[] body = ValidBody();
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
-            handler.RunAsync(body, Signature(body)));
+            handler.RunAsync(body, Signature(body), TestContext.CancellationToken));
 
         Assert.IsNull(ingress.Signal);
     }
@@ -184,9 +184,10 @@ public sealed class ProcessWebhookHandlerTests
         return $"sha256={Convert.ToHexStringLower(digest)}";
     }
 
-    private sealed class CapturingIngress : IAlertIngressPort
+    private sealed class CapturingIngress(
+        Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> accept) : IAlertIngressPort
     {
-        private readonly Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> accept;
+        private readonly Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> accept = accept;
 
         public CapturingIngress()
             : this((_, _) => Task.FromResult(new AlertIngressResult(
@@ -195,12 +196,6 @@ public sealed class ProcessWebhookHandlerTests
                 AlertOccurrenceOutcome.Accepted,
                 IsDuplicate: false)))
         {
-        }
-
-        public CapturingIngress(
-            Func<AlertSignal, CancellationToken, Task<AlertIngressResult>> accept)
-        {
-            this.accept = accept;
         }
 
         public AlertSignal? Signal { get; private set; }
@@ -216,4 +211,6 @@ public sealed class ProcessWebhookHandlerTests
             return accept(signal, cancellationToken);
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

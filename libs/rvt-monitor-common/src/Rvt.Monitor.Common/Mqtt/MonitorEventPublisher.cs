@@ -33,20 +33,13 @@ public interface IMonitorEventPublisher
 // Major updates:
 // - 2026-07-12 MQTT centralization: replaced per-monitor inline PublishAsync calls with one shared publisher.
 // - 2026-07-12 RvtConfig cleanup: topics are injected instead of read from static configuration.
-public class MonitorEventPublisher : IMonitorEventPublisher
+public class MonitorEventPublisher(IMqttClient mqttClient, string insertTopic, string alertTopic) : IMonitorEventPublisher
 {
     private const string DataInsertedMessage = "Dto Inserted";
 
-    private readonly IMqttClient mqttClient;
-    private readonly string insertTopic;
-    private readonly string alertTopic;
-
-    public MonitorEventPublisher(IMqttClient mqttClient, string insertTopic, string alertTopic)
-    {
-        this.mqttClient = mqttClient;
-        this.insertTopic = insertTopic;
-        this.alertTopic = alertTopic;
-    }
+    private readonly IMqttClient mqttClient = mqttClient;
+    private readonly string insertTopic = insertTopic;
+    private readonly string alertTopic = alertTopic;
 
     /// <summary>
     /// Blocking entry point retained only for the legacy synchronous rule

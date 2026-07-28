@@ -1,15 +1,14 @@
 using MyAtm.Model.Dto;
 
-namespace MyAtm.Api.Db
+namespace MyAtm.Api.Db;
+
+public interface IMyAtmMonitorQueries
 {
-    public interface IMyAtmMonitorQueries
-    {
-        List<DustMonitorDto> ReadMonitorList(int customerId, DateTime? lastDataTime);
+    List<DustMonitorDto> ReadMonitorList(int customerId, DateTime? lastDataTime);
 
-        DustMonitorDto? ReadMonitor(int customerId, string serialId);
+    DustMonitorDto? ReadMonitor(int customerId, string serialId);
 
-        List<DustMonitorDto> ReadMonitorList(DateTime? lastDataTime);
+    List<DustMonitorDto> ReadMonitorList(DateTime? lastDataTime);
 
-        DustMonitorDto? ReadMonitor(string serialId);
-    }
+    DustMonitorDto? ReadMonitor(string serialId);
 }

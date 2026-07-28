@@ -7,33 +7,22 @@ using Rvt.Monitor.Common.Utilities;
 namespace MyAtm.Api.UseCases;
 
 // Detects offline/online edges using elapsed active-site time and atomic alert commits.
-public sealed class CheckForOfflineMonitorsHandler
+public sealed class CheckForOfflineMonitorsHandler(
+    IMyAtmRuleQueries ruleQueries,
+    MyAtmMonitorReader monitorReader,
+    IMyAtmSiteScheduleQueries siteScheduleQueries,
+    IMyAtmAlertCommitCommands alertCommitCommands,
+    IMyAtmOperationalCommands operationalCommands,
+    MyAtmRuleProcessor ruleProcessor,
+    TimeProvider timeProvider)
 {
-    private readonly IMyAtmRuleQueries ruleQueries;
-    private readonly MyAtmMonitorReader monitorReader;
-    private readonly IMyAtmSiteScheduleQueries siteScheduleQueries;
-    private readonly IMyAtmAlertCommitCommands alertCommitCommands;
-    private readonly IMyAtmOperationalCommands operationalCommands;
-    private readonly MyAtmRuleProcessor ruleProcessor;
-    private readonly TimeProvider timeProvider;
-
-    public CheckForOfflineMonitorsHandler(
-        IMyAtmRuleQueries ruleQueries,
-        MyAtmMonitorReader monitorReader,
-        IMyAtmSiteScheduleQueries siteScheduleQueries,
-        IMyAtmAlertCommitCommands alertCommitCommands,
-        IMyAtmOperationalCommands operationalCommands,
-        MyAtmRuleProcessor ruleProcessor,
-        TimeProvider timeProvider)
-    {
-        this.ruleQueries = ruleQueries;
-        this.monitorReader = monitorReader;
-        this.siteScheduleQueries = siteScheduleQueries;
-        this.alertCommitCommands = alertCommitCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleProcessor = ruleProcessor;
-        this.timeProvider = timeProvider;
-    }
+    private readonly IMyAtmRuleQueries ruleQueries = ruleQueries;
+    private readonly MyAtmMonitorReader monitorReader = monitorReader;
+    private readonly IMyAtmSiteScheduleQueries siteScheduleQueries = siteScheduleQueries;
+    private readonly IMyAtmAlertCommitCommands alertCommitCommands = alertCommitCommands;
+    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
+    private readonly MyAtmRuleProcessor ruleProcessor = ruleProcessor;
+    private readonly TimeProvider timeProvider = timeProvider;
 
     public async Task RunAsync(int customerId, CancellationToken cancellationToken = default)
     {

@@ -9,27 +9,18 @@ using SvantekMonitor.model.dto;
 namespace Svantek.Api.UseCases;
 
 // Summary: Marks monitors offline/online from rule cutoffs and alerts contacts on transitions.
-public sealed class CheckForOfflineMonitorsHandler
+public sealed class CheckForOfflineMonitorsHandler(
+    ISvantekRuleQueries ruleQueries,
+    SvantekMonitorReader monitorReader,
+    ISvantekMonitorCommands monitorCommands,
+    ISvantekOperationalCommands operationalCommands,
+    SvantekRuleProcessor ruleProcessor)
 {
-    private readonly ISvantekRuleQueries ruleQueries;
-    private readonly SvantekMonitorReader monitorReader;
-    private readonly ISvantekMonitorCommands monitorCommands;
-    private readonly ISvantekOperationalCommands operationalCommands;
-    private readonly SvantekRuleProcessor ruleProcessor;
-
-    public CheckForOfflineMonitorsHandler(
-        ISvantekRuleQueries ruleQueries,
-        SvantekMonitorReader monitorReader,
-        ISvantekMonitorCommands monitorCommands,
-        ISvantekOperationalCommands operationalCommands,
-        SvantekRuleProcessor ruleProcessor)
-    {
-        this.ruleQueries = ruleQueries;
-        this.monitorReader = monitorReader;
-        this.monitorCommands = monitorCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleProcessor = ruleProcessor;
-    }
+    private readonly ISvantekRuleQueries ruleQueries = ruleQueries;
+    private readonly SvantekMonitorReader monitorReader = monitorReader;
+    private readonly ISvantekMonitorCommands monitorCommands = monitorCommands;
+    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
+    private readonly SvantekRuleProcessor ruleProcessor = ruleProcessor;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {

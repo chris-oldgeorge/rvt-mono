@@ -1,32 +1,25 @@
 using MyAtm.Api.Db;
 using MyAtm.Model.Dto;
 
-namespace MyAtm.Api.UseCases
+namespace MyAtm.Api.UseCases;
+
+// Summary: Clears the offline flag on every monitor of a customer.
+// Major updates:
+// - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiMonitors).
+public class ClearMonitorsOfflineFlagHandler(
+    MyAtmMonitorReader monitorReader,
+    IMyAtmMonitorCommands monitorCommands)
 {
-    // Summary: Clears the offline flag on every monitor of a customer.
-    // Major updates:
-    // - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiMonitors).
-    public class ClearMonitorsOfflineFlagHandler
+    private readonly MyAtmMonitorReader monitorReader = monitorReader;
+    private readonly IMyAtmMonitorCommands monitorCommands = monitorCommands;
+
+    public void Run(int customerId)
     {
-        private readonly MyAtmMonitorReader monitorReader;
-        private readonly IMyAtmMonitorCommands monitorCommands;
+        List<DustMonitorDto>? monitors = monitorReader.ReadMonitors(customerId);
 
-        public ClearMonitorsOfflineFlagHandler(
-            MyAtmMonitorReader monitorReader,
-            IMyAtmMonitorCommands monitorCommands)
+        foreach (DustMonitorDto monitor in monitors!)
         {
-            this.monitorReader = monitorReader;
-            this.monitorCommands = monitorCommands;
-        }
-
-        public void Run(int customerId)
-        {
-            List<DustMonitorDto>? monitors = monitorReader.ReadMonitors(customerId);
-
-            foreach (DustMonitorDto monitor in monitors!)
-            {
-                monitorCommands.SetMonitorOffline(monitor.Id, false);
-            }
+            monitorCommands.SetMonitorOffline(monitor.Id, false);
         }
     }
 }

@@ -25,9 +25,9 @@ public static class DashboardApiMapper
             },
             OpenAlerts = model.OpenAlerts,
             OpenCautions = model.OpenCautions,
-            Sites = model.Sites.Select(ToOptionItem).ToList(),
-            CalendarDeployments = model.CalendarDeployments.Select(ToOptionItem).ToList(),
-            RecentNotifications = model.RecentNotifications.Select(ToNotificationItem).ToList()
+            Sites = [.. model.Sites.Select(ToOptionItem)],
+            CalendarDeployments = [.. model.CalendarDeployments.Select(ToOptionItem)],
+            RecentNotifications = [.. model.RecentNotifications.Select(ToNotificationItem)]
         };
     }
 
@@ -37,7 +37,7 @@ public static class DashboardApiMapper
         return new BreachesAlertsResponse
         {
             Date = result.Date,
-            Results = result.Page.Results.Select(ToBreachItem).ToList(),
+            Results = [.. result.Page.Results.Select(ToBreachItem)],
             Total = result.Page.Total,
             Page = result.Page.Page,
             PageSize = result.Page.PageSize,
@@ -58,7 +58,7 @@ public static class DashboardApiMapper
             SiteId = model.SiteId,
             SiteName = model.SiteName,
             IsScopedToCurrentUser = model.IsScopedToCurrentUser,
-            Markers = model.Markers.Select(marker => new MapMonitorMarker
+            Markers = [.. model.Markers.Select(marker => new MapMonitorMarker
             {
                 MonitorId = marker.MonitorId,
                 DeploymentId = marker.DeploymentId,
@@ -73,7 +73,7 @@ public static class DashboardApiMapper
                 SerialId = marker.SerialId,
                 LastDataTime = marker.LastDataTime,
                 What3words = marker.What3words
-            }).ToList()
+            })]
         };
     }
 
@@ -92,15 +92,15 @@ public static class DashboardApiMapper
             StartDate = model.StartDate,
             EndDate = model.EndDate,
             Unit = model.Unit,
-            Deployments = model.Deployments.Select(ToOptionItem).ToList(),
-            Days = model.Days.Select(day => new CalendarMonthDayItem
+            Deployments = [.. model.Deployments.Select(ToOptionItem)],
+            Days = [.. model.Days.Select(day => new CalendarMonthDayItem
             {
                 Date = day.Date,
                 IsCurrentMonth = day.IsCurrentMonth,
                 Status = day.Status,
                 Average = day.Average,
                 NotificationCount = day.NotificationCount
-            }).ToList()
+            })]
         };
     }
 
@@ -114,13 +114,13 @@ public static class DashboardApiMapper
             FleetNumber = model.FleetNumber,
             TypeOfMonitor = model.TypeOfMonitor,
             Unit = model.Unit,
-            Values = model.Values.Select(value => new CalendarMeasurementItem
+            Values = [.. model.Values.Select(value => new CalendarMeasurementItem
             {
                 Label = value.Label,
                 Value = value.Value
-            }).ToList(),
-            AlertLevels = model.AlertLevels.Select(ToAlertLevelItem).ToList(),
-            Notifications = model.Notifications.Select(ToNotificationItem).ToList()
+            })],
+            AlertLevels = [.. model.AlertLevels.Select(ToAlertLevelItem)],
+            Notifications = [.. model.Notifications.Select(ToNotificationItem)]
         };
     }
 

@@ -3,36 +3,50 @@ using AirQ.Api.Ports;
 using AirQ.Model.Dto;
 using AirQ.Model.Http;
 
-namespace AirQ.Api.UseCases
+namespace AirQ.Api.UseCases;
+
+// Summary: Imports the AirQ instrument catalogue and metadata into the monitor list.
+// Major updates:
+// - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitors).
+public class StoreMonitorsHandler(
+    IAirQVendorGateway gateway,
+    IAirQMonitorCommands monitorCommands,
+    IAirQOperationalCommands operationalCommands,
+    AirQTestLocalMonitorFilter testLocalFilter)
 {
-    // Summary: Imports the AirQ instrument catalogue and metadata into the monitor list.
-    // Major updates:
-    // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitors).
-    public class StoreMonitorsHandler
+    private readonly IAirQVendorGateway _gateway = gateway;
+    private readonly IAirQMonitorCommands monitorCommands = monitorCommands;
+    private readonly IAirQOperationalCommands operationalCommands = operationalCommands;
+    private readonly AirQTestLocalMonitorFilter testLocalFilter = testLocalFilter;
+
+    public async Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
     {
-        private readonly IAirQVendorGateway _gateway;
-        private readonly IAirQMonitorCommands monitorCommands;
-        private readonly IAirQOperationalCommands operationalCommands;
-        private readonly AirQTestLocalMonitorFilter testLocalFilter;
-
-        public StoreMonitorsHandler(
-            IAirQVendorGateway gateway,
-            IAirQMonitorCommands monitorCommands,
-            IAirQOperationalCommands operationalCommands,
-            AirQTestLocalMonitorFilter testLocalFilter)
+        List<InstrumentResponse> monitors;
+        try
         {
-            _gateway = gateway;
-            this.monitorCommands = monitorCommands;
-            this.operationalCommands = operationalCommands;
-            this.testLocalFilter = testLocalFilter;
+            monitors = testLocalFilter.ApplyCatalog(await _gateway.GetMonitorsAsync(userId, userAuth, cancellationToken));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            operationalCommands.HandleException("StoreMonitors", e);
+            throw;
         }
 
-        public async Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
+        List<NoiseMonitorDto> dtos = [];
+        List<Exception> failures = [];
+        foreach (InstrumentResponse monitor in monitors)
         {
-            List<InstrumentResponse> monitors;
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                monitors = testLocalFilter.ApplyCatalog(await _gateway.GetMonitorsAsync(userId, userAuth, cancellationToken));
+                List<MetaDataResponse> metaData = await GetMetaDataAsync(userId: userId, userAuth: userAuth,
+                                           model: monitor.Name!, serialId: monitor.InstrumentID!,
+                                           cancellationToken: cancellationToken);
+                dtos.Add(new NoiseMonitorDto(monitor, metaData.FirstOrDefault() ?? new MetaDataResponse()));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -40,73 +54,50 @@ namespace AirQ.Api.UseCases
             }
             catch (Exception e)
             {
-                operationalCommands.HandleException("StoreMonitors", e);
-                throw;
-            }
-
-            List<NoiseMonitorDto> dtos = [];
-            List<Exception> failures = [];
-            foreach (InstrumentResponse monitor in monitors)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                try
-                {
-                    List<MetaDataResponse> metaData = await GetMetaDataAsync(userId: userId, userAuth: userAuth,
-                                               model: monitor.Name!, serialId: monitor.InstrumentID!,
-                                               cancellationToken: cancellationToken);
-                    dtos.Add(new NoiseMonitorDto(monitor, metaData.FirstOrDefault() ?? new MetaDataResponse()));
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception e)
-                {
-                    operationalCommands.HandleException($"StoreMonitors SerialId={monitor.InstrumentID}", e);
-                    failures.Add(e);
-                }
-            }
-
-            monitorCommands.WriteMonitorList(dtos);
-            if (failures.Count > 0)
-            {
-                throw new AggregateException("One or more AirQ monitor catalogue imports failed.", failures);
+                operationalCommands.HandleException($"StoreMonitors SerialId={monitor.InstrumentID}", e);
+                failures.Add(e);
             }
         }
 
-        private async Task<List<MetaDataResponse>> GetMetaDataAsync(string userId, string userAuth, string model, string serialId, CancellationToken cancellationToken)
+        monitorCommands.WriteMonitorList(dtos);
+        if (failures.Count > 0)
         {
-
-            if ("iDB".Equals(model))
-            {
-                // iDB sevices do not report metadata
-                return EmptyMetaData();
-
-
-            }
-
-            try
-            {
-                return await _gateway.GetMetaDataAsync(userId, userAuth, serialId, cancellationToken);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception e)
-            {
-                operationalCommands.HandleException("GetMetaData", e);
-                return EmptyMetaData();
-            }
-
+            throw new AggregateException("One or more AirQ monitor catalogue imports failed.", failures);
         }
+    }
 
-        private static List<MetaDataResponse> EmptyMetaData()
+    private async Task<List<MetaDataResponse>> GetMetaDataAsync(string userId, string userAuth, string model, string serialId, CancellationToken cancellationToken)
+    {
+
+        if ("iDB".Equals(model))
         {
-            return
-                [
-                    new MetaDataResponse()
-                ];
+            // iDB sevices do not report metadata
+            return EmptyMetaData();
+
+
         }
+
+        try
+        {
+            return await _gateway.GetMetaDataAsync(userId, userAuth, serialId, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            operationalCommands.HandleException("GetMetaData", e);
+            return EmptyMetaData();
+        }
+
+    }
+
+    private static List<MetaDataResponse> EmptyMetaData()
+    {
+        return
+            [
+                new MetaDataResponse()
+            ];
     }
 }

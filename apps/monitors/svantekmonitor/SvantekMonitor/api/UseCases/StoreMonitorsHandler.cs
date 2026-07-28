@@ -5,91 +5,82 @@ using Svantek.Api.Http;
 using Svantek.Model.Dto;
 using Svantek.Model.Http;
 
-namespace Svantek.Api.UseCases
+namespace Svantek.Api.UseCases;
+
+// Summary: Imports the SvanNET project/station catalogue into the monitor list.
+// Major updates:
+// - 2026-07-12 God-class split: extracted from the SvantekApi partials (SvantekApiMonitors).
+public class StoreMonitorsHandler(
+    SvantekHttpGateway gateway,
+    ISvantekMonitorCommands monitorCommands,
+    ISvantekOperationalCommands operationalCommands,
+    bool testLocal)
 {
-    // Summary: Imports the SvanNET project/station catalogue into the monitor list.
-    // Major updates:
-    // - 2026-07-12 God-class split: extracted from the SvantekApi partials (SvantekApiMonitors).
-    public class StoreMonitorsHandler
+    private readonly SvantekHttpGateway gateway = gateway;
+    private readonly ISvantekMonitorCommands monitorCommands = monitorCommands;
+    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
+    private readonly bool testLocal = testLocal;
+
+    public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        private readonly SvantekHttpGateway gateway;
-        private readonly ISvantekMonitorCommands monitorCommands;
-        private readonly ISvantekOperationalCommands operationalCommands;
-        private readonly bool testLocal;
+        RvtLogger.Logger.LogDebug("StoreMonitors reading projects API");
+        List<Project> projects = await gateway.GetProjectsAsync(cancellationToken).ConfigureAwait(false);
+        RvtLogger.Logger.LogDebug("StoreMonitors reading stations API");
+        List<Station> stations = await gateway.GetStationsAsync(cancellationToken).ConfigureAwait(false);
+        SvantekFailureCollector failures = new(operationalCommands);
 
-        public StoreMonitorsHandler(
-            SvantekHttpGateway gateway,
-            ISvantekMonitorCommands monitorCommands,
-            ISvantekOperationalCommands operationalCommands,
-            bool testLocal)
+        foreach (Project project in projects)
         {
-            this.gateway = gateway;
-            this.monitorCommands = monitorCommands;
-            this.operationalCommands = operationalCommands;
-            this.testLocal = testLocal;
-        }
-
-        public async Task RunAsync(CancellationToken cancellationToken = default)
-        {
-            RvtLogger.Logger.LogDebug("StoreMonitors reading projects API");
-            List<Project> projects = await gateway.GetProjectsAsync(cancellationToken).ConfigureAwait(false);
-            RvtLogger.Logger.LogDebug("StoreMonitors reading stations API");
-            List<Station> stations = await gateway.GetStationsAsync(cancellationToken).ConfigureAwait(false);
-            SvantekFailureCollector failures = new(operationalCommands);
-
-            foreach (Project project in projects)
+            cancellationToken.ThrowIfCancellationRequested();
+            string identifier = $"StoreMonitors project {project.id}";
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                string identifier = $"StoreMonitors project {project.id}";
-                try
+                List<NoiseMonitorDto> dtos = [];
+                foreach (ProjectStation projectStation in project.stations)
                 {
-                    List<NoiseMonitorDto> dtos = [];
-                    foreach (ProjectStation projectStation in project.stations)
+                    Station? station = stations.FirstOrDefault(x => x.serial.ToString() == projectStation.serial);
+                    if (station == null)
                     {
-                        Station? station = stations.FirstOrDefault(x => x.serial.ToString() == projectStation.serial);
-                        if (station == null)
-                        {
-                            RvtLogger.Logger.LogDebug(
-                                "StoreMonitors reading, no serial set for {ProjectStation}",
-                                projectStation.name);
-                            continue;
-                        }
-
-                        dtos.Add(new NoiseMonitorDto
-                        {
-                            Id = Guid.NewGuid(),
-                            SerialId = projectStation.serial,
-                            ProjectId = Convert.ToInt32(project.id),
-                            PointId = Convert.ToInt32(projectStation.point_id),
-                            ListedAtTime = DateTime.Now,
-                            Model = station.type,
-                            CustomerDisplayName = projectStation.short_name,
-                            FirmwareVersion = station.meterfirmware.ToString(),
-                            Active = station.active,
-                            LastLogin = station.lastlogin,
-                            LastLogout = station.lastlogout,
-                            IsOnline = station.isonline,
-                            LastStatusTimestamp = station.laststatustimestamp,
-                            BatteryCharge = station.batterycharge,
-                            BatteryTimeToEmpty = station.batterytimetoempty,
-                            PowerSource = station.powersource,
-                            IsBatteryCharging = station.isbatterycharging,
-                            GsmSignalQuality = station.gsmsignalquality,
-                            MeasurementState = station.measurementstate,
-                        });
+                        RvtLogger.Logger.LogDebug(
+                            "StoreMonitors reading, no serial set for {ProjectStation}",
+                            projectStation.name);
+                        continue;
                     }
 
-                    await monitorCommands.WriteMonitorListAsync(
-                        SvantekTestLocalMonitorFilter.Apply(dtos, testLocal),
-                        cancellationToken).ConfigureAwait(false);
+                    dtos.Add(new NoiseMonitorDto
+                    {
+                        Id = Guid.NewGuid(),
+                        SerialId = projectStation.serial,
+                        ProjectId = Convert.ToInt32(project.id),
+                        PointId = Convert.ToInt32(projectStation.point_id),
+                        ListedAtTime = DateTime.Now,
+                        Model = station.type,
+                        CustomerDisplayName = projectStation.short_name,
+                        FirmwareVersion = station.meterfirmware.ToString(),
+                        Active = station.active,
+                        LastLogin = station.lastlogin,
+                        LastLogout = station.lastlogout,
+                        IsOnline = station.isonline,
+                        LastStatusTimestamp = station.laststatustimestamp,
+                        BatteryCharge = station.batterycharge,
+                        BatteryTimeToEmpty = station.batterytimetoempty,
+                        PowerSource = station.powersource,
+                        IsBatteryCharging = station.isbatterycharging,
+                        GsmSignalQuality = station.gsmsignalquality,
+                        MeasurementState = station.measurementstate,
+                    });
                 }
-                catch (Exception exception)
-                {
-                    failures.Capture(identifier, exception);
-                }
-            }
 
-            failures.ThrowIfAny("StoreMonitors");
+                await monitorCommands.WriteMonitorListAsync(
+                    SvantekTestLocalMonitorFilter.Apply(dtos, testLocal),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                failures.Capture(identifier, exception);
+            }
         }
+
+        failures.ThrowIfAny("StoreMonitors");
     }
 }

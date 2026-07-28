@@ -85,11 +85,11 @@ public sealed class MicrosoftGraphMailRegistrationTests
         EmailDeliveryRequest request = new(
             "ops@example.test", "subject", "plain", "<p>html</p>", []);
 
-        await port.SendAsync(request);
-        await port.SendAsync(request);
+        await port.SendAsync(request, TestContext.CancellationToken);
+        await port.SendAsync(request, TestContext.CancellationToken);
 
         Assert.AreSame(port, provider.GetRequiredService<IEmailDeliveryPort>());
-        CollectionAssert.AreEqual(new[] { 1, 2 }, clientFactory.RequestClientIds);
+        CollectionAssert.AreEqual(expected, clientFactory.RequestClientIds);
     }
 
     private sealed class ExistingEmailDeliveryPort : IEmailDeliveryPort
@@ -134,4 +134,8 @@ public sealed class MicrosoftGraphMailRegistrationTests
             }
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly int[] expected = [1, 2];
 }

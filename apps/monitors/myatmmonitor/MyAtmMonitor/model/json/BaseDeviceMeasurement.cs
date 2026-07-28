@@ -1,19 +1,17 @@
 using System.Text.Json.Serialization;
 
-namespace MyAtm.Model.Json
+namespace MyAtm.Model.Json;
+
+
+public class BaseDeviceMeasurement
 {
 
-    public class BaseDeviceMeasurement
-    {
+    [JsonRequired]
+    [JsonPropertyName("avrg")]
+    public int Avrg { get; set; }
 
-        [JsonRequired]
-        [JsonPropertyName("avrg")]
-        public int Avrg { get; set; }
-
-        [JsonRequired]
-        [JsonPropertyName("timestamp")]
-        public DateTime Timestamp { get; set; }
-
-    }
+    [JsonRequired]
+    [JsonPropertyName("timestamp")]
+    public DateTime Timestamp { get; set; }
 
 }

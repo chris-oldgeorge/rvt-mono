@@ -10,6 +10,13 @@ namespace Rvt.Communication.MicrosoftGraphMailTests;
 [TestClass]
 public sealed class MicrosoftGraphEmailAdapterTests
 {
+    private static readonly string[] ExpectedUploadRanges =
+    [
+        "bytes 0-3145727/7340032",
+        "bytes 3145728-6291455/7340032",
+        "bytes 6291456-7340031/7340032"
+    ];
+
     [TestMethod]
     public async Task SendAsync_PostsAuthenticatedSmallMessageWithAttachment()
     {
@@ -20,7 +27,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
         EmailAttachment attachment = new("report.pdf", "application/pdf", [1, 2, 3]);
 
         await adapter.SendAsync(new EmailDeliveryRequest(
-            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]));
+            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]), TestContext.CancellationToken);
 
         RecordedRequest request = handler.Requests.Single();
         Assert.AreEqual(HttpMethod.Post, request.Method);
@@ -52,7 +59,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
         using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
         MicrosoftGraphEmailAdapter adapter = new(httpClient, new RecordingTokenProvider("token"), Options());
 
-        await adapter.SendAsync(Request());
+        await adapter.SendAsync(Request(), TestContext.CancellationToken);
 
         using JsonDocument json = JsonDocument.Parse(handler.Requests.Single().Body!);
         Assert.IsFalse(json.RootElement.GetProperty("message").TryGetProperty("attachments", out _));
@@ -72,7 +79,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
         MicrosoftGraphEmailAdapter adapter = new(httpClient, new RecordingTokenProvider("token"), Options());
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
-            adapter.SendAsync(Request()));
+            adapter.SendAsync(Request(), TestContext.CancellationToken));
 
         Assert.AreEqual(expectedKind, exception.FailureKind);
         Assert.AreEqual(((int)status).ToString(), exception.Code);
@@ -114,7 +121,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             [
                 new EmailAttachment("first.txt", "text/plain", [1]),
                 new EmailAttachment("second.pdf", "application/pdf", [2, 3])
-            ]));
+            ]), TestContext.CancellationToken);
 
         using JsonDocument json = JsonDocument.Parse(handler.Requests.Single().Body!);
         JsonElement message = json.RootElement.GetProperty("message");
@@ -140,7 +147,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             Options());
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
-            adapter.SendAsync(Request()));
+            adapter.SendAsync(Request(), TestContext.CancellationToken));
 
         Assert.AreEqual(TimeSpan.FromSeconds(90), exception.RetryAfter);
     }
@@ -159,7 +166,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             Options());
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
-            adapter.SendAsync(Request()));
+            adapter.SendAsync(Request(), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
         Assert.DoesNotContain("raw network secret", exception.ToString());
@@ -179,7 +186,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             Options());
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
-            adapter.SendAsync(Request()));
+            adapter.SendAsync(Request(), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
         Assert.AreEqual("Timeout", exception.Code);
@@ -197,7 +204,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             Options());
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
-            adapter.SendAsync(Request()));
+            adapter.SendAsync(Request(), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
         Assert.DoesNotContain("raw credential secret", exception.ToString());
@@ -216,7 +223,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             new MicrosoftGraphMailOptions());
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
-            adapter.SendAsync(Request()));
+            adapter.SendAsync(Request(), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Configuration, exception.FailureKind);
         Assert.AreEqual(0, tokens.Calls);
@@ -234,7 +241,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             new RecordingTokenProvider("token"),
             Options());
 
-        await adapter.SendAsync(Request());
+        await adapter.SendAsync(Request(), TestContext.CancellationToken);
 
         Assert.IsTrue(content.IsDisposed);
     }
@@ -254,7 +261,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit - 1]);
 
         await adapter.SendAsync(new EmailDeliveryRequest(
-            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]));
+            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]), TestContext.CancellationToken);
 
         Assert.HasCount(1, handler.Requests);
         Assert.EndsWith("/sendMail", handler.Requests.Single().Uri.AbsolutePath);
@@ -275,16 +282,10 @@ public sealed class MicrosoftGraphEmailAdapterTests
             new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit]);
 
         await adapter.SendAsync(new EmailDeliveryRequest(
-            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]));
+            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]), TestContext.CancellationToken);
 
         CollectionAssert.AreEqual(
-            new[]
-            {
-                "/v1.0/users/sender%40example.test/messages",
-                "/v1.0/users/sender%40example.test/messages/draft-id/attachments/createUploadSession",
-                "/upload/session-secret",
-                "/v1.0/users/sender%40example.test/messages/draft-id/send"
-            },
+            expected,
             handler.Requests.Select(request => request.Uri.AbsolutePath).ToArray());
         FlowRecordedRequest upload = handler.Requests.Single(request => request.Method == HttpMethod.Put);
         Assert.IsNull(upload.Authorization);
@@ -382,7 +383,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
                     "large.bin",
                     "application/octet-stream",
                     new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit])
-            ]));
+            ]), TestContext.CancellationToken);
 
         Assert.IsTrue(handler.Requests.Any(request =>
             request.Method == HttpMethod.Post &&
@@ -406,16 +407,11 @@ public sealed class MicrosoftGraphEmailAdapterTests
             new byte[7 * 1024 * 1024]);
 
         await adapter.SendAsync(new EmailDeliveryRequest(
-            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]));
+            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]), TestContext.CancellationToken);
 
         FlowRecordedRequest[] chunks = [.. handler.Requests.Where(request => request.Method == HttpMethod.Put)];
         CollectionAssert.AreEqual(
-            new[]
-            {
-                "bytes 0-3145727/7340032",
-                "bytes 3145728-6291455/7340032",
-                "bytes 6291456-7340031/7340032"
-            },
+            ExpectedUploadRanges,
             chunks.Select(chunk => chunk.ContentRange).ToArray());
         Assert.IsTrue(chunks.All(chunk => chunk.ContentLength <= 3L * 1024 * 1024));
         Assert.IsTrue(chunks.All(chunk => chunk.Authorization is null));
@@ -438,7 +434,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
             adapter.SendAsync(new EmailDeliveryRequest(
-                "ops@example.test", "subject", "plain", "<p>html</p>", [attachment])));
+                "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
         Assert.DoesNotContain(invalidUploadUrl, exception.ToString());
@@ -465,7 +461,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
                 [new EmailAttachment(
                     "large.bin",
                     "application/octet-stream",
-                    new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit])])));
+                    new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit])]), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
         Assert.AreEqual("InvalidDraftResponse", exception.Code);
@@ -494,7 +490,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
                 [new EmailAttachment(
                     "large.bin",
                     "application/octet-stream",
-                    new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit])])));
+                    new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit])]), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
         Assert.AreEqual("InvalidUploadSession", exception.Code);
@@ -528,7 +524,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             new byte[total]);
 
         await adapter.SendAsync(new EmailDeliveryRequest(
-            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]));
+            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]), TestContext.CancellationToken);
 
         Assert.AreEqual(
             "https://graph.microsoft.com/v1.0/users/sender%40example.test/messages",
@@ -569,7 +565,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             "subject",
             "plain",
             "<p>html</p>",
-            [new EmailAttachment("boundary.pdf", "application/pdf", new byte[total])]));
+            [new EmailAttachment("boundary.pdf", "application/pdf", new byte[total])]), TestContext.CancellationToken);
 
         Assert.IsTrue(handler.Requests.Any(request => request.Method == HttpMethod.Put));
         Assert.IsFalse(handler.Requests.Any(request => request.Uri.AbsolutePath.EndsWith("/sendMail")));
@@ -797,4 +793,14 @@ public sealed class MicrosoftGraphEmailAdapterTests
         string? Authorization,
         string? ContentRange,
         long? ContentLength);
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly string[] expected =
+            [
+                "/v1.0/users/sender%40example.test/messages",
+                "/v1.0/users/sender%40example.test/messages/draft-id/attachments/createUploadSession",
+                "/upload/session-secret",
+                "/v1.0/users/sender%40example.test/messages/draft-id/send"
+            ];
 }

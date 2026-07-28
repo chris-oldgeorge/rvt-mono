@@ -2,27 +2,16 @@ using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Utilities;
 
-namespace Omnidots.Model.Dto
+namespace Omnidots.Model.Dto;
+
+
+public class SensorDto(string serialId, string? name, DateTime? lastseen, int? batteryCharge,
+                 string? connectedUsing, bool online)
 {
-
-    public class SensorDto
-    {
-        public string SerialId { get; }
-        public string Name { get; }
-        public DateTime Lastseen { get; }
-        public int BatteryCharge { get; }
-        public string ConnectedUsing { get; }
-        public bool Online { get; }
-
-        public SensorDto(string serialId, string? name, DateTime? lastseen, int? batteryCharge,
-                         string? connectedUsing, bool online)
-        {
-            SerialId = serialId;
-            Name = name ?? OmnidotsProtocol.UNKNOWN;
-            Lastseen = DateTimeUtil.TruncateMillis(lastseen ?? DateTime.UtcNow);
-            BatteryCharge = batteryCharge ?? -1;
-            ConnectedUsing = connectedUsing ?? OmnidotsProtocol.UNKNOWN;
-            Online = online;
-        }
-    }
+    public string SerialId { get; } = serialId;
+    public string Name { get; } = name ?? OmnidotsProtocol.UNKNOWN;
+    public DateTime Lastseen { get; } = DateTimeUtil.TruncateMillis(lastseen ?? DateTime.UtcNow);
+    public int BatteryCharge { get; } = batteryCharge ?? -1;
+    public string ConnectedUsing { get; } = connectedUsing ?? OmnidotsProtocol.UNKNOWN;
+    public bool Online { get; } = online;
 }

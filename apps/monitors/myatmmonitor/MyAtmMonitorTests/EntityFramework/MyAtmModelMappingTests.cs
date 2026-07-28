@@ -114,6 +114,8 @@ public sealed class MyAtmModelMappingTests
         AssertTimestamp(context, typeof(MyAtmAlertOccurrenceEntity), nameof(MyAtmAlertOccurrenceEntity.CreatedAt));
     }
 
+    private static readonly string[] expected = ["SerialId", "TypeOfMonitor"];
+
     [TestMethod]
     public void MyAtmContext_PreservesKeysAndSharedMonitorIndex()
     {
@@ -129,7 +131,7 @@ public sealed class MyAtmModelMappingTests
         IIndex index = monitor.GetIndexes().Single();
         Assert.AreEqual("ix_monitor_serial_id_type_of_monitor", index.GetDatabaseName());
         CollectionAssert.AreEqual(
-            new[] { "SerialId", "TypeOfMonitor" },
+            expected,
             index.Properties.Select(property => property.Name).ToArray());
         Assert.IsFalse(index.IsUnique);
     }

@@ -28,7 +28,7 @@ public class TestMonitorApiEndpoints
         app.MapAirQMonitorApi();
 
         RouteEndpoint import = GetRoute(app, "/store-noise-levels-for-date");
-        CollectionAssert.AreEquivalent(new[] { "POST" }, import.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods.ToList());
+        CollectionAssert.AreEquivalent(expected, import.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods.ToList());
         Assert.IsNull(((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>().SingleOrDefault(endpoint => endpoint.RoutePattern.RawText == "/store-noise-levels-for-date" &&
                 endpoint.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods.Contains("GET")));
@@ -54,7 +54,7 @@ public class TestMonitorApiEndpoints
                     request.Headers.Add("X-Api-Key", suppliedKey);
                 }
 
-                using HttpResponseMessage response = await client.SendAsync(request);
+                using HttpResponseMessage response = await client.SendAsync(request, TestContext.CancellationToken);
                 Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
             }
         }
@@ -77,7 +77,7 @@ public class TestMonitorApiEndpoints
             };
             request.Headers.Add("X-Api-Key", "monitor-api-key");
 
-            using HttpResponseMessage response = await client.SendAsync(request);
+            using HttpResponseMessage response = await client.SendAsync(request, TestContext.CancellationToken);
             Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
@@ -99,7 +99,7 @@ public class TestMonitorApiEndpoints
         };
         request.Headers.Add("X-Api-Key", "monitor-api-key");
 
-        using HttpResponseMessage response = await client.SendAsync(request);
+        using HttpResponseMessage response = await client.SendAsync(request, TestContext.CancellationToken);
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
         importer.Verify(service => service.StoreNoiseLevelsForDateAsync("2026-07-14", It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -138,4 +138,8 @@ public class TestMonitorApiEndpoints
     private static RouteEndpoint GetRoute(WebApplication app, string path) =>
         ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>().Single(endpoint => endpoint.RoutePattern.RawText == path);
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly string[] expected = ["POST"];
 }

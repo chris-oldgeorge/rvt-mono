@@ -3,15 +3,10 @@ using Svantek.Api.Db;
 
 namespace Svantek.Api;
 
-public sealed class SvantekFailureCollector
+public sealed class SvantekFailureCollector(ISvantekOperationalCommands operationalCommands)
 {
-    private readonly ISvantekOperationalCommands operationalCommands;
+    private readonly ISvantekOperationalCommands operationalCommands = operationalCommands;
     private readonly List<Exception> failures = [];
-
-    public SvantekFailureCollector(ISvantekOperationalCommands operationalCommands)
-    {
-        this.operationalCommands = operationalCommands;
-    }
 
     public void Capture(string identifier, Exception exception)
     {

@@ -80,11 +80,11 @@ public sealed class TransmitSmsRegistrationTests
         ISmsDeliveryPort port = provider.GetRequiredService<ISmsDeliveryPort>();
         SmsDeliveryRequest request = new("447700900123", "Threshold breached");
 
-        await port.SendAsync(request);
-        await port.SendAsync(request);
+        await port.SendAsync(request, TestContext.CancellationToken);
+        await port.SendAsync(request, TestContext.CancellationToken);
 
         Assert.AreSame(port, provider.GetRequiredService<ISmsDeliveryPort>());
-        CollectionAssert.AreEqual(new[] { 1, 2 }, clientFactory.RequestClientIds);
+        CollectionAssert.AreEqual(expected, clientFactory.RequestClientIds);
     }
 
     private sealed class ExistingSmsDeliveryPort : ISmsDeliveryPort
@@ -124,4 +124,8 @@ public sealed class TransmitSmsRegistrationTests
             }
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly int[] expected = [1, 2];
 }

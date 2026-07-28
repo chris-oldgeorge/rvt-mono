@@ -60,7 +60,8 @@ public sealed class OmnidotsWebhookEndToEndTests
     public async Task TestInitialize()
     {
         await database!.ResetAsync(
-            OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"));
+            OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
+            TestContext.CancellationToken);
         await SeedMonitorAndContactsAsync();
     }
 
@@ -79,7 +80,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         Assert.IsTrue(responses.All(response => response.StatusCode == HttpStatusCode.OK));
         foreach (HttpResponseMessage? response in responses)
         {
-            Assert.AreEqual("{\"processed\":true}", await response.Content.ReadAsStringAsync());
+            Assert.AreEqual("{\"processed\":true}", await response.Content.ReadAsStringAsync(TestContext.CancellationToken));
             response.Dispose();
         }
 
@@ -88,7 +89,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         using HttpResponseMessage replay = await PostWebhookAsync(client, body, signature);
 
         Assert.AreEqual(HttpStatusCode.OK, replay.StatusCode);
-        Assert.AreEqual("{\"processed\":true}", await replay.Content.ReadAsStringAsync());
+        Assert.AreEqual("{\"processed\":true}", await replay.Content.ReadAsStringAsync(TestContext.CancellationToken));
         await AssertSingleDurableDeliverySetAsync();
     }
 
@@ -160,12 +161,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         Assert.AreEqual(1, await CountAsync("notification"));
         Assert.AreEqual(3, await CountAsync("alert_delivery_outbox"));
         CollectionAssert.AreEquivalent(
-            new[]
-            {
-                "Email:OPS@EXAMPLE.TEST",
-                "MqttAlert:alert",
-                "Sms:+15550001111"
-            },
+            expected,
             await ReadDeliveryDestinationsAsync());
     }
 
@@ -244,4 +240,13 @@ public sealed class OmnidotsWebhookEndToEndTests
 
         return [.. values];
     }
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly string[] expected =
+            [
+                "Email:OPS@EXAMPLE.TEST",
+                "MqttAlert:alert",
+                "Sms:+15550001111"
+            ];
 }

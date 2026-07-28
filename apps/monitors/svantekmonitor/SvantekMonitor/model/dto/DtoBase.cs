@@ -1,23 +1,22 @@
 using System.Reflection;
 using System.Text;
 
-namespace SvantekMonitor.model.dto
+namespace SvantekMonitor.model.dto;
+
+// Summary: Shared diagnostic base for Svantek DTOs that prints public property values.
+// Major updates:
+// - 2026-06-18: Renamed from lowercase dto to DtoBase and made reflection null-safe.
+public class DtoBase
 {
-    // Summary: Shared diagnostic base for Svantek DTOs that prints public property values.
-    // Major updates:
-    // - 2026-06-18: Renamed from lowercase dto to DtoBase and made reflection null-safe.
-    public class DtoBase
+    public override string ToString()
     {
-        public override string ToString()
+        StringBuilder sb = new();
+        foreach (PropertyInfo prop in this.GetType().GetProperties())
         {
-            StringBuilder sb = new();
-            foreach (PropertyInfo prop in this.GetType().GetProperties())
-            {
-                string propName = prop.Name;
-                object? propValue = prop.GetValue(this, null);
-                sb.AppendLine($"{propName}: {propValue}");
-            }
-            return sb.ToString();
+            string propName = prop.Name;
+            object? propValue = prop.GetValue(this, null);
+            sb.AppendLine($"{propName}: {propValue}");
         }
+        return sb.ToString();
     }
 }

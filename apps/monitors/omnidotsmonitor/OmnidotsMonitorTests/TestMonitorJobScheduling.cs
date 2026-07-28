@@ -259,6 +259,8 @@ public sealed class TestMonitorJobScheduling
         dbClient.Verify(client => client.HandleException("StoreVeffRecords serialId=1", It.IsAny<Exception>()), Times.Once);
     }
 
+    private static readonly string[] expected = ["23423"];
+
     [TestMethod]
     public void AppSettings_ContainsStaggeredVeffAndVdvSchedules()
     {
@@ -276,7 +278,7 @@ public sealed class TestMonitorJobScheduling
         Assert.IsTrue(jobs.Any(job => job.Name == "CleanupAlerts" && job.Cron == "0 15 3 * * ?"));
         Assert.IsTrue(configuration.GetValue<bool>($"{OmnidotsTraceCollectionOptions.SectionName}:Enabled"));
         CollectionAssert.AreEqual(
-            new[] { "23423" },
+            expected,
             configuration.GetSection($"{OmnidotsTraceCollectionOptions.SectionName}:AllowedSerialIds").Get<string[]>());
         Assert.AreEqual(
             1,

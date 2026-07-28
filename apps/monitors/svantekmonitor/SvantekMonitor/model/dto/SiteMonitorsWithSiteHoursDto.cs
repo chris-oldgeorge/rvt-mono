@@ -5,43 +5,27 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualBasic;
 
-namespace SvantekMonitor.model.dto
+namespace SvantekMonitor.model.dto;
+
+// Summary: Combines deployed Svantek monitor identity with the site hours used for reporting windows.
+// Major updates:
+// - 2026-06-18: Inherits from DtoBase after C# naming cleanup.
+public class SiteMonitorsWithSiteHoursDto(Guid monitorId,
+    string fleetnr,
+    string serialId,
+    int typeOfMonitor,
+    bool offline,
+    Guid siteId,
+    string? siteName,
+    TimeSpan? startTime, TimeSpan? endTime) : DtoBase
 {
-    // Summary: Combines deployed Svantek monitor identity with the site hours used for reporting windows.
-    // Major updates:
-    // - 2026-06-18: Inherits from DtoBase after C# naming cleanup.
-    public class SiteMonitorsWithSiteHoursDto : DtoBase
-    {
-        public Guid Id { get; }
-        public string FleetNr { get; }
-        public string SerialId { get; }
-        public int TypeOfMonitor { get; }
-        public bool Offline { get; set; }
-        public Guid SiteId { get; }
-        public string? SiteName { get; }
-        public TimeSpan? StartTime { get; }
-        public TimeSpan? EndTime { get; }
-
-        public SiteMonitorsWithSiteHoursDto(Guid monitorId,
-            string fleetnr,
-            string serialId,
-            int typeOfMonitor,
-            bool offline,
-            Guid siteId,
-            string? siteName,
-            TimeSpan? startTime, TimeSpan? endTime)
-
-        {
-            Id = monitorId;
-            FleetNr = fleetnr;
-            SerialId = serialId;
-            TypeOfMonitor = typeOfMonitor;
-            Offline = offline;
-            SiteId = siteId;
-            SiteName = siteName;
-            StartTime = startTime;
-            EndTime = endTime;
-
-        }
-    }
+    public Guid Id { get; } = monitorId;
+    public string FleetNr { get; } = fleetnr;
+    public string SerialId { get; } = serialId;
+    public int TypeOfMonitor { get; } = typeOfMonitor;
+    public bool Offline { get; set; } = offline;
+    public Guid SiteId { get; } = siteId;
+    public string? SiteName { get; } = siteName;
+    public TimeSpan? StartTime { get; } = startTime;
+    public TimeSpan? EndTime { get; } = endTime;
 }

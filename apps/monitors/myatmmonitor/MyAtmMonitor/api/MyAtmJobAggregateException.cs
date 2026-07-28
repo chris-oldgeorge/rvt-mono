@@ -5,16 +5,9 @@ public sealed record MyAtmJobFailure(
     Exception Exception,
     Exception? RecordingException = null);
 
-public sealed class MyAtmJobAggregateException : Exception
+public sealed class MyAtmJobAggregateException(string operation, IReadOnlyList<MyAtmJobFailure> failures) : Exception($"{operation} failed for {failures.Count} item(s): {string.Join(", ", failures.Select(failure => failure.Identifier))}")
 {
-    public MyAtmJobAggregateException(string operation, IReadOnlyList<MyAtmJobFailure> failures)
-        : base($"{operation} failed for {failures.Count} item(s): {string.Join(", ", failures.Select(failure => failure.Identifier))}")
-    {
-        Operation = operation;
-        Failures = failures.ToArray();
-    }
+    public string Operation { get; } = operation;
 
-    public string Operation { get; }
-
-    public IReadOnlyList<MyAtmJobFailure> Failures { get; }
+    public IReadOnlyList<MyAtmJobFailure> Failures { get; } = failures.ToArray();
 }

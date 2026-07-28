@@ -7,28 +7,20 @@ using Rvt.Monitor.Common.Diagnostics;
 
 namespace Omnidots.Api.UseCases;
 
-public sealed class ProcessWebhookHandler
+public sealed class ProcessWebhookHandler(
+    IAlertIngressPort ingress,
+    OmnidotsAlarmTranslator translator,
+    OmnidotsApiSecurityOptions securityOptions,
+    OmnidotsWebhookSignatureValidator signatureValidator)
 {
     private static readonly UTF8Encoding StrictUtf8 = new(
         encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);
 
-    private readonly IAlertIngressPort ingress;
-    private readonly OmnidotsAlarmTranslator translator;
-    private readonly OmnidotsApiSecurityOptions securityOptions;
-    private readonly OmnidotsWebhookSignatureValidator signatureValidator;
-
-    public ProcessWebhookHandler(
-        IAlertIngressPort ingress,
-        OmnidotsAlarmTranslator translator,
-        OmnidotsApiSecurityOptions securityOptions,
-        OmnidotsWebhookSignatureValidator signatureValidator)
-    {
-        this.ingress = ingress;
-        this.translator = translator;
-        this.securityOptions = securityOptions;
-        this.signatureValidator = signatureValidator;
-    }
+    private readonly IAlertIngressPort ingress = ingress;
+    private readonly OmnidotsAlarmTranslator translator = translator;
+    private readonly OmnidotsApiSecurityOptions securityOptions = securityOptions;
+    private readonly OmnidotsWebhookSignatureValidator signatureValidator = signatureValidator;
 
     public async Task<AlertIngressResult> RunAsync(
         ReadOnlyMemory<byte> body,

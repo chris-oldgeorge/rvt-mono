@@ -1,12 +1,11 @@
-namespace Omnidots.Api.Db
-{
+namespace Omnidots.Api.Db;
 
-    public interface IDBClient :
-        IOmnidotsMonitorQueries,
-        IOmnidotsRuleQueries,
-        IOmnidotsMonitorCommands,
-        IOmnidotsMeasurementCommands,
-        IOmnidotsOperationalCommands
-    {
-    }
+
+public interface IDBClient :
+    IOmnidotsMonitorQueries,
+    IOmnidotsRuleQueries,
+    IOmnidotsMonitorCommands,
+    IOmnidotsMeasurementCommands,
+    IOmnidotsOperationalCommands
+{
 }

@@ -5,78 +5,77 @@ using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
-namespace Omnidots.Api.Http
+namespace Omnidots.Api.Http;
+
+
+public class HttpWebClient : IHttpClient
 {
 
-    public class HttpWebClient : IHttpClient
+    /// <summary>
+    /// Bounds every vendor call. Without an explicit value the 100 second
+    /// default applies, so an unresponsive endpoint stalled the whole
+    /// import for that long on each request.
+    /// </summary>
+    internal static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+
+    private readonly HttpClient httpClient;
+
+    public HttpWebClient(string baseUrl)
+        : this(baseUrl, new HttpClient())
     {
+    }
 
-        /// <summary>
-        /// Bounds every vendor call. Without an explicit value the 100 second
-        /// default applies, so an unresponsive endpoint stalled the whole
-        /// import for that long on each request.
-        /// </summary>
-        internal static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+    internal HttpWebClient(string baseUrl, HttpClient httpClient)
+    {
+        this.httpClient = httpClient;
+        this.httpClient.BaseAddress = new Uri(baseUrl);
+        this.httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
+        this.httpClient.Timeout = RequestTimeout;
+    }
 
-        private readonly HttpClient httpClient;
-
-        public HttpWebClient(string baseUrl)
-            : this(baseUrl, new HttpClient())
+    public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
+    {
+        RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
+        using HttpResponseMessage response = await httpClient.GetAsync(path, cancellationToken);
+        string reply = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (response.StatusCode != HttpStatusCode.OK)
         {
+            throw AdapterException.Of("HTTP ERROR response=", SensitiveLogRedactor.RedactJson(reply));
         }
 
-        internal HttpWebClient(string baseUrl, HttpClient httpClient)
-        {
-            this.httpClient = httpClient;
-            this.httpClient.BaseAddress = new Uri(baseUrl);
-            this.httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
-            this.httpClient.Timeout = RequestTimeout;
-        }
+        return reply;
+    }
 
-        public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
+    public async Task<string> PostAsync(string path, HttpContent content, CancellationToken cancellationToken = default)
+    {
+        RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
+
+        if (RvtConfig.USE_TOKEN && path.StartsWith("/api/v1/user/authenticate"))
         {
-            RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
-            using HttpResponseMessage response = await httpClient.GetAsync(path, cancellationToken);
-            string reply = await response.Content.ReadAsStringAsync(cancellationToken);
-            if (response.StatusCode != HttpStatusCode.OK)
+            TokenResponse resp = new()
             {
-                throw AdapterException.Of("HTTP ERROR response=", SensitiveLogRedactor.RedactJson(reply));
-            }
-
-            return reply;
+                Ok = true,
+                Token = RvtConfig.TOKEN
+            };
+            return JsonSerializer.Serialize(resp);
         }
 
-        public async Task<string> PostAsync(string path, HttpContent content, CancellationToken cancellationToken = default)
+        using HttpRequestMessage request = new(new HttpMethod("POST"), path);
+        request.Content = content;
+
+        using HttpResponseMessage response = await httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+        if (response.StatusCode != HttpStatusCode.OK)
         {
-            RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
-
-            if (RvtConfig.USE_TOKEN && path.StartsWith("/api/v1/user/authenticate"))
-            {
-                TokenResponse resp = new()
-                {
-                    Ok = true,
-                    Token = RvtConfig.TOKEN
-                };
-                return JsonSerializer.Serialize(resp);
-            }
-
-            using HttpRequestMessage request = new(new HttpMethod("POST"), path);
-            request.Content = content;
-
-            using HttpResponseMessage response = await httpClient.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
-                RvtLogger.Logger.LogError(
-                    "Omnidots POST request failed statusCode={StatusCode}",
-                    (int)response.StatusCode);
-                throw AdapterException.Of("Omnidots API request failed.");
-            }
-
-            string reply = await response.Content.ReadAsStringAsync(cancellationToken);
-            return reply;
+            RvtLogger.Logger.LogError(
+                "Omnidots POST request failed statusCode={StatusCode}",
+                (int)response.StatusCode);
+            throw AdapterException.Of("Omnidots API request failed.");
         }
+
+        string reply = await response.Content.ReadAsStringAsync(cancellationToken);
+        return reply;
     }
 }

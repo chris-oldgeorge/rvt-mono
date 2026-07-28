@@ -2,30 +2,29 @@ using System.Collections.Specialized;
 using System.Web;
 using Rvt.Monitor.Common.Diagnostics;
 
-namespace Omnidots.Api
+namespace Omnidots.Api;
+
+
+public sealed class OmnidotsQueryProcessor
 {
+    private OmnidotsQueryProcessor() { }
 
-    public sealed class OmnidotsQueryProcessor
+    public static int GetIntParameter(string query, string name)
     {
-        private OmnidotsQueryProcessor() { }
-
-        public static int GetIntParameter(string query, string name)
+        NameValueCollection map = HttpUtility.ParseQueryString(query);
+        try
         {
-            NameValueCollection map = HttpUtility.ParseQueryString(query);
-            try
-            {
-                return int.Parse(map[name]!);
-            }
-            catch (FormatException e)
-            {
-                throw AdapterException.Of("Failed ! " + name + " must be an Integer", e);
-            }
+            return int.Parse(map[name]!);
         }
-
-        public static string GetStringParameter(string query, string name)
+        catch (FormatException e)
         {
-            NameValueCollection map = HttpUtility.ParseQueryString(query);
-            return map[name]!;
+            throw AdapterException.Of("Failed ! " + name + " must be an Integer", e);
         }
+    }
+
+    public static string GetStringParameter(string query, string name)
+    {
+        NameValueCollection map = HttpUtility.ParseQueryString(query);
+        return map[name]!;
     }
 }

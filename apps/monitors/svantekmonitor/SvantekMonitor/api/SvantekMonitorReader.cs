@@ -2,53 +2,46 @@ using Rvt.Monitor.Common.Diagnostics;
 using Svantek.Api.Db;
 using SvantekMonitor.model.dto;
 
-namespace Svantek.Api
+namespace Svantek.Api;
+
+// Summary: Reads the Svantek monitor list with the optional testlocal demo filter applied.
+// Major updates:
+// - 2026-07-12 God-class split: extracted from the SvantekApi partials (SvantekApiMonitors).
+public class SvantekMonitorReader(ISvantekMonitorQueries monitorQueries, bool testLocal)
 {
-    // Summary: Reads the Svantek monitor list with the optional testlocal demo filter applied.
-    // Major updates:
-    // - 2026-07-12 God-class split: extracted from the SvantekApi partials (SvantekApiMonitors).
-    public class SvantekMonitorReader
+    private readonly ISvantekMonitorQueries monitorQueries = monitorQueries;
+    private readonly bool testLocal = testLocal;
+
+    public List<NoiseMonitorReadDto> ReadMonitors(DateTime? lastDataTime = null)
     {
-        private readonly ISvantekMonitorQueries monitorQueries;
-        private readonly bool testLocal;
-
-        public SvantekMonitorReader(ISvantekMonitorQueries monitorQueries, bool testLocal)
+        try
         {
-            this.monitorQueries = monitorQueries;
-            this.testLocal = testLocal;
+            return SvantekTestLocalMonitorFilter.Apply(monitorQueries.ReadMonitorList(lastDataTime), testLocal);
         }
-
-        public List<NoiseMonitorReadDto> ReadMonitors(DateTime? lastDataTime = null)
+        catch (Exception e)
         {
-            try
-            {
-                return SvantekTestLocalMonitorFilter.Apply(monitorQueries.ReadMonitorList(lastDataTime), testLocal);
-            }
-            catch (Exception e)
-            {
-                throw AdapterException.Of("ReadMonitors", e);
-            }
+            throw AdapterException.Of("ReadMonitors", e);
         }
+    }
 
-        public async Task<List<NoiseMonitorReadDto>> ReadMonitorsAsync(
-            DateTime? lastDataTime = null,
-            CancellationToken cancellationToken = default)
+    public async Task<List<NoiseMonitorReadDto>> ReadMonitorsAsync(
+        DateTime? lastDataTime = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
         {
-            try
-            {
-                List<NoiseMonitorReadDto> monitors = await monitorQueries
-                    .ReadMonitorListAsync(lastDataTime, cancellationToken)
-                    .ConfigureAwait(false);
-                return SvantekTestLocalMonitorFilter.Apply(monitors, testLocal);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception e)
-            {
-                throw AdapterException.Of("ReadMonitors", e);
-            }
+            List<NoiseMonitorReadDto> monitors = await monitorQueries
+                .ReadMonitorListAsync(lastDataTime, cancellationToken)
+                .ConfigureAwait(false);
+            return SvantekTestLocalMonitorFilter.Apply(monitors, testLocal);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            throw AdapterException.Of("ReadMonitors", e);
         }
     }
 }

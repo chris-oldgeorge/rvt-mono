@@ -15,7 +15,7 @@ public sealed class MyAtmFailureCollectorTests
         operational.Setup(commands => commands.HandleException("monitor=11111", primary));
         MyAtmFailureCollector collector = new(operational.Object);
 
-        collector.Capture("monitor=11111", primary);
+        collector.Capture("monitor=11111", primary, TestContext.CancellationToken);
         MyAtmJobAggregateException aggregate = Assert.ThrowsExactly<MyAtmJobAggregateException>(() =>
             collector.ThrowIfAny("StoreDustLevels"));
 
@@ -38,7 +38,7 @@ public sealed class MyAtmFailureCollectorTests
             .Throws(recording);
         MyAtmFailureCollector collector = new(operational.Object);
 
-        collector.Capture("monitor=11111", primary);
+        collector.Capture("monitor=11111", primary, TestContext.CancellationToken);
         MyAtmJobAggregateException aggregate = Assert.ThrowsExactly<MyAtmJobAggregateException>(() =>
             collector.ThrowIfAny("StoreDustLevels"));
 
@@ -72,4 +72,6 @@ public sealed class MyAtmFailureCollectorTests
         Assert.AreSame(failure, thrown);
         operational.VerifyNoOtherCalls();
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

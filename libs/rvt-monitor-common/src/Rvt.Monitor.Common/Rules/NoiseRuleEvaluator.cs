@@ -6,24 +6,16 @@ using Rvt.Monitor.Common.Rules;
 
 namespace Rvt.Monitor.Common.Rules;
 
-public sealed class NoiseRuleEvaluator
+public sealed class NoiseRuleEvaluator(
+    Action<RvtAlertRuleDto> updateAlertRule,
+    Func<Guid, List<RvtContactDto>> readAlertContacts,
+    Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts,
+    IMonitorEventPublisher eventPublisher)
 {
-    private readonly Action<RvtAlertRuleDto> updateAlertRule;
-    private readonly Func<Guid, List<RvtContactDto>> readAlertContacts;
-    private readonly Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts;
-    private readonly IMonitorEventPublisher eventPublisher;
-
-    public NoiseRuleEvaluator(
-        Action<RvtAlertRuleDto> updateAlertRule,
-        Func<Guid, List<RvtContactDto>> readAlertContacts,
-        Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts,
-        IMonitorEventPublisher eventPublisher)
-    {
-        this.updateAlertRule = updateAlertRule;
-        this.readAlertContacts = readAlertContacts;
-        this.processAlertForContacts = processAlertForContacts;
-        this.eventPublisher = eventPublisher;
-    }
+    private readonly Action<RvtAlertRuleDto> updateAlertRule = updateAlertRule;
+    private readonly Func<Guid, List<RvtContactDto>> readAlertContacts = readAlertContacts;
+    private readonly Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts = processAlertForContacts;
+    private readonly IMonitorEventPublisher eventPublisher = eventPublisher;
 
     public Rvt.Monitor.Common.Notifications.AlertType Evaluate(
         RuleEvaluationRequest request,

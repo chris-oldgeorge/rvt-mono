@@ -92,6 +92,8 @@ public sealed class SvantekModelMappingTests
         AssertTimestamp(context, typeof(SvantekErrorMessageEntity), nameof(SvantekErrorMessageEntity.ErrorTime));
     }
 
+    private static readonly string[] expected = ["SerialId", "TypeOfMonitor"];
+
     [TestMethod]
     public void SvantekContext_PreservesKeysAndSharedMonitorIndex()
     {
@@ -109,7 +111,7 @@ public sealed class SvantekModelMappingTests
             "ix_monitor_serial_id_type_of_monitor",
             index.GetDatabaseName());
         CollectionAssert.AreEqual(
-            new[] { "SerialId", "TypeOfMonitor" },
+            expected,
             index.Properties.Select(property => property.Name).ToArray());
         Assert.IsFalse(index.IsUnique);
     }

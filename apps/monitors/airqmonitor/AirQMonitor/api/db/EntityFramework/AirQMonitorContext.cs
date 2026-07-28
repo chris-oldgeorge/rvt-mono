@@ -4,13 +4,8 @@ using Rvt.Monitor.Common.Data.EntityFramework;
 
 namespace AirQ.Api.Db.EntityFramework;
 
-public sealed class AirQMonitorContext : MonitorDbContextBase
+public sealed class AirQMonitorContext(DbContextOptions<AirQMonitorContext> options, MonitorDbOptions monitorOptions) : MonitorDbContextBase(options, monitorOptions)
 {
-    public AirQMonitorContext(DbContextOptions<AirQMonitorContext> options, MonitorDbOptions monitorOptions)
-        : base(options, monitorOptions)
-    {
-    }
-
     public DbSet<AirQNoiseLevelEntity> NoiseLevels => Set<AirQNoiseLevelEntity>();
     public DbSet<AirQMonitorStatusEntity> MonitorStatuses => Set<AirQMonitorStatusEntity>();
     public DbSet<AirQErrorMessageEntity> AirQErrorMessages => Set<AirQErrorMessageEntity>();

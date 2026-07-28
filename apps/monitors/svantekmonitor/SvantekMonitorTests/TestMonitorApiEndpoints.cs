@@ -6,6 +6,11 @@ namespace SvantekMonitorTests;
 [TestClass]
 public class TestMonitorApiEndpoints
 {
+    private static readonly string[] expected =
+        [
+            "/liveness"
+        ];
+
     [TestMethod]
     public void MapSvantekMonitorApi_RegistersExpectedRoutes()
     {
@@ -19,9 +24,6 @@ public class TestMonitorApiEndpoints
             .OfType<RouteEndpoint>()
             .Select(endpoint => endpoint.RoutePattern.RawText)];
 
-        CollectionAssert.AreEquivalent(new[]
-        {
-            "/liveness"
-        }, routes);
+        CollectionAssert.AreEquivalent(expected, routes);
     }
 }

@@ -12,25 +12,18 @@ namespace Omnidots.Api.UseCases;
 // Summary: Builds and submits an Omnidots measuring-point configuration from a secret-guarded request.
 // Major updates:
 // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiConfiguration).
-public class ConfigureMeasuringPointHandler
+public class ConfigureMeasuringPointHandler(
+    IOmnidotsVendorGateway gateway,
+    IOmnidotsMonitorQueries monitorQueries,
+    OmnidotsApiSecurityOptions securityOptions)
 {
     private const double MinimumTuningValue = 0;
     private const double MaximumTuningValue = 1_000_000;
     private const string InvalidRequestMessage = "Invalid measuring point configuration request.";
 
-    private readonly IOmnidotsVendorGateway _gateway;
-    private readonly IOmnidotsMonitorQueries monitorQueries;
-    private readonly OmnidotsApiSecurityOptions securityOptions;
-
-    public ConfigureMeasuringPointHandler(
-        IOmnidotsVendorGateway gateway,
-        IOmnidotsMonitorQueries monitorQueries,
-        OmnidotsApiSecurityOptions securityOptions)
-    {
-        _gateway = gateway;
-        this.monitorQueries = monitorQueries;
-        this.securityOptions = securityOptions;
-    }
+    private readonly IOmnidotsVendorGateway _gateway = gateway;
+    private readonly IOmnidotsMonitorQueries monitorQueries = monitorQueries;
+    private readonly OmnidotsApiSecurityOptions securityOptions = securityOptions;
 
     public async Task<ConfigureMeasuringPointResult> RunAsync(
         ReadOnlyMemory<byte> body,

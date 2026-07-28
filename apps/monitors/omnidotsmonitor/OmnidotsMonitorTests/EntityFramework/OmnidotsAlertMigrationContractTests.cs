@@ -26,13 +26,13 @@ public sealed class OmnidotsAlertMigrationContractTests
             "CONSTRAINT uq_alert_delivery_outbox_delivery_key UNIQUE (delivery_key)",
             "CREATE INDEX IF NOT EXISTS ix_alert_delivery_outbox_due ON alert_delivery_outbox (status, next_attempt_at, lease_until, created_at)",
             "COMMIT;");
-        StringAssert.Contains(script, "CHECK (octet_length(source_key_hash) = 32)");
-        StringAssert.Contains(script, "CHECK (outcome IN ('Accepted','Ignored','Suppressed'))");
-        StringAssert.Contains(script, "CHECK (kind IN ('MqttAlert','Email','Sms'))");
-        StringAssert.Contains(script, "CHECK (status IN ('Pending','Leased','Completed','DeadLetter'))");
-        StringAssert.Contains(script, "ON DELETE RESTRICT");
-        StringAssert.Contains(script, "ON DELETE CASCADE");
-        StringAssert.Contains(script, "IF NOT EXISTS");
+        Assert.Contains("CHECK (octet_length(source_key_hash) = 32)", script);
+        Assert.Contains("CHECK (outcome IN ('Accepted','Ignored','Suppressed'))", script);
+        Assert.Contains("CHECK (kind IN ('MqttAlert','Email','Sms'))", script);
+        Assert.Contains("CHECK (status IN ('Pending','Leased','Completed','DeadLetter'))", script);
+        Assert.Contains("ON DELETE RESTRICT", script);
+        Assert.Contains("ON DELETE CASCADE", script);
+        Assert.Contains("IF NOT EXISTS", script);
     }
 
     [TestMethod]
@@ -48,7 +48,7 @@ public sealed class OmnidotsAlertMigrationContractTests
             "DROP TABLE IF EXISTS alert_delivery_outbox",
             "DROP TABLE IF EXISTS alert_occurrence",
             "COMMIT;");
-        StringAssert.Contains(rawScript, "WARNING: Dropping alert_occurrence removes permanent webhook replay protection.");
+        Assert.Contains("WARNING: Dropping alert_occurrence removes permanent webhook replay protection.", rawScript);
     }
 
     [TestMethod]

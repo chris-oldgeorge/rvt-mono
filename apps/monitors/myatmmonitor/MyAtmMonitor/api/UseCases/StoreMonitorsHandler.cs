@@ -7,30 +7,20 @@ using MyAtm.Model.Json.DeviceInfo;
 namespace MyAtm.Api.UseCases;
 
 // Imports the bounded MyAtmosphere customer device catalogue into the monitor list.
-public sealed class StoreMonitorsHandler
+public sealed class StoreMonitorsHandler(
+    MyAtmHttpGateway gateway,
+    IMyAtmMonitorCommands monitorCommands,
+    IMyAtmOperationalCommands operationalCommands,
+    bool testLocal,
+    int devicePageSize,
+    int maxDevicePagesPerRun)
 {
-    private readonly MyAtmHttpGateway gateway;
-    private readonly IMyAtmMonitorCommands monitorCommands;
-    private readonly IMyAtmOperationalCommands operationalCommands;
-    private readonly bool testLocal;
-    private readonly int devicePageSize;
-    private readonly int maxDevicePagesPerRun;
-
-    public StoreMonitorsHandler(
-        MyAtmHttpGateway gateway,
-        IMyAtmMonitorCommands monitorCommands,
-        IMyAtmOperationalCommands operationalCommands,
-        bool testLocal,
-        int devicePageSize,
-        int maxDevicePagesPerRun)
-    {
-        this.gateway = gateway;
-        this.monitorCommands = monitorCommands;
-        this.operationalCommands = operationalCommands;
-        this.testLocal = testLocal;
-        this.devicePageSize = devicePageSize;
-        this.maxDevicePagesPerRun = maxDevicePagesPerRun;
-    }
+    private readonly MyAtmHttpGateway gateway = gateway;
+    private readonly IMyAtmMonitorCommands monitorCommands = monitorCommands;
+    private readonly IMyAtmOperationalCommands operationalCommands = operationalCommands;
+    private readonly bool testLocal = testLocal;
+    private readonly int devicePageSize = devicePageSize;
+    private readonly int maxDevicePagesPerRun = maxDevicePagesPerRun;
 
     public async Task RunAsync(int customerId, CancellationToken cancellationToken = default)
     {

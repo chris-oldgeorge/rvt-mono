@@ -6,21 +6,14 @@ using Rvt.Monitor.Common.Rules;
 
 namespace Rvt.Monitor.Common.Rules;
 
-public sealed class RuleAlertNotificationDispatcher
+public sealed class RuleAlertNotificationDispatcher(
+    IMessageService messageService,
+    Action<NotificationDto> writeNotification,
+    Action<Guid, string, string> writeNotificationAudit)
 {
-    private readonly IMessageService messageService;
-    private readonly Action<NotificationDto> writeNotification;
-    private readonly Action<Guid, string, string> writeNotificationAudit;
-
-    public RuleAlertNotificationDispatcher(
-        IMessageService messageService,
-        Action<NotificationDto> writeNotification,
-        Action<Guid, string, string> writeNotificationAudit)
-    {
-        this.messageService = messageService;
-        this.writeNotification = writeNotification;
-        this.writeNotificationAudit = writeNotificationAudit;
-    }
+    private readonly IMessageService messageService = messageService;
+    private readonly Action<NotificationDto> writeNotification = writeNotification;
+    private readonly Action<Guid, string, string> writeNotificationAudit = writeNotificationAudit;
 
     public void ProcessAlertForContacts(RuleNotificationRequest request, List<RvtContactDto> contacts)
     {

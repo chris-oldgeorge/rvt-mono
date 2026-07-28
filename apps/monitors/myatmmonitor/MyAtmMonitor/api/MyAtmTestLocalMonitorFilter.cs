@@ -14,7 +14,7 @@ public static class MyAtmTestLocalMonitorFilter
             return monitors;
         }
 
-        return monitors.Where(IsTargetReadMonitor).ToList();
+        return [.. monitors.Where(IsTargetReadMonitor)];
     }
 
     public static List<DustMonitorDto> ApplyCatalog(List<DustMonitorDto> monitors, bool enabled)
@@ -24,7 +24,7 @@ public static class MyAtmTestLocalMonitorFilter
             return monitors;
         }
 
-        return monitors.Where(monitor => IsTargetSerial(monitor.SerialId)).ToList();
+        return [.. monitors.Where(monitor => IsTargetSerial(monitor.SerialId))];
     }
 
     public static bool IsTargetSerial(string? serialId) =>

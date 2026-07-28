@@ -25,15 +25,8 @@ public sealed record OmnidotsMonitorFailure(
     }
 }
 
-public sealed class OmnidotsImportException : Exception
+public sealed class OmnidotsImportException(string operation, IReadOnlyList<OmnidotsMonitorFailure> failures) : Exception($"{operation} failed for {failures.Count} monitor(s): {string.Join(", ", failures.Select(x => x.SerialId))}")
 {
-    public string Operation { get; }
-    public IReadOnlyList<OmnidotsMonitorFailure> Failures { get; }
-
-    public OmnidotsImportException(string operation, IReadOnlyList<OmnidotsMonitorFailure> failures)
-        : base($"{operation} failed for {failures.Count} monitor(s): {string.Join(", ", failures.Select(x => x.SerialId))}")
-    {
-        Operation = operation;
-        Failures = failures;
-    }
+    public string Operation { get; } = operation;
+    public IReadOnlyList<OmnidotsMonitorFailure> Failures { get; } = failures;
 }

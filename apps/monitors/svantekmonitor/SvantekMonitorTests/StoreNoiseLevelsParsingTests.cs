@@ -105,7 +105,7 @@ public sealed class StoreNoiseLevelsParsingTests
                 new NoiseRequestWindowCalculator(new SvantekImportOptions()),
                 new FixedTimeProvider(utcNow));
 
-            await handler.RunAsync();
+            await handler.RunAsync(TestContext.CancellationToken);
 
             Assert.IsNotNull(writtenTable);
             Assert.HasCount(1, writtenTable.Rows);
@@ -129,4 +129,6 @@ public sealed class StoreNoiseLevelsParsingTests
     {
         public override DateTimeOffset GetUtcNow() => new(utcNow);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

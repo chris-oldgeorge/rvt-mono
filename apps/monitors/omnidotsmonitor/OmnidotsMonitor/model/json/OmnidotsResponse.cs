@@ -1,12 +1,11 @@
 
 using System.Text.Json.Serialization;
 
-namespace Omnidots.Model.Json
+namespace Omnidots.Model.Json;
+
+public class OmnidotsResponse
 {
-    public class OmnidotsResponse
-    {
-        [JsonRequired]
-        [JsonPropertyName("ok")]
-        public bool Ok { get; set; }
-    }
+    [JsonRequired]
+    [JsonPropertyName("ok")]
+    public bool Ok { get; set; }
 }

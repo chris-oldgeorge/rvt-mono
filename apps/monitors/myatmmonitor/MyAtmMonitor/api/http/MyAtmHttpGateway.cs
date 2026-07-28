@@ -10,24 +10,16 @@ namespace MyAtm.Api.Http
     // Summary: Vendor HTTP gateway for the MyAtmosphere API - request building, calls, and response parsing.
     // Major updates:
     // - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiMonitors, MyAtmApiDustLevels, MyAtmApiAccessoryInfo).
-    public class MyAtmHttpGateway
+    public class MyAtmHttpGateway(
+        IHttpClient httpClient,
+        int devicePageSize,
+        int measurementPageSize = 1000,
+        int accessoryPageSize = 1000)
     {
-        private readonly IHttpClient httpClient;
-        private readonly int devicePageSize;
-        private readonly int measurementPageSize;
-        private readonly int accessoryPageSize;
-
-        public MyAtmHttpGateway(
-            IHttpClient httpClient,
-            int devicePageSize,
-            int measurementPageSize = 1000,
-            int accessoryPageSize = 1000)
-        {
-            this.httpClient = httpClient;
-            this.devicePageSize = devicePageSize;
-            this.measurementPageSize = measurementPageSize;
-            this.accessoryPageSize = accessoryPageSize;
-        }
+        private readonly IHttpClient httpClient = httpClient;
+        private readonly int devicePageSize = devicePageSize;
+        private readonly int measurementPageSize = measurementPageSize;
+        private readonly int accessoryPageSize = accessoryPageSize;
 
         public async Task<List<Model.Json.Customer.DustMonitor>> HttpGetMonitorsAsync(
             int customerId,
@@ -209,31 +201,19 @@ namespace MyAtm.Api.Http
             CancellationToken cancellationToken)
         {
             string basePath = string.Format("/api/customers/{0}/devices/{1}/measurements", customerId, serialId);
-            string path;
             string paging = string.Format(
                 CultureInfo.InvariantCulture,
                 "$filter=timestamp gt {0}&$orderby=timestamp asc&$top={1}",
                 DateTimeUtil.AsUtc(cursor).ToString("O", CultureInfo.InvariantCulture),
                 pageSize);
-
-            // todo for avg values ?$select=avrg,timestamp&expand=pm1($select=avg)
-            switch (period)
+            string path = period switch
             {
-                case Period.Minutes1:
-                    path = string.Format("{0}?$select=avrg,timestamp,pm1,pm2_5,pm10,pm_total,weather_t,weather_p,weather_rh&{1}", basePath, paging);
-                    break;
-                case Period.Minutes15:
-                    path = string.Format("{0}/15min?{1}", basePath, paging);
-                    break;
-                case Period.Hours1:
-                    path = string.Format("{0}/hourly?{1}", basePath, paging);
-                    break;
-                case Period.Hours24:
-                    path = string.Format("{0}/daily?{1}", basePath, paging);
-                    break;
-                default:
-                    throw AdapterException.Of("DoGetDeviceMeasurementsAsync Unknown Period " + period);
-            }
+                Period.Minutes1 => string.Format("{0}?$select=avrg,timestamp,pm1,pm2_5,pm10,pm_total,weather_t,weather_p,weather_rh&{1}", basePath, paging),
+                Period.Minutes15 => string.Format("{0}/15min?{1}", basePath, paging),
+                Period.Hours1 => string.Format("{0}/hourly?{1}", basePath, paging),
+                Period.Hours24 => string.Format("{0}/daily?{1}", basePath, paging),
+                _ => throw AdapterException.Of("DoGetDeviceMeasurementsAsync Unknown Period " + period),
+            };
             return await httpClient.GetAsync(path, cancellationToken);
         }
 

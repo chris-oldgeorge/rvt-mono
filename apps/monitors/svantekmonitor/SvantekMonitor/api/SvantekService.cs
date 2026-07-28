@@ -1,14 +1,9 @@
 namespace Svantek.Api;
 
 // Summary: Cancellable scheduled entry points for Svantek monitor jobs.
-public sealed class SvantekService : ISvantekMonitorJobs
+public sealed class SvantekService(SvantekApi svantekApi) : ISvantekMonitorJobs
 {
-    private readonly SvantekApi svantekApi;
-
-    public SvantekService(SvantekApi svantekApi)
-    {
-        this.svantekApi = svantekApi;
-    }
+    private readonly SvantekApi svantekApi = svantekApi;
 
     public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
         svantekApi.StoreMonitorsAsync(cancellationToken);

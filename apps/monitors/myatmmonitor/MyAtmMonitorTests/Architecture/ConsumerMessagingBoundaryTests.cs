@@ -10,17 +10,17 @@ public sealed class ConsumerMessagingBoundaryTests
         "apps/monitors/myatmmonitor/MyAtmMonitor/api/MyAtmRuleProcessor.cs",
         "apps/monitors/omnidotsmonitor/OmnidotsMonitor/api/OmnidotsRuleProcessor.cs"
     ];
+    private static readonly string[] sourceArray =
+            [
+                "apps/monitors/myatmmonitor/MyAtmMonitor",
+                "apps/monitors/omnidotsmonitor/OmnidotsMonitor"
+            ];
 
     [TestMethod]
     public void ObsoleteSynchronousMessageCallsAreLimitedToConsumerCompatibilityAllowlist()
     {
         string root = RepositoryLayout.Root;
-        string[] callers = [.. new[]
-            {
-                "apps/monitors/myatmmonitor/MyAtmMonitor",
-                "apps/monitors/omnidotsmonitor/OmnidotsMonitor"
-            }
-            .SelectMany(relativeDirectory => ReadProductionSource(root, relativeDirectory))
+        string[] callers = [.. sourceArray.SelectMany(relativeDirectory => ReadProductionSource(root, relativeDirectory))
             .Where(file => file.Text.Contains(".Sendmessage(", StringComparison.Ordinal) ||
                 file.Text.Contains(".SendMessage(", StringComparison.Ordinal))
             .Select(file => file.RelativePath)

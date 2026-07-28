@@ -46,7 +46,7 @@ public sealed class CheckForOfflineMonitorsHandlerTests
             now);
 
         MyAtmJobAggregateException exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
-            handler.RunAsync(123));
+            handler.RunAsync(123, TestContext.CancellationToken));
 
         Assert.HasCount(1, exception.Failures);
         Assert.AreEqual("CheckForOfflineMonitors serialId=11111", exception.Failures[0].Identifier);
@@ -85,7 +85,7 @@ public sealed class CheckForOfflineMonitorsHandlerTests
             commits,
             now);
 
-        await handler.RunAsync(123);
+        await handler.RunAsync(123, TestContext.CancellationToken);
 
         Assert.IsFalse(monitor.Offline);
         commits.VerifyNoOtherCalls();
@@ -146,15 +146,12 @@ public sealed class CheckForOfflineMonitorsHandlerTests
         SundayEnd = TimeSpan.FromHours(24)
     };
 
-    private sealed class FixedTimeProvider : TimeProvider
+    private sealed class FixedTimeProvider(DateTime now) : TimeProvider
     {
-        private readonly DateTimeOffset now;
-
-        public FixedTimeProvider(DateTime now)
-        {
-            this.now = new DateTimeOffset(now);
-        }
+        private readonly DateTimeOffset now = new DateTimeOffset(now);
 
         public override DateTimeOffset GetUtcNow() => now;
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

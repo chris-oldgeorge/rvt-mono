@@ -4,13 +4,8 @@ using Rvt.Monitor.Common.Data.EntityFramework;
 
 namespace MyAtm.Api.Db.EntityFramework;
 
-public sealed class MyAtmMonitorContext : MonitorDbContextBase
+public sealed class MyAtmMonitorContext(DbContextOptions<MyAtmMonitorContext> options, MonitorDbOptions monitorOptions) : MonitorDbContextBase(options, monitorOptions)
 {
-    public MyAtmMonitorContext(DbContextOptions<MyAtmMonitorContext> options, MonitorDbOptions monitorOptions)
-        : base(options, monitorOptions)
-    {
-    }
-
     public DbSet<MyAtmDustLevelEntity> DustLevels => Set<MyAtmDustLevelEntity>();
     public DbSet<MyAtmAccessoryInfoEntity> AccessoryInfo => Set<MyAtmAccessoryInfoEntity>();
     public DbSet<MyAtmErrorMessageEntity> MyAtmErrorMessages => Set<MyAtmErrorMessageEntity>();

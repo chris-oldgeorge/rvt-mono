@@ -23,12 +23,12 @@ public sealed class AirQTestLocalMonitorFilter
     public List<NoiseMonitorDto> Apply(List<NoiseMonitorDto> monitors) =>
         targetSerialId is null
             ? monitors
-            : monitors.Where(monitor => IsTargetSerial(monitor.SerialId)).ToList();
+            : [.. monitors.Where(monitor => IsTargetSerial(monitor.SerialId))];
 
     public List<InstrumentResponse> ApplyCatalog(List<InstrumentResponse> monitors) =>
         targetSerialId is null
             ? monitors
-            : monitors.Where(monitor => IsTargetSerial(monitor.InstrumentID)).ToList();
+            : [.. monitors.Where(monitor => IsTargetSerial(monitor.InstrumentID))];
 
     private bool IsTargetSerial(string? serialId) =>
         string.Equals(serialId, targetSerialId, StringComparison.Ordinal);

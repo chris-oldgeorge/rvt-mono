@@ -28,7 +28,7 @@ public sealed class MyAtmSharedOutboxMigrationTests
             "MyAtmMonitorTests",
             "testdata",
             "reset.postgres.sql"));
-        database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql);
+        database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql, context.CancellationToken);
     }
 
     [ClassCleanup]

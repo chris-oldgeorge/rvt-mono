@@ -36,7 +36,7 @@ public sealed class TransmitSmsAdapterTests
         });
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
-            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "body")));
+            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "body"), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Configuration, exception.FailureKind);
         Assert.IsNull(handler.Request);
@@ -53,7 +53,7 @@ public sealed class TransmitSmsAdapterTests
         TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
-            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
+            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body"), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
         Assert.AreEqual(((int)statusCode).ToString(), exception.Code);
@@ -73,7 +73,7 @@ public sealed class TransmitSmsAdapterTests
         TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
-            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
+            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body"), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
     }
@@ -88,7 +88,7 @@ public sealed class TransmitSmsAdapterTests
         TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
-            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
+            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body"), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
         Assert.AreEqual("FIELD_INVALID", exception.Code);
@@ -103,7 +103,7 @@ public sealed class TransmitSmsAdapterTests
         TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
-            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
+            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body"), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
         Assert.DoesNotContain("raw network secret", exception.Message);
@@ -120,7 +120,7 @@ public sealed class TransmitSmsAdapterTests
         TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
-            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
+            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body"), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
         Assert.AreEqual("429", exception.Code);
@@ -163,4 +163,6 @@ public sealed class TransmitSmsAdapterTests
             HttpRequestMessage request,
             CancellationToken cancellationToken) => Task.FromException<HttpResponseMessage>(exception);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

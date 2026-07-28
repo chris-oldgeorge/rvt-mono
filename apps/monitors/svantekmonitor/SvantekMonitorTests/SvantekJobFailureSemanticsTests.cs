@@ -12,6 +12,9 @@ namespace SvantekMonitorTests;
 [TestClass]
 public sealed class SvantekJobFailureSemanticsTests
 {
+    private static readonly string[] FailureIdentifiers =
+        ["StoreMonitors project 1", "StoreMonitors project 3"];
+
     private const string ProjectsJson = """
         {
           "status": "ok",
@@ -86,9 +89,9 @@ public sealed class SvantekJobFailureSemanticsTests
         Assert.IsInstanceOfType<SvantekJobAggregateException>(observed, observed?.ToString());
         SvantekJobAggregateException aggregate = (SvantekJobAggregateException)observed;
 
-        CollectionAssert.AreEqual(new[] { 1, 2, 3 }, persistedProjects);
+        CollectionAssert.AreEqual(expected, persistedProjects);
         CollectionAssert.AreEqual(
-            new[] { "StoreMonitors project 1", "StoreMonitors project 3" },
+            FailureIdentifiers,
             recordedIdentifiers);
         Assert.AreEqual("StoreMonitors", aggregate.JobName);
         Assert.HasCount(2, aggregate.Failures);
@@ -117,7 +120,7 @@ public sealed class SvantekJobFailureSemanticsTests
             operational.Object,
             testLocal: false);
 
-        AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => handler.RunAsync());
+        AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => handler.RunAsync(TestContext.CancellationToken));
 
         Assert.AreSame(authenticationFailure, exception.InnerException, exception.ToString());
         operational.Verify(
@@ -154,4 +157,8 @@ public sealed class SvantekJobFailureSemanticsTests
             commands => commands.HandleException("cancelled", It.IsAny<Exception>()),
             Times.Never);
     }
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly int[] expected = [1, 2, 3];
 }

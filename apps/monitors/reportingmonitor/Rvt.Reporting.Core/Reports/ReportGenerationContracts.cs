@@ -64,14 +64,9 @@ public sealed record ReportNarrativeContext(
     ReportExecutiveSummary ExecutiveSummary,
     IReadOnlyList<ReportAlertHeatmap> AlertHeatmaps);
 
-public sealed class RuleGenerationLock : IAsyncDisposable
+public sealed class RuleGenerationLock(Func<ValueTask> releaseAsync) : IAsyncDisposable
 {
-    private readonly Func<ValueTask> _releaseAsync;
-
-    public RuleGenerationLock(Func<ValueTask> releaseAsync)
-    {
-        _releaseAsync = releaseAsync;
-    }
+    private readonly Func<ValueTask> _releaseAsync = releaseAsync;
 
     public ValueTask DisposeAsync() => _releaseAsync();
 }

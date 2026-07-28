@@ -1,8 +1,8 @@
 # Help Admin Application Boundary Design
 
-**Date:** 2026-07-28  
+**Date:** 2026-07-28
 **Status:** Approved for implementation
-**Decision owner:** RVT Portal product owner  
+**Decision owner:** RVT Portal product owner
 **Target branch:** `codex/help-admin-application-boundary`
 
 ## Purpose

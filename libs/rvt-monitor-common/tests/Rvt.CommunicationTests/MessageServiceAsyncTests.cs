@@ -1,6 +1,6 @@
 using Moq;
-using Rvt.Communication.Abstractions;
 using Rvt.Communication;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Notifications;
 
 namespace Rvt.CommunicationTests;
@@ -11,13 +11,13 @@ public sealed class MessageServiceAsyncTests
     [TestMethod]
     public async Task SendMessageAsync_PassesTheCallerCancellationTokenToEmailDelivery()
     {
-        using var cancellationSource = new CancellationTokenSource();
-        var delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
+        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
+        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
         delivery.Setup(x => x.SendAsync(
                 It.IsAny<NotificationDeliveryRequest>(),
                 cancellationSource.Token))
             .Returns(Task.CompletedTask);
-        var service = new MessageService(delivery.Object);
+        MessageService service = new MessageService(delivery.Object);
 
         await service.SendMessageAsync(
             LegacyMessageKind.Alert,
@@ -32,13 +32,13 @@ public sealed class MessageServiceAsyncTests
     [TestMethod]
     public async Task SendMessageAsync_PassesTheCallerCancellationTokenToSmsDelivery()
     {
-        using var cancellationSource = new CancellationTokenSource();
-        var delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
+        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
+        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
         delivery.Setup(x => x.SendAsync(
                 It.IsAny<NotificationDeliveryRequest>(),
                 cancellationSource.Token))
             .Returns(Task.CompletedTask);
-        var service = new MessageService(delivery.Object);
+        MessageService service = new MessageService(delivery.Object);
 
         await service.SendMessageAsync(
             LegacyMessageKind.Alert,
@@ -53,15 +53,15 @@ public sealed class MessageServiceAsyncTests
     [TestMethod]
     public async Task SendMessageAsync_RequestedCancellationIsNotTranslated()
     {
-        using var cancellationSource = new CancellationTokenSource();
-        var delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
+        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
+        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
         delivery.Setup(x => x.SendAsync(
                 It.IsAny<NotificationDeliveryRequest>(),
                 cancellationSource.Token))
             .ThrowsAsync(new OperationCanceledException(cancellationSource.Token));
-        var service = new MessageService(delivery.Object);
+        MessageService service = new MessageService(delivery.Object);
 
-        var exception = await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
+        OperationCanceledException exception = await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             service.SendMessageAsync(
                 LegacyMessageKind.Alert,
                 LegacyMessageChannel.Email,

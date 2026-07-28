@@ -18,10 +18,10 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task InternalApiKeyFilter_WithMissingConfiguredKey_ReturnsUnauthorized()
     {
-        var filter = CreateFilter("test-key");
-        var invoked = false;
+        InternalApiKeyFilter filter = CreateFilter("test-key");
+        bool invoked = false;
 
-        var result = await filter.InvokeAsync(CreateInvocationContext(), _ =>
+        object? result = await filter.InvokeAsync(CreateInvocationContext(), _ =>
         {
             invoked = true;
             return ValueTask.FromResult<object?>(new StatusResult(StatusCodes.Status200OK));
@@ -34,10 +34,10 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task InternalApiKeyFilter_WithInvalidConfiguredKey_ReturnsUnauthorized()
     {
-        var filter = CreateFilter("test-key");
-        var invoked = false;
+        InternalApiKeyFilter filter = CreateFilter("test-key");
+        bool invoked = false;
 
-        var result = await filter.InvokeAsync(CreateInvocationContext("wrong-key"), _ =>
+        object? result = await filter.InvokeAsync(CreateInvocationContext("wrong-key"), _ =>
         {
             invoked = true;
             return ValueTask.FromResult<object?>(new StatusResult(StatusCodes.Status200OK));
@@ -50,10 +50,10 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task InternalApiKeyFilter_WithValidConfiguredKey_InvokesNext()
     {
-        var filter = CreateFilter("test-key");
-        var invoked = false;
+        InternalApiKeyFilter filter = CreateFilter("test-key");
+        bool invoked = false;
 
-        var result = await filter.InvokeAsync(CreateInvocationContext("test-key"), _ =>
+        object? result = await filter.InvokeAsync(CreateInvocationContext("test-key"), _ =>
         {
             invoked = true;
             return ValueTask.FromResult<object?>(new StatusResult(StatusCodes.Status200OK));
@@ -66,10 +66,10 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task InternalApiKeyFilter_WithoutConfiguredKeyInDevelopment_InvokesNext()
     {
-        var filter = CreateFilter(internalApiKey: null, development: true);
-        var invoked = false;
+        InternalApiKeyFilter filter = CreateFilter(internalApiKey: null, development: true);
+        bool invoked = false;
 
-        var result = await filter.InvokeAsync(CreateInvocationContext(), _ =>
+        object? result = await filter.InvokeAsync(CreateInvocationContext(), _ =>
         {
             invoked = true;
             return ValueTask.FromResult<object?>(new StatusResult(StatusCodes.Status200OK));
@@ -82,10 +82,10 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task InternalApiKeyFilter_WithoutConfiguredKeyOutsideDevelopment_ReturnsUnauthorized()
     {
-        var filter = CreateFilter(internalApiKey: null, development: false);
-        var invoked = false;
+        InternalApiKeyFilter filter = CreateFilter(internalApiKey: null, development: false);
+        bool invoked = false;
 
-        var result = await filter.InvokeAsync(CreateInvocationContext(), _ =>
+        object? result = await filter.InvokeAsync(CreateInvocationContext(), _ =>
         {
             invoked = true;
             return ValueTask.FromResult<object?>(new StatusResult(StatusCodes.Status200OK));
@@ -98,10 +98,10 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task GenerateRuleReportHandler_DelegatesRuleIdAndTriggerToService()
     {
-        var service = new RecordingReportGenerationService();
-        var handler = new GenerateRuleReportHandler(service);
-        var ruleId = Guid.NewGuid();
-        var triggerUtc = DateTimeOffset.UtcNow;
+        RecordingReportGenerationService service = new RecordingReportGenerationService();
+        GenerateRuleReportHandler handler = new GenerateRuleReportHandler(service);
+        Guid ruleId = Guid.NewGuid();
+        DateTimeOffset triggerUtc = DateTimeOffset.UtcNow;
 
         await handler.HandleAsync(ruleId, triggerUtc, CancellationToken.None);
 
@@ -112,13 +112,13 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task GenerateScheduledAsync_SerializesTheEstablishedCountAndReportsEnvelope()
     {
-        var expectedReport = GeneratedReport();
-        var service = new RecordingReportGenerationService { ScheduledReports = [expectedReport] };
-        var result = await ReportingMonitorApi.GenerateScheduledAsync(
+        GeneratedReport expectedReport = GeneratedReport();
+        RecordingReportGenerationService service = new RecordingReportGenerationService { ScheduledReports = [expectedReport] };
+        IResult result = await ReportingMonitorApi.GenerateScheduledAsync(
             new GenerateScheduledReportsHandler(service),
             CancellationToken.None);
 
-        var response = await ExecuteJsonAsync(result);
+        (int StatusCode, JsonDocument Body) response = await ExecuteJsonAsync(result);
 
         Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
         Assert.Equal(1, response.Body.RootElement.GetProperty("count").GetInt32());
@@ -128,18 +128,18 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task GenerateRuleAsync_UsesOptionalBodyTriggerAndSerializesTheEstablishedEnvelope()
     {
-        var expectedReport = GeneratedReport();
-        var service = new RecordingReportGenerationService { RuleReports = [expectedReport] };
-        var handler = new GenerateRuleReportHandler(service);
-        var ruleId = Guid.NewGuid();
-        var triggerUtc = new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
+        GeneratedReport expectedReport = GeneratedReport();
+        RecordingReportGenerationService service = new RecordingReportGenerationService { RuleReports = [expectedReport] };
+        GenerateRuleReportHandler handler = new GenerateRuleReportHandler(service);
+        Guid ruleId = Guid.NewGuid();
+        DateTimeOffset triggerUtc = new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
 
-        var result = await ReportingMonitorApi.GenerateRuleAsync(
+        IResult result = await ReportingMonitorApi.GenerateRuleAsync(
             ruleId,
             new RuleGenerationRequest(triggerUtc),
             handler,
             CancellationToken.None);
-        var response = await ExecuteJsonAsync(result);
+        (int StatusCode, JsonDocument Body) response = await ExecuteJsonAsync(result);
 
         Assert.Equal(ruleId, service.RuleId);
         Assert.Equal(triggerUtc, service.RuleTriggerUtc);
@@ -151,15 +151,15 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task GenerateOneTimeReportHandler_PropagatesValidationException()
     {
-        var service = new RecordingReportGenerationService
+        RecordingReportGenerationService service = new RecordingReportGenerationService
         {
             OneTimeException = new OneTimeReportValidationException([
                 new ValidationError(nameof(OneTimeReportRequest.FromUtc), "Start time must be earlier than end time.")
             ])
         };
-        var handler = new GenerateOneTimeReportHandler(service);
+        GenerateOneTimeReportHandler handler = new GenerateOneTimeReportHandler(service);
 
-        var exception = await Assert.ThrowsAsync<OneTimeReportValidationException>(() =>
+        OneTimeReportValidationException exception = await Assert.ThrowsAsync<OneTimeReportValidationException>(() =>
             handler.HandleAsync(new OneTimeReportRequest(), CancellationToken.None));
 
         Assert.Single(exception.Errors);
@@ -168,11 +168,11 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task CreateOneTimeReportValidationProblem_GroupsMultipleRecipientErrors()
     {
-        var result = ReportingMonitorApi.CreateOneTimeReportValidationProblem(new OneTimeReportValidationException([
+        IResult result = ReportingMonitorApi.CreateOneTimeReportValidationProblem(new OneTimeReportValidationException([
             new ValidationError(nameof(OneTimeReportRequest.RecipientEmails), "Invalid recipient email: first-invalid"),
             new ValidationError(nameof(OneTimeReportRequest.RecipientEmails), "Invalid recipient email: second-invalid")
         ]));
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
         context.RequestServices = new ServiceCollection()
             .AddLogging()
@@ -182,8 +182,8 @@ public sealed class TestReportingApiEndpoints
         await result.ExecuteAsync(context);
 
         context.Response.Body.Position = 0;
-        using var document = await JsonDocument.ParseAsync(context.Response.Body);
-        var messages = document.RootElement
+        using JsonDocument document = await JsonDocument.ParseAsync(context.Response.Body);
+        string[] messages = document.RootElement
             .GetProperty("errors")
             .GetProperty(nameof(OneTimeReportRequest.RecipientEmails))
             .EnumerateArray()
@@ -206,7 +206,7 @@ public sealed class TestReportingApiEndpoints
 
     private static async Task<(int StatusCode, JsonDocument Body)> ExecuteJsonAsync(IResult result)
     {
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
         context.RequestServices = new ServiceCollection()
             .AddLogging()
@@ -223,7 +223,7 @@ public sealed class TestReportingApiEndpoints
 
     private static EndpointFilterInvocationContext CreateInvocationContext(string? suppliedKey = null)
     {
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new DefaultHttpContext();
         if (suppliedKey is not null)
         {
             context.Request.Headers[InternalApiKeyFilter.HeaderName] = suppliedKey;

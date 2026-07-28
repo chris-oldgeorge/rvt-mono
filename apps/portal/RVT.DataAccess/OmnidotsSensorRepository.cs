@@ -4,15 +4,15 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-25 pending Resolved legacy nullable reference warnings.
 
-using Microsoft.EntityFrameworkCore;
-using RVT.DataAccess.Context;
-using RVT.DataAccess.EntityModels.Models;
-using RVT.Entities.DTO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using RVT.DataAccess.Context;
+using RVT.DataAccess.EntityModels.Models;
+using RVT.Entities.DTO;
 using RVT.Entities.Querying;
 
 namespace RVT.DataAccess
@@ -28,7 +28,7 @@ namespace RVT.DataAccess
         // Function summary: Retrieves battery level data for callers.
         public async Task<BatteryLevel?> ReadBatteryLevelAsync(string SerialId)
         {
-            var details = await DbSet.Where(W => W.SerialId == SerialId).FirstOrDefaultAsync();
+            OmnidotsSensor? details = await DbSet.Where(W => W.SerialId == SerialId).FirstOrDefaultAsync();
             if (details is null)
                 return null;
 

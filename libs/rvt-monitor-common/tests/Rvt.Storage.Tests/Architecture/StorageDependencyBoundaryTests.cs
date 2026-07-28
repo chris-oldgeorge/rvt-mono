@@ -8,7 +8,7 @@ public sealed class StorageDependencyBoundaryTests
     [TestMethod]
     public void Common_ReferencesNoCloudProviderSdkPackages()
     {
-        var project = StorageProjectSnapshot.Load("Rvt.Monitor.Common");
+        StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Monitor.Common");
 
         project.AssertPackagesExclude(
             "AWSSDK.S3",
@@ -19,7 +19,7 @@ public sealed class StorageDependencyBoundaryTests
     [TestMethod]
     public void Common_ProductionSourceUsesNoCloudProviderNamespaces()
     {
-        var project = StorageProjectSnapshot.Load("Rvt.Monitor.Common");
+        StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Monitor.Common");
 
         project.AssertSourceExcludes("Amazon.", "Azure.Storage");
     }
@@ -27,7 +27,7 @@ public sealed class StorageDependencyBoundaryTests
     [TestMethod]
     public void Abstractions_RemainsProviderFrameworkAndFilesystemIndependent()
     {
-        var project = StorageProjectSnapshot.Load("Rvt.Storage.Abstractions");
+        StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Storage.Abstractions");
 
         Assert.IsEmpty(project.PackageReferences);
         Assert.IsEmpty(project.ProjectReferences);
@@ -43,7 +43,7 @@ public sealed class StorageDependencyBoundaryTests
     [TestMethod]
     public void Local_ReferencesNoCloudProviderSdk()
     {
-        var project = StorageProjectSnapshot.Load("Rvt.Storage.Local");
+        StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Storage.Local");
 
         CollectionAssert.AreEquivalent(
             new[] { "Rvt.Storage.Abstractions" },
@@ -55,7 +55,7 @@ public sealed class StorageDependencyBoundaryTests
     [TestMethod]
     public void AzureBlob_ReferencesAzureSdkAndNoAmazonSdk()
     {
-        var project = StorageProjectSnapshot.Load("Rvt.Storage.AzureBlob");
+        StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Storage.AzureBlob");
 
         CollectionAssert.AreEquivalent(
             new[] { "Rvt.Storage.Abstractions" },
@@ -71,7 +71,7 @@ public sealed class StorageDependencyBoundaryTests
     [TestMethod]
     public void S3_ReferencesAmazonSdkAndNoAzureSdk()
     {
-        var project = StorageProjectSnapshot.Load("Rvt.Storage.S3");
+        StorageProjectSnapshot project = StorageProjectSnapshot.Load("Rvt.Storage.S3");
 
         CollectionAssert.AreEquivalent(
             new[] { "Rvt.Storage.Abstractions" },
@@ -102,29 +102,29 @@ public sealed class StorageDependencyBoundaryTests
 
         public static StorageProjectSnapshot Load(string projectName)
         {
-            var repositoryRoot = FindRepositoryRoot();
-            var projectDirectory = Path.Combine(
+            string repositoryRoot = FindRepositoryRoot();
+            string projectDirectory = Path.Combine(
                 repositoryRoot,
                 "libs",
                 "rvt-monitor-common",
                 "src",
                 projectName);
-            var projectPath = Path.Combine(projectDirectory, $"{projectName}.csproj");
+            string projectPath = Path.Combine(projectDirectory, $"{projectName}.csproj");
             Assert.IsTrue(
                 File.Exists(projectPath),
                 $"Expected storage project '{projectPath}' to exist.");
 
-            var project = XDocument.Load(projectPath);
-            var packageReferences = ProjectDependencyReader.ReadActiveIdentities(
+            XDocument project = XDocument.Load(projectPath);
+            IReadOnlyCollection<string> packageReferences = ProjectDependencyReader.ReadActiveIdentities(
                 project,
                 "PackageReference");
-            var projectReferences = ProjectDependencyReader
+            string[] projectReferences = ProjectDependencyReader
                 .ReadActiveIdentities(project, "ProjectReference")
                 .Select(value => Path.GetFileNameWithoutExtension(
                     value.Replace('\\', Path.DirectorySeparatorChar)))
                 .OrderBy(value => value, StringComparer.Ordinal)
                 .ToArray();
-            var sourceFiles = Directory
+            Dictionary<string, string> sourceFiles = Directory
                 .EnumerateFiles(projectDirectory, "*.cs", SearchOption.AllDirectories)
                 .Where(path => !IsGeneratedPath(projectDirectory, path))
                 .OrderBy(path => path, StringComparer.Ordinal)
@@ -149,9 +149,9 @@ public sealed class StorageDependencyBoundaryTests
 
         public void AssertPackagesExclude(params string[] forbiddenPrefixes)
         {
-            foreach (var forbiddenPrefix in forbiddenPrefixes)
+            foreach (string forbiddenPrefix in forbiddenPrefixes)
             {
-                var matches = PackageReferences
+                string[] matches = PackageReferences
                     .Where(package => package.StartsWith(
                         forbiddenPrefix,
                         StringComparison.OrdinalIgnoreCase))
@@ -165,7 +165,7 @@ public sealed class StorageDependencyBoundaryTests
 
         public void AssertSourceIncludes(params string[] requiredMarkers)
         {
-            foreach (var requiredMarker in requiredMarkers)
+            foreach (string requiredMarker in requiredMarkers)
             {
                 Assert.IsTrue(
                     sourceAnalysis.UsesDependency(requiredMarker),
@@ -175,9 +175,9 @@ public sealed class StorageDependencyBoundaryTests
 
         public void AssertSourceExcludes(params string[] forbiddenMarkers)
         {
-            foreach (var forbiddenMarker in forbiddenMarkers)
+            foreach (string forbiddenMarker in forbiddenMarkers)
             {
-                var matches = sourceAnalysis.GetSourceFilesUsing(forbiddenMarker);
+                IReadOnlyCollection<string> matches = sourceAnalysis.GetSourceFilesUsing(forbiddenMarker);
                 Assert.IsEmpty(
                     matches,
                     $"Forbidden source dependency '{forbiddenMarker}' was found in: "
@@ -187,13 +187,13 @@ public sealed class StorageDependencyBoundaryTests
 
         private static string FindRepositoryRoot()
         {
-            foreach (var startingPath in new[]
+            foreach (string? startingPath in new[]
                      {
                          Directory.GetCurrentDirectory(),
                          AppContext.BaseDirectory,
                      })
             {
-                for (var directory = new DirectoryInfo(startingPath);
+                for (DirectoryInfo? directory = new DirectoryInfo(startingPath);
                      directory is not null;
                      directory = directory.Parent)
                 {
@@ -219,7 +219,7 @@ public sealed class StorageDependencyBoundaryTests
             string projectDirectory,
             string sourcePath)
         {
-            var relativePath = Path.GetRelativePath(projectDirectory, sourcePath);
+            string relativePath = Path.GetRelativePath(projectDirectory, sourcePath);
             return HasPathSegment(relativePath, "obj")
                 || HasPathSegment(relativePath, "bin");
         }

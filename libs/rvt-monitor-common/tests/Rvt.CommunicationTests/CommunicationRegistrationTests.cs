@@ -10,7 +10,7 @@ public sealed class CommunicationRegistrationTests
     [TestMethod]
     public void AddRvtCommunication_CalledTwice_RegistersEachWorkflowServiceOnce()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new ServiceCollection();
 
         services.AddRvtCommunication();
         services.AddRvtCommunication();

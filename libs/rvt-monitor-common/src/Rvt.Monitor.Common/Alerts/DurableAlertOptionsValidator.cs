@@ -7,7 +7,7 @@ public sealed class DurableAlertOptionsValidator : IValidateOptions<DurableAlert
     public ValidateOptionsResult Validate(string? name, DurableAlertOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        var failures = new List<string>();
+        List<string> failures = new List<string>();
 
         RequirePositive(options.BatchSize, nameof(options.BatchSize), failures);
         RequirePositive(options.LeaseSeconds, nameof(options.LeaseSeconds), failures);

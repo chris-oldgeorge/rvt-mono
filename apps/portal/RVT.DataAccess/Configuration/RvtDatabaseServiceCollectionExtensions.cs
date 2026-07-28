@@ -22,7 +22,7 @@ public static class RvtDatabaseServiceCollectionExtensions
     // Function summary: Registers PostgreSQL database options and supporting services.
     public static RvtDatabaseOptions AddRvtDatabaseProvider(this IServiceCollection services, IConfiguration configuration)
     {
-        var options = RvtDatabaseOptions.FromConfiguration(configuration);
+        RvtDatabaseOptions options = RvtDatabaseOptions.FromConfiguration(configuration);
 
         services.TryAddSingleton<IOptions<RvtDatabaseOptions>>(Options.Create(options));
         services.TryAddSingleton<IRvtDatabaseConnectionFactory, RvtDatabaseConnectionFactory>();

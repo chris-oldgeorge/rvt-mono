@@ -16,7 +16,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestCorrectQueryParams_Success()
         {
-            var query = "?foo=11223&bar=hello";
+            string query = "?foo=11223&bar=hello";
             Assert.AreEqual(11223, OmnidotsQueryProcessor.GetIntParameter(query, "foo"));
             Assert.AreEqual("hello", OmnidotsQueryProcessor.GetStringParameter(query, "bar"));
         }
@@ -24,7 +24,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestNonIntegerParam_ThrowsCorrectException()
         {
-            var exception = Assert.ThrowsExactly<AdapterException>(() =>
+            AdapterException exception = Assert.ThrowsExactly<AdapterException>(() =>
             {
                 _ = OmnidotsQueryProcessor.GetIntParameter("?baz=wx2&bar=98922", "baz");
 

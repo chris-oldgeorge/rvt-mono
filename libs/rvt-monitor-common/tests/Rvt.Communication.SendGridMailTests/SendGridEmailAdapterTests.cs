@@ -15,12 +15,12 @@ public sealed class SendGridEmailAdapterTests
     public async Task SendAsync_MapsSenderBodiesRecipientAndAttachments()
     {
         SendGridMessage? captured = null;
-        var client = new Mock<ISendGridClient>();
+        Mock<ISendGridClient> client = new Mock<ISendGridClient>();
         client.Setup(x => x.SendEmailAsync(It.IsAny<SendGridMessage>(), It.IsAny<CancellationToken>()))
             .Callback((SendGridMessage message, CancellationToken _) => captured = message)
             .ReturnsAsync(Response(HttpStatusCode.Accepted));
-        var adapter = CreateAdapter(client.Object);
-        var attachment = new EmailAttachment("report.pdf", "application/pdf", new byte[] { 1, 2, 3 });
+        SendGridEmailAdapter adapter = CreateAdapter(client.Object);
+        EmailAttachment attachment = new EmailAttachment("report.pdf", "application/pdf", new byte[] { 1, 2, 3 });
 
         await adapter.SendAsync(new EmailDeliveryRequest(
             "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]));
@@ -31,7 +31,7 @@ public sealed class SendGridEmailAdapterTests
         Assert.AreEqual("subject", captured.Subject);
         Assert.IsTrue(captured.Contents.Any(content => content.Type == "text/plain" && content.Value == "plain"));
         Assert.IsTrue(captured.Contents.Any(content => content.Type == "text/html" && content.Value == "<p>html</p>"));
-        var sentAttachment = captured.Attachments.Single();
+        Attachment sentAttachment = captured.Attachments.Single();
         Assert.AreEqual("report.pdf", sentAttachment.Filename);
         Assert.AreEqual("application/pdf", sentAttachment.Type);
         Assert.AreEqual(Convert.ToBase64String(new byte[] { 1, 2, 3 }), sentAttachment.Content);
@@ -46,12 +46,12 @@ public sealed class SendGridEmailAdapterTests
         HttpStatusCode status,
         DeliveryFailureKind expectedKind)
     {
-        var client = new Mock<ISendGridClient>();
+        Mock<ISendGridClient> client = new Mock<ISendGridClient>();
         client.Setup(x => x.SendEmailAsync(It.IsAny<SendGridMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response(status, "raw provider secret"));
-        var adapter = CreateAdapter(client.Object);
+        SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
-        var exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+        EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
             adapter.SendAsync(Request()));
 
         Assert.AreEqual(expectedKind, exception.FailureKind);
@@ -63,12 +63,12 @@ public sealed class SendGridEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_PropagatesCallerCancellation()
     {
-        using var source = new CancellationTokenSource();
+        using CancellationTokenSource source = new CancellationTokenSource();
         source.Cancel();
-        var client = new Mock<ISendGridClient>();
+        Mock<ISendGridClient> client = new Mock<ISendGridClient>();
         client.Setup(x => x.SendEmailAsync(It.IsAny<SendGridMessage>(), source.Token))
             .ThrowsAsync(new OperationCanceledException(source.Token));
-        var adapter = CreateAdapter(client.Object);
+        SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             adapter.SendAsync(Request(), source.Token));
@@ -77,12 +77,12 @@ public sealed class SendGridEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_NetworkFailureIsTransientAndSafe()
     {
-        var client = new Mock<ISendGridClient>();
+        Mock<ISendGridClient> client = new Mock<ISendGridClient>();
         client.Setup(x => x.SendEmailAsync(It.IsAny<SendGridMessage>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("raw network secret"));
-        var adapter = CreateAdapter(client.Object);
+        SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
-        var exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+        EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
             adapter.SendAsync(Request()));
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
@@ -92,10 +92,10 @@ public sealed class SendGridEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_AcceptsAnySuccessfulStatus()
     {
-        var client = new Mock<ISendGridClient>();
+        Mock<ISendGridClient> client = new Mock<ISendGridClient>();
         client.Setup(x => x.SendEmailAsync(It.IsAny<SendGridMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response(HttpStatusCode.OK));
-        var adapter = CreateAdapter(client.Object);
+        SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
         await adapter.SendAsync(Request());
     }
@@ -103,15 +103,15 @@ public sealed class SendGridEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_ThrottleResponseCarriesRetryAfter()
     {
-        var client = new Mock<ISendGridClient>();
+        Mock<ISendGridClient> client = new Mock<ISendGridClient>();
         client.Setup(x => x.SendEmailAsync(It.IsAny<SendGridMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response(
                 (HttpStatusCode)429,
                 configureHeaders: headers => headers.RetryAfter = new RetryConditionHeaderValue(
                     TimeSpan.FromSeconds(75))));
-        var adapter = CreateAdapter(client.Object);
+        SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
-        var exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+        EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
             adapter.SendAsync(Request()));
 
         Assert.AreEqual(TimeSpan.FromSeconds(75), exception.RetryAfter);
@@ -120,12 +120,12 @@ public sealed class SendGridEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_MissingConfigurationFailsBeforeProviderCall()
     {
-        var client = new Mock<ISendGridClient>(MockBehavior.Strict);
-        var factory = new Mock<ISendGridClientFactory>();
+        Mock<ISendGridClient> client = new Mock<ISendGridClient>(MockBehavior.Strict);
+        Mock<ISendGridClientFactory> factory = new Mock<ISendGridClientFactory>();
         factory.Setup(x => x.Create(string.Empty)).Returns(client.Object);
-        var adapter = new SendGridEmailAdapter(factory.Object, new SendGridMailOptions());
+        SendGridEmailAdapter adapter = new SendGridEmailAdapter(factory.Object, new SendGridMailOptions());
 
-        var exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+        EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
             adapter.SendAsync(Request()));
 
         Assert.AreEqual(DeliveryFailureKind.Configuration, exception.FailureKind);
@@ -135,12 +135,12 @@ public sealed class SendGridEmailAdapterTests
     [TestMethod]
     public async Task Constructor_CreatesAndReusesOneClient()
     {
-        var client = new Mock<ISendGridClient>();
+        Mock<ISendGridClient> client = new Mock<ISendGridClient>();
         client.Setup(x => x.SendEmailAsync(It.IsAny<SendGridMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response(HttpStatusCode.Accepted));
-        var factory = new Mock<ISendGridClientFactory>();
+        Mock<ISendGridClientFactory> factory = new Mock<ISendGridClientFactory>();
         factory.Setup(x => x.Create("api-key")).Returns(client.Object);
-        var adapter = new SendGridEmailAdapter(factory.Object, Options());
+        SendGridEmailAdapter adapter = new SendGridEmailAdapter(factory.Object, Options());
 
         await adapter.SendAsync(Request());
         await adapter.SendAsync(Request());
@@ -154,11 +154,11 @@ public sealed class SendGridEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_DisposesProviderResponseBody()
     {
-        var content = new TrackingContent();
-        var client = new Mock<ISendGridClient>();
+        TrackingContent content = new TrackingContent();
+        Mock<ISendGridClient> client = new Mock<ISendGridClient>();
         client.Setup(x => x.SendEmailAsync(It.IsAny<SendGridMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response(HttpStatusCode.Accepted, content: content));
-        var adapter = CreateAdapter(client.Object);
+        SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
         await adapter.SendAsync(Request());
 
@@ -167,7 +167,7 @@ public sealed class SendGridEmailAdapterTests
 
     private static SendGridEmailAdapter CreateAdapter(ISendGridClient client)
     {
-        var factory = new Mock<ISendGridClientFactory>();
+        Mock<ISendGridClientFactory> factory = new Mock<ISendGridClientFactory>();
         factory.Setup(x => x.Create("api-key")).Returns(client);
         return new SendGridEmailAdapter(factory.Object, Options());
     }
@@ -189,7 +189,7 @@ public sealed class SendGridEmailAdapterTests
         Action<HttpResponseHeaders>? configureHeaders = null,
         HttpContent? content = null)
     {
-        var message = new HttpResponseMessage(status);
+        HttpResponseMessage message = new HttpResponseMessage(status);
         HttpResponseHeaders headers = message.Headers;
         configureHeaders?.Invoke(headers);
         return new Response(status, content ?? new StringContent(body), headers);

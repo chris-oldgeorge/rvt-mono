@@ -93,7 +93,7 @@ public sealed class CommonPackageBoundaryTests
     [TestMethod]
     public void ActiveConsumers_MatchApprovedRvtSourceReferenceMatrix()
     {
-        var violations = ExpectedSourceReferences
+        string[] violations = ExpectedSourceReferences
             .SelectMany(pair => ValidateSourceReferenceMatrix(pair.Key, pair.Value))
             .Concat(FindActiveRvtPackageReferences())
             .Order(StringComparer.Ordinal)
@@ -105,7 +105,7 @@ public sealed class CommonPackageBoundaryTests
     [TestMethod]
     public void ActiveConsumerLocks_DoNotRetainDirectRvtPackages()
     {
-        var violations = ExpectedSourceReferences.Keys
+        string[] violations = ExpectedSourceReferences.Keys
             .Where(project => project.StartsWith("apps/monitors/", StringComparison.Ordinal))
             .Select(project => Path.ChangeExtension(project, null)!)
             .Select(project => Path.Combine(Path.GetDirectoryName(project)!, "packages.lock.json"))
@@ -119,8 +119,8 @@ public sealed class CommonPackageBoundaryTests
     [TestMethod]
     public void MonitorCentralPackageManagement_DoesNotBindRvtPackages()
     {
-        var props = XDocument.Load(Path.Combine(RepositoryLayout.Root, "apps/monitors/Directory.Packages.props"));
-        var rvtBindings = props.Descendants()
+        XDocument props = XDocument.Load(Path.Combine(RepositoryLayout.Root, "apps/monitors/Directory.Packages.props"));
+        string?[] rvtBindings = props.Descendants()
             .Where(element => element.Name.LocalName == "PackageVersion")
             .Select(element => (string?)element.Attribute("Include"))
             .Where(IsRvtPackageId)
@@ -133,7 +133,7 @@ public sealed class CommonPackageBoundaryTests
     [TestMethod]
     public void InternalRvtProjects_AreSourceOnly()
     {
-        var violations = RvtSourceProjects
+        string[] violations = RvtSourceProjects
             .Select(path => (Path: path, Project: XDocument.Load(Path.Combine(RepositoryLayout.Root, path))))
             .Where(item => !item.Project.Descendants()
                 .Any(element => element.Name.LocalName == "IsPackable" &&
@@ -149,14 +149,14 @@ public sealed class CommonPackageBoundaryTests
     public void NuGetConfiguration_UsesOnlyNuGetOrgWithoutInternalFeedsOrCredentials()
     {
         string root = RepositoryLayout.Root;
-        foreach (var relative in new[]
+        foreach (string? relative in new[]
                  {
                      "apps/monitors/NuGet.config",
                      "apps/portal/NuGet.config",
                      "libs/rvt-monitor-common/NuGet.config"
                  })
         {
-            var contents = File.ReadAllText(Path.Combine(root, relative));
+            string contents = File.ReadAllText(Path.Combine(root, relative));
             Assert.Contains("nuget.org", contents, $"{relative} must preserve nuget.org.");
             Assert.DoesNotContain("github.com", contents, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("packageSourceCredentials", contents, StringComparison.OrdinalIgnoreCase);
@@ -169,7 +169,7 @@ public sealed class CommonPackageBoundaryTests
     [TestMethod]
     public void ConsumerTestProjects_ExplicitlyDeclareIsTestProject()
     {
-        var violations = ExpectedSourceReferences.Keys
+        string[] violations = ExpectedSourceReferences.Keys
             .Where(path => Path.GetFileNameWithoutExtension(path).EndsWith("Tests", StringComparison.Ordinal))
             .Where(path => !HasSingleUnconditionalTestProjectDeclaration(
                 XDocument.Load(Path.Combine(RepositoryLayout.Root, path))))
@@ -193,7 +193,7 @@ public sealed class CommonPackageBoundaryTests
         string fixtureName,
         string projectContents)
     {
-        var project = XDocument.Parse(projectContents);
+        XDocument project = XDocument.Parse(projectContents);
         Assert.IsFalse(
             HasSingleUnconditionalTestProjectDeclaration(project),
             $"{fixtureName} must not satisfy the explicit test-project declaration policy.");
@@ -202,7 +202,7 @@ public sealed class CommonPackageBoundaryTests
     [TestMethod]
     public void MigrationDocumentation_UsesCheckedInMonorepoPostgreSqlMigrationPaths()
     {
-        var readme = File.ReadAllText(
+        string readme = File.ReadAllText(
             Path.Combine(RepositoryLayout.Root, "docs/modules/monitors/myatmmonitor/README.md"));
 
         Assert.DoesNotContain("gh run download", readme);
@@ -219,9 +219,9 @@ public sealed class CommonPackageBoundaryTests
         IReadOnlyCollection<string> expectedReferences)
     {
         string root = RepositoryLayout.Root;
-        var projectPath = Path.Combine(root, relativeProjectPath);
-        var project = XDocument.Load(projectPath);
-        var actualReferences = project.Descendants()
+        string projectPath = Path.Combine(root, relativeProjectPath);
+        XDocument project = XDocument.Load(projectPath);
+        string[] actualReferences = project.Descendants()
             .Where(element => element.Name.LocalName == "ProjectReference")
             .Select(element => (string?)element.Attribute("Include"))
             .Where(include => !string.IsNullOrWhiteSpace(include))
@@ -229,7 +229,7 @@ public sealed class CommonPackageBoundaryTests
             .Where(reference => RvtSourceProjects.Contains(reference, StringComparer.Ordinal))
             .Order(StringComparer.Ordinal)
             .ToArray();
-        var expected = expectedReferences.Order(StringComparer.Ordinal).ToArray();
+        string[] expected = expectedReferences.Order(StringComparer.Ordinal).ToArray();
 
         if (!actualReferences.SequenceEqual(expected, StringComparer.Ordinal))
         {
@@ -241,16 +241,16 @@ public sealed class CommonPackageBoundaryTests
     private static IEnumerable<string> FindActiveRvtPackageReferences()
     {
         string root = RepositoryLayout.Root;
-        foreach (var scope in new[] { "apps/monitors", "apps/portal" })
+        foreach (string? scope in new[] { "apps/monitors", "apps/portal" })
         {
-            foreach (var projectPath in Directory.EnumerateFiles(
+            foreach (string? projectPath in Directory.EnumerateFiles(
                          Path.Combine(root, scope),
                          "*.csproj",
                          SearchOption.AllDirectories)
                      .Where(path => !HasGeneratedDirectory(root, path)))
             {
-                var project = XDocument.Load(projectPath);
-                foreach (var package in project.Descendants()
+                XDocument project = XDocument.Load(projectPath);
+                foreach (string? package in project.Descendants()
                              .Where(element => element.Name.LocalName == "PackageReference")
                              .Select(element => (string?)element.Attribute("Include"))
                              .Where(IsRvtPackageId))
@@ -270,12 +270,12 @@ public sealed class CommonPackageBoundaryTests
             yield break;
         }
 
-        using var document = JsonDocument.Parse(File.ReadAllText(lockPath));
-        foreach (var framework in document.RootElement.GetProperty("dependencies").EnumerateObject())
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(lockPath));
+        foreach (JsonProperty framework in document.RootElement.GetProperty("dependencies").EnumerateObject())
         {
-            foreach (var package in framework.Value.EnumerateObject()
+            foreach (JsonProperty package in framework.Value.EnumerateObject()
                          .Where(package => IsRvtPackageId(package.Name))
-                         .Where(package => package.Value.TryGetProperty("type", out var type) &&
+                         .Where(package => package.Value.TryGetProperty("type", out JsonElement type) &&
                              string.Equals(type.GetString(), "Direct", StringComparison.OrdinalIgnoreCase)))
             {
                 yield return
@@ -286,7 +286,7 @@ public sealed class CommonPackageBoundaryTests
 
     private static bool HasSingleUnconditionalTestProjectDeclaration(XDocument project)
     {
-        var declarations = project.Descendants()
+        XElement[] declarations = project.Descendants()
             .Where(element => element.Name.LocalName == "IsTestProject")
             .ToArray();
         if (declarations.Length != 1)
@@ -294,8 +294,8 @@ public sealed class CommonPackageBoundaryTests
             return false;
         }
 
-        var declaration = declarations[0];
-        var propertyGroup = declaration.Parent;
+        XElement declaration = declarations[0];
+        XElement? propertyGroup = declaration.Parent;
         return propertyGroup?.Name.LocalName == "PropertyGroup" &&
             propertyGroup.Parent == project.Root &&
             propertyGroup.Attribute("Condition") is null &&
@@ -305,7 +305,7 @@ public sealed class CommonPackageBoundaryTests
 
     private static string ResolveProjectReference(string root, string projectPath, string include)
     {
-        var absolute = Path.GetFullPath(include.Replace('\\', Path.DirectorySeparatorChar), Path.GetDirectoryName(projectPath)!);
+        string absolute = Path.GetFullPath(include.Replace('\\', Path.DirectorySeparatorChar), Path.GetDirectoryName(projectPath)!);
         return Path.GetRelativePath(root, absolute).Replace('\\', '/');
     }
 
@@ -314,7 +314,7 @@ public sealed class CommonPackageBoundaryTests
 
     private static bool HasGeneratedDirectory(string root, string path)
     {
-        var segments = Path.GetRelativePath(root, path)
+        string[] segments = Path.GetRelativePath(root, path)
             .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
         return segments.Any(segment =>
             segment.Equals("bin", StringComparison.OrdinalIgnoreCase) ||

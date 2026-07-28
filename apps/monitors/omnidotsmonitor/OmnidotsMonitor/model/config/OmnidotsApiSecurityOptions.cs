@@ -64,7 +64,7 @@ internal sealed class OmnidotsApiSecurityOptionsSetup(IConfiguration configurati
         string legacyKey,
         Action<OmnidotsApiSecurityOptions, string> assign)
     {
-        var value = configuration[$"{OmnidotsApiSecurityOptions.SectionName}:{propertyName}"];
+        string? value = configuration[$"{OmnidotsApiSecurityOptions.SectionName}:{propertyName}"];
         if (string.IsNullOrWhiteSpace(value))
         {
             value = GetLegacyValue(legacyKey);
@@ -82,7 +82,7 @@ internal sealed class OmnidotsApiSecurityOptionsSetup(IConfiguration configurati
         string? legacyKey,
         Action<OmnidotsApiSecurityOptions, int> assign)
     {
-        var value = configuration[$"{OmnidotsApiSecurityOptions.SectionName}:{propertyName}"];
+        string? value = configuration[$"{OmnidotsApiSecurityOptions.SectionName}:{propertyName}"];
         if (value is null && legacyKey is not null)
         {
             value = GetLegacyValue(legacyKey);
@@ -92,7 +92,7 @@ internal sealed class OmnidotsApiSecurityOptionsSetup(IConfiguration configurati
         {
             assign(
                 options,
-                int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+                int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
                     ? parsed
                     : 0);
         }

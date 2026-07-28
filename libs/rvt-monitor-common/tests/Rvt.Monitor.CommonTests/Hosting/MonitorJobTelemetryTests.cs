@@ -9,11 +9,11 @@ public sealed class MonitorJobTelemetryTests
     [TestMethod]
     public async Task ExecuteAsync_LogsJobStartAndCompletion()
     {
-        using var loggerProvider = new CapturingLoggerProvider();
-        using var loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
-        var logger = loggerFactory.CreateLogger("test");
+        using CapturingLoggerProvider loggerProvider = new CapturingLoggerProvider();
+        using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
+        ILogger logger = loggerFactory.CreateLogger("test");
 
-        var exitCode = await MonitorJobTelemetry.ExecuteAsync(
+        int exitCode = await MonitorJobTelemetry.ExecuteAsync(
             "MyAtmMonitor",
             "StoreMonitors",
             "one-shot",
@@ -28,11 +28,11 @@ public sealed class MonitorJobTelemetryTests
     [TestMethod]
     public async Task ExecuteAsync_LogsJobFailureWhenExitCodeIsNonZero()
     {
-        using var loggerProvider = new CapturingLoggerProvider();
-        using var loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
-        var logger = loggerFactory.CreateLogger("test");
+        using CapturingLoggerProvider loggerProvider = new CapturingLoggerProvider();
+        using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
+        ILogger logger = loggerFactory.CreateLogger("test");
 
-        var exitCode = await MonitorJobTelemetry.ExecuteAsync(
+        int exitCode = await MonitorJobTelemetry.ExecuteAsync(
             "SvantekMonitor",
             "StoreNoiseLevels",
             "quartz",

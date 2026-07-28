@@ -7,12 +7,12 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
-using RVT.Entities;
 using RVT.BusinessLogic.Application;
 using RVT.BusinessLogic.Application.Paging;
-using RVT.DataAccess.Context;
 using RVT.BusinessLogic.Reports;
+using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
+using RVT.Entities;
 using RvtPortal.Application.Identity;
 
 namespace RvtPortal.Spa.Application.ReportRules;
@@ -92,7 +92,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             return ApplicationResult<PagedResult<ReportRuleListModel>>.Success(await QueryRulesFromTableAsync(request, cancellationToken));
         }
 
-        var query = searchContext.ReportRuleSearches.AsNoTracking();
+        IQueryable<ReportRuleSearch> query = searchContext.ReportRuleSearches.AsNoTracking();
         if (request.SiteId.HasValue)
         {
             query = query.Where(rule => rule.SiteId == request.SiteId.Value);
@@ -103,8 +103,8 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             query = ApplySearch(query, request.Page.SearchText);
         }
 
-        var total = await query.CountAsync(cancellationToken);
-        var rows = await ApplySort(query, request.Page.Sort, request.Page.SortDir)
+        int total = await query.CountAsync(cancellationToken);
+        List<ReportRuleSearch> rows = await ApplySort(query, request.Page.Sort, request.Page.SortDir)
             .Skip((request.Page.Page - 1) * request.Page.PageSize)
             .Take(request.Page.PageSize)
             .ToListAsync(cancellationToken);
@@ -128,7 +128,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
     public async Task<ApplicationResult<ReportRuleDetailModel>> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        var rule = await searchContext.ReportRules
+        ReportRule? rule = await searchContext.ReportRules
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == id && !item.Deleted, cancellationToken);
         return rule == null
@@ -138,13 +138,13 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
     public async Task<ApplicationResult<ReportRuleDetailModel>> CreateAsync(PortalUserContext user, ReportRuleMutation request, CancellationToken cancellationToken)
     {
-        var validationErrors = await ValidateRuleRequestAsync(request, cancellationToken);
+        List<ApplicationError> validationErrors = await ValidateRuleRequestAsync(request, cancellationToken);
         if (validationErrors.Count > 0)
         {
             return ApplicationResult<ReportRuleDetailModel>.Validation(validationErrors.ToArray());
         }
 
-        var rule = new ReportRule
+        ReportRule rule = new ReportRule
         {
             SiteId = request.SiteId,
             UserId = user.UserId ?? Guid.Empty,
@@ -162,13 +162,13 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
     public async Task<ApplicationResult<ReportRuleDetailModel>> UpdateAsync(PortalUserContext user, Guid id, ReportRuleMutation request, CancellationToken cancellationToken)
     {
-        var rule = await searchContext.ReportRules.SingleOrDefaultAsync(item => item.Id == id && !item.Deleted, cancellationToken);
+        ReportRule? rule = await searchContext.ReportRules.SingleOrDefaultAsync(item => item.Id == id && !item.Deleted, cancellationToken);
         if (rule == null)
         {
             return ApplicationResult<ReportRuleDetailModel>.NotFound($"Report rule '{id}' was not found.");
         }
 
-        var validationErrors = await ValidateRuleRequestAsync(request, cancellationToken);
+        List<ApplicationError> validationErrors = await ValidateRuleRequestAsync(request, cancellationToken);
         if (validationErrors.Count > 0)
         {
             return ApplicationResult<ReportRuleDetailModel>.Validation(validationErrors.ToArray());
@@ -188,7 +188,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
     public async Task<ApplicationResult<Guid>> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        var rule = await searchContext.ReportRules.SingleOrDefaultAsync(item => item.Id == id && !item.Deleted, cancellationToken);
+        ReportRule? rule = await searchContext.ReportRules.SingleOrDefaultAsync(item => item.Id == id && !item.Deleted, cancellationToken);
         if (rule == null)
         {
             return ApplicationResult<Guid>.NotFound($"Report rule '{id}' was not found.");
@@ -201,7 +201,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
     public async Task<ApplicationResult<ReportUserAssignmentModel>> GetUsersAsync(Guid id, CancellationToken cancellationToken)
     {
-        var response = await BuildAssignmentResponseAsync(id, cancellationToken);
+        ReportUserAssignmentModel? response = await BuildAssignmentResponseAsync(id, cancellationToken);
         return response == null
             ? ApplicationResult<ReportUserAssignmentModel>.NotFound($"Report rule '{id}' was not found.")
             : ApplicationResult<ReportUserAssignmentModel>.Success(response);
@@ -213,16 +213,16 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         bool assigned,
         CancellationToken cancellationToken)
     {
-        var assignments = await BuildAssignmentResponseAsync(id, cancellationToken);
+        ReportUserAssignmentModel? assignments = await BuildAssignmentResponseAsync(id, cancellationToken);
         if (assignments == null)
         {
             return ApplicationResult<ReportUserQueryResult>.NotFound($"Report rule '{id}' was not found.");
         }
 
-        var users = assigned ? assignments.AssignedUsers : assignments.AvailableUsers;
+        List<ReportUserListModel> users = assigned ? assignments.AssignedUsers : assignments.AvailableUsers;
         if (!string.IsNullOrWhiteSpace(page.SearchText))
         {
-            var search = page.SearchText.Trim();
+            string search = page.SearchText.Trim();
             users = users
                 .Where(user =>
                     Contains(user.Email, search) ||
@@ -232,8 +232,8 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
                 .ToList();
         }
 
-        var sortedUsers = ApplyUserSort(users, page.Sort, page.SortDir).ToList();
-        var total = sortedUsers.Count;
+        List<ReportUserListModel> sortedUsers = ApplyUserSort(users, page.Sort, page.SortDir).ToList();
+        int total = sortedUsers.Count;
         return ApplicationResult<ReportUserQueryResult>.Success(new ReportUserQueryResult
         {
             ReportRuleId = id,
@@ -257,19 +257,19 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
     public async Task<ApplicationResult<ReportUserAssignmentModel>> AddUserAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
-        var rule = await searchContext.ReportRules.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && !item.Deleted, cancellationToken);
+        ReportRule? rule = await searchContext.ReportRules.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && !item.Deleted, cancellationToken);
         if (rule == null)
         {
             return ApplicationResult<ReportUserAssignmentModel>.NotFound($"Report rule '{id}' was not found.");
         }
 
-        var errors = await ValidateReportUserAsync(rule, userId, cancellationToken);
+        List<ApplicationError> errors = await ValidateReportUserAsync(rule, userId, cancellationToken);
         if (errors.Count > 0)
         {
             return ApplicationResult<ReportUserAssignmentModel>.Validation(errors.ToArray());
         }
 
-        var exists = await searchContext.ReportUsers.AnyAsync(item => item.ReportRuleId == id && item.UserId == userId, cancellationToken);
+        bool exists = await searchContext.ReportUsers.AnyAsync(item => item.ReportRuleId == id && item.UserId == userId, cancellationToken);
         if (!exists)
         {
             searchContext.ReportUsers.Add(new ReportUser
@@ -285,13 +285,13 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
     public async Task<ApplicationResult<ReportUserAssignmentModel>> RemoveUserAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
-        var ruleExists = await searchContext.ReportRules.AsNoTracking().AnyAsync(item => item.Id == id && !item.Deleted, cancellationToken);
+        bool ruleExists = await searchContext.ReportRules.AsNoTracking().AnyAsync(item => item.Id == id && !item.Deleted, cancellationToken);
         if (!ruleExists)
         {
             return ApplicationResult<ReportUserAssignmentModel>.NotFound($"Report rule '{id}' was not found.");
         }
 
-        var assignments = await searchContext.ReportUsers
+        List<ReportUser> assignments = await searchContext.ReportUsers
             .Where(item => item.ReportRuleId == id && item.UserId == userId)
             .ToListAsync(cancellationToken);
         if (assignments.Count > 0)
@@ -308,7 +308,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         ReportGenerationRequestModel request,
         CancellationToken cancellationToken)
     {
-        var exists = await searchContext.ReportRules
+        bool exists = await searchContext.ReportRules
             .AsNoTracking()
             .AnyAsync(rule => rule.Id == id && !rule.Deleted, cancellationToken);
         return exists
@@ -322,7 +322,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]
     private async Task<PagedResult<ReportRuleListModel>> QueryRulesFromTableAsync(ReportRuleQuery request, CancellationToken cancellationToken)
     {
-        var query = searchContext.ReportRules
+        IQueryable<ReportRule> query = searchContext.ReportRules
             .AsNoTracking()
             .Where(rule => !rule.Deleted);
 
@@ -333,25 +333,25 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
         if (!string.IsNullOrWhiteSpace(request.Page.SearchText))
         {
-            var search = request.Page.SearchText.Trim().ToLower();
-            var matchingSiteIds = await domainContext.Sites
+            string search = request.Page.SearchText.Trim().ToLower();
+            List<Guid> matchingSiteIds = await domainContext.Sites
                 .AsNoTracking()
                 .Where(site => site.SiteName.ToLower().Contains(search))
                 .Select(site => site.Id)
                 .ToListAsync(cancellationToken);
-            var frequencyMatches = MatchingFrequencies(search).ToArray();
+            ReportFrequencyType[] frequencyMatches = MatchingFrequencies(search).ToArray();
             query = query.Where(rule =>
                 (rule.ReportName != null && rule.ReportName.ToLower().Contains(search)) ||
                 matchingSiteIds.Contains(rule.SiteId) ||
                 frequencyMatches.Contains(rule.Frequency));
         }
 
-        var total = await query.CountAsync(cancellationToken);
-        var pageRows = await ApplySort(query, request.Page.Sort, request.Page.SortDir)
+        int total = await query.CountAsync(cancellationToken);
+        List<ReportRule> pageRows = await ApplySort(query, request.Page.Sort, request.Page.SortDir)
             .Skip((request.Page.Page - 1) * request.Page.PageSize)
             .Take(request.Page.PageSize)
             .ToListAsync(cancellationToken);
-        var siteNames = await BuildSiteNamesAsync(pageRows.Select(rule => rule.SiteId), cancellationToken);
+        Dictionary<Guid, string> siteNames = await BuildSiteNamesAsync(pageRows.Select(rule => rule.SiteId), cancellationToken);
 
         return new PagedResult<ReportRuleListModel>
         {
@@ -368,9 +368,9 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Builds report-rule detail data and option lists.
     private async Task<ReportRuleDetailModel> BuildRuleDetailAsync(ReportRule rule, CancellationToken cancellationToken)
     {
-        var siteNames = await BuildSiteNamesAsync([rule.SiteId], cancellationToken);
-        var item = BuildRuleItem(rule, siteNames);
-        var options = await BuildOptionsAsync(cancellationToken);
+        Dictionary<Guid, string> siteNames = await BuildSiteNamesAsync([rule.SiteId], cancellationToken);
+        ReportRuleListModel item = BuildRuleItem(rule, siteNames);
+        ReportRuleOptionsModel options = await BuildOptionsAsync(cancellationToken);
         EnsureCurrentSiteOption(options.Sites, item);
         return new ReportRuleDetailModel
         {
@@ -395,7 +395,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Keeps an archived current site selectable in edit forms while preventing new selection.
     private static void EnsureCurrentSiteOption(List<ReportRuleOptionModel> sites, ReportRuleListModel item)
     {
-        var selectedSiteId = item.SiteId.ToString();
+        string selectedSiteId = item.SiteId.ToString();
         if (sites.Any(site => string.Equals(site.Value, selectedSiteId, StringComparison.OrdinalIgnoreCase)))
         {
             return;
@@ -407,7 +407,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Builds the options used by report-rule editors and wizards.
     private async Task<ReportRuleOptionsModel> BuildOptionsAsync(CancellationToken cancellationToken)
     {
-        var sites = await domainContext.Sites
+        List<ReportRuleOptionModel> sites = await domainContext.Sites
             .AsNoTracking()
             .Where(site => !site.Archived)
             .OrderBy(site => site.SiteName)
@@ -448,7 +448,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Validates report-rule mutations before persistence.
     private async Task<List<ApplicationError>> ValidateRuleRequestAsync(ReportRuleMutation request, CancellationToken cancellationToken)
     {
-        var errors = new List<ApplicationError>();
+        List<ApplicationError> errors = new List<ApplicationError>();
         if (!SupportedFrequencies.Contains(request.Frequency))
         {
             errors.Add(new ApplicationError(nameof(ReportRuleMutation.Frequency), "Frequency is not valid for scheduled report rules."));
@@ -494,7 +494,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Builds the full assignment model used by report-recipient summary and grids.
     private async Task<ReportUserAssignmentModel?> BuildAssignmentResponseAsync(Guid reportRuleId, CancellationToken cancellationToken)
     {
-        var rule = await searchContext.ReportRules
+        ReportRule? rule = await searchContext.ReportRules
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == reportRuleId && !item.Deleted, cancellationToken);
         if (rule == null)
@@ -502,7 +502,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             return null;
         }
 
-        var site = await domainContext.Sites
+        Site? site = await domainContext.Sites
             .AsNoTracking()
             .Include(item => item.Contracts)
             .ThenInclude(contract => contract.Company)
@@ -512,16 +512,16 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             return null;
         }
 
-        var company = site.Contracts?
+        Company? company = site.Contracts?
             .Select(contract => contract.Company)
             .FirstOrDefault(item => item != null);
-        var assignments = await searchContext.ReportUsers
+        List<ReportUser> assignments = await searchContext.ReportUsers
             .AsNoTracking()
             .Where(item => item.ReportRuleId == reportRuleId)
             .ToListAsync(cancellationToken);
-        var assignedUserIds = assignments.Select(item => item.UserId).ToHashSet();
-        var candidates = await BuildReportCandidateUsersAsync(rule, assignedUserIds, cancellationToken);
-        var candidateItems = await BuildUserItemsAsync(candidates, cancellationToken);
+        HashSet<Guid> assignedUserIds = assignments.Select(item => item.UserId).ToHashSet();
+        List<PortalUserProfile> candidates = await BuildReportCandidateUsersAsync(rule, assignedUserIds, cancellationToken);
+        List<ReportUserListModel> candidateItems = await BuildUserItemsAsync(candidates, cancellationToken);
 
         return new ReportUserAssignmentModel
         {
@@ -541,16 +541,16 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         IReadOnlySet<Guid> assignedUserIds,
         CancellationToken cancellationToken)
     {
-        var activeSiteUserIds = await domainContext.SiteUsers
+        List<Guid> activeSiteUserIds = await domainContext.SiteUsers
             .AsNoTracking()
             .Where(siteUser => siteUser.SiteId == rule.SiteId && siteUser.EndDate == null)
             .Select(siteUser => siteUser.UserId)
             .ToListAsync(cancellationToken);
-        var visibleUserIds = activeSiteUserIds.Concat(assignedUserIds).ToHashSet();
-        var users = await userDirectory.ListUsersAsync(cancellationToken);
-        var candidates = new List<PortalUserProfile>();
+        HashSet<Guid> visibleUserIds = activeSiteUserIds.Concat(assignedUserIds).ToHashSet();
+        IReadOnlyList<PortalUserProfile> users = await userDirectory.ListUsersAsync(cancellationToken);
+        List<PortalUserProfile> candidates = new List<PortalUserProfile>();
 
-        foreach (var user in users)
+        foreach (PortalUserProfile user in users)
         {
             if (user.IsInRole(PortalRoleNames.RVTMasterAdmin) ||
                 user.IsInRole(PortalRoleNames.RVTAdmin) ||
@@ -570,19 +570,19 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         IReadOnlyList<PortalUserProfile> users,
         CancellationToken cancellationToken)
     {
-        var companyIds = users
+        List<Guid> companyIds = users
             .Where(user => user.CompanyId.HasValue)
             .Select(user => user.CompanyId!.Value)
             .Distinct()
             .ToList();
-        var companies = companyIds.Count == 0
+        Dictionary<Guid, string> companies = companyIds.Count == 0
             ? []
             : await domainContext.Companies
                 .AsNoTracking()
                 .Where(company => companyIds.Contains(company.Id))
                 .ToDictionaryAsync(company => company.Id, company => company.CompanyName, cancellationToken);
-        var userIds = users.Select(user => user.UserId).ToList();
-        var siteCounts = userIds.Count == 0
+        List<Guid> userIds = users.Select(user => user.UserId).ToList();
+        Dictionary<Guid, int> siteCounts = userIds.Count == 0
             ? []
             : await domainContext.SiteUsers
                 .AsNoTracking()
@@ -591,21 +591,21 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
                 .Select(group => new { UserId = group.Key, Count = group.Count() })
                 .ToDictionaryAsync(item => item.UserId, item => item.Count, cancellationToken);
 
-        var items = new List<ReportUserListModel>();
-        foreach (var user in users)
+        List<ReportUserListModel> items = new List<ReportUserListModel>();
+        foreach (PortalUserProfile user in users)
         {
-            var role = user.PrimaryRole;
+            string role = user.PrimaryRole;
             items.Add(new ReportUserListModel(
                 user.UserIdText,
                 user.CompanyId,
-                user.CompanyId.HasValue && companies.TryGetValue(user.CompanyId.Value, out var companyName) ? companyName : null,
+                user.CompanyId.HasValue && companies.TryGetValue(user.CompanyId.Value, out string? companyName) ? companyName : null,
                 user.IsDisabled,
                 user.Name,
                 user.Email,
                 user.PhoneNumber,
                 user.CompanyRole,
                 role,
-                siteCounts.TryGetValue(user.UserId, out var siteCount) ? siteCount : 0,
+                siteCounts.TryGetValue(user.UserId, out int siteCount) ? siteCount : 0,
                 user.EmailConfirmed,
                 true,
                 false,
@@ -626,8 +626,8 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         Guid userId,
         CancellationToken cancellationToken)
     {
-        var errors = new List<ApplicationError>();
-        var user = await userDirectory.FindByIdAsync(userId, cancellationToken);
+        List<ApplicationError> errors = new List<ApplicationError>();
+        PortalUserProfile? user = await userDirectory.FindByIdAsync(userId, cancellationToken);
         if (user == null)
         {
             errors.Add(new ApplicationError("UserId", "User was not found."));
@@ -659,7 +659,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         return new ReportRuleListModel(
             rule.Id,
             rule.SiteId,
-            siteNames.TryGetValue(rule.SiteId, out var siteName) ? siteName : "Unknown site",
+            siteNames.TryGetValue(rule.SiteId, out string? siteName) ? siteName : "Unknown site",
             rule.Frequency,
             FrequencyLabel(rule.Frequency),
             rule.DayOfWeek,
@@ -688,7 +688,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Builds site display names keyed by id.
     private async Task<Dictionary<Guid, string>> BuildSiteNamesAsync(IEnumerable<Guid> siteIds, CancellationToken cancellationToken)
     {
-        var ids = siteIds.Distinct().ToList();
+        List<Guid> ids = siteIds.Distinct().ToList();
         if (ids.Count == 0)
         {
             return [];
@@ -706,8 +706,8 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]
     private static IQueryable<ReportRuleSearch> ApplySearch(IQueryable<ReportRuleSearch> rules, string searchText)
     {
-        var search = searchText.Trim().ToLower();
-        var frequencyMatches = MatchingFrequencies(search).ToArray();
+        string search = searchText.Trim().ToLower();
+        ReportFrequencyType[] frequencyMatches = MatchingFrequencies(search).ToArray();
         return rules.Where(rule =>
             (rule.ReportName != null && rule.ReportName.ToLower().Contains(search)) ||
             rule.SiteName.ToLower().Contains(search) ||
@@ -717,7 +717,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Applies database-side sorting for report-rule search rows.
     private static IOrderedQueryable<ReportRuleSearch> ApplySort(IQueryable<ReportRuleSearch> rules, string sort, string direction)
     {
-        var descending = string.Equals(direction, PageSortDirections.Descending, StringComparison.OrdinalIgnoreCase);
+        bool descending = string.Equals(direction, PageSortDirections.Descending, StringComparison.OrdinalIgnoreCase);
         return sort.ToLowerInvariant() switch
         {
             "reportname" => descending ? rules.OrderByDescending(rule => rule.ReportName) : rules.OrderBy(rule => rule.ReportName),
@@ -732,7 +732,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Applies database-side sorting for persisted report rules.
     private static IOrderedQueryable<ReportRule> ApplySort(IQueryable<ReportRule> rules, string sort, string direction)
     {
-        var descending = string.Equals(direction, PageSortDirections.Descending, StringComparison.OrdinalIgnoreCase);
+        bool descending = string.Equals(direction, PageSortDirections.Descending, StringComparison.OrdinalIgnoreCase);
         return sort.ToLowerInvariant() switch
         {
             "reportname" => descending ? rules.OrderByDescending(rule => rule.ReportName) : rules.OrderBy(rule => rule.ReportName),
@@ -753,7 +753,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Applies report-recipient grid sorting.
     private static IEnumerable<ReportUserListModel> ApplyUserSort(IEnumerable<ReportUserListModel> users, string sort, string direction)
     {
-        var descending = string.Equals(direction, PageSortDirections.Descending, StringComparison.OrdinalIgnoreCase);
+        bool descending = string.Equals(direction, PageSortDirections.Descending, StringComparison.OrdinalIgnoreCase);
         return sort.ToLowerInvariant() switch
         {
             "name" => descending ? users.OrderByDescending(user => user.Name) : users.OrderBy(user => user.Name),

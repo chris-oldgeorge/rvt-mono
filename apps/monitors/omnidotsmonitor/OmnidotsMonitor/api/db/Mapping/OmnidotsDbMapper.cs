@@ -42,7 +42,7 @@ public static partial class OmnidotsDbMapper
 
     public static MonitorEntity ToMonitorEntity(VibrationMonitorDto dto)
     {
-        var entity = new MonitorEntity { Id = dto.Id };
+        MonitorEntity entity = new MonitorEntity { Id = dto.Id };
         UpdateMonitorEntity(entity, dto);
         return entity;
     }
@@ -121,14 +121,14 @@ public static partial class OmnidotsDbMapper
 
     public static OmnidotsVeffLevelEntity ToVeffLevelEntity(string serialId, VeffRecordDto dto)
     {
-        var entity = ToVeffLevelEntity(dto);
+        OmnidotsVeffLevelEntity entity = ToVeffLevelEntity(dto);
         entity.SerialId = serialId;
         return entity;
     }
 
     public static OmnidotsVdvLevelEntity ToVdvLevelEntity(string serialId, VdvRecordDto dto)
     {
-        var entity = ToVdvLevelEntity(dto);
+        OmnidotsVdvLevelEntity entity = ToVdvLevelEntity(dto);
         entity.SerialId = serialId;
         return entity;
     }

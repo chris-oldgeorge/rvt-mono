@@ -33,21 +33,21 @@ namespace Svantek.Api.UseCases
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogDebug("StoreMonitors reading projects API");
-            var projects = await gateway.GetProjectsAsync(cancellationToken).ConfigureAwait(false);
+            List<Project> projects = await gateway.GetProjectsAsync(cancellationToken).ConfigureAwait(false);
             RvtLogger.Logger.LogDebug("StoreMonitors reading stations API");
-            var stations = await gateway.GetStationsAsync(cancellationToken).ConfigureAwait(false);
-            var failures = new SvantekFailureCollector(operationalCommands);
+            List<Station> stations = await gateway.GetStationsAsync(cancellationToken).ConfigureAwait(false);
+            SvantekFailureCollector failures = new SvantekFailureCollector(operationalCommands);
 
-            foreach (var project in projects)
+            foreach (Project project in projects)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var identifier = $"StoreMonitors project {project.id}";
+                string identifier = $"StoreMonitors project {project.id}";
                 try
                 {
-                    var dtos = new List<NoiseMonitorDto>();
-                    foreach (var projectStation in project.stations)
+                    List<NoiseMonitorDto> dtos = new List<NoiseMonitorDto>();
+                    foreach (ProjectStation projectStation in project.stations)
                     {
-                        var station = stations.FirstOrDefault(x => x.serial.ToString() == projectStation.serial);
+                        Station? station = stations.FirstOrDefault(x => x.serial.ToString() == projectStation.serial);
                         if (station == null)
                         {
                             RvtLogger.Logger.LogDebug(

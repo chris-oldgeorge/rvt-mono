@@ -7,12 +7,12 @@
 // - 2026-06-09 pending Applied canonical EF mappings to search/report/measurement models after DBR cutover.
 // - 2026-06-25 pending Added monitor measurement removal-impact view mapping for consolidated count lookups.
 
+using System;
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using RVT.DataAccess.Configuration;
 using RVT.DataAccess.EntityModels.Models;
-using System;
-using System.Collections.Generic;
 
 namespace RVT.DataAccess.Context;
 
@@ -107,8 +107,8 @@ public partial class RVTSearchContext : DbContext
     // Function summary: Handles the on model creating workflow for this module.
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        var dateTimeColumnType = IsPostgres() ? "timestamp without time zone" : "datetime";
-        var guidDefaultSql = IsPostgres() ? "gen_random_uuid()" : "(newid())";
+        string dateTimeColumnType = IsPostgres() ? "timestamp without time zone" : "datetime";
+        string guidDefaultSql = IsPostgres() ? "gen_random_uuid()" : "(newid())";
 
         modelBuilder.Entity<AdminDashboardDatum>(entity =>
         {

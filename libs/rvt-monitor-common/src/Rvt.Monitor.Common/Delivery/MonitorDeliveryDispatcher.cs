@@ -39,7 +39,7 @@ public sealed class MonitorDeliveryDispatcher
 
     public async Task DispatchDueAsync(CancellationToken cancellationToken = default)
     {
-        var failures = new List<Exception>();
+        List<Exception> failures = new List<Exception>();
         for (int index = 0; index < options.BatchSize; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -73,7 +73,7 @@ public sealed class MonitorDeliveryDispatcher
             MonitorDeliveryAudit? audit;
             try
             {
-                using var deliveryCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                using CancellationTokenSource deliveryCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 deliveryCancellation.CancelAfter(options.DeliveryTimeout);
                 audit = await DeliverAsync(message, payload, deliveryCancellation.Token).ConfigureAwait(false);
             }

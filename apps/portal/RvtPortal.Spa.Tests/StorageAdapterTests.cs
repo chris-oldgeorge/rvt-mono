@@ -2,6 +2,7 @@
 // Major updates:
 // - 2026-07-08 pending Added failed-replacement coverage for customer-logo storage.
 
+using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
@@ -22,11 +23,11 @@ public sealed class StorageAdapterTests
     // Function summary: Verifies both supported storage authentication modes create container clients through one factory.
     public void BlobStorageClientFactory_CreatesContainerClientForConfiguredStorageMode(string key, string value)
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { [key] = value })
             .Build();
 
-        var container = new BlobStorageClientFactory(configuration).CreateContainerClient("site-archives");
+        BlobContainerClient? container = new BlobStorageClientFactory(configuration).CreateContainerClient("site-archives");
 
         Assert.NotNull(container);
         Assert.EndsWith("/site-archives", container.Uri.AbsoluteUri, StringComparison.Ordinal);
@@ -35,12 +36,12 @@ public sealed class StorageAdapterTests
     [Fact]
     public async Task SiteLogoAdapter_MapsStorageContractsAndValidation()
     {
-        var storage = new RecordingCustomerLogoStorage();
-        var adapter = new SiteLogoAdapter(storage);
-        var siteId = Guid.NewGuid();
-        await using var content = new MemoryStream(PngPayload(1, 2, 3));
+        RecordingCustomerLogoStorage storage = new RecordingCustomerLogoStorage();
+        SiteLogoAdapter adapter = new SiteLogoAdapter(storage);
+        Guid siteId = Guid.NewGuid();
+        await using MemoryStream content = new MemoryStream(PngPayload(1, 2, 3));
 
-        var invalid = await adapter.SaveAsync(
+        SiteLogoSaveResult invalid = await adapter.SaveAsync(
             siteId,
             new SiteLogoUpload(
                 content,
@@ -57,7 +58,7 @@ public sealed class StorageAdapterTests
         Assert.True(content.CanRead);
         Assert.True(await adapter.ExistsAsync(siteId, CancellationToken.None));
 
-        var file = await adapter.OpenReadAsync(siteId, CancellationToken.None);
+        SiteLogoFile? file = await adapter.OpenReadAsync(siteId, CancellationToken.None);
         Assert.NotNull(file);
         Assert.Same(storage.StoredStream, file.Content);
         Assert.Equal("image/png", file.ContentType);
@@ -68,12 +69,12 @@ public sealed class StorageAdapterTests
     // Function summary: Verifies failed logo replacement keeps the previously stored logo intact.
     public async Task CustomerLogoStorage_PreservesExistingLogoWhenReplacementCopyFails()
     {
-        var contentRoot = Path.Combine(Path.GetTempPath(), $"rvt-logo-storage-{Guid.NewGuid():N}");
+        string contentRoot = Path.Combine(Path.GetTempPath(), $"rvt-logo-storage-{Guid.NewGuid():N}");
         try
         {
-            var siteId = Guid.NewGuid();
-            var storage = new CustomerLogoStorage(new TestWebHostEnvironment(contentRoot));
-            var originalBytes = PngPayload(1, 2, 3, 4);
+            Guid siteId = Guid.NewGuid();
+            CustomerLogoStorage storage = new CustomerLogoStorage(new TestWebHostEnvironment(contentRoot));
+            byte[] originalBytes = PngPayload(1, 2, 3, 4);
             await storage.SaveAsync(
                 siteId,
                 new MemoryUploadedContent("old-logo.png", "image/png", originalBytes),
@@ -84,10 +85,10 @@ public sealed class StorageAdapterTests
                 new ThrowingUploadedContent("new-logo.png", "image/png", PngPayload(9, 8, 7, 6)),
                 CancellationToken.None));
 
-            var stored = await storage.OpenReadAsync(siteId, CancellationToken.None);
+            StoredContentFile? stored = await storage.OpenReadAsync(siteId, CancellationToken.None);
             Assert.NotNull(stored);
-            await using var storedStream = stored.Stream;
-            using var buffer = new MemoryStream();
+            await using Stream storedStream = stored.Stream;
+            using MemoryStream buffer = new MemoryStream();
             await storedStream.CopyToAsync(buffer);
             Assert.Equal(originalBytes, buffer.ToArray());
         }

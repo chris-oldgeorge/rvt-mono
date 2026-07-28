@@ -10,8 +10,8 @@ public sealed class MonitorDeliveryIdentityTests
     [TestMethod]
     public void CreateGuid_PreservesMyAtmSha256Identity()
     {
-        var actual = MonitorDeliveryIdentity.CreateGuid("notification:fixture-key");
-        var expected = new Guid(SHA256.HashData(Encoding.UTF8.GetBytes("notification:fixture-key"))[..16]);
+        Guid actual = MonitorDeliveryIdentity.CreateGuid("notification:fixture-key");
+        Guid expected = new Guid(SHA256.HashData(Encoding.UTF8.GetBytes("notification:fixture-key"))[..16]);
 
         Assert.AreEqual(expected, actual);
     }
@@ -19,8 +19,8 @@ public sealed class MonitorDeliveryIdentityTests
     [TestMethod]
     public void CreateGuid_IsDeterministic()
     {
-        var first = MonitorDeliveryIdentity.CreateGuid("delivery:fixture-key");
-        var second = MonitorDeliveryIdentity.CreateGuid("delivery:fixture-key");
+        Guid first = MonitorDeliveryIdentity.CreateGuid("delivery:fixture-key");
+        Guid second = MonitorDeliveryIdentity.CreateGuid("delivery:fixture-key");
 
         Assert.AreEqual(first, second);
     }

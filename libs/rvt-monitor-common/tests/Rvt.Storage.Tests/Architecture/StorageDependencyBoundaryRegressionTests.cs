@@ -9,7 +9,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
     [TestMethod]
     public void ProjectDependencyReader_RecognizesUpdateAndHonorsRemove()
     {
-        var project = XDocument.Parse(
+        XDocument project = XDocument.Parse(
             """
             <Project>
               <ItemGroup>
@@ -21,7 +21,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
             </Project>
             """);
 
-        var identities = ProjectDependencyReader.ReadActiveIdentities(
+        IReadOnlyCollection<string> identities = ProjectDependencyReader.ReadActiveIdentities(
             project,
             "PackageReference");
 
@@ -44,7 +44,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
             }
             """;
 
-        var analysis = CSharpDependencyAnalyzer.Analyze(source);
+        CSharpDependencyAnalysis analysis = CSharpDependencyAnalyzer.Analyze(source);
 
         Assert.IsFalse(analysis.UsesDependency("Amazon."));
         Assert.IsFalse(analysis.UsesDependency("Azure."));
@@ -61,7 +61,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
             internal sealed class Sample;
             """;
 
-        var analysis = CSharpDependencyAnalyzer.Analyze(source);
+        CSharpDependencyAnalysis analysis = CSharpDependencyAnalyzer.Analyze(source);
 
         Assert.IsTrue(analysis.UsesDependency("Amazon."));
     }
@@ -81,7 +81,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
             }
             """;
 
-        var analysis = CSharpDependencyAnalyzer.Analyze(source);
+        CSharpDependencyAnalysis analysis = CSharpDependencyAnalyzer.Analyze(source);
 
         Assert.IsTrue(analysis.UsesDependency("Azure.Storage.Blobs"));
         Assert.IsTrue(analysis.UsesDependency("System.IO.File"));
@@ -100,7 +100,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
             }
             """;
 
-        var analysis = CSharpDependencyAnalyzer.Analyze(source);
+        CSharpDependencyAnalysis analysis = CSharpDependencyAnalyzer.Analyze(source);
 
         Assert.IsTrue(analysis.UsesDependency("System.IO.File"));
     }
@@ -108,7 +108,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
     [TestMethod]
     public void SourceAnalyzer_ResolvesGlobalAliasesAcrossSourceFiles()
     {
-        var sources = new Dictionary<string, string>(StringComparer.Ordinal)
+        Dictionary<string, string> sources = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["GlobalUsings.cs"] = "global using IO = System.IO;",
             ["Consumer.cs"] =
@@ -121,7 +121,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
                 """,
         };
 
-        var analysis = CSharpDependencyAnalyzer.AnalyzeProject(sources);
+        CSharpDependencyAnalysis analysis = CSharpDependencyAnalyzer.AnalyzeProject(sources);
 
         Assert.IsTrue(analysis.UsesDependency("System.IO.File"));
     }
@@ -143,7 +143,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
             }
             """;
 
-        var analysis = CSharpDependencyAnalyzer.Analyze(source);
+        CSharpDependencyAnalysis analysis = CSharpDependencyAnalyzer.Analyze(source);
 
         Assert.IsFalse(analysis.UsesDependency("System.IO.File"));
         Assert.IsFalse(analysis.UsesDependency("System.IO.Directory"));
@@ -157,8 +157,8 @@ internal static class ProjectDependencyReader
         XDocument project,
         string itemName)
     {
-        var activeIdentities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var element in project
+        HashSet<string> activeIdentities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (XElement? element in project
                      .Descendants()
                      .Where(element => element.Name.LocalName == itemName))
         {
@@ -180,7 +180,7 @@ internal static class ProjectDependencyReader
             return;
         }
 
-        foreach (var identity in value.Split(
+        foreach (string identity in value.Split(
                      ';',
                      StringSplitOptions.RemoveEmptyEntries
                      | StringSplitOptions.TrimEntries))
@@ -252,13 +252,13 @@ internal static class CSharpDependencyAnalyzer
         IReadOnlyDictionary<string, string> sources)
     {
         ArgumentNullException.ThrowIfNull(sources);
-        var sanitizedSources = sources
+        Dictionary<string, string> sanitizedSources = sources
             .OrderBy(source => source.Key, StringComparer.Ordinal)
             .ToDictionary(
                 source => source.Key,
                 source => Sanitize(source.Value),
                 StringComparer.Ordinal);
-        var aliases = sanitizedSources
+        AliasDefinition[] aliases = sanitizedSources
             .SelectMany(source => AliasUsingPattern
                 .Matches(source.Value)
                 .Select(match => new AliasDefinition(
@@ -267,26 +267,26 @@ internal static class CSharpDependencyAnalyzer
                     match.Groups["global"].Success,
                     source.Key)))
             .ToArray();
-        var globalAliases = aliases
+        Dictionary<string, string> globalAliases = aliases
             .Where(alias => alias.IsGlobal)
             .ToDictionary(
                 alias => alias.Name,
                 alias => alias.Target,
                 StringComparer.Ordinal);
-        var declaredTypes = sanitizedSources.Values
+        HashSet<string> declaredTypes = sanitizedSources.Values
             .SelectMany(source => DeclaredTypePattern
                 .Matches(source)
                 .Select(match => match.Groups["name"].Value))
             .ToHashSet(StringComparer.Ordinal);
-        var filesByDependency = new Dictionary<string, HashSet<string>>(
+        Dictionary<string, HashSet<string>> filesByDependency = new Dictionary<string, HashSet<string>>(
             StringComparer.Ordinal);
 
-        foreach (var source in sanitizedSources)
+        foreach (KeyValuePair<string, string> source in sanitizedSources)
         {
-            var sourceAliases = new Dictionary<string, string>(
+            Dictionary<string, string> sourceAliases = new Dictionary<string, string>(
                 globalAliases,
                 StringComparer.Ordinal);
-            foreach (var alias in aliases.Where(alias =>
+            foreach (AliasDefinition? alias in aliases.Where(alias =>
                          alias.SourcePath.Equals(
                              source.Key,
                              StringComparison.Ordinal)))
@@ -305,12 +305,12 @@ internal static class CSharpDependencyAnalyzer
 
             foreach (Match match in QualifiedNamePattern.Matches(source.Value))
             {
-                var dependency = NormalizeName(match.Groups["name"].Value);
-                var separator = dependency.IndexOf('.');
+                string dependency = NormalizeName(match.Groups["name"].Value);
+                int separator = dependency.IndexOf('.');
                 if (separator > 0
                     && sourceAliases.TryGetValue(
                         dependency[..separator],
-                        out var aliasTarget))
+                        out string? aliasTarget))
                 {
                     dependency = aliasTarget + dependency[separator..];
                 }
@@ -318,7 +318,7 @@ internal static class CSharpDependencyAnalyzer
                 RecordDependency(dependency, source.Key, filesByDependency);
             }
 
-            foreach (var implicitType in ImplicitSystemIoTypes)
+            foreach (string implicitType in ImplicitSystemIoTypes)
             {
                 if (!declaredTypes.Contains(implicitType)
                     && Regex.IsMatch(
@@ -351,7 +351,7 @@ internal static class CSharpDependencyAnalyzer
             return;
         }
 
-        if (!filesByDependency.TryGetValue(dependency, out var sourceFiles))
+        if (!filesByDependency.TryGetValue(dependency, out HashSet<string>? sourceFiles))
         {
             sourceFiles = new HashSet<string>(StringComparer.Ordinal);
             filesByDependency.Add(dependency, sourceFiles);
@@ -370,7 +370,7 @@ internal static class CSharpDependencyAnalyzer
 
     private static string Sanitize(string source)
     {
-        var sanitized = source.ToCharArray();
+        char[] sanitized = source.ToCharArray();
         SanitizeCode(source, sanitized, 0, stopAtClosingBrace: false);
         return new string(sanitized);
     }
@@ -381,8 +381,8 @@ internal static class CSharpDependencyAnalyzer
         int start,
         bool stopAtClosingBrace)
     {
-        var braceDepth = 0;
-        for (var index = start; index < source.Length;)
+        int braceDepth = 0;
+        for (int index = start; index < source.Length;)
         {
             if (stopAtClosingBrace && source[index] == '}')
             {
@@ -407,7 +407,7 @@ internal static class CSharpDependencyAnalyzer
                 && index + 1 < source.Length
                 && source[index + 1] == '/')
             {
-                var end = source.IndexOf('\n', index + 2);
+                int end = source.IndexOf('\n', index + 2);
                 end = end < 0 ? source.Length : end;
                 Blank(sanitized, index, end);
                 index = end;
@@ -418,7 +418,7 @@ internal static class CSharpDependencyAnalyzer
                 && index + 1 < source.Length
                 && source[index + 1] == '*')
             {
-                var end = source.IndexOf(
+                int end = source.IndexOf(
                     "*/",
                     index + 2,
                     StringComparison.Ordinal);
@@ -431,10 +431,10 @@ internal static class CSharpDependencyAnalyzer
             if (TryGetStringStart(
                     source,
                     index,
-                    out var quoteIndex,
-                    out var verbatim,
-                    out var interpolated,
-                    out var quoteCount))
+                    out int quoteIndex,
+                    out bool verbatim,
+                    out bool interpolated,
+                    out int quoteCount))
             {
                 index = interpolated && quoteCount == 1
                     ? SanitizeInterpolatedString(
@@ -473,11 +473,11 @@ internal static class CSharpDependencyAnalyzer
         bool verbatim)
     {
         Blank(sanitized, start, quoteIndex + 1);
-        for (var index = quoteIndex + 1; index < source.Length;)
+        for (int index = quoteIndex + 1; index < source.Length;)
         {
             if (!verbatim && source[index] == '\\')
             {
-                var end = Math.Min(index + 2, source.Length);
+                int end = Math.Min(index + 2, source.Length);
                 Blank(sanitized, index, end);
                 index = end;
                 continue;
@@ -508,7 +508,7 @@ internal static class CSharpDependencyAnalyzer
                 }
 
                 Blank(sanitized, index, index + 1);
-                var closingBrace = SanitizeCode(
+                int closingBrace = SanitizeCode(
                     source,
                     sanitized,
                     index + 1,
@@ -549,19 +549,19 @@ internal static class CSharpDependencyAnalyzer
     {
         if (quoteCount >= 3)
         {
-            var terminator = new string('"', quoteCount);
-            var closing = source.IndexOf(
+            string terminator = new string('"', quoteCount);
+            int closing = source.IndexOf(
                 terminator,
                 quoteIndex + quoteCount,
                 StringComparison.Ordinal);
-            var end = closing < 0
+            int end = closing < 0
                 ? source.Length
                 : closing + quoteCount;
             Blank(sanitized, start, end);
             return end;
         }
 
-        for (var index = quoteIndex + 1; index < source.Length; index++)
+        for (int index = quoteIndex + 1; index < source.Length; index++)
         {
             if (!verbatim && source[index] == '\\')
             {
@@ -582,7 +582,7 @@ internal static class CSharpDependencyAnalyzer
                 continue;
             }
 
-            var end = index + 1;
+            int end = index + 1;
             Blank(sanitized, start, end);
             return end;
         }
@@ -596,7 +596,7 @@ internal static class CSharpDependencyAnalyzer
         char[] sanitized,
         int start)
     {
-        for (var index = start + 1; index < source.Length; index++)
+        for (int index = start + 1; index < source.Length; index++)
         {
             if (source[index] == '\\')
             {
@@ -606,7 +606,7 @@ internal static class CSharpDependencyAnalyzer
 
             if (source[index] == '\'')
             {
-                var end = index + 1;
+                int end = index + 1;
                 Blank(sanitized, start, end);
                 return end;
             }
@@ -675,7 +675,7 @@ internal static class CSharpDependencyAnalyzer
 
     private static void Blank(char[] value, int start, int end)
     {
-        for (var index = start; index < end; index++)
+        for (int index = start; index < end; index++)
         {
             if (value[index] is not ('\r' or '\n'))
             {

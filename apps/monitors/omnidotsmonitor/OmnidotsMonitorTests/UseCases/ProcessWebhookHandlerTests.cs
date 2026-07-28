@@ -16,9 +16,9 @@ public sealed class ProcessWebhookHandlerTests
     [TestMethod]
     public void PublicSurface_ContainsOnlyByteRunAsyncAndFocusedDependencies()
     {
-        var methods = typeof(ProcessWebhookHandler).GetMethods(
+        MethodInfo[] methods = typeof(ProcessWebhookHandler).GetMethods(
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-        var constructors = typeof(ProcessWebhookHandler).GetConstructors();
+        ConstructorInfo[] constructors = typeof(ProcessWebhookHandler).GetConstructors();
 
         Assert.HasCount(1, methods);
         Assert.AreEqual(nameof(ProcessWebhookHandler.RunAsync), methods[0].Name);
@@ -38,9 +38,9 @@ public sealed class ProcessWebhookHandlerTests
     [TestMethod]
     public async Task RunAsync_AuthenticatesOriginalBytesAndPassesExactDigestToIngress()
     {
-        var ingress = new CapturingIngress();
-        var handler = CreateHandler(ingress);
-        var body = ValidBody();
+        CapturingIngress ingress = new CapturingIngress();
+        ProcessWebhookHandler handler = CreateHandler(ingress);
+        byte[] body = ValidBody();
 
         await handler.RunAsync(body, Signature(body));
 
@@ -51,10 +51,10 @@ public sealed class ProcessWebhookHandlerTests
     [TestMethod]
     public async Task RunAsync_AuthenticatedBom_RemovesExactlyOneBomAfterAuthentication()
     {
-        var ingress = new CapturingIngress();
-        var handler = CreateHandler(ingress);
-        var json = ValidBody();
-        var body = Encoding.UTF8.GetPreamble().Concat(json).ToArray();
+        CapturingIngress ingress = new CapturingIngress();
+        ProcessWebhookHandler handler = CreateHandler(ingress);
+        byte[] json = ValidBody();
+        byte[] body = Encoding.UTF8.GetPreamble().Concat(json).ToArray();
 
         await handler.RunAsync(body, Signature(body));
 
@@ -65,10 +65,10 @@ public sealed class ProcessWebhookHandlerTests
     [TestMethod]
     public async Task RunAsync_TwoAuthenticatedBoms_RemovesOnlyOneAndRejectsJson()
     {
-        var ingress = new CapturingIngress();
-        var handler = CreateHandler(ingress);
-        var preamble = Encoding.UTF8.GetPreamble();
-        var body = preamble.Concat(preamble).Concat(ValidBody()).ToArray();
+        CapturingIngress ingress = new CapturingIngress();
+        ProcessWebhookHandler handler = CreateHandler(ingress);
+        byte[] preamble = Encoding.UTF8.GetPreamble();
+        byte[] body = preamble.Concat(preamble).Concat(ValidBody()).ToArray();
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
             handler.RunAsync(body, Signature(body)));
@@ -79,8 +79,8 @@ public sealed class ProcessWebhookHandlerTests
     [TestMethod]
     public async Task RunAsync_AuthenticatedInvalidUtf8_RejectsBeforeIngress()
     {
-        var ingress = new CapturingIngress();
-        var handler = CreateHandler(ingress);
+        CapturingIngress ingress = new CapturingIngress();
+        ProcessWebhookHandler handler = CreateHandler(ingress);
         byte[] body = [0x7b, 0x22, 0x64, 0x61, 0x74, 0x61, 0x22, 0x3a, 0xff, 0x7d];
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
@@ -92,11 +92,11 @@ public sealed class ProcessWebhookHandlerTests
     [TestMethod]
     public async Task RunAsync_MutatedBytesFailAuthenticationBeforeParsingOrIngress()
     {
-        var ingress = new CapturingIngress();
-        var handler = CreateHandler(ingress);
-        var original = ValidBody();
-        var signature = Signature(original);
-        var mutated = original.ToArray();
+        CapturingIngress ingress = new CapturingIngress();
+        ProcessWebhookHandler handler = CreateHandler(ingress);
+        byte[] original = ValidBody();
+        string signature = Signature(original);
+        byte[] mutated = original.ToArray();
         mutated[^2] = mutated[^2] == (byte)'3' ? (byte)'4' : (byte)'3';
 
         await Assert.ThrowsExactlyAsync<OmnidotsWebhookAuthenticationException>(() =>
@@ -108,14 +108,14 @@ public sealed class ProcessWebhookHandlerTests
     [TestMethod]
     public async Task RunAsync_CancellationFromIngressPropagatesWithOriginalToken()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var ingress = new CapturingIngress((_, token) =>
+        CapturingIngress ingress = new CapturingIngress((_, token) =>
             Task.FromCanceled<AlertIngressResult>(token));
-        var handler = CreateHandler(ingress);
-        var body = ValidBody();
+        ProcessWebhookHandler handler = CreateHandler(ingress);
+        byte[] body = ValidBody();
 
-        var exception = await Assert.ThrowsExactlyAsync<TaskCanceledException>(() =>
+        TaskCanceledException exception = await Assert.ThrowsExactlyAsync<TaskCanceledException>(() =>
             handler.RunAsync(body, Signature(body), cancellation.Token));
 
         Assert.AreEqual(cancellation.Token, exception.CancellationToken);
@@ -125,16 +125,16 @@ public sealed class ProcessWebhookHandlerTests
     [TestMethod]
     public async Task RunAsync_DurableDuplicate_ReturnsIngressResultUnchanged()
     {
-        var duplicate = new AlertIngressResult(
+        AlertIngressResult duplicate = new AlertIngressResult(
             Guid.NewGuid(),
             Guid.NewGuid(),
             AlertOccurrenceOutcome.Accepted,
             IsDuplicate: true);
-        var ingress = new CapturingIngress((_, _) => Task.FromResult(duplicate));
-        var handler = CreateHandler(ingress);
-        var body = ValidBody();
+        CapturingIngress ingress = new CapturingIngress((_, _) => Task.FromResult(duplicate));
+        ProcessWebhookHandler handler = CreateHandler(ingress);
+        byte[] body = ValidBody();
 
-        var result = await handler.RunAsync(body, Signature(body));
+        AlertIngressResult result = await handler.RunAsync(body, Signature(body));
 
         Assert.AreSame(duplicate, result);
     }
@@ -142,15 +142,15 @@ public sealed class ProcessWebhookHandlerTests
     [TestMethod]
     public async Task RunAsync_InvalidDirectSecurityOptions_FailsClosedBeforeIngress()
     {
-        var ingress = new CapturingIngress();
-        var options = ValidOptions();
+        CapturingIngress ingress = new CapturingIngress();
+        OmnidotsApiSecurityOptions options = ValidOptions();
         options.NotificationDelayMinutes = 0;
-        var handler = new ProcessWebhookHandler(
+        ProcessWebhookHandler handler = new ProcessWebhookHandler(
             ingress,
             new OmnidotsAlarmTranslator(),
             options,
             new OmnidotsWebhookSignatureValidator());
-        var body = ValidBody();
+        byte[] body = ValidBody();
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
             handler.RunAsync(body, Signature(body)));
@@ -180,7 +180,7 @@ public sealed class ProcessWebhookHandlerTests
 
     private static string Signature(ReadOnlySpan<byte> body)
     {
-        var digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), body);
+        byte[] digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), body);
         return $"sha256={Convert.ToHexStringLower(digest)}";
     }
 

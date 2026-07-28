@@ -17,8 +17,8 @@ public sealed class DurableAlertOptionsTests
     [TestMethod]
     public void Defaults_AreTheApprovedDurableDeliveryValues()
     {
-        var options = new DurableAlertOptions();
-        var sectionNameField = typeof(DurableAlertOptions).GetField(
+        DurableAlertOptions options = new DurableAlertOptions();
+        FieldInfo? sectionNameField = typeof(DurableAlertOptions).GetField(
             nameof(DurableAlertOptions.SectionName),
             BindingFlags.Public | BindingFlags.Static);
 
@@ -48,10 +48,10 @@ public sealed class DurableAlertOptionsTests
     [DataRow(nameof(DurableAlertOptions.CompletedRetentionDays))]
     public void Validator_RejectsNonpositiveNumericValues(string propertyName)
     {
-        var options = new DurableAlertOptions();
+        DurableAlertOptions options = new DurableAlertOptions();
         typeof(DurableAlertOptions).GetProperty(propertyName)!.SetValue(options, 0);
 
-        var result = new DurableAlertOptionsValidator().Validate(null, options);
+        ValidateOptionsResult result = new DurableAlertOptionsValidator().Validate(null, options);
 
         Assert.IsTrue(result.Failed);
         Assert.IsTrue(result.Failures.Any(failure => failure.Contains(propertyName, StringComparison.Ordinal)));
@@ -60,7 +60,7 @@ public sealed class DurableAlertOptionsTests
     [TestMethod]
     public void Validator_RejectsNegativeNumericValues()
     {
-        var propertyNames = new[]
+        string[] propertyNames = new[]
         {
             nameof(DurableAlertOptions.BatchSize),
             nameof(DurableAlertOptions.LeaseSeconds),
@@ -72,12 +72,12 @@ public sealed class DurableAlertOptionsTests
             nameof(DurableAlertOptions.CompletedRetentionDays)
         };
 
-        foreach (var propertyName in propertyNames)
+        foreach (string? propertyName in propertyNames)
         {
-            var options = new DurableAlertOptions();
+            DurableAlertOptions options = new DurableAlertOptions();
             typeof(DurableAlertOptions).GetProperty(propertyName)!.SetValue(options, -1);
 
-            var result = new DurableAlertOptionsValidator().Validate(null, options);
+            ValidateOptionsResult result = new DurableAlertOptionsValidator().Validate(null, options);
 
             Assert.IsTrue(result.Failed, propertyName);
         }
@@ -88,7 +88,7 @@ public sealed class DurableAlertOptionsTests
     [DataRow(121, 120)]
     public void Validator_RejectsTimeoutThatIsNotShorterThanLease(int timeout, int lease)
     {
-        var options = new DurableAlertOptions
+        DurableAlertOptions options = new DurableAlertOptions
         {
             DeliveryTimeoutSeconds = timeout,
             LeaseSeconds = lease
@@ -100,7 +100,7 @@ public sealed class DurableAlertOptionsTests
     [TestMethod]
     public void Validator_RejectsRetryCapBelowInitialDelay()
     {
-        var options = new DurableAlertOptions
+        DurableAlertOptions options = new DurableAlertOptions
         {
             InitialRetrySeconds = 31,
             MaxRetrySeconds = 30
@@ -114,7 +114,7 @@ public sealed class DurableAlertOptionsTests
     [DataRow("relative/path")]
     public void Validator_RejectsMissingOrNonAbsolutePortalBaseUrl(string portalBaseUrl)
     {
-        var options = new DurableAlertOptions { PortalBaseUrl = portalBaseUrl };
+        DurableAlertOptions options = new DurableAlertOptions { PortalBaseUrl = portalBaseUrl };
 
         Assert.IsTrue(new DurableAlertOptionsValidator().Validate(null, options).Failed);
     }
@@ -122,7 +122,7 @@ public sealed class DurableAlertOptionsTests
     [TestMethod]
     public void AddDurableAlerts_BindsValidatesAndRegistersRuntimeWithoutContextFactory()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
 
         services.AddDurableAlerts<TestMonitorContext>();

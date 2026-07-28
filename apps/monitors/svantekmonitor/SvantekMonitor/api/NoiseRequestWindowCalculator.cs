@@ -23,27 +23,27 @@ public sealed class NoiseRequestWindowCalculator
         DateTime? lastStatusTimestamp,
         DateTime utcNow)
     {
-        var normalizedDeployment = NormalizeUtc(deploymentStart);
+        DateTime normalizedDeployment = NormalizeUtc(deploymentStart);
         DateTime? normalizedWatermark = watermark.HasValue ? NormalizeUtc(watermark.Value) : null;
         DateTime? normalizedStatus = lastStatusTimestamp.HasValue ? NormalizeUtc(lastStatusTimestamp.Value) : null;
-        var normalizedNow = NormalizeUtc(utcNow);
+        DateTime normalizedNow = NormalizeUtc(utcNow);
 
-        var start = normalizedWatermark.HasValue
+        DateTime start = normalizedWatermark.HasValue
             ? LaterOf(normalizedDeployment, SaturatingSubtract(normalizedWatermark.Value, options.WatermarkOverlap))
             : LaterOf(normalizedDeployment, SaturatingSubtract(normalizedNow, options.MaximumInitialBackfill));
-        var candidateEnd = normalizedStatus.HasValue
+        DateTime candidateEnd = normalizedStatus.HasValue
             ? SaturatingAdd(normalizedStatus.Value, TimeSpan.FromHours(1))
             : normalizedNow;
-        var end = EarlierOf(candidateEnd, normalizedNow);
+        DateTime end = EarlierOf(candidateEnd, normalizedNow);
         if (end <= start)
         {
             return [];
         }
 
-        var windows = new List<NoiseRequestWindow>();
-        for (var cursor = start; cursor < end;)
+        List<NoiseRequestWindow> windows = new List<NoiseRequestWindow>();
+        for (DateTime cursor = start; cursor < end;)
         {
-            var windowEnd = EarlierOf(SaturatingAdd(cursor, options.MaximumRequestWindow), end);
+            DateTime windowEnd = EarlierOf(SaturatingAdd(cursor, options.MaximumRequestWindow), end);
             windows.Add(new NoiseRequestWindow(cursor, windowEnd));
             cursor = windowEnd;
         }
@@ -67,7 +67,7 @@ public sealed class NoiseRequestWindowCalculator
 
     private static DateTime SaturatingAdd(DateTime value, TimeSpan duration)
     {
-        var remainingTicks = DateTime.MaxValue.Ticks - value.Ticks;
+        long remainingTicks = DateTime.MaxValue.Ticks - value.Ticks;
         return remainingTicks < duration.Ticks
             ? UtcMax
             : new DateTime(value.Ticks + duration.Ticks, DateTimeKind.Utc);
@@ -75,7 +75,7 @@ public sealed class NoiseRequestWindowCalculator
 
     private static DateTime SaturatingSubtract(DateTime value, TimeSpan duration)
     {
-        var availableTicks = value.Ticks - DateTime.MinValue.Ticks;
+        long availableTicks = value.Ticks - DateTime.MinValue.Ticks;
         return availableTicks < duration.Ticks
             ? UtcMin
             : new DateTime(value.Ticks - duration.Ticks, DateTimeKind.Utc);

@@ -25,7 +25,7 @@ public sealed class ReportPeriodCalculator
     {
         ArgumentNullException.ThrowIfNull(rule);
 
-        var triggerDay = triggerUtc.UtcDateTime.Date;
+        DateTime triggerDay = triggerUtc.UtcDateTime.Date;
         DateTime? start = frequency switch
         {
             FrequencyType.Daily => triggerDay.AddDays(-1),
@@ -39,7 +39,7 @@ public sealed class ReportPeriodCalculator
             return null;
         }
 
-        var end = new DateTimeOffset(triggerDay, TimeSpan.Zero).AddMilliseconds(-1);
+        DateTimeOffset end = new DateTimeOffset(triggerDay, TimeSpan.Zero).AddMilliseconds(-1);
         return new ReportPeriod(frequency, new DateTimeOffset(start.Value, TimeSpan.Zero), end);
     }
 
@@ -50,7 +50,7 @@ public sealed class ReportPeriodCalculator
             return null;
         }
 
-        var daysInCurrentMonth = DateTime.DaysInMonth(triggerDay.Year, triggerDay.Month);
+        int daysInCurrentMonth = DateTime.DaysInMonth(triggerDay.Year, triggerDay.Month);
         if (triggerDay.Day == configuredDay)
         {
             return triggerDay.AddMonths(-1);
@@ -61,8 +61,8 @@ public sealed class ReportPeriodCalculator
             return null;
         }
 
-        var previousMonth = triggerDay.AddMonths(-1);
-        var previousMonthDay = Math.Min(DateTime.DaysInMonth(previousMonth.Year, previousMonth.Month), configuredDay);
+        DateTime previousMonth = triggerDay.AddMonths(-1);
+        int previousMonthDay = Math.Min(DateTime.DaysInMonth(previousMonth.Year, previousMonth.Month), configuredDay);
         return new DateTime(previousMonth.Year, previousMonth.Month, previousMonthDay, 0, 0, 0, DateTimeKind.Utc);
     }
 }

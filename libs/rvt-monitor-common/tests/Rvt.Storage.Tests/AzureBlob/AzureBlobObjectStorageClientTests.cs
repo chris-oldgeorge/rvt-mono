@@ -12,13 +12,13 @@ public sealed class AzureBlobObjectStorageClientTests
     [TestMethod]
     public async Task WriteAsync_CreatesContainerAndStreamsOriginalContentWithPrefixAndHeaders()
     {
-        var content = new MemoryStream([1, 2, 3], writable: false);
-        var key = StorageObjectKey.Parse("clips/sample.wav");
-        var cancellationToken = new CancellationTokenSource().Token;
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        MemoryStream content = new MemoryStream([1, 2, 3], writable: false);
+        StorageObjectKey key = StorageObjectKey.Parse("clips/sample.wav");
+        CancellationToken cancellationToken = new CancellationTokenSource().Token;
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         BlobUploadOptions? capturedOptions = null;
-        var sequence = new MockSequence();
+        MockSequence sequence = new MockSequence();
         container
             .InSequence(sequence)
             .Setup(client => client.GetBlobClient("tenant-a/clips/sample.wav"))
@@ -40,9 +40,9 @@ public sealed class AzureBlobObjectStorageClientTests
             .Callback<Stream, BlobUploadOptions, CancellationToken>(
                 (_, options, _) => capturedOptions = options)
             .ReturnsAsync((Response<BlobContentInfo>)null!);
-        var client = CreateClient(container, "tenant-a");
+        AzureBlobObjectStorageClient client = CreateClient(container, "tenant-a");
 
-        var result = await client.WriteAsync(
+        StorageWriteResult result = await client.WriteAsync(
             new StorageWriteRequest(key, content, "audio/wav"),
             cancellationToken);
 
@@ -58,10 +58,10 @@ public sealed class AzureBlobObjectStorageClientTests
     [TestMethod]
     public async Task WriteAsync_WhenContentTypeIsBlank_OmitsHttpHeaders()
     {
-        var content = new MemoryStream([1], writable: false);
-        var key = StorageObjectKey.Parse("sample.wav");
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        MemoryStream content = new MemoryStream([1], writable: false);
+        StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         BlobUploadOptions? capturedOptions = null;
         container
             .Setup(client => client.GetBlobClient("sample.wav"))
@@ -81,7 +81,7 @@ public sealed class AzureBlobObjectStorageClientTests
             .Callback<Stream, BlobUploadOptions, CancellationToken>(
                 (_, options, _) => capturedOptions = options)
             .ReturnsAsync((Response<BlobContentInfo>)null!);
-        var client = CreateClient(container);
+        AzureBlobObjectStorageClient client = CreateClient(container);
 
         await client.WriteAsync(new StorageWriteRequest(key, content, " "));
 
@@ -95,11 +95,11 @@ public sealed class AzureBlobObjectStorageClientTests
     public async Task WriteAsync_WhenProviderCancelsWithoutCallerCancellation_TranslatesUnavailable()
     {
         const string providerMessage = "configured-provider-timeout";
-        var content = new MemoryStream([1], writable: false);
-        var key = StorageObjectKey.Parse("sample.wav");
-        using var cancellation = new CancellationTokenSource();
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        MemoryStream content = new MemoryStream([1], writable: false);
+        StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         container
             .Setup(client => client.GetBlobClient("sample.wav"))
             .Returns(blob.Object);
@@ -116,7 +116,7 @@ public sealed class AzureBlobObjectStorageClientTests
                 It.IsAny<BlobUploadOptions>(),
                 cancellation.Token))
             .ThrowsAsync(new OperationCanceledException(providerMessage));
-        var client = CreateClient(container);
+        AzureBlobObjectStorageClient client = CreateClient(container);
 
         await AssertUnavailableProviderCancellationAsync(
             () => client.WriteAsync(
@@ -132,17 +132,17 @@ public sealed class AzureBlobObjectStorageClientTests
     [TestMethod]
     public async Task OpenReadAsync_ReturnsStreamingContentMetadataAndResponseLease()
     {
-        var content = new MemoryStream([4, 5, 6], writable: false);
-        var key = StorageObjectKey.Parse("sample.wav");
-        var details = BlobsModelFactory.BlobDownloadDetails(
+        MemoryStream content = new MemoryStream([4, 5, 6], writable: false);
+        StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
+        BlobDownloadDetails details = BlobsModelFactory.BlobDownloadDetails(
             contentLength: 3,
             contentType: "audio/wav");
-        var download = BlobsModelFactory.BlobDownloadStreamingResult(content, details);
-        var rawResponse = new Mock<Response>(MockBehavior.Strict);
+        BlobDownloadStreamingResult download = BlobsModelFactory.BlobDownloadStreamingResult(content, details);
+        Mock<Response> rawResponse = new Mock<Response>(MockBehavior.Strict);
         rawResponse.Setup(response => response.Dispose());
-        var response = Response.FromValue(download, rawResponse.Object);
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        Response<BlobDownloadStreamingResult> response = Response.FromValue(download, rawResponse.Object);
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         container
             .Setup(client => client.GetBlobClient("tenant-a/sample.wav"))
             .Returns(blob.Object);
@@ -151,9 +151,9 @@ public sealed class AzureBlobObjectStorageClientTests
                 It.IsAny<BlobDownloadOptions>(),
                 CancellationToken.None))
             .ReturnsAsync(response);
-        var client = CreateClient(container, "tenant-a");
+        AzureBlobObjectStorageClient client = CreateClient(container, "tenant-a");
 
-        var result = await client.OpenReadAsync(key);
+        StorageReadResult? result = await client.OpenReadAsync(key);
 
         Assert.IsNotNull(result);
         Assert.AreSame(content, result.Content);
@@ -169,9 +169,9 @@ public sealed class AzureBlobObjectStorageClientTests
     [TestMethod]
     public async Task OpenReadAsync_WhenAzureReturns404_ReturnsNull()
     {
-        var key = StorageObjectKey.Parse("missing.wav");
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        StorageObjectKey key = StorageObjectKey.Parse("missing.wav");
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         container
             .Setup(client => client.GetBlobClient("missing.wav"))
             .Returns(blob.Object);
@@ -180,9 +180,9 @@ public sealed class AzureBlobObjectStorageClientTests
                 It.IsAny<BlobDownloadOptions>(),
                 CancellationToken.None))
             .ThrowsAsync(new RequestFailedException(404, "provider-body"));
-        var client = CreateClient(container);
+        AzureBlobObjectStorageClient client = CreateClient(container);
 
-        var result = await client.OpenReadAsync(key);
+        StorageReadResult? result = await client.OpenReadAsync(key);
 
         Assert.IsNull(result);
         container.VerifyAll();
@@ -193,10 +193,10 @@ public sealed class AzureBlobObjectStorageClientTests
     public async Task OpenReadAsync_WhenProviderCancelsWithoutCallerCancellation_TranslatesUnavailable()
     {
         const string providerMessage = "configured-provider-timeout";
-        var key = StorageObjectKey.Parse("sample.wav");
-        using var cancellation = new CancellationTokenSource();
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         container
             .Setup(client => client.GetBlobClient("sample.wav"))
             .Returns(blob.Object);
@@ -205,7 +205,7 @@ public sealed class AzureBlobObjectStorageClientTests
                 It.IsAny<BlobDownloadOptions>(),
                 cancellation.Token))
             .ThrowsAsync(new OperationCanceledException(providerMessage));
-        var client = CreateClient(container);
+        AzureBlobObjectStorageClient client = CreateClient(container);
 
         await AssertUnavailableProviderCancellationAsync(
             () => client.OpenReadAsync(key, cancellation.Token),
@@ -219,11 +219,11 @@ public sealed class AzureBlobObjectStorageClientTests
     [TestMethod]
     public async Task DeleteIfExistsAsync_ReturnsAzureResult()
     {
-        var key = StorageObjectKey.Parse("sample.wav");
-        var rawResponse = new Mock<Response>(MockBehavior.Strict);
-        var response = Response.FromValue(true, rawResponse.Object);
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
+        Mock<Response> rawResponse = new Mock<Response>(MockBehavior.Strict);
+        Response<bool> response = Response.FromValue(true, rawResponse.Object);
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         container
             .Setup(client => client.GetBlobClient("sample.wav"))
             .Returns(blob.Object);
@@ -233,9 +233,9 @@ public sealed class AzureBlobObjectStorageClientTests
                 null,
                 CancellationToken.None))
             .ReturnsAsync(response);
-        var client = CreateClient(container);
+        AzureBlobObjectStorageClient client = CreateClient(container);
 
-        var deleted = await client.DeleteIfExistsAsync(key);
+        bool deleted = await client.DeleteIfExistsAsync(key);
 
         Assert.IsTrue(deleted);
         container.VerifyAll();
@@ -246,10 +246,10 @@ public sealed class AzureBlobObjectStorageClientTests
     public async Task DeleteIfExistsAsync_WhenProviderCancelsWithoutCallerCancellation_TranslatesUnavailable()
     {
         const string providerMessage = "configured-provider-timeout";
-        var key = StorageObjectKey.Parse("sample.wav");
-        using var cancellation = new CancellationTokenSource();
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         container
             .Setup(client => client.GetBlobClient("sample.wav"))
             .Returns(blob.Object);
@@ -259,7 +259,7 @@ public sealed class AzureBlobObjectStorageClientTests
                 null,
                 cancellation.Token))
             .ThrowsAsync(new OperationCanceledException(providerMessage));
-        var client = CreateClient(container);
+        AzureBlobObjectStorageClient client = CreateClient(container);
 
         await AssertUnavailableProviderCancellationAsync(
             () => client.DeleteIfExistsAsync(key, cancellation.Token),
@@ -284,9 +284,9 @@ public sealed class AzureBlobObjectStorageClientTests
     {
         const string providerBody = "configured-provider-response-body";
         const string innerText = "configured-inner-exception-text";
-        var key = StorageObjectKey.Parse("sample.wav");
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         container
             .Setup(client => client.GetBlobClient("sample.wav"))
             .Returns(blob.Object);
@@ -300,9 +300,9 @@ public sealed class AzureBlobObjectStorageClientTests
                 providerBody,
                 "ProviderErrorCode",
                 new InvalidOperationException(innerText)));
-        var client = CreateClient(container);
+        AzureBlobObjectStorageClient client = CreateClient(container);
 
-        var exception = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() =>
+        ObjectStorageException exception = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() =>
             client.DeleteIfExistsAsync(key));
 
         Assert.AreEqual(expectedKind, exception.Kind);
@@ -317,11 +317,11 @@ public sealed class AzureBlobObjectStorageClientTests
     [TestMethod]
     public async Task DeleteIfExistsAsync_WhenCallerCancels_PropagatesOperationCanceledException()
     {
-        var key = StorageObjectKey.Parse("sample.wav");
-        using var cancellation = new CancellationTokenSource();
+        StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         container
             .Setup(client => client.GetBlobClient("sample.wav"))
             .Returns(blob.Object);
@@ -331,9 +331,9 @@ public sealed class AzureBlobObjectStorageClientTests
                 null,
                 cancellation.Token))
             .Returns(Task.FromCanceled<Response<bool>>(cancellation.Token));
-        var client = CreateClient(container);
+        AzureBlobObjectStorageClient client = CreateClient(container);
 
-        var exception = await Assert.ThrowsExactlyAsync<TaskCanceledException>(() =>
+        TaskCanceledException exception = await Assert.ThrowsExactlyAsync<TaskCanceledException>(() =>
             client.DeleteIfExistsAsync(key, cancellation.Token));
 
         Assert.AreEqual(cancellation.Token, exception.CancellationToken);
@@ -344,18 +344,18 @@ public sealed class AzureBlobObjectStorageClientTests
     [TestMethod]
     public void GetObjectUri_ReturnsUriFromPrefixedBlobClient()
     {
-        var key = StorageObjectKey.Parse("sample.wav");
-        var expectedUri =
+        StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
+        Uri expectedUri =
             new Uri("https://storage.example.test/recordings/tenant-a/sample.wav");
-        var container = new Mock<BlobContainerClient>(MockBehavior.Strict);
-        var blob = new Mock<BlobClient>(MockBehavior.Strict);
+        Mock<BlobContainerClient> container = new Mock<BlobContainerClient>(MockBehavior.Strict);
+        Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
         container
             .Setup(client => client.GetBlobClient("tenant-a/sample.wav"))
             .Returns(blob.Object);
         blob.SetupGet(client => client.Uri).Returns(expectedUri);
-        var client = CreateClient(container, "tenant-a");
+        AzureBlobObjectStorageClient client = CreateClient(container, "tenant-a");
 
-        var result = client.GetObjectUri(key);
+        Uri result = client.GetObjectUri(key);
 
         Assert.AreEqual(expectedUri, result);
         container.VerifyAll();
@@ -372,7 +372,7 @@ public sealed class AzureBlobObjectStorageClientTests
         StorageObjectKey expectedKey,
         string providerMessage)
     {
-        var exception =
+        ObjectStorageException exception =
             await Assert.ThrowsExactlyAsync<ObjectStorageException>(operation);
 
         Assert.AreEqual(StorageFailureKind.Unavailable, exception.Kind);

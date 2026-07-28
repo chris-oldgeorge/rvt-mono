@@ -14,7 +14,7 @@ public sealed class MyAtmServiceCompositionTests
     [TestMethod]
     public void Constructor_DependsOnFocusedHandlersInsteadOfCompatibilityFacades()
     {
-        var parameterTypes = typeof(MyAtmService)
+        Type[] parameterTypes = typeof(MyAtmService)
             .GetConstructors(BindingFlags.Public | BindingFlags.Instance)
             .Single()
             .GetParameters()

@@ -13,7 +13,7 @@ internal static class MonitorOpenTelemetry
 {
     public static void ConfigureLogging(ILoggingBuilder logging, IConfiguration configuration, string monitorName)
     {
-        var options = MonitorOpenTelemetryOptions.Bind(configuration, monitorName);
+        MonitorOpenTelemetryOptions options = MonitorOpenTelemetryOptions.Bind(configuration, monitorName);
         if (!options.Enabled)
         {
             return;
@@ -32,7 +32,7 @@ internal static class MonitorOpenTelemetry
 
     public static void ConfigureServices(IServiceCollection services, IConfiguration configuration, string monitorName)
     {
-        var options = MonitorOpenTelemetryOptions.Bind(configuration, monitorName);
+        MonitorOpenTelemetryOptions options = MonitorOpenTelemetryOptions.Bind(configuration, monitorName);
         if (!options.Enabled)
         {
             return;

@@ -43,7 +43,7 @@ namespace RVT.DataAccess.Configuration
                 return [];
             }
 
-            var actual = await ReadSchemaAsync(context, cancellationToken);
+            IReadOnlyDictionary<string, IReadOnlySet<string>> actual = await ReadSchemaAsync(context, cancellationToken);
             return Compare(context.Model, actual);
         }
 
@@ -54,27 +54,27 @@ namespace RVT.DataAccess.Configuration
             IModel model,
             IReadOnlyDictionary<string, IReadOnlySet<string>> actualColumnsByRelation)
         {
-            var mismatches = new List<SchemaMismatch>();
+            List<SchemaMismatch> mismatches = new List<SchemaMismatch>();
 
-            foreach (var entityType in model.GetEntityTypes())
+            foreach (IEntityType entityType in model.GetEntityTypes())
             {
-                var store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)
+                StoreObjectIdentifier? store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)
                     ?? StoreObjectIdentifier.Create(entityType, StoreObjectType.View);
                 if (store == null)
                 {
                     continue;
                 }
 
-                var relation = store.Value.Name;
-                if (!actualColumnsByRelation.TryGetValue(relation, out var actualColumns))
+                string relation = store.Value.Name;
+                if (!actualColumnsByRelation.TryGetValue(relation, out IReadOnlySet<string>? actualColumns))
                 {
                     mismatches.Add(new SchemaMismatch(relation, null, "mapped by the model but missing from the database"));
                     continue;
                 }
 
-                foreach (var property in entityType.GetProperties())
+                foreach (IProperty property in entityType.GetProperties())
                 {
-                    var column = property.GetColumnName(store.Value);
+                    string? column = property.GetColumnName(store.Value);
                     if (column != null && !actualColumns.Contains(column))
                     {
                         mismatches.Add(new SchemaMismatch(
@@ -93,8 +93,8 @@ namespace RVT.DataAccess.Configuration
             DbContext context,
             CancellationToken cancellationToken)
         {
-            var connection = context.Database.GetDbConnection();
-            var opened = false;
+            DbConnection connection = context.Database.GetDbConnection();
+            bool opened = false;
             if (connection.State != System.Data.ConnectionState.Open)
             {
                 await connection.OpenAsync(cancellationToken);
@@ -103,21 +103,21 @@ namespace RVT.DataAccess.Configuration
 
             try
             {
-                using var command = connection.CreateCommand();
+                using DbCommand command = connection.CreateCommand();
 
                 // information_schema is ANSI and exposes views alongside tables on both providers, so one query
                 // covers everything the model can map to.
                 command.CommandText =
                     "SELECT table_name, column_name FROM information_schema.columns";
 
-                var result = new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase);
-                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                Dictionary<string, IReadOnlySet<string>> result = new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase);
+                await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
                 while (await reader.ReadAsync(cancellationToken))
                 {
-                    var relation = reader.GetString(0);
-                    var column = reader.GetString(1);
+                    string relation = reader.GetString(0);
+                    string column = reader.GetString(1);
 
-                    if (!result.TryGetValue(relation, out var columns))
+                    if (!result.TryGetValue(relation, out IReadOnlySet<string>? columns))
                     {
                         columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         result[relation] = columns;

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using ReportingMonitor.Api.Db.EntityFramework;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
@@ -11,7 +12,7 @@ public sealed class ReportingModelMappingTests
     [Fact]
     public void Model_MapsReportWritesAndReadViewsToCanonicalPostgreSqlNames()
     {
-        using var context = ReportingContextFactory.CreatePostgreSqlContext();
+        using ReportingMonitorContext context = ReportingContextFactory.CreatePostgreSqlContext();
 
         Assert.Equal("report_rule", context.Model.FindEntityType(typeof(ReportRuleEntity))!.GetTableName());
         Assert.Equal("report", context.Model.FindEntityType(typeof(ReportEntity))!.GetTableName());
@@ -46,7 +47,7 @@ public sealed class ReportingModelMappingTests
     [Fact]
     public void Model_UsesCanonicalDeploymentAndContractOwnershipRelations()
     {
-        using var context = ReportingContextFactory.CreatePostgreSqlContext();
+        using ReportingMonitorContext context = ReportingContextFactory.CreatePostgreSqlContext();
 
         Assert.Contains(context.Model.GetEntityTypes(), entity => entity.GetViewName() == "deployment");
         Assert.Contains(context.Model.GetEntityTypes(), entity => entity.GetViewName() == "contract");
@@ -56,9 +57,9 @@ public sealed class ReportingModelMappingTests
     [Fact]
     public void Model_MapsIdentityColumnsUsingTheirQuotedPhysicalNames()
     {
-        using var context = ReportingContextFactory.CreatePostgreSqlContext();
+        using ReportingMonitorContext context = ReportingContextFactory.CreatePostgreSqlContext();
 
-        var user = context.Model.FindEntityType(typeof(AspNetUserEntity))!;
+        IEntityType user = context.Model.FindEntityType(typeof(AspNetUserEntity))!;
 
         Assert.Equal("AspNetUsers", user.GetTableName());
         Assert.Equal("Id", user.FindProperty(nameof(AspNetUserEntity.Id))!.GetColumnName());
@@ -68,7 +69,7 @@ public sealed class ReportingModelMappingTests
     private static void AssertKeylessReadModel<TEntity>(ReportingMonitorContext context, string canonicalName)
         where TEntity : class
     {
-        var entity = context.Model.FindEntityType(typeof(TEntity))!;
+        IEntityType entity = context.Model.FindEntityType(typeof(TEntity))!;
 
         Assert.Null(entity.FindPrimaryKey());
         Assert.Equal(canonicalName, entity.GetViewName());
@@ -79,8 +80,8 @@ internal static class ReportingContextFactory
 {
     public static ReportingMonitorContext CreatePostgreSqlContext()
     {
-        var monitorOptions = new MonitorDbOptions(new Dictionary<string, string>());
-        var options = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(
+        MonitorDbOptions monitorOptions = new MonitorDbOptions(new Dictionary<string, string>());
+        DbContextOptions<ReportingMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(
             "Host=localhost;Database=reporting_mapping_tests;Username=reporting;Password=reporting");
 
         return new ReportingMonitorContext(options, monitorOptions);

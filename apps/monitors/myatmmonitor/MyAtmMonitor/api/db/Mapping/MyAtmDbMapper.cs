@@ -35,7 +35,7 @@ public static partial class MyAtmDbMapper
 
     public static MonitorEntity ToMonitorEntity(DustMonitorDto dto)
     {
-        var entity = new MonitorEntity
+        MonitorEntity entity = new MonitorEntity
         {
             Id = dto.Id
         };

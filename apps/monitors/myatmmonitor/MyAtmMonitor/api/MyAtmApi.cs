@@ -78,13 +78,13 @@ namespace MyAtm.Api
             MonitorDeliveryDispatcher outboxDispatcher)
         {
             options.Validate();
-            var gateway = new MyAtmHttpGateway(
+            MyAtmHttpGateway gateway = new MyAtmHttpGateway(
                 httpClient,
                 options.DevicePageSize,
                 options.MeasurementPageSize,
                 options.AccessoryPageSize);
-            var monitorReader = new MyAtmMonitorReader(dbClient, dbClient, testLocal);
-            var ruleProcessor = new MyAtmRuleProcessor(dbClient, options.PortalBaseUrl);
+            MyAtmMonitorReader monitorReader = new MyAtmMonitorReader(dbClient, dbClient, testLocal);
+            MyAtmRuleProcessor ruleProcessor = new MyAtmRuleProcessor(dbClient, options.PortalBaseUrl);
 
             this.outboxDispatcher = outboxDispatcher ?? throw new ArgumentNullException(nameof(outboxDispatcher));
             storeMonitors = new StoreMonitorsHandler(
@@ -208,7 +208,7 @@ namespace MyAtm.Api
                 NotificationDeliveryRequest request,
                 CancellationToken cancellationToken = default)
             {
-                var message = request.Kind switch
+                LegacyMessageKind message = request.Kind switch
                 {
                     NotificationMessageKind.Alert => LegacyMessageKind.Alert,
                     NotificationMessageKind.Caution => LegacyMessageKind.Caution,
@@ -217,13 +217,13 @@ namespace MyAtm.Api
                     NotificationMessageKind.BatteryAlert => LegacyMessageKind.Battery_Alert,
                     _ => throw new ArgumentOutOfRangeException(nameof(request), request.Kind, "Unsupported notification kind.")
                 };
-                var channel = request.Channel switch
+                LegacyMessageChannel channel = request.Channel switch
                 {
                     NotificationChannel.Email => LegacyMessageChannel.Email,
                     NotificationChannel.Sms => LegacyMessageChannel.SMS,
                     _ => throw new ArgumentOutOfRangeException(nameof(request), request.Channel, "Unsupported notification channel.")
                 };
-                var contact = request.Channel == NotificationChannel.Email
+                RvtContactDto contact = request.Channel == NotificationChannel.Email
                     ? new RvtContactDto(true, false, request.Destination, null, null, null)
                     : new RvtContactDto(false, true, string.Empty, request.Destination, null, null);
                 return messageService.SendMessageAsync(

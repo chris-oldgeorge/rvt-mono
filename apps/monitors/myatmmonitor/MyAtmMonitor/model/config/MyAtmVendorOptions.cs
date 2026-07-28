@@ -16,8 +16,8 @@ public sealed class MyAtmVendorOptions
 
     public void Validate()
     {
-        var failures = new List<string>();
-        if (!Uri.TryCreate(BaseUrl, UriKind.Absolute, out var baseUri) ||
+        List<string> failures = new List<string>();
+        if (!Uri.TryCreate(BaseUrl, UriKind.Absolute, out Uri? baseUri) ||
             (baseUri.Scheme != Uri.UriSchemeHttps && baseUri.Scheme != Uri.UriSchemeHttp))
         {
             failures.Add("BaseUrl must be an absolute HTTP or HTTPS URL.");

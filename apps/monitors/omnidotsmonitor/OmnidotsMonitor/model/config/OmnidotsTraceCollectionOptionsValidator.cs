@@ -6,7 +6,7 @@ public sealed class OmnidotsTraceCollectionOptionsValidator : IValidateOptions<O
 {
     public ValidateOptionsResult Validate(string? name, OmnidotsTraceCollectionOptions options)
     {
-        var failures = options.GetValidationFailures();
+        IReadOnlyList<string> failures = options.GetValidationFailures();
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

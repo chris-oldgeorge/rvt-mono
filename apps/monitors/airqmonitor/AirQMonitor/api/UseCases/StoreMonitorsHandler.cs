@@ -44,8 +44,8 @@ namespace AirQ.Api.UseCases
                 throw;
             }
 
-            var dtos = new List<NoiseMonitorDto>();
-            var failures = new List<Exception>();
+            List<NoiseMonitorDto> dtos = new List<NoiseMonitorDto>();
+            List<Exception> failures = new List<Exception>();
             foreach (InstrumentResponse monitor in monitors)
             {
                 cancellationToken.ThrowIfCancellationRequested();

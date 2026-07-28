@@ -17,9 +17,9 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
         DateTime nowUtc,
         CancellationToken cancellationToken)
     {
-        var source = mutation.Source;
-        var section = await GetOrCreateSectionAsync(source, cancellationToken);
-        var article = new HelpArticle
+        HelpArticleMutation source = mutation.Source;
+        HelpSection section = await GetOrCreateSectionAsync(source, cancellationToken);
+        HelpArticle article = new HelpArticle
         {
             Id = Guid.NewGuid(),
             SectionId = section.Id,
@@ -46,7 +46,7 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
         DateTime nowUtc,
         CancellationToken cancellationToken)
     {
-        var article = await domainContext.HelpArticles
+        HelpArticle? article = await domainContext.HelpArticles
             .Include(item => item.Section)
             .Include(item => item.Assets)
             .SingleOrDefaultAsync(item => item.Id == articleId, cancellationToken);
@@ -55,15 +55,15 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
             return false;
         }
 
-        var existingAssets = article.Assets.ToDictionary(asset => asset.Id);
+        Dictionary<Guid, HelpAsset> existingAssets = article.Assets.ToDictionary(asset => asset.Id);
         if (mutation.Source.Assets.Any(asset =>
             asset.Id.HasValue && !existingAssets.ContainsKey(asset.Id.Value)))
         {
             return false;
         }
 
-        var source = mutation.Source;
-        var section = await GetOrCreateSectionAsync(source, cancellationToken);
+        HelpArticleMutation source = mutation.Source;
+        HelpSection section = await GetOrCreateSectionAsync(source, cancellationToken);
         article.SectionId = section.Id;
         article.Section = section;
         article.Title = source.Title;
@@ -89,7 +89,7 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
         DateTime nowUtc,
         CancellationToken cancellationToken)
     {
-        var article = await domainContext.HelpArticles
+        HelpArticle? article = await domainContext.HelpArticles
             .SingleOrDefaultAsync(item => item.Id == articleId, cancellationToken);
         if (article is null)
         {
@@ -105,7 +105,7 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
         Guid articleId,
         CancellationToken cancellationToken)
     {
-        var article = await domainContext.HelpArticles
+        HelpArticle? article = await domainContext.HelpArticles
             .SingleOrDefaultAsync(item => item.Id == articleId, cancellationToken);
         if (article is null)
         {
@@ -120,7 +120,7 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
         HelpArticleMutation source,
         CancellationToken cancellationToken)
     {
-        var section = await domainContext.HelpSections
+        HelpSection? section = await domainContext.HelpSections
             .SingleOrDefaultAsync(
                 item => item.Slug == source.SectionSlug,
                 cancellationToken);
@@ -145,25 +145,25 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
         IReadOnlyList<HelpAssetMutation> mutations,
         IReadOnlyDictionary<Guid, HelpAsset> existingAssets)
     {
-        var retainedIds = new HashSet<Guid>();
-        foreach (var mutation in mutations)
+        HashSet<Guid> retainedIds = new HashSet<Guid>();
+        foreach (HelpAssetMutation mutation in mutations)
         {
             if (mutation.Id.HasValue)
             {
-                var asset = existingAssets[mutation.Id.Value];
+                HelpAsset asset = existingAssets[mutation.Id.Value];
                 ApplyAssetMutation(asset, mutation);
                 retainedIds.Add(asset.Id);
             }
             else
             {
-                var asset = CreateAsset(article, mutation);
+                HelpAsset asset = CreateAsset(article, mutation);
                 article.Assets.Add(asset);
                 domainContext.HelpAssets.Add(asset);
                 retainedIds.Add(asset.Id);
             }
         }
 
-        var removedAssets = existingAssets.Values
+        List<HelpAsset> removedAssets = existingAssets.Values
             .Where(asset => !retainedIds.Contains(asset.Id))
             .ToList();
         domainContext.HelpAssets.RemoveRange(removedAssets);
@@ -173,7 +173,7 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
         HelpArticle article,
         HelpAssetMutation mutation)
     {
-        var asset = new HelpAsset
+        HelpAsset asset = new HelpAsset
         {
             Id = Guid.NewGuid(),
             HelpArticleId = article.Id,

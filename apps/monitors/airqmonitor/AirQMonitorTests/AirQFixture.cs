@@ -75,13 +75,13 @@ namespace AirQMonitorTests
         public static List<SampleResponse> SamplesResponseObjects(DateTime? sampleTimeUtc = null)
         {
 
-            var json = SamplesResponseJson();
-            var samples = JsonSerializer.Deserialize<List<SampleResponse>>(json);
+            string json = SamplesResponseJson();
+            List<SampleResponse>? samples = JsonSerializer.Deserialize<List<SampleResponse>>(json);
 
             if (sampleTimeUtc != null)
             {
-                var st = (DateTime)sampleTimeUtc!;
-                foreach (var sample in samples!)
+                DateTime st = (DateTime)sampleTimeUtc!;
+                foreach (SampleResponse sample in samples!)
                 {
                     sample.Utc = st;//.ToUniversalTime();
                     sample.Timestamp = st.ToLocalTime();
@@ -97,8 +97,8 @@ namespace AirQMonitorTests
 
         public static List<NoiseMonitorDto> MonitorDtos(DateTime? lastDataTime, string activityStatus, int errorCount = 0)
         {
-            var caiibrationDate = DateTime.UtcNow.AddDays(-7);
-            var filterChangeDate = DateTime.UtcNow;
+            DateTime caiibrationDate = DateTime.UtcNow.AddDays(-7);
+            DateTime filterChangeDate = DateTime.UtcNow;
             return new List<NoiseMonitorDto>(){
                 new NoiseMonitorDto (
                       id: Guid.NewGuid(),
@@ -185,7 +185,7 @@ namespace AirQMonitorTests
         public static SampleResponse CreateSampleResponse(DateTime timestamp, string serialId, double value)
         {
 
-            var val = string.Format("{0}", value);
+            string val = string.Format("{0}", value);
             return new SampleResponse
             {
                 Utc = timestamp.ToUniversalTime(),
@@ -285,7 +285,7 @@ namespace AirQMonitorTests
 
         internal static List<RvtAlertRuleDto> OfflineRules()
         {
-            var rules = new List<RvtAlertRuleDto>
+            List<RvtAlertRuleDto> rules = new List<RvtAlertRuleDto>
             {
                 new(ruleId: Guid.NewGuid(),
                           serialId: null,
@@ -314,7 +314,7 @@ namespace AirQMonitorTests
         internal static List<RvtAlertRuleDto> NotifyRules(string serialId, string field,
                                                           double limitOn)
         {
-            var rules = new List<RvtAlertRuleDto>
+            List<RvtAlertRuleDto> rules = new List<RvtAlertRuleDto>
             {
                 new(ruleId: Guid.NewGuid(),
                           serialId: serialId,

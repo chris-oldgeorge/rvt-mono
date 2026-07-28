@@ -48,7 +48,7 @@ namespace AirQ.Api.UseCases
             try
             {
                 List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
-                var failures = new List<Exception>();
+                List<Exception> failures = new List<Exception>();
                 foreach (NoiseMonitorDto monitor in monitors)
                 {
 
@@ -69,7 +69,7 @@ namespace AirQ.Api.UseCases
                         List<SampleResponse> samples = latest.Samples;
                         lastDataTime = latest.LatestDateTime;
                         RvtLogger.Logger.LogInformation("GetLatestSamples SerialId={Value1} number of samples={Value2} lastDataTime={Value3}", monitor.SerialId, samples.Count, lastDataTime);
-                        var dtos = new List<NoiseDto>();
+                        List<NoiseDto> dtos = new List<NoiseDto>();
                         foreach (SampleResponse sample in samples)
                         {
                             dtos.Add(new NoiseDto(sample));

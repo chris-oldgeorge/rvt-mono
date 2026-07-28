@@ -17,7 +17,7 @@ public static class AlertDeliveryIdentity
         ArgumentNullException.ThrowIfNull(kind);
         ArgumentNullException.ThrowIfNull(canonicalDestination);
 
-        var identity = string.Concat(
+        string identity = string.Concat(
             occurrenceId.ToString("D"),
             "\0",
             kind,

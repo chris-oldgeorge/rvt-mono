@@ -20,6 +20,7 @@ using RVT.BusinessLogic.Application;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Application.Installers;
+using RvtPortal.Spa.Application.Monitors;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Api;
@@ -47,13 +48,13 @@ public class InstallerApiController : ControllerBase
     // Function summary: Queries installer-visible monitors through the installer application service.
     public async Task<ActionResult<QueryMonitorsResponse>> Monitors([FromQuery] QueryMonitorsRequest request)
     {
-        var query = new InstallerMonitorQuery(
+        InstallerMonitorQuery query = new InstallerMonitorQuery(
             request.MonitorType,
             request.SearchText,
             request.GetNormalizedSortDir(),
             request.GetNormalizedPage(),
             request.GetNormalizedPageSize());
-        var result = await installer.QueryMonitorsAsync(
+        MonitorInventoryResult result = await installer.QueryMonitorsAsync(
             await CreateUserContextAsync(),
             query,
             HttpContext.RequestAborted);
@@ -66,7 +67,7 @@ public class InstallerApiController : ControllerBase
     // Function summary: Retrieves installer-visible monitor detail through the installer application service.
     public async Task<ActionResult<EntityResponse<MonitorDetailResponse>>> GetMonitor(Guid id)
     {
-        var detail = await installer.GetMonitorDetailAsync(await CreateUserContextAsync(), User, id, HttpContext.RequestAborted);
+        MonitorDetailResponse? detail = await installer.GetMonitorDetailAsync(await CreateUserContextAsync(), User, id, HttpContext.RequestAborted);
         if (detail == null)
         {
             return MonitorNotFound(id);
@@ -85,8 +86,8 @@ public class InstallerApiController : ControllerBase
     // Function summary: Updates deployment data through the installer application service.
     public async Task<ActionResult<EntityResponse<MonitorDetailResponse>>> UpdateDeployment(Guid deploymentId, InstallerDeploymentMutationRequest request)
     {
-        var user = await CreateUserContextAsync();
-        var result = await installer.UpdateDeploymentAsync(user, User, deploymentId, request, HttpContext.RequestAborted);
+        PortalUserContext user = await CreateUserContextAsync();
+        InstallerDeploymentWorkflowResult result = await installer.UpdateDeploymentAsync(user, User, deploymentId, request, HttpContext.RequestAborted);
         AddModelErrors(result.Errors);
         if (!ModelState.IsValid)
         {
@@ -109,7 +110,7 @@ public class InstallerApiController : ControllerBase
     // Function summary: Reads installer-visible monitor status through the installer application service.
     public async Task<ActionResult<InstallerMonitorStatusResponse>> MonitorStatus(Guid id)
     {
-        var status = await installer.GetMonitorStatusAsync(await CreateUserContextAsync(), id, HttpContext.RequestAborted);
+        InstallerMonitorStatusModel? status = await installer.GetMonitorStatusAsync(await CreateUserContextAsync(), id, HttpContext.RequestAborted);
         return status == null
             ? MonitorNotFound(id)
             : InstallerApiMapper.ToStatusResponse(status);
@@ -129,7 +130,7 @@ public class InstallerApiController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var result = await installer.ConvertWhat3WordsAsync(what3words, HttpContext.RequestAborted);
+        What3WordsConversionResult result = await installer.ConvertWhat3WordsAsync(what3words, HttpContext.RequestAborted);
         if (result.Value is not null)
         {
             return result.Value;
@@ -155,9 +156,9 @@ public class InstallerApiController : ControllerBase
     // Function summary: Copies command validation errors into MVC model state.
     private void AddModelErrors(IReadOnlyDictionary<string, string[]> errors)
     {
-        foreach (var error in errors)
+        foreach (KeyValuePair<string, string[]> error in errors)
         {
-            foreach (var message in error.Value)
+            foreach (string message in error.Value)
             {
                 ModelState.AddModelError(error.Key, message);
             }

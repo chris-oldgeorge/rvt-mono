@@ -76,21 +76,21 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public async Task RunAsync_MonitoringAwaitsOperationalWarningDelivery()
     {
-        var utcNow = new DateTime(2026, 7, 16, 12, 0, 0, DateTimeKind.Utc);
-        var database = new Mock<IDBClient>();
+        DateTime utcNow = new DateTime(2026, 7, 16, 12, 0, 0, DateTimeKind.Utc);
+        Mock<IDBClient> database = new Mock<IDBClient>();
         database.As<IOmnidotsImportCursorQueries>();
         database.As<IOmnidotsMeasurementImportCommands>();
         database.As<IOmnidotsTraceQueries>();
         database.Setup(client => client.ReadMonitorList(null))
             .Returns(OmnidotsFixture.MonitorsList(1, utcNow - TimeSpan.FromHours(2)));
-        var delivery = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var notifier = new Mock<IOmnidotsMonitoringNotifier>(MockBehavior.Strict);
+        TaskCompletionSource delivery = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Mock<IOmnidotsMonitoringNotifier> notifier = new Mock<IOmnidotsMonitoringNotifier>(MockBehavior.Strict);
         notifier.Setup(value => value.SendNoDataWarningAsync(
                 "operations@example.test",
                 utcNow,
                 It.IsAny<CancellationToken>()))
             .Returns(delivery.Task);
-        var api = new OmnidotsApi(
+        OmnidotsApi api = new OmnidotsApi(
             Mock.Of<IHttpClient>(),
             database.Object,
             Mock.Of<IMqttClient>(),
@@ -129,7 +129,7 @@ public sealed class TestMonitorJobScheduling
         VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(
             1,
             lastDataTime: new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc)).Single();
-        var cursor = new DateTime(2026, 7, 13, 6, 30, 0, DateTimeKind.Utc);
+        DateTime cursor = new DateTime(2026, 7, 13, 6, 30, 0, DateTimeKind.Utc);
         string? requestedUrl = null;
 
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
@@ -176,7 +176,7 @@ public sealed class TestMonitorJobScheduling
         VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(
             1,
             lastDataTime: new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc)).Single();
-        var latestMeasurement = new DateTime(2026, 7, 12, 4, 20, 0, DateTimeKind.Utc);
+        DateTime latestMeasurement = new DateTime(2026, 7, 12, 4, 20, 0, DateTimeKind.Utc);
         string? requestedUrl = null;
 
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
@@ -211,7 +211,7 @@ public sealed class TestMonitorJobScheduling
             out Mock<IMessageService>? messageService,
             out Mock<IOmnidotsImportCursorQueries>? cursorQueries,
             out Mock<IOmnidotsMeasurementImportCommands>? importCommands);
-        var bootstrap = new DateTime(2026, 7, 2, 9, 45, 0, DateTimeKind.Utc);
+        DateTime bootstrap = new DateTime(2026, 7, 2, 9, 45, 0, DateTimeKind.Utc);
         VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1, lastDataTime: bootstrap).Single();
         string? requestedUrl = null;
 
@@ -286,7 +286,7 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public void QuartzDispatcher_SupportsDurableAlertJobs()
     {
-        var dispatcher = new OmnidotsMonitorJobDispatcher();
+        OmnidotsMonitorJobDispatcher dispatcher = new OmnidotsMonitorJobDispatcher();
 
         Assert.Contains("DispatchAlerts", dispatcher.SupportedJobNames);
         Assert.Contains("CleanupAlerts", dispatcher.SupportedJobNames);
@@ -295,7 +295,7 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public async Task RunAsync_DispatchAlerts_ResolvesOnlyCommonDispatcherAndReturnsZero()
     {
-        var store = new Mock<IAlertOutboxStore>(MockBehavior.Strict);
+        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>(MockBehavior.Strict);
         store.Setup(outbox => outbox.ClaimNextDueAsync(
                 It.IsAny<DateTime>(),
                 It.IsAny<TimeSpan>(),
@@ -315,8 +315,8 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public async Task RunAsync_CleanupAlerts_DeletesRowsOlderThanNinetyDays()
     {
-        var now = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
-        var store = new Mock<IAlertOutboxStore>(MockBehavior.Strict);
+        DateTime now = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
+        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>(MockBehavior.Strict);
         store.Setup(outbox => outbox.DeleteCompletedBeforeAsync(
                 now.AddDays(-90),
                 It.IsAny<CancellationToken>()))
@@ -333,8 +333,8 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public async Task MonitorHost_OneShotDispatchWithAmbientApiEnabledAndNoEndpointSecrets_ReportsJobFailure()
     {
-        var now = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
-        var delivery = new ClaimedAlertDelivery(
+        DateTime now = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
+        ClaimedAlertDelivery delivery = new ClaimedAlertDelivery(
             Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -350,8 +350,8 @@ public sealed class TestMonitorJobScheduling
             null,
             null,
             now.AddMinutes(-1));
-        var claims = new Queue<ClaimedAlertDelivery?>([delivery, null]);
-        var store = new Mock<IAlertOutboxStore>(MockBehavior.Strict);
+        Queue<ClaimedAlertDelivery?> claims = new Queue<ClaimedAlertDelivery?>([delivery, null]);
+        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>(MockBehavior.Strict);
         store.Setup(outbox => outbox.ClaimNextDueAsync(
                 It.IsAny<DateTime>(),
                 It.IsAny<TimeSpan>(),
@@ -370,7 +370,7 @@ public sealed class TestMonitorJobScheduling
                 It.IsAny<DateTime>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
-        var adapter = new Mock<IAlertDeliveryAdapter>(MockBehavior.Strict);
+        Mock<IAlertDeliveryAdapter> adapter = new Mock<IAlertDeliveryAdapter>(MockBehavior.Strict);
         adapter.SetupGet(value => value.Kind).Returns("Exploding");
         adapter.Setup(value => value.DeliverAsync(delivery, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("raw failure must remain internal"));
@@ -419,8 +419,8 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public async Task MonitorHost_OneShotCleanupWithAmbientApiEnabledAndNoEndpointSecrets_ReturnsJobResult()
     {
-        var now = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
-        var store = new Mock<IAlertOutboxStore>(MockBehavior.Strict);
+        DateTime now = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
+        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>(MockBehavior.Strict);
         store.Setup(outbox => outbox.ClaimNextDueAsync(
                 It.IsAny<DateTime>(),
                 It.IsAny<TimeSpan>(),
@@ -490,7 +490,7 @@ public sealed class TestMonitorJobScheduling
 
     private static ServiceProvider LegacyJobProvider(OmnidotsApi api)
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new ServiceCollection();
         services.AddSingleton(new OmnidotsService(api));
         return services.BuildServiceProvider();
     }
@@ -499,7 +499,7 @@ public sealed class TestMonitorJobScheduling
         IAlertOutboxStore store,
         TimeProvider? timeProvider = null)
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(store);
         services.AddSingleton<IOptions<DurableAlertOptions>>(Options.Create(new DurableAlertOptions()));

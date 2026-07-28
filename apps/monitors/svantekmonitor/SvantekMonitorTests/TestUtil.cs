@@ -45,8 +45,8 @@ namespace SvantekMonitorTests
         {
             try
             {
-                using var sr = new StreamReader(fileName);
-                var txt = sr.ReadToEnd();
+                using StreamReader sr = new StreamReader(fileName);
+                string txt = sr.ReadToEnd();
                 Console.WriteLine(txt);
                 return txt;
             }
@@ -65,10 +65,10 @@ namespace SvantekMonitorTests
             if (expected.Count != actual.Count)
                 return false;
 
-            for (var i = 0; i < expected.Count; i++)
+            for (int i = 0; i < expected.Count; i++)
             {
-                var a = actual[i];
-                var e = expected[i];
+                NoiseMonitorDto a = actual[i];
+                NoiseMonitorDto e = expected[i];
                 if (a.ListedAtTime < e.ListedAtTime.AddMinutes(-2) ||
                     a.ListedAtTime > e.ListedAtTime.AddMinutes(2))
                 {

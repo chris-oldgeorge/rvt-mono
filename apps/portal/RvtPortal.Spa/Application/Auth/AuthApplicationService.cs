@@ -9,12 +9,14 @@ using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using RVT.BusinessLogic;
 using RVT.BusinessLogic.Notifications;
-using RvtPortal.Spa.Application.Companies;
+using RVT.BusinessLogic.Ports.Notifications;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Application.Companies;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Application.Auth;
@@ -68,7 +70,7 @@ public static class SpaPublicLinkBuilder
     // Function summary: Builds an account-action URL exclusively from the configured public SPA base URI.
     public static string Build(SpaOptions options, string path, IDictionary<string, string?> query)
     {
-        if (!Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out var baseUri) ||
+        if (!Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out Uri? baseUri) ||
             !string.Equals(baseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
             string.IsNullOrWhiteSpace(baseUri.Host) ||
             !string.IsNullOrEmpty(baseUri.UserInfo) ||
@@ -79,7 +81,7 @@ public static class SpaPublicLinkBuilder
                 "Spa:PublicBaseUrl must be configured as an absolute HTTPS base URI without credentials, query, or fragment before account links can be sent.");
         }
 
-        var baseUrl = options.PublicBaseUrl.TrimEnd('/');
+        string baseUrl = options.PublicBaseUrl.TrimEnd('/');
         return QueryHelpers.AddQueryString($"{baseUrl}/{path.TrimStart('/')}", query);
     }
 }
@@ -162,7 +164,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<AuthStateResponse>.Success(AuthStateResponse.Anonymous());
         }
 
-        var user = await userManager.GetUserAsync(principal);
+        ApplicationUser? user = await userManager.GetUserAsync(principal);
         if (user == null || user.IsDisabled)
         {
             await signInManager.SignOutAsync();
@@ -180,13 +182,13 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.AlreadySignedIn);
         }
 
-        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        ApplicationUser? user = await userManager.FindByEmailAsync(request.Email.Trim());
         if (user != null && user.IsDisabled)
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.AccountDisabled);
         }
 
-        var result = user == null
+        SignInResult result = user == null
             ? Microsoft.AspNetCore.Identity.SignInResult.Failed
             : await signInManager.PasswordSignInAsync(user, request.Password, request.RememberMe, lockoutOnFailure: true);
         if (result.Succeeded && user is not null)
@@ -215,7 +217,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Sends a password-reset email when the account is eligible while keeping a generic public response.
     public async Task<AuthWorkflowResult<MessageResponse>> ForgotPasswordAsync(ForgotPasswordRequest request, AuthRequestOrigin origin)
     {
-        var user = await userManager.FindByEmailAsync(request.Email);
+        ApplicationUser? user = await userManager.FindByEmailAsync(request.Email);
         if (user == null || !await userManager.IsEmailConfirmedAsync(user))
         {
             return AuthWorkflowResult<MessageResponse>.Success(PasswordResetMessage());
@@ -228,12 +230,12 @@ public sealed class AuthApplicationService : IAuthApplicationService
 
         try
         {
-            var code = await userManager.GeneratePasswordResetTokenAsync(user);
-            var callbackUrl = BuildClientUrl("/reset-password", new Dictionary<string, string?>
+            string code = await userManager.GeneratePasswordResetTokenAsync(user);
+            string callbackUrl = BuildClientUrl("/reset-password", new Dictionary<string, string?>
             {
                 ["code"] = code
             });
-            var delivery = await accountMessenger.SendPasswordResetAsync(user.Email ?? request.Email, callbackUrl, CancellationToken.None);
+            EmailDeliveryResult delivery = await accountMessenger.SendPasswordResetAsync(user.Email ?? request.Email, callbackUrl, CancellationToken.None);
             if (!delivery.Succeeded)
             {
                 logger.LogWarning(
@@ -256,13 +258,13 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Resets a password from a supplied reset token.
     public async Task<AuthWorkflowResult<MessageResponse>> ResetPasswordAsync(ResetPasswordRequest request)
     {
-        var user = await userManager.FindByEmailAsync(request.Email);
+        ApplicationUser? user = await userManager.FindByEmailAsync(request.Email);
         if (user == null)
         {
             return AuthWorkflowResult<MessageResponse>.Success(PasswordChangedMessage());
         }
 
-        var result = await userManager.ResetPasswordAsync(user, request.Code, request.Password);
+        IdentityResult result = await userManager.ResetPasswordAsync(user, request.Code, request.Password);
         if (!result.Succeeded)
         {
             if (result.Errors.Any(error => string.Equals(error.Code, "InvalidToken", StringComparison.Ordinal)))
@@ -284,17 +286,17 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MissingConfirmationValues);
         }
 
-        var user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await userManager.FindByIdAsync(userId);
         if (user == null || user.EmailConfirmed)
         {
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
         }
-        if (!TryDecodeConfirmationCode(code, out var decodedCode))
+        if (!TryDecodeConfirmationCode(code, out string? decodedCode))
         {
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MalformedConfirmationCode);
         }
 
-        var result = await userManager.ConfirmEmailAsync(user, decodedCode);
+        IdentityResult result = await userManager.ConfirmEmailAsync(user, decodedCode);
         return result.Succeeded
             ? AuthWorkflowResult<ConfirmEmailResponse>.Success(new ConfirmEmailResponse
             {
@@ -312,18 +314,18 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MissingConfirmationValues);
         }
 
-        if (!TryDecodeConfirmationCode(code, out var decodedCode))
+        if (!TryDecodeConfirmationCode(code, out string? decodedCode))
         {
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MalformedConfirmationCode);
         }
 
-        var newEmail = email.Trim();
+        string newEmail = email.Trim();
         if (applicationContext.Database.IsRelational())
         {
             return await ConfirmEmailChangeInTransactionAsync(userId, newEmail, decodedCode);
         }
 
-        var user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await userManager.FindByIdAsync(userId);
         return user == null
             ? AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed)
             : await ConfirmEmailChangeWithoutTransactionAsync(user, newEmail, decodedCode);
@@ -335,14 +337,14 @@ public sealed class AuthApplicationService : IAuthApplicationService
         string newEmail,
         string decodedCode)
     {
-        var strategy = applicationContext.Database.CreateExecutionStrategy();
+        IExecutionStrategy strategy = applicationContext.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
             applicationContext.ChangeTracker.Clear();
-            await using var transaction = await applicationContext.Database.BeginTransactionAsync();
+            await using IDbContextTransaction transaction = await applicationContext.Database.BeginTransactionAsync();
             try
             {
-                var user = await userManager.FindByIdAsync(userId);
+                ApplicationUser? user = await userManager.FindByIdAsync(userId);
                 if (user == null)
                 {
                     await transaction.RollbackAsync();
@@ -350,7 +352,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
                     return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
                 }
 
-                var transition = await ApplyConfirmedEmailTransitionAsync(user, newEmail, decodedCode);
+                AuthWorkflowResult<ConfirmEmailResponse> transition = await ApplyConfirmedEmailTransitionAsync(user, newEmail, decodedCode);
                 if (transition.Status == AuthWorkflowStatus.Success)
                 {
                     await transaction.CommitAsync();
@@ -378,13 +380,13 @@ public sealed class AuthApplicationService : IAuthApplicationService
         string newEmail,
         string decodedCode)
     {
-        var originalEmail = user.Email;
-        var originalUserName = user.UserName;
-        var originalEmailConfirmed = user.EmailConfirmed;
-        var originalSecurityStamp = user.SecurityStamp;
+        string? originalEmail = user.Email;
+        string? originalUserName = user.UserName;
+        bool originalEmailConfirmed = user.EmailConfirmed;
+        string? originalSecurityStamp = user.SecurityStamp;
         try
         {
-            var transition = await ApplyConfirmedEmailTransitionAsync(user, newEmail, decodedCode);
+            AuthWorkflowResult<ConfirmEmailResponse> transition = await ApplyConfirmedEmailTransitionAsync(user, newEmail, decodedCode);
             if (transition.Status != AuthWorkflowStatus.Success)
             {
                 await RestoreConfirmedEmailStateAsync(user, originalEmail, originalUserName, originalEmailConfirmed, originalSecurityStamp);
@@ -405,13 +407,13 @@ public sealed class AuthApplicationService : IAuthApplicationService
         string newEmail,
         string decodedCode)
     {
-        var emailResult = await userManager.ChangeEmailAsync(user, newEmail, decodedCode);
+        IdentityResult emailResult = await userManager.ChangeEmailAsync(user, newEmail, decodedCode);
         if (!emailResult.Succeeded)
         {
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
         }
 
-        var userNameResult = await userManager.SetUserNameAsync(user, newEmail);
+        IdentityResult userNameResult = await userManager.SetUserNameAsync(user, newEmail);
         if (!userNameResult.Succeeded)
         {
             return IdentityErrorResult<ConfirmEmailResponse>(AuthWorkflowStatus.ValidationFailed, userNameResult.Errors);
@@ -436,7 +438,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
         user.UserName = originalUserName;
         user.EmailConfirmed = originalEmailConfirmed;
         user.SecurityStamp = originalSecurityStamp;
-        var rollbackResult = await userManager.UpdateAsync(user);
+        IdentityResult rollbackResult = await userManager.UpdateAsync(user);
         if (!rollbackResult.Succeeded)
         {
             throw new InvalidOperationException("Unable to restore the user's confirmed email state with the non-relational provider.");
@@ -446,7 +448,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Sets the initial password after email confirmation and signs in the user.
     public async Task<AuthWorkflowResult<AuthStateResponse>> SetInitialPasswordAsync(SetInitialPasswordRequest request)
     {
-        var user = await userManager.FindByIdAsync(request.UserId);
+        ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.InitialPasswordUserNotFound);
@@ -455,12 +457,12 @@ public sealed class AuthApplicationService : IAuthApplicationService
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.EmailNotConfirmed);
         }
-        if (!TryDecodeConfirmationCode(request.Code, out var decodedCode))
+        if (!TryDecodeConfirmationCode(request.Code, out string? decodedCode))
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.MalformedConfirmationCode);
         }
 
-        var isValidConfirmationToken = await userManager.VerifyUserTokenAsync(
+        bool isValidConfirmationToken = await userManager.VerifyUserTokenAsync(
             user,
             userManager.Options.Tokens.EmailConfirmationTokenProvider,
             "EmailConfirmation",
@@ -474,7 +476,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.PasswordAlreadySet);
         }
 
-        var result = await userManager.AddPasswordAsync(user, request.NewPassword);
+        IdentityResult result = await userManager.AddPasswordAsync(user, request.NewPassword);
         if (!result.Succeeded)
         {
             return IdentityErrorResult<AuthStateResponse>(AuthWorkflowStatus.ValidationFailed, result.Errors);
@@ -487,13 +489,13 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Changes the signed-in user's password.
     public async Task<AuthWorkflowResult<MessageResponse>> ChangePasswordAsync(ClaimsPrincipal principal, ChangePasswordRequest request)
     {
-        var user = await userManager.GetUserAsync(principal);
+        ApplicationUser? user = await userManager.GetUserAsync(principal);
         if (user == null)
         {
             return AuthWorkflowResult<MessageResponse>.Failure(AuthWorkflowStatus.Unauthorized);
         }
 
-        var result = await userManager.ChangePasswordAsync(user, request.OldPassword, request.NewPassword);
+        IdentityResult result = await userManager.ChangePasswordAsync(user, request.OldPassword, request.NewPassword);
         if (!result.Succeeded)
         {
             return IdentityErrorResult<MessageResponse>(AuthWorkflowStatus.ValidationFailed, result.Errors);
@@ -506,7 +508,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Builds the signed-in user's profile.
     public async Task<AuthWorkflowResult<ProfileResponse>> ProfileAsync(ClaimsPrincipal principal)
     {
-        var user = await userManager.GetUserAsync(principal);
+        ApplicationUser? user = await userManager.GetUserAsync(principal);
         return user == null
             ? AuthWorkflowResult<ProfileResponse>.Failure(AuthWorkflowStatus.Unauthorized)
             : AuthWorkflowResult<ProfileResponse>.Success(await BuildProfileAsync(user));
@@ -515,7 +517,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Updates the signed-in user's profile.
     public async Task<AuthWorkflowResult<ProfileResponse>> UpdateProfileAsync(ClaimsPrincipal principal, UpdateProfileRequest request)
     {
-        var user = await userManager.GetUserAsync(principal);
+        ApplicationUser? user = await userManager.GetUserAsync(principal);
         if (user == null)
         {
             return AuthWorkflowResult<ProfileResponse>.Failure(AuthWorkflowStatus.Unauthorized);
@@ -524,7 +526,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
         user.Name = request.Name;
         user.PhoneNumber = request.MobilePhone;
         user.CompanyRole = request.CompanyRole;
-        var result = await userManager.UpdateAsync(user);
+        IdentityResult result = await userManager.UpdateAsync(user);
         if (!result.Succeeded)
         {
             return IdentityErrorResult<ProfileResponse>(AuthWorkflowStatus.ValidationFailed, result.Errors);
@@ -533,16 +535,16 @@ public sealed class AuthApplicationService : IAuthApplicationService
         if (!string.Equals(user.Email, request.Email.Trim(), StringComparison.OrdinalIgnoreCase) &&
             !configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
         {
-            var newEmail = request.Email.Trim();
-            var code = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+            string newEmail = request.Email.Trim();
+            string code = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-            var callbackUrl = BuildClientUrl("/api/auth/change-email", new Dictionary<string, string?>
+            string callbackUrl = BuildClientUrl("/api/auth/change-email", new Dictionary<string, string?>
             {
                 ["userId"] = user.Id,
                 ["email"] = newEmail,
                 ["code"] = code
             });
-            var delivery = await accountMessenger.SendEmailChangeAsync(newEmail, callbackUrl, CancellationToken.None);
+            EmailDeliveryResult delivery = await accountMessenger.SendEmailChangeAsync(newEmail, callbackUrl, CancellationToken.None);
             if (!delivery.Succeeded)
             {
                 logger.LogWarning("Profile email-change confirmation delivery failed. ProviderResponse: {ProviderResponse}", delivery.ProviderResponse);
@@ -572,7 +574,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Builds the API user shape for auth-state responses.
     private async Task<AuthUserResponse> BuildUserAsync(ApplicationUser user)
     {
-        var roles = await userManager.GetRolesAsync(user);
+        IList<string> roles = await userManager.GetRolesAsync(user);
         return new AuthUserResponse
         {
             Id = user.Id,
@@ -588,7 +590,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Builds the signed-in user's editable profile response.
     private async Task<ProfileResponse> BuildProfileAsync(ApplicationUser user)
     {
-        var roles = await userManager.GetRolesAsync(user);
+        IList<string> roles = await userManager.GetRolesAsync(user);
         string? companyName = null;
         if (user.CompanyId.HasValue)
         {
@@ -645,8 +647,8 @@ public sealed class AuthApplicationService : IAuthApplicationService
         AuthWorkflowStatus status,
         IEnumerable<IdentityError> errors)
     {
-        var result = AuthWorkflowResult<T>.Failure(status);
-        foreach (var group in errors.GroupBy(error => error.Code))
+        AuthWorkflowResult<T> result = AuthWorkflowResult<T>.Failure(status);
+        foreach (IGrouping<string, IdentityError> group in errors.GroupBy(error => error.Code))
         {
             result.Errors[group.Key] = group.Select(error => error.Description).ToArray();
         }

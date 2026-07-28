@@ -92,7 +92,7 @@ internal static class TestData
         DateTime? createDate = null,
         bool archived = false)
     {
-        var place = Pick(SitePlaces);
+        (string Postcode, string City, string Location) place = Pick(SitePlaces);
         return new Site
         {
             Id = id ?? Guid.NewGuid(),
@@ -120,8 +120,8 @@ internal static class TestData
         DateTime? listedAtTime = null,
         DateTime? lastDataTime15Min = null)
     {
-        var hardware = Pick(MonitorHardware);
-        var index = Next();
+        (string Manufacturer, string Model, string Firmware) hardware = Pick(MonitorHardware);
+        int index = Next();
         return new MonitorEntity
         {
             Id = id ?? Guid.NewGuid(),

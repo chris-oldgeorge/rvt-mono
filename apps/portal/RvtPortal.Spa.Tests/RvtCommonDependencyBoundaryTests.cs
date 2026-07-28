@@ -3,6 +3,8 @@
 // - 2026-07-24 confined the host to communication abstractions and the SendGrid adapter.
 // - 2026-07-17 pending Added the zero-package boundary scanner and regression fixtures.
 
+using System.Text;
+using System.Xml.Linq;
 using RvtPortal.Spa.Tests.Support;
 
 namespace RvtPortal.Spa.Tests;
@@ -12,14 +14,14 @@ public sealed class RvtCommonDependencyBoundaryTests
     [Fact]
     public void Scanner_FindsPackageAndNamespaceReferences()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         File.WriteAllText(
             Path.Combine(fixture.Path, "Consumer.csproj"),
             "<Project><ItemGroup><PackageReference Include=\"Rvt.Monitor.Common\" Version=\"0.2.0\" /></ItemGroup></Project>");
         File.WriteAllText(Path.Combine(fixture.Path, "Consumer.cs"), "using Rvt.Monitor.Common;");
         File.WriteAllText(Path.Combine(fixture.Path, "CommentOnly.cs"), "// Shared adapter seam for Rvt.Monitor.Common.");
 
-        var findings = RepositoryDependencyScanner.FindCommonReferences(fixture.Path);
+        IReadOnlyList<string> findings = RepositoryDependencyScanner.FindCommonReferences(fixture.Path);
 
         Assert.Equal(2, findings.Count);
     }
@@ -27,7 +29,7 @@ public sealed class RvtCommonDependencyBoundaryTests
     [Fact]
     public void Scanner_IgnoresMarkersInsideMultilineCSharpBlockComments()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         File.WriteAllText(Path.Combine(fixture.Path, "CommentOnly.cs"), "/*\nRvt.Monitor.Common\n*/");
 
         Assert.Empty(RepositoryDependencyScanner.FindCommonReferences(fixture.Path));
@@ -36,7 +38,7 @@ public sealed class RvtCommonDependencyBoundaryTests
     [Fact]
     public void Scanner_FindsCodeAfterCSharpBlockCommentEndsOnSameLine()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         File.WriteAllText(Path.Combine(fixture.Path, "Consumer.cs"), "/* comment\n*/ using Rvt.Monitor.Common;");
 
         Assert.Single(RepositoryDependencyScanner.FindCommonReferences(fixture.Path));
@@ -45,7 +47,7 @@ public sealed class RvtCommonDependencyBoundaryTests
     [Fact]
     public void Scanner_IgnoresSolutionProjectMembershipBecauseItIsNotADependency()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         File.WriteAllText(
             Path.Combine(fixture.Path, "Portal.sln"),
             "Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"Rvt.Monitor.Common\", \"libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj\", \"{65FAF867-E680-46FC-A921-8F5D9DE0180E}\"");
@@ -58,7 +60,7 @@ public sealed class RvtCommonDependencyBoundaryTests
     // The business core reaches email through its own IEmailDelivery port, so the hexagonal boundary still holds.
     public void RvtCommon_IsConfinedToTheHostAdapterProject()
     {
-        var offenders = RepositoryDependencyScanner.FindCommonReferences(RepositoryLayout.Root)
+        string[] offenders = RepositoryDependencyScanner.FindCommonReferences(RepositoryLayout.Root)
             .Select(finding => finding.Replace('\\', '/'))
             .Where(finding => !finding.StartsWith("RvtPortal.Spa/", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal)
@@ -71,7 +73,7 @@ public sealed class RvtCommonDependencyBoundaryTests
     // Strongest form of the same boundary: the compiled business core must not reference RVT common at all.
     public void BusinessLogicCore_DoesNotReferenceRvtCommon()
     {
-        var referenced = typeof(RVT.BusinessLogic.IRvtDateTimeProvider).Assembly
+        string?[] referenced = typeof(RVT.BusinessLogic.IRvtDateTimeProvider).Assembly
             .GetReferencedAssemblies()
             .Select(assembly => assembly.Name)
             .ToArray();
@@ -82,14 +84,14 @@ public sealed class RvtCommonDependencyBoundaryTests
     [Fact]
     public void HostAdapter_UsesOnlyApprovedCommunicationAdapterProjects()
     {
-        var projectPath = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa", "RvtPortal.Spa.csproj");
-        var project = System.Xml.Linq.XDocument.Load(projectPath);
-        var packageReferences = project.Descendants()
+        string projectPath = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa", "RvtPortal.Spa.csproj");
+        XDocument project = System.Xml.Linq.XDocument.Load(projectPath);
+        string?[] packageReferences = project.Descendants()
             .Where(element => element.Name.LocalName == "PackageReference")
             .Select(element => (string?)element.Attribute("Include"))
             .Where(package => package?.StartsWith("Rvt.", StringComparison.OrdinalIgnoreCase) == true)
             .ToArray();
-        var sourceReferences = project.Descendants()
+        string[] sourceReferences = project.Descendants()
             .Where(element => element.Name.LocalName == "ProjectReference")
             .Select(element => (string?)element.Attribute("Include"))
             .Where(reference => reference?.Contains(
@@ -109,7 +111,7 @@ public sealed class RvtCommonDependencyBoundaryTests
     [Fact]
     public void HostAdapter_DoesNotUseUnapprovedProviderNamespaces()
     {
-        var hostRoot = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa");
+        string hostRoot = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa");
         string[] forbiddenMarkers =
         [
             "using Rvt.Communication;",
@@ -120,7 +122,7 @@ public sealed class RvtCommonDependencyBoundaryTests
             "Rvt.Storage.S3"
         ];
 
-        var offenders = Directory.EnumerateFiles(hostRoot, "*.cs", SearchOption.AllDirectories)
+        string[] offenders = Directory.EnumerateFiles(hostRoot, "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Where(path => !Path.GetFileName(path).Contains(" 2.", StringComparison.Ordinal))
@@ -139,12 +141,12 @@ public sealed class RvtCommonDependencyBoundaryTests
     [Fact]
     public void NuGetConfig_UsesNuGetOrgWithoutPrivateFeedOrCredentials()
     {
-        var nugetConfig = File.ReadAllText(Path.Combine(RepositoryLayout.Root, "NuGet.config"));
+        string nugetConfig = File.ReadAllText(Path.Combine(RepositoryLayout.Root, "NuGet.config"));
 
         Assert.Contains("nuget.org", nugetConfig, StringComparison.Ordinal);
         Assert.DoesNotContain("github.com", nugetConfig, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("packageSourceCredentials", nugetConfig, StringComparison.OrdinalIgnoreCase);
-        foreach (var literalTokenMarker in new[] { "ghp_", "github_pat_", "ghs_" })
+        foreach (string? literalTokenMarker in new[] { "ghp_", "github_pat_", "ghs_" })
         {
             Assert.DoesNotContain(literalTokenMarker, nugetConfig, StringComparison.OrdinalIgnoreCase);
         }
@@ -192,12 +194,12 @@ public sealed class RvtCommonDependencyBoundaryTests
 
         private static IEnumerable<string> EnumerateSourceFiles(string root)
         {
-            var pending = new Stack<string>();
+            Stack<string> pending = new Stack<string>();
             pending.Push(root);
 
-            while (pending.TryPop(out var current))
+            while (pending.TryPop(out string? current))
             {
-                foreach (var directory in Directory.EnumerateDirectories(current))
+                foreach (string directory in Directory.EnumerateDirectories(current))
                 {
                     if (!ExcludedDirectories.Contains(Path.GetFileName(directory)))
                     {
@@ -205,7 +207,7 @@ public sealed class RvtCommonDependencyBoundaryTests
                     }
                 }
 
-                foreach (var file in Directory.EnumerateFiles(current))
+                foreach (string file in Directory.EnumerateFiles(current))
                 {
                     if (ScannedExtensions.Contains(Path.GetExtension(file)))
                     {
@@ -220,14 +222,14 @@ public sealed class RvtCommonDependencyBoundaryTests
             string path,
             IReadOnlyCollection<string> markers)
         {
-            var lineNumber = 0;
-            var isCSharp = Path.GetExtension(path).Equals(".cs", StringComparison.OrdinalIgnoreCase);
-            var isInBlockComment = false;
-            foreach (var line in File.ReadLines(path))
+            int lineNumber = 0;
+            bool isCSharp = Path.GetExtension(path).Equals(".cs", StringComparison.OrdinalIgnoreCase);
+            bool isInBlockComment = false;
+            foreach (string line in File.ReadLines(path))
             {
                 lineNumber++;
-                var trimmedLine = line.Trim();
-                var searchableLine = isCSharp
+                string trimmedLine = line.Trim();
+                string searchableLine = isCSharp
                     ? StripCSharpComments(line, ref isInBlockComment)
                     : line;
 
@@ -240,14 +242,14 @@ public sealed class RvtCommonDependencyBoundaryTests
 
         private static string StripCSharpComments(string line, ref bool isInBlockComment)
         {
-            var code = new System.Text.StringBuilder(line.Length);
-            var position = 0;
+            StringBuilder code = new System.Text.StringBuilder(line.Length);
+            int position = 0;
 
             while (position < line.Length)
             {
                 if (isInBlockComment)
                 {
-                    var blockEnd = line.IndexOf("*/", position, StringComparison.Ordinal);
+                    int blockEnd = line.IndexOf("*/", position, StringComparison.Ordinal);
                     if (blockEnd < 0)
                     {
                         break;
@@ -258,8 +260,8 @@ public sealed class RvtCommonDependencyBoundaryTests
                     continue;
                 }
 
-                var lineComment = line.IndexOf("//", position, StringComparison.Ordinal);
-                var blockStart = line.IndexOf("/*", position, StringComparison.Ordinal);
+                int lineComment = line.IndexOf("//", position, StringComparison.Ordinal);
+                int blockStart = line.IndexOf("/*", position, StringComparison.Ordinal);
                 if (lineComment >= 0 && (blockStart < 0 || lineComment < blockStart))
                 {
                     code.Append(line, position, lineComment - position);
@@ -292,7 +294,7 @@ public sealed class RvtCommonDependencyBoundaryTests
 
         public static TemporaryDirectory Create()
         {
-            var path = System.IO.Path.Combine(
+            string path = System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(),
                 $"rvt-cloud-boundary-{Guid.NewGuid():N}");
             Directory.CreateDirectory(path);

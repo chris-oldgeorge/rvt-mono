@@ -42,7 +42,7 @@ public static class UserApiMapper
     // Function summary: Maps a user detail application model to the existing API response contract.
     public static UserDetailResponse ToDetailResponse(UserDetailModel model)
     {
-        var response = new UserDetailResponse
+        UserDetailResponse response = new UserDetailResponse
         {
             AvailableRoles = model.AvailableRoles.Select(ToOptionItem).ToList(),
             Companies = model.Companies.Select(ToOptionItem).ToList()
@@ -68,7 +68,7 @@ public static class UserApiMapper
     // Function summary: Maps one user application model to the existing user list DTO.
     public static UserListItem ToListItem(UserListModel model)
     {
-        var item = new UserListItem();
+        UserListItem item = new UserListItem();
         CopyUserFields(model, item);
         return item;
     }
@@ -76,7 +76,7 @@ public static class UserApiMapper
     // Function summary: Maps one assigned site user model to the existing API assignment DTO.
     private static SiteUserAssignmentItem ToSiteUserAssignmentItem(SiteUserAssignmentModel model)
     {
-        var item = new SiteUserAssignmentItem
+        SiteUserAssignmentItem item = new SiteUserAssignmentItem
         {
             SiteContact = model.SiteContact
         };

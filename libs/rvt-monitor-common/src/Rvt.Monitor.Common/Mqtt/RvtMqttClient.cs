@@ -102,7 +102,7 @@ namespace Rvt.Monitor.Common.Mqtt
                     "MQTT is enabled but RVT__MQTT_CERTIFICATE_PATH and RVT__MQTT_PRIVATE_KEY_PATH are not configured.");
             }
 
-            using var pemCertificate = X509Certificate2.CreateFromPemFile(
+            using X509Certificate2 pemCertificate = X509Certificate2.CreateFromPemFile(
                 _options.CertificatePath,
                 _options.PrivateKeyPath);
             return X509CertificateLoader.LoadPkcs12(pemCertificate.Export(X509ContentType.Pkcs12), null);

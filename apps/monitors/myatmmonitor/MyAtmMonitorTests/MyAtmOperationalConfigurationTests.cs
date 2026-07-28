@@ -17,10 +17,10 @@ public sealed class MyAtmOperationalConfigurationTests
     [TestMethod]
     public void AppSettings_DefinesMyAtmOperationalConfiguration()
     {
-        var appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-        using var document = JsonDocument.Parse(File.ReadAllText(appSettingsPath));
+        string appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(appSettingsPath));
 
-        var hasOptions = document.RootElement.TryGetProperty("MyAtmMonitor", out var options);
+        bool hasOptions = document.RootElement.TryGetProperty("MyAtmMonitor", out JsonElement options);
 
         Assert.IsTrue(hasOptions, "MyAtmMonitor configuration section is required.");
         Assert.IsGreaterThan(0, options.GetProperty("CustomerId").GetInt32());
@@ -34,13 +34,13 @@ public sealed class MyAtmOperationalConfigurationTests
     [TestMethod]
     public void MonitorJobDispatcher_SupportsAccessoryImport()
     {
-        var dispatcherType = typeof(MyAtmApi).Assembly.GetType("MyAtm.Api.MyAtmMonitorJobDispatcher");
+        Type? dispatcherType = typeof(MyAtmApi).Assembly.GetType("MyAtm.Api.MyAtmMonitorJobDispatcher");
         Assert.IsNotNull(dispatcherType);
 
-        var dispatcher = Activator.CreateInstance(dispatcherType!);
+        object? dispatcher = Activator.CreateInstance(dispatcherType!);
         Assert.IsNotNull(dispatcher);
 
-        var supportedJobs = dispatcherType!.GetProperty("SupportedJobNames")!.GetValue(dispatcher) as IEnumerable<string>;
+        IEnumerable<string>? supportedJobs = dispatcherType!.GetProperty("SupportedJobNames")!.GetValue(dispatcher) as IEnumerable<string>;
         Assert.IsNotNull(supportedJobs);
         CollectionAssert.Contains(supportedJobs!.ToList(), "StoreAccessoryInfo");
         CollectionAssert.Contains(supportedJobs.ToList(), "DispatchOutbox");
@@ -49,16 +49,16 @@ public sealed class MyAtmOperationalConfigurationTests
     [TestMethod]
     public void AppSettings_DefinesApprovedDustAndDispatchSchedules()
     {
-        var appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-        using var document = JsonDocument.Parse(File.ReadAllText(appSettingsPath));
+        string appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(appSettingsPath));
 
-        var jobs = document.RootElement
+        List<JsonElement> jobs = document.RootElement
             .GetProperty("MonitorScheduler")
             .GetProperty("Jobs")
             .EnumerateArray()
             .ToList();
-        var dustJob = jobs.Single(job => job.GetProperty("Name").GetString() == "StoreDustLevels");
-        var dispatchJob = jobs.Single(job => job.GetProperty("Name").GetString() == "DispatchOutbox");
+        JsonElement dustJob = jobs.Single(job => job.GetProperty("Name").GetString() == "StoreDustLevels");
+        JsonElement dispatchJob = jobs.Single(job => job.GetProperty("Name").GetString() == "DispatchOutbox");
 
         Assert.IsTrue(dustJob.GetProperty("Enabled").GetBoolean());
         Assert.AreEqual("0 0/30 * * * ?", dustJob.GetProperty("Cron").GetString());
@@ -69,10 +69,10 @@ public sealed class MyAtmOperationalConfigurationTests
     [TestMethod]
     public async Task MonitorJobRunner_DispatchOutboxPropagatesCancellationTokenToSharedDispatcher()
     {
-        var database = new Mock<IDBClient>();
-        var mqttClient = new Mock<IMqttClient>();
-        var messageService = new Mock<IMessageService>();
-        using var cancellation = new CancellationTokenSource();
+        Mock<IDBClient> database = new Mock<IDBClient>();
+        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+        Mock<IMessageService> messageService = new Mock<IMessageService>();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         CancellationToken observedToken = default;
         database.Setup(query => query.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
@@ -81,9 +81,9 @@ public sealed class MyAtmOperationalConfigurationTests
                 It.IsAny<CancellationToken>()))
             .Callback((string _, DateTime _, TimeSpan _, CancellationToken token) => observedToken = token)
             .ReturnsAsync((MonitorDeliveryMessage?)null);
-        var services = new ServiceCollection();
+        ServiceCollection services = new ServiceCollection();
         services.AddLogging();
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["MyAtmVendor:BaseUrl"] = "https://vendor.example/",
@@ -95,10 +95,10 @@ public sealed class MyAtmOperationalConfigurationTests
         services.AddSingleton(database.Object);
         services.AddSingleton(mqttClient.Object);
         services.AddSingleton(messageService.Object);
-        using var provider = services.BuildServiceProvider();
-        var service = provider.GetRequiredService<IMyAtmMonitorJobs>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        IMyAtmMonitorJobs service = provider.GetRequiredService<IMyAtmMonitorJobs>();
 
-        var result = await InvokeMonitorJobRunnerAsync("DispatchOutbox", service, cancellation.Token);
+        int result = await InvokeMonitorJobRunnerAsync("DispatchOutbox", service, cancellation.Token);
 
         Assert.AreEqual(0, result);
         Assert.AreEqual(cancellation.Token, observedToken);
@@ -109,16 +109,16 @@ public sealed class MyAtmOperationalConfigurationTests
         IMyAtmMonitorJobs service,
         CancellationToken cancellationToken)
     {
-        var runnerType = typeof(MyAtmApi).Assembly.GetType("MyAtm.Api.MonitorJobRunner");
+        Type? runnerType = typeof(MyAtmApi).Assembly.GetType("MyAtm.Api.MonitorJobRunner");
         Assert.IsNotNull(runnerType);
-        var runMethod = runnerType.GetMethod(
+        MethodInfo? runMethod = runnerType.GetMethod(
             "RunAsync",
             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
             binder: null,
             types: new[] { typeof(string), typeof(IMyAtmMonitorJobs), typeof(CancellationToken) },
             modifiers: null);
         Assert.IsNotNull(runMethod);
-        var task = runMethod.Invoke(null, new object[] { jobName, service, cancellationToken }) as Task<int>;
+        Task<int>? task = runMethod.Invoke(null, new object[] { jobName, service, cancellationToken }) as Task<int>;
         Assert.IsNotNull(task);
         return await task;
     }

@@ -9,16 +9,16 @@ public sealed class EmailOmnidotsMonitoringNotifierTests
     [TestMethod]
     public async Task SendNoDataWarningAsync_MapsExistingSubjectAndIsoBodyToEmailPort()
     {
-        var port = new RecordingEmailPort();
-        var notifier = new EmailOmnidotsMonitoringNotifier(port);
-        var utcNow = new DateTime(2026, 7, 16, 12, 34, 56, DateTimeKind.Utc);
+        RecordingEmailPort port = new RecordingEmailPort();
+        EmailOmnidotsMonitoringNotifier notifier = new EmailOmnidotsMonitoringNotifier(port);
+        DateTime utcNow = new DateTime(2026, 7, 16, 12, 34, 56, DateTimeKind.Utc);
 
         await notifier.SendNoDataWarningAsync(
             "operations@example.test",
             utcNow,
             CancellationToken.None);
 
-        var request = port.Requests.Single();
+        EmailDeliveryRequest request = port.Requests.Single();
         Assert.AreEqual("operations@example.test", request.Recipient);
         Assert.AreEqual("Omnidots monitoring: no data for an hour!", request.Subject);
         Assert.AreEqual(
@@ -30,9 +30,9 @@ public sealed class EmailOmnidotsMonitoringNotifierTests
     [TestMethod]
     public async Task SendNoDataWarningAsync_PropagatesRequestedCancellation()
     {
-        var port = new RecordingEmailPort();
-        var notifier = new EmailOmnidotsMonitoringNotifier(port);
-        using var cancellation = new CancellationTokenSource();
+        RecordingEmailPort port = new RecordingEmailPort();
+        EmailOmnidotsMonitoringNotifier notifier = new EmailOmnidotsMonitoringNotifier(port);
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>

@@ -18,7 +18,7 @@ public sealed record MonitorSchedulerOptions
 
     public static MonitorSchedulerOptions Bind(IConfiguration configuration)
     {
-        var options = new MonitorSchedulerOptions();
+        MonitorSchedulerOptions options = new MonitorSchedulerOptions();
         configuration.GetSection("MonitorScheduler").Bind(options);
         return options;
     }

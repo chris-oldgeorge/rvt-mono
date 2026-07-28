@@ -108,7 +108,7 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
     // Function summary: Returns an authorized monitor detail by deployment id.
     public async Task<MonitorDetailResponse?> GetDeploymentDetailAsync(Guid deploymentId, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        var monitorId = await domainContext.Deployments
+        Guid? monitorId = await domainContext.Deployments
             .AsNoTracking()
             .Where(deployment => deployment.Id == deploymentId)
             .Select(deployment => (Guid?)deployment.MonitorId)
@@ -125,14 +125,14 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
         ClaimsPrincipal user,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new UpdateMonitorCommand(monitorId, request), cancellationToken);
+        MonitorMutationCommandResult result = await mediator.Send(new UpdateMonitorCommand(monitorId, request), cancellationToken);
         return await BuildDetailResultAsync(result, monitorId, result.DeploymentId, user, cancellationToken);
     }
 
     // Function summary: Uploads a current deployment picture and returns refreshed monitor detail.
     public async Task<MonitorDetailWorkflowResult> UploadPictureAsync(Guid monitorId, IUploadedContent? picture, CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new UploadMonitorPictureCommand(monitorId, picture), cancellationToken);
+        UploadMonitorPictureResult result = await mediator.Send(new UploadMonitorPictureCommand(monitorId, picture), cancellationToken);
         return result.NotFound
             ? MonitorDetailWorkflowResult.Missing(monitorId)
             : new MonitorDetailWorkflowResult
@@ -149,7 +149,7 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
         ClaimsPrincipal user,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new SetMonitorFleetNumberCommand(monitorId, fleetNumber), cancellationToken);
+        MonitorMutationCommandResult result = await mediator.Send(new SetMonitorFleetNumberCommand(monitorId, fleetNumber), cancellationToken);
         return await BuildDetailResultAsync(result, monitorId, null, user, cancellationToken);
     }
 
@@ -160,7 +160,7 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
         ClaimsPrincipal user,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new AssignMonitorToContractCommand(monitorId, contractId), cancellationToken);
+        AssignMonitorToContractResult result = await mediator.Send(new AssignMonitorToContractCommand(monitorId, contractId), cancellationToken);
         if (result.NotFound)
         {
             return MonitorDetailWorkflowResult.Missing(monitorId);
@@ -176,7 +176,7 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
             return MonitorDetailWorkflowResult.Missing(monitorId);
         }
 
-        var detail = await BuildAuthorizedDetailAsync(monitorId, result.DeploymentId, user, cancellationToken);
+        MonitorDetailResponse? detail = await BuildAuthorizedDetailAsync(monitorId, result.DeploymentId, user, cancellationToken);
         return detail == null
             ? MonitorDetailWorkflowResult.Missing(monitorId)
             : new MonitorDetailWorkflowResult { Detail = detail };
@@ -185,7 +185,7 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
     // Function summary: Removes the active contract assignment for a monitor.
     public async Task<MonitorMutationWorkflowResult> RemoveFromContractAsync(Guid monitorId, CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new RemoveMonitorFromContractCommand(monitorId), cancellationToken);
+        RemoveMonitorFromContractResult result = await mediator.Send(new RemoveMonitorFromContractCommand(monitorId), cancellationToken);
         return MonitorMutationWorkflowResult.Validation(result.Errors);
     }
 
@@ -196,7 +196,7 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
         string? archivedBy,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new RemoveUnattachedMonitorCommand(monitorId, reason, archivedBy), cancellationToken);
+        RemoveUnattachedMonitorResult result = await mediator.Send(new RemoveUnattachedMonitorCommand(monitorId, reason, archivedBy), cancellationToken);
         return new MonitorRemovalWorkflowResult
         {
             NotFound = result.NotFound,
@@ -229,7 +229,7 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
             return MonitorDetailWorkflowResult.Validation(result.Errors);
         }
 
-        var detail = await BuildAuthorizedDetailAsync(monitorId, deploymentId, user, cancellationToken);
+        MonitorDetailResponse? detail = await BuildAuthorizedDetailAsync(monitorId, deploymentId, user, cancellationToken);
         return detail == null
             ? MonitorDetailWorkflowResult.Missing(monitorId)
             : new MonitorDetailWorkflowResult { Detail = detail };
@@ -242,7 +242,7 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
         ClaimsPrincipal user,
         CancellationToken cancellationToken)
     {
-        var detail = await monitorReads.GetDetailAsync(monitorId, deploymentId, user, cancellationToken);
+        MonitorDetailResponse? detail = await monitorReads.GetDetailAsync(monitorId, deploymentId, user, cancellationToken);
         return detail != null && await authorizationService.CanReadAsync(detail, user, cancellationToken)
             ? detail
             : null;

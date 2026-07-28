@@ -16,9 +16,9 @@ public sealed class DataAccessWriteBoundaryTests
     // Function summary: Verifies no data-access type commits on its own, so writes stay inside one Unit of Work boundary.
     public void DataAccessSources_DoNotCallSaveChanges()
     {
-        var dataAccessDirectory = Path.Combine(FindRepositoryRoot(), "RVT.DataAccess");
+        string dataAccessDirectory = Path.Combine(FindRepositoryRoot(), "RVT.DataAccess");
 
-        var offenders = Directory
+        string[] offenders = Directory
             .EnumerateFiles(dataAccessDirectory, "*.cs", SearchOption.AllDirectories)
             .Where(file => !Path.GetFileName(file).StartsWith("._", StringComparison.Ordinal))
             .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
@@ -35,7 +35,7 @@ public sealed class DataAccessWriteBoundaryTests
     [Fact]
     public void HelpWriteAdapter_StagesChangesWithoutCommittingThem()
     {
-        var adapterPath = Path.Combine(
+        string adapterPath = Path.Combine(
             FindRepositoryRoot(),
             "RvtPortal.Spa",
             "Adapters",
@@ -75,7 +75,7 @@ public sealed class DataAccessWriteBoundaryTests
             typeof(IDeploymentRepository)
         ];
 
-        var writeMembers = ports
+        string[] writeMembers = ports
             .SelectMany(port => port.GetMethods())
             .Where(method => WriteMethodNames.Contains(method.Name))
             .Select(method => $"{method.DeclaringType?.Name}.{method.Name}")
@@ -88,7 +88,7 @@ public sealed class DataAccessWriteBoundaryTests
     // Function summary: Verifies the shared repository base offers no self-committing write helpers.
     public void GenericRepository_ExposesNoWriteHelpers()
     {
-        var writeMembers = typeof(GenericRepository<>)
+        string[] writeMembers = typeof(GenericRepository<>)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(method => WriteMethodNames.Contains(method.Name))
             .Select(method => method.Name)
@@ -100,7 +100,7 @@ public sealed class DataAccessWriteBoundaryTests
     // Function summary: Walks up from the test output directory to the solution root.
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "RvtPortal.Spa.sln")))

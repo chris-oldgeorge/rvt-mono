@@ -28,16 +28,16 @@ public sealed class SpaCustomerLogoClient : ICustomerLogoProvider
             return null;
         }
 
-        if (!TryBuildLogoUri(siteId, out var logoUri))
+        if (!TryBuildLogoUri(siteId, out Uri? logoUri))
         {
             return null;
         }
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, logoUri);
+            using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, logoUri);
             request.Headers.TryAddWithoutValidation(InternalKeyHeader, _options.InternalApiKey);
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 return null;
@@ -48,7 +48,7 @@ public sealed class SpaCustomerLogoClient : ICustomerLogoProvider
                 return null;
             }
 
-            var content = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+            byte[] content = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
             return content.LongLength is 0 or > MaximumLogoBytes
                 ? null
                 : new CustomerLogo(content, response.Content.Headers.ContentType?.MediaType ?? "image/png");
@@ -66,7 +66,7 @@ public sealed class SpaCustomerLogoClient : ICustomerLogoProvider
     private bool TryBuildLogoUri(Guid siteId, out Uri logoUri)
     {
         logoUri = null!;
-        if (!Uri.TryCreate(_options.BaseUrl, UriKind.Absolute, out var baseUri))
+        if (!Uri.TryCreate(_options.BaseUrl, UriKind.Absolute, out Uri? baseUri))
         {
             return false;
         }

@@ -11,13 +11,13 @@ const port = Number(process.argv[2]);
 console.log("Starting server on port "+port);
 //server.listen(port);
 
-var express = require("express");
-var myParser = require("body-parser");
-var app = express();
+const express = require("express");
+const myParser = require("body-parser");
+const app = express();
 
 app.use(myParser.urlencoded({ extended: true }));
 app.post("/", function (request, response) {
-    var date_time = new Date();
+    const date_time = new Date();
 
     console.log("time=" + date_time);
     console.log("hdrs=" + JSON.stringify(request.headers));

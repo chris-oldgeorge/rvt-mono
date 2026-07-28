@@ -14,12 +14,12 @@ public class TestMonitorApiEndpoints
     [TestMethod]
     public void MapSvantekMonitorApi_RegistersExpectedRoutes()
     {
-        var builder = WebApplication.CreateBuilder();
-        var app = builder.Build();
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        WebApplication app = builder.Build();
 
         app.MapSvantekMonitorApi();
 
-        var routes = ((IEndpointRouteBuilder)app).DataSources
+        List<string?> routes = ((IEndpointRouteBuilder)app).DataSources
             .SelectMany(dataSource => dataSource.Endpoints)
             .OfType<RouteEndpoint>()
             .Select(endpoint => endpoint.RoutePattern.RawText)

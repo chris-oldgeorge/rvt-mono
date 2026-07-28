@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -32,9 +33,9 @@ using RvtPortal.Spa;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Auth;
 using RvtPortal.Spa.Data;
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 ConfigureServices(builder);
-var app = builder.Build();
+WebApplication app = builder.Build();
 await InitializeSeedDataAsync(app);
 ConfigurePipeline(app);
 await app.RunAsync();
@@ -50,7 +51,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     builder.Services.AddControllers();
     ConfigureCors(builder);
     ConfigureSwagger(builder.Services);
-    var databaseOptions = builder.Services.AddRvtDatabaseProvider(builder.Configuration);
+    RvtDatabaseOptions databaseOptions = builder.Services.AddRvtDatabaseProvider(builder.Configuration);
     if (builder.Environment.IsEnvironment("Testing") && string.IsNullOrWhiteSpace(databaseOptions.ConnectionString))
     {
         databaseOptions.ConnectionString = "Testing";
@@ -86,8 +87,8 @@ static void ConfigurePublicHosting(WebApplicationBuilder builder)
         return;
     }
 
-    var publicBaseUrl = builder.Configuration[$"{SpaOptions.SectionName}:{nameof(SpaOptions.PublicBaseUrl)}"];
-    if (!Uri.TryCreate(publicBaseUrl, UriKind.Absolute, out var publicBaseUri) ||
+    string? publicBaseUrl = builder.Configuration[$"{SpaOptions.SectionName}:{nameof(SpaOptions.PublicBaseUrl)}"];
+    if (!Uri.TryCreate(publicBaseUrl, UriKind.Absolute, out Uri? publicBaseUri) ||
         !string.Equals(publicBaseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
         string.IsNullOrWhiteSpace(publicBaseUri.Host) ||
         !string.IsNullOrEmpty(publicBaseUri.UserInfo) ||
@@ -98,7 +99,7 @@ static void ConfigurePublicHosting(WebApplicationBuilder builder)
             "Spa:PublicBaseUrl must be configured as an absolute HTTPS base URI without credentials, query, or fragment outside Development/Testing.");
     }
 
-    var allowedHosts = (builder.Configuration["AllowedHosts"] ?? "")
+    string[] allowedHosts = (builder.Configuration["AllowedHosts"] ?? "")
         .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     if (allowedHosts.Length == 0 ||
         allowedHosts.Any(host => host.Contains('*', StringComparison.Ordinal)) ||
@@ -112,10 +113,10 @@ static void ConfigurePublicHosting(WebApplicationBuilder builder)
 // Function summary: Enables forwarded scheme/client metadata only for explicitly configured immediate proxies or networks.
 static void ConfigureForwardedHeaders(WebApplicationBuilder builder)
 {
-    var knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
-    var parsedProxies = knownProxies.Select(ParseKnownProxy).ToArray();
-    var knownNetworks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [];
-    var parsedNetworks = knownNetworks.Select(ParseKnownNetwork).ToArray();
+    string[] knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
+    IPAddress[] parsedProxies = knownProxies.Select(ParseKnownProxy).ToArray();
+    string[] knownNetworks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [];
+    System.Net.IPNetwork[] parsedNetworks = knownNetworks.Select(ParseKnownNetwork).ToArray();
 
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
@@ -123,11 +124,11 @@ static void ConfigureForwardedHeaders(WebApplicationBuilder builder)
         options.ForwardLimit = 1;
         options.KnownProxies.Clear();
         options.KnownIPNetworks.Clear();
-        foreach (var proxy in parsedProxies)
+        foreach (IPAddress? proxy in parsedProxies)
         {
             options.KnownProxies.Add(proxy);
         }
-        foreach (var network in parsedNetworks)
+        foreach (System.Net.IPNetwork network in parsedNetworks)
         {
             options.KnownIPNetworks.Add(network);
         }
@@ -137,7 +138,7 @@ static void ConfigureForwardedHeaders(WebApplicationBuilder builder)
 // Function summary: Parses one explicitly trusted proxy address or fails configuration deterministically.
 static IPAddress ParseKnownProxy(string value)
 {
-    return IPAddress.TryParse(value, out var address)
+    return IPAddress.TryParse(value, out IPAddress? address)
         ? address
         : throw new InvalidOperationException($"ForwardedHeaders:KnownProxies contains invalid IP address '{value}'.");
 }
@@ -145,7 +146,7 @@ static IPAddress ParseKnownProxy(string value)
 // Function summary: Parses one explicitly trusted proxy network or fails configuration deterministically.
 static System.Net.IPNetwork ParseKnownNetwork(string value)
 {
-    return System.Net.IPNetwork.TryParse(value, out var network)
+    return System.Net.IPNetwork.TryParse(value, out System.Net.IPNetwork network)
         ? network
         : throw new InvalidOperationException($"ForwardedHeaders:KnownNetworks contains invalid CIDR network '{value}'.");
 }
@@ -160,9 +161,9 @@ static void ConfigureRateLimiting(WebApplicationBuilder builder)
         // not yet include sources layered on after the host's service configuration).
         options.AddPolicy(RateLimitingPolicies.AuthEndpoints, context =>
         {
-            var configuration = context.RequestServices.GetRequiredService<IConfiguration>();
-            var permitLimit = configuration.GetValue("RateLimiting:Auth:PermitLimit", 10);
-            var windowSeconds = configuration.GetValue("RateLimiting:Auth:WindowSeconds", 60);
+            IConfiguration configuration = context.RequestServices.GetRequiredService<IConfiguration>();
+            int permitLimit = configuration.GetValue("RateLimiting:Auth:PermitLimit", 10);
+            int windowSeconds = configuration.GetValue("RateLimiting:Auth:WindowSeconds", 60);
             return RateLimitPartition.GetFixedWindowLimiter(
                 ResolveRateLimitPartitionKey(context),
                 _ => new FixedWindowRateLimiterOptions
@@ -187,13 +188,13 @@ static string ResolveRateLimitPartitionKey(HttpContext context)
 static ValueTask OnRateLimiterRejectedAsync(OnRejectedContext context, CancellationToken cancellationToken)
 {
     context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-    if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+    if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter))
     {
         context.HttpContext.Response.Headers.RetryAfter =
             ((int)retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
     }
 
-    var problem = ApiProblems.Create(
+    ProblemDetails problem = ApiProblems.Create(
         context.HttpContext,
         StatusCodes.Status429TooManyRequests,
         "Too many requests.",
@@ -221,7 +222,7 @@ static void ConfigureCors(WebApplicationBuilder builder)
                 return;
             }
 
-            var configuredOrigins = builder.Configuration.GetSection("Spa:AllowedOrigins").Get<string[]>();
+            string[]? configuredOrigins = builder.Configuration.GetSection("Spa:AllowedOrigins").Get<string[]>();
             if (configuredOrigins is { Length: > 0 })
             {
                 policy.WithOrigins(configuredOrigins)
@@ -289,13 +290,13 @@ static void ConfigureIdentity(IServiceCollection services, IConfiguration config
         options.SignIn.RequireConfirmedAccount = true;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
         options.Lockout.MaxFailedAccessAttempts = 5;
-        var requiredPasswordLength = configuration.GetValue("Identity:Password:RequiredLength", 12);
+        int requiredPasswordLength = configuration.GetValue("Identity:Password:RequiredLength", 12);
         options.Password.RequiredLength = requiredPasswordLength < 8 ? 8 : requiredPasswordLength;
     }).AddRoles<IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>();
     services.Configure<DataProtectionTokenProviderOptions>(options =>
     {
         // Reset/confirmation tokens: shorter-lived to limit the link-interception window.
-        var tokenLifespanMinutes = configuration.GetValue("Identity:TokenLifespanMinutes", 240);
+        int tokenLifespanMinutes = configuration.GetValue("Identity:TokenLifespanMinutes", 240);
         options.TokenLifespan = TimeSpan.FromMinutes(tokenLifespanMinutes < 1 ? 1 : tokenLifespanMinutes);
     });
 }
@@ -303,7 +304,7 @@ static void ConfigureIdentity(IServiceCollection services, IConfiguration config
 // Function summary: Configures distributed cache during application startup.
 static void ConfigureDistributedCache(WebApplicationBuilder builder)
 {
-    var redisConnectionString = builder.Configuration["RvtProduction:RedisConnectionString"];
+    string? redisConnectionString = builder.Configuration["RvtProduction:RedisConnectionString"];
     if (string.IsNullOrWhiteSpace(redisConnectionString))
     {
         builder.Services.AddDistributedMemoryCache();
@@ -320,9 +321,9 @@ static void ConfigureDistributedCache(WebApplicationBuilder builder)
 // Function summary: Configures data protection during application startup.
 static void ConfigureDataProtection(WebApplicationBuilder builder)
 {
-    var dataProtection = builder.Services.AddDataProtection()
+    IDataProtectionBuilder dataProtection = builder.Services.AddDataProtection()
         .SetApplicationName(builder.Configuration["RvtProduction:DataProtectionApplicationName"] ?? "RvtMonitoring");
-    var dataProtectionBlobUri = builder.Configuration["RvtProduction:DataProtectionBlobUri"];
+    string? dataProtectionBlobUri = builder.Configuration["RvtProduction:DataProtectionBlobUri"];
     if (string.IsNullOrWhiteSpace(dataProtectionBlobUri))
     {
         if (IsProductionStyleEnvironment(builder.Environment))
@@ -337,9 +338,9 @@ static void ConfigureDataProtection(WebApplicationBuilder builder)
         return;
     }
 
-    var credential = new DefaultAzureCredential();
+    DefaultAzureCredential credential = new DefaultAzureCredential();
     dataProtection.PersistKeysToAzureBlobStorage(new Uri(dataProtectionBlobUri), credential);
-    var dataProtectionKeyIdentifier = builder.Configuration["RvtProduction:DataProtectionKeyIdentifier"];
+    string? dataProtectionKeyIdentifier = builder.Configuration["RvtProduction:DataProtectionKeyIdentifier"];
     if (!string.IsNullOrWhiteSpace(dataProtectionKeyIdentifier))
     {
         dataProtection.ProtectKeysWithAzureKeyVault(new Uri(dataProtectionKeyIdentifier), credential);
@@ -382,9 +383,9 @@ static async Task ValidatePrincipalAsync(CookieValidatePrincipalContext context)
         return;
     }
 
-    var signInManager = context.HttpContext.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
-    var user = await signInManager.UserManager.FindByNameAsync(claimIdentity.Name);
-    var securityStamp = claimIdentity.Claims.FirstOrDefault(c => c.Type == "AspNet.Identity.SecurityStamp")?.Value;
+    SignInManager<ApplicationUser> signInManager = context.HttpContext.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+    ApplicationUser? user = await signInManager.UserManager.FindByNameAsync(claimIdentity.Name);
+    string? securityStamp = claimIdentity.Claims.FirstOrDefault(c => c.Type == "AspNet.Identity.SecurityStamp")?.Value;
     if (user == null || user.IsDisabled || securityStamp != await signInManager.UserManager.GetSecurityStampAsync(user))
     {
         context.RejectPrincipal();
@@ -425,7 +426,7 @@ static async Task InitializeSeedDataAsync(WebApplication app)
         return;
     }
 
-    using var scope = app.Services.CreateScope();
+    using IServiceScope scope = app.Services.CreateScope();
     await SeedDatabase.Initialize(scope.ServiceProvider);
 }
 
@@ -488,7 +489,7 @@ static void MapEndpoints(WebApplication app)
     }).AllowAnonymous();
     app.MapControllers();
     app.MapGet("/error", ErrorEndpoint).ExcludeFromDescription();
-    var retiredMvcUtilityMethods = new[] { HttpMethods.Get, HttpMethods.Post };
+    string[] retiredMvcUtilityMethods = new[] { HttpMethods.Get, HttpMethods.Post };
     app.MapMethods("/test", retiredMvcUtilityMethods, RetiredMvcUtilityRoute).ExcludeFromDescription();
     app.MapMethods("/test/{**path}", retiredMvcUtilityMethods, RetiredMvcUtilityRouteWithPath).ExcludeFromDescription();
     app.MapMethods("/demo", retiredMvcUtilityMethods, RetiredMvcUtilityRoute).ExcludeFromDescription();
@@ -570,8 +571,8 @@ static IResult RetiredMvcUtilityRouteWithPath(HttpContext context, string path)
 // Function summary: Handles the SPA fallback workflow for this module.
 static async Task SpaFallbackAsync(HttpContext context, WebApplication app)
 {
-    var webRoot = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
-    var indexPath = Path.Combine(webRoot, "index.html");
+    string webRoot = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+    string indexPath = Path.Combine(webRoot, "index.html");
     if (File.Exists(indexPath))
     {
         context.Response.ContentType = "text/html";
@@ -595,7 +596,7 @@ static IResult ProblemJson(HttpContext context, int statusCode, string title, st
 // Function summary: Evaluates development SPA origin for the current decision point.
 static bool IsDevelopmentSpaOrigin(string origin)
 {
-    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+    if (!Uri.TryCreate(origin, UriKind.Absolute, out Uri? uri))
     {
         return false;
     }

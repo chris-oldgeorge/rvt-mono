@@ -14,13 +14,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore;
 using System.Threading;
 using System.Threading.Tasks;
-
-using RVT.Entities.Querying;
-
+using Microsoft.EntityFrameworkCore;
 using RVT.Entities;
+using RVT.Entities.Querying;
 
 namespace RVT.DataAccess
 {
@@ -71,7 +69,7 @@ namespace RVT.DataAccess
         {
             List<Filter> query = new List<Filter> { new SingleFilter { Operation = Op.Equals, PropertyName = "Id", Value = id } };
 
-            var filt = FilterExpression.ExpressionBuilder.GetExpression<TEntity>(query);
+            Expression<Func<TEntity, bool>> filt = FilterExpression.ExpressionBuilder.GetExpression<TEntity>(query);
 
             // FirstOrDefaultAsync, not FirstAsync: a missing row is a null result for the caller to handle,
             // not an InvalidOperationException thrown from inside the data-access layer.

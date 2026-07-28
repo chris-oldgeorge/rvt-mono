@@ -37,12 +37,12 @@ public sealed class NotifyBatteryLevelsHandler
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        var monitors = await monitorReader.ReadMonitorsAsync(
+        List<NoiseMonitorReadDto> monitors = await monitorReader.ReadMonitorsAsync(
             lastDataTime: null,
             cancellationToken).ConfigureAwait(false);
-        var failures = new SvantekFailureCollector(operationalCommands);
+        SvantekFailureCollector failures = new SvantekFailureCollector(operationalCommands);
 
-        foreach (var monitor in monitors)
+        foreach (NoiseMonitorReadDto monitor in monitors)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
@@ -62,7 +62,7 @@ public sealed class NotifyBatteryLevelsHandler
         NoiseMonitorReadDto monitor,
         CancellationToken cancellationToken)
     {
-        var batteryLevel = monitor.BatteryCharge;
+        int batteryLevel = monitor.BatteryCharge;
         RvtLogger.Logger.LogDebug(
             "NotifyBatteryLevels battery level={BatteryLevel} for serialId={SerialId} status={BatteryStatus}",
             batteryLevel,
@@ -109,13 +109,13 @@ public sealed class NotifyBatteryLevelsHandler
         AlertType alertType,
         CancellationToken cancellationToken)
     {
-        var status = (byte)(alertType == AlertType.BatteryAlert ? 1 : 2);
+        byte status = (byte)(alertType == AlertType.BatteryAlert ? 1 : 2);
         await monitorCommands.SetMonitorBatteryStatusAsync(
             monitor.Id,
             status,
             cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
-        var contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
+        List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
         ruleProcessor.ProcessAlertForContacts(
             monitor.FleetNr,
             monitor.SerialId,

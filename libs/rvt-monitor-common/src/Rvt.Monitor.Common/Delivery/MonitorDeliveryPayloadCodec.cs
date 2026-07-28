@@ -34,7 +34,7 @@ public static class MonitorDeliveryPayloadCodec
             throw new InvalidDataException("Delivery payload serial ID is required.");
         }
 
-        var requiresNotification = message.Kind is
+        bool requiresNotification = message.Kind is
             MonitorDeliveryKind.MqttAlert or
             MonitorDeliveryKind.Email or
             MonitorDeliveryKind.Sms;

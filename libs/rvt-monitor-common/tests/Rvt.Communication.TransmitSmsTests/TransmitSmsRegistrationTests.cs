@@ -14,12 +14,12 @@ public sealed class TransmitSmsRegistrationTests
     [TestMethod]
     public void AddTransmitSms_RegistersOneSmsPortOptionsAndValidationService()
     {
-        var services = new ServiceCollection();
-        var options = new TransmitSmsOptions { Enabled = false };
+        ServiceCollection services = new ServiceCollection();
+        TransmitSmsOptions options = new TransmitSmsOptions { Enabled = false };
 
         services.AddTransmitSms(options);
 
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
         Assert.IsInstanceOfType<TransmitSmsAdapter>(provider.GetRequiredService<ISmsDeliveryPort>());
         Assert.AreSame(options, provider.GetRequiredService<TransmitSmsOptions>());
         Assert.AreEqual(1, services.Count(descriptor => descriptor.ServiceType == typeof(ISmsDeliveryPort)));
@@ -30,8 +30,8 @@ public sealed class TransmitSmsRegistrationTests
     [TestMethod]
     public void AddTransmitSms_LoadsProviderOptionsFromConfiguration()
     {
-        var services = new ServiceCollection();
-        var configuration = new ConfigurationBuilder()
+        ServiceCollection services = new ServiceCollection();
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["RVT:SMS_ENABLED"] = "true",
@@ -42,8 +42,8 @@ public sealed class TransmitSmsRegistrationTests
 
         services.AddTransmitSms(configuration);
 
-        using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<TransmitSmsOptions>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        TransmitSmsOptions options = provider.GetRequiredService<TransmitSmsOptions>();
         Assert.IsTrue(options.Enabled);
         Assert.AreEqual("api-key", options.ApiKey);
         Assert.AreEqual("api-secret", options.ApiSecret);
@@ -53,10 +53,10 @@ public sealed class TransmitSmsRegistrationTests
     [TestMethod]
     public void AddTransmitSms_RejectsAnExistingSmsDeliveryProvider()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new ServiceCollection();
         services.AddSingleton<ISmsDeliveryPort, ExistingSmsDeliveryPort>();
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             services.AddTransmitSms(new TransmitSmsOptions { Enabled = false }));
 
         Assert.AreEqual("An SMS delivery provider is already registered.", exception.Message);
@@ -65,8 +65,8 @@ public sealed class TransmitSmsRegistrationTests
     [TestMethod]
     public async Task AddTransmitSms_SingletonPortUsesFactoryManagedClientPerDelivery()
     {
-        var services = new ServiceCollection();
-        var clientFactory = new RecordingHttpClientFactory();
+        ServiceCollection services = new ServiceCollection();
+        RecordingHttpClientFactory clientFactory = new RecordingHttpClientFactory();
         services.AddTransmitSms(new TransmitSmsOptions
         {
             Enabled = true,
@@ -76,9 +76,9 @@ public sealed class TransmitSmsRegistrationTests
         });
         services.AddSingleton<IHttpClientFactory>(clientFactory);
 
-        using var provider = services.BuildServiceProvider();
-        var port = provider.GetRequiredService<ISmsDeliveryPort>();
-        var request = new SmsDeliveryRequest("447700900123", "Threshold breached");
+        using ServiceProvider provider = services.BuildServiceProvider();
+        ISmsDeliveryPort port = provider.GetRequiredService<ISmsDeliveryPort>();
+        SmsDeliveryRequest request = new SmsDeliveryRequest("447700900123", "Threshold breached");
 
         await port.SendAsync(request);
         await port.SendAsync(request);
@@ -101,7 +101,7 @@ public sealed class TransmitSmsRegistrationTests
 
         public HttpClient CreateClient(string name)
         {
-            var currentClientId = ++clientId;
+            int currentClientId = ++clientId;
             return new HttpClient(new RecordingHandler(currentClientId, RequestClientIds));
         }
 

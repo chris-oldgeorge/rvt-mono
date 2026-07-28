@@ -43,7 +43,7 @@ public sealed class TestMonitorApiEndpoints
 
         app.MapOmnidotsMonitorApi();
 
-        var routes = ((IEndpointRouteBuilder)app).DataSources
+        List<string?> routes = ((IEndpointRouteBuilder)app).DataSources
             .SelectMany(dataSource => dataSource.Endpoints)
             .OfType<RouteEndpoint>()
             .Select(endpoint => endpoint.RoutePattern.RawText)
@@ -151,7 +151,7 @@ public sealed class TestMonitorApiEndpoints
     public async Task Webhook_FreshOrDurableDuplicate_ReturnsExact200Body(bool duplicate)
     {
         AlertIngressResult result = IngressResult(duplicate);
-        var ingress = new CapturingIngress((_, _) => Task.FromResult(result));
+        CapturingIngress ingress = new CapturingIngress((_, _) => Task.FromResult(result));
         await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress);
         byte[] body = ValidWebhookBody();
         using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body));
@@ -167,7 +167,7 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_TransientPersistenceFailure_Returns503WithoutLeakage()
     {
-        var ingress = new CapturingIngress((_, _) => throw new AlertTransientPersistenceException(
+        CapturingIngress ingress = new CapturingIngress((_, _) => throw new AlertTransientPersistenceException(
             RawException,
             new InvalidOperationException($"{RawException}:{Destination}")));
         await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress);
@@ -187,7 +187,7 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_UnexpectedPermanentFailure_Returns500WithoutLeakage()
     {
-        var ingress = new CapturingIngress((_, _) => throw new InvalidOperationException(
+        CapturingIngress ingress = new CapturingIngress((_, _) => throw new InvalidOperationException(
             $"{RawException}:{Destination}"));
         await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress);
         byte[] body = ValidWebhookBody();
@@ -232,7 +232,7 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_ConcurrencyLimitHasNoQueueAndReturns429ProblemDetails()
     {
-        var ingress = new BlockingIngress();
+        BlockingIngress ingress = new BlockingIngress();
         OmnidotsApiSecurityOptions options = ValidOptions();
         options.WebhookConcurrencyLimit = 1;
         await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress, options: options);
@@ -307,7 +307,7 @@ public sealed class TestMonitorApiEndpoints
     public async Task ConfigureMeasuringPoint_OversizedBody_Returns413()
     {
         await using EndpointApp app = await EndpointApp.StartAsync();
-        using var content = new ByteArrayContent(new byte[BoundedJsonRequestReader.MaxBodyBytes + 1]);
+        using ByteArrayContent content = new ByteArrayContent(new byte[BoundedJsonRequestReader.MaxBodyBytes + 1]);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
         using HttpResponseMessage response = await app.Client.PostAsync("/configure-measuring-point", content, It.IsAny<CancellationToken>());
@@ -319,7 +319,7 @@ public sealed class TestMonitorApiEndpoints
     public async Task ConfigureMeasuringPoint_UnsupportedMediaType_Returns415()
     {
         await using EndpointApp app = await EndpointApp.StartAsync();
-        using var content = new StringContent(ValidConfigurationJson(), Encoding.UTF8, "text/plain");
+        using StringContent content = new StringContent(ValidConfigurationJson(), Encoding.UTF8, "text/plain");
 
         using HttpResponseMessage response = await app.Client.PostAsync("/configure-measuring-point", content, It.IsAny<CancellationToken>());
 
@@ -375,8 +375,8 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task ConfigureMeasuringPoint_ConcurrencyLimitHasNoQueueAndReturns429ProblemDetails()
     {
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var release = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<string> release = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         Mock<IHttpClient> vendorClient = DefaultVendorClient();
         vendorClient.Setup(client => client.PostAsync(
                 "/api/v1/user/authenticate",
@@ -411,7 +411,7 @@ public sealed class TestMonitorApiEndpoints
         Assert.AreEqual(statusCode, response.StatusCode);
         Assert.AreEqual("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         string body = await response.Content.ReadAsStringAsync();
-        using var document = JsonDocument.Parse(body);
+        using JsonDocument document = JsonDocument.Parse(body);
         Assert.AreEqual((int)statusCode, document.RootElement.GetProperty("status").GetInt32());
         Assert.AreEqual(title, document.RootElement.GetProperty("title").GetString());
         return body;
@@ -439,7 +439,7 @@ public sealed class TestMonitorApiEndpoints
         string? signature,
         string mediaType = "application/json")
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/webhook")
+        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "/webhook")
         {
             Content = new ByteArrayContent(body)
         };
@@ -454,7 +454,7 @@ public sealed class TestMonitorApiEndpoints
 
     private static ByteArrayContent JsonContent(string json)
     {
-        var content = new ByteArrayContent(Encoding.UTF8.GetBytes(json));
+        ByteArrayContent content = new ByteArrayContent(Encoding.UTF8.GetBytes(json));
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json")
         {
             CharSet = "utf-8"
@@ -493,7 +493,7 @@ public sealed class TestMonitorApiEndpoints
 
     private static Mock<IHttpClient> DefaultVendorClient()
     {
-        var client = new Mock<IHttpClient>();
+        Mock<IHttpClient> client = new Mock<IHttpClient>();
         client.Setup(value => value.PostAsync(
                 "/api/v1/user/authenticate",
                 It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
@@ -507,7 +507,7 @@ public sealed class TestMonitorApiEndpoints
 
     private static Mock<IOmnidotsMonitorQueries> DefaultMonitorQueries()
     {
-        var queries = new Mock<IOmnidotsMonitorQueries>();
+        Mock<IOmnidotsMonitorQueries> queries = new Mock<IOmnidotsMonitorQueries>();
         VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1, alwaysMakeSensor: true, serialIdIn: 23422)[0];
         queries.Setup(query => query.ReadMonitor("23423")).Returns(monitor);
         queries.Setup(query => query.ReadSiteTimes(monitor.Id)).Returns(OmnidotsFixture.AlwaysOpenSiteTimes());
@@ -546,13 +546,13 @@ public sealed class TestMonitorApiEndpoints
             options ??= ValidOptions();
             vendorClient ??= DefaultVendorClient();
             monitorQueries ??= DefaultMonitorQueries();
-            var logs = new CapturingLoggerProvider();
-            var webhookHandler = new ProcessWebhookHandler(
+            CapturingLoggerProvider logs = new CapturingLoggerProvider();
+            ProcessWebhookHandler webhookHandler = new ProcessWebhookHandler(
                 ingress,
                 new OmnidotsAlarmTranslator(),
                 options,
                 new OmnidotsWebhookSignatureValidator());
-            var configurationHandler = new ConfigureMeasuringPointHandler(
+            ConfigureMeasuringPointHandler configurationHandler = new ConfigureMeasuringPointHandler(
                 new OmnidotsHttpGateway(vendorClient.Object, "vendor-user", "vendor-auth"),
                 monitorQueries.Object,
                 options);

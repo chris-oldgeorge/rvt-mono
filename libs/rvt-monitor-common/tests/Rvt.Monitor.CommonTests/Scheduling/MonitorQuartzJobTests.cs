@@ -11,9 +11,9 @@ public sealed class MonitorQuartzJobTests
     [TestMethod]
     public async Task Execute_DispatchesConfiguredJobName()
     {
-        var dispatcher = new CapturingDispatcher(0);
-        var job = new MonitorQuartzJob(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
-        var context = CreateContext("StoreMonitors");
+        CapturingDispatcher dispatcher = new CapturingDispatcher(0);
+        MonitorQuartzJob job = new MonitorQuartzJob(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
+        IJobExecutionContext context = CreateContext("StoreMonitors");
 
         await job.Execute(context);
 
@@ -23,9 +23,9 @@ public sealed class MonitorQuartzJobTests
     [TestMethod]
     public async Task Execute_ThrowsWhenDispatcherReturnsFailure()
     {
-        var dispatcher = new CapturingDispatcher(2);
-        var job = new MonitorQuartzJob(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
-        var context = CreateContext("MissingJob");
+        CapturingDispatcher dispatcher = new CapturingDispatcher(2);
+        MonitorQuartzJob job = new MonitorQuartzJob(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
+        IJobExecutionContext context = CreateContext("MissingJob");
 
         await Assert.ThrowsExactlyAsync<JobExecutionException>(() => job.Execute(context));
     }
@@ -33,9 +33,9 @@ public sealed class MonitorQuartzJobTests
     [TestMethod]
     public async Task Execute_ThrowsWhenJobNameIsMissing()
     {
-        var dispatcher = new CapturingDispatcher(0);
-        var job = new MonitorQuartzJob(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
-        var context = CreateContext(null);
+        CapturingDispatcher dispatcher = new CapturingDispatcher(0);
+        MonitorQuartzJob job = new MonitorQuartzJob(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
+        IJobExecutionContext context = CreateContext(null);
 
         await Assert.ThrowsExactlyAsync<JobExecutionException>(() => job.Execute(context));
     }
@@ -56,8 +56,8 @@ public sealed class MonitorQuartzJobTests
 
     private static IJobExecutionContext CreateContext(string? jobName)
     {
-        var context = new Mock<IJobExecutionContext>();
-        var jobDataMap = new JobDataMap();
+        Mock<IJobExecutionContext> context = new Mock<IJobExecutionContext>();
+        JobDataMap jobDataMap = new JobDataMap();
         if (jobName is not null)
         {
             jobDataMap["JobName"] = jobName;

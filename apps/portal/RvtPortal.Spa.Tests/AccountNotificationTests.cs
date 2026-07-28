@@ -15,7 +15,7 @@ public sealed class AccountNotificationTests
     // Function summary: Verifies the password-set message keeps its subject and welcome copy.
     public void PasswordSet_HasWelcomeSubjectAndBody()
     {
-        var message = AccountMessageCatalog.For(AccountMessageKind.PasswordSet);
+        AccountMessage message = AccountMessageCatalog.For(AccountMessageKind.PasswordSet);
 
         Assert.Equal("Welcome to the RVT Cloud", message.Subject);
         Assert.Contains("You have been added as a user to the RVT Cloud.", message.HtmlBody, StringComparison.Ordinal);
@@ -28,7 +28,7 @@ public sealed class AccountNotificationTests
     // Function summary: Verifies the password-reset message keeps its subject and reset copy.
     public void PasswordReset_HasResetSubjectAndBody()
     {
-        var message = AccountMessageCatalog.For(AccountMessageKind.PasswordReset);
+        AccountMessage message = AccountMessageCatalog.For(AccountMessageKind.PasswordReset);
 
         Assert.Equal("Password reset", message.Subject);
         Assert.Contains("You have requested to reset your password to the RVT Cloud.", message.HtmlBody, StringComparison.Ordinal);
@@ -39,9 +39,9 @@ public sealed class AccountNotificationTests
     // Function summary: Verifies every account message keeps the callback placeholder for the messenger to fill.
     public void EveryAccountMessage_CarriesCallbackPlaceholder()
     {
-        foreach (var kind in Enum.GetValues<AccountMessageKind>())
+        foreach (AccountMessageKind kind in Enum.GetValues<AccountMessageKind>())
         {
-            var message = AccountMessageCatalog.For(kind);
+            AccountMessage message = AccountMessageCatalog.For(kind);
             Assert.Contains("{callbackUrl}", message.HtmlBody, StringComparison.Ordinal);
         }
     }
@@ -52,10 +52,10 @@ public sealed class AccountNotificationTests
     // Function summary: Verifies the messenger sends the catalog subject with the callback URL substituted and HTML-encoded.
     public async Task SendPasswordSetAsync_SubstitutesEncodedCallbackAndSendsSubject()
     {
-        var delivery = new RecordingEmailDelivery(EmailDeliveryResult.Success());
-        var messenger = new AccountMessenger(delivery);
+        RecordingEmailDelivery delivery = new RecordingEmailDelivery(EmailDeliveryResult.Success());
+        AccountMessenger messenger = new AccountMessenger(delivery);
 
-        var result = await messenger.SendPasswordSetAsync("user@example.test", "https://portal.test/set?code=a&b=c", CancellationToken.None);
+        EmailDeliveryResult result = await messenger.SendPasswordSetAsync("user@example.test", "https://portal.test/set?code=a&b=c", CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Equal("user@example.test", delivery.LastTo);
@@ -69,10 +69,10 @@ public sealed class AccountNotificationTests
     // Function summary: Verifies a delivery failure is propagated to the caller with the provider response.
     public async Task SendPasswordResetAsync_PropagatesDeliveryFailure()
     {
-        var delivery = new RecordingEmailDelivery(EmailDeliveryResult.Failure("503"));
-        var messenger = new AccountMessenger(delivery);
+        RecordingEmailDelivery delivery = new RecordingEmailDelivery(EmailDeliveryResult.Failure("503"));
+        AccountMessenger messenger = new AccountMessenger(delivery);
 
-        var result = await messenger.SendPasswordResetAsync("user@example.test", "https://portal.test/reset", CancellationToken.None);
+        EmailDeliveryResult result = await messenger.SendPasswordResetAsync("user@example.test", "https://portal.test/reset", CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("503", result.ProviderResponse);

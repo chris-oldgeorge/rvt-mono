@@ -41,7 +41,7 @@ namespace MyAtm.Model.Dto
             SampleTime = measurement.Timestamp;
             if (measurement is DeviceMeasurement)
             {
-                var m = (DeviceMeasurement)measurement;
+                DeviceMeasurement m = (DeviceMeasurement)measurement;
                 Pm1 = m.Pm1;
                 Pm2_5 = m.Pm2_5;
                 Pm10 = m.Pm10;
@@ -55,7 +55,7 @@ namespace MyAtm.Model.Dto
             else if (measurement is AvgDeviceMeasurement)
             {
 
-                var m = (AvgDeviceMeasurement)measurement;
+                AvgDeviceMeasurement m = (AvgDeviceMeasurement)measurement;
                 Pm1 = m.Pm1?.Avg;
                 Pm2_5 = m.Pm2_5?.Avg;
                 Pm10 = m.Pm10?.Avg;

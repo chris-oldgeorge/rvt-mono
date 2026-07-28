@@ -16,8 +16,8 @@ public sealed class AirQModelMappingTests
     [DataRow(typeof(AirQNoise8HourAverageEntity), "air_q_noise_8_hour_average")]
     public void AirQContext_MapsCanonicalTablesWithoutSchemas(Type entityClrType, string tableName)
     {
-        using var context = CreateContext();
-        var entityType = context.Model.FindEntityType(entityClrType);
+        using AirQMonitorContext context = CreateContext();
+        IEntityType? entityType = context.Model.FindEntityType(entityClrType);
 
         Assert.IsNotNull(entityType);
         Assert.AreEqual(tableName, entityType.GetTableName());
@@ -27,7 +27,7 @@ public sealed class AirQModelMappingTests
     [TestMethod]
     public void AirQContext_MapsCanonicalColumnsAndTimestampTypes()
     {
-        using var context = CreateContext();
+        using AirQMonitorContext context = CreateContext();
 
         AssertColumns(
             context.Model.FindEntityType(typeof(AirQNoiseLevelEntity))!,
@@ -82,16 +82,16 @@ public sealed class AirQModelMappingTests
     [TestMethod]
     public void AirQContext_PreservesKeysAndSharedMonitorIndex()
     {
-        using var context = CreateContext();
+        using AirQMonitorContext context = CreateContext();
 
         AssertKey(context, typeof(AirQNoiseLevelEntity), "SerialId", "SampleTime");
         AssertKey(context, typeof(AirQMonitorStatusEntity), "SerialId");
         AssertKey(context, typeof(AirQErrorMessageEntity), "Tag", "ErrorTime", "Error");
         AssertKey(context, typeof(AirQNoise8HourAverageEntity), "SerialId", "SampleTime");
 
-        var monitor = context.Model.FindEntityType(typeof(MonitorEntity));
+        IEntityType? monitor = context.Model.FindEntityType(typeof(MonitorEntity));
         Assert.IsNotNull(monitor);
-        var index = monitor.GetIndexes().Single();
+        IIndex index = monitor.GetIndexes().Single();
         Assert.AreEqual(
             "ix_monitor_serial_id_type_of_monitor",
             index.GetDatabaseName());
@@ -106,7 +106,7 @@ public sealed class AirQModelMappingTests
         params (string Property, string Column)[] expectedColumns)
     {
         Assert.HasCount(expectedColumns.Length, entityType.GetProperties());
-        foreach (var expected in expectedColumns)
+        foreach ((string Property, string Column) expected in expectedColumns)
         {
             Assert.AreEqual(
                 expected.Column,
@@ -120,7 +120,7 @@ public sealed class AirQModelMappingTests
         Type entityClrType,
         string propertyName)
     {
-        var property = context.Model.FindEntityType(entityClrType)!.FindProperty(propertyName);
+        IProperty? property = context.Model.FindEntityType(entityClrType)!.FindProperty(propertyName);
         Assert.IsNotNull(property);
         Assert.AreEqual("timestamp with time zone", property.GetRelationalTypeMapping().StoreType);
     }
@@ -130,7 +130,7 @@ public sealed class AirQModelMappingTests
         Type entityClrType,
         params string[] expectedProperties)
     {
-        var keyProperties = context.Model
+        string[] keyProperties = context.Model
             .FindEntityType(entityClrType)!
             .FindPrimaryKey()!
             .Properties
@@ -141,8 +141,8 @@ public sealed class AirQModelMappingTests
 
     private static AirQMonitorContext CreateContext()
     {
-        var options = new MonitorDbOptions(new Dictionary<string, string>());
-        var dbOptions = new DbContextOptionsBuilder<AirQMonitorContext>()
+        MonitorDbOptions options = new MonitorDbOptions(new Dictionary<string, string>());
+        DbContextOptions<AirQMonitorContext> dbOptions = new DbContextOptionsBuilder<AirQMonitorContext>()
             .UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata")
             .Options;
 

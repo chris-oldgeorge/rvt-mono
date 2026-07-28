@@ -22,7 +22,7 @@ public abstract class DeliveryException : Exception
     private static string CreateMessage(string provider, string channel, DeliveryFailureKind failureKind, string? code)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(provider);
-        var codeText = string.IsNullOrWhiteSpace(code) ? string.Empty : $", code {code}";
+        string codeText = string.IsNullOrWhiteSpace(code) ? string.Empty : $", code {code}";
         return $"{provider} {channel} delivery failed ({failureKind}{codeText}).";
     }
 }

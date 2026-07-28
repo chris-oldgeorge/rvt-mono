@@ -24,7 +24,7 @@ public sealed class RuleAlertNotificationDispatcher
 
     public void ProcessAlertForContacts(RuleNotificationRequest request, List<RvtContactDto> contacts)
     {
-        var notification = new NotificationDto(
+        NotificationDto notification = new NotificationDto(
             id: Guid.NewGuid(),
             notificationTime: request.AlertTime,
             limitOn: request.LimitOn,
@@ -43,17 +43,17 @@ public sealed class RuleAlertNotificationDispatcher
             return;
         }
 
-        var messageToSend = ToMessage(request.AlertType);
-        var notificationUrl = request.AlertType is Rvt.Monitor.Common.Notifications.AlertType.Alert or Rvt.Monitor.Common.Notifications.AlertType.Caution
+        LegacyMessageKind messageToSend = ToMessage(request.AlertType);
+        string notificationUrl = request.AlertType is Rvt.Monitor.Common.Notifications.AlertType.Alert or Rvt.Monitor.Common.Notifications.AlertType.Caution
             ? $"{RvtConfig.PORTAL_BASE_URL}Notification/View/{notification.Id}"
             : "";
 
-        foreach (var contact in contacts.Where(x => x.Email))
+        foreach (RvtContactDto? contact in contacts.Where(x => x.Email))
         {
             SendEmail(notification.Id, contact, request.AlertTime, messageToSend, request.FleetNr, notificationUrl);
         }
 
-        foreach (var contact in contacts.Where(x => x.SMS))
+        foreach (RvtContactDto? contact in contacts.Where(x => x.SMS))
         {
             SendSms(notification.Id, contact, request.AlertTime, messageToSend, request.FleetNr, notificationUrl);
         }

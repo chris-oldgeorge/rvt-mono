@@ -20,20 +20,20 @@ public static class OmnidotsTraceMonitorSelector
         HashSet<string>? allowedSerialIds = options.AllowedSerialIds.Length == 0
             ? null
             : new HashSet<string>(options.AllowedSerialIds, StringComparer.OrdinalIgnoreCase);
-        var eligible = monitors
+        IOrderedEnumerable<IGrouping<DateTime, VibrationMonitorDto>> eligible = monitors
             .Where(monitor => allowedSerialIds == null || allowedSerialIds.Contains(monitor.SerialId))
-            .GroupBy(monitor => latestTraceEndTimes.TryGetValue(monitor.SerialId, out var lastTraceAt)
+            .GroupBy(monitor => latestTraceEndTimes.TryGetValue(monitor.SerialId, out DateTime lastTraceAt)
                 ? lastTraceAt
                 : DateTime.MinValue)
             .OrderBy(group => group.Key);
-        var ordered = new List<VibrationMonitorDto>();
+        List<VibrationMonitorDto> ordered = new List<VibrationMonitorDto>();
 
-        foreach (var priorityGroup in eligible)
+        foreach (IGrouping<DateTime, VibrationMonitorDto>? priorityGroup in eligible)
         {
-            var monitorsAtPriority = priorityGroup
+            VibrationMonitorDto[] monitorsAtPriority = priorityGroup
                 .OrderBy(monitor => monitor.SerialId, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
-            var offset = RotationOffset(rotationSlot, options.MaxMonitorsPerRun, monitorsAtPriority.Length);
+            int offset = RotationOffset(rotationSlot, options.MaxMonitorsPerRun, monitorsAtPriority.Length);
             ordered.AddRange(monitorsAtPriority.Skip(offset));
             ordered.AddRange(monitorsAtPriority.Take(offset));
         }
@@ -43,7 +43,7 @@ public static class OmnidotsTraceMonitorSelector
 
     private static int RotationOffset(long rotationSlot, int maxMonitorsPerRun, int count)
     {
-        var normalizedSlot = ((rotationSlot % count) + count) % count;
+        long normalizedSlot = ((rotationSlot % count) + count) % count;
         return (int)((normalizedSlot * (maxMonitorsPerRun % count)) % count);
     }
 }

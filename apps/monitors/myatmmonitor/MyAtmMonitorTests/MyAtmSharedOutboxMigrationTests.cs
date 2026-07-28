@@ -57,7 +57,7 @@ public sealed class MyAtmSharedOutboxMigrationTests
     [TestMethod]
     public async Task ForwardMigration_ReplaysEveryLegacyStateIdempotently()
     {
-        var legacySource = await ReadLegacySnapshotAsync();
+        IReadOnlyList<LegacyDeliverySnapshot> legacySource = await ReadLegacySnapshotAsync();
         Assert.HasCount(5, legacySource);
 
         await ApplyMigrationAsync(ForwardMigration);
@@ -129,34 +129,34 @@ public sealed class MyAtmSharedOutboxMigrationTests
 
     private static async Task ExecuteAsync(string sql)
     {
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
         await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<int> ScalarIntAsync(string sql)
     {
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
 
     private static async Task<string?> ScalarStringAsync(string sql)
     {
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
         return Convert.ToString(await command.ExecuteScalarAsync());
     }
 
     private static async Task<DateTime?> ScalarDateTimeAsync(string sql)
     {
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
-        var value = await command.ExecuteScalarAsync();
+        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        object? value = await command.ExecuteScalarAsync();
         return value is DBNull or null ? null : (DateTime)value;
     }
 
@@ -176,11 +176,11 @@ public sealed class MyAtmSharedOutboxMigrationTests
             ORDER BY legacy.delivery_key;
             """;
 
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
-        await using var reader = await command.ExecuteReaderAsync();
-        var rows = new List<LegacyDeliverySnapshot>();
+        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+        List<LegacyDeliverySnapshot> rows = new List<LegacyDeliverySnapshot>();
         while (await reader.ReadAsync())
         {
             rows.Add(new LegacyDeliverySnapshot(
@@ -216,11 +216,11 @@ public sealed class MyAtmSharedOutboxMigrationTests
             ORDER BY delivery_key;
             """;
 
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
-        await using var reader = await command.ExecuteReaderAsync();
-        var rows = new List<SharedDeliverySnapshot>();
+        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+        List<SharedDeliverySnapshot> rows = new List<SharedDeliverySnapshot>();
         while (await reader.ReadAsync())
         {
             rows.Add(new SharedDeliverySnapshot(
@@ -254,10 +254,10 @@ public sealed class MyAtmSharedOutboxMigrationTests
         Assert.HasCount(legacyRows.Count, sharedRows);
         Assert.AreEqual(sharedRows.Count, sharedRows.Select(row => row.DeliveryKey).Distinct(StringComparer.Ordinal).Count());
 
-        for (var index = 0; index < legacyRows.Count; index++)
+        for (int index = 0; index < legacyRows.Count; index++)
         {
-            var legacy = legacyRows[index];
-            var shared = sharedRows[index];
+            LegacyDeliverySnapshot legacy = legacyRows[index];
+            SharedDeliverySnapshot shared = sharedRows[index];
 
             Assert.AreEqual(legacy.Id, shared.Id, legacy.DeliveryKey);
             Assert.AreEqual("MyAtm", shared.Producer, legacy.DeliveryKey);

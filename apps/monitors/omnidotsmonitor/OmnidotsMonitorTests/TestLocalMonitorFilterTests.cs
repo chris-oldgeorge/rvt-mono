@@ -13,13 +13,13 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyReadMonitorFilter_WhenDisabled_ReturnsAllMonitors()
     {
-        var monitors = new List<VibrationMonitorDto>
+        List<VibrationMonitorDto> monitors = new List<VibrationMonitorDto>
         {
             Monitor("R17222V-QUCILO", "14768"),
             Monitor("Other", "99999")
         };
 
-        var filtered = OmnidotsTestLocalMonitorFilter.Apply(monitors, enabled: false);
+        List<VibrationMonitorDto> filtered = OmnidotsTestLocalMonitorFilter.Apply(monitors, enabled: false);
 
         CollectionAssert.AreEqual(monitors, filtered);
     }
@@ -27,17 +27,17 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyReadMonitorFilter_WhenEnabled_ReturnsOnlyDemoVibrationMonitor()
     {
-        var target = Monitor("R17222V-QUCILO", "14768");
-        var sameSerialWrongFleet = Monitor("Other", "14768");
-        var sameFleetWrongSerial = Monitor("R17222V-QUCILO", "99999");
-        var monitors = new List<VibrationMonitorDto>
+        VibrationMonitorDto target = Monitor("R17222V-QUCILO", "14768");
+        VibrationMonitorDto sameSerialWrongFleet = Monitor("Other", "14768");
+        VibrationMonitorDto sameFleetWrongSerial = Monitor("R17222V-QUCILO", "99999");
+        List<VibrationMonitorDto> monitors = new List<VibrationMonitorDto>
         {
             sameSerialWrongFleet,
             target,
             sameFleetWrongSerial
         };
 
-        var filtered = OmnidotsTestLocalMonitorFilter.Apply(monitors, enabled: true);
+        List<VibrationMonitorDto> filtered = OmnidotsTestLocalMonitorFilter.Apply(monitors, enabled: true);
 
         CollectionAssert.AreEqual(new[] { target }, filtered);
     }
@@ -45,18 +45,18 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyCatalogMonitorFilter_WhenEnabled_ReturnsOnlyDemoSerial()
     {
-        var target = Monitor("unknown", "14768");
-        var other = Monitor("R17222V-QUCILO", "99999");
-        var monitors = new List<VibrationMonitorDto> { other, target };
+        VibrationMonitorDto target = Monitor("unknown", "14768");
+        VibrationMonitorDto other = Monitor("R17222V-QUCILO", "99999");
+        List<VibrationMonitorDto> monitors = new List<VibrationMonitorDto> { other, target };
 
-        var filtered = OmnidotsTestLocalMonitorFilter.ApplyCatalog(monitors, enabled: true);
+        List<VibrationMonitorDto> filtered = OmnidotsTestLocalMonitorFilter.ApplyCatalog(monitors, enabled: true);
 
         CollectionAssert.AreEqual(new[] { target }, filtered);
     }
 
     private static VibrationMonitorDto Monitor(string fleetNr, string serialId)
     {
-        var status = new VibrationMonitorStatusDto(
+        VibrationMonitorStatusDto status = new VibrationMonitorStatusDto(
             serialId: serialId,
             measurementDuration: 60,
             dataSaveLevel: 1,

@@ -20,14 +20,14 @@ public sealed class TestRules
     [TestMethod]
     public async Task StoreDustLevels_CommitIncludesMeasurementWatermarkRuleMutationAndOccurrence()
     {
-        var httpClient = new Mock<IHttpClient>();
-        var dbClient = new Mock<IDBClient>();
-        var mqttClient = new Mock<IMqttClient>();
-        var messageService = new Mock<IMessageService>();
-        var sampleTime = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
-        var monitor = MyAtmFixture.CustomerDeviceDtos(sampleTime.AddMinutes(-1), singleItem: true).Single();
-        var rule = CreateRule(monitor, isActive: false);
-        var contacts = new List<Rvt.Monitor.Common.Rules.RvtContactDto>
+        Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
+        Mock<IDBClient> dbClient = new Mock<IDBClient>();
+        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+        Mock<IMessageService> messageService = new Mock<IMessageService>();
+        DateTime sampleTime = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(sampleTime.AddMinutes(-1), singleItem: true).Single();
+        RvtAlertRuleDto rule = CreateRule(monitor, isActive: false);
+        List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = new List<Rvt.Monitor.Common.Rules.RvtContactDto>
         {
             new(true, false, "alert@example.test", null, null, null)
         };
@@ -50,7 +50,7 @@ public sealed class TestRules
             .ReturnsAsync((MonitorDeliveryMessage?)null);
         mqttClient.Setup(client => client.PublishAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
 
-        var api = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
+        MyAtmApi api = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
         await api.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1);
 
@@ -74,13 +74,13 @@ public sealed class TestRules
     [TestMethod]
     public async Task StoreDustLevels_DeletedRuleCommitDeactivatesWithoutCreatingOccurrence()
     {
-        var httpClient = new Mock<IHttpClient>();
-        var dbClient = new Mock<IDBClient>();
-        var mqttClient = new Mock<IMqttClient>();
-        var messageService = new Mock<IMessageService>();
-        var sampleTime = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
-        var monitor = MyAtmFixture.CustomerDeviceDtos(sampleTime.AddMinutes(-1), singleItem: true).Single();
-        var rule = CreateRule(monitor, isActive: true, isDeleted: true);
+        Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
+        Mock<IDBClient> dbClient = new Mock<IDBClient>();
+        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+        Mock<IMessageService> messageService = new Mock<IMessageService>();
+        DateTime sampleTime = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(sampleTime.AddMinutes(-1), singleItem: true).Single();
+        RvtAlertRuleDto rule = CreateRule(monitor, isActive: true, isDeleted: true);
         MyAtmDustImportCommit? commit = null;
 
         httpClient.Setup(client => client.GetAsync(It.IsRegex("/api/customers/656/devices/11111/measurements"), It.IsAny<CancellationToken>()))
@@ -99,7 +99,7 @@ public sealed class TestRules
             .ReturnsAsync((MonitorDeliveryMessage?)null);
         mqttClient.Setup(client => client.PublishAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
 
-        var api = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
+        MyAtmApi api = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
         await api.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1);
 

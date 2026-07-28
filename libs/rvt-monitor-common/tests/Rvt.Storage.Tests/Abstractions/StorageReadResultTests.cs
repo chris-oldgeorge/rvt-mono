@@ -8,10 +8,10 @@ public sealed class StorageReadResultTests
     [TestMethod]
     public async Task DisposeAsync_DisposesContentThenProviderLease()
     {
-        var events = new List<string>();
-        var content = new RecordingStream(events, throwOnDispose: true);
-        var lease = new RecordingLease(events);
-        var result = new StorageReadResult(content, "audio/wav", 42, lease);
+        List<string> events = new List<string>();
+        RecordingStream content = new RecordingStream(events, throwOnDispose: true);
+        RecordingLease lease = new RecordingLease(events);
+        StorageReadResult result = new StorageReadResult(content, "audio/wav", 42, lease);
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             async () => await result.DisposeAsync());

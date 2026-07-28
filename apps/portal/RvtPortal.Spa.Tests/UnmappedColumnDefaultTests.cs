@@ -3,6 +3,7 @@
 // - 2026-07-14 pending Added after rvt_alert_rule.created (NOT NULL, no default) broke every EF alert-rule insert.
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using RVT.DataAccess.Context;
 using RVT.Entities;
@@ -30,10 +31,10 @@ public sealed class UnmappedColumnDefaultTests
     // Function summary: Verifies every unmapped NOT NULL column has a database default EF can rely on.
     public void UnmappedNotNullColumns_HaveDatabaseDefaults()
     {
-        var schemaSql = File.ReadAllText(
+        string schemaSql = File.ReadAllText(
             Path.Combine(FindRepositoryRoot(), "database", "postgres", "create_unmapped_schema.sql"));
 
-        var offenders = ParseAddedColumns(StripSqlComments(schemaSql))
+        string[] offenders = ParseAddedColumns(StripSqlComments(schemaSql))
             .Where(column => column.IsNotNull && !column.HasDefault)
             .Select(column => column.Name)
             .ToArray();
@@ -50,9 +51,9 @@ public sealed class UnmappedColumnDefaultTests
     // Function summary: Locks the forward repair to repeatable catalogue-only versions of the canonical defaults.
     public void RepairScript_UsesIdempotentCanonicalDefaultsWithoutMutatingRows()
     {
-        var repairSql = File.ReadAllText(
+        string repairSql = File.ReadAllText(
             Path.Combine(FindRepositoryRoot(), "database", "postgres", "restore_unmapped_column_defaults.sql"));
-        var executableSql = StripSqlComments(repairSql);
+        string executableSql = StripSqlComments(repairSql);
 
         Assert.Equal(2, CountOccurrences(executableSql, "ALTER TABLE "));
         Assert.Equal(2, CountOccurrences(executableSql, "ALTER COLUMN "));
@@ -78,15 +79,15 @@ public sealed class UnmappedColumnDefaultTests
         // database (dev, a restored backup, a from-scratch build) to prove EF's INSERT survives its schema.
         // Between them the two inserts cover both unmapped NOT NULL columns: monitor.battery_status, which no
         // EF code path inserts today, and rvt_alert_rule.created, which every alert level creation goes through.
-        var connectionString =
+        string? connectionString =
             Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        var options = new DbContextOptionsBuilder<RVTDbContext>().UseNpgsql(connectionString).Options;
-        await using var context = new RVTDbContext(options);
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>().UseNpgsql(connectionString).Options;
+        await using RVTDbContext context = new RVTDbContext(options);
 
         // Rolled back: this proves the schema accepts EF's INSERTs without leaving rows behind.
-        await using var transaction = await context.Database.BeginTransactionAsync();
+        await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync();
 
-        var monitor = new MonitorEntity
+        MonitorEntity monitor = new MonitorEntity
         {
             SerialId = "TEST-UNMAPPED-DEFAULTS",
             Manufacturer = "Test",
@@ -122,27 +123,27 @@ public sealed class UnmappedColumnDefaultTests
     // Function summary: Proves the complete deploy list is safe twice and preserves table data on real PostgreSQL.
     public async Task SchemaDeploy_RunsTwiceAndPreservesDataWithCanonicalDefaults()
     {
-        var connectionString =
+        string connectionString =
             Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!;
-        var runner = new ScriptRunner(new DeployOptions
+        ScriptRunner runner = new ScriptRunner(new DeployOptions
         {
             ConnectionString = connectionString,
             ScriptRoot = Path.Combine(FindRepositoryRoot(), "database", "postgres"),
             DryRun = false
         });
 
-        await using var connection = new NpgsqlConnection(connectionString);
+        await using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
-        await using var transaction = await connection.BeginTransactionAsync();
+        await using NpgsqlTransaction transaction = await connection.BeginTransactionAsync();
 
-        var firstRunCount = await runner.RunAsync(connection);
-        var defaultsAfterFirstRun = await ReadRepairedDefaultsAsync(connection);
-        var sentinelSerialId = await SeedRepairSentinelAsync(connection, transaction);
-        var dataBeforeSecondRun = await ReadRepairTargetDataAsync(connection, sentinelSerialId);
+        int firstRunCount = await runner.RunAsync(connection);
+        IReadOnlyDictionary<string, string> defaultsAfterFirstRun = await ReadRepairedDefaultsAsync(connection);
+        string sentinelSerialId = await SeedRepairSentinelAsync(connection, transaction);
+        (long MonitorCount, string MonitorHash, long AlertRuleCount, string AlertRuleHash) dataBeforeSecondRun = await ReadRepairTargetDataAsync(connection, sentinelSerialId);
 
-        var secondRunCount = await runner.RunAsync(connection);
-        var defaultsAfterSecondRun = await ReadRepairedDefaultsAsync(connection);
-        var dataAfterSecondRun = await ReadRepairTargetDataAsync(connection, sentinelSerialId);
+        int secondRunCount = await runner.RunAsync(connection);
+        IReadOnlyDictionary<string, string> defaultsAfterSecondRun = await ReadRepairedDefaultsAsync(connection);
+        (long MonitorCount, string MonitorHash, long AlertRuleCount, string AlertRuleHash) dataAfterSecondRun = await ReadRepairTargetDataAsync(connection, sentinelSerialId);
 
         Assert.Equal(firstRunCount, secondRunCount);
         Assert.True(firstRunCount >= 3, "The deploy must include create, repair, and at least one post-load script.");
@@ -162,13 +163,13 @@ public sealed class UnmappedColumnDefaultTests
 
         // The CREATE TABLE statements in the same file are for tables EF does not map at all, so EF never inserts
         // into them and a bare NOT NULL there is fine. Only the ADD COLUMN clauses land on EF-created tables.
-        var segments = sql.Split(marker, StringSplitOptions.None);
+        string[] segments = sql.Split(marker, StringSplitOptions.None);
 
         // Segment 0 is whatever preceded the first marker, so it is not a column.
-        for (var index = 1; index < segments.Length; index++)
+        for (int index = 1; index < segments.Length; index++)
         {
-            var clause = ReadClause(segments[index]);
-            var words = clause.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            string clause = ReadClause(segments[index]);
+            string[] words = clause.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             if (words.Length == 0)
             {
                 continue;
@@ -184,12 +185,12 @@ public sealed class UnmappedColumnDefaultTests
     // Function summary: Takes one column clause, stopping at the comma or semicolon that ends it.
     private static string ReadClause(string segment)
     {
-        var depth = 0;
-        var quoted = false;
+        int depth = 0;
+        bool quoted = false;
 
-        for (var i = 0; i < segment.Length; i++)
+        for (int i = 0; i < segment.Length; i++)
         {
-            var character = segment[i];
+            char character = segment[i];
 
             // A default like DEFAULT (now() AT TIME ZONE 'utc') carries both parentheses and a quoted literal,
             // and a comma inside either of them does not end the clause.
@@ -219,8 +220,8 @@ public sealed class UnmappedColumnDefaultTests
     // Function summary: Counts non-overlapping occurrences for the static idempotency contract.
     private static int CountOccurrences(string source, string value)
     {
-        var count = 0;
-        var offset = 0;
+        int count = 0;
+        int offset = 0;
         while ((offset = source.IndexOf(value, offset, StringComparison.OrdinalIgnoreCase)) >= 0)
         {
             count++;
@@ -233,7 +234,7 @@ public sealed class UnmappedColumnDefaultTests
     // Function summary: Walks up from the test output directory to the repository root.
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "RvtPortal.Spa.sln")))
@@ -270,9 +271,9 @@ public sealed class UnmappedColumnDefaultTests
             ORDER BY table_name, column_name;
             """;
 
-        var defaults = new Dictionary<string, string>(StringComparer.Ordinal);
-        await using var command = new NpgsqlCommand(sql, connection);
-        await using var reader = await command.ExecuteReaderAsync();
+        Dictionary<string, string> defaults = new Dictionary<string, string>(StringComparer.Ordinal);
+        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
             defaults.Add(reader.GetString(0), reader.GetString(1));
@@ -286,14 +287,14 @@ public sealed class UnmappedColumnDefaultTests
         NpgsqlConnection connection,
         NpgsqlTransaction transaction)
     {
-        var serialId = $"TSD-{Guid.NewGuid():N}"[..16];
-        var options = new DbContextOptionsBuilder<RVTDbContext>()
+        string serialId = $"TSD-{Guid.NewGuid():N}"[..16];
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseNpgsql(connection)
             .Options;
-        await using var context = new RVTDbContext(options);
+        await using RVTDbContext context = new RVTDbContext(options);
         await context.Database.UseTransactionAsync(transaction);
 
-        var monitor = new MonitorEntity
+        MonitorEntity monitor = new MonitorEntity
         {
             SerialId = serialId,
             Manufacturer = "Test",
@@ -340,9 +341,9 @@ public sealed class UnmappedColumnDefaultTests
                     '')) FROM public.rvt_alert_rule AS row_data WHERE serial_id = @serial_id);
             """;
 
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("serial_id", serialId);
-        await using var reader = await command.ExecuteReaderAsync();
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
         return (reader.GetInt64(0), reader.GetString(1), reader.GetInt64(2), reader.GetString(3));
     }

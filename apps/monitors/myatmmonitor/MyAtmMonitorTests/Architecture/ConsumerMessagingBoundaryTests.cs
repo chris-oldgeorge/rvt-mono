@@ -15,7 +15,7 @@ public sealed class ConsumerMessagingBoundaryTests
     public void ObsoleteSynchronousMessageCallsAreLimitedToConsumerCompatibilityAllowlist()
     {
         string root = RepositoryLayout.Root;
-        var callers = new[]
+        string[] callers = new[]
             {
                 "apps/monitors/myatmmonitor/MyAtmMonitor",
                 "apps/monitors/omnidotsmonitor/OmnidotsMonitor"
@@ -34,7 +34,7 @@ public sealed class ConsumerMessagingBoundaryTests
 
     private static IEnumerable<SourceFile> ReadProductionSource(string root, string relativeDirectory)
     {
-        var directory = Path.Combine(root, relativeDirectory);
+        string directory = Path.Combine(root, relativeDirectory);
         return Directory
             .EnumerateFiles(directory, "*", SearchOption.AllDirectories)
             .Where(path => Path.GetExtension(path) is ".cs" or ".csproj")
@@ -46,7 +46,7 @@ public sealed class ConsumerMessagingBoundaryTests
 
     private static bool HasExcludedDirectory(string root, string path)
     {
-        var segments = Path.GetRelativePath(root, path)
+        string[] segments = Path.GetRelativePath(root, path)
             .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
         return segments.Any(segment => segment.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
             segment.Equals("obj", StringComparison.OrdinalIgnoreCase) ||

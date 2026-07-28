@@ -29,7 +29,7 @@ namespace RVT.DataAccess
         public async Task<List<BreachesAndAlertsDto>> BreachesAndAlertsForDate(DateTime date)
         {
             // PostgreSQL routine execution maps this legacy name to public.peak_record_breach_and_alerts.
-            var rows = await routineExecutor.QueryAsync(
+            IReadOnlyList<BreachesAndAlertsDto> rows = await routineExecutor.QueryAsync(
                 "PeakRecordBreachAndAlerts",
                 new[] { new RvtRoutineParameter("Date", date) },
                 reader => new BreachesAndAlertsDto

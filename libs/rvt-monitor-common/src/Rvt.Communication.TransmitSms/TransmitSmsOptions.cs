@@ -32,7 +32,7 @@ public sealed record TransmitSmsOptions
             return;
         }
 
-        var missing = new List<string>();
+        List<string> missing = new List<string>();
         Require(ApiKey, "RVT__SMS_API_KEY", missing);
         Require(ApiSecret, "RVT__SMS_API_SECRET", missing);
         Require(Sender, "RVT__SMS_SENDER", missing);
@@ -51,13 +51,13 @@ public sealed record TransmitSmsOptions
         string name,
         bool defaultValue)
     {
-        var configured = Get(configuration, name);
+        string? configured = Get(configuration, name);
         if (configured is null)
         {
             return defaultValue;
         }
 
-        if (bool.TryParse(configured, out var value))
+        if (bool.TryParse(configured, out bool value))
         {
             return value;
         }

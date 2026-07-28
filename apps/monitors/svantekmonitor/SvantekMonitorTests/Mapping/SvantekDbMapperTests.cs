@@ -13,9 +13,9 @@ public sealed class SvantekDbMapperTests
     [TestMethod]
     public void ToNoiseMonitorReadDto_MapsMonitorStatusAndDeployment()
     {
-        var id = Guid.NewGuid();
-        var deployedStart = DateTime.Parse("2026-07-06T07:30:00Z").ToUniversalTime();
-        var entity = new MonitorEntity
+        Guid id = Guid.NewGuid();
+        DateTime deployedStart = DateTime.Parse("2026-07-06T07:30:00Z").ToUniversalTime();
+        MonitorEntity entity = new MonitorEntity
         {
             Id = id,
             ListedAtTime = DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
@@ -26,7 +26,7 @@ public sealed class SvantekDbMapperTests
             BatteryStatus = 2,
             TypeOfMonitor = NoiseMonitorDto.MONITOR_TYPE_NOISE
         };
-        var status = new SvantekMonitorStatusEntity
+        SvantekMonitorStatusEntity status = new SvantekMonitorStatusEntity
         {
             SerialId = "157206",
             ProjectId = 123,
@@ -34,13 +34,13 @@ public sealed class SvantekDbMapperTests
             LastStatusTimestamp = "2026-07-06T08:20:00",
             BatteryCharge = 77
         };
-        var deployment = new DeploymentEntity
+        DeploymentEntity deployment = new DeploymentEntity
         {
             MonitorId = id,
             StartDate = deployedStart
         };
 
-        var dto = SvantekDbMapper.ToNoiseMonitorReadDto(entity, status, deployment);
+        NoiseMonitorReadDto dto = SvantekDbMapper.ToNoiseMonitorReadDto(entity, status, deployment);
 
         Assert.AreEqual(id, dto.Id);
         Assert.AreEqual("E125V", dto.FleetNr);
@@ -59,14 +59,14 @@ public sealed class SvantekDbMapperTests
     [TestMethod]
     public void UpdateMonitorEntity_PreservesRuntimeOwnedStateAndUpdatesCatalogueMetadata()
     {
-        var monitorId = Guid.NewGuid();
-        var catalogueMonitorId = Guid.NewGuid();
+        Guid monitorId = Guid.NewGuid();
+        Guid catalogueMonitorId = Guid.NewGuid();
         Assert.AreNotEqual(monitorId, catalogueMonitorId);
-        var lastDataTime1Min = DateTime.Parse("2026-07-06T08:01:00Z").ToUniversalTime();
-        var lastDataTime15Min = DateTime.Parse("2026-07-06T08:15:00Z").ToUniversalTime();
-        var lastDataTime1Hour = DateTime.Parse("2026-07-06T09:00:00Z").ToUniversalTime();
-        var lastDataTime24Hour = DateTime.Parse("2026-07-07T00:00:00Z").ToUniversalTime();
-        var entity = new MonitorEntity
+        DateTime lastDataTime1Min = DateTime.Parse("2026-07-06T08:01:00Z").ToUniversalTime();
+        DateTime lastDataTime15Min = DateTime.Parse("2026-07-06T08:15:00Z").ToUniversalTime();
+        DateTime lastDataTime1Hour = DateTime.Parse("2026-07-06T09:00:00Z").ToUniversalTime();
+        DateTime lastDataTime24Hour = DateTime.Parse("2026-07-07T00:00:00Z").ToUniversalTime();
+        MonitorEntity entity = new MonitorEntity
         {
             Id = monitorId,
             SerialId = "157206",
@@ -81,7 +81,7 @@ public sealed class SvantekDbMapperTests
             Model = "Original model",
             FirmwareVersion = "1.0.0"
         };
-        var dto = new NoiseMonitorDto(
+        NoiseMonitorDto dto = new NoiseMonitorDto(
             id: catalogueMonitorId,
             listedAtTime: DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
             lastDataTime: DateTime.Parse("2030-01-01T00:00:00Z").ToUniversalTime(),
@@ -118,10 +118,10 @@ public sealed class SvantekDbMapperTests
     [TestMethod]
     public void ToNoiseLevelEntity_MapsNoiseDtoWithSerialId()
     {
-        var sampleTime = DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime();
-        var dto = new NoiseDto(sampleTime, 1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8);
+        DateTime sampleTime = DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime();
+        NoiseDto dto = new NoiseDto(sampleTime, 1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8);
 
-        var entity = SvantekDbMapper.ToNoiseLevelEntity("157206", dto);
+        SvantekNoiseLevelEntity entity = SvantekDbMapper.ToNoiseLevelEntity("157206", dto);
 
         Assert.AreEqual("157206", entity.SerialId);
         Assert.AreEqual(sampleTime, entity.SampleTime);
@@ -138,11 +138,11 @@ public sealed class SvantekDbMapperTests
     [TestMethod]
     public void NormalizeSampleTimeForPostgreSql_ConvertsUnspecifiedSampleTimeToUtc()
     {
-        var sampleTime = DateTime.SpecifyKind(
+        DateTime sampleTime = DateTime.SpecifyKind(
             DateTime.Parse("2026-03-15T20:00:20"),
             DateTimeKind.Unspecified);
 
-        var normalized = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(sampleTime);
+        DateTime normalized = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(sampleTime);
 
         Assert.AreEqual(DateTimeKind.Utc, normalized.Kind);
         Assert.AreEqual(DateTime.SpecifyKind(sampleTime, DateTimeKind.Utc), normalized);
@@ -151,9 +151,9 @@ public sealed class SvantekDbMapperTests
     [TestMethod]
     public void UpdateMonitorStatusEntity_MapsStatusFields()
     {
-        var entity = new SvantekMonitorStatusEntity { SerialId = "157206" };
-        var updateTime = DateTime.Parse("2026-07-06T08:05:00Z").ToUniversalTime();
-        var dto = new NoiseMonitorStatus(updateTime, NoiseMonitorStatus.ACTIVE, 3, "12.4",
+        SvantekMonitorStatusEntity entity = new SvantekMonitorStatusEntity { SerialId = "157206" };
+        DateTime updateTime = DateTime.Parse("2026-07-06T08:05:00Z").ToUniversalTime();
+        NoiseMonitorStatus dto = new NoiseMonitorStatus(updateTime, NoiseMonitorStatus.ACTIVE, 3, "12.4",
             DateTime.Parse("2026-01-01T00:00:00Z").ToUniversalTime(),
             DateTime.Parse("2026-02-01T00:00:00Z").ToUniversalTime(),
             "84");

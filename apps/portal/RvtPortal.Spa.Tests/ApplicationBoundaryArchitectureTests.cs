@@ -19,7 +19,7 @@ public sealed class ApplicationBoundaryArchitectureTests
     {
         Assert.True(File.Exists(ApplicationProject), $"{ApplicationProject} must exist.");
 
-        var project = XDocument.Load(ApplicationProject);
+        XDocument project = XDocument.Load(ApplicationProject);
         Assert.Empty(project.Descendants("PackageReference"));
         Assert.Empty(project.Descendants("ProjectReference"));
     }
@@ -29,7 +29,7 @@ public sealed class ApplicationBoundaryArchitectureTests
     {
         Assert.True(Directory.Exists(ApplicationRoot), $"{ApplicationRoot} must exist.");
 
-        var forbidden = new[]
+        string[] forbidden = new[]
         {
             "Microsoft.AspNetCore",
             "Microsoft.EntityFrameworkCore",
@@ -46,7 +46,7 @@ public sealed class ApplicationBoundaryArchitectureTests
             "IFormFile",
             "ClaimsPrincipal"
         };
-        var violations = Directory
+        string[] violations = Directory
             .EnumerateFiles(ApplicationRoot, "*.cs", SearchOption.AllDirectories)
             .SelectMany(path => File.ReadLines(path)
                 .Select((line, index) => new { path, line, number = index + 1 }))
@@ -69,18 +69,18 @@ public sealed class ApplicationBoundaryArchitectureTests
     [Fact]
     public void HelpReadAdapter_AppliesQueryFiltersBeforeMaterialization()
     {
-        var sourcePath = Path.Combine(
+        string sourcePath = Path.Combine(
             RepositoryLayout.Root,
             "RvtPortal.Spa",
             "Adapters",
             "Help",
             "EfHelpReadAdapter.cs");
-        var source = File.ReadAllText(sourcePath);
-        var publishedQuery = MethodSource(
+        string source = File.ReadAllText(sourcePath);
+        string publishedQuery = MethodSource(
             source,
             "public async Task<HelpOverviewModel> QueryPublishedAsync",
             "public async Task<HelpArticleModel?> GetPublishedArticleAsync");
-        var adminQuery = MethodSource(
+        string adminQuery = MethodSource(
             source,
             "public async Task<HelpAdminOverviewModel> QueryAdminAsync",
             "public async Task<HelpArticleModel?> GetAdminArticleAsync");
@@ -105,12 +105,12 @@ public sealed class ApplicationBoundaryArchitectureTests
     [Fact]
     public void HostApplicationContainsNoHelpUseCaseSources()
     {
-        var oldHelpDirectory = Path.Combine(
+        string oldHelpDirectory = Path.Combine(
             RepositoryLayout.Root,
             "RvtPortal.Spa",
             "Application",
             "Help");
-        var remainingSources = Directory.Exists(oldHelpDirectory)
+        IEnumerable<string> remainingSources = Directory.Exists(oldHelpDirectory)
             ? Directory.EnumerateFiles(
                 oldHelpDirectory,
                 "*.cs",
@@ -125,8 +125,8 @@ public sealed class ApplicationBoundaryArchitectureTests
         string startMarker,
         string endMarker)
     {
-        var start = source.IndexOf(startMarker, StringComparison.Ordinal);
-        var end = source.IndexOf(endMarker, start, StringComparison.Ordinal);
+        int start = source.IndexOf(startMarker, StringComparison.Ordinal);
+        int end = source.IndexOf(endMarker, start, StringComparison.Ordinal);
 
         Assert.True(start >= 0, $"Could not find {startMarker}.");
         Assert.True(end > start, $"Could not find {endMarker} after {startMarker}.");
@@ -137,8 +137,8 @@ public sealed class ApplicationBoundaryArchitectureTests
         string methodSource,
         string filterMarker)
     {
-        var filter = methodSource.IndexOf(filterMarker, StringComparison.Ordinal);
-        var materialization = methodSource.IndexOf(
+        int filter = methodSource.IndexOf(filterMarker, StringComparison.Ordinal);
+        int materialization = methodSource.IndexOf(
             ".ToListAsync(",
             StringComparison.Ordinal);
 

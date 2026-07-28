@@ -104,7 +104,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
     {
         ArgumentNullException.ThrowIfNull(site);
 
-        var graphs = new List<ReportGraph>();
+        List<ReportGraph> graphs = new List<ReportGraph>();
         AddGraph(graphs, site.Monitors, MonitorType.Dust, "Dust Hourly Averages", "Hourly", "ug/m3", "DustHourlyAverage", 3600, static monitor => monitor.DustHourlyAverage);
         AddGraph(graphs, site.Monitors, MonitorType.Dust, "Dust Daily Averages", "Daily", "ug/m3", "DustDailyAverage", 86400, static monitor => monitor.DustDailyAverage);
         AddGraph(graphs, site.Monitors, MonitorType.Noise, "Noise Hourly Averages", "Hourly", "dB", "NoiseHourlyAverage", 3600, static monitor => monitor.NoiseHourlyAverage);
@@ -127,7 +127,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
 
     private static string? FindRvtLogoPath()
     {
-        var currentDirectory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? currentDirectory = new DirectoryInfo(AppContext.BaseDirectory);
         while (currentDirectory is not null)
         {
             string candidatePath = Path.Combine(currentDirectory.FullName, "Assets", RvtLogoAssetName);
@@ -301,7 +301,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
 
         decimal xRangeSeconds = Math.Max(1, (decimal)(maxTime - minTime).TotalSeconds);
         decimal yRange = maxValue - minValue;
-        var lines = new List<string>
+        List<string> lines = new List<string>
         {
             $"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:0} {height:0}">""",
             """<rect width="640" height="210" fill="#ffffff"/>""",
@@ -358,8 +358,8 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
         // 31-day one-time reports.
         decimal height = top + (days.Length * cellHeight) + bottomPadding;
         int maxCount = Math.Max(1, heatmap.Cells.Max(static cell => cell.AlertCount + cell.CautionCount));
-        var cellsByDayHour = heatmap.Cells.ToDictionary(static cell => (cell.Day, cell.Hour));
-        var lines = new List<string>
+        Dictionary<(DateOnly Day, int Hour), ReportAlertHeatmapCell> cellsByDayHour = heatmap.Cells.ToDictionary(static cell => (cell.Day, cell.Hour));
+        List<string> lines = new List<string>
         {
             $"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:0} {height:0}">""",
             $"""<rect width="{width:0}" height="{height:0}" fill="#ffffff"/>"""

@@ -25,7 +25,7 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     {
         // A wrapped transport fault carries no RequestFailedException, and must
         // not be mistaken for a rejected credential.
-        var _failure = new AuthenticationFailedException(
+        AuthenticationFailedException _failure = new AuthenticationFailedException(
             "ClientSecretCredential authentication failed.",
             new HttpRequestException("No such host is known (login.microsoftonline.com:443)."));
 
@@ -38,7 +38,7 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenIdentityEndpointTimesOut_ClassifiesTransient()
     {
-        var _failure = new AuthenticationFailedException(
+        AuthenticationFailedException _failure = new AuthenticationFailedException(
             "ClientSecretCredential authentication failed.",
             new TaskCanceledException("The request timed out.", new TimeoutException()));
 
@@ -50,7 +50,7 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenSocketFailsDeeperInTheChain_ClassifiesTransient()
     {
-        var _failure = new AuthenticationFailedException(
+        AuthenticationFailedException _failure = new AuthenticationFailedException(
             "ClientSecretCredential authentication failed.",
             new InvalidOperationException(
                 "Transport _failure.",
@@ -64,7 +64,7 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenCredentialIsRejected_ClassifiesPermanent()
     {
-        var _failure = new AuthenticationFailedException(
+        AuthenticationFailedException _failure = new AuthenticationFailedException(
             "The provided client secret is invalid.",
             new RequestFailedException(401, "AADSTS7000215: Invalid client secret provided."));
 
@@ -77,7 +77,7 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenNoTransportCauseIsPresent_ClassifiesPermanent()
     {
-        var _failure = new AuthenticationFailedException("Tenant not found.");
+        AuthenticationFailedException _failure = new AuthenticationFailedException("Tenant not found.");
 
         EmailDeliveryException exception = await AssertDeliveryFailureAsync(_failure);
 
@@ -87,7 +87,7 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenIdentityThrottles_ClassifiesTransient()
     {
-        var _failure = new AuthenticationFailedException(
+        AuthenticationFailedException _failure = new AuthenticationFailedException(
             "Throttled.",
             new RequestFailedException(429, "Too many requests."));
 
@@ -100,7 +100,7 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenCallerCancels_PropagatesCancellation()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
         AzureIdentityGraphAccessTokenProvider provider = CreateProvider(new StubTokenCredential(
             new OperationCanceledException(cancellation.Token)));

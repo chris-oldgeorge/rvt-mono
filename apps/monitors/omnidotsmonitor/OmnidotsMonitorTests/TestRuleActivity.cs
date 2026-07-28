@@ -18,7 +18,7 @@ namespace OmnidotsAdapterTests
 
         public TestRuleActivity()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -28,8 +28,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestAlertRule_Success()
         {
-            var dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            var testObj = new AlertActivityTimeDto
+            DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
+            AlertActivityTimeDto testObj = new AlertActivityTimeDto
             {
                 Saturdays = false,
                 Sundays = false,
@@ -43,8 +43,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestAlertRuleBeforeTime_Success()
         {
-            var dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            var testObj = new AlertActivityTimeDto
+            DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
+            AlertActivityTimeDto testObj = new AlertActivityTimeDto
             {
                 Saturdays = false,
                 Sundays = false,
@@ -58,8 +58,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestAlertRuleAfterTime_Success()
         {
-            var dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            var testObj = new AlertActivityTimeDto
+            DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
+            AlertActivityTimeDto testObj = new AlertActivityTimeDto
             {
                 Saturdays = false,
                 Sundays = false,
@@ -73,8 +73,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestAlertRuleWeekdaysNullTime_Success()
         {
-            var dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            var testObj = new AlertActivityTimeDto
+            DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
+            AlertActivityTimeDto testObj = new AlertActivityTimeDto
             {
                 Saturdays = false,
                 Sundays = false,
@@ -86,8 +86,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestAlertRuleWeekdaysNullEndTime_Success()
         {
-            var dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            var testObj = new AlertActivityTimeDto
+            DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
+            AlertActivityTimeDto testObj = new AlertActivityTimeDto
             {
                 Saturdays = false,
                 Sundays = false,
@@ -100,8 +100,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestAlertRuleWeekdaysNullStartTime_Success()
         {
-            var dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            var testObj = new AlertActivityTimeDto
+            DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
+            AlertActivityTimeDto testObj = new AlertActivityTimeDto
             {
                 Saturdays = false,
                 Sundays = false,
@@ -115,8 +115,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestAlertRuleNotWeekday_Success()
         {
-            var dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            var testObj = new AlertActivityTimeDto
+            DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
+            AlertActivityTimeDto testObj = new AlertActivityTimeDto
             {
                 Saturdays = true,
                 Sundays = true,
@@ -130,8 +130,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestAlertRuleNotSunday_Success()
         {
-            var dt = DateTime.Parse("Sun, 1 Oct 2023 07:22:16 GMT");
-            var testObj = new AlertActivityTimeDto
+            DateTime dt = DateTime.Parse("Sun, 1 Oct 2023 07:22:16 GMT");
+            AlertActivityTimeDto testObj = new AlertActivityTimeDto
             {
                 Saturdays = true,
                 Sundays = false,
@@ -145,8 +145,8 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestAlertRuleNotSaturday_Success()
         {
-            var dt = DateTime.Parse("Sat, 30 Sep 2023 07:22:16 GMT");
-            var testObj = new AlertActivityTimeDto
+            DateTime dt = DateTime.Parse("Sat, 30 Sep 2023 07:22:16 GMT");
+            AlertActivityTimeDto testObj = new AlertActivityTimeDto
             {
                 Saturdays = false,
                 Sundays = true,

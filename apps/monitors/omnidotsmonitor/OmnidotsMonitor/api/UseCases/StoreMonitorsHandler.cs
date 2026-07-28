@@ -32,12 +32,12 @@ namespace Omnidots.Api.UseCases
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             MeasuringPointsResponse measuringPointsResponse = await _gateway.ListMeasuringPointsAsync(cancellationToken);
-            var monitors = new List<VibrationMonitorDto>();
+            List<VibrationMonitorDto> monitors = new List<VibrationMonitorDto>();
             foreach (MeasuringPoint mp in measuringPointsResponse.MeasuringPoints!)
             {
                 try
                 {
-                    var dto = new VibrationMonitorDto(mp);
+                    VibrationMonitorDto dto = new VibrationMonitorDto(mp);
                     monitors.Add(dto);
                 }
                 catch (Exception e)

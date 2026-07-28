@@ -10,13 +10,13 @@ public sealed class MyAtmFailureCollectorTests
     [TestMethod]
     public void Capture_OperationalRecordingSucceeds_PreservesPrimaryFailure()
     {
-        var primary = new IOException("vendor unavailable");
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        IOException primary = new IOException("vendor unavailable");
+        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
         operational.Setup(commands => commands.HandleException("monitor=11111", primary));
-        var collector = new MyAtmFailureCollector(operational.Object);
+        MyAtmFailureCollector collector = new MyAtmFailureCollector(operational.Object);
 
         collector.Capture("monitor=11111", primary);
-        var aggregate = Assert.ThrowsExactly<MyAtmJobAggregateException>(() =>
+        MyAtmJobAggregateException aggregate = Assert.ThrowsExactly<MyAtmJobAggregateException>(() =>
             collector.ThrowIfAny("StoreDustLevels"));
 
         Assert.AreEqual("StoreDustLevels", aggregate.Operation);
@@ -30,16 +30,16 @@ public sealed class MyAtmFailureCollectorTests
     [TestMethod]
     public void Capture_OperationalRecordingFails_PreservesBothFailures()
     {
-        var primary = new IOException("vendor unavailable");
-        var recording = new InvalidOperationException("database unavailable");
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        IOException primary = new IOException("vendor unavailable");
+        InvalidOperationException recording = new InvalidOperationException("database unavailable");
+        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
         operational
             .Setup(commands => commands.HandleException("monitor=11111", primary))
             .Throws(recording);
-        var collector = new MyAtmFailureCollector(operational.Object);
+        MyAtmFailureCollector collector = new MyAtmFailureCollector(operational.Object);
 
         collector.Capture("monitor=11111", primary);
-        var aggregate = Assert.ThrowsExactly<MyAtmJobAggregateException>(() =>
+        MyAtmJobAggregateException aggregate = Assert.ThrowsExactly<MyAtmJobAggregateException>(() =>
             collector.ThrowIfAny("StoreDustLevels"));
 
         Assert.AreSame(primary, aggregate.Failures.Single().Exception);
@@ -49,8 +49,8 @@ public sealed class MyAtmFailureCollectorTests
     [TestMethod]
     public void ThrowIfAny_NoFailures_DoesNotThrow()
     {
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        var collector = new MyAtmFailureCollector(operational.Object);
+        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        MyAtmFailureCollector collector = new MyAtmFailureCollector(operational.Object);
 
         collector.ThrowIfAny("StoreDustLevels");
 
@@ -60,13 +60,13 @@ public sealed class MyAtmFailureCollectorTests
     [TestMethod]
     public void Capture_CallerCancellation_RethrowsWithoutRecording()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var failure = new OperationCanceledException(cancellation.Token);
-        var operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        var collector = new MyAtmFailureCollector(operational.Object);
+        OperationCanceledException failure = new OperationCanceledException(cancellation.Token);
+        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        MyAtmFailureCollector collector = new MyAtmFailureCollector(operational.Object);
 
-        var thrown = Assert.ThrowsExactly<OperationCanceledException>(() =>
+        OperationCanceledException thrown = Assert.ThrowsExactly<OperationCanceledException>(() =>
             collector.Capture("monitor=11111", failure, cancellation.Token));
 
         Assert.AreSame(failure, thrown);

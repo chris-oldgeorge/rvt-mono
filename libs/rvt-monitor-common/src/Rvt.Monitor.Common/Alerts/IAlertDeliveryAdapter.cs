@@ -40,7 +40,7 @@ internal static class AlertDeliveryAdapterValidation
             throw new InvalidOperationException("Alert delivery notification ID is invalid.");
         }
 
-        var envelope = JsonSerializer.Deserialize<AlertDeliveryEnvelope>(delivery.Payload)
+        AlertDeliveryEnvelope envelope = JsonSerializer.Deserialize<AlertDeliveryEnvelope>(delivery.Payload)
             ?? throw new InvalidOperationException("Alert delivery envelope is missing.");
         if (envelope.Version != 1)
         {

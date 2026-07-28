@@ -1,5 +1,45 @@
 # Project State
 
+## Authoritative checkpoint: explicit local types ready for publication — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Working branch `codex/explicit-local-types-main` is based directly on
+  `origin/main` at `6be9c90a`; it supersedes the preserved stale-base commit
+  `fd45166` on `codex/explicit-local-types`.
+- The repository now enforces explicit local types through both root
+  `.editorconfig` files: all `csharp_style_var_*` options and `IDE0008` are
+  errors.
+- The migration replaced 9,859 eligible C# `var` declarations across 587
+  files: 4,094 in Portal, 4,367 in monitor applications, 1,397 in
+  `libs/rvt-monitor-common`, and one documentation-regression fixture.
+  Seven JavaScript declarations were also changed from `var` to `const`.
+- Thirty-three active C# `var` tokens remain intentionally: 32 are
+  anonymous/query-shaped values that cannot be named directly, and one is a
+  pattern arm. Strict project-scoped `IDE0008` verification passes for every
+  affected project, including five legacy monitor files checked through
+  temporary project inclusion.
+- The standalone `services/reporting` tree was deleted by the newer mainline
+  reporting-consolidation work and remains untouched; only the surviving
+  `libs/rvt-monitor-common` projects were migrated.
+- The Omnidots manual-test helper no longer contains a credential-like literal.
+  It requires `OMNIDOTS_TEST_SECRET` and fails before making an HTTP request
+  when the variable is absent. The user explicitly authorized this change.
+  Git history still contains the old value, so it must be rotated if it was
+  ever live.
+- Independent reviews found no behavior changes in the Portal, monitor, or
+  shared-library migrations.
+- Full integration tests require a disposable
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`; do not use the production database.
+  CI provisions its own PostgreSQL service and is the authoritative integration
+  test gate before merge.
+- Refreshed verification: the solution builds with 0 warnings and 0 errors;
+  all 50 engineering-policy tests and the configuration, workflow,
+  documentation, JavaScript-syntax, and whitespace guards pass. A local full
+  test run reaches only the documented missing-disposable-PostgreSQL failures;
+  Portal reports 548 passed, 11 skipped, and 0 failed.
+- Publication sequence: commit only the explicit-type migration and its plan,
+  push the branch, open a ready PR, wait for required CI, then merge to `main`.
+
 ## Authoritative checkpoint: Rvt.Monitor.Common hub cleanup — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

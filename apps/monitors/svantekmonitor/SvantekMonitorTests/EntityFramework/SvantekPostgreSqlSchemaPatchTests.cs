@@ -19,8 +19,8 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
 
         Assert.IsTrue(File.Exists(fixturePath), $"Missing PostgreSQL fixture: {fixturePath}");
 
-        var sql = File.ReadAllText(fixturePath);
-        var expectedTables = new[]
+        string sql = File.ReadAllText(fixturePath);
+        string[] expectedTables = new[]
         {
             "monitor",
             "svantek_monitor_status",
@@ -39,7 +39,7 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
             "error_log"
         };
 
-        foreach (var table in expectedTables)
+        foreach (string? table in expectedTables)
         {
             Assert.Contains($"CREATE TABLE {table}", sql);
         }
@@ -63,23 +63,23 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
             "svantekmonitor",
             "SvantekMonitorTests",
             "testdata");
-        var resetPath = Path.Combine(testDataPath, "reset.postgres.sql");
+        string resetPath = Path.Combine(testDataPath, "reset.postgres.sql");
 
         Assert.IsTrue(File.Exists(resetPath), $"Missing PostgreSQL reset script: {resetPath}");
         Assert.IsFalse(File.Exists(Path.Combine(testDataPath, "create.sql")));
 
-        var sql = File.ReadAllText(resetPath);
+        string sql = File.ReadAllText(resetPath);
 
         Assert.Contains("svantek_noise_8_hour_average", sql);
         Assert.Contains("svantek_error_message", sql);
         Assert.Contains("error_log", sql);
-        var offlineRuleInserts = Regex.Matches(
+        MatchCollection offlineRuleInserts = Regex.Matches(
             sql,
             @"(?is)\bINSERT\s+INTO\s+rvt_alert_rule\b.*?;");
 
         Assert.HasCount(1, offlineRuleInserts, "The reset script must seed exactly one offline rule.");
 
-        var offlineRuleInsert = offlineRuleInserts[0].Value;
+        string offlineRuleInsert = offlineRuleInserts[0].Value;
         Assert.Contains("'00000000-0000-0000-0000-000000000001'", offlineRuleInsert);
         Assert.Contains("'offline-rule'", offlineRuleInsert);
         Assert.IsTrue(Regex.IsMatch(offlineRuleInsert, @"(?<!\d)86400(?!\d)"));
@@ -101,7 +101,7 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
 
         Assert.IsTrue(File.Exists(patchPath), $"Missing schema patch: {patchPath}");
 
-        var sql = File.ReadAllText(patchPath);
+        string sql = File.ReadAllText(patchPath);
 
         Assert.Contains("svantek_monitor_status", sql);
         Assert.Contains("update_time", sql);
@@ -127,7 +127,7 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
 
         Assert.IsTrue(File.Exists(patchPath), $"Missing demo reset patch: {patchPath}");
 
-        var sql = File.ReadAllText(patchPath);
+        string sql = File.ReadAllText(patchPath);
 
         Assert.Contains("public.monitor", sql);
         Assert.Contains("public.deployment", sql);

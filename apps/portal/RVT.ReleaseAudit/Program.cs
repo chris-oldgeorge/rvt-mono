@@ -57,7 +57,7 @@ internal static class ReleaseAuditProgram
     {
         _ = standardOutput;
 
-        var options = ReleaseAuditOptions.Parse(args);
+        ReleaseAuditOptions? options = ReleaseAuditOptions.Parse(args);
         if (options is null)
         {
             await standardError.WriteLineAsync(Usage);
@@ -103,7 +103,7 @@ internal static class ReleaseAuditProgram
                 getUtcNow(),
                 options.Revision,
                 getAuditVersion());
-            var receiptJson = HelpAssetUrlAudit.SerializeReceipt(receipt);
+            string receiptJson = HelpAssetUrlAudit.SerializeReceipt(receipt);
             await writeReceipt(
                 options.ReceiptPath,
                 receiptJson,

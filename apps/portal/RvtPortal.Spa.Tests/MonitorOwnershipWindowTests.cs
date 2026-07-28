@@ -39,10 +39,10 @@ public sealed class MonitorOwnershipWindowTests
         DateTime? contractOnHire,
         DateTime? contractOffHire)
     {
-        var contract = contractOnHire.HasValue
+        Contract? contract = contractOnHire.HasValue
             ? Contract(contractOnHire.Value, contractOffHire)
             : null;
-        var deployment = Deployment(deploymentStart, deploymentEnd, contract);
+        Deployment deployment = Deployment(deploymentStart, deploymentEnd, contract);
         DateTime?[] caps = [null, Anchor.AddDays(1), Anchor.AddHours(-1)];
         DateTime[] timestamps =
         [
@@ -50,12 +50,12 @@ public sealed class MonitorOwnershipWindowTests
             Anchor, Anchor.AddHours(1), Anchor.AddDays(4), Anchor.AddDays(40)
         ];
 
-        foreach (var cap in caps)
+        foreach (DateTime? cap in caps)
         {
-            foreach (var timestamp in timestamps)
+            foreach (DateTime timestamp in timestamps)
             {
-                var expected = MonitorOwnershipWindowResolver.ForDeployment(deployment, cap).Contains(timestamp);
-                var actual = MonitorOwnershipWindowResolver.OwnsAt(timestamp, cap).Compile()(deployment);
+                bool expected = MonitorOwnershipWindowResolver.ForDeployment(deployment, cap).Contains(timestamp);
+                bool actual = MonitorOwnershipWindowResolver.OwnsAt(timestamp, cap).Compile()(deployment);
 
                 Assert.True(
                     expected == actual,

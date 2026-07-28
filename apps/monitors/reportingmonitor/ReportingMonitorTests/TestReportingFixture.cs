@@ -11,7 +11,7 @@ public sealed class ReportingIntegrationContractTests
     [Fact]
     public void PrerequisiteSql_IsIdempotentAndDocumentsHiddenOneTimeRuleIndex()
     {
-        var sql = File.ReadAllText(RepositoryPath(
+        string sql = File.ReadAllText(RepositoryPath(
             "apps",
             "monitors",
             "reportingmonitor",
@@ -27,8 +27,8 @@ public sealed class ReportingIntegrationContractTests
     [Fact]
     public void RootSolutionAndCompose_IntegrateReportingMonitorWithPostgreSql()
     {
-        var solution = File.ReadAllText(RepositoryPath("Rvt.Mono.slnx"));
-        var compose = File.ReadAllText(RepositoryPath(
+        string solution = File.ReadAllText(RepositoryPath("Rvt.Mono.slnx"));
+        string compose = File.ReadAllText(RepositoryPath(
             "apps",
             "monitors",
             "docker-compose.yml"));
@@ -54,7 +54,7 @@ public sealed class ReportingIntegrationContractTests
     [Fact]
     public void DeploymentExamples_OmitDatabaseProviderSelection()
     {
-        var paths = new[]
+        string[] paths = new[]
         {
             RepositoryPath("apps", "monitors", "scripts", "run-testlocal-suite.sh"),
             RepositoryPath("apps", "monitors", "README.md"),
@@ -72,10 +72,10 @@ public sealed class ReportingIntegrationContractTests
 
     private static string RepositoryPath(params string[] segments)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var gitPath = Path.Combine(directory.FullName, ".git");
+            string gitPath = Path.Combine(directory.FullName, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
                 return Path.Combine([directory.FullName, .. segments]);
@@ -94,23 +94,23 @@ internal static class ReportingServiceProviderFactory
         Action<IServiceCollection>? configureServices = null,
         IReadOnlyDictionary<string, string?>? configurationValues = null)
     {
-        var settings = new Dictionary<string, string?>
+        Dictionary<string, string?> settings = new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=reporting_monitor_tests;Username=reporting",
             ["RVT:EMAIL_ENABLED"] = "false"
         };
         if (configurationValues is not null)
         {
-            foreach (var setting in configurationValues)
+            foreach (KeyValuePair<string, string?> setting in configurationValues)
             {
                 settings[setting.Key] = setting.Value;
             }
         }
 
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(settings)
             .Build();
-        var services = new ServiceCollection();
+        ServiceCollection services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment());
         services.AddLogging();

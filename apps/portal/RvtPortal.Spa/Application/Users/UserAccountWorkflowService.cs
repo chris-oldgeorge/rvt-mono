@@ -13,9 +13,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using RVT.BusinessLogic;
 using RVT.BusinessLogic.Notifications;
+using RVT.BusinessLogic.Ports.Notifications;
+using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Auth;
 using RvtPortal.Spa.Application.Companies;
-using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Application.Users;
@@ -173,19 +174,19 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserAccountRequestOrigin origin,
         CancellationToken cancellationToken)
     {
-        var validationErrors = await ValidateUserRequestAsync(request, actor, currentUserId: null, currentRole: null, cancellationToken);
+        Dictionary<string, string[]> validationErrors = await ValidateUserRequestAsync(request, actor, currentUserId: null, currentRole: null, cancellationToken);
         if (validationErrors.Count > 0)
         {
             return UserAccountWorkflowResultWithErrors(validationErrors);
         }
 
-        var result = await mediator.Send(new CreateUserCommand(request), cancellationToken);
+        UserAccountCommandResult result = await mediator.Send(new CreateUserCommand(request), cancellationToken);
         if (result.Errors.Count > 0 || string.IsNullOrWhiteSpace(result.UserId))
         {
             return UserAccountWorkflowResultWithErrors(result.Errors);
         }
 
-        var user = await userManager.FindByIdAsync(result.UserId);
+        ApplicationUser? user = await userManager.FindByIdAsync(result.UserId);
         if (user == null)
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = result.UserId };
@@ -207,28 +208,28 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserAccountRequestOrigin origin,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
         }
 
-        var currentRole = await GetUserRoleAsync(user);
+        string currentRole = await GetUserRoleAsync(user);
         if (!CanEditUser(currentRole, actor))
         {
             return new UserAccountWorkflowResult { Forbidden = true, UserId = userId };
         }
 
-        var validationErrors = await ValidateUserRequestAsync(request, actor, userId, currentRole, cancellationToken);
+        Dictionary<string, string[]> validationErrors = await ValidateUserRequestAsync(request, actor, userId, currentRole, cancellationToken);
         if (validationErrors.Count > 0)
         {
             return UserAccountWorkflowResultWithErrors(validationErrors, userId);
         }
 
-        var requestedEmail = request.Email.Trim();
-        var emailChanged = !string.Equals(user.Email, requestedEmail, StringComparison.OrdinalIgnoreCase);
-        var wasEmailConfirmed = user.EmailConfirmed;
-        var result = await mediator.Send(
+        string requestedEmail = request.Email.Trim();
+        bool emailChanged = !string.Equals(user.Email, requestedEmail, StringComparison.OrdinalIgnoreCase);
+        bool wasEmailConfirmed = user.EmailConfirmed;
+        UserAccountCommandResult result = await mediator.Send(
             new UpdateUserCommand(userId, request, currentRole, emailChanged && !wasEmailConfirmed),
             cancellationToken);
         if (result.NotFound)
@@ -242,7 +243,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
 
         if (emailChanged)
         {
-            var updatedUser = await userManager.FindByIdAsync(userId);
+            ApplicationUser? updatedUser = await userManager.FindByIdAsync(userId);
             if (updatedUser == null)
             {
                 return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
@@ -271,7 +272,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserAccountRequestOrigin origin,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserAccountMessageResult { NotFound = true };
@@ -287,7 +288,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserAccountRequestOrigin origin,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserAccountMessageResult { NotFound = true };
@@ -303,7 +304,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
@@ -313,7 +314,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
             return new UserAccountWorkflowResult { Forbidden = true, UserId = userId };
         }
 
-        var result = await mediator.Send(new DisableUserCommand(userId), cancellationToken);
+        UserAccountCommandResult result = await mediator.Send(new DisableUserCommand(userId), cancellationToken);
         return await BuildPostCommandResultAsync(result, userId, actor, cancellationToken);
     }
 
@@ -323,7 +324,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
@@ -333,7 +334,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
             return new UserAccountWorkflowResult { Forbidden = true, UserId = userId };
         }
 
-        var result = await mediator.Send(new EnableUserCommand(userId), cancellationToken);
+        UserAccountCommandResult result = await mediator.Send(new EnableUserCommand(userId), cancellationToken);
         return await BuildPostCommandResultAsync(result, userId, actor, cancellationToken);
     }
 
@@ -343,26 +344,26 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserDeleteWorkflowResult { NotFound = true };
         }
 
-        var role = await GetUserRoleAsync(user);
+        string role = await GetUserRoleAsync(user);
         if (!CanDeleteUser(role, actor) || string.Equals(user.Id, actor.CurrentUserId, StringComparison.Ordinal))
         {
             return new UserDeleteWorkflowResult { Forbidden = true };
         }
 
-        var result = await mediator.Send(new DeleteUserCommand(userId), cancellationToken);
+        UserAccountCommandResult result = await mediator.Send(new DeleteUserCommand(userId), cancellationToken);
         if (result.NotFound)
         {
             return new UserDeleteWorkflowResult { NotFound = true };
         }
         if (result.Errors.Count > 0)
         {
-            var workflowResult = new UserDeleteWorkflowResult { Email = result.Email };
+            UserDeleteWorkflowResult workflowResult = new UserDeleteWorkflowResult { Email = result.Email };
             CopyErrors(result.Errors, workflowResult.Errors);
             return workflowResult;
         }
@@ -376,7 +377,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new AddUserToSiteCommand(request.UserId, request.SiteId), cancellationToken);
+        UserSiteAssignmentCommandResult result = await mediator.Send(new AddUserToSiteCommand(request.UserId, request.SiteId), cancellationToken);
         if (result.Created)
         {
         }
@@ -390,7 +391,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new SetSiteContactCommand(request.UserId, request.SiteId), cancellationToken);
+        UserSiteAssignmentCommandResult result = await mediator.Send(new SetSiteContactCommand(request.UserId, request.SiteId), cancellationToken);
         return await BuildSiteAssignmentResultAsync(result, request.SiteId, actor, cancellationToken);
     }
 
@@ -401,7 +402,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new RemoveSiteContactCommand(userId, siteId), cancellationToken);
+        UserSiteAssignmentCommandResult result = await mediator.Send(new RemoveSiteContactCommand(userId, siteId), cancellationToken);
         return await BuildSiteAssignmentResultAsync(result, siteId, actor, cancellationToken);
     }
 
@@ -412,7 +413,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new RemoveUserFromSiteCommand(userId, siteId), cancellationToken);
+        UserSiteAssignmentCommandResult result = await mediator.Send(new RemoveUserFromSiteCommand(userId, siteId), cancellationToken);
         if (result.Removed)
         {
         }
@@ -428,7 +429,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         string? currentRole,
         CancellationToken cancellationToken)
     {
-        var errors = new Dictionary<string, string[]>();
+        Dictionary<string, string[]> errors = new Dictionary<string, string[]>();
         AddRequired(errors, nameof(UserMutationRequest.Email), request.Email, "Email is required.");
         AddRequired(errors, nameof(UserMutationRequest.Role), request.Role, "Role is required.");
 
@@ -458,7 +459,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
 
         if (!string.IsNullOrWhiteSpace(request.Email))
         {
-            var existing = await userManager.FindByEmailAsync(request.Email.Trim());
+            ApplicationUser? existing = await userManager.FindByEmailAsync(request.Email.Trim());
             if (existing != null && !string.Equals(existing.Id, currentUserId, StringComparison.Ordinal))
             {
                 AddError(errors, nameof(UserMutationRequest.Email), "Email already registered");
@@ -512,7 +513,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
             };
         }
 
-        var workflowResult = new SiteAssignmentWorkflowResult
+        SiteAssignmentWorkflowResult workflowResult = new SiteAssignmentWorkflowResult
         {
             Assignment = await userReads.GetSiteAssignmentsAsync(siteId, actor, cancellationToken)
         };
@@ -561,7 +562,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
     // Function summary: Adds a validation error to the mutable error dictionary.
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }
@@ -569,7 +570,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
     // Function summary: Copies command errors into workflow result errors.
     private static void CopyErrors(IReadOnlyDictionary<string, string[]> source, Dictionary<string, string[]> target)
     {
-        foreach (var error in source)
+        foreach (KeyValuePair<string, string[]> error in source)
         {
             target[error.Key] = error.Value;
         }
@@ -580,7 +581,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         IReadOnlyDictionary<string, string[]> errors,
         string? userId = null)
     {
-        var result = new UserAccountWorkflowResult { UserId = userId };
+        UserAccountWorkflowResult result = new UserAccountWorkflowResult { UserId = userId };
         CopyErrors(errors, result.Errors);
         return result;
     }
@@ -614,14 +615,14 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
             return;
         }
 
-        var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        string code = await userManager.GenerateEmailConfirmationTokenAsync(user);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-        var callbackUrl = BuildClientUrl("/confirm-email", new Dictionary<string, string?>
+        string callbackUrl = BuildClientUrl("/confirm-email", new Dictionary<string, string?>
         {
             ["userId"] = user.Id,
             ["code"] = code
         });
-        var delivery = await accountMessenger.SendPasswordSetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
+        EmailDeliveryResult delivery = await accountMessenger.SendPasswordSetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
         if (!delivery.Succeeded)
         {
             throw new InvalidOperationException($"Email failed to send ({delivery.ProviderResponse})");
@@ -636,12 +637,12 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
             return;
         }
 
-        var code = await userManager.GeneratePasswordResetTokenAsync(user);
-        var callbackUrl = BuildClientUrl("/reset-password", new Dictionary<string, string?>
+        string code = await userManager.GeneratePasswordResetTokenAsync(user);
+        string callbackUrl = BuildClientUrl("/reset-password", new Dictionary<string, string?>
         {
             ["code"] = code
         });
-        var delivery = await accountMessenger.SendPasswordResetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
+        EmailDeliveryResult delivery = await accountMessenger.SendPasswordResetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
         if (!delivery.Succeeded)
         {
             throw new InvalidOperationException($"Email failed to send ({delivery.ProviderResponse})");
@@ -656,15 +657,15 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
             return;
         }
 
-        var code = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+        string code = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-        var callbackUrl = BuildClientUrl("/api/auth/change-email", new Dictionary<string, string?>
+        string callbackUrl = BuildClientUrl("/api/auth/change-email", new Dictionary<string, string?>
         {
             ["userId"] = user.Id,
             ["email"] = newEmail,
             ["code"] = code
         });
-        var delivery = await accountMessenger.SendEmailChangeAsync(newEmail, callbackUrl, CancellationToken.None);
+        EmailDeliveryResult delivery = await accountMessenger.SendEmailChangeAsync(newEmail, callbackUrl, CancellationToken.None);
         if (!delivery.Succeeded)
         {
             throw new InvalidOperationException($"Email failed to send ({delivery.ProviderResponse})");

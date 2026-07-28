@@ -13,12 +13,12 @@ public sealed class MicrosoftGraphMailRegistrationTests
     [TestMethod]
     public void AddMicrosoftGraphMail_RegistersOneGraphPortTokenProviderOptionsAndValidationService()
     {
-        var services = new ServiceCollection();
-        var options = new MicrosoftGraphMailOptions { Enabled = false };
+        ServiceCollection services = new ServiceCollection();
+        MicrosoftGraphMailOptions options = new MicrosoftGraphMailOptions { Enabled = false };
 
         services.AddMicrosoftGraphMail(options);
 
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
         Assert.IsInstanceOfType<MicrosoftGraphEmailAdapter>(provider.GetRequiredService<IEmailDeliveryPort>());
         Assert.IsInstanceOfType<AzureIdentityGraphAccessTokenProvider>(
             provider.GetRequiredService<IMicrosoftGraphAccessTokenProvider>());
@@ -32,8 +32,8 @@ public sealed class MicrosoftGraphMailRegistrationTests
     [TestMethod]
     public void AddMicrosoftGraphMail_LoadsProviderOptionsFromConfiguration()
     {
-        var services = new ServiceCollection();
-        var configuration = new ConfigurationBuilder()
+        ServiceCollection services = new ServiceCollection();
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["RVT:MICROSOFT_TENANT_ID"] = "tenant-id",
@@ -45,7 +45,7 @@ public sealed class MicrosoftGraphMailRegistrationTests
 
         services.AddMicrosoftGraphMail(configuration);
 
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
         Assert.AreEqual("tenant-id", provider.GetRequiredService<MicrosoftGraphMailOptions>().TenantId);
         Assert.IsInstanceOfType<MicrosoftGraphEmailAdapter>(provider.GetRequiredService<IEmailDeliveryPort>());
     }
@@ -53,10 +53,10 @@ public sealed class MicrosoftGraphMailRegistrationTests
     [TestMethod]
     public void AddMicrosoftGraphMail_RejectsAnExistingEmailDeliveryProvider()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new ServiceCollection();
         services.AddSingleton<IEmailDeliveryPort, ExistingEmailDeliveryPort>();
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             services.AddMicrosoftGraphMail(new MicrosoftGraphMailOptions { Enabled = false }));
 
         Assert.AreEqual("An email delivery provider is already registered.", exception.Message);
@@ -65,8 +65,8 @@ public sealed class MicrosoftGraphMailRegistrationTests
     [TestMethod]
     public async Task AddMicrosoftGraphMail_SingletonPortUsesFactoryManagedClientPerDelivery()
     {
-        var services = new ServiceCollection();
-        var clientFactory = new RecordingHttpClientFactory(_ =>
+        ServiceCollection services = new ServiceCollection();
+        RecordingHttpClientFactory clientFactory = new RecordingHttpClientFactory(_ =>
             new HttpResponseMessage(HttpStatusCode.Accepted));
         services.AddMicrosoftGraphMail(new MicrosoftGraphMailOptions
         {
@@ -80,9 +80,9 @@ public sealed class MicrosoftGraphMailRegistrationTests
         services.AddSingleton<IMicrosoftGraphAccessTokenProvider>(
             new StaticTokenProvider());
 
-        using var provider = services.BuildServiceProvider();
-        var port = provider.GetRequiredService<IEmailDeliveryPort>();
-        var request = new EmailDeliveryRequest(
+        using ServiceProvider provider = services.BuildServiceProvider();
+        IEmailDeliveryPort port = provider.GetRequiredService<IEmailDeliveryPort>();
+        EmailDeliveryRequest request = new EmailDeliveryRequest(
             "ops@example.test", "subject", "plain", "<p>html</p>", []);
 
         await port.SendAsync(request);
@@ -113,7 +113,7 @@ public sealed class MicrosoftGraphMailRegistrationTests
 
         public HttpClient CreateClient(string name)
         {
-            var currentClientId = ++clientId;
+            int currentClientId = ++clientId;
             return new HttpClient(new RecordingHandler(
                 currentClientId,
                 RequestClientIds,

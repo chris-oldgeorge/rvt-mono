@@ -166,7 +166,7 @@ namespace AirQ.Api.Http
                     {
                         return new T(); // Return empty dataset
                     }
-                    var sb = new StringBuilder(errors[0].Response!);
+                    StringBuilder sb = new StringBuilder(errors[0].Response!);
                     for (int i = 1; i < errors.Count; i++)
                     {
                         sb.Append(' ');
@@ -197,7 +197,7 @@ namespace AirQ.Api.Http
 
         private static List<SampleResponse> TruncateByLatestMills(List<SampleResponse> samples, ref DateTime latestDateTime)
         {
-            var removeList = new List<SampleResponse>();
+            List<SampleResponse> removeList = new List<SampleResponse>();
             foreach (SampleResponse sample in samples)
             {
                 DateTime utcDateTime = DateTimeUtil.ToUtc((DateTime)sample.Utc!);

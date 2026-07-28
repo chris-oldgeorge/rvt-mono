@@ -11,7 +11,7 @@ public sealed class AirQApiKeyValidatorTests
     [TestMethod]
     public void IsAuthorized_AcceptsExactlyOneMatchingHeaderValue()
     {
-        var validator = AirQApiKeyValidator.Create("monitor-api-key");
+        AirQApiKeyValidator validator = AirQApiKeyValidator.Create("monitor-api-key");
 
         Assert.IsTrue(validator.IsAuthorized(new StringValues("monitor-api-key")));
         Assert.IsFalse(validator.IsAuthorized(StringValues.Empty));

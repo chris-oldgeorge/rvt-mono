@@ -91,13 +91,13 @@ namespace OmnidotsAdapterTests
                                                              BatteryAlertType batteryStatus = BatteryAlertType.Off,
                                                              string? timeZone = "foo/bar")
         {
-            var monitors = new List<VibrationMonitorDto>();
-            for (var i = 1; i <= numMonitors; i++)
+            List<VibrationMonitorDto> monitors = new List<VibrationMonitorDto>();
+            for (int i = 1; i <= numMonitors; i++)
             {
-                var serialId = "" + (serialIdIn + i);
-                var monitorId = Guid.NewGuid();
+                string serialId = "" + (serialIdIn + i);
+                Guid monitorId = Guid.NewGuid();
 
-                var monitorStatus = new VibrationMonitorStatusDto(
+                VibrationMonitorStatusDto monitorStatus = new VibrationMonitorStatusDto(
                                         serialId: serialId,
                                         measurementDuration: i * 7,
                                         dataSaveLevel: i * 7.543,
@@ -130,7 +130,7 @@ namespace OmnidotsAdapterTests
                                            connectedUsing: connectedUsing, online: i % 2 == 0);
                 }
 
-                var m = new VibrationMonitorDto(
+                VibrationMonitorDto m = new VibrationMonitorDto(
                                         id: monitorId,
                                         listedAtTime: DateTime.UtcNow,
                                         lastDataTime: null,
@@ -184,7 +184,7 @@ namespace OmnidotsAdapterTests
 
         internal static List<RvtAlertRuleDto> OfflineRules()
         {
-            var rules = new List<RvtAlertRuleDto>
+            List<RvtAlertRuleDto> rules = new List<RvtAlertRuleDto>
             {
                 new(ruleId: Guid.NewGuid(),
                           serialId: null,
@@ -212,9 +212,9 @@ namespace OmnidotsAdapterTests
 
         public static PeakRecords CreateDeviceMeasurement(DateTime timestamp, double fdom, double vtop, double vtopOverflow)
         {
-            var peakRecords = JsonSerializer.Deserialize<PeakRecords>(PeakRecordsJson());
+            PeakRecords? peakRecords = JsonSerializer.Deserialize<PeakRecords>(PeakRecordsJson());
 
-            foreach (var sample in peakRecords!.Samples!)
+            foreach (PeakSample sample in peakRecords!.Samples!)
             {
                 sample!.X!.Fdom = fdom;
                 sample!.X!.Vtop = vtop;
@@ -313,9 +313,9 @@ namespace OmnidotsAdapterTests
 
         private static string GetHash(string text, string key)
         {
-            var textBytes = Encoding.UTF8.GetBytes(text);
-            var keyBytes = Encoding.UTF8.GetBytes(key);
-            using var hash = new HMACSHA256(keyBytes);
+            byte[] textBytes = Encoding.UTF8.GetBytes(text);
+            byte[] keyBytes = Encoding.UTF8.GetBytes(key);
+            using HMACSHA256 hash = new HMACSHA256(keyBytes);
             return string.Format("sha256={0}", BitConverter.ToString(hash.ComputeHash(textBytes)).Replace("-", "").ToLower());
         }
     }

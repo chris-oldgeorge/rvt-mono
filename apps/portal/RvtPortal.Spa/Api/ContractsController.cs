@@ -33,7 +33,7 @@ public class ContractsController : ControllerBase
     // Function summary: Queries contracts through the contract application service.
     public async Task<ActionResult<QueryContractsResponse>> Query([FromQuery] QueryContractsRequest request)
     {
-        var result = await contracts.QueryAsync(
+        ContractQueryResult result = await contracts.QueryAsync(
             new ContractQuery(
                 request.CompanyId,
                 request.SiteId,
@@ -62,7 +62,7 @@ public class ContractsController : ControllerBase
     // Function summary: Retrieves contract detail by id.
     public async Task<ActionResult<EntityResponse<ContractDetailResponse>>> Get(Guid id)
     {
-        var contract = await contracts.GetAsync(id, HttpContext.RequestAborted);
+        ContractDetailResponse? contract = await contracts.GetAsync(id, HttpContext.RequestAborted);
         return contract == null ? ContractNotFound(id) : new EntityResponse<ContractDetailResponse> { Item = contract };
     }
 
@@ -72,14 +72,14 @@ public class ContractsController : ControllerBase
     // Function summary: Creates a contract through the contract application service.
     public async Task<ActionResult<EntityResponse<ContractDetailResponse>>> Create(ContractMutationRequest request)
     {
-        var result = await contracts.CreateAsync(request, HttpContext.RequestAborted);
+        ContractMutationWorkflowResult result = await contracts.CreateAsync(request, HttpContext.RequestAborted);
         AddCommandErrors(result.Errors);
         if (!ModelState.IsValid || !result.ContractId.HasValue || result.Contract == null)
         {
             return ValidationProblem(ModelState);
         }
 
-        var response = new EntityResponse<ContractDetailResponse>
+        EntityResponse<ContractDetailResponse> response = new EntityResponse<ContractDetailResponse>
         {
             Item = result.Contract
         };
@@ -93,7 +93,7 @@ public class ContractsController : ControllerBase
     // Function summary: Updates a contract through the contract application service.
     public async Task<ActionResult<EntityResponse<ContractDetailResponse>>> Update(Guid id, ContractMutationRequest request)
     {
-        var result = await contracts.UpdateAsync(id, request, HttpContext.RequestAborted);
+        ContractMutationWorkflowResult result = await contracts.UpdateAsync(id, request, HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return ContractNotFound(id);
@@ -117,7 +117,7 @@ public class ContractsController : ControllerBase
     // Function summary: Deletes a contract through the contract application service.
     public async Task<ActionResult<MutationResponse>> Delete(Guid id)
     {
-        var result = await contracts.DeleteAsync(id, HttpContext.RequestAborted);
+        ContractMutationWorkflowResult result = await contracts.DeleteAsync(id, HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return ContractNotFound(id);
@@ -133,7 +133,7 @@ public class ContractsController : ControllerBase
     // Function summary: Builds the invalid-sort problem response while preserving the existing contract API shape.
     private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
     {
-        var problem = ApiProblems.Create(
+        ProblemDetails problem = ApiProblems.Create(
             HttpContext,
             StatusCodes.Status400BadRequest,
             "Invalid sort field",
@@ -155,9 +155,9 @@ public class ContractsController : ControllerBase
     // Function summary: Maps command validation errors into the API model-state response.
     private void AddCommandErrors(IReadOnlyDictionary<string, string[]> errors)
     {
-        foreach (var error in errors)
+        foreach (KeyValuePair<string, string[]> error in errors)
         {
-            foreach (var message in error.Value)
+            foreach (string message in error.Value)
             {
                 ModelState.AddModelError(error.Key, message);
             }

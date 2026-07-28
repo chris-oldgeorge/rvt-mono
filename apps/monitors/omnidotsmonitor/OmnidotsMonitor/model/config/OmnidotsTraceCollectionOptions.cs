@@ -20,7 +20,7 @@ public sealed class OmnidotsTraceCollectionOptions
 
     public void Validate()
     {
-        var failures = GetValidationFailures();
+        IReadOnlyList<string> failures = GetValidationFailures();
         if (failures.Count > 0)
         {
             throw new OptionsValidationException(SectionName, typeof(OmnidotsTraceCollectionOptions), failures);
@@ -29,7 +29,7 @@ public sealed class OmnidotsTraceCollectionOptions
 
     internal IReadOnlyList<string> GetValidationFailures()
     {
-        var failures = new List<string>();
+        List<string> failures = new List<string>();
 
         if (MaxMonitorsPerRun <= 0)
         {

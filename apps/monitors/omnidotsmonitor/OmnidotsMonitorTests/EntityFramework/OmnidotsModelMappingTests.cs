@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Omnidots.Api.Db.EntityFramework;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
@@ -23,8 +24,8 @@ public sealed class OmnidotsModelMappingTests
     [DataRow(typeof(OmnidotsTraceEntity), "omnidots_trace")]
     public void OmnidotsContext_MapsCanonicalMonitorTablesWithoutSchemas(Type entityClrType, string tableName)
     {
-        using var context = CreateContext();
-        var entity = context.Model.FindEntityType(entityClrType);
+        using OmnidotsMonitorContext context = CreateContext();
+        IEntityType? entity = context.Model.FindEntityType(entityClrType);
 
         Assert.IsNotNull(entity);
         Assert.AreEqual(tableName, entity.GetTableName());
@@ -34,7 +35,7 @@ public sealed class OmnidotsModelMappingTests
     [TestMethod]
     public void OmnidotsContext_MapsCanonicalColumnsAndTimestampTypes()
     {
-        using var context = CreateContext();
+        using OmnidotsMonitorContext context = CreateContext();
 
         AssertColumns(
             context.Model.FindEntityType(typeof(OmnidotsMonitorStatusEntity))!,
@@ -137,7 +138,7 @@ public sealed class OmnidotsModelMappingTests
     [TestMethod]
     public void OmnidotsContext_PreservesKeysAndCanonicalIndexes()
     {
-        using var context = CreateContext();
+        using OmnidotsMonitorContext context = CreateContext();
 
         AssertKey(context, typeof(OmnidotsMonitorStatusEntity), "Id");
         AssertKey(context, typeof(OmnidotsSensorEntity), "Id");
@@ -170,8 +171,8 @@ public sealed class OmnidotsModelMappingTests
     [TestMethod]
     public void OmnidotsContext_MapsImportCursorToCanonicalMigrationShape()
     {
-        using var context = CreateContext();
-        var cursor = context.Model.FindEntityType(typeof(OmnidotsImportCursorEntity));
+        using OmnidotsMonitorContext context = CreateContext();
+        IEntityType? cursor = context.Model.FindEntityType(typeof(OmnidotsImportCursorEntity));
 
         Assert.IsNotNull(cursor);
         Assert.AreEqual("omnidots_import_cursor", cursor.GetTableName());
@@ -192,33 +193,33 @@ public sealed class OmnidotsModelMappingTests
     [TestMethod]
     public void OmnidotsContext_MapsCursorTimestampsWithSymmetricUtcSemantics()
     {
-        using var context = CreateContext();
+        using OmnidotsMonitorContext context = CreateContext();
 
-        var utcValue = new DateTime(2026, 7, 14, 9, 30, 0, DateTimeKind.Utc);
-        var values = new[]
+        DateTime utcValue = new DateTime(2026, 7, 14, 9, 30, 0, DateTimeKind.Utc);
+        DateTime[] values = new[]
         {
             utcValue,
             DateTime.SpecifyKind(utcValue, DateTimeKind.Local),
             DateTime.SpecifyKind(utcValue, DateTimeKind.Unspecified)
         };
 
-        var cursor = context.Model.FindEntityType(typeof(OmnidotsImportCursorEntity));
+        IEntityType? cursor = context.Model.FindEntityType(typeof(OmnidotsImportCursorEntity));
         Assert.IsNotNull(cursor);
 
-        foreach (var propertyName in new[]
+        foreach (string? propertyName in new[]
                  {
                      nameof(OmnidotsImportCursorEntity.LastSampleAt),
                      nameof(OmnidotsImportCursorEntity.UpdatedAt)
                  })
         {
-            var converter = cursor.FindProperty(propertyName)!.GetValueConverter();
+            ValueConverter? converter = cursor.FindProperty(propertyName)!.GetValueConverter();
             Assert.IsNotNull(converter, $"{propertyName} must normalize database values to UTC.");
 
-            foreach (var value in values)
+            foreach (DateTime value in values)
             {
-                var expected = NormalizeUtc(value);
-                var providerValue = (DateTime)converter.ConvertToProvider(value)!;
-                var materializedValue = (DateTime)converter.ConvertFromProvider(value)!;
+                DateTime expected = NormalizeUtc(value);
+                DateTime providerValue = (DateTime)converter.ConvertToProvider(value)!;
+                DateTime materializedValue = (DateTime)converter.ConvertFromProvider(value)!;
 
                 AssertUtcValue(expected, providerValue, cursor.GetTableName()!, propertyName, value.Kind, "write");
                 AssertUtcValue(expected, materializedValue, cursor.GetTableName()!, propertyName, value.Kind, "read");
@@ -229,8 +230,8 @@ public sealed class OmnidotsModelMappingTests
     [TestMethod]
     public void OmnidotsContext_MapsTraceSampleIndexAndCompositeKey()
     {
-        using var context = CreateContext();
-        var trace = context.Model.FindEntityType(typeof(OmnidotsTraceEntity));
+        using OmnidotsMonitorContext context = CreateContext();
+        IEntityType? trace = context.Model.FindEntityType(typeof(OmnidotsTraceEntity));
 
         Assert.IsNotNull(trace);
         AssertColumn(trace, nameof(OmnidotsTraceEntity.SampleIndex), "sample_index", "integer");
@@ -242,7 +243,7 @@ public sealed class OmnidotsModelMappingTests
     [TestMethod]
     public void SharedAlertEntities_MapToCanonicalPostgreSqlShape()
     {
-        using var context = CreateContext();
+        using OmnidotsMonitorContext context = CreateContext();
 
         AssertAlertOccurrence(context);
         AssertAlertOutbox(context);
@@ -250,7 +251,7 @@ public sealed class OmnidotsModelMappingTests
 
     private static void AssertAlertOccurrence(MonitorDbContextBase context)
     {
-        var entity = context.Model.FindEntityType(typeof(AlertOccurrenceEntity));
+        IEntityType? entity = context.Model.FindEntityType(typeof(AlertOccurrenceEntity));
         Assert.IsNotNull(entity);
         Assert.AreEqual("alert_occurrence", entity.GetTableName());
         Assert.IsNull(entity.GetSchema());
@@ -285,7 +286,7 @@ public sealed class OmnidotsModelMappingTests
 
     private static void AssertAlertOutbox(MonitorDbContextBase context)
     {
-        var entity = context.Model.FindEntityType(typeof(AlertDeliveryOutboxEntity));
+        IEntityType? entity = context.Model.FindEntityType(typeof(AlertDeliveryOutboxEntity));
         Assert.IsNotNull(entity);
         Assert.AreEqual("alert_delivery_outbox", entity.GetTableName());
         Assert.IsNull(entity.GetSchema());
@@ -332,7 +333,7 @@ public sealed class OmnidotsModelMappingTests
         bool nullable,
         int? maxLength = null)
     {
-        var property = entity.FindProperty(propertyName);
+        IProperty? property = entity.FindProperty(propertyName);
         Assert.IsNotNull(property);
         Assert.AreEqual(columnName, property.GetColumnName());
         Assert.AreEqual(columnType, property.FindAnnotation(RelationalAnnotationNames.ColumnType)?.Value);
@@ -345,7 +346,7 @@ public sealed class OmnidotsModelMappingTests
         params (string Property, string Column)[] expectedColumns)
     {
         Assert.HasCount(expectedColumns.Length, entityType.GetProperties());
-        foreach (var expected in expectedColumns)
+        foreach ((string Property, string Column) expected in expectedColumns)
         {
             Assert.AreEqual(
                 expected.Column,
@@ -359,7 +360,7 @@ public sealed class OmnidotsModelMappingTests
         Type entityClrType,
         string propertyName)
     {
-        var property = context.Model.FindEntityType(entityClrType)!.FindProperty(propertyName);
+        IProperty? property = context.Model.FindEntityType(entityClrType)!.FindProperty(propertyName);
         Assert.IsNotNull(property);
         Assert.AreEqual("timestamp with time zone", property.GetRelationalTypeMapping().StoreType);
     }
@@ -369,7 +370,7 @@ public sealed class OmnidotsModelMappingTests
         Type entityClrType,
         params string[] expectedProperties)
     {
-        var keyProperties = context.Model
+        string[] keyProperties = context.Model
             .FindEntityType(entityClrType)!
             .FindPrimaryKey()!
             .Properties
@@ -380,7 +381,7 @@ public sealed class OmnidotsModelMappingTests
 
     private static void AssertIndex(IEntityType entity, string name, bool unique, params string[] properties)
     {
-        var index = entity.GetIndexes().SingleOrDefault(candidate => candidate.GetDatabaseName() == name);
+        IIndex? index = entity.GetIndexes().SingleOrDefault(candidate => candidate.GetDatabaseName() == name);
         Assert.IsNotNull(index, $"Expected index {name} on {entity.GetTableName()}.");
         Assert.AreEqual(unique, index.IsUnique);
         CollectionAssert.AreEqual(properties, index.Properties.Select(property => property.Name).ToArray());
@@ -393,7 +394,7 @@ public sealed class OmnidotsModelMappingTests
         bool nullable,
         params string[] properties)
     {
-        var foreignKey = entity.GetForeignKeys().SingleOrDefault(candidate =>
+        IForeignKey? foreignKey = entity.GetForeignKeys().SingleOrDefault(candidate =>
             candidate.PrincipalEntityType.ClrType == principalType &&
             candidate.Properties.Select(property => property.Name).SequenceEqual(properties));
         Assert.IsNotNull(foreignKey);
@@ -403,7 +404,7 @@ public sealed class OmnidotsModelMappingTests
 
     private static void AssertColumn(IEntityType entity, string propertyName, string columnName, string columnType)
     {
-        var property = entity.FindProperty(propertyName);
+        IProperty? property = entity.FindProperty(propertyName);
 
         Assert.IsNotNull(property);
         Assert.AreEqual(columnName, property.GetColumnName());
@@ -413,7 +414,7 @@ public sealed class OmnidotsModelMappingTests
 
     private static void AssertSeriesConstraint(IEntityType entity, string name, string sql)
     {
-        var constraints = entity.GetCheckConstraints().ToArray();
+        ICheckConstraint[] constraints = entity.GetCheckConstraints().ToArray();
 
         Assert.HasCount(1, constraints);
         Assert.AreEqual(name, constraints[0].Name);
@@ -447,8 +448,8 @@ public sealed class OmnidotsModelMappingTests
 
     private static OmnidotsMonitorContext CreateContext()
     {
-        var options = new MonitorDbOptions(new Dictionary<string, string>());
-        var dbOptions = new DbContextOptionsBuilder<OmnidotsMonitorContext>()
+        MonitorDbOptions options = new MonitorDbOptions(new Dictionary<string, string>());
+        DbContextOptions<OmnidotsMonitorContext> dbOptions = new DbContextOptionsBuilder<OmnidotsMonitorContext>()
             .UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata")
             .Options;
 

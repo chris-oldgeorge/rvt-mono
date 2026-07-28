@@ -23,10 +23,10 @@ public sealed class OmnidotsAlarmTranslatorTests
     [TestMethod]
     public void Translate_ValidAlert_ReturnsExactCommonSignal()
     {
-        var body = Encoding.UTF8.GetBytes("authenticated raw body");
-        var alarm = ValidAlarm();
+        byte[] body = Encoding.UTF8.GetBytes("authenticated raw body");
+        AlarmDataV2 alarm = ValidAlarm();
 
-        var signal = translator.Translate(alarm, body, SuppressionWindow);
+        AlertSignal signal = translator.Translate(alarm, body, SuppressionWindow);
 
         Assert.AreEqual("omnidots.webhook", signal.Source);
         Assert.AreEqual(Convert.ToHexStringLower(SHA256.HashData(body)), signal.SourceEventKey);
@@ -56,9 +56,9 @@ public sealed class OmnidotsAlarmTranslatorTests
     [TestMethod]
     public void Translate_MissingRequiredNestedObject_RejectsPayload(string missingObject)
     {
-        var alarm = ValidAlarm();
-        var data = alarm.Data1!;
-        var axes = data.Axes!;
+        AlarmDataV2 alarm = ValidAlarm();
+        AlarmData data = alarm.Data1!;
+        AlarmAxes axes = data.Axes!;
         switch (missingObject)
         {
             case "data":
@@ -102,7 +102,7 @@ public sealed class OmnidotsAlarmTranslatorTests
     [TestMethod]
     public void Translate_NonpositiveMeasuringPoint_RejectsPayload(int measuringPointId)
     {
-        var alarm = ValidAlarm();
+        AlarmDataV2 alarm = ValidAlarm();
         alarm.MeasuringPointId = measuringPointId;
 
         Assert.ThrowsExactly<AdapterException>(() =>
@@ -120,10 +120,10 @@ public sealed class OmnidotsAlarmTranslatorTests
     [TestMethod]
     public void Translate_NonfiniteTimestampValueOrThreshold_RejectsPayload(string invalidValue)
     {
-        var alarm = ValidAlarm();
-        var data = alarm.Data1!;
-        var alarms = data.Alarms!;
-        var axes = data.Axes!;
+        AlarmDataV2 alarm = ValidAlarm();
+        AlarmData data = alarm.Data1!;
+        AlarmAlarms alarms = data.Alarms!;
+        AlarmAxes axes = data.Axes!;
         switch (invalidValue)
         {
             case "timestamp-nan":
@@ -165,8 +165,8 @@ public sealed class OmnidotsAlarmTranslatorTests
     [TestMethod]
     public void Translate_NegativeThreshold_RejectsPayload(string threshold)
     {
-        var alarm = ValidAlarm();
-        var alarms = alarm.Data1!.Alarms!;
+        AlarmDataV2 alarm = ValidAlarm();
+        AlarmAlarms alarms = alarm.Data1!.Alarms!;
         switch (threshold)
         {
             case "level-1":
@@ -189,7 +189,7 @@ public sealed class OmnidotsAlarmTranslatorTests
     [TestMethod]
     public void Translate_UnrepresentableUnixTimestamp_RejectsPayload(double timestamp)
     {
-        var alarm = ValidAlarm();
+        AlarmDataV2 alarm = ValidAlarm();
         alarm.CreatedAt = timestamp;
 
         Assert.ThrowsExactly<AdapterException>(() =>
@@ -199,10 +199,10 @@ public sealed class OmnidotsAlarmTranslatorTests
     [TestMethod]
     public void Translate_FractionalUnixTimestamp_PreservesVendorMillisecondPrecisionAsUtc()
     {
-        var alarm = ValidAlarm();
+        AlarmDataV2 alarm = ValidAlarm();
         alarm.CreatedAt = 1702317013.999;
 
-        var signal = translator.Translate(alarm, [1], SuppressionWindow);
+        AlertSignal signal = translator.Translate(alarm, [1], SuppressionWindow);
 
         Assert.AreEqual(
             DateTimeOffset.FromUnixTimeMilliseconds(1702317013999).UtcDateTime,
@@ -221,13 +221,13 @@ public sealed class OmnidotsAlarmTranslatorTests
         double z,
         string expectedAxis)
     {
-        var alarm = ValidAlarm();
-        var axes = alarm.Data1!.Axes!;
+        AlarmDataV2 alarm = ValidAlarm();
+        AlarmAxes axes = alarm.Data1!.Axes!;
         axes.X!.Vtop!.Value = x;
         axes.Y!.Vtop!.Value = y;
         axes.Z!.Vtop!.Value = z;
 
-        var signal = translator.Translate(alarm, [1], SuppressionWindow);
+        AlertSignal signal = translator.Translate(alarm, [1], SuppressionWindow);
 
         Assert.AreEqual($"vtop {expectedAxis}", signal.Field);
     }
@@ -243,13 +243,13 @@ public sealed class OmnidotsAlarmTranslatorTests
         double expectedLimit,
         AlertDeliveryChannels expectedChannels)
     {
-        var alarm = ValidAlarm();
-        var axes = alarm.Data1!.Axes!;
+        AlarmDataV2 alarm = ValidAlarm();
+        AlarmAxes axes = alarm.Data1!.Axes!;
         axes.X!.Vtop!.Value = value;
         axes.Y!.Vtop!.Value = value - 1;
         axes.Z!.Vtop!.Value = value - 2;
 
-        var signal = translator.Translate(alarm, [1], SuppressionWindow);
+        AlertSignal signal = translator.Translate(alarm, [1], SuppressionWindow);
 
         Assert.AreEqual(expectedType, signal.AlertType);
         Assert.AreEqual(expectedLimit, signal.Limit);
@@ -259,19 +259,19 @@ public sealed class OmnidotsAlarmTranslatorTests
     [TestMethod]
     public void Translate_NonInvariantCurrentCulture_FormatsInvariantExactMessage()
     {
-        var originalCulture = CultureInfo.CurrentCulture;
-        var originalUiCulture = CultureInfo.CurrentUICulture;
+        CultureInfo originalCulture = CultureInfo.CurrentCulture;
+        CultureInfo originalUiCulture = CultureInfo.CurrentUICulture;
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("fr-FR");
-            var alarm = ValidAlarm();
-            var axes = alarm.Data1!.Axes!;
+            AlarmDataV2 alarm = ValidAlarm();
+            AlarmAxes axes = alarm.Data1!.Axes!;
             axes.X!.Vtop!.Value = 12.5;
             axes.Y!.Vtop!.Value = 8;
             axes.Z!.Vtop!.Value = 4;
 
-            var signal = translator.Translate(alarm, [1], SuppressionWindow);
+            AlertSignal signal = translator.Translate(alarm, [1], SuppressionWindow);
 
             Assert.AreEqual("Vibration Alert vtop x level=12.5 limit=10", signal.Message);
         }

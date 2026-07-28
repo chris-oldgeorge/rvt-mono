@@ -131,7 +131,7 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
 
     private static void AssertContainsNone(string source, string boundary, IEnumerable<string> forbiddenReferences)
     {
-        var violations = forbiddenReferences
+        string[] violations = forbiddenReferences
             .Where(reference => source.Contains(reference, StringComparison.Ordinal))
             .ToArray();
         CollectionAssert.AreEqual(

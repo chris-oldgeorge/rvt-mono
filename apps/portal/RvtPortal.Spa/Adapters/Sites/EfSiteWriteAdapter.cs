@@ -18,8 +18,8 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         DateTime createDateUtc,
         CancellationToken cancellationToken)
     {
-        var source = mutation.Source;
-        var site = new Site
+        SiteMutation source = mutation.Source;
+        Site site = new Site
         {
             SiteName = source.SiteName,
             AddressLine1 = source.AddressLine1,
@@ -60,7 +60,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         // behavior for the suite's non-relational provider.
         if (!domainContext.Database.IsRelational())
         {
-            var contract = await domainContext.Contracts.SingleOrDefaultAsync(
+            Contract? contract = await domainContext.Contracts.SingleOrDefaultAsync(
                 item =>
                     item.Id == contractId &&
                     item.CompanyId == companyId &&
@@ -76,7 +76,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
             return true;
         }
 
-        var affected = await domainContext.Contracts
+        int affected = await domainContext.Contracts
             .Where(contract =>
                 contract.Id == contractId &&
                 contract.CompanyId == companyId &&
@@ -94,7 +94,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         ValidatedSiteMutation mutation,
         CancellationToken cancellationToken)
     {
-        var site = await domainContext.Sites
+        Site? site = await domainContext.Sites
             .Include(item => item.OperatingHours)
             .SingleOrDefaultAsync(item => item.Id == siteId, cancellationToken);
         if (site is null)
@@ -102,7 +102,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
             return false;
         }
 
-        var source = mutation.Source;
+        SiteMutation source = mutation.Source;
         site.SiteName = source.SiteName;
         site.AddressLine1 = source.AddressLine1;
         site.AddressLine2 = source.AddressLine2;
@@ -116,7 +116,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         site.SunStartTime = mutation.SundayStartTime;
         site.SunEndTime = mutation.SundayEndTime;
         site.OperatingHours.Clear();
-        foreach (var hours in mutation.OperatingHours)
+        foreach (ValidatedSiteOperatingHours hours in mutation.OperatingHours)
         {
             site.OperatingHours.Add(new SiteOperatingHours
             {
@@ -140,7 +140,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
     {
         if (!domainContext.Database.IsRelational())
         {
-            var existing = await domainContext.SiteArchived
+            SiteArchived? existing = await domainContext.SiteArchived
                 .SingleOrDefaultAsync(
                     item => item.SiteId == siteId,
                     cancellationToken);
@@ -151,7 +151,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
                     existing.PictureLink);
             }
 
-            var inMemorySite = await domainContext.Sites
+            Site inMemorySite = await domainContext.Sites
                 .SingleAsync(item => item.Id == siteId, cancellationToken);
             inMemorySite.Archived = true;
             domainContext.SiteArchived.Add(new SiteArchived
@@ -166,8 +166,8 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
                 archiveUrl);
         }
 
-        var archiveId = Guid.NewGuid();
-        var createDateUtc = DateTime.SpecifyKind(
+        Guid archiveId = Guid.NewGuid();
+        DateTime createDateUtc = DateTime.SpecifyKind(
             archivedUtc,
             DateTimeKind.Utc);
         if (!IsPostgres() && !IsSqlite())
@@ -175,7 +175,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
             throw UnsupportedRelationalProvider();
         }
 
-        var affected = await domainContext.Database.ExecuteSqlInterpolatedAsync(
+        int affected = await domainContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
             INSERT INTO "site_archived"
                 ("id", "created_by", "create_date", "picture_link", "site_id")
@@ -187,7 +187,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
 
         if (affected == 0)
         {
-            var durableArchiveUrl = await domainContext.SiteArchived
+            string? durableArchiveUrl = await domainContext.SiteArchived
                 .AsNoTracking()
                 .Where(item => item.SiteId == siteId)
                 .Select(item => item.PictureLink)
@@ -197,7 +197,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
                 durableArchiveUrl);
         }
 
-        var site = await domainContext.Sites
+        Site site = await domainContext.Sites
             .SingleAsync(item => item.Id == siteId, cancellationToken);
         site.Archived = true;
         return new SiteArchiveClaimResult(
@@ -214,7 +214,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
     {
         if (domainContext.Database.IsRelational())
         {
-            var settingId = Guid.NewGuid();
+            Guid settingId = Guid.NewGuid();
             if (!IsPostgres() && !IsSqlite())
             {
                 throw UnsupportedRelationalProvider();
@@ -237,7 +237,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
             return;
         }
 
-        var settings = await domainContext.NotificationSettings
+        NotificationSettings? settings = await domainContext.NotificationSettings
             .SingleOrDefaultAsync(
                 item => item.SiteUserId == siteUserId,
                 cancellationToken);

@@ -103,7 +103,7 @@ public sealed class ApiResultMapper : IApiResultMapper
     // Function summary: Converts downstream adapter failures while preserving a specific status when supplied.
     private static ObjectResult ExternalServiceProblem<TModel>(ControllerBase controller, ApplicationResult<TModel> result)
     {
-        var statusCode = result.StatusCode ?? StatusCodes.Status503ServiceUnavailable;
+        int statusCode = result.StatusCode ?? StatusCodes.Status503ServiceUnavailable;
         return controller.StatusCode(
             statusCode,
             CreateProblem(controller, statusCode, "External service unavailable.", result.Message));
@@ -112,7 +112,7 @@ public sealed class ApiResultMapper : IApiResultMapper
     // Function summary: Converts application-boundary adapter failures while preserving a specific status when supplied.
     private static ObjectResult ExternalServiceProblem<TModel>(ControllerBase controller, UseCaseResult<TModel> result)
     {
-        var statusCode = result.StatusCode ?? StatusCodes.Status503ServiceUnavailable;
+        int statusCode = result.StatusCode ?? StatusCodes.Status503ServiceUnavailable;
         return controller.StatusCode(
             statusCode,
             CreateProblem(controller, statusCode, "External service unavailable.", result.Message));

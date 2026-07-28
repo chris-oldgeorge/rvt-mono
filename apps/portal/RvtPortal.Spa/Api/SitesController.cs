@@ -48,14 +48,14 @@ public class SitesController : ControllerBase
     // Function summary: Queries visible sites through the business-layer site use case.
     public async Task<ActionResult<QuerySitesResponse>> Query([FromQuery] QuerySitesRequest request)
     {
-        var page = BuildSitePageRequest(request);
+        RVT.BusinessLogic.Application.Paging.PageRequest page = BuildSitePageRequest(request);
         if (PageRequestFactory.IsInvalidSort(page))
         {
             return InvalidSort(page.Sort, SiteApplicationService.SortFields);
         }
 
-        var user = await currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
-        var result = await sites.QueryAsync(
+        PortalUserContext user = await currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
+        UseCaseResult<RvtPortal.Application.Common.PagedResult<SiteListModel>> result = await sites.QueryAsync(
             user,
             new SiteQuery(
                 request.CompanyId,
@@ -73,7 +73,7 @@ public class SitesController : ControllerBase
     // Function summary: Returns site form options for the selected company context.
     public async Task<ActionResult<SiteOptionsResponse>> Options([FromQuery] Guid? companyId = null)
     {
-        var result = await sites.OptionsAsync(companyId, HttpContext.RequestAborted);
+        UseCaseResult<SiteOptionsModel> result = await sites.OptionsAsync(companyId, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, SiteApiMapper.ToOptionsResponse);
     }
     [HttpGet("{id:guid}")]
@@ -82,7 +82,7 @@ public class SitesController : ControllerBase
     // Function summary: Returns one authorized site detail response.
     public async Task<ActionResult<EntityResponse<SiteDetailResponse>>> Get(Guid id)
     {
-        var result = await sites.GetAsync(await CreateUserContextAsync(), id, HttpContext.RequestAborted);
+        UseCaseResult<SiteDetailModel> result = await sites.GetAsync(await CreateUserContextAsync(), id, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(
             this,
             result,
@@ -97,7 +97,7 @@ public class SitesController : ControllerBase
     // Function summary: Uploads or replaces the customer logo used by reports for a site.
     public async Task<ActionResult<EntityResponse<SiteDetailResponse>>> UploadCustomerLogo(Guid id, IFormFile? logo, CancellationToken cancellationToken)
     {
-        var user = await CreateUserContextAsync();
+        PortalUserContext user = await CreateUserContextAsync();
         if (!await sites.CanManageSiteAsync(user, id, cancellationToken))
         {
             return SiteNotFound(id);
@@ -112,8 +112,8 @@ public class SitesController : ControllerBase
             });
         }
 
-        await using var content = logo.OpenReadStream();
-        var result = await sites.SaveCustomerLogoAsync(
+        await using Stream content = logo.OpenReadStream();
+        UseCaseResult<SiteDetailModel> result = await sites.SaveCustomerLogoAsync(
             user,
             id,
             new SiteLogoUpload(
@@ -143,7 +143,7 @@ public class SitesController : ControllerBase
     // Function summary: Deletes the customer logo used by reports for a site.
     public async Task<ActionResult<EntityResponse<SiteDetailResponse>>> DeleteCustomerLogo(Guid id, CancellationToken cancellationToken)
     {
-        var result = await sites.DeleteCustomerLogoAsync(
+        UseCaseResult<SiteDetailModel> result = await sites.DeleteCustomerLogoAsync(
             await CreateUserContextAsync(),
             id,
             cancellationToken);
@@ -161,7 +161,7 @@ public class SitesController : ControllerBase
     // Function summary: Streams a protected customer logo to users who can read the site.
     public async Task<IActionResult> CustomerLogo(Guid id, CancellationToken cancellationToken)
     {
-        var result = await sites.OpenCustomerLogoAsync(
+        UseCaseResult<SiteLogoFile> result = await sites.OpenCustomerLogoAsync(
             await CreateUserContextAsync(),
             id,
             cancellationToken);
@@ -175,7 +175,7 @@ public class SitesController : ControllerBase
     // Function summary: Creates a site through the site application service.
     public async Task<ActionResult<EntityResponse<SiteDetailResponse>>> Create(SiteMutationRequest request)
     {
-        var result = await sites.CreateAsync(
+        UseCaseResult<SiteDetailModel> result = await sites.CreateAsync(
             await CreateUserContextAsync(),
             SiteApiMapper.ToMutation(request),
             HttpContext.RequestAborted);
@@ -184,7 +184,7 @@ public class SitesController : ControllerBase
             return resultMapper.ToActionResult(this, result, ToSiteDetailEntity);
         }
 
-        var response = ToSiteDetailEntity(result.Value);
+        EntityResponse<SiteDetailResponse> response = ToSiteDetailEntity(result.Value);
         return CreatedAtAction(nameof(Get), new { id = result.Value.Id }, response);
     }
     [HttpPut("{id:guid}")]
@@ -195,7 +195,7 @@ public class SitesController : ControllerBase
     // Function summary: Updates a site through the site application service.
     public async Task<ActionResult<EntityResponse<SiteDetailResponse>>> Update(Guid id, SiteMutationRequest request)
     {
-        var result = await sites.UpdateAsync(
+        UseCaseResult<SiteDetailModel> result = await sites.UpdateAsync(
             await CreateUserContextAsync(),
             id,
             SiteApiMapper.ToMutation(request),
@@ -209,8 +209,8 @@ public class SitesController : ControllerBase
     // Function summary: Archives a site through the site application service.
     public async Task<ActionResult<EntityResponse<SiteDetailResponse>>> Archive(Guid id)
     {
-        var user = await CreateUserContextAsync();
-        var result = await sites.ArchiveAsync(
+        PortalUserContext user = await CreateUserContextAsync();
+        UseCaseResult<SiteDetailModel> result = await sites.ArchiveAsync(
             user,
             id,
             user.UserName ?? user.UserId?.ToString() ?? "SPA API",
@@ -223,8 +223,8 @@ public class SitesController : ControllerBase
     // Function summary: Returns the paged monitor panel for one authorized site.
     public async Task<ActionResult<QuerySiteMonitorsResponse>> Monitors(Guid id, [FromQuery] PagedQueryRequest request)
     {
-        var page = BuildFixedSortPageRequest(request, SiteApplicationService.MonitorSort);
-        var result = await sites.QueryMonitorsAsync(await CreateUserContextAsync(), id, page, HttpContext.RequestAborted);
+        RvtPortal.Application.Common.PageRequest page = BuildFixedSortPageRequest(request, SiteApplicationService.MonitorSort);
+        UseCaseResult<RvtPortal.Application.Common.PagedResult<SiteMonitorModel>> result = await sites.QueryMonitorsAsync(await CreateUserContextAsync(), id, page, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, SiteApiMapper.ToMonitorQueryResponse);
     }
     [HttpGet("{id:guid}/notifications/open")]
@@ -233,8 +233,8 @@ public class SitesController : ControllerBase
     // Function summary: Returns the paged open-notification panel for one authorized site.
     public async Task<ActionResult<QuerySiteNotificationsResponse>> OpenNotifications(Guid id, [FromQuery] PagedQueryRequest request)
     {
-        var page = BuildFixedSortPageRequest(request, SiteApplicationService.NotificationSort);
-        var result = await sites.QueryOpenNotificationsAsync(await CreateUserContextAsync(), id, page, HttpContext.RequestAborted);
+        RvtPortal.Application.Common.PageRequest page = BuildFixedSortPageRequest(request, SiteApplicationService.NotificationSort);
+        UseCaseResult<RvtPortal.Application.Common.PagedResult<SiteNotificationModel>> result = await sites.QueryOpenNotificationsAsync(await CreateUserContextAsync(), id, page, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, SiteApiMapper.ToNotificationQueryResponse);
     }
     [HttpGet("{id:guid}/notification-settings")]
@@ -243,7 +243,7 @@ public class SitesController : ControllerBase
     // Function summary: Returns notification settings for one authorized site.
     public async Task<ActionResult<SiteNotificationSettingsResponse>> NotificationSettings(Guid id)
     {
-        var result = await sites.GetNotificationSettingsAsync(await CreateUserContextAsync(), id, HttpContext.RequestAborted);
+        UseCaseResult<SiteNotificationSettingsModel> result = await sites.GetNotificationSettingsAsync(await CreateUserContextAsync(), id, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, SiteApiMapper.ToNotificationSettingsResponse);
     }
     [HttpPut("{siteId:guid}/notification-settings/{siteUserId:guid}")]
@@ -253,8 +253,8 @@ public class SitesController : ControllerBase
     // Function summary: Updates notification settings through the site application service.
     public async Task<ActionResult<EntityResponse<SiteNotificationSettingItem>>> UpdateNotificationSetting(Guid siteId, Guid siteUserId, SiteNotificationSettingMutationRequest request)
     {
-        var user = await CreateUserContextAsync();
-        var result = await sites.UpdateNotificationSettingAsync(
+        PortalUserContext user = await CreateUserContextAsync();
+        UseCaseResult<SiteNotificationSettingModel> result = await sites.UpdateNotificationSettingAsync(
             user,
             siteId,
             siteUserId,
@@ -301,7 +301,7 @@ public class SitesController : ControllerBase
     // Function summary: Maps an application site detail model while adding the protected customer-logo link owned by the HTTP adapter.
     private static SiteDetailResponse ToSiteDetailResponse(SiteDetailModel model)
     {
-        var customerLogoUrl = model.HasCustomerLogo
+        string? customerLogoUrl = model.HasCustomerLogo
             ? $"/api/sites/{model.Id}/customer-logo"
             : null;
         return SiteApiMapper.ToDetailResponse(model, customerLogoUrl);
@@ -343,7 +343,7 @@ public class SitesController : ControllerBase
     // Function summary: Builds the existing invalid-sort problem response for site endpoints.
     private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
     {
-        var problem = ApiProblems.Create(
+        ProblemDetails problem = ApiProblems.Create(
             HttpContext,
             StatusCodes.Status400BadRequest,
             "Invalid sort field",

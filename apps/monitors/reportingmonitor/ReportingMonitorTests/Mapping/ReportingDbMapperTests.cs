@@ -8,7 +8,7 @@ public sealed class ReportingDbMapperTests
     [Fact]
     public void ToReportRule_MapsScalarRuleValuesAndRecipients()
     {
-        var entity = new ReportRuleEntity
+        ReportRuleEntity entity = new ReportRuleEntity
         {
             Id = Guid.NewGuid(),
             SiteId = Guid.NewGuid(),
@@ -17,7 +17,7 @@ public sealed class ReportingDbMapperTests
             IsHiddenSystemRule = false
         };
 
-        var result = ReportingDbMapper.ToReportRule(entity, [new ReportRecipient(entity.UserId, "report@example.com")]);
+        ReportRule result = ReportingDbMapper.ToReportRule(entity, [new ReportRecipient(entity.UserId, "report@example.com")]);
 
         Assert.Equal(entity.Id, result.Id);
         Assert.Equal(entity.SiteId, result.SiteId);

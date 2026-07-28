@@ -42,7 +42,7 @@ public class AlertLevelsController : ControllerBase
     // Function summary: Queries alert levels for a visible monitor through the alert-level application service.
     public async Task<ActionResult<QueryAlertLevelsResponse>> Query([FromQuery] QueryAlertLevelsRequest request)
     {
-        var result = await alertLevels.QueryAsync(
+        AlertLevelQueryResult result = await alertLevels.QueryAsync(
             await CreateUserContextAsync(),
             new AlertLevelQuery(
                 request.MonitorId,
@@ -79,7 +79,7 @@ public class AlertLevelsController : ControllerBase
     // Function summary: Returns alert-level form options for a visible monitor.
     public async Task<ActionResult<AlertLevelOptionsResponse>> Options([FromQuery, Required] Guid monitorId)
     {
-        var options = await alertLevels.OptionsAsync(await CreateUserContextAsync(), monitorId, HttpContext.RequestAborted);
+        AlertLevelOptionsResponse? options = await alertLevels.OptionsAsync(await CreateUserContextAsync(), monitorId, HttpContext.RequestAborted);
         return options == null ? MonitorNotFound(monitorId) : options;
     }
 
@@ -89,7 +89,7 @@ public class AlertLevelsController : ControllerBase
     // Function summary: Retrieves a visible alert level by id.
     public async Task<ActionResult<EntityResponse<AlertLevelItem>>> Get(Guid id)
     {
-        var item = await alertLevels.GetAsync(await CreateUserContextAsync(), id, HttpContext.RequestAborted);
+        AlertLevelItem? item = await alertLevels.GetAsync(await CreateUserContextAsync(), id, HttpContext.RequestAborted);
         return item == null ? AlertLevelNotFound(id) : new EntityResponse<AlertLevelItem> { Item = item };
     }
 
@@ -101,7 +101,7 @@ public class AlertLevelsController : ControllerBase
     // Function summary: Creates an alert level through the alert-level application service.
     public async Task<ActionResult<EntityResponse<AlertLevelItem>>> Create(AlertLevelMutationRequest request)
     {
-        var result = await alertLevels.CreateAsync(request, HttpContext.RequestAborted);
+        AlertLevelMutationWorkflowResult result = await alertLevels.CreateAsync(request, HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return MonitorNotFound(request.MonitorId);
@@ -113,7 +113,7 @@ public class AlertLevelsController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var response = new EntityResponse<AlertLevelItem> { Item = result.Item };
+        EntityResponse<AlertLevelItem> response = new EntityResponse<AlertLevelItem> { Item = result.Item };
         return CreatedAtAction(nameof(Get), new { id = result.AlertLevelId.Value }, response);
     }
 
@@ -125,7 +125,7 @@ public class AlertLevelsController : ControllerBase
     // Function summary: Updates an alert level through the alert-level application service.
     public async Task<ActionResult<EntityResponse<AlertLevelItem>>> Update(Guid id, AlertLevelMutationRequest request)
     {
-        var result = await alertLevels.UpdateAsync(id, request, HttpContext.RequestAborted);
+        AlertLevelMutationWorkflowResult result = await alertLevels.UpdateAsync(id, request, HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return AlertLevelNotFound(id);
@@ -148,7 +148,7 @@ public class AlertLevelsController : ControllerBase
     // Function summary: Updates vibration alert levels through the alert-level application service.
     public async Task<ActionResult<VibrationAlertLevelResponse>> UpdateVibration(Guid monitorId, VibrationAlertLevelMutationRequest request)
     {
-        var result = await alertLevels.UpdateVibrationAsync(monitorId, request, HttpContext.RequestAborted);
+        VibrationAlertLevelMutationWorkflowResult result = await alertLevels.UpdateVibrationAsync(monitorId, request, HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return MonitorNotFound(monitorId);
@@ -170,7 +170,7 @@ public class AlertLevelsController : ControllerBase
     // Function summary: Deletes an alert level through the alert-level application service.
     public async Task<ActionResult<MutationResponse>> Delete(Guid id)
     {
-        var result = await alertLevels.DeleteAsync(id, HttpContext.RequestAborted);
+        AlertLevelMutationWorkflowResult result = await alertLevels.DeleteAsync(id, HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return AlertLevelNotFound(id);
@@ -192,9 +192,9 @@ public class AlertLevelsController : ControllerBase
     // Function summary: Maps command validation errors into the API model-state response.
     private void AddCommandErrors(IReadOnlyDictionary<string, string[]> errors)
     {
-        foreach (var error in errors)
+        foreach (KeyValuePair<string, string[]> error in errors)
         {
-            foreach (var message in error.Value)
+            foreach (string message in error.Value)
             {
                 ModelState.AddModelError(error.Key, message);
             }

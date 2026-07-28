@@ -30,13 +30,13 @@ public sealed class CanonicalNamingSnapshotTests
     // Function summary: Verifies the model's relation and column names still match the approved schema mapping.
     public void CanonicalNames_MatchTheApprovedSnapshot()
     {
-        var approved = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, ApprovedFileName))
+        string[] approved = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, ApprovedFileName))
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToArray();
-        var actual = BuildCanonicalNames();
+        string[] actual = BuildCanonicalNames();
 
-        var missing = approved.Except(actual, StringComparer.Ordinal).ToArray();
-        var unexpected = actual.Except(approved, StringComparer.Ordinal).ToArray();
+        string[] missing = approved.Except(actual, StringComparer.Ordinal).ToArray();
+        string[] unexpected = actual.Except(approved, StringComparer.Ordinal).ToArray();
 
         Assert.True(
             missing.Length == 0 && unexpected.Length == 0,
@@ -67,19 +67,19 @@ public sealed class CanonicalNamingSnapshotTests
     // Function summary: Builds "Entity|Member|name" lines for every mapped relation and column.
     private static string[] BuildCanonicalNames()
     {
-        var lines = new SortedSet<string>(StringComparer.Ordinal);
+        SortedSet<string> lines = new SortedSet<string>(StringComparer.Ordinal);
 
         // A relational provider is required to resolve table/column names; no connection is ever opened.
-        using var domain = new RVTDbContext(new DbContextOptionsBuilder<RVTDbContext>()
+        using RVTDbContext domain = new RVTDbContext(new DbContextOptionsBuilder<RVTDbContext>()
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused").Options);
-        using var search = new RVTSearchContext(new DbContextOptionsBuilder<RVTSearchContext>()
+        using RVTSearchContext search = new RVTSearchContext(new DbContextOptionsBuilder<RVTSearchContext>()
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused").Options);
 
-        foreach (var context in new DbContext[] { domain, search })
+        foreach (DbContext context in new DbContext[] { domain, search })
         {
-            foreach (var entityType in context.Model.GetEntityTypes())
+            foreach (IEntityType entityType in context.Model.GetEntityTypes())
             {
-                var store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)
+                StoreObjectIdentifier? store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)
                     ?? StoreObjectIdentifier.Create(entityType, StoreObjectType.View);
                 if (store == null)
                 {
@@ -87,9 +87,9 @@ public sealed class CanonicalNamingSnapshotTests
                 }
 
                 lines.Add($"{entityType.ClrType.Name}|<relation>|{store.Value.Name}");
-                foreach (var property in entityType.GetProperties())
+                foreach (IProperty property in entityType.GetProperties())
                 {
-                    var column = property.GetColumnName(store.Value);
+                    string? column = property.GetColumnName(store.Value);
                     if (column != null)
                     {
                         lines.Add($"{entityType.ClrType.Name}|{property.Name}|{column}");

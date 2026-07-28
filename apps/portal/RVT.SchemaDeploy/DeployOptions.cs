@@ -15,11 +15,11 @@ public sealed class DeployOptions
     // Function summary: Builds the options from arguments and environment, or returns null when they are unusable.
     public static DeployOptions? Parse(string[] args)
     {
-        var dryRun = false;
+        bool dryRun = false;
         string? connectionString = null;
         string? scriptRoot = null;
 
-        for (var i = 0; i < args.Length; i++)
+        for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {

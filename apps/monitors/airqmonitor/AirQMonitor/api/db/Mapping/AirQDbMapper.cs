@@ -14,7 +14,7 @@ public static partial class AirQDbMapper
         MonitorEntity row,
         IReadOnlyDictionary<string, AirQMonitorStatusEntity> statuses)
     {
-        if (!statuses.TryGetValue(row.SerialId, out var status))
+        if (!statuses.TryGetValue(row.SerialId, out AirQMonitorStatusEntity? status))
         {
             throw AdapterException.Of(string.Format("Missing NoiseMonitorStatus for serial Id={0}", row.SerialId));
         }
@@ -39,7 +39,7 @@ public static partial class AirQDbMapper
 
     public static MonitorEntity ToMonitorEntity(NoiseMonitorDto dto)
     {
-        var entity = new MonitorEntity { Id = dto.Id };
+        MonitorEntity entity = new MonitorEntity { Id = dto.Id };
         UpdateMonitorEntity(entity, dto);
         return entity;
     }
@@ -60,7 +60,7 @@ public static partial class AirQDbMapper
 
     public static AirQNoiseLevelEntity ToNoiseLevelEntity(string serialId, NoiseDto dto)
     {
-        var entity = ToNoiseLevelEntity(dto);
+        AirQNoiseLevelEntity entity = ToNoiseLevelEntity(dto);
         entity.SerialId = serialId;
         return entity;
     }

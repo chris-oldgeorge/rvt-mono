@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Omnidots.Api.Db.EntityFramework;
@@ -11,6 +12,7 @@ using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
+using Rvt.Monitor.Common.Data.Queries;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -51,11 +53,11 @@ namespace Omnidots.Api.Db
 
         public void WriteMonitorList(List<VibrationMonitorDto> monitors)
         {
-            using var context = CreateContext();
+            using OmnidotsMonitorContext context = CreateContext();
 
-            foreach (var dto in monitors)
+            foreach (VibrationMonitorDto dto in monitors)
             {
-                var monitor = context.Monitors.FirstOrDefault(row =>
+                MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
                     row.SerialId == dto.SerialId &&
                     row.TypeOfMonitor == VibrationMonitorDto.MONITOR_TYPE_VIBRATION);
 
@@ -81,8 +83,8 @@ namespace Omnidots.Api.Db
 
         public void SetMonitorOffline(Guid monitorId, bool offline)
         {
-            using var context = CreateContext();
-            var monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
+            using OmnidotsMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
             if (monitor == null)
             {
                 return;
@@ -94,8 +96,8 @@ namespace Omnidots.Api.Db
 
         public void SetMonitorBatteryStatus(Guid monitorId, byte batteryStatus)
         {
-            using var context = CreateContext();
-            var monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
+            using OmnidotsMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
             if (monitor == null)
             {
                 return;
@@ -107,7 +109,7 @@ namespace Omnidots.Api.Db
 
         public List<VibrationMonitorDto> ReadMonitorList(DateTime? lastDataTime)
         {
-            using var context = CreateContext();
+            using OmnidotsMonitorContext context = CreateContext();
 
             var rows = (from monitor in context.Monitors.AsNoTracking()
                         join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
@@ -122,7 +124,7 @@ namespace Omnidots.Api.Db
                             DeployDate = (DateTime?)deployment.StartDate
                         }).ToList();
 
-            var statuses = context.MonitorStatuses
+            Dictionary<string, OmnidotsMonitorStatusEntity> statuses = context.MonitorStatuses
                 .AsNoTracking()
                 .Where(status => rows.Select(row => row.Monitor.SerialId).Contains(status.SerialId))
                 .ToDictionary(status => status.SerialId, StringComparer.OrdinalIgnoreCase);
@@ -140,7 +142,7 @@ namespace Omnidots.Api.Db
         public IReadOnlyDictionary<string, DateTime> ReadLatestTraceEndTimes(
             IReadOnlyCollection<string> serialIds)
         {
-            var requestedSerialIds = serialIds
+            string[] requestedSerialIds = serialIds
                 .Where(serialId => !string.IsNullOrWhiteSpace(serialId))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
@@ -149,7 +151,7 @@ namespace Omnidots.Api.Db
                 return new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
             }
 
-            using var context = CreateContext();
+            using OmnidotsMonitorContext context = CreateContext();
             return context.TraceIndexes
                 .AsNoTracking()
                 .Where(trace => trace.SerialId != null && requestedSerialIds.Contains(trace.SerialId))
@@ -160,9 +162,9 @@ namespace Omnidots.Api.Db
 
         public VibrationMonitorDto ReadMonitor(string serialId)
         {
-            using var context = CreateContext();
+            using OmnidotsMonitorContext context = CreateContext();
 
-            var monitor = context.Monitors
+            MonitorEntity? monitor = context.Monitors
                 .AsNoTracking()
                 .FirstOrDefault(row =>
                     row.SerialId == serialId &&
@@ -173,7 +175,7 @@ namespace Omnidots.Api.Db
                 throw AdapterException.Of($"No monitor with SerialId='{serialId}'");
             }
 
-            var status = context.MonitorStatuses
+            OmnidotsMonitorStatusEntity? status = context.MonitorStatuses
                 .AsNoTracking()
                 .FirstOrDefault(row => row.SerialId == serialId);
             if (status == null)
@@ -181,7 +183,7 @@ namespace Omnidots.Api.Db
                 throw AdapterException.Of($"Missing VibrationMonitorStatus for serialId={serialId}");
             }
 
-            var sensor = context.Sensors
+            OmnidotsSensorEntity? sensor = context.Sensors
                 .AsNoTracking()
                 .FirstOrDefault(row => row.SerialId == serialId);
             return OmnidotsDbMapper.ToVibrationMonitorDto(monitor, status, sensor, lastSeen: null, deployDate: null);
@@ -189,8 +191,8 @@ namespace Omnidots.Api.Db
 
         public DateTime ReadDeployStartDate(Guid monitorId)
         {
-            using var context = CreateContext();
-            var startDate = context.Deployments
+            using OmnidotsMonitorContext context = CreateContext();
+            DateTime? startDate = context.Deployments
                 .AsNoTracking()
                 .Where(row => row.MonitorId == monitorId && row.EndDate == null)
                 .Select(row => (DateTime?)row.StartDate)
@@ -203,8 +205,8 @@ namespace Omnidots.Api.Db
         {
             RvtLogger.Logger.LogError("DBClient HandleException message={Value1} exception={Value2}", message, exception.Message);
 
-            using var context = CreateContext();
-            var error = exception.ToString();
+            using OmnidotsMonitorContext context = CreateContext();
+            string error = exception.ToString();
             if (error.Length > 1024)
             {
                 error = error.Substring(0, 1024);
@@ -223,8 +225,8 @@ namespace Omnidots.Api.Db
         {
             RvtLogger.Logger.LogDebug("WriteLatestTimestamp for serialId={Value1} lastDataTime={Value2}", serialId, lastDataTime);
 
-            using var context = CreateContext();
-            var monitor = context.Monitors.FirstOrDefault(row =>
+            using OmnidotsMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
                 row.SerialId == serialId &&
                 row.TypeOfMonitor == VibrationMonitorDto.MONITOR_TYPE_VIBRATION);
             if (monitor == null)
@@ -243,7 +245,7 @@ namespace Omnidots.Api.Db
                 return;
             }
 
-            var table = CreatePeakRecordsTable(serialId, dtos);
+            DataTable table = CreatePeakRecordsTable(serialId, dtos);
             ImportPeakRecords(serialId, table, dtos.Max(dto => dto.SampleTime));
         }
 
@@ -254,17 +256,17 @@ namespace Omnidots.Api.Db
                 return;
             }
 
-            foreach (var serialGroup in table.Rows
+            foreach (IGrouping<string, DataRow> serialGroup in table.Rows
                          .Cast<DataRow>()
                          .GroupBy(row => RequiredString(row, "SerialId"), StringComparer.Ordinal))
             {
-                var serialTable = table.Clone();
-                foreach (var row in serialGroup)
+                DataTable serialTable = table.Clone();
+                foreach (DataRow? row in serialGroup)
                 {
                     serialTable.ImportRow(row);
                 }
 
-                var newestSampleAt = serialGroup.Max(row => RequiredDateTime(row, "SampleTime"));
+                DateTime newestSampleAt = serialGroup.Max(row => RequiredDateTime(row, "SampleTime"));
                 ImportPeakRecords(serialGroup.Key, serialTable, newestSampleAt);
             }
         }
@@ -295,8 +297,8 @@ namespace Omnidots.Api.Db
 
         public DateTime? ReadImportCursor(string serialId, OmnidotsMeasurementSeries series)
         {
-            using var context = CreateContext();
-            var seriesName = SeriesName(series);
+            using OmnidotsMonitorContext context = CreateContext();
+            string seriesName = SeriesName(series);
             return context.ImportCursors
                 .AsNoTracking()
                 .Where(row => row.SerialId == serialId && row.Series == seriesName)
@@ -306,8 +308,8 @@ namespace Omnidots.Api.Db
 
         public DateTime? ReadLatestMeasurementTime(string serialId, OmnidotsMeasurementSeries series)
         {
-            using var context = CreateContext();
-            var latest = series switch
+            using OmnidotsMonitorContext context = CreateContext();
+            DateTime? latest = series switch
             {
                 OmnidotsMeasurementSeries.Peak => context.PeakLevels
                     .AsNoTracking()
@@ -336,13 +338,13 @@ namespace Omnidots.Api.Db
                 return;
             }
 
-            var normalizedNewestSampleAt = ValidatePeakImport(serialId, records, newestSampleAt);
+            DateTime normalizedNewestSampleAt = ValidatePeakImport(serialId, records, newestSampleAt);
             ExecuteImportWithRetry(OmnidotsMeasurementSeries.Peak, context =>
             {
-                var seen = new HashSet<DateTime>();
+                HashSet<DateTime> seen = new HashSet<DateTime>();
                 foreach (DataRow row in records.Rows)
                 {
-                    var entity = ToPeakLevelEntity(row);
+                    OmnidotsPeakLevelEntity entity = ToPeakLevelEntity(row);
                     entity.SampleTime = NormalizeUtc(entity.SampleTime);
                     if (!seen.Add(entity.SampleTime) ||
                         context.PeakLevels.Any(existing =>
@@ -355,7 +357,7 @@ namespace Omnidots.Api.Db
                     context.PeakLevels.Add(entity);
                 }
 
-                var cursorAdvanced = AdvanceCursor(
+                bool cursorAdvanced = AdvanceCursor(
                     context,
                     serialId,
                     OmnidotsMeasurementSeries.Peak,
@@ -363,7 +365,7 @@ namespace Omnidots.Api.Db
 
                 if (cursorAdvanced)
                 {
-                    var monitor = context.Monitors.FirstOrDefault(row =>
+                    MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
                         row.SerialId == serialId &&
                         row.TypeOfMonitor == VibrationMonitorDto.MONITOR_TYPE_VIBRATION);
                     if (monitor != null &&
@@ -386,22 +388,22 @@ namespace Omnidots.Api.Db
                 return;
             }
 
-            var normalizedNewestSampleAt = ValidateNewestSampleAt(
+            DateTime normalizedNewestSampleAt = ValidateNewestSampleAt(
                 records.Max(dto => NormalizeUtc(dto.SampleTime)),
                 newestSampleAt);
             ExecuteImportWithRetry(OmnidotsMeasurementSeries.Veff, context =>
             {
-                var seen = new HashSet<DateTime>();
-                foreach (var dto in records)
+                HashSet<DateTime> seen = new HashSet<DateTime>();
+                foreach (VeffRecordDto dto in records)
                 {
-                    var sampleTime = NormalizeUtc(dto.SampleTime);
+                    DateTime sampleTime = NormalizeUtc(dto.SampleTime);
                     if (!seen.Add(sampleTime) ||
                         context.VeffLevels.Any(row => row.SerialId == serialId && row.SampleTime == sampleTime))
                     {
                         continue;
                     }
 
-                    var entity = OmnidotsDbMapper.ToVeffLevelEntity(serialId, dto);
+                    OmnidotsVeffLevelEntity entity = OmnidotsDbMapper.ToVeffLevelEntity(serialId, dto);
                     entity.SampleTime = sampleTime;
                     context.VeffLevels.Add(entity);
                 }
@@ -420,22 +422,22 @@ namespace Omnidots.Api.Db
                 return;
             }
 
-            var normalizedNewestSampleAt = ValidateNewestSampleAt(
+            DateTime normalizedNewestSampleAt = ValidateNewestSampleAt(
                 records.Max(dto => NormalizeUtc(dto.SampleTime)),
                 newestSampleAt);
             ExecuteImportWithRetry(OmnidotsMeasurementSeries.Vdv, context =>
             {
-                var seen = new HashSet<DateTime>();
-                foreach (var dto in records)
+                HashSet<DateTime> seen = new HashSet<DateTime>();
+                foreach (VdvRecordDto dto in records)
                 {
-                    var sampleTime = NormalizeUtc(dto.SampleTime);
+                    DateTime sampleTime = NormalizeUtc(dto.SampleTime);
                     if (!seen.Add(sampleTime) ||
                         context.VdvLevels.Any(row => row.SerialId == serialId && row.SampleTime == sampleTime))
                     {
                         continue;
                     }
 
-                    var entity = OmnidotsDbMapper.ToVdvLevelEntity(serialId, dto);
+                    OmnidotsVdvLevelEntity entity = OmnidotsDbMapper.ToVdvLevelEntity(serialId, dto);
                     entity.SampleTime = sampleTime;
                     context.VdvLevels.Add(entity);
                 }
@@ -446,7 +448,7 @@ namespace Omnidots.Api.Db
 
         public List<RvtAlertRuleDto> ReadRules(string? serialId)
         {
-            using var context = CreateContext();
+            using OmnidotsMonitorContext context = CreateContext();
 
             IQueryable<RvtAlertRuleEntity> query;
             if (serialId == null)
@@ -470,7 +472,7 @@ namespace Omnidots.Api.Db
 
         public List<RvtContactDto> ReadAlertContacts(Guid monitorId)
         {
-            using var context = CreateContext();
+            using OmnidotsMonitorContext context = CreateContext();
 
             var contactRows = (from deployment in context.Deployments.AsNoTracking()
                                join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
@@ -488,10 +490,10 @@ namespace Omnidots.Api.Db
                                    setting.EndTime
                                }).ToList();
 
-            var userIds = contactRows
+            HashSet<string> userIds = contactRows
                 .Select(row => row.UserId.ToString())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var usersById = context.Users
+            Dictionary<string, AspNetUserEntity> usersById = context.Users
                 .AsNoTracking()
                 .Where(user => userIds.Contains(user.Id))
                 .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
@@ -500,7 +502,7 @@ namespace Omnidots.Api.Db
                 .Where(row => usersById.ContainsKey(row.UserId.ToString()))
                 .Select(row =>
                 {
-                    var user = usersById[row.UserId.ToString()];
+                    AspNetUserEntity user = usersById[row.UserId.ToString()];
                     return new RvtContactDto(
                         useEmail: row.Email,
                         useSms: row.SMS,
@@ -514,7 +516,7 @@ namespace Omnidots.Api.Db
 
         public void WriteNotification(NotificationDto dto)
         {
-            using var context = CreateContext();
+            using OmnidotsMonitorContext context = CreateContext();
             context.Notifications.Add(new NotificationEntity
             {
                 Id = dto.Id,
@@ -533,7 +535,7 @@ namespace Omnidots.Api.Db
 
         public List<NotificationDto> ReadNotifications(Guid monitorId, DateTime after)
         {
-            using var context = CreateContext();
+            using OmnidotsMonitorContext context = CreateContext();
 
             return context.Notifications
                 .AsNoTracking()
@@ -545,8 +547,8 @@ namespace Omnidots.Api.Db
 
         public void UpdateAlertRule(RvtAlertRuleDto dto)
         {
-            using var context = CreateContext();
-            var rule = context.AlertRules.FirstOrDefault(row => row.Id == dto.RuleId);
+            using OmnidotsMonitorContext context = CreateContext();
+            RvtAlertRuleEntity? rule = context.AlertRules.FirstOrDefault(row => row.Id == dto.RuleId);
             if (rule == null)
             {
                 return;
@@ -559,9 +561,9 @@ namespace Omnidots.Api.Db
 
         public double GetAveragePeakLevels(string serialId, string columnName, DateTime start, DateTime end)
         {
-            using var context = CreateContext();
-            var field = OmnidotsAggregateFields.Resolve(columnName);
-            var query = context.PeakLevels
+            using OmnidotsMonitorContext context = CreateContext();
+            MonitorAggregateField<OmnidotsPeakLevelEntity> field = OmnidotsAggregateFields.Resolve(columnName);
+            IQueryable<OmnidotsPeakLevelEntity> query = context.PeakLevels
                 .Where(row => row.SerialId == serialId)
                 .Where(row => row.SampleTime >= start && row.SampleTime < end);
 
@@ -570,7 +572,7 @@ namespace Omnidots.Api.Db
 
         public void WriteNotificationAudit(Guid notificationId, string address, string message)
         {
-            using var context = CreateContext();
+            using OmnidotsMonitorContext context = CreateContext();
             context.NotificationAudits.Add(new NotificationSentEntity
             {
                 Id = Guid.NewGuid(),
@@ -584,13 +586,13 @@ namespace Omnidots.Api.Db
 
         public void WriteTraces(string serialId, IReadOnlyList<TraceData> traces)
         {
-            foreach (var traceData in traces)
+            foreach (TraceData traceData in traces)
             {
-                using var context = CreateContext();
-                using var transaction = context.Database.BeginTransaction();
-                var traceId = Guid.NewGuid();
-                var startTime = DateTimeUtil.FromMillis(traceData.StartTime);
-                var endTime = DateTimeUtil.FromMillis(traceData.EndTime);
+                using OmnidotsMonitorContext context = CreateContext();
+                using IDbContextTransaction transaction = context.Database.BeginTransaction();
+                Guid traceId = Guid.NewGuid();
+                DateTime startTime = DateTimeUtil.FromMillis(traceData.StartTime);
+                DateTime endTime = DateTimeUtil.FromMillis(traceData.EndTime);
                 try
                 {
                     context.TraceIndexes.Add(new OmnidotsTraceIndexEntity
@@ -601,13 +603,13 @@ namespace Omnidots.Api.Db
                         EndTime = endTime
                     });
 
-                    var xCount = traceData.X?.Count ?? 0;
-                    var yCount = traceData.Y?.Count ?? 0;
-                    var zCount = traceData.Z?.Count ?? 0;
-                    var sampleCount = Math.Max(xCount, Math.Max(yCount, zCount));
-                    var samples = new List<OmnidotsTraceEntity>(sampleCount);
+                    int xCount = traceData.X?.Count ?? 0;
+                    int yCount = traceData.Y?.Count ?? 0;
+                    int zCount = traceData.Z?.Count ?? 0;
+                    int sampleCount = Math.Max(xCount, Math.Max(yCount, zCount));
+                    List<OmnidotsTraceEntity> samples = new List<OmnidotsTraceEntity>(sampleCount);
 
-                    for (var sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
+                    for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
                     {
                         samples.Add(new OmnidotsTraceEntity
                         {
@@ -639,8 +641,8 @@ namespace Omnidots.Api.Db
 
         public void ClearErrorMessages(DateTime before)
         {
-            using var context = CreateContext();
-            var messages = context.OmnidotsErrorMessages
+            using OmnidotsMonitorContext context = CreateContext();
+            List<OmnidotsErrorMessageEntity> messages = context.OmnidotsErrorMessages
                 .Where(row => row.ErrorTime < before)
                 .ToList();
 
@@ -650,9 +652,9 @@ namespace Omnidots.Api.Db
 
         public SiteTimes ReadSiteTimes(Guid monitorId)
         {
-            using var context = CreateContext();
+            using OmnidotsMonitorContext context = CreateContext();
 
-            var siteId = (from monitor in context.Monitors.AsNoTracking()
+            Guid? siteId = (from monitor in context.Monitors.AsNoTracking()
                           join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
                           join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
                           where monitor.Id == monitorId &&
@@ -665,7 +667,7 @@ namespace Omnidots.Api.Db
                 return new SiteTimes();
             }
 
-            var site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId);
+            SiteEntity? site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId);
             if (site == null)
             {
                 throw AdapterException.Of($"ReadSiteActivityTimeBySiteId No site times for siteId = {siteId}");
@@ -684,14 +686,14 @@ namespace Omnidots.Api.Db
 
         private OmnidotsMonitorContext CreateContext()
         {
-            var monitorOptions = OmnidotsMonitorDbOptions.Current;
-            var options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(ConnectionString);
+            MonitorDbOptions monitorOptions = OmnidotsMonitorDbOptions.Current;
+            DbContextOptions<OmnidotsMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(ConnectionString);
             return new OmnidotsMonitorContext(options, monitorOptions);
         }
 
         private static void UpsertMonitorStatus(OmnidotsMonitorContext context, VibrationMonitorStatusDto dto)
         {
-            var entity = context.MonitorStatuses.FirstOrDefault(row => row.SerialId == dto.SerialId);
+            OmnidotsMonitorStatusEntity? entity = context.MonitorStatuses.FirstOrDefault(row => row.SerialId == dto.SerialId);
             if (entity == null)
             {
                 entity = new OmnidotsMonitorStatusEntity
@@ -707,7 +709,7 @@ namespace Omnidots.Api.Db
 
         private static void UpsertMonitorSensor(OmnidotsMonitorContext context, SensorDto dto)
         {
-            var entity = context.Sensors.FirstOrDefault(row => row.SerialId == dto.SerialId);
+            OmnidotsSensorEntity? entity = context.Sensors.FirstOrDefault(row => row.SerialId == dto.SerialId);
             if (entity == null)
             {
                 entity = new OmnidotsSensorEntity
@@ -723,7 +725,7 @@ namespace Omnidots.Api.Db
 
         private static VibrationMonitorStatusDto ReadMonitorStatus(OmnidotsMonitorContext context, string serialId)
         {
-            var entity = context.MonitorStatuses.AsNoTracking().FirstOrDefault(row => row.SerialId == serialId);
+            OmnidotsMonitorStatusEntity? entity = context.MonitorStatuses.AsNoTracking().FirstOrDefault(row => row.SerialId == serialId);
             if (entity == null)
             {
                 throw AdapterException.Of($"Missing VibrationMonitorStatus for serialId={serialId}");
@@ -734,7 +736,7 @@ namespace Omnidots.Api.Db
 
         private static SensorDto? ReadMonitorSensor(OmnidotsMonitorContext context, string serialId)
         {
-            var entity = context.Sensors.AsNoTracking().FirstOrDefault(row => row.SerialId == serialId);
+            OmnidotsSensorEntity? entity = context.Sensors.AsNoTracking().FirstOrDefault(row => row.SerialId == serialId);
             return entity == null ? null : OmnidotsDbMapper.ToSensorDto(entity);
         }
 
@@ -743,10 +745,10 @@ namespace Omnidots.Api.Db
             Action<OmnidotsMonitorContext> stageAttempt)
         {
             const int maxAttempts = 3;
-            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                using var context = CreateContext();
-                using var transaction = context.Database.BeginTransaction(IsolationLevel.Serializable);
+                using OmnidotsMonitorContext context = CreateContext();
+                using IDbContextTransaction transaction = context.Database.BeginTransaction(IsolationLevel.Serializable);
                 try
                 {
                     stageAttempt(context);
@@ -799,7 +801,7 @@ namespace Omnidots.Api.Db
                 }
             }
 
-            var batchMaximum = records.Rows
+            DateTime batchMaximum = records.Rows
                 .Cast<DataRow>()
                 .Max(row => NormalizeUtc(RequiredDateTime(row, "SampleTime")));
             return ValidateNewestSampleAt(batchMaximum, newestSampleAt);
@@ -807,7 +809,7 @@ namespace Omnidots.Api.Db
 
         private static DateTime ValidateNewestSampleAt(DateTime batchMaximum, DateTime newestSampleAt)
         {
-            var normalizedNewestSampleAt = NormalizeUtc(newestSampleAt);
+            DateTime normalizedNewestSampleAt = NormalizeUtc(newestSampleAt);
             if (normalizedNewestSampleAt != batchMaximum)
             {
                 throw new ArgumentException(
@@ -824,9 +826,9 @@ namespace Omnidots.Api.Db
             OmnidotsMeasurementSeries series,
             DateTime newestSampleAt)
         {
-            var seriesName = SeriesName(series);
-            var normalizedNewestSampleAt = NormalizeUtc(newestSampleAt);
-            var cursor = context.ImportCursors.FirstOrDefault(row =>
+            string seriesName = SeriesName(series);
+            DateTime normalizedNewestSampleAt = NormalizeUtc(newestSampleAt);
+            OmnidotsImportCursorEntity? cursor = context.ImportCursors.FirstOrDefault(row =>
                 row.SerialId == serialId && row.Series == seriesName);
             if (cursor == null)
             {
@@ -870,10 +872,10 @@ namespace Omnidots.Api.Db
 
         private static DataTable CreatePeakRecordsTable(string serialId, IEnumerable<PeakRecordDto> dtos)
         {
-            var table = new DataTable("Results");
+            DataTable table = new DataTable("Results");
             table.Columns.Add("SerialId", typeof(string));
             table.Columns.Add("SampleTime", typeof(DateTime));
-            foreach (var columnName in new[]
+            foreach (string? columnName in new[]
                      {
                          "XFdom", "XVtop", "XVtopOverflow",
                          "YFdom", "YVtop", "YVtopOverflow",
@@ -883,9 +885,9 @@ namespace Omnidots.Api.Db
                 table.Columns.Add(columnName, typeof(double)).AllowDBNull = true;
             }
 
-            foreach (var dto in dtos)
+            foreach (PeakRecordDto dto in dtos)
             {
-                var row = table.NewRow();
+                DataRow row = table.NewRow();
                 row["SerialId"] = serialId;
                 row["SampleTime"] = dto.SampleTime;
                 SetNullableDouble(row, "XFdom", dto.X?.Fdom);
@@ -967,7 +969,7 @@ namespace Omnidots.Api.Db
 
         private static string RequiredString(DataRow row, string columnName)
         {
-            var value = row[columnName];
+            object value = row[columnName];
             return value == DBNull.Value ? string.Empty : Convert.ToString(value) ?? string.Empty;
         }
 
@@ -978,7 +980,7 @@ namespace Omnidots.Api.Db
 
         private static double? NullableDouble(DataRow row, string columnName)
         {
-            var value = row[columnName];
+            object value = row[columnName];
             return value == DBNull.Value ? null : Convert.ToDouble(value);
         }
     }

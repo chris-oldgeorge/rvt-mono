@@ -9,7 +9,7 @@ public sealed class SvantekDependencyBoundaryTests
     public void ApiPartials_DoNotCallConcreteDatabaseClientFieldDirectly()
     {
         string repositoryRoot = RepositoryLayout.Root;
-        var apiFiles = Directory.GetFiles(
+        string[] apiFiles = Directory.GetFiles(
             RepositoryLayout.GetPath(
                 "apps",
                 "monitors",
@@ -19,7 +19,7 @@ public sealed class SvantekDependencyBoundaryTests
             "SvantekApi*.cs",
             SearchOption.TopDirectoryOnly);
 
-        var directCalls = apiFiles
+        List<string> directCalls = apiFiles
             .SelectMany(path => File.ReadLines(path)
                 .Select((line, index) => new
                 {

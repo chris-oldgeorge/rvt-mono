@@ -1,3 +1,4 @@
+using System.Reflection;
 using MyAtm.Api.Db;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.IntegrationTesting;
@@ -11,7 +12,7 @@ public sealed class MyAtmOutboxContractTests
     public void StoreDustLevelsHandler_DoesNotDependOnOrInvokeDeliveryDispatcher()
     {
         string repositoryRoot = RepositoryLayout.Root;
-        var source = File.ReadAllText(Path.Combine(
+        string source = File.ReadAllText(Path.Combine(
             repositoryRoot,
             "apps",
             "monitors",
@@ -28,10 +29,10 @@ public sealed class MyAtmOutboxContractTests
     [TestMethod]
     public void OutboxPorts_UseCommonOneAtATimeClaimsAndFencedOutcomes()
     {
-        var claim = FindMethod<IMonitorDeliveryOutboxQueries>(nameof(IMonitorDeliveryOutboxQueries.ClaimNextDueAsync));
-        var complete = FindMethod<IMonitorDeliveryOutboxCommands>(nameof(IMonitorDeliveryOutboxCommands.CompleteAsync));
-        var retry = FindMethod<IMonitorDeliveryOutboxCommands>(nameof(IMonitorDeliveryOutboxCommands.RetryAsync));
-        var deadLetter = FindMethod<IMonitorDeliveryOutboxCommands>(nameof(IMonitorDeliveryOutboxCommands.DeadLetterAsync));
+        MethodInfo claim = FindMethod<IMonitorDeliveryOutboxQueries>(nameof(IMonitorDeliveryOutboxQueries.ClaimNextDueAsync));
+        MethodInfo complete = FindMethod<IMonitorDeliveryOutboxCommands>(nameof(IMonitorDeliveryOutboxCommands.CompleteAsync));
+        MethodInfo retry = FindMethod<IMonitorDeliveryOutboxCommands>(nameof(IMonitorDeliveryOutboxCommands.RetryAsync));
+        MethodInfo deadLetter = FindMethod<IMonitorDeliveryOutboxCommands>(nameof(IMonitorDeliveryOutboxCommands.DeadLetterAsync));
 
         Assert.IsNotNull(claim);
         Assert.IsNotNull(complete);
@@ -60,7 +61,7 @@ public sealed class MyAtmOutboxContractTests
     [TestMethod]
     public async Task ClaimNextDueAsync_RejectsCaseVariantUnknownProducerBeforeDatabaseAccess()
     {
-        var queries = (IMonitorDeliveryOutboxQueries)new DBClient(string.Empty);
+        IMonitorDeliveryOutboxQueries queries = (IMonitorDeliveryOutboxQueries)new DBClient(string.Empty);
 
         await Assert.ThrowsExactlyAsync<ArgumentException>(() => queries.ClaimNextDueAsync(
             "myatm",

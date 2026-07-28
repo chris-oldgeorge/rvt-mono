@@ -39,9 +39,9 @@ public sealed class EfCoreUnitOfWork :
     // Function summary: Persists all tracked domain, search, and Identity changes through the shared EF contexts.
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken)
     {
-        var domainChanges = await domainContext.SaveChangesAsync(cancellationToken);
-        var searchChanges = await searchContext.SaveChangesAsync(cancellationToken);
-        var applicationChanges = await applicationContext.SaveChangesAsync(cancellationToken);
+        int domainChanges = await domainContext.SaveChangesAsync(cancellationToken);
+        int searchChanges = await searchContext.SaveChangesAsync(cancellationToken);
+        int applicationChanges = await applicationContext.SaveChangesAsync(cancellationToken);
         return domainChanges + searchChanges + applicationChanges;
     }
 
@@ -69,8 +69,8 @@ public sealed class EfCoreUnitOfWork :
 
         // The retry execution strategy forbids user-initiated transactions unless the whole
         // begin/commit block is run through it, so the transaction lives inside ExecuteAsync.
-        var strategy = domainContext.Database.CreateExecutionStrategy();
-        var attempt = 0;
+        IExecutionStrategy strategy = domainContext.Database.CreateExecutionStrategy();
+        int attempt = 0;
         return await strategy.ExecuteAsync(
             async executionToken =>
             {
@@ -90,7 +90,7 @@ public sealed class EfCoreUnitOfWork :
                 IDbContextTransaction? applicationTransaction = null;
                 ExceptionDispatchInfo? primaryFailure = null;
                 List<Exception>? secondaryFailures = null;
-                var response = default(TResponse)!;
+                TResponse? response = default(TResponse)!;
 
                 try
                 {
@@ -210,16 +210,16 @@ public sealed class EfCoreUnitOfWork :
         Func<CancellationToken, Task<TResponse>> operation,
         CancellationToken cancellationToken)
     {
-        var ambient = domainContext.Database.CurrentTransaction
+        IDbContextTransaction? ambient = domainContext.Database.CurrentTransaction
             ?? searchContext.Database.CurrentTransaction
             ?? applicationContext.Database.CurrentTransaction;
-        var ambientTransaction = ambient!.GetDbTransaction();
+        DbTransaction ambientTransaction = ambient!.GetDbTransaction();
         IDbContextTransaction? domainEnlistment = null;
         IDbContextTransaction? searchEnlistment = null;
         IDbContextTransaction? applicationEnlistment = null;
         ExceptionDispatchInfo? primaryFailure = null;
         List<Exception>? secondaryFailures = null;
-        var response = default(TResponse)!;
+        TResponse? response = default(TResponse)!;
 
         try
         {
@@ -333,7 +333,7 @@ public sealed class EfCoreUnitOfWork :
     // Function summary: Asserts the shared-connection invariant that cross-context transaction enlistment requires.
     private void EnsureSharedConnection()
     {
-        var connection = domainContext.Database.GetDbConnection();
+        DbConnection connection = domainContext.Database.GetDbConnection();
         if (ReferenceEquals(connection, searchContext.Database.GetDbConnection()) &&
             ReferenceEquals(connection, applicationContext.Database.GetDbConnection()))
         {

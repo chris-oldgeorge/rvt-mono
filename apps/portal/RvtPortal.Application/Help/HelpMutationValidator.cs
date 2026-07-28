@@ -39,38 +39,38 @@ public static partial class HelpMutationValidator
     public static HelpMutationValidationResult ValidateShape(
         HelpArticleMutation mutation)
     {
-        var errors = new List<UseCaseError>();
-        var sectionTitle = Required(
+        List<UseCaseError> errors = new List<UseCaseError>();
+        string sectionTitle = Required(
             nameof(HelpArticleMutation.SectionTitle),
             mutation.SectionTitle,
             120,
             errors);
-        var sectionSlug = RequiredSlug(
+        string sectionSlug = RequiredSlug(
             nameof(HelpArticleMutation.SectionSlug),
             mutation.SectionSlug,
             120,
             errors);
-        var title = Required(
+        string title = Required(
             nameof(HelpArticleMutation.Title),
             mutation.Title,
             160,
             errors);
-        var slug = RequiredSlug(
+        string slug = RequiredSlug(
             nameof(HelpArticleMutation.Slug),
             mutation.Slug,
             160,
             errors);
-        var summary = Optional(
+        string? summary = Optional(
             nameof(HelpArticleMutation.Summary),
             mutation.Summary,
             512,
             errors);
-        var body = Required(
+        string body = Required(
             nameof(HelpArticleMutation.Body),
             mutation.Body,
             100_000,
             errors);
-        var contentType = CanonicalValue(
+        string contentType = CanonicalValue(
             nameof(HelpArticleMutation.ContentType),
             mutation.ContentType,
             contentTypes,
@@ -86,29 +86,29 @@ public static partial class HelpMutationValidator
             mutation.SortOrder,
             errors);
 
-        var assets = new List<HelpAssetMutation>();
-        var seenAssetIds = new HashSet<Guid>();
-        for (var index = 0; index < mutation.Assets.Count; index++)
+        List<HelpAssetMutation> assets = new List<HelpAssetMutation>();
+        HashSet<Guid> seenAssetIds = new HashSet<Guid>();
+        for (int index = 0; index < mutation.Assets.Count; index++)
         {
-            var asset = mutation.Assets[index];
-            var prefix = $"Assets[{index}]";
-            var assetTitle = Required(
+            HelpAssetMutation asset = mutation.Assets[index];
+            string prefix = $"Assets[{index}]";
+            string assetTitle = Required(
                 $"{prefix}.Title",
                 asset.Title,
                 160,
                 errors);
-            var assetType = CanonicalValue(
+            string assetType = CanonicalValue(
                 $"{prefix}.AssetType",
                 asset.AssetType,
                 assetTypes,
                 "Asset type must be Document, Video, or Link.",
                 errors);
-            var assetUrlValidation =
+            HelpAssetUrlValidationResult assetUrlValidation =
                 HelpAssetUrlPolicy.ValidateMutationValue(asset.Url);
-            var assetUrl = assetUrlValidation.CanonicalValue ?? asset.Url?.Trim() ?? "";
+            string assetUrl = assetUrlValidation.CanonicalValue ?? asset.Url?.Trim() ?? "";
             if (!assetUrlValidation.IsValid)
             {
-                var message = assetUrlValidation.ViolationCode switch
+                string message = assetUrlValidation.ViolationCode switch
                 {
                     "required" => $"{prefix}.Url is required.",
                     "too_long" =>
@@ -172,7 +172,7 @@ public static partial class HelpMutationValidator
             return shape;
         }
 
-        var errors = new List<UseCaseError>();
+        List<UseCaseError> errors = new List<UseCaseError>();
         if (requireExistingArticle && !data.ArticleExists)
         {
             errors.Add(new UseCaseError(
@@ -187,10 +187,10 @@ public static partial class HelpMutationValidator
                 "A help article with this slug already exists."));
         }
 
-        var assets = shape.Value!.Source.Assets;
-        for (var index = 0; index < assets.Count; index++)
+        IReadOnlyList<HelpAssetMutation> assets = shape.Value!.Source.Assets;
+        for (int index = 0; index < assets.Count; index++)
         {
-            var assetId = assets[index].Id;
+            Guid? assetId = assets[index].Id;
             if (assetId.HasValue && !data.ExistingAssetIds.Contains(assetId.Value))
             {
                 errors.Add(new UseCaseError(
@@ -210,7 +210,7 @@ public static partial class HelpMutationValidator
         int maximumLength,
         List<UseCaseError> errors)
     {
-        var trimmed = value?.Trim() ?? "";
+        string trimmed = value?.Trim() ?? "";
         if (trimmed.Length == 0)
         {
             errors.Add(new UseCaseError(field, $"{field} is required."));
@@ -231,7 +231,7 @@ public static partial class HelpMutationValidator
         int maximumLength,
         List<UseCaseError> errors)
     {
-        var slug = Required(field, value, maximumLength, errors);
+        string slug = Required(field, value, maximumLength, errors);
         if (slug.Length > 0 && !SlugPattern().IsMatch(slug))
         {
             errors.Add(new UseCaseError(
@@ -248,7 +248,7 @@ public static partial class HelpMutationValidator
         int maximumLength,
         List<UseCaseError> errors)
     {
-        var trimmed = value?.Trim();
+        string? trimmed = value?.Trim();
         if (string.IsNullOrEmpty(trimmed))
         {
             return null;
@@ -271,8 +271,8 @@ public static partial class HelpMutationValidator
         string errorMessage,
         List<UseCaseError> errors)
     {
-        var trimmed = value?.Trim() ?? "";
-        if (allowed.TryGetValue(trimmed, out var canonical))
+        string trimmed = value?.Trim() ?? "";
+        if (allowed.TryGetValue(trimmed, out string? canonical))
         {
             return canonical;
         }

@@ -28,14 +28,14 @@ namespace MyAtmMonitorTests
             string routeSuffix = "",
             string select = "")
         {
-            var path = $"/api/customers/{customerId}/devices/{serialId}/measurements{routeSuffix}{select}";
-            var separator = string.IsNullOrEmpty(select) ? "?" : "&";
+            string path = $"/api/customers/{customerId}/devices/{serialId}/measurements{routeSuffix}{select}";
+            string separator = string.IsNullOrEmpty(select) ? "?" : "&";
             return $"^{Regex.Escape(path + separator)}\\$filter=timestamp gt [^&]+&\\$orderby=timestamp asc&\\$top=1000$";
         }
 
         public static string AccessoryPageRequestPattern(int customerId, string serialId)
         {
-            var path = $"/api/customers/{customerId}/devices/{serialId}/measurements/accessory?";
+            string path = $"/api/customers/{customerId}/devices/{serialId}/measurements/accessory?";
             return $"^{Regex.Escape(path)}\\$filter=timestamp gt [^&]+&\\$orderby=timestamp asc&\\$top=1000$";
         }
 
@@ -78,8 +78,8 @@ namespace MyAtmMonitorTests
         {
             try
             {
-                using var sr = new StreamReader(fileName);
-                var txt = sr.ReadToEnd();
+                using StreamReader sr = new StreamReader(fileName);
+                string txt = sr.ReadToEnd();
                 Console.WriteLine(txt);
                 return txt;
             }
@@ -96,10 +96,10 @@ namespace MyAtmMonitorTests
             if (expected.Count != actual.Count)
                 return false;
 
-            for (var i = 0; i < expected.Count; i++)
+            for (int i = 0; i < expected.Count; i++)
             {
-                var a = actual[i];
-                var e = expected[i];
+                DustMonitorDto a = actual[i];
+                DustMonitorDto e = expected[i];
                 if (a.ListedAtTime < e.ListedAtTime.AddMinutes(-2) ||
                     a.ListedAtTime > e.ListedAtTime.AddMinutes(2))
                 {
@@ -214,7 +214,7 @@ namespace MyAtmMonitorTests
         }
         public static bool VerifyDustDto(DustDto dto, string expectedSerialNumber, int addMinutes, DateTime expectedStartTime)
         {
-            var expectedSampleTime = expectedStartTime.AddMinutes(addMinutes);
+            DateTime expectedSampleTime = expectedStartTime.AddMinutes(addMinutes);
             if (!expectedSampleTime.Equals(dto.SampleTime))
             {
                 return false;
@@ -240,8 +240,8 @@ namespace MyAtmMonitorTests
 
             for (int i = 0; i < actual.Count; i++)
             {
-                var a = actual[i];
-                var e = expected[i];
+                RvtContactDto a = actual[i];
+                RvtContactDto e = expected[i];
                 if (
                     a.ContactMethod != e.ContactMethod ||
                     !a.EmailAddress!.Equals(e.EmailAddress))
@@ -264,10 +264,10 @@ namespace MyAtmMonitorTests
 
         internal static bool VerifyMonitorList(List<DustMonitorDto> expected, List<DustMonitorDto> actual)
         {
-            foreach (var a in actual)
+            foreach (DustMonitorDto a in actual)
             {
-                var verified = false;
-                foreach (var e in expected)
+                bool verified = false;
+                foreach (DustMonitorDto e in expected)
                 {
                     if (a.SerialId.Equals(e.SerialId))
                     {

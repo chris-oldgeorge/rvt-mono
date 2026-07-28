@@ -31,14 +31,14 @@ public static class PageRequestFactory
         string defaultSort,
         IReadOnlySet<string> allowedSorts)
     {
-        var requestedSort = string.IsNullOrWhiteSpace(sort) ? defaultSort : sort.Trim();
+        string requestedSort = string.IsNullOrWhiteSpace(sort) ? defaultSort : sort.Trim();
         if (!allowedSorts.Contains(requestedSort))
         {
             return new PageRequest(searchText, -1, -1, requestedSort, PageSortDirections.Normalize(sortDir));
         }
 
-        var requestedPage = page.GetValueOrDefault(1);
-        var requestedPageSize = pageSize.GetValueOrDefault(20);
+        int requestedPage = page.GetValueOrDefault(1);
+        int requestedPageSize = pageSize.GetValueOrDefault(20);
         return new PageRequest(
             searchText,
             requestedPage <= 0 ? 1 : requestedPage,

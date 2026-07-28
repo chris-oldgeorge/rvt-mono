@@ -3,6 +3,7 @@
 // - 2026-07-25 pending Added fault-path coverage that preserves commit failures when rollback also fails.
 // - 2026-07-08 pending Added relational Unit of Work tests for multi-context saves and rollback of immediate writes.
 
+using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -21,10 +22,10 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies one Unit of Work save persists domain, search, and Identity changes together.
     public async Task SaveChangesAsync_PersistsDomainSearchAndIdentityContexts()
     {
-        await using var fixture = await RelationalUnitOfWorkFixture.CreateAsync();
-        var companyId = Guid.NewGuid();
-        var ruleId = Guid.NewGuid();
-        var user = CreateUser("persisted-user@example.test");
+        await using RelationalUnitOfWorkFixture fixture = await RelationalUnitOfWorkFixture.CreateAsync();
+        Guid companyId = Guid.NewGuid();
+        Guid ruleId = Guid.NewGuid();
+        ApplicationUser user = CreateUser("persisted-user@example.test");
 
         fixture.DomainContext.Companies.Add(new Company { Id = companyId, CompanyName = "Persisted Company" });
         fixture.SearchContext.ReportRules.Add(new ReportRule
@@ -37,12 +38,12 @@ public sealed class EfCoreUnitOfWorkTests
         });
         fixture.ApplicationContext.Users.Add(user);
 
-        var changes = await fixture.UnitOfWork.SaveChangesAsync(CancellationToken.None);
+        int changes = await fixture.UnitOfWork.SaveChangesAsync(CancellationToken.None);
 
         Assert.True(changes >= 3);
-        await using var domainVerification = fixture.CreateDomainContext();
-        await using var searchVerification = fixture.CreateSearchContext();
-        await using var applicationVerification = fixture.CreateApplicationContext();
+        await using RVTDbContext domainVerification = fixture.CreateDomainContext();
+        await using RVTSearchContext searchVerification = fixture.CreateSearchContext();
+        await using ApplicationDbContext applicationVerification = fixture.CreateApplicationContext();
         Assert.True(await domainVerification.Companies.AnyAsync(company => company.Id == companyId));
         Assert.True(await searchVerification.ReportRules.AnyAsync(rule => rule.Id == ruleId));
         Assert.True(await applicationVerification.Users.AnyAsync(item => item.Id == user.Id));
@@ -52,8 +53,8 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies Identity writes saved inside a handler roll back when later domain persistence fails.
     public async Task ExecuteInTransactionAsync_RollsBackImmediateIdentitySaveWhenDomainSaveFails()
     {
-        await using var fixture = await RelationalUnitOfWorkFixture.CreateAsync();
-        var user = CreateUser("rolled-back-identity@example.test");
+        await using RelationalUnitOfWorkFixture fixture = await RelationalUnitOfWorkFixture.CreateAsync();
+        ApplicationUser user = CreateUser("rolled-back-identity@example.test");
 
         await Assert.ThrowsAsync<DbUpdateException>(() => fixture.UnitOfWork.ExecuteInTransactionAsync(
             async token =>
@@ -73,7 +74,7 @@ public sealed class EfCoreUnitOfWorkTests
             },
             CancellationToken.None));
 
-        await using var applicationVerification = fixture.CreateApplicationContext();
+        await using ApplicationDbContext applicationVerification = fixture.CreateApplicationContext();
         Assert.False(await applicationVerification.Users.AnyAsync(item => item.Id == user.Id));
     }
 
@@ -81,8 +82,8 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies search-context writes saved inside a handler roll back with the domain transaction.
     public async Task ExecuteInTransactionAsync_RollsBackImmediateSearchSaveWhenDomainSaveFails()
     {
-        await using var fixture = await RelationalUnitOfWorkFixture.CreateAsync();
-        var reportRuleId = Guid.NewGuid();
+        await using RelationalUnitOfWorkFixture fixture = await RelationalUnitOfWorkFixture.CreateAsync();
+        Guid reportRuleId = Guid.NewGuid();
 
         await Assert.ThrowsAsync<DbUpdateException>(() => fixture.UnitOfWork.ExecuteInTransactionAsync(
             async token =>
@@ -109,7 +110,7 @@ public sealed class EfCoreUnitOfWorkTests
             },
             CancellationToken.None));
 
-        await using var searchVerification = fixture.CreateSearchContext();
+        await using RVTSearchContext searchVerification = fixture.CreateSearchContext();
         Assert.False(await searchVerification.ReportRules.AnyAsync(rule => rule.Id == reportRuleId));
     }
 
@@ -117,12 +118,12 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies staged writes roll back when the handler returns a result that should not commit.
     public async Task ExecuteInTransactionAsync_RollsBackStagedWritesWhenResultShouldNotCommit()
     {
-        await using var fixture = await RelationalUnitOfWorkFixture.CreateAsync();
-        var companyId = Guid.NewGuid();
+        await using RelationalUnitOfWorkFixture fixture = await RelationalUnitOfWorkFixture.CreateAsync();
+        Guid companyId = Guid.NewGuid();
 
         // The operation stages and saves a write, then returns a failure result - exactly what a handler does
         // when it validates part-way through, populates errors, and returns instead of throwing.
-        var result = await fixture.UnitOfWork.ExecuteInTransactionAsync(
+        TestOutcome result = await fixture.UnitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
                 fixture.DomainContext.Companies.Add(new Company { Id = companyId, CompanyName = "Should roll back" });
@@ -132,7 +133,7 @@ public sealed class EfCoreUnitOfWorkTests
             CancellationToken.None);
 
         Assert.False(result.ShouldCommit);
-        await using var verification = fixture.CreateDomainContext();
+        await using RVTDbContext verification = fixture.CreateDomainContext();
         Assert.False(
             await verification.Companies.AnyAsync(company => company.Id == companyId),
             "A result with ShouldCommit=false must roll back the writes the handler staged before it failed.");
@@ -142,8 +143,8 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies staged writes commit when the handler returns a successful result.
     public async Task ExecuteInTransactionAsync_CommitsStagedWritesWhenResultShouldCommit()
     {
-        await using var fixture = await RelationalUnitOfWorkFixture.CreateAsync();
-        var companyId = Guid.NewGuid();
+        await using RelationalUnitOfWorkFixture fixture = await RelationalUnitOfWorkFixture.CreateAsync();
+        Guid companyId = Guid.NewGuid();
 
         await fixture.UnitOfWork.ExecuteInTransactionAsync(
             async token =>
@@ -154,7 +155,7 @@ public sealed class EfCoreUnitOfWorkTests
             },
             CancellationToken.None);
 
-        await using var verification = fixture.CreateDomainContext();
+        await using RVTDbContext verification = fixture.CreateDomainContext();
         Assert.True(await verification.Companies.AnyAsync(company => company.Id == companyId));
     }
 
@@ -162,13 +163,13 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies a caller-owned transaction still covers search and Identity writes made through the Unit of Work.
     public async Task ExecuteInTransactionAsync_EnlistsRemainingContextsInCallerOwnedTransaction()
     {
-        await using var fixture = await RelationalUnitOfWorkFixture.CreateAsync();
-        var reportRuleId = Guid.NewGuid();
+        await using RelationalUnitOfWorkFixture fixture = await RelationalUnitOfWorkFixture.CreateAsync();
+        Guid reportRuleId = Guid.NewGuid();
 
         // The caller opens a transaction on the domain context only. The Unit of Work must widen it to the
         // other contexts rather than saving them outside any transaction boundary.
-        await using var callerTransaction = await fixture.DomainContext.Database.BeginTransactionAsync();
-        var callerDbTransaction = callerTransaction.GetDbTransaction();
+        await using IDbContextTransaction callerTransaction = await fixture.DomainContext.Database.BeginTransactionAsync();
+        DbTransaction callerDbTransaction = callerTransaction.GetDbTransaction();
 
         await fixture.UnitOfWork.ExecuteInTransactionAsync(
             async token =>
@@ -196,7 +197,7 @@ public sealed class EfCoreUnitOfWorkTests
         // Commit/rollback stays with the caller; rolling back must discard the search write too.
         await callerTransaction.RollbackAsync();
 
-        await using var searchVerification = fixture.CreateSearchContext();
+        await using RVTSearchContext searchVerification = fixture.CreateSearchContext();
         Assert.False(await searchVerification.ReportRules.AnyAsync(rule => rule.Id == reportRuleId));
     }
 
@@ -204,20 +205,20 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies the Unit of Work rejects contexts that do not share one connection instead of failing obscurely.
     public async Task ExecuteInTransactionAsync_ThrowsWhenContextsDoNotShareOneConnection()
     {
-        await using var domainConnection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection domainConnection = new SqliteConnection("Data Source=:memory:");
         await domainConnection.OpenAsync();
-        await using var otherConnection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection otherConnection = new SqliteConnection("Data Source=:memory:");
         await otherConnection.OpenAsync();
 
-        await using var domainContext = new RVTDbContext(
+        await using RVTDbContext domainContext = new RVTDbContext(
             new DbContextOptionsBuilder<RVTDbContext>().UseSqlite(domainConnection).Options);
-        await using var searchContext = new RVTSearchContext(
+        await using RVTSearchContext searchContext = new RVTSearchContext(
             new DbContextOptionsBuilder<RVTSearchContext>().UseSqlite(otherConnection).Options);
-        await using var applicationContext = new ApplicationDbContext(
+        await using ApplicationDbContext applicationContext = new ApplicationDbContext(
             new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(otherConnection).Options);
-        var unitOfWork = new EfCoreUnitOfWork(domainContext, searchContext, applicationContext);
+        EfCoreUnitOfWork unitOfWork = new EfCoreUnitOfWork(domainContext, searchContext, applicationContext);
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.ExecuteInTransactionAsync(
+        InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.ExecuteInTransactionAsync(
             _ => Task.FromResult(true),
             CancellationToken.None));
 
@@ -228,37 +229,37 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies a rollback fault cannot replace the commit fault that caused cleanup to begin.
     public async Task ExecuteInTransactionAsync_CommitFailureRemainsPrimaryWhenRollbackAlsoFails()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        var commitFailure = new CommitFailureException();
-        var rollbackFailure = new RollbackFailureException();
-        using var requestCancellation = new CancellationTokenSource();
-        var interceptor = new FailingCommitAndRollbackInterceptor(
+        CommitFailureException commitFailure = new CommitFailureException();
+        RollbackFailureException rollbackFailure = new RollbackFailureException();
+        using CancellationTokenSource requestCancellation = new CancellationTokenSource();
+        FailingCommitAndRollbackInterceptor interceptor = new FailingCommitAndRollbackInterceptor(
             commitFailure,
             rollbackFailure,
             requestCancellation);
-        var domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
             .UseSqlite(connection)
             .AddInterceptors(interceptor)
             .Options;
-        var searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
+        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseSqlite(connection)
             .Options;
-        var applicationOptions =
+        DbContextOptions<ApplicationDbContext> applicationOptions =
             new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(connection)
                 .Options;
 
-        await using var domainContext = new RVTDbContext(domainOptions);
-        await using var searchContext = new RVTSearchContext(searchOptions);
-        await using var applicationContext =
+        await using RVTDbContext domainContext = new RVTDbContext(domainOptions);
+        await using RVTSearchContext searchContext = new RVTSearchContext(searchOptions);
+        await using ApplicationDbContext applicationContext =
             new ApplicationDbContext(applicationOptions);
-        var unitOfWork = new EfCoreUnitOfWork(
+        EfCoreUnitOfWork unitOfWork = new EfCoreUnitOfWork(
             domainContext,
             searchContext,
             applicationContext);
 
-        var escaped = await Record.ExceptionAsync(
+        Exception escaped = await Record.ExceptionAsync(
             () => unitOfWork.ExecuteInTransactionAsync(
                 _ => Task.FromResult(new TestOutcome(ShouldCommit: true)),
                 requestCancellation.Token));
@@ -274,7 +275,7 @@ public sealed class EfCoreUnitOfWorkTests
                     .TransactionCommittingAsync),
                 commitFailure.StackTrace,
                 StringComparison.Ordinal));
-        var diagnostics = Assert.IsType<AggregateException>(
+        AggregateException diagnostics = Assert.IsType<AggregateException>(
             commitFailure.Data[
                 EfCoreUnitOfWork.SecondaryTransactionFailuresDataKey]);
         Assert.Contains(rollbackFailure, diagnostics.InnerExceptions);
@@ -284,36 +285,36 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies best-effort secondary diagnostics cannot mask a primary exception with unusable Data.
     public async Task ExecuteInTransactionAsync_CommitFailureRemainsPrimaryWhenDiagnosticsCannotBeAttached()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        var commitFailure =
+        CommitFailureWithThrowingDataException commitFailure =
             new CommitFailureWithThrowingDataException();
-        var rollbackFailure = new RollbackFailureException();
-        var interceptor = new FailingCommitAndRollbackInterceptor(
+        RollbackFailureException rollbackFailure = new RollbackFailureException();
+        FailingCommitAndRollbackInterceptor interceptor = new FailingCommitAndRollbackInterceptor(
             commitFailure,
             rollbackFailure);
-        var domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
             .UseSqlite(connection)
             .AddInterceptors(interceptor)
             .Options;
-        var searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
+        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseSqlite(connection)
             .Options;
-        var applicationOptions =
+        DbContextOptions<ApplicationDbContext> applicationOptions =
             new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(connection)
                 .Options;
 
-        await using var domainContext = new RVTDbContext(domainOptions);
-        await using var searchContext = new RVTSearchContext(searchOptions);
-        await using var applicationContext =
+        await using RVTDbContext domainContext = new RVTDbContext(domainOptions);
+        await using RVTSearchContext searchContext = new RVTSearchContext(searchOptions);
+        await using ApplicationDbContext applicationContext =
             new ApplicationDbContext(applicationOptions);
-        var unitOfWork = new EfCoreUnitOfWork(
+        EfCoreUnitOfWork unitOfWork = new EfCoreUnitOfWork(
             domainContext,
             searchContext,
             applicationContext);
 
-        var escaped = await Record.ExceptionAsync(
+        Exception escaped = await Record.ExceptionAsync(
             () => unitOfWork.ExecuteInTransactionAsync(
                 _ => Task.FromResult(new TestOutcome(ShouldCommit: true)),
                 CancellationToken.None));
@@ -328,25 +329,25 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies a retried operation does not re-stage the previous attempt's writes as duplicates.
     public async Task ExecuteInTransactionAsync_ClearsChangeTrackerBetweenRetries()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
 
         // A retrying execution strategy plus an interceptor that fails the first company INSERT: the strategy
         // retries the whole begin/save/commit block, which re-runs the operation below.
-        var interceptor = new FailFirstCompanyInsertInterceptor();
-        var domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
+        FailFirstCompanyInsertInterceptor interceptor = new FailFirstCompanyInsertInterceptor();
+        DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
             .UseSqlite(connection, sqlite => sqlite.ExecutionStrategy(dependencies => new RetryOnMarkerStrategy(dependencies)))
             .AddInterceptors(interceptor)
             .Options;
-        var searchOptions = new DbContextOptionsBuilder<RVTSearchContext>().UseSqlite(connection).Options;
-        var applicationOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options;
+        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>().UseSqlite(connection).Options;
+        DbContextOptions<ApplicationDbContext> applicationOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options;
 
-        await using var domainContext = new RVTDbContext(domainOptions);
-        await using var searchContext = new RVTSearchContext(searchOptions);
-        await using var applicationContext = new ApplicationDbContext(applicationOptions);
+        await using RVTDbContext domainContext = new RVTDbContext(domainOptions);
+        await using RVTSearchContext searchContext = new RVTSearchContext(searchOptions);
+        await using ApplicationDbContext applicationContext = new ApplicationDbContext(applicationOptions);
         await domainContext.Database.GetService<IRelationalDatabaseCreator>().CreateTablesAsync();
 
-        var unitOfWork = new EfCoreUnitOfWork(domainContext, searchContext, applicationContext);
+        EfCoreUnitOfWork unitOfWork = new EfCoreUnitOfWork(domainContext, searchContext, applicationContext);
 
         // The operation adds one company per invocation, mirroring a create handler. If the retry re-runs it
         // without clearing the tracker, the first attempt's still-tracked company is inserted alongside the
@@ -431,7 +432,7 @@ public sealed class EfCoreUnitOfWorkTests
 
         protected override bool ShouldRetryOn(Exception exception)
         {
-            for (var current = exception; current is not null; current = current.InnerException)
+            for (Exception? current = exception; current is not null; current = current.InnerException)
             {
                 if (current is TransientMarkerException)
                 {
@@ -456,7 +457,7 @@ public sealed class EfCoreUnitOfWorkTests
                 return false;
             }
 
-            var text = command.CommandText;
+            string text = command.CommandText;
             if (text.Contains("INSERT", StringComparison.OrdinalIgnoreCase) &&
                 text.Contains("company", StringComparison.OrdinalIgnoreCase))
             {
@@ -542,13 +543,13 @@ public sealed class EfCoreUnitOfWorkTests
         // Function summary: Creates one in-memory relational database shared by all EF contexts.
         public static async Task<RelationalUnitOfWorkFixture> CreateAsync()
         {
-            var connection = new SqliteConnection("Data Source=:memory:;Foreign Keys=True");
+            SqliteConnection connection = new SqliteConnection("Data Source=:memory:;Foreign Keys=True");
             await connection.OpenAsync();
             await EnableForeignKeysAsync(connection);
 
-            var domainOptions = new DbContextOptionsBuilder<RVTDbContext>().UseSqlite(connection).Options;
-            var searchOptions = new DbContextOptionsBuilder<RVTSearchContext>().UseSqlite(connection).Options;
-            var applicationOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options;
+            DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>().UseSqlite(connection).Options;
+            DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>().UseSqlite(connection).Options;
+            DbContextOptions<ApplicationDbContext> applicationOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options;
             await CreateTablesAsync(new RVTDbContext(domainOptions));
             await CreateTablesAsync(new RVTSearchContext(searchOptions));
             await CreateTablesAsync(new ApplicationDbContext(applicationOptions));
@@ -595,7 +596,7 @@ public sealed class EfCoreUnitOfWorkTests
         // Function summary: Ensures SQLite enforces relational constraints during rollback tests.
         private static async Task EnableForeignKeysAsync(SqliteConnection connection)
         {
-            await using var command = connection.CreateCommand();
+            await using SqliteCommand command = connection.CreateCommand();
             command.CommandText = "PRAGMA foreign_keys = ON";
             await command.ExecuteNonQueryAsync();
         }

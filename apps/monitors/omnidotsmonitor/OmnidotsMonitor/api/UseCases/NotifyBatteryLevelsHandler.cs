@@ -97,7 +97,7 @@ namespace Omnidots.Api.UseCases
             monitorCommands.SetMonitorBatteryStatus(monitor.Id, (byte)(alertType == AlertType.BatteryAlert ? 1 : 2));  //1 for alert and 2 for Caution
             DateTime createdTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow);
 
-            var notification = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto notification = new NotificationDto(id: Guid.NewGuid(),
                 notificationTime: createdTime,
                 limitOn: alertLevel,
                 averagingPeriod: 0,

@@ -13,13 +13,13 @@ public sealed class SiteReadUseCaseTests
     [Fact]
     public async Task GetAsync_UsesAssignedScopeAndMasksInvisibleSite()
     {
-        var userId = Guid.NewGuid();
-        var siteId = Guid.NewGuid();
-        var reads = new FakeSiteReadPort { Exists = false };
-        var service = CreateService(reads);
-        var user = new PortalUserContext(userId, "user", Guid.NewGuid(), false, false, true);
+        Guid userId = Guid.NewGuid();
+        Guid siteId = Guid.NewGuid();
+        FakeSiteReadPort reads = new FakeSiteReadPort { Exists = false };
+        SiteApplicationService service = CreateService(reads);
+        PortalUserContext user = new PortalUserContext(userId, "user", Guid.NewGuid(), false, false, true);
 
-        var result = await service.GetAsync(user, siteId, CancellationToken.None);
+        UseCaseResult<SiteDetailModel> result = await service.GetAsync(user, siteId, CancellationToken.None);
 
         Assert.Equal(UseCaseResultKind.NotFound, result.Kind);
         Assert.Equal(SiteAccessScopeKind.Assigned, reads.LastScope?.Kind);
@@ -30,7 +30,7 @@ public sealed class SiteReadUseCaseTests
     [Fact]
     public async Task QueryAsync_ForwardsMaterializedPagingRequest()
     {
-        var reads = new FakeSiteReadPort
+        FakeSiteReadPort reads = new FakeSiteReadPort
         {
             QueryResult = new PagedResult<SiteListModel>
             {
@@ -42,8 +42,8 @@ public sealed class SiteReadUseCaseTests
                 SortDir = PageSortDirections.Ascending
             }
         };
-        var service = CreateService(reads);
-        var request = new SiteQuery(
+        SiteApplicationService service = CreateService(reads);
+        SiteQuery request = new SiteQuery(
             null,
             false,
             new PageRequest(
@@ -53,7 +53,7 @@ public sealed class SiteReadUseCaseTests
                 "siteName",
                 PageSortDirections.Ascending));
 
-        var result = await service.QueryAsync(
+        UseCaseResult<PagedResult<SiteListModel>> result = await service.QueryAsync(
             new PortalUserContext(Guid.NewGuid(), "admin", null, true, false, false),
             request,
             CancellationToken.None);

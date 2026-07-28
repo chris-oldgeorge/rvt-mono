@@ -13,7 +13,7 @@ public sealed class SharedRuntimeNamespaceTests
     [TestMethod]
     public void SharedRuntimeContractsUseTheirOwningLibraryNamespaces()
     {
-        var runtimeContracts = new[]
+        Type[] runtimeContracts = new[]
         {
             typeof(RvtConfig),
             typeof(AdapterException),

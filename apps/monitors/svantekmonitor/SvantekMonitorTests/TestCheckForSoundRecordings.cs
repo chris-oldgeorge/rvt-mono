@@ -19,12 +19,12 @@ namespace SvantekMonitorTests
         [TestMethod]
         public async Task TestCheckForSoundRecordings_FileListRefetchedEachRun_CachedWithinRun()
         {
-            var httpClient = new Mock<IHttpClient>();
-            var dbClient = new Mock<IDBClient>();
-            var mqttClient = new Mock<IMqttClient>();
-            var emailClient = new Mock<IMessageService>();
-            var storage = new RecordingObjectStorageClient();
-            var testObj = new SvantekApi(
+            Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
+            Mock<IDBClient> dbClient = new Mock<IDBClient>();
+            Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+            Mock<IMessageService> emailClient = new Mock<IMessageService>();
+            RecordingObjectStorageClient storage = new RecordingObjectStorageClient();
+            SvantekApi testObj = new SvantekApi(
                 httpClient.Object,
                 dbClient.Object,
                 mqttClient.Object,
@@ -33,9 +33,9 @@ namespace SvantekMonitorTests
                 TestObjectStorageFactory.ForSoundRecordings(storage),
                 testLocal: false);
 
-            var notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
+            DateTime notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
             // Two unresolved alerts on the same monitor and day - within one run they must share a single fetch.
-            var alerts = new List<NoiseNotificationLatest>
+            List<NoiseNotificationLatest> alerts = new List<NoiseNotificationLatest>
             {
                 new(Guid.NewGuid(), Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900),
                 new(Guid.NewGuid(), Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime.AddHours(1), 900)

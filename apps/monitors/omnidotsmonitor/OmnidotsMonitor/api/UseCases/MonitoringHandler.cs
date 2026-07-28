@@ -1,4 +1,5 @@
 using Omnidots.Model.Config;
+using Omnidots.Model.Dto;
 
 namespace Omnidots.Api.UseCases
 {
@@ -29,20 +30,20 @@ namespace Omnidots.Api.UseCases
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var utcNow = timeProvider.GetUtcNow().UtcDateTime;
-            var localTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, monitoringTimeZone).TimeOfDay;
+            DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
+            TimeSpan localTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, monitoringTimeZone).TimeOfDay;
             if (localTime <= options.WindowStart || localTime >= options.WindowEnd)
             {
                 return;
             }
 
-            var monitors = monitorReader.ReadMonitors();
+            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
             if (monitors.Count == 0)
             {
                 return;
             }
 
-            var newestLastDataTime = AsUtc(monitors.Max(x => x.LastDataTime));
+            DateTime? newestLastDataTime = AsUtc(monitors.Max(x => x.LastDataTime));
             if (!newestLastDataTime.HasValue
                 || newestLastDataTime.Value < utcNow - options.StaleAfter)
             {

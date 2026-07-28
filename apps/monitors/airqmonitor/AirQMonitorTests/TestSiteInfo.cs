@@ -15,7 +15,7 @@ namespace AirQMonitorTests
     {
         public TestSiteInfo()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -42,7 +42,7 @@ namespace AirQMonitorTests
             TimeSpan? sunStartTime = sunStart != null ? TimeSpan.Parse(sunStart!) : null;
             TimeSpan? sunEndTime = sunEnd != null ? TimeSpan.Parse(sunEnd!) : null;
 
-            var testObj = new SiteInfoDto(siteId: Guid.NewGuid(),
+            SiteInfoDto testObj = new SiteInfoDto(siteId: Guid.NewGuid(),
                                           startTime: startTime,
                                           endTime: endTime,
                                           satStartTime: satStartTime,
@@ -65,7 +65,7 @@ namespace AirQMonitorTests
         public void TestSiteInfo_GetStartAndEndTimeForDate_Success(string dateStr)
         {
 
-            var testObj = new SiteInfoDto(siteId: Guid.NewGuid(),
+            SiteInfoDto testObj = new SiteInfoDto(siteId: Guid.NewGuid(),
                                           startTime: TimeSpan.Parse("09:10:11"),
                                           endTime: TimeSpan.Parse("17:18:19"),
                                           satStartTime: TimeSpan.Parse("12:31:05"),
@@ -73,7 +73,7 @@ namespace AirQMonitorTests
                                           sunStartTime: TimeSpan.Parse("10:11:12"),
                                           sunEndTime: TimeSpan.Parse("14:15:16"));
 
-            var date = DateTime.Parse(dateStr);
+            DateTime date = DateTime.Parse(dateStr);
 
 
             testObj.GetStartAndEndTimeForDate(date, out DateTime startTime, out DateTime endTime);

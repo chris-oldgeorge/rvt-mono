@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using RVT.BusinessLogic.Ports.Notifications;
 using Rvt.Communication.Abstractions;
+using RVT.BusinessLogic.Ports.Notifications;
 using RvtPortal.Spa.Adapters.Notifications;
 
 namespace RvtPortal.Spa.Tests;
@@ -11,10 +11,10 @@ public sealed class RvtCommonEmailDeliveryTests
     [Fact]
     public async Task SendAsync_DeliversExistingPortalMessageThroughSharedPort()
     {
-        var port = new RecordingEmailPort();
-        var adapter = CreateAdapter(port);
+        RecordingEmailPort port = new RecordingEmailPort();
+        RvtCommonEmailDelivery adapter = CreateAdapter(port);
 
-        var result = await adapter.SendAsync(
+        EmailDeliveryResult result = await adapter.SendAsync(
             "recipient@example.test",
             "Welcome",
             "<p>Welcome to RVT Cloud.</p>",
@@ -22,7 +22,7 @@ public sealed class RvtCommonEmailDeliveryTests
 
         Assert.True(result.Succeeded);
         Assert.Null(result.ProviderResponse);
-        var request = Assert.Single(port.Requests);
+        EmailDeliveryRequest request = Assert.Single(port.Requests);
         Assert.Equal("recipient@example.test", request.Recipient);
         Assert.Equal("Welcome", request.Subject);
         Assert.Equal(string.Empty, request.PlainTextBody);
@@ -33,8 +33,8 @@ public sealed class RvtCommonEmailDeliveryTests
     [Fact]
     public async Task SendAsync_DebugModeUsesConfiguredOverrideRecipient()
     {
-        var port = new RecordingEmailPort();
-        var adapter = CreateAdapter(port, new PortalEmailOptions
+        RecordingEmailPort port = new RecordingEmailPort();
+        RvtCommonEmailDelivery adapter = CreateAdapter(port, new PortalEmailOptions
         {
             UseDebugEmail = true,
             DebugEmailAddress = "debug@example.test"
@@ -52,14 +52,14 @@ public sealed class RvtCommonEmailDeliveryTests
     [Fact]
     public async Task SendAsync_EmailDeliveryFailureReturnsPortalFailure()
     {
-        var exception = new EmailDeliveryException(
+        EmailDeliveryException exception = new EmailDeliveryException(
             "SendGrid",
             DeliveryFailureKind.Transient,
             "429",
             TimeSpan.FromMinutes(1));
-        var adapter = CreateAdapter(new ThrowingEmailPort(exception));
+        RvtCommonEmailDelivery adapter = CreateAdapter(new ThrowingEmailPort(exception));
 
-        var result = await adapter.SendAsync(
+        EmailDeliveryResult result = await adapter.SendAsync(
             "recipient@example.test",
             "Welcome",
             "<p>Welcome.</p>",
@@ -72,9 +72,9 @@ public sealed class RvtCommonEmailDeliveryTests
     [Fact]
     public async Task SendAsync_CallerCancellationPropagates()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var adapter = CreateAdapter(
+        RvtCommonEmailDelivery adapter = CreateAdapter(
             new ThrowingEmailPort(new OperationCanceledException(cancellation.Token)));
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>

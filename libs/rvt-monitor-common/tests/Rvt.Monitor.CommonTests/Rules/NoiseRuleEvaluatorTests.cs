@@ -13,19 +13,19 @@ public sealed class NoiseRuleEvaluatorTests
     [TestInitialize]
     public void TestInitialize()
     {
-        using var factory = LoggerFactory.Create(builder => builder.AddConsole());
+        using ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddConsole());
         RvtLogger.CreateLogger(factory, nameof(NoiseRuleEvaluatorTests));
     }
 
     [TestMethod]
     public void Evaluate_DoesNotDowngradePreviousAlertWhenActiveCautionIsSuppressed()
     {
-        var updateCount = 0;
-        var contactsWereRead = false;
-        var notificationWasProcessed = false;
-        var eventPublisher = new FakeEventPublisher();
+        int updateCount = 0;
+        bool contactsWereRead = false;
+        bool notificationWasProcessed = false;
+        FakeEventPublisher eventPublisher = new FakeEventPublisher();
 
-        var evaluator = new NoiseRuleEvaluator(
+        NoiseRuleEvaluator evaluator = new NoiseRuleEvaluator(
             _ => updateCount++,
             _ =>
             {
@@ -35,9 +35,9 @@ public sealed class NoiseRuleEvaluatorTests
             (_, _) => notificationWasProcessed = true,
             eventPublisher);
 
-        var rule = CreateRule(AlertType.Caution, isActive: true);
+        RvtAlertRuleDto rule = CreateRule(AlertType.Caution, isActive: true);
 
-        var result = evaluator.Evaluate(CreateRequest(), rule, level: 12, previousAlert: AlertType.Alert);
+        AlertType result = evaluator.Evaluate(CreateRequest(), rule, level: 12, previousAlert: AlertType.Alert);
 
         Assert.AreEqual(AlertType.Alert, result);
         Assert.IsTrue(rule.IsActive);

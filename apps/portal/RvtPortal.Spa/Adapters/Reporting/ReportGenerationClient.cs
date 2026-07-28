@@ -70,15 +70,15 @@ public sealed class ReportingServiceReportGenerationClient : IReportGenerationCl
                 StatusCodes.Status400BadRequest);
         }
 
-        if (!Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var baseUri))
+        if (!Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out Uri? baseUri))
         {
             throw new ReportGenerationServiceException("Report generation service URL is not configured.", StatusCodes.Status503ServiceUnavailable);
         }
 
-        var triggerUtc = request.ReportDate.HasValue
+        DateTimeOffset triggerUtc = request.ReportDate.HasValue
             ? new DateTimeOffset(DateTime.SpecifyKind(request.ReportDate.Value, DateTimeKind.Utc))
             : timeProvider.GetUtcNow();
-        using var httpRequest = new HttpRequestMessage(
+        using HttpRequestMessage httpRequest = new HttpRequestMessage(
             HttpMethod.Post,
             new Uri(baseUri, $"/internal/reports/rules/{reportRuleId}/generate"))
         {
@@ -113,10 +113,10 @@ public sealed class ReportingServiceReportGenerationClient : IReportGenerationCl
                     StatusCodes.Status502BadGateway);
             }
 
-            var serviceResponse = await httpResponse.Content.ReadFromJsonAsync<ReportingServiceRuleGenerationResponse>(cancellationToken);
-            var generatedReports = serviceResponse?.Reports ?? [];
-            var firstReport = generatedReports.FirstOrDefault();
-            var generatedCount = GeneratedReportCount(serviceResponse, generatedReports);
+            ReportingServiceRuleGenerationResponse? serviceResponse = await httpResponse.Content.ReadFromJsonAsync<ReportingServiceRuleGenerationResponse>(cancellationToken);
+            List<ReportingServiceGeneratedReport> generatedReports = serviceResponse?.Reports ?? [];
+            ReportingServiceGeneratedReport? firstReport = generatedReports.FirstOrDefault();
+            int generatedCount = GeneratedReportCount(serviceResponse, generatedReports);
             return new ReportGenerationRequestResponse
             {
                 Id = firstReport?.ReportId ?? Guid.NewGuid(),

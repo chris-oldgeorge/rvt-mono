@@ -10,10 +10,10 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void Apply_WhenDisabled_ReturnsAllMonitors()
     {
-        var filter = AirQTestLocalMonitorFilter.Create(enabled: false, targetSerialId: null);
-        var monitors = AirQFixture.MonitorDtos(DateTime.UtcNow, NoiseMonitorStatus.ACTIVE);
+        AirQTestLocalMonitorFilter filter = AirQTestLocalMonitorFilter.Create(enabled: false, targetSerialId: null);
+        List<NoiseMonitorDto> monitors = AirQFixture.MonitorDtos(DateTime.UtcNow, NoiseMonitorStatus.ACTIVE);
 
-        var filtered = filter.Apply(monitors);
+        List<NoiseMonitorDto> filtered = filter.Apply(monitors);
 
         CollectionAssert.AreEqual(monitors, filtered);
     }
@@ -21,10 +21,10 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void Apply_WhenEnabled_ReturnsOnlyConfiguredMonitor()
     {
-        var filter = AirQTestLocalMonitorFilter.Create(enabled: true, targetSerialId: "Device2");
-        var monitors = AirQFixture.MonitorDtos(DateTime.UtcNow, NoiseMonitorStatus.ACTIVE);
+        AirQTestLocalMonitorFilter filter = AirQTestLocalMonitorFilter.Create(enabled: true, targetSerialId: "Device2");
+        List<NoiseMonitorDto> monitors = AirQFixture.MonitorDtos(DateTime.UtcNow, NoiseMonitorStatus.ACTIVE);
 
-        var filtered = filter.Apply(monitors);
+        List<NoiseMonitorDto> filtered = filter.Apply(monitors);
 
         Assert.HasCount(1, filtered);
         Assert.AreEqual("Device2", filtered[0].SerialId);
@@ -33,14 +33,14 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyCatalog_WhenEnabled_ReturnsOnlyConfiguredInstrument()
     {
-        var filter = AirQTestLocalMonitorFilter.Create(enabled: true, targetSerialId: "Device2");
-        var instruments = new List<InstrumentResponse>
+        AirQTestLocalMonitorFilter filter = AirQTestLocalMonitorFilter.Create(enabled: true, targetSerialId: "Device2");
+        List<InstrumentResponse> instruments = new List<InstrumentResponse>
         {
             new() { InstrumentID = "Device1" },
             new() { InstrumentID = "Device2" }
         };
 
-        var filtered = filter.ApplyCatalog(instruments);
+        List<InstrumentResponse> filtered = filter.ApplyCatalog(instruments);
 
         Assert.HasCount(1, filtered);
         Assert.AreEqual("Device2", filtered[0].InstrumentID);

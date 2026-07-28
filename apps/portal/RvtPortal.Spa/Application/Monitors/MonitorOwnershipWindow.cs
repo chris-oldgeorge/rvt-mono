@@ -24,8 +24,8 @@ public readonly record struct MonitorOwnershipWindow(DateTime Start, DateTime? E
     // Function summary: Clamps a requested range to this monitor ownership window.
     public (DateTime From, DateTime To) Clamp(DateTime from, DateTime to)
     {
-        var clampedFrom = Start > from ? Start : from;
-        var clampedTo = End.HasValue && End.Value < to ? End.Value : to;
+        DateTime clampedFrom = Start > from ? Start : from;
+        DateTime clampedTo = End.HasValue && End.Value < to ? End.Value : to;
         return (clampedFrom, clampedTo);
     }
 }
@@ -62,8 +62,8 @@ public static class MonitorOwnershipWindowResolver
     // Function summary: Builds the effective deployment and contract ownership window for monitor-bound data.
     public static MonitorOwnershipWindow ForDeployment(Deployment deployment, DateTime? openEndedCap = null)
     {
-        var start = Max(deployment.StartDate, deployment.Contract?.OnHireDate);
-        var end = Min(
+        DateTime start = Max(deployment.StartDate, deployment.Contract?.OnHireDate);
+        DateTime? end = Min(
             deployment.EndDate,
             NormalizeContractEnd(deployment.Contract?.OffHireDate),
             openEndedCap);

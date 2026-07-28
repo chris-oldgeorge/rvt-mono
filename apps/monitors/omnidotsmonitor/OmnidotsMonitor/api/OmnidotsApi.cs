@@ -94,9 +94,9 @@ namespace Omnidots.Api
             TimeProvider timeProvider)
         {
             _gateway = new OmnidotsHttpGateway(httpClient, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
-            var monitorReader = new OmnidotsMonitorReader(dbClient, testLocal);
-            var eventPublisher = new MonitorEventPublisher(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
-            var ruleProcessor = new OmnidotsRuleProcessor(dbClient, dbClient, messageService, RvtConfig.PORTAL_BASE_URL);
+            OmnidotsMonitorReader monitorReader = new OmnidotsMonitorReader(dbClient, testLocal);
+            MonitorEventPublisher eventPublisher = new MonitorEventPublisher(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
+            OmnidotsRuleProcessor ruleProcessor = new OmnidotsRuleProcessor(dbClient, dbClient, messageService, RvtConfig.PORTAL_BASE_URL);
             storeMonitors = new StoreMonitorsHandler(_gateway, dbClient, dbClient, testLocal);
             checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(
                 dbClient,

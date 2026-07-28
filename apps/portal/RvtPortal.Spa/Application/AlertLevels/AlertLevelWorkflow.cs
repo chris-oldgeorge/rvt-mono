@@ -14,7 +14,7 @@ internal static class AlertLevelWorkflow
     // Function summary: Builds the existing alert-level API item from a domain alert rule.
     public static AlertLevelItem BuildAlertLevelItem(Alertlevel level, MonitorTypeEnum? monitorType = null)
     {
-        var resolvedMonitorType = monitorType ?? level.Monitor?.TypeOfMonitor;
+        MonitorTypeEnum? resolvedMonitorType = monitorType ?? level.Monitor?.TypeOfMonitor;
         return new AlertLevelItem
         {
             Id = level.Id,
@@ -147,7 +147,7 @@ internal static class AlertLevelWorkflow
         {
             return alertType is AlertTypeEnum.Alert or AlertTypeEnum.Caution;
         }
-        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numeric) && Enum.IsDefined(typeof(AlertTypeEnum), numeric))
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int numeric) && Enum.IsDefined(typeof(AlertTypeEnum), numeric))
         {
             alertType = (AlertTypeEnum)numeric;
             return alertType is AlertTypeEnum.Alert or AlertTypeEnum.Caution;
@@ -164,7 +164,7 @@ internal static class AlertLevelWorkflow
         {
             return true;
         }
-        if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var parsed))
+        if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out TimeSpan parsed))
         {
             result = parsed;
             return true;

@@ -1,7 +1,9 @@
 using MyAtm.Api.Db;
 using MyAtm.Api.Rules;
+using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Monitor.Common.Configuration;
+using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 
 namespace MyAtm.Api.UseCases;
@@ -38,10 +40,10 @@ public sealed class ProcessDustLevelsHandler
     public async Task RunAsync<T>(int customerId, Period period, CancellationToken cancellationToken = default)
         where T : BaseDeviceMeasurement
     {
-        var utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        var rules = ruleQueries.ReadRules(period).OrderBy(rule => rule.AlertType).ToList();
-        var failures = new MyAtmFailureCollector(operationalCommands);
-        foreach (var rule in rules)
+        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
+        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(period).OrderBy(rule => rule.AlertType).ToList();
+        MyAtmFailureCollector failures = new MyAtmFailureCollector(operationalCommands);
+        foreach (RvtAlertRuleDto rule in rules)
         {
             try
             {
@@ -50,7 +52,7 @@ public sealed class ProcessDustLevelsHandler
                 {
                     if (rule.IsActive)
                     {
-                        var result = await alertCommitCommands.CommitAlertAsync(
+                        MyAtmAlertCommitResult result = await alertCommitCommands.CommitAlertAsync(
                             ruleProcessor.CreateDeletedRuleDeactivationCommit(rule, utcNow),
                             cancellationToken);
                         if (result.Applied)
@@ -67,7 +69,7 @@ public sealed class ProcessDustLevelsHandler
                     continue;
                 }
 
-                var monitor = monitorQueries.ReadMonitor(customerId, rule.SerialId);
+                DustMonitorDto? monitor = monitorQueries.ReadMonitor(customerId, rule.SerialId);
                 if (monitor == null || (testLocal && !MyAtmTestLocalMonitorFilter.IsTargetReadMonitor(monitor)))
                 {
                     continue;
@@ -75,29 +77,29 @@ public sealed class ProcessDustLevelsHandler
 
                 while (true)
                 {
-                    var lastProcessed = DateTimeUtil.AsUtc(rule.Accessed ?? rule.Created);
+                    DateTime lastProcessed = DateTimeUtil.AsUtc(rule.Accessed ?? rule.Created);
                     if (lastProcessed < utcNow.AddDays(-7))
                     {
                         lastProcessed = utcNow.AddDays(-7);
                     }
 
-                    var start = DateTimeUtil.AsUtc(DateTimeUtil.GetNearestPeriodBlock(lastProcessed, rule.AveragingPeriod));
-                    var end = start.AddSeconds(rule.AveragingPeriod);
+                    DateTime start = DateTimeUtil.AsUtc(DateTimeUtil.GetNearestPeriodBlock(lastProcessed, rule.AveragingPeriod));
+                    DateTime end = start.AddSeconds(rule.AveragingPeriod);
                     if (end > utcNow || DateTimeUtil.AsUtc(monitor.LastDataTime1Min) < end)
                     {
                         break;
                     }
 
-                    var normalizedField = MyAtmAlertTransitionEvaluator.NormalizeField(rule.Field);
-                    var alertForFieldIsActive = rule.AlertType == Rvt.Monitor.Common.Notifications.AlertType.Caution &&
+                    string normalizedField = MyAtmAlertTransitionEvaluator.NormalizeField(rule.Field);
+                    bool alertForFieldIsActive = rule.AlertType == Rvt.Monitor.Common.Notifications.AlertType.Caution &&
                         rules.Any(other =>
                             other.AlertType == Rvt.Monitor.Common.Notifications.AlertType.Alert &&
                             MyAtmAlertTransitionEvaluator.NormalizeField(other.Field) == normalizedField && other.IsActive);
-                    var level = !rule.RuleActiveTime.IsActive(end)
+                    double? level = !rule.RuleActiveTime.IsActive(end)
                         ? null
                         : ruleQueries.GetAverageDustLevel(rule.SerialId, rule.Field, start, end);
-                    var commit = ruleProcessor.CreateAggregateCommit(monitor, rule, level, end, alertForFieldIsActive, utcNow);
-                    var result = await alertCommitCommands.CommitAlertAsync(commit, cancellationToken);
+                    MyAtmAlertCommit commit = ruleProcessor.CreateAggregateCommit(monitor, rule, level, end, alertForFieldIsActive, utcNow);
+                    MyAtmAlertCommitResult result = await alertCommitCommands.CommitAlertAsync(commit, cancellationToken);
                     if (!result.Applied)
                     {
                         break;

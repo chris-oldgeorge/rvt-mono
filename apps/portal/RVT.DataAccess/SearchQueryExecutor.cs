@@ -52,8 +52,8 @@ namespace RVT.DataAccess
 
             if (paged)
             {
-                var totalCount = await query.CountAsync(cancellationToken);
-                var pageRows = await query
+                int totalCount = await query.CountAsync(cancellationToken);
+                List<TEntity> pageRows = await query
                     .Skip(Math.Max(page - 1, 0) * pageSize)
                     .Take(pageSize)
                     .ToListAsync(cancellationToken);
@@ -62,8 +62,8 @@ namespace RVT.DataAccess
             }
 
             // Read one row past the bound so a capped result can be reported rather than silently truncated.
-            var rows = await query.Take(maximumRecords + 1).ToListAsync(cancellationToken);
-            var hasMore = rows.Count > maximumRecords;
+            List<TEntity> rows = await query.Take(maximumRecords + 1).ToListAsync(cancellationToken);
+            bool hasMore = rows.Count > maximumRecords;
             if (hasMore)
             {
                 rows.RemoveAt(rows.Count - 1);

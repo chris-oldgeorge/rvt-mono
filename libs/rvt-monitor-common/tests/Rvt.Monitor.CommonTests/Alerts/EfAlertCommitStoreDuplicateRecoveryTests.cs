@@ -16,7 +16,7 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
     [TestMethod]
     public async Task CommitAsync_DuplicateRecoverySerializationFailure_IsClassifiedTransient()
     {
-        var exception = await Assert.ThrowsExactlyAsync<AlertTransientPersistenceException>(
+        AlertTransientPersistenceException exception = await Assert.ThrowsExactlyAsync<AlertTransientPersistenceException>(
             () => CreateStore(new PostgresException(
                 "provider sentinel connection=secret",
                 "ERROR",
@@ -30,7 +30,7 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
     [TestMethod]
     public async Task CommitAsync_DuplicateRecoveryPermanentProviderFailure_IsSanitized()
     {
-        var exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+        InvalidOperationException exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             () => CreateStore(new NpgsqlException(
                 "provider sentinel connection=secret destination=ops@example.test"))
                 .CommitAsync(CommitRequest()));
@@ -41,10 +41,10 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
     [TestMethod]
     public async Task CommitAsync_DuplicateRecoveryCancellation_PreservesOperationCanceledException()
     {
-        using var cancellationSource = new CancellationTokenSource();
-        var cancellation = new OperationCanceledException(cancellationSource.Token);
+        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
+        OperationCanceledException cancellation = new OperationCanceledException(cancellationSource.Token);
 
-        var thrown = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+        OperationCanceledException thrown = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
             () => CreateStore(cancellation).CommitAsync(
                 CommitRequest(),
                 cancellationSource.Token));
@@ -56,12 +56,12 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
     private static EfAlertCommitStore<TestMonitorContext> CreateStore(
         Exception duplicateRecoveryFailure)
     {
-        var options = new MonitorDbOptions(new Dictionary<string, string>());
-        var contextOptions = new DbContextOptionsBuilder<TestMonitorContext>()
+        MonitorDbOptions options = new MonitorDbOptions(new Dictionary<string, string>());
+        DbContextOptions<TestMonitorContext> contextOptions = new DbContextOptionsBuilder<TestMonitorContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
-        var context = new TestMonitorContext(contextOptions, options);
+        TestMonitorContext context = new TestMonitorContext(contextOptions, options);
         context.Monitors.Add(new MonitorEntity
         {
             Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
@@ -82,7 +82,7 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
 
     private static AlertCommitRequest CommitRequest()
     {
-        var sourceKeyHash = Enumerable.Repeat((byte)0x2a, 32).ToArray();
+        byte[] sourceKeyHash = Enumerable.Repeat((byte)0x2a, 32).ToArray();
         return new AlertCommitRequest(
             new AlertSignal(
                 "omnidots.webhook",

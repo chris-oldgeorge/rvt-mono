@@ -21,10 +21,10 @@ public class SchemaDeployTests
         // repository checked out. That copy is done by a glob in RVT.SchemaDeploy.csproj. If the glob is ever
         // narrowed to a hand-written list, a new post-load script would be added to the repository, never copied,
         // and silently never applied - the failure would be a missing view in production, not a build error.
-        var root = FindRepositoryRoot();
-        var projectPath = Path.Combine(root, "RVT.SchemaDeploy", "RVT.SchemaDeploy.csproj");
-        var project = XDocument.Load(projectPath);
-        var publishedRepairScripts = project
+        string root = FindRepositoryRoot();
+        string projectPath = Path.Combine(root, "RVT.SchemaDeploy", "RVT.SchemaDeploy.csproj");
+        XDocument project = XDocument.Load(projectPath);
+        XElement[] publishedRepairScripts = project
             .Descendants("Content")
             .Where(element =>
                 string.Equals(
@@ -33,10 +33,10 @@ public class SchemaDeployTests
                     StringComparison.Ordinal))
             .ToArray();
 
-        var projectText = File.ReadAllText(projectPath);
+        string projectText = File.ReadAllText(projectPath);
         Assert.Contains(@"post-load\*.sql", projectText, StringComparison.Ordinal);
         Assert.Contains("create_unmapped_schema.sql", projectText, StringComparison.Ordinal);
-        var repair = Assert.Single(publishedRepairScripts);
+        XElement repair = Assert.Single(publishedRepairScripts);
         Assert.Equal(@"sql\restore_unmapped_column_defaults.sql", (string?)repair.Attribute("Link"));
         Assert.Equal("PreserveNewest", (string?)repair.Attribute("CopyToOutputDirectory"));
     }
@@ -45,26 +45,26 @@ public class SchemaDeployTests
     // Function summary: Verifies dry-run resolves every schema stage exactly once in dependency order.
     public async Task DryRun_ListsRepairExactlyOnceBetweenCreateAndPostLoadScripts()
     {
-        using var fixture = TemporaryDirectory.Create();
-        var postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
+        string postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
         File.WriteAllText(Path.Combine(fixture.Path, "create_unmapped_schema.sql"), "-- create");
         File.WriteAllText(Path.Combine(fixture.Path, "restore_unmapped_column_defaults.sql"), "-- repair");
         File.WriteAllText(Path.Combine(postLoad, "02_second.sql"), "-- second");
         File.WriteAllText(Path.Combine(postLoad, "01_first.sql"), "-- first");
 
-        var runner = new ScriptRunner(new DeployOptions
+        ScriptRunner runner = new ScriptRunner(new DeployOptions
         {
             ConnectionString = "not-used-by-dry-run",
             ScriptRoot = fixture.Path,
             DryRun = true
         });
 
-        var originalOutput = Console.Out;
-        await using var output = new StringWriter();
+        TextWriter originalOutput = Console.Out;
+        await using StringWriter output = new StringWriter();
         try
         {
             Console.SetOut(output);
-            var count = await runner.RunAsync();
+            int count = await runner.RunAsync();
             Assert.Equal(4, count);
         }
         finally
@@ -72,7 +72,7 @@ public class SchemaDeployTests
             Console.SetOut(originalOutput);
         }
 
-        var resolved = output.ToString()
+        string[] resolved = output.ToString()
             .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries)
             .Select(line => line.Trim())
             .Where(line => line.StartsWith("would apply", StringComparison.Ordinal))
@@ -99,8 +99,8 @@ public class SchemaDeployTests
     // Function summary: Verifies the connection-owning deploy path supplies the transaction required by LOCK TABLE.
     public async Task Run_WithOwnedConnection_ExecutesLockingScriptInsideTransaction()
     {
-        using var fixture = TemporaryDirectory.Create();
-        var postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
+        string postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
         File.WriteAllText(
             Path.Combine(fixture.Path, "create_unmapped_schema.sql"),
             "CREATE TEMP TABLE schema_deploy_lock_target (id integer);");
@@ -109,7 +109,7 @@ public class SchemaDeployTests
             Path.Combine(postLoad, "01_lock.sql"),
             "LOCK TABLE pg_temp.schema_deploy_lock_target IN SHARE ROW EXCLUSIVE MODE;");
 
-        var runner = new ScriptRunner(new DeployOptions
+        ScriptRunner runner = new ScriptRunner(new DeployOptions
         {
             ConnectionString =
                 Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!,
@@ -117,7 +117,7 @@ public class SchemaDeployTests
             DryRun = false
         });
 
-        var count = await runner.RunAsync();
+        int count = await runner.RunAsync();
 
         Assert.Equal(3, count);
     }
@@ -128,9 +128,9 @@ public class SchemaDeployTests
     // Function summary: Verifies canonical deployment refuses to omit the required create stage.
     public async Task Run_WhenCreateScriptIsMissing_FailsBeforeDryRunOrConnection(bool dryRun)
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         File.WriteAllText(Path.Combine(fixture.Path, "restore_unmapped_column_defaults.sql"), "-- repair");
-        var postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
+        string postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
         File.WriteAllText(Path.Combine(postLoad, "01_first.sql"), "-- first");
 
         await AssertMissingStageAsync(fixture.Path, dryRun, "create_unmapped_schema.sql");
@@ -142,9 +142,9 @@ public class SchemaDeployTests
     // Function summary: Verifies canonical deployment refuses to omit the required forward-repair stage.
     public async Task Run_WhenRepairScriptIsMissing_FailsBeforeDryRunOrConnection(bool dryRun)
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         File.WriteAllText(Path.Combine(fixture.Path, "create_unmapped_schema.sql"), "-- create");
-        var postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
+        string postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
         File.WriteAllText(Path.Combine(postLoad, "01_first.sql"), "-- first");
 
         await AssertMissingStageAsync(fixture.Path, dryRun, "restore_unmapped_column_defaults.sql");
@@ -156,10 +156,10 @@ public class SchemaDeployTests
     // Function summary: Verifies AppleDouble sidecars cannot satisfy the required post-load stage.
     public async Task Run_WhenPostLoadHasOnlySidecars_FailsBeforeDryRunOrConnection(bool dryRun)
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         File.WriteAllText(Path.Combine(fixture.Path, "create_unmapped_schema.sql"), "-- create");
         File.WriteAllText(Path.Combine(fixture.Path, "restore_unmapped_column_defaults.sql"), "-- repair");
-        var postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
+        string postLoad = Directory.CreateDirectory(Path.Combine(fixture.Path, "post-load")).FullName;
         File.WriteAllText(Path.Combine(postLoad, "._01_not_sql.sql"), "sidecar");
 
         await AssertMissingStageAsync(fixture.Path, dryRun, "post-load");
@@ -169,8 +169,8 @@ public class SchemaDeployTests
     // Function summary: Verifies a pg_restore failure is returned exactly after best-effort restore-mode cleanup.
     public async Task Restore_WhenPgRestoreFails_PreservesStatusAndCleansUpBeforeStopping()
     {
-        using var fixture = TemporaryDirectory.Create();
-        var result = await RunRestoreHarnessAsync(fixture, restoreStatus: 23, verificationCounts: "5|2");
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
+        RestoreHarnessResult result = await RunRestoreHarnessAsync(fixture, restoreStatus: 23, verificationCounts: "5|2");
 
         Assert.Equal(23, result.ExitCode);
         Assert.Contains("pg_restore failed with status 23", result.StandardError, StringComparison.Ordinal);
@@ -184,8 +184,8 @@ public class SchemaDeployTests
     // Function summary: Verifies failed best-effort cleanup is diagnosed without replacing pg_restore's original status.
     public async Task Restore_WhenPgRestoreAndCleanupFail_PreservesRestoreStatusAndReportsCleanupFailure()
     {
-        using var fixture = TemporaryDirectory.Create();
-        var result = await RunRestoreHarnessAsync(
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
+        RestoreHarnessResult result = await RunRestoreHarnessAsync(
             fixture,
             restoreStatus: 23,
             verificationCounts: "5|2",
@@ -203,8 +203,8 @@ public class SchemaDeployTests
     // Function summary: Verifies a restore with no application tables is rejected before success is reported.
     public async Task Restore_WhenVerificationCountsAreZero_DoesNotReportCompletion()
     {
-        using var fixture = TemporaryDirectory.Create();
-        var result = await RunRestoreHarnessAsync(fixture, restoreStatus: 0, verificationCounts: "0|0");
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
+        RestoreHarnessResult result = await RunRestoreHarnessAsync(fixture, restoreStatus: 0, verificationCounts: "0|0");
 
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("no public tables", result.StandardError, StringComparison.Ordinal);
@@ -222,8 +222,8 @@ public class SchemaDeployTests
         string verificationCounts,
         string expectedError)
     {
-        using var fixture = TemporaryDirectory.Create();
-        var result = await RunRestoreHarnessAsync(fixture, restoreStatus: 0, verificationCounts);
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
+        RestoreHarnessResult result = await RunRestoreHarnessAsync(fixture, restoreStatus: 0, verificationCounts);
 
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains(expectedError, result.StandardError, StringComparison.Ordinal);
@@ -234,8 +234,8 @@ public class SchemaDeployTests
     // Function summary: Verifies completion is printed only after both restored table counts are nonzero.
     public async Task Restore_WhenVerificationCountsAreNonzero_ReportsCompletion()
     {
-        using var fixture = TemporaryDirectory.Create();
-        var result = await RunRestoreHarnessAsync(fixture, restoreStatus: 0, verificationCounts: "5|2");
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
+        RestoreHarnessResult result = await RunRestoreHarnessAsync(fixture, restoreStatus: 0, verificationCounts: "5|2");
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Restore complete.", result.StandardOutput, StringComparison.Ordinal);
@@ -248,17 +248,17 @@ public class SchemaDeployTests
         // ScriptRunner applies post-load scripts in ordinal filename order, and the order is a dependency order:
         // 02 converts tables to hypertables before 03 builds views over them. A script without a prefix would
         // sort somewhere arbitrary and run at the wrong time.
-        var root = FindRepositoryRoot();
-        var directory = Path.Combine(root, "database", "postgres", "post-load");
+        string root = FindRepositoryRoot();
+        string directory = Path.Combine(root, "database", "postgres", "post-load");
 
-        var scripts = Directory.GetFiles(directory, "*.sql")
+        string[] scripts = Directory.GetFiles(directory, "*.sql")
             .Select(Path.GetFileName)
             .OfType<string>()
             .ToArray();
 
         Assert.NotEmpty(scripts);
 
-        foreach (var script in scripts)
+        foreach (string? script in scripts)
         {
             Assert.True(
                 script.Length > 2 && char.IsDigit(script[0]) && char.IsDigit(script[1]) && script[2] == '_',
@@ -271,8 +271,8 @@ public class SchemaDeployTests
     // Function summary: Guards rerunnable deployment against data deletion and requires duplicate detection before index repair.
     public void SiteWriteUniquenessScript_DetectsDuplicatesBeforeNonDestructiveIndexRepair()
     {
-        var root = FindRepositoryRoot();
-        var path = Path.Combine(
+        string root = FindRepositoryRoot();
+        string path = Path.Combine(
             root,
             "database",
             "postgres",
@@ -281,45 +281,45 @@ public class SchemaDeployTests
         Assert.True(
             File.Exists(path),
             "The PostgreSQL deployment sequence must include 06_site_write_uniqueness.sql.");
-        var source = File.ReadAllText(path);
-        var executableSql = Regex.Replace(
+        string source = File.ReadAllText(path);
+        string executableSql = Regex.Replace(
             source,
             @"--[^\r\n]*(?:\r?\n|$)|/\*.*?\*/",
             " ",
             RegexOptions.Singleline,
             TimeSpan.FromSeconds(1));
-        var normalizedSql = Regex.Replace(
+        string normalizedSql = Regex.Replace(
             executableSql,
             @"\s+",
             " ",
             RegexOptions.None,
             TimeSpan.FromSeconds(1));
 
-        var guardBlockStart = normalizedSql.IndexOf(
+        int guardBlockStart = normalizedSql.IndexOf(
             "DO $$",
             StringComparison.OrdinalIgnoreCase);
-        var guardBlockEnd = normalizedSql.IndexOf(
+        int guardBlockEnd = normalizedSql.IndexOf(
             "END $$;",
             StringComparison.OrdinalIgnoreCase);
-        var archiveDuplicateGuard = normalizedSql.IndexOf(
+        int archiveDuplicateGuard = normalizedSql.IndexOf(
             "FROM public.site_archived GROUP BY site_id HAVING COUNT(*) > 1",
             StringComparison.OrdinalIgnoreCase);
-        var notificationDuplicateGuard = normalizedSql.IndexOf(
+        int notificationDuplicateGuard = normalizedSql.IndexOf(
             "FROM public.notification_setting GROUP BY site_user_id HAVING COUNT(*) > 1",
             StringComparison.OrdinalIgnoreCase);
-        var raiseException = normalizedSql.IndexOf(
+        int raiseException = normalizedSql.IndexOf(
             "RAISE EXCEPTION",
             StringComparison.OrdinalIgnoreCase);
-        var migrationReference = normalizedSql.IndexOf(
+        int migrationReference = normalizedSql.IndexOf(
             "20260723234806_EnforceSiteWriteUniqueness",
             StringComparison.Ordinal);
-        var archiveIndexRepair = normalizedSql.IndexOf(
+        int archiveIndexRepair = normalizedSql.IndexOf(
             "CREATE UNIQUE INDEX ix_site_archived_site_id",
             StringComparison.OrdinalIgnoreCase);
-        var notificationIndexRepair = normalizedSql.IndexOf(
+        int notificationIndexRepair = normalizedSql.IndexOf(
             "CREATE UNIQUE INDEX ix_notification_setting_site_user_id",
             StringComparison.OrdinalIgnoreCase);
-        var hasProhibitedMutation = Regex.IsMatch(
+        bool hasProhibitedMutation = Regex.IsMatch(
             normalizedSql,
             @"\b(?:DELETE\s+FROM|UPDATE|INSERT\s+INTO|MERGE\s+INTO|TRUNCATE(?:\s+TABLE)?|DROP\s+(?:TABLE|SCHEMA|VIEW)|ALTER\s+TABLE)\b",
             RegexOptions.IgnoreCase,
@@ -344,7 +344,7 @@ public class SchemaDeployTests
     // Function summary: Walks up from the test assembly to the repository root.
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "RvtPortal.Spa.sln")))
         {
             directory = directory.Parent;
@@ -360,14 +360,14 @@ public class SchemaDeployTests
         bool dryRun,
         string expectedStage)
     {
-        var runner = new ScriptRunner(new DeployOptions
+        ScriptRunner runner = new ScriptRunner(new DeployOptions
         {
             ConnectionString = "Host=invalid.test;Database=not-used",
             ScriptRoot = scriptRoot,
             DryRun = dryRun
         });
 
-        var exception = await Assert.ThrowsAsync<DeployException>(() => runner.RunAsync());
+        DeployException exception = await Assert.ThrowsAsync<DeployException>(() => runner.RunAsync());
         Assert.Contains(expectedStage, exception.Message, StringComparison.Ordinal);
     }
 
@@ -378,9 +378,9 @@ public class SchemaDeployTests
         string verificationCounts,
         int cleanupStatus = 0)
     {
-        var dockerPath = Path.Combine(fixture.Path, "docker");
-        var dockerLogPath = Path.Combine(fixture.Path, "docker.log");
-        var dumpPath = Path.Combine(fixture.Path, "fixture.dump");
+        string dockerPath = Path.Combine(fixture.Path, "docker");
+        string dockerLogPath = Path.Combine(fixture.Path, "docker.log");
+        string dumpPath = Path.Combine(fixture.Path, "fixture.dump");
         File.WriteAllText(dumpPath, "fixture");
         File.WriteAllText(
             dockerPath,
@@ -410,8 +410,8 @@ public class SchemaDeployTests
             dockerPath,
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
-        var script = Path.Combine(FindRepositoryRoot(), "docs", "deploy", "share-dev-database.sh");
-        var startInfo = new ProcessStartInfo("/usr/bin/env")
+        string script = Path.Combine(FindRepositoryRoot(), "docs", "deploy", "share-dev-database.sh");
+        ProcessStartInfo startInfo = new ProcessStartInfo("/usr/bin/env")
         {
             RedirectStandardError = true,
             RedirectStandardOutput = true,
@@ -429,10 +429,10 @@ public class SchemaDeployTests
         startInfo.Environment["FAKE_POST_RESTORE_STATUS"] = cleanupStatus.ToString();
         startInfo.Environment["FAKE_VERIFY_COUNTS"] = verificationCounts;
 
-        using var process = Process.Start(startInfo);
+        using Process? process = Process.Start(startInfo);
         Assert.NotNull(process);
-        var standardOutput = await process.StandardOutput.ReadToEndAsync();
-        var standardError = await process.StandardError.ReadToEndAsync();
+        string standardOutput = await process.StandardOutput.ReadToEndAsync();
+        string standardError = await process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
 
         return new RestoreHarnessResult(
@@ -459,7 +459,7 @@ public class SchemaDeployTests
 
         public static TemporaryDirectory Create()
         {
-            var path = System.IO.Path.Combine(
+            string path = System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(),
                 $"rvt-schema-deploy-{Guid.NewGuid():N}");
             Directory.CreateDirectory(path);

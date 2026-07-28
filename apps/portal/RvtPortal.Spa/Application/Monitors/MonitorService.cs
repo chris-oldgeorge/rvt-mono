@@ -11,23 +11,23 @@
 // - 2026-06-10 pending Removed redundant async/await from repository pass-through service methods.
 // - 2026-06-10 pending Removed stale commented-out search methods for Sonar maintainability.
 
-using System.Globalization;
-using Azure;
-using Microsoft.EntityFrameworkCore;
-using RVT.DataAccess;
-using RVT.DataAccess.Context;
-using RVT.DataAccess.EntityModels.Models;
-using RVT.Entities;
-using RVT.BusinessLogic;
-using RVT.Entities.DTO;
-using RVT.Entities.Ports.Persistence;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure;
+using Microsoft.EntityFrameworkCore;
+using RVT.BusinessLogic;
+using RVT.DataAccess;
+using RVT.DataAccess.Context;
+using RVT.DataAccess.EntityModels.Models;
+using RVT.Entities;
+using RVT.Entities.DTO;
+using RVT.Entities.Ports.Persistence;
 using RVT.Entities.Querying;
 using Monitor = RVT.Entities.Monitor;
 
@@ -134,7 +134,7 @@ namespace RvtPortal.Spa.Application.Monitors
             List<Filter> query = new List<Filter> {
                 new SingleFilter{ Operation = Op.Equals, PropertyName = "FleetNr", Value = FleetNr }
             };
-            var res = await monitorRepository.ReadFilteredAsync(query, orderBy.ToArray(), 100, new Paging { paged = true, page = (int)1, pageSize = 200 }, cancellationToken);
+            SearchQueryResult<Monitor> res = await monitorRepository.ReadFilteredAsync(query, orderBy.ToArray(), 100, new Paging { paged = true, page = (int)1, pageSize = 200 }, cancellationToken);
             return res.RecordCount > 0;
         }
 
@@ -251,7 +251,7 @@ namespace RvtPortal.Spa.Application.Monitors
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
             return timeSeries.ReadFilteredAsync<MyAtmDustLevel, MyAtmDustLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.DustLevel, cancellationToken);
         }
@@ -279,7 +279,7 @@ namespace RvtPortal.Spa.Application.Monitors
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
             return timeSeries.ReadFilteredAsync<MyAtmDustLevel8hourAvg, MyAtmDustLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.DustLevelFromEightHour, cancellationToken);
         }
@@ -294,7 +294,7 @@ namespace RvtPortal.Spa.Application.Monitors
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
                 new SingleFilter { Operation = Op.Equals, PropertyName = "Avrg", Value = Convert.ToInt32(AvrgDuration, CultureInfo.InvariantCulture) }
             };
-            var res = await timeSeries.ReadFilteredAsync<MyAtmDustLevel, MyAtmDustLevel>(query, orderBy.ToArray(), 1, new Paging { paged = false }, TimeSeriesProjections.DustLevel, cancellationToken);
+            SearchQueryResult<MyAtmDustLevel> res = await timeSeries.ReadFilteredAsync<MyAtmDustLevel, MyAtmDustLevel>(query, orderBy.ToArray(), 1, new Paging { paged = false }, TimeSeriesProjections.DustLevel, cancellationToken);
             if (res.RecordCount > 0)
                 return res.Value[0];
             else
@@ -327,7 +327,7 @@ namespace RvtPortal.Spa.Application.Monitors
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
             return timeSeries.ReadFilteredAsync<NoiseLevel15minAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.NoiseLevel, cancellationToken);
         }
@@ -355,7 +355,7 @@ namespace RvtPortal.Spa.Application.Monitors
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
             return timeSeries.ReadFilteredAsync<NoiseLevel1hourAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.NoiseLevelFromHour, cancellationToken);
         }
@@ -383,7 +383,7 @@ namespace RvtPortal.Spa.Application.Monitors
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
             return timeSeries.ReadFilteredAsync<NoiseLevel1dayAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.NoiseLevelFromDay, cancellationToken);
         }
@@ -411,7 +411,7 @@ namespace RvtPortal.Spa.Application.Monitors
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
             return timeSeries.ReadFilteredAsync<NoiseLevelSiteAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.NoiseLevelFromSite, cancellationToken);
         }
@@ -424,7 +424,7 @@ namespace RvtPortal.Spa.Application.Monitors
             List<Filter> query = new List<Filter> {
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId }
             };
-            var res = await timeSeries.ReadFilteredAsync<NoiseLevel15minAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), 1, new Paging { paged = false }, TimeSeriesProjections.NoiseLevel, cancellationToken);
+            SearchQueryResult<NoiseLevel15minAvg> res = await timeSeries.ReadFilteredAsync<NoiseLevel15minAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), 1, new Paging { paged = false }, TimeSeriesProjections.NoiseLevel, cancellationToken);
             if (res.RecordCount > 0)
                 return res.Value[0];
             else
@@ -439,7 +439,7 @@ namespace RvtPortal.Spa.Application.Monitors
             List<Filter> query = new List<Filter> {
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId }
             };
-            var res = await timeSeries.ReadFilteredAsync<NoiseLevel1dayAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), 1, new Paging { paged = false }, TimeSeriesProjections.NoiseLevelFromDay, cancellationToken);
+            SearchQueryResult<NoiseLevel15minAvg> res = await timeSeries.ReadFilteredAsync<NoiseLevel1dayAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), 1, new Paging { paged = false }, TimeSeriesProjections.NoiseLevelFromDay, cancellationToken);
             if (res.RecordCount > 0)
                 return res.Value[0];
             else
@@ -453,7 +453,7 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Retrieves omnidots peak levels data for callers.
         public Task<SearchQueryResult<OmnidotsPeakLevel>> GetOmnidotsPeakLevels(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
         {
-            var duration = ToDate - FromDate;
+            TimeSpan duration = ToDate - FromDate;
             FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
             ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
 
@@ -474,7 +474,7 @@ namespace RvtPortal.Spa.Application.Monitors
             };
 
             int pageSize = PageSize ?? 30000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
             if (duration.TotalHours < 1) //Samples every 2 second
                 return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevel, cancellationToken);
             else if (duration.TotalHours < 4) //Samples every 2 second
@@ -496,7 +496,7 @@ namespace RvtPortal.Spa.Application.Monitors
             List<Filter> query = new List<Filter> {
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId }
             };
-            var res = await timeSeries.ReadFilteredAsync<OmnidotsPeakLevel, OmnidotsPeakLevel>(query, orderBy.ToArray(), 1, new Paging { paged = false }, TimeSeriesProjections.PeakLevel, cancellationToken);
+            SearchQueryResult<OmnidotsPeakLevel> res = await timeSeries.ReadFilteredAsync<OmnidotsPeakLevel, OmnidotsPeakLevel>(query, orderBy.ToArray(), 1, new Paging { paged = false }, TimeSeriesProjections.PeakLevel, cancellationToken);
             if (res.RecordCount > 0)
                 return res.Value[0];
             else
@@ -521,7 +521,7 @@ namespace RvtPortal.Spa.Application.Monitors
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
             return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel1dayPeak, OmnidotsPeakLevel1dayPeak>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevelDay, cancellationToken);
         }

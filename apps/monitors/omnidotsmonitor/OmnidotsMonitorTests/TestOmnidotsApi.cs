@@ -373,8 +373,8 @@ namespace OmnidotsAdapterTests
                 DateTime.UtcNow.AddHours(-25),
                 serialIdIn: 1,
                 timeZone: "Europe/London")[0];
-            var recordingException = new InvalidOperationException("secret recorder detail");
-            var invalidSchedule = new SiteTimes
+            InvalidOperationException recordingException = new InvalidOperationException("secret recorder detail");
+            SiteTimes invalidSchedule = new SiteTimes
             {
                 SundayStart = TimeSpan.FromMinutes(90),
                 SundayEnd = TimeSpan.FromHours(4)
@@ -449,7 +449,7 @@ namespace OmnidotsAdapterTests
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            var expectedLatest = DateTime.Parse("2023-11-14T11:24:59");
+            DateTime expectedLatest = DateTime.Parse("2023-11-14T11:24:59");
             Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportPeakRecords("1",
                 It.Is<DataTable>(t => t.Rows.Count == 2),
@@ -481,7 +481,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IMessageService> messageClient,
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
-            var cursor = new DateTime(2026, 7, 11, 8, 30, 0, DateTimeKind.Utc);
+            DateTime cursor = new DateTime(2026, 7, 11, 8, 30, 0, DateTimeKind.Utc);
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(1);
             string? requestedUrl = null;
 
@@ -566,7 +566,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IMessageService> messageClient,
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
-            var storedMeasurement = new DateTime(2026, 7, 9, 4, 15, 0, DateTimeKind.Utc);
+            DateTime storedMeasurement = new DateTime(2026, 7, 9, 4, 15, 0, DateTimeKind.Utc);
             VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
             string? requestedUrl = null;
 
@@ -611,7 +611,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
-            var importFailure = new InvalidOperationException("atomic import failed");
+            InvalidOperationException importFailure = new InvalidOperationException("atomic import failed");
 
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask("veff-token"));
@@ -733,7 +733,7 @@ namespace OmnidotsAdapterTests
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            var expectedLatest = DateTime.Parse("2023-8-17T14:26:59");
+            DateTime expectedLatest = DateTime.Parse("2023-8-17T14:26:59");
             Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportVdvRecords("1", It.IsAny<IReadOnlyCollection<VdvRecordDto>>(),
                 It.Is<DateTime>(dt => TestUtil.VerifyDateTime(expectedLatest, dt))), Times.Once);
@@ -787,7 +787,7 @@ namespace OmnidotsAdapterTests
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            var expectedLatest = DateTime.Parse("2023-11-14T11:19:59");
+            DateTime expectedLatest = DateTime.Parse("2023-11-14T11:19:59");
             Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportVeffRecords("1", It.IsAny<IReadOnlyCollection<VeffRecordDto>>(),
                 It.Is<DateTime>(dt => TestUtil.VerifyDateTime(expectedLatest, dt))), Times.Once);

@@ -33,24 +33,24 @@ public sealed class RvtStoredRoutineExecutor : IRvtStoredRoutineExecutor
         Func<DbDataReader, T> map,
         CancellationToken cancellationToken = default)
     {
-        var parameterList = parameters.ToList();
-        await using var connection = connectionFactory.CreateConnection();
+        List<RvtRoutineParameter> parameterList = parameters.ToList();
+        await using DbConnection connection = connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = connection.CreateCommand();
+        using DbCommand command = connection.CreateCommand();
         command.CommandTimeout = options.CommandTimeoutSeconds;
         ConfigureCommand(command, routineName, parameterList);
 
-        foreach (var parameter in parameterList)
+        foreach (RvtRoutineParameter parameter in parameterList)
         {
-            var dbParameter = command.CreateParameter();
+            DbParameter dbParameter = command.CreateParameter();
             dbParameter.ParameterName = NormalizeParameterName(parameter.Name);
             dbParameter.Value = parameter.Value ?? DBNull.Value;
             command.Parameters.Add(dbParameter);
         }
 
-        var rows = new List<T>();
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        List<T> rows = new List<T>();
+        await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
             rows.Add(map(reader));
@@ -65,8 +65,8 @@ public sealed class RvtStoredRoutineExecutor : IRvtStoredRoutineExecutor
         string routineName,
         IReadOnlyCollection<RvtRoutineParameter> parameters)
     {
-        var argumentList = string.Join(", ", parameters.Select(parameter => NormalizeParameterName(parameter.Name)));
-        var safeRoutineName = BuildPostgresRoutineName(routineName);
+        string argumentList = string.Join(", ", parameters.Select(parameter => NormalizeParameterName(parameter.Name)));
+        string safeRoutineName = BuildPostgresRoutineName(routineName);
         command.CommandText = string.Concat("select * from ", safeRoutineName, "(", argumentList, ")");
         command.CommandType = CommandType.Text;
     }
@@ -74,13 +74,13 @@ public sealed class RvtStoredRoutineExecutor : IRvtStoredRoutineExecutor
     // Function summary: Builds a schema-qualified PostgreSQL routine name after validating and canonicalizing each identifier part.
     private string BuildPostgresRoutineName(string routineName)
     {
-        var parts = routineName.Split('.', StringSplitOptions.None);
+        string[] parts = routineName.Split('.', StringSplitOptions.None);
         if (parts.Length is < 1 or > 2 || parts.Any(part => !IsSafeIdentifier(part)))
         {
             throw new ArgumentException("Routine name must be an unqualified identifier or schema-qualified identifier.", nameof(routineName));
         }
 
-        var canonicalRoutineName = DatabaseNamingRules.ToCanonicalRoutineName(parts[^1]);
+        string canonicalRoutineName = DatabaseNamingRules.ToCanonicalRoutineName(parts[^1]);
         ValidateIdentifier(canonicalRoutineName, nameof(routineName));
 
         if (parts.Length == 2)
@@ -99,7 +99,7 @@ public sealed class RvtStoredRoutineExecutor : IRvtStoredRoutineExecutor
     // Function summary: Normalizes and validates a stored routine parameter name before it appears in SQL text.
     private static string NormalizeParameterName(string name)
     {
-        var normalizedName = name.StartsWith('@') ? name[1..] : name;
+        string normalizedName = name.StartsWith('@') ? name[1..] : name;
         ValidateIdentifier(normalizedName, nameof(name));
         return $"@{normalizedName}";
     }

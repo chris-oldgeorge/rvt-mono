@@ -54,13 +54,13 @@ public sealed class MyAtmRuleProcessor
         bool alertForFieldIsActive,
         DateTime utcNow)
     {
-        var sample = AggregateSample(monitor.SerialId, end, rule.Field, level);
-        var transition = transitionEvaluator.Evaluate(rule, rule.IsActive, sample, alertForFieldIsActive);
-        var mutations = new[]
+        DustDto sample = AggregateSample(monitor.SerialId, end, rule.Field, level);
+        MyAtmAlertTransition transition = transitionEvaluator.Evaluate(rule, rule.IsActive, sample, alertForFieldIsActive);
+        RuleStateMutation[] mutations = new[]
         {
             new RuleStateMutation(rule.RuleId, rule.IsActive, rule.Accessed, transition.IsActive, end)
         };
-        var occurrences = transition.Activated
+        MyAtmAlertOccurrenceInput[] occurrences = transition.Activated
             ? new[] { CreateOccurrence(monitor, rule, transition.Level!.Value, end, rule.AlertType, includeMqtt: true, utcNow) }
             : Array.Empty<MyAtmAlertOccurrenceInput>();
         return new MyAtmAlertCommit(mutations, null, occurrences, utcNow);
@@ -73,8 +73,8 @@ public sealed class MyAtmRuleProcessor
         DateTime lastDataTime,
         DateTime utcNow)
     {
-        var occurrenceKey = $"{monitor.Id:N}:offline:{DateTimeUtil.AsUtc(lastDataTime):O}";
-        var occurrence = CreateOccurrence(
+        string occurrenceKey = $"{monitor.Id:N}:offline:{DateTimeUtil.AsUtc(lastDataTime):O}";
+        MyAtmAlertOccurrenceInput occurrence = CreateOccurrence(
             monitor,
             rule,
             secondsOffline,
@@ -135,9 +135,9 @@ public sealed class MyAtmRuleProcessor
     public void ProcessAlertForContacts(RvtAlertRuleDto ruleDto, double level, DateTime alertTime, DustMonitorDto monitor)
     {
         RequireLegacyDependencies();
-        var notification = new NotificationDto(ruleDto, level, alertTime, monitor.Id);
+        NotificationDto notification = new NotificationDto(ruleDto, level, alertTime, monitor.Id);
         legacyOperationalCommands!.WriteNotification(notification);
-        foreach (var contact in (ruleQueries.ReadAlertContacts(monitor.Id) ?? []).Where(contact => contact.ShouldSendAtTime(alertTime)))
+        foreach (Rvt.Monitor.Common.Rules.RvtContactDto? contact in (ruleQueries.ReadAlertContacts(monitor.Id) ?? []).Where(contact => contact.ShouldSendAtTime(alertTime)))
         {
             if (contact.Email && !string.IsNullOrWhiteSpace(contact.EmailAddress))
             {
@@ -158,10 +158,10 @@ public sealed class MyAtmRuleProcessor
     public void ProcessRulesV2(DustMonitorDto monitorDto, List<RvtAlertRuleDto> allRules, DateTime end, List<DustDto> dtos)
     {
         RequireLegacyDependencies();
-        foreach (var dust in dtos)
+        foreach (DustDto dust in dtos)
         {
-            var previousAlert = new List<string>();
-            foreach (var rule in allRules.OrderBy(rule => rule.AlertType))
+            List<string> previousAlert = new List<string>();
+            foreach (RvtAlertRuleDto? rule in allRules.OrderBy(rule => rule.AlertType))
             {
                 if (rule.IsDeleted)
                 {
@@ -173,7 +173,7 @@ public sealed class MyAtmRuleProcessor
                     continue;
                 }
 
-                var transition = transitionEvaluator.Evaluate(
+                MyAtmAlertTransition transition = transitionEvaluator.Evaluate(
                     rule,
                     rule.IsActive,
                     dust,
@@ -183,7 +183,7 @@ public sealed class MyAtmRuleProcessor
                     continue;
                 }
 
-                var previousState = rule.IsActive;
+                bool previousState = rule.IsActive;
                 ProcessRule(monitorDto, rule, transition.Level.Value, dust.SampleTime, DateTime.UtcNow, previousAlert);
                 if (previousState != rule.IsActive)
                 {
@@ -203,9 +203,9 @@ public sealed class MyAtmRuleProcessor
         DateTime createdAt,
         string? occurrenceKey = null)
     {
-        var key = occurrenceKey ?? $"{monitor.Id:N}:{rule.RuleId:N}:{DateTimeUtil.AsUtc(triggeredAt):O}:{alertType}";
-        var normalizedField = MyAtmAlertTransitionEvaluator.NormalizeField(rule.Field);
-        var deliveryPlan = deliveryPlanner.Plan(
+        string key = occurrenceKey ?? $"{monitor.Id:N}:{rule.RuleId:N}:{DateTimeUtil.AsUtc(triggeredAt):O}:{alertType}";
+        string normalizedField = MyAtmAlertTransitionEvaluator.NormalizeField(rule.Field);
+        RuleAlertDeliveryPlan deliveryPlan = deliveryPlanner.Plan(
             new RuleNotificationRequest(
                 monitor.FleetNr ?? string.Empty,
                 monitor.SerialId,

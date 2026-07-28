@@ -15,7 +15,7 @@ public sealed class MonitorAggregateFieldTests
     [TestMethod]
     public void CreateAverageField_AcceptsKnownSafeName()
     {
-        var field = MonitorAggregateField<object>.Average("Pm10", row => 10);
+        MonitorAggregateField<object> field = MonitorAggregateField<object>.Average("Pm10", row => 10);
 
         Assert.AreEqual("Pm10", field.Name);
         Assert.IsFalse(field.UseMaximum);
@@ -24,7 +24,7 @@ public sealed class MonitorAggregateFieldTests
     [TestMethod]
     public void CreateMaximumField_AcceptsKnownSafeName()
     {
-        var field = MonitorAggregateField<object>.Maximum("LAmax", row => 10);
+        MonitorAggregateField<object> field = MonitorAggregateField<object>.Maximum("LAmax", row => 10);
 
         Assert.AreEqual("LAmax", field.Name);
         Assert.IsTrue(field.UseMaximum);

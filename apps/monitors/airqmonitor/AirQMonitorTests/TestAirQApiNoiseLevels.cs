@@ -149,9 +149,9 @@ namespace AirQMonitorTests
         [TestMethod]
         public async Task GetSamplesForDate_EncodesEveryDynamicQueryParameter()
         {
-            var httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
+            Mock<IHttpClient> httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
             httpClient.Setup(client => client.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("[]");
-            var gateway = new AirQHttpGateway(httpClient.Object);
+            AirQHttpGateway gateway = new AirQHttpGateway(httpClient.Object);
 
             await gateway.GetSamplesForDateAsync(
                 "vendor user&admin=true",

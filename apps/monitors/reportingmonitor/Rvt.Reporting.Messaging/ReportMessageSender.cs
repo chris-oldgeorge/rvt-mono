@@ -26,11 +26,11 @@ public sealed class ReportMessageSender(
             return new ReportSendResult(true, "Email disabled by configuration.");
         }
 
-        var effectiveRecipient = options.EmailTestMode &&
+        string effectiveRecipient = options.EmailTestMode &&
             !string.IsNullOrWhiteSpace(options.TestReportToEmail)
                 ? options.TestReportToEmail
                 : recipientEmail;
-        var request = new EmailDeliveryRequest(
+        EmailDeliveryRequest request = new EmailDeliveryRequest(
             effectiveRecipient,
             $"RVT Cloud report for {sitePostcode}",
             PlainTextBody,

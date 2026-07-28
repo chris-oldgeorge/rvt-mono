@@ -1,4 +1,5 @@
 using MyAtm.Api.Db;
+using MyAtm.Model.Dto;
 
 namespace MyAtm.Api.UseCases
 {
@@ -20,9 +21,9 @@ namespace MyAtm.Api.UseCases
 
         public void Run(int customerId)
         {
-            var monitors = monitorReader.ReadMonitors(customerId);
+            List<DustMonitorDto>? monitors = monitorReader.ReadMonitors(customerId);
 
-            foreach (var monitor in monitors!)
+            foreach (DustMonitorDto monitor in monitors!)
             {
                 monitorCommands.SetMonitorOffline(monitor.Id, false);
             }

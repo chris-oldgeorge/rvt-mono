@@ -21,7 +21,7 @@ public static class SvantekAggregateFields
 
     public static MonitorAggregateField<SvantekNoiseLevelEntity> Resolve(string fieldName)
     {
-        return Fields.TryGetValue(fieldName, out var field)
+        return Fields.TryGetValue(fieldName, out MonitorAggregateField<SvantekNoiseLevelEntity>? field)
             ? field
             : throw new NotSupportedException($"Unsupported Svantek aggregate field '{fieldName}'.");
     }

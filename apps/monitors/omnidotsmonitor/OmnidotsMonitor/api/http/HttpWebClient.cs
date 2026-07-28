@@ -52,13 +52,13 @@ namespace Omnidots.Api.Http
 
             if (RvtConfig.USE_TOKEN && path.StartsWith("/api/v1/user/authenticate"))
             {
-                var resp = new TokenResponse();
+                TokenResponse resp = new TokenResponse();
                 resp.Ok = true;
                 resp.Token = RvtConfig.TOKEN;
                 return JsonSerializer.Serialize(resp);
             }
 
-            using var request = new HttpRequestMessage(new HttpMethod("POST"), path);
+            using HttpRequestMessage request = new HttpRequestMessage(new HttpMethod("POST"), path);
             request.Content = content;
 
             using HttpResponseMessage response = await httpClient.SendAsync(

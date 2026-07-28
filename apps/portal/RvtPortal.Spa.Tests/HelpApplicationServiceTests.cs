@@ -15,9 +15,9 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public void AuthorizationPolicy_PreservesPublishedAndAdminRoleContracts()
     {
-        var admin = Actor(isAdmin: true);
-        var companyUser = Actor(isCompanyUser: true);
-        var installer = Actor(isInstaller: true);
+        PortalUserContext admin = Actor(isAdmin: true);
+        PortalUserContext companyUser = Actor(isCompanyUser: true);
+        PortalUserContext installer = Actor(isInstaller: true);
 
         Assert.True(HelpAuthorizationPolicy.CanReadPublished(admin));
         Assert.True(HelpAuthorizationPolicy.CanReadPublished(companyUser));
@@ -31,8 +31,8 @@ public sealed class HelpApplicationServiceTests
     {
         get
         {
-            var cases = new TheoryData<string, string?, string?, string?>();
-            foreach (var @case in HelpAssetUrlPolicyCases.All)
+            TheoryData<string, string?, string?, string?> cases = new TheoryData<string, string?, string?, string?>();
+            foreach (HelpAssetUrlCase @case in HelpAssetUrlPolicyCases.All)
             {
                 cases.Add(
                     @case.Name,
@@ -54,7 +54,7 @@ public sealed class HelpApplicationServiceTests
         string? mutationViolation)
     {
         Assert.False(string.IsNullOrWhiteSpace(name));
-        var result = HelpMutationValidator.ValidateShape(
+        HelpMutationValidationResult result = HelpMutationValidator.ValidateShape(
             ValidMutation() with
             {
                 Assets =
@@ -66,13 +66,13 @@ public sealed class HelpApplicationServiceTests
         if (mutationViolation is null)
         {
             Assert.True(result.IsValid);
-            var asset = Assert.Single(result.Value!.Source.Assets);
+            HelpAssetMutation asset = Assert.Single(result.Value!.Source.Assets);
             Assert.Equal(mutationCanonicalValue, asset.Url);
             return;
         }
 
         Assert.False(result.IsValid);
-        var expectedMessage = mutationViolation switch
+        string expectedMessage = mutationViolation switch
         {
             "required" => "Assets[0].Url is required.",
             "too_long" => "Assets[0].Url must be 512 characters or fewer.",
@@ -87,8 +87,8 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public void MutationValidator_CanonicalizesValuesAndPreservesAssetIds()
     {
-        var assetId = Guid.NewGuid();
-        var result = HelpMutationValidator.ValidateShape(
+        Guid assetId = Guid.NewGuid();
+        HelpMutationValidationResult result = HelpMutationValidator.ValidateShape(
             ValidMutation() with
             {
                 SectionTitle = " Guides ",
@@ -110,7 +110,7 @@ public sealed class HelpApplicationServiceTests
             });
 
         Assert.True(result.IsValid);
-        var mutation = result.Value!.Source;
+        HelpArticleMutation mutation = result.Value!.Source;
         Assert.Equal("Guides", mutation.SectionTitle);
         Assert.Equal("guides", mutation.SectionSlug);
         Assert.Equal("Dust guide", mutation.Title);
@@ -118,7 +118,7 @@ public sealed class HelpApplicationServiceTests
         Assert.Equal("Summary", mutation.Summary);
         Assert.Equal("Body", mutation.Body);
         Assert.Equal("FAQ", mutation.ContentType);
-        var asset = Assert.Single(mutation.Assets);
+        HelpAssetMutation asset = Assert.Single(mutation.Assets);
         Assert.Equal(assetId, asset.Id);
         Assert.Equal("Document", asset.AssetType);
         Assert.Equal("Guide", asset.Title);
@@ -127,7 +127,7 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public void MutationValidator_RejectsRequiredFormatAndRangeViolations()
     {
-        var result = HelpMutationValidator.ValidateShape(
+        HelpMutationValidationResult result = HelpMutationValidator.ValidateShape(
             new HelpArticleMutation(
                 "",
                 "Not a slug",
@@ -168,7 +168,7 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public void MutationValidator_RejectsAllPersistedLengthOverflows()
     {
-        var result = HelpMutationValidator.ValidateShape(
+        HelpMutationValidationResult result = HelpMutationValidator.ValidateShape(
             ValidMutation() with
             {
                 SectionTitle = new string('a', 121),
@@ -204,9 +204,9 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public void MutationValidator_RejectsDuplicateSlugAndForeignAssetIds()
     {
-        var existingAssetId = Guid.NewGuid();
-        var foreignAssetId = Guid.NewGuid();
-        var shape = HelpMutationValidator.ValidateShape(
+        Guid existingAssetId = Guid.NewGuid();
+        Guid foreignAssetId = Guid.NewGuid();
+        HelpMutationValidationResult shape = HelpMutationValidator.ValidateShape(
             ValidMutation() with
             {
                 Assets =
@@ -226,7 +226,7 @@ public sealed class HelpApplicationServiceTests
                 ]
             });
 
-        var result = HelpMutationValidator.ValidateBusinessRules(
+        HelpMutationValidationResult result = HelpMutationValidator.ValidateBusinessRules(
             shape,
             new HelpMutationValidationData(
                 ArticleExists: true,
@@ -244,9 +244,9 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public void MutationValidator_RejectsMissingUpdateTarget()
     {
-        var shape = HelpMutationValidator.ValidateShape(ValidMutation());
+        HelpMutationValidationResult shape = HelpMutationValidator.ValidateShape(ValidMutation());
 
-        var result = HelpMutationValidator.ValidateBusinessRules(
+        HelpMutationValidationResult result = HelpMutationValidator.ValidateBusinessRules(
             shape,
             new HelpMutationValidationData(
                 ArticleExists: false,
@@ -263,18 +263,18 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task PublishedReads_EnforceApplicationAuthorizationAndPreserveCancellation()
     {
-        using var cancellation = new CancellationTokenSource();
-        var reads = new RecordingHelpReadPort
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        RecordingHelpReadPort reads = new RecordingHelpReadPort
         {
             PublishedOverview = new HelpOverviewModel { SearchText = "dust" }
         };
-        var service = CreateService(reads: reads);
+        HelpApplicationService service = CreateService(reads: reads);
 
-        var allowed = await service.QueryPublishedAsync(
+        UseCaseResult<HelpOverviewModel> allowed = await service.QueryPublishedAsync(
             Actor(isCompanyUser: true),
             " dust ",
             cancellation.Token);
-        var forbidden = await service.QueryPublishedAsync(
+        UseCaseResult<HelpOverviewModel> forbidden = await service.QueryPublishedAsync(
             Actor(isInstaller: true),
             "dust",
             cancellation.Token);
@@ -290,10 +290,10 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task AdminReads_RejectNonAdminsBeforeCallingThePort()
     {
-        var reads = new RecordingHelpReadPort();
-        var service = CreateService(reads: reads);
+        RecordingHelpReadPort reads = new RecordingHelpReadPort();
+        HelpApplicationService service = CreateService(reads: reads);
 
-        var result = await service.QueryAdminAsync(
+        UseCaseResult<HelpAdminOverviewModel> result = await service.QueryAdminAsync(
             Actor(isCompanyUser: true),
             new HelpAdminQuery(null, null, null),
             CancellationToken.None);
@@ -305,8 +305,8 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task CreateAsync_UsesOneTransactionOneSaveAndInjectedUtc()
     {
-        var articleId = Guid.NewGuid();
-        var expectedTime = new DateTimeOffset(
+        Guid articleId = Guid.NewGuid();
+        DateTimeOffset expectedTime = new DateTimeOffset(
             2026,
             7,
             28,
@@ -314,20 +314,20 @@ public sealed class HelpApplicationServiceTests
             30,
             0,
             TimeSpan.Zero);
-        var reads = new RecordingHelpReadPort
+        RecordingHelpReadPort reads = new RecordingHelpReadPort
         {
             ValidationData = ValidCreateData(),
             AdminArticle = Article(articleId)
         };
-        var writes = new RecordingHelpWritePort { CreatedArticleId = articleId };
-        var unitOfWork = new RecordingUnitOfWork();
-        var service = CreateService(
+        RecordingHelpWritePort writes = new RecordingHelpWritePort { CreatedArticleId = articleId };
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        HelpApplicationService service = CreateService(
             reads,
             writes,
             unitOfWork,
             new FixedTimeProvider(expectedTime));
 
-        var result = await service.CreateAsync(
+        UseCaseResult<HelpArticleModel> result = await service.CreateAsync(
             Actor(isAdmin: true),
             ValidMutation(),
             CancellationToken.None);
@@ -345,13 +345,13 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task CreateAsync_RejectsInvalidInputBeforeStartingATransaction()
     {
-        var writes = new RecordingHelpWritePort();
-        var unitOfWork = new RecordingUnitOfWork();
-        var service = CreateService(
+        RecordingHelpWritePort writes = new RecordingHelpWritePort();
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        HelpApplicationService service = CreateService(
             writes: writes,
             unitOfWork: unitOfWork);
 
-        var result = await service.CreateAsync(
+        UseCaseResult<HelpArticleModel> result = await service.CreateAsync(
             Actor(isAdmin: true),
             ValidMutation() with { Slug = "INVALID SLUG" },
             CancellationToken.None);
@@ -365,18 +365,18 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task UpdateAsync_ReturnsNotFoundWithoutWritingOrSaving()
     {
-        var reads = new RecordingHelpReadPort
+        RecordingHelpReadPort reads = new RecordingHelpReadPort
         {
             ValidationData = new HelpMutationValidationData(
                 ArticleExists: false,
                 SlugBelongsToAnotherArticle: false,
                 ExistingAssetIds: new HashSet<Guid>())
         };
-        var writes = new RecordingHelpWritePort();
-        var unitOfWork = new RecordingUnitOfWork();
-        var service = CreateService(reads, writes, unitOfWork);
+        RecordingHelpWritePort writes = new RecordingHelpWritePort();
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        HelpApplicationService service = CreateService(reads, writes, unitOfWork);
 
-        var result = await service.UpdateAsync(
+        UseCaseResult<HelpArticleModel> result = await service.UpdateAsync(
             Actor(isAdmin: true),
             Guid.NewGuid(),
             ValidMutation(),
@@ -391,19 +391,19 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task UpdateAsync_RejectsForeignAssetIdsInsideTheTransaction()
     {
-        var foreignAssetId = Guid.NewGuid();
-        var reads = new RecordingHelpReadPort
+        Guid foreignAssetId = Guid.NewGuid();
+        RecordingHelpReadPort reads = new RecordingHelpReadPort
         {
             ValidationData = new HelpMutationValidationData(
                 ArticleExists: true,
                 SlugBelongsToAnotherArticle: false,
                 ExistingAssetIds: new HashSet<Guid>())
         };
-        var writes = new RecordingHelpWritePort();
-        var unitOfWork = new RecordingUnitOfWork();
-        var service = CreateService(reads, writes, unitOfWork);
+        RecordingHelpWritePort writes = new RecordingHelpWritePort();
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        HelpApplicationService service = CreateService(reads, writes, unitOfWork);
 
-        var result = await service.UpdateAsync(
+        UseCaseResult<HelpArticleModel> result = await service.UpdateAsync(
             Actor(isAdmin: true),
             Guid.NewGuid(),
             ValidMutation() with
@@ -432,24 +432,24 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task PublicationAndDelete_ReturnNotFoundWithoutSaving()
     {
-        var writes = new RecordingHelpWritePort
+        RecordingHelpWritePort writes = new RecordingHelpWritePort
         {
             PublicationResult = false,
             DeleteResult = false
         };
-        var unitOfWork = new RecordingUnitOfWork();
-        var service = CreateService(
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        HelpApplicationService service = CreateService(
             writes: writes,
             unitOfWork: unitOfWork);
-        var actor = Actor(isAdmin: true);
-        var articleId = Guid.NewGuid();
+        PortalUserContext actor = Actor(isAdmin: true);
+        Guid articleId = Guid.NewGuid();
 
-        var publication = await service.SetPublicationAsync(
+        UseCaseResult<HelpArticleModel> publication = await service.SetPublicationAsync(
             actor,
             articleId,
             true,
             CancellationToken.None);
-        var deletion = await service.DeleteAsync(
+        UseCaseResult<HelpDeleteResult> deletion = await service.DeleteAsync(
             actor,
             articleId,
             CancellationToken.None);
@@ -463,8 +463,8 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task SuccessfulMutations_SaveAndReturnRefreshedModels()
     {
-        var articleId = Guid.NewGuid();
-        var reads = new RecordingHelpReadPort
+        Guid articleId = Guid.NewGuid();
+        RecordingHelpReadPort reads = new RecordingHelpReadPort
         {
             ValidationData = new HelpMutationValidationData(
                 ArticleExists: true,
@@ -472,27 +472,27 @@ public sealed class HelpApplicationServiceTests
                 ExistingAssetIds: new HashSet<Guid>()),
             AdminArticle = Article(articleId)
         };
-        var writes = new RecordingHelpWritePort
+        RecordingHelpWritePort writes = new RecordingHelpWritePort
         {
             UpdateResult = true,
             PublicationResult = true,
             DeleteResult = true
         };
-        var unitOfWork = new RecordingUnitOfWork();
-        var service = CreateService(reads, writes, unitOfWork);
-        var actor = Actor(isAdmin: true);
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        HelpApplicationService service = CreateService(reads, writes, unitOfWork);
+        PortalUserContext actor = Actor(isAdmin: true);
 
-        var update = await service.UpdateAsync(
+        UseCaseResult<HelpArticleModel> update = await service.UpdateAsync(
             actor,
             articleId,
             ValidMutation(),
             CancellationToken.None);
-        var publication = await service.SetPublicationAsync(
+        UseCaseResult<HelpArticleModel> publication = await service.SetPublicationAsync(
             actor,
             articleId,
             true,
             CancellationToken.None);
-        var deletion = await service.DeleteAsync(
+        UseCaseResult<HelpDeleteResult> deletion = await service.DeleteAsync(
             actor,
             articleId,
             CancellationToken.None);
@@ -508,28 +508,28 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task AdminMutations_RejectNonAdminsBeforeStartingATransaction()
     {
-        var writes = new RecordingHelpWritePort();
-        var unitOfWork = new RecordingUnitOfWork();
-        var service = CreateService(
+        RecordingHelpWritePort writes = new RecordingHelpWritePort();
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        HelpApplicationService service = CreateService(
             writes: writes,
             unitOfWork: unitOfWork);
-        var actor = Actor(isCompanyUser: true);
+        PortalUserContext actor = Actor(isCompanyUser: true);
 
-        var create = await service.CreateAsync(
+        UseCaseResult<HelpArticleModel> create = await service.CreateAsync(
             actor,
             ValidMutation(),
             CancellationToken.None);
-        var update = await service.UpdateAsync(
+        UseCaseResult<HelpArticleModel> update = await service.UpdateAsync(
             actor,
             Guid.NewGuid(),
             ValidMutation(),
             CancellationToken.None);
-        var publication = await service.SetPublicationAsync(
+        UseCaseResult<HelpArticleModel> publication = await service.SetPublicationAsync(
             actor,
             Guid.NewGuid(),
             true,
             CancellationToken.None);
-        var deletion = await service.DeleteAsync(
+        UseCaseResult<HelpDeleteResult> deletion = await service.DeleteAsync(
             actor,
             Guid.NewGuid(),
             CancellationToken.None);
@@ -544,16 +544,16 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task CreateAsync_PropagatesCancellationToPortsAndUnitOfWork()
     {
-        using var cancellation = new CancellationTokenSource();
-        var articleId = Guid.NewGuid();
-        var reads = new RecordingHelpReadPort
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        Guid articleId = Guid.NewGuid();
+        RecordingHelpReadPort reads = new RecordingHelpReadPort
         {
             ValidationData = ValidCreateData(),
             AdminArticle = Article(articleId)
         };
-        var writes = new RecordingHelpWritePort { CreatedArticleId = articleId };
-        var unitOfWork = new RecordingUnitOfWork();
-        var service = CreateService(reads, writes, unitOfWork);
+        RecordingHelpWritePort writes = new RecordingHelpWritePort { CreatedArticleId = articleId };
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        HelpApplicationService service = CreateService(reads, writes, unitOfWork);
 
         await service.CreateAsync(
             Actor(isAdmin: true),
@@ -627,11 +627,11 @@ public sealed class HelpApplicationServiceTests
         HelpMutationValidationResult result,
         params string[] expectedFields)
     {
-        var fields = result.Errors
+        HashSet<string> fields = result.Errors
             .Select(error => error.Field)
             .ToHashSet(StringComparer.Ordinal);
 
-        foreach (var field in expectedFields)
+        foreach (string field in expectedFields)
         {
             Assert.Contains(field, fields);
         }

@@ -19,13 +19,13 @@ public sealed class MyAtmOutboxDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_UsesMappedMyAtmTopicsLeaseAndMqttFormatting()
     {
-        var queries = new Mock<IMonitorDeliveryOutboxQueries>();
-        var commands = new Mock<IMonitorDeliveryOutboxCommands>();
-        var operationalCommands = new Mock<IMyAtmOperationalCommands>();
-        var mqttClient = new Mock<IMqttClient>();
-        var notificationDelivery = new Mock<INotificationDeliveryService>();
-        var alert = CreateMessage(MonitorDeliveryKind.MqttAlert, "ignored", CreatePayload(), attemptCount: 1);
-        var inserted = CreateMessage(
+        Mock<IMonitorDeliveryOutboxQueries> queries = new Mock<IMonitorDeliveryOutboxQueries>();
+        Mock<IMonitorDeliveryOutboxCommands> commands = new Mock<IMonitorDeliveryOutboxCommands>();
+        Mock<IMyAtmOperationalCommands> operationalCommands = new Mock<IMyAtmOperationalCommands>();
+        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        MonitorDeliveryMessage alert = CreateMessage(MonitorDeliveryKind.MqttAlert, "ignored", CreatePayload(), attemptCount: 1);
+        MonitorDeliveryMessage inserted = CreateMessage(
             MonitorDeliveryKind.MqttDataInserted,
             "ignored",
             CreatePayload() with { NotificationId = Guid.Empty },
@@ -41,7 +41,7 @@ public sealed class MyAtmOutboxDispatcherTests
             .ReturnsAsync(alert)
             .ReturnsAsync(inserted)
             .ReturnsAsync((MonitorDeliveryMessage?)null);
-        var publications = new List<(string Topic, string Payload)>();
+        List<(string Topic, string Payload)> publications = new List<(string Topic, string Payload)>();
         mqttClient.Setup(client => client.PublishAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Callback((string topic, string payload, CancellationToken _) => publications.Add((topic, payload)))
@@ -49,7 +49,7 @@ public sealed class MyAtmOutboxDispatcherTests
         commands.Setup(command => command.CompleteAsync(
                 It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var dispatcher = CreateDispatcher(
+        MonitorDeliveryDispatcher dispatcher = CreateDispatcher(
             queries.Object,
             commands.Object,
             operationalCommands.Object,
@@ -60,7 +60,7 @@ public sealed class MyAtmOutboxDispatcherTests
 
         Assert.HasCount(2, publications);
         Assert.AreEqual("myatm/alerts", publications[0].Topic);
-        using (var document = JsonDocument.Parse(publications[0].Payload))
+        using (JsonDocument document = JsonDocument.Parse(publications[0].Payload))
         {
             Assert.AreEqual("serial-1", document.RootElement.GetProperty("SerialNumber").GetString());
             Assert.AreEqual(9, document.RootElement.GetProperty("CustomerId").GetInt32());
@@ -68,7 +68,7 @@ public sealed class MyAtmOutboxDispatcherTests
         }
 
         Assert.AreEqual("myatm/inserted", publications[1].Topic);
-        using (var document = JsonDocument.Parse(publications[1].Payload))
+        using (JsonDocument document = JsonDocument.Parse(publications[1].Payload))
         {
             Assert.AreEqual("Dto Inserted", document.RootElement.GetProperty("Message").GetString());
         }
@@ -85,14 +85,14 @@ public sealed class MyAtmOutboxDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_PreservesMyAtmContactFormattingUrlsAndSuccessAudits()
     {
-        var queries = new Mock<IMonitorDeliveryOutboxQueries>();
-        var commands = new Mock<IMonitorDeliveryOutboxCommands>();
-        var operationalCommands = new Mock<IMyAtmOperationalCommands>();
-        var mqttClient = new Mock<IMqttClient>();
-        var notificationDelivery = new Mock<INotificationDeliveryService>();
-        var payload = CreatePayload();
-        var email = CreateMessage(MonitorDeliveryKind.Email, "person@example.test", payload, attemptCount: 1);
-        var sms = CreateMessage(MonitorDeliveryKind.Sms, "447700900000", payload, attemptCount: 1);
+        Mock<IMonitorDeliveryOutboxQueries> queries = new Mock<IMonitorDeliveryOutboxQueries>();
+        Mock<IMonitorDeliveryOutboxCommands> commands = new Mock<IMonitorDeliveryOutboxCommands>();
+        Mock<IMyAtmOperationalCommands> operationalCommands = new Mock<IMyAtmOperationalCommands>();
+        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        MonitorDeliveryPayloadV1 payload = CreatePayload();
+        MonitorDeliveryMessage email = CreateMessage(MonitorDeliveryKind.Email, "person@example.test", payload, attemptCount: 1);
+        MonitorDeliveryMessage sms = CreateMessage(MonitorDeliveryKind.Sms, "447700900000", payload, attemptCount: 1);
         queries.SetupSequence(query => query.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(),
@@ -101,18 +101,18 @@ public sealed class MyAtmOutboxDispatcherTests
             .ReturnsAsync(email)
             .ReturnsAsync(sms)
             .ReturnsAsync((MonitorDeliveryMessage?)null);
-        var requests = new List<NotificationDeliveryRequest>();
+        List<NotificationDeliveryRequest> requests = new List<NotificationDeliveryRequest>();
         notificationDelivery.Setup(service => service.SendAsync(
                 It.IsAny<NotificationDeliveryRequest>(),
                 It.IsAny<CancellationToken>()))
             .Callback((NotificationDeliveryRequest request, CancellationToken _) => requests.Add(request))
             .Returns(Task.CompletedTask);
-        var audits = new List<MonitorDeliveryAudit>();
+        List<MonitorDeliveryAudit> audits = new List<MonitorDeliveryAudit>();
         commands.Setup(command => command.CompleteAsync(
                 It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<MonitorDeliveryAudit>(), It.IsAny<CancellationToken>()))
             .Callback((Guid _, Guid _, DateTime _, MonitorDeliveryAudit? audit, CancellationToken _) => audits.Add(audit!))
             .ReturnsAsync(true);
-        var dispatcher = CreateDispatcher(
+        MonitorDeliveryDispatcher dispatcher = CreateDispatcher(
             queries.Object,
             commands.Object,
             operationalCommands.Object,
@@ -139,11 +139,11 @@ public sealed class MyAtmOutboxDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_RetriesExponentiallyWithoutFailingDeadLetterOnlyPassOrRecordingOperationalErrors()
     {
-        var queries = new Mock<IMonitorDeliveryOutboxQueries>();
-        var commands = new Mock<IMonitorDeliveryOutboxCommands>();
-        var operationalCommands = new Mock<IMyAtmOperationalCommands>();
-        var mqttClient = new Mock<IMqttClient>();
-        var notificationDelivery = new Mock<INotificationDeliveryService>();
+        Mock<IMonitorDeliveryOutboxQueries> queries = new Mock<IMonitorDeliveryOutboxQueries>();
+        Mock<IMonitorDeliveryOutboxCommands> commands = new Mock<IMonitorDeliveryOutboxCommands>();
+        Mock<IMyAtmOperationalCommands> operationalCommands = new Mock<IMyAtmOperationalCommands>();
+        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
         queries.SetupSequence(query => query.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(),
@@ -156,14 +156,14 @@ public sealed class MyAtmOutboxDispatcherTests
         mqttClient.Setup(client => client.PublishAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new TimeoutException("destination secret"));
-        var retries = new List<(DateTime NextAttemptAt, string Error)>();
+        List<(DateTime NextAttemptAt, string Error)> retries = new List<(DateTime NextAttemptAt, string Error)>();
         commands.Setup(command => command.RetryAsync(
                 It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Callback((Guid _, Guid _, DateTime nextAttemptAt, string error, CancellationToken _) =>
                 retries.Add((nextAttemptAt, error)))
             .ReturnsAsync(true);
-        var startedAt = DateTime.UtcNow;
-        var dispatcher = CreateDispatcher(
+        DateTime startedAt = DateTime.UtcNow;
+        MonitorDeliveryDispatcher dispatcher = CreateDispatcher(
             queries.Object,
             commands.Object,
             operationalCommands.Object,
@@ -187,12 +187,12 @@ public sealed class MyAtmOutboxDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_DeadLettersFinalContactFailureWithAuditAndRecordsTerminalFailure()
     {
-        var queries = new Mock<IMonitorDeliveryOutboxQueries>();
-        var commands = new Mock<IMonitorDeliveryOutboxCommands>();
-        var operationalCommands = new Mock<IMyAtmOperationalCommands>();
-        var mqttClient = new Mock<IMqttClient>();
-        var notificationDelivery = new Mock<INotificationDeliveryService>();
-        var message = CreateMessage(MonitorDeliveryKind.Email, "person@example.test", CreatePayload(), attemptCount: 8);
+        Mock<IMonitorDeliveryOutboxQueries> queries = new Mock<IMonitorDeliveryOutboxQueries>();
+        Mock<IMonitorDeliveryOutboxCommands> commands = new Mock<IMonitorDeliveryOutboxCommands>();
+        Mock<IMyAtmOperationalCommands> operationalCommands = new Mock<IMyAtmOperationalCommands>();
+        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        MonitorDeliveryMessage message = CreateMessage(MonitorDeliveryKind.Email, "person@example.test", CreatePayload(), attemptCount: 8);
         queries.SetupSequence(query => query.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(),
@@ -214,14 +214,14 @@ public sealed class MyAtmOutboxDispatcherTests
                 It.IsAny<CancellationToken>()))
             .Callback((Guid _, Guid _, DateTime _, string _, MonitorDeliveryAudit? audit, CancellationToken _) => failureAudit = audit)
             .ReturnsAsync(true);
-        var dispatcher = CreateDispatcher(
+        MonitorDeliveryDispatcher dispatcher = CreateDispatcher(
             queries.Object,
             commands.Object,
             operationalCommands.Object,
             mqttClient.Object,
             notificationDelivery.Object);
 
-        var exception = await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
+        MonitorDeliveryDispatchException exception = await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
             () => dispatcher.DispatchDueAsync());
 
         Assert.HasCount(1, exception.Failures);
@@ -237,12 +237,12 @@ public sealed class MyAtmOutboxDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_DeadLettersMalformedPayloadWithoutContactAudit()
     {
-        var queries = new Mock<IMonitorDeliveryOutboxQueries>();
-        var commands = new Mock<IMonitorDeliveryOutboxCommands>();
-        var operationalCommands = new Mock<IMyAtmOperationalCommands>();
-        var mqttClient = new Mock<IMqttClient>();
-        var notificationDelivery = new Mock<INotificationDeliveryService>();
-        var message = CreateMessage(MonitorDeliveryKind.Email, "person@example.test", CreatePayload(), attemptCount: 8) with
+        Mock<IMonitorDeliveryOutboxQueries> queries = new Mock<IMonitorDeliveryOutboxQueries>();
+        Mock<IMonitorDeliveryOutboxCommands> commands = new Mock<IMonitorDeliveryOutboxCommands>();
+        Mock<IMyAtmOperationalCommands> operationalCommands = new Mock<IMyAtmOperationalCommands>();
+        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        MonitorDeliveryMessage message = CreateMessage(MonitorDeliveryKind.Email, "person@example.test", CreatePayload(), attemptCount: 8) with
         {
             Payload = "{ corrupt payload"
         };
@@ -261,7 +261,7 @@ public sealed class MyAtmOutboxDispatcherTests
                 null,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var dispatcher = CreateDispatcher(
+        MonitorDeliveryDispatcher dispatcher = CreateDispatcher(
             queries.Object,
             commands.Object,
             operationalCommands.Object,
@@ -286,9 +286,9 @@ public sealed class MyAtmOutboxDispatcherTests
     [TestMethod]
     public async Task MyAtmDeliveryFailureSink_RecordsOnlyTerminalFailures()
     {
-        var operationalCommands = new Mock<IMyAtmOperationalCommands>();
-        var sink = new MyAtmDeliveryFailureSink(operationalCommands.Object);
-        var message = CreateMessage(MonitorDeliveryKind.MqttAlert, "", CreatePayload(), attemptCount: 1);
+        Mock<IMyAtmOperationalCommands> operationalCommands = new Mock<IMyAtmOperationalCommands>();
+        MyAtmDeliveryFailureSink sink = new MyAtmDeliveryFailureSink(operationalCommands.Object);
+        MonitorDeliveryMessage message = CreateMessage(MonitorDeliveryKind.MqttAlert, "", CreatePayload(), attemptCount: 1);
 
         await sink.RecordFailureAsync(message, "transient", terminal: false);
         await sink.RecordFailureAsync(message, "terminal", terminal: true);
@@ -317,7 +317,7 @@ public sealed class MyAtmOutboxDispatcherTests
 
     private static void AssertTimestampNear(DateTime expected, DateTime actual)
     {
-        var delta = (actual - expected).Duration();
+        TimeSpan delta = (actual - expected).Duration();
         Assert.IsLessThanOrEqualTo(TimingTolerance, delta);
     }
 

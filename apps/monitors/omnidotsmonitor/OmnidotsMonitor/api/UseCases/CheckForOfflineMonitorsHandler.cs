@@ -42,7 +42,7 @@ namespace Omnidots.Api.UseCases
             List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = ruleQueries.ReadRules(null);
 
             DateTime utcNow = DateTime.UtcNow;
-            var failures = new List<OmnidotsMonitorFailure>();
+            List<OmnidotsMonitorFailure> failures = new List<OmnidotsMonitorFailure>();
             foreach (Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule in rules)
             {
                 if (rule.Field == "offline-rule")
@@ -61,7 +61,7 @@ namespace Omnidots.Api.UseCases
                         {
                             if (!TryResolveTimeZone(monitor.TimeZone, out TimeZoneInfo? siteTimeZone))
                             {
-                                var failure = new InvalidOperationException(
+                                InvalidOperationException failure = new InvalidOperationException(
                                     "Monitor timezone is missing or invalid.");
                                 string message = $"CheckForOfflineMonitors serialId={monitor.SerialId}";
                                 failures.Add(OmnidotsMonitorFailure.Record(
@@ -97,7 +97,7 @@ namespace Omnidots.Api.UseCases
                                 {
                                     RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
 
-                                    var notification = new NotificationDto(id: Guid.NewGuid(),
+                                    NotificationDto notification = new NotificationDto(id: Guid.NewGuid(),
                                                                                    notificationTime: DateTime.UtcNow,
                                                                                    limitOn: 0,
                                                                                    averagingPeriod: rule.AveragingPeriod,

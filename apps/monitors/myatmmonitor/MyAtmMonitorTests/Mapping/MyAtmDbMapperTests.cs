@@ -11,8 +11,8 @@ public sealed class MyAtmDbMapperTests
     [TestMethod]
     public void ToDustMonitorDto_MapsMonitorEntityDefaults()
     {
-        var id = Guid.NewGuid();
-        var entity = new MonitorEntity
+        Guid id = Guid.NewGuid();
+        MonitorEntity entity = new MonitorEntity
         {
             Id = id,
             CustomerId = 42,
@@ -36,7 +36,7 @@ public sealed class MyAtmDbMapperTests
             TypeOfMonitor = DustMonitorDto.MONITOR_TYPE_DUST
         };
 
-        var dto = MyAtmDbMapper.ToDustMonitorDto(entity);
+        DustMonitorDto dto = MyAtmDbMapper.ToDustMonitorDto(entity);
 
         Assert.AreEqual(id, dto.Id);
         Assert.AreEqual(42, dto.CustomerId);
@@ -57,7 +57,7 @@ public sealed class MyAtmDbMapperTests
     [TestMethod]
     public void UpdateMonitorEntity_DoesNotOverwriteFleetOrLatestTimestamps()
     {
-        var entity = new MonitorEntity
+        MonitorEntity entity = new MonitorEntity
         {
             Id = Guid.NewGuid(),
             SerialId = "21972",
@@ -66,8 +66,8 @@ public sealed class MyAtmDbMapperTests
             LastDataTime1Min = DateTime.Parse("2026-07-06T08:01:00Z").ToUniversalTime()
         };
 
-        var unspecifiedListedAt = new DateTime(2026, 7, 6, 7, 0, 0, DateTimeKind.Unspecified);
-        var dto = new DustMonitorDto(
+        DateTime unspecifiedListedAt = new DateTime(2026, 7, 6, 7, 0, 0, DateTimeKind.Unspecified);
+        DustMonitorDto dto = new DustMonitorDto(
             id: entity.Id,
             customerId: 99,
             listedAtTime: unspecifiedListedAt,
@@ -103,10 +103,10 @@ public sealed class MyAtmDbMapperTests
     [TestMethod]
     public void ToDustLevelEntity_MapsMeasurementDto()
     {
-        var dto = new DustDto("21972", 60, DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
+        DustDto dto = new DustDto("21972", 60, DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
             pm1: 1.1, pm2_5: 2.2, pm10: 10.1, pmTotal: 13.4, weather_t: 20.5, weather_p: 1012.1, weather_rh: 80.2);
 
-        var entity = MyAtmDbMapper.ToDustLevelEntity(dto);
+        MyAtmDustLevelEntity entity = MyAtmDbMapper.ToDustLevelEntity(dto);
 
         Assert.AreEqual("21972", entity.SerialId);
         Assert.AreEqual(60, entity.Avrg);

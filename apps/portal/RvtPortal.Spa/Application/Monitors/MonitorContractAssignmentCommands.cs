@@ -40,8 +40,8 @@ public sealed class AssignMonitorToContractCommandHandler
         AssignMonitorToContractCommand request,
         CancellationToken cancellationToken)
     {
-        var result = new AssignMonitorToContractResult();
-        var monitor = await domainContext.MonitorsList
+        AssignMonitorToContractResult result = new AssignMonitorToContractResult();
+        MonitorEntity? monitor = await domainContext.MonitorsList
             .SingleOrDefaultAsync(item => item.Id == request.MonitorId && !item.Archived, cancellationToken);
         if (monitor == null)
         {
@@ -55,7 +55,7 @@ public sealed class AssignMonitorToContractCommandHandler
             AddError(result.Errors, nameof(MonitorEntity.FleetNr), "A fleet number is required before assigning a monitor to a contract.");
         }
 
-        var contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
+        Contract? contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
         if (contract == null)
         {
             AddError(result.Errors, nameof(MonitorAssignmentRequest.ContractId), "Please select a contract.");
@@ -77,7 +77,7 @@ public sealed class AssignMonitorToContractCommandHandler
             return result;
         }
 
-        var deployment = new Deployment
+        Deployment deployment = new Deployment
         {
             Id = Guid.NewGuid(),
             ContractId = request.ContractId,
@@ -92,7 +92,7 @@ public sealed class AssignMonitorToContractCommandHandler
     // Function summary: Appends a validation error to a command result.
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }
@@ -123,8 +123,8 @@ public sealed class RemoveMonitorFromContractCommandHandler
         RemoveMonitorFromContractCommand request,
         CancellationToken cancellationToken)
     {
-        var result = new RemoveMonitorFromContractResult();
-        var deployment = await domainContext.Deployments.SingleOrDefaultAsync(
+        RemoveMonitorFromContractResult result = new RemoveMonitorFromContractResult();
+        Deployment? deployment = await domainContext.Deployments.SingleOrDefaultAsync(
             item => item.MonitorId == request.MonitorId && item.EndDate == null,
             cancellationToken);
         if (deployment == null)
@@ -148,7 +148,7 @@ public sealed class RemoveMonitorFromContractCommandHandler
     // Function summary: Appends a validation error to a command result.
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }

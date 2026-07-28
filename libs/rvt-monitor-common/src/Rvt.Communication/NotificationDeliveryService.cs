@@ -14,7 +14,7 @@ public sealed class NotificationDeliveryService(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Destination);
 
-        var notification = composer.Compose(
+        ComposedNotification notification = composer.Compose(
             request.Kind,
             request.Channel,
             request.MonitorName,

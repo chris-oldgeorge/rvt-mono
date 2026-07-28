@@ -57,7 +57,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         ArgumentNullException.ThrowIfNull(request.Key);
         ArgumentNullException.ThrowIfNull(request.Content);
 
-        var putRequest = new PutObjectRequest
+        PutObjectRequest putRequest = new PutObjectRequest
         {
             BucketName = bucket,
             Key = GetProviderKey(request.Key),
@@ -210,7 +210,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        var config = new AmazonS3Config { ForcePathStyle = options.ForcePathStyle };
+        AmazonS3Config config = new AmazonS3Config { ForcePathStyle = options.ForcePathStyle };
         if (!string.IsNullOrWhiteSpace(options.ServiceUrl))
         {
             if (!Uri.TryCreate(options.ServiceUrl, UriKind.Absolute, out Uri? serviceUri))

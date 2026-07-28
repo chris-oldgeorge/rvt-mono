@@ -19,14 +19,14 @@ namespace AirQMonitorTests
         public void TestSampleResponse_ToNoiseDto_Success()
         {
 
-            var json = TestUtil.ReadTextFromFile("testdata/latest_samples.json");
+            string json = TestUtil.ReadTextFromFile("testdata/latest_samples.json");
 
-            var samples = JsonSerializer.Deserialize<List<SampleResponse>>(json)!;
+            List<SampleResponse> samples = JsonSerializer.Deserialize<List<SampleResponse>>(json)!;
 
             Assert.IsNotNull(samples);
             Assert.HasCount(1, samples);
 
-            var noiseDto = new NoiseDto(samples[0]);
+            NoiseDto noiseDto = new NoiseDto(samples[0]);
             Assert.IsNotNull(samples);
             Assert.AreEqual(DateTime.Parse("2023-09-18T11:30:00"), noiseDto.SampleTime);
 
@@ -44,13 +44,13 @@ namespace AirQMonitorTests
         public void TestSampleResponse_ToNoiseDto_ThrowsCorrectException()
         {
 
-            var json = TestUtil.ReadTextFromFile("testdata/latest_samples.json");
+            string json = TestUtil.ReadTextFromFile("testdata/latest_samples.json");
 
-            var samples = JsonSerializer.Deserialize<List<SampleResponse>>(json)!;
+            List<SampleResponse> samples = JsonSerializer.Deserialize<List<SampleResponse>>(json)!;
 
             samples![0].Data![0].Value = "123.abc";
 
-            var exception = Assert.ThrowsExactly<AdapterException>(() =>
+            AdapterException exception = Assert.ThrowsExactly<AdapterException>(() =>
             {
                 _ = new NoiseDto(samples[0]);
             });

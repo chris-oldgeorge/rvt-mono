@@ -18,9 +18,9 @@ public sealed class InternalApiKeyFilter(ReportingMonitorOptions options, IHostE
                 : ValueTask.FromResult<object?>(Results.Unauthorized());
         }
 
-        var suppliedKey = context.HttpContext.Request.Headers[HeaderName].ToString();
-        var expectedBytes = Encoding.UTF8.GetBytes(options.InternalApiKey);
-        var suppliedBytes = Encoding.UTF8.GetBytes(suppliedKey);
+        string suppliedKey = context.HttpContext.Request.Headers[HeaderName].ToString();
+        byte[] expectedBytes = Encoding.UTF8.GetBytes(options.InternalApiKey);
+        byte[] suppliedBytes = Encoding.UTF8.GetBytes(suppliedKey);
 
         if (expectedBytes.Length != suppliedBytes.Length ||
             !CryptographicOperations.FixedTimeEquals(expectedBytes, suppliedBytes))

@@ -12,10 +12,10 @@ public sealed class MonitorBlobReportStorage(
     {
         ArgumentNullException.ThrowIfNull(report);
 
-        var client = storageClients.GetRequiredClient(
+        IObjectStorageClient client = storageClients.GetRequiredClient(
             ReportingStorageResourceNames.Reports);
-        await using var stream = new MemoryStream(report.Content, writable: false);
-        var result = await client.WriteAsync(
+        await using MemoryStream stream = new MemoryStream(report.Content, writable: false);
+        StorageWriteResult result = await client.WriteAsync(
             new StorageWriteRequest(
                 StorageObjectKey.Parse(report.FileName),
                 stream,

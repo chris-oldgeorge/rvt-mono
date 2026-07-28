@@ -1,5 +1,6 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 
 namespace Omnidots.Api.Http;
@@ -12,7 +13,7 @@ public static class BoundedJsonRequestReader
         HttpRequest request,
         CancellationToken cancellationToken)
     {
-        if (!MediaTypeHeaderValue.TryParse(request.ContentType, out var contentType) ||
+        if (!MediaTypeHeaderValue.TryParse(request.ContentType, out MediaTypeHeaderValue? contentType) ||
             !string.Equals(
                 contentType.MediaType.Value,
                 "application/json",
@@ -21,7 +22,7 @@ public static class BoundedJsonRequestReader
             throw new OmnidotsUnsupportedMediaTypeException();
         }
 
-        if (request.Headers.TryGetValue(HeaderNames.ContentEncoding, out var encodings) &&
+        if (request.Headers.TryGetValue(HeaderNames.ContentEncoding, out StringValues encodings) &&
             (encodings.Count != 1 ||
              !string.Equals(encodings[0], "identity", StringComparison.OrdinalIgnoreCase)))
         {
@@ -33,13 +34,13 @@ public static class BoundedJsonRequestReader
             throw new OmnidotsRequestBodyTooLargeException();
         }
 
-        var buffer = ArrayPool<byte>.Shared.Rent(MaxBodyBytes + 1);
-        var bytesRead = 0;
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(MaxBodyBytes + 1);
+        int bytesRead = 0;
         try
         {
             while (bytesRead <= MaxBodyBytes)
             {
-                var read = await request.Body.ReadAsync(
+                int read = await request.Body.ReadAsync(
                     buffer.AsMemory(bytesRead, MaxBodyBytes + 1 - bytesRead),
                     cancellationToken);
                 if (read == 0)

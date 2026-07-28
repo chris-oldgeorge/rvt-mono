@@ -16,8 +16,8 @@ public sealed class SpaProxyConfigurationTests
     [Fact]
     public void SpaProxyLaunchCommand_GeneratesValidJson()
     {
-        var launchCommand = ReadLaunchCommand();
-        var generatedJson = $$"""
+        string launchCommand = ReadLaunchCommand();
+        string generatedJson = $$"""
             {
               "SpaProxyServer": {
                 "LaunchCommand": "{{launchCommand}}"
@@ -25,7 +25,7 @@ public sealed class SpaProxyConfigurationTests
             }
             """;
 
-        var error = Record.Exception(() => JsonDocument.Parse(generatedJson));
+        Exception error = Record.Exception(() => JsonDocument.Parse(generatedJson));
 
         Assert.Null(error);
     }
@@ -33,18 +33,18 @@ public sealed class SpaProxyConfigurationTests
     [Fact]
     public void SpaProxyLaunchCommand_UsesUncCompatibleNodeLauncher()
     {
-        var launchCommand = ReadLaunchCommand();
+        string launchCommand = ReadLaunchCommand();
 
         Assert.Equal(UncCompatibleLaunchCommand, launchCommand);
     }
 
     private static string ReadLaunchCommand()
     {
-        var projectPath = Path.Combine(
+        string projectPath = Path.Combine(
             RepositoryLayout.Root,
             "RvtPortal.Spa",
             "RvtPortal.Spa.csproj");
-        var project = XDocument.Load(projectPath);
+        XDocument project = XDocument.Load(projectPath);
 
         return Assert.Single(project.Descendants("SpaProxyLaunchCommand")).Value;
     }

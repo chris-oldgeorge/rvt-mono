@@ -19,11 +19,11 @@ public sealed class ScriptRunner
     // Function summary: Applies every script in order, returning how many were applied.
     public async Task<int> RunAsync(CancellationToken cancellationToken = default)
     {
-        var scripts = ResolveScripts();
+        List<string> scripts = ResolveScripts();
 
         if (options.DryRun)
         {
-            foreach (var script in scripts)
+            foreach (string script in scripts)
             {
                 Console.WriteLine($"  would apply  {Describe(script)}");
             }
@@ -31,7 +31,7 @@ public sealed class ScriptRunner
             return scripts.Count;
         }
 
-        await using var connection = new NpgsqlConnection(options.ConnectionString);
+        await using NpgsqlConnection connection = new NpgsqlConnection(options.ConnectionString);
         try
         {
             await connection.OpenAsync(cancellationToken);
@@ -41,8 +41,8 @@ public sealed class ScriptRunner
             throw new DeployException($"Could not connect to the database: {exception.Message}", exception);
         }
 
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
-        var applied = await ApplyResolvedScriptsAsync(connection, transaction, scripts, cancellationToken);
+        await using NpgsqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
+        int applied = await ApplyResolvedScriptsAsync(connection, transaction, scripts, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return applied;
     }
@@ -57,11 +57,11 @@ public sealed class ScriptRunner
     {
         ArgumentNullException.ThrowIfNull(connection);
 
-        var scripts = ResolveScripts();
+        List<string> scripts = ResolveScripts();
 
         if (options.DryRun)
         {
-            foreach (var script in scripts)
+            foreach (string script in scripts)
             {
                 Console.WriteLine($"  would apply  {Describe(script)}");
             }
@@ -85,7 +85,7 @@ public sealed class ScriptRunner
         CancellationToken cancellationToken)
     {
         await RequireTimescaleAsync(connection, transaction, cancellationToken);
-        foreach (var script in scripts)
+        foreach (string script in scripts)
         {
             await ApplyAsync(connection, transaction, script, cancellationToken);
         }
@@ -102,9 +102,9 @@ public sealed class ScriptRunner
     /// </summary>
     private List<string> ResolveScripts()
     {
-        var scripts = new List<string>();
+        List<string> scripts = new List<string>();
 
-        var unmapped = Path.Combine(options.ScriptRoot, "create_unmapped_schema.sql");
+        string unmapped = Path.Combine(options.ScriptRoot, "create_unmapped_schema.sql");
         if (!File.Exists(unmapped))
         {
             throw new DeployException(
@@ -113,7 +113,7 @@ public sealed class ScriptRunner
 
         scripts.Add(unmapped);
 
-        var repair = Path.Combine(options.ScriptRoot, "restore_unmapped_column_defaults.sql");
+        string repair = Path.Combine(options.ScriptRoot, "restore_unmapped_column_defaults.sql");
         if (!File.Exists(repair))
         {
             throw new DeployException(
@@ -123,8 +123,8 @@ public sealed class ScriptRunner
 
         scripts.Add(repair);
 
-        var postLoad = Path.Combine(options.ScriptRoot, "post-load");
-        var postLoadScripts = Directory.Exists(postLoad)
+        string postLoad = Path.Combine(options.ScriptRoot, "post-load");
+        string[] postLoadScripts = Directory.Exists(postLoad)
             ? Directory.GetFiles(postLoad, "*.sql")
                 .Where(IsRealScript)
                 .OrderBy(path => path, StringComparer.Ordinal)
@@ -161,12 +161,12 @@ public sealed class ScriptRunner
         NpgsqlTransaction? transaction,
         CancellationToken cancellationToken)
     {
-        await using var command = new NpgsqlCommand(
+        await using NpgsqlCommand command = new NpgsqlCommand(
             "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'timescaledb')",
             connection,
             transaction);
 
-        var installed = await command.ExecuteScalarAsync(cancellationToken) as bool? ?? false;
+        bool installed = await command.ExecuteScalarAsync(cancellationToken) as bool? ?? false;
         if (!installed)
         {
             throw new DeployException(
@@ -191,9 +191,9 @@ public sealed class ScriptRunner
     {
         Console.WriteLine($"  applying     {Describe(path)}");
 
-        var sql = await File.ReadAllTextAsync(path, cancellationToken);
+        string sql = await File.ReadAllTextAsync(path, cancellationToken);
 
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection, transaction);
         command.CommandTimeout = 0;
 
         try
@@ -211,7 +211,7 @@ public sealed class ScriptRunner
     // Function summary: Renders a script path relative to the script root for logging.
     private static string Describe(string path)
     {
-        var parent = Directory.GetParent(path);
+        DirectoryInfo? parent = Directory.GetParent(path);
         return parent is null || !string.Equals(parent.Name, "post-load", StringComparison.Ordinal)
             ? Path.GetFileName(path)
             : Path.Combine("post-load", Path.GetFileName(path));

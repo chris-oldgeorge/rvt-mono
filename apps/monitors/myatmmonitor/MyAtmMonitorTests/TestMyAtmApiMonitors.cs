@@ -28,7 +28,7 @@ namespace MyAtmMonitorTests
 
         public TestMyAtmApiDevices()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -48,7 +48,7 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestStoreMonitors_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                 out Mock<IDBClient> dbClient,
                                                 out Mock<IMqttClient> mqttClient,
                                                 out Mock<IMessageService> messageClient);
@@ -81,17 +81,17 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestStoreMonitors_UsesConfiguredPageSizeForPaging()
         {
-            var httpClient = new Mock<IHttpClient>();
-            var dbClient = new Mock<IDBClient>();
-            var mqttClient = new Mock<IMqttClient>();
-            var messageClient = new Mock<IMessageService>();
-            var options = new MyAtmMonitorOptions
+            Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
+            Mock<IDBClient> dbClient = new Mock<IDBClient>();
+            Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+            Mock<IMessageService> messageClient = new Mock<IMessageService>();
+            MyAtmMonitorOptions options = new MyAtmMonitorOptions
             {
                 CustomerId = 123,
                 DevicePageSize = 2,
                 PortalBaseUrl = "https://portal.example/"
             };
-            var testObj = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, false, options);
+            MyAtmApi testObj = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, false, options);
 
             httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=2"))
                 .ReturnsAsync(MyAtmFixture.DevicesResponseJson());
@@ -141,7 +141,7 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestStoreMonitors_TestLocal_WritesOnlyDemoDustMonitor()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                 out Mock<IDBClient> dbClient,
                                                 out Mock<IMqttClient> mqttClient,
                                                 out Mock<IMessageService> messageClient,
@@ -228,10 +228,10 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestStoreAccessoryInfo_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                          out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
 
-            var customerId = 656;
+            int customerId = 656;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements/accessory"))).
                                  Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.AccessoryResponseJson()));
 
@@ -263,11 +263,11 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestCheckForOfflineMonitors_MonitorsOfflineFor23Hours_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
 
-            var customerId = 765;
-            var rules = MyAtmFixture.OfflineRules();
+            int customerId = 765;
+            List<RvtAlertRuleDto> rules = MyAtmFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), It.IsAny<DateTime?>())).
                 Returns(new List<DustMonitorDto>());
@@ -291,20 +291,20 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
 
-            var customerId = 765;
-            var rules = MyAtmFixture.OfflineRules();
+            int customerId = 765;
+            List<RvtAlertRuleDto> rules = MyAtmFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
 
-            var monitors = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow.AddMinutes(-minutesOffline));
+            List<DustMonitorDto> monitors = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow.AddMinutes(-minutesOffline));
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), It.IsAny<DateTime?>())).
                 Returns(monitors);
             dbClient.Setup(c => c.ReadSiteSchedule(It.IsAny<Guid>())).Returns(AlwaysOpenSiteSchedule());
-            var contacts = MyAtmFixture.AlertContacts();
+            List<RvtContactDto> contacts = MyAtmFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(It.IsAny<Guid>())).Returns(contacts);
-            var commits = new List<MyAtmAlertCommit>();
+            List<MyAtmAlertCommit> commits = new List<MyAtmAlertCommit>();
             dbClient.Setup(c => c.CommitAlertAsync(It.IsAny<MyAtmAlertCommit>(), It.IsAny<CancellationToken>()))
                 .Callback<MyAtmAlertCommit, CancellationToken>((commit, _) => commits.Add(commit))
                 .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
@@ -348,16 +348,16 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestCheckForOfflineMonitors_OfflineMonitorWithRecentData_MarkedOnline()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
 
-            var customerId = 765;
-            var rules = MyAtmFixture.OfflineRules();
+            int customerId = 765;
+            List<RvtAlertRuleDto> rules = MyAtmFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
 
             // Monitors flagged offline in the DB but with fresh data - the check should mark them back online.
-            var monitors = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow);
-            foreach (var monitor in monitors)
+            List<DustMonitorDto> monitors = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow);
+            foreach (DustMonitorDto monitor in monitors)
             {
                 monitor.Offline = true;
             }
@@ -370,7 +370,7 @@ namespace MyAtmMonitorTests
             dbClient.Verify(c => c.ReadRules(null), Times.Exactly(1));
             dbClient.Verify(c => c.ReadMonitorList(It.IsAny<int>(), It.IsAny<DateTime?>()), Times.Exactly(1));
 
-            foreach (var monitor in monitors)
+            foreach (DustMonitorDto monitor in monitors)
             {
                 Assert.IsFalse(monitor.Offline);
             }

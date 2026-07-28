@@ -64,7 +64,7 @@ public sealed record DashboardActor(
         bool isMasterAdmin,
         bool isRvtAdmin)
     {
-        var isRvtAdminOrFallback = isRvtAdmin || (user.IsAdmin && !isMasterAdmin);
+        bool isRvtAdminOrFallback = isRvtAdmin || (user.IsAdmin && !isMasterAdmin);
         return new DashboardActor(user.UserId, isMasterAdmin, isRvtAdminOrFallback, user.IsInstaller, user.IsCompanyUser);
     }
 }
@@ -217,8 +217,8 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DashboardActor actor,
         CancellationToken cancellationToken)
     {
-        var rows = await VisibleMonitorRowsAsync(actor, cancellationToken);
-        var openNotifications = await BuildVisibleNotificationsAsync(rows, openOnly: true, cancellationToken);
+        List<DashboardMonitorRow> rows = await VisibleMonitorRowsAsync(actor, cancellationToken);
+        List<Notification> openNotifications = await BuildVisibleNotificationsAsync(rows, openOnly: true, cancellationToken);
 
         return new DashboardSummaryModel
         {
@@ -249,7 +249,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         Guid? siteId,
         CancellationToken cancellationToken)
     {
-        var rows = await VisibleMonitorRowsAsync(actor, cancellationToken);
+        List<DashboardMonitorRow> rows = await VisibleMonitorRowsAsync(actor, cancellationToken);
         DashboardOptionModel? selectedSite = null;
         if (siteId.HasValue)
         {
@@ -299,23 +299,23 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DateTime selectedMonth,
         CancellationToken cancellationToken)
     {
-        var rows = await VisibleMonitorRowsAsync(actor, cancellationToken);
+        List<DashboardMonitorRow> rows = await VisibleMonitorRowsAsync(actor, cancellationToken);
         if (!rows.Any(item => item.DeploymentId == deploymentId))
         {
             return null;
         }
 
-        var deployment = await FindDeploymentAsync(deploymentId, cancellationToken);
+        Deployment? deployment = await FindDeploymentAsync(deploymentId, cancellationToken);
         if (deployment is null)
         {
             return null;
         }
 
         selectedMonth = ClampCalendarMonth(deployment, selectedMonth);
-        var monthEnd = selectedMonth.AddMonths(1).AddDays(-1);
-        var calendarStart = StartOfCalendar(selectedMonth);
-        var calendarEnd = EndOfCalendar(monthEnd);
-        var window = MonitorOwnershipWindowResolver.ForDeployment(deployment);
+        DateTime monthEnd = selectedMonth.AddMonths(1).AddDays(-1);
+        DateTime calendarStart = StartOfCalendar(selectedMonth);
+        DateTime calendarEnd = EndOfCalendar(monthEnd);
+        MonitorOwnershipWindow window = MonitorOwnershipWindowResolver.ForDeployment(deployment);
         // NotificationTime is timestamptz, so these query bounds must be Kind=Utc or Npgsql rejects them. They are
         // already the intended UTC instants: the ownership window is read from timestamptz columns (Kind=Utc), and
         // the calendar is a UTC-day view - the notifications below are grouped by NotificationTime.Date, the UTC
@@ -327,15 +327,15 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         // notifications near midnight into a different cell for non-UTC zones. Making that switch means converting
         // the grid bounds via LocalToUtc AND grouping by UtcToLocal(NotificationTime).Date, with matching updates
         // to DashboardMapCalendarTests. Left as UTC-day here to keep this a Kind fix, not a behaviour change.
-        var notificationStart = DateTime.SpecifyKind(
+        DateTime notificationStart = DateTime.SpecifyKind(
             window.Start > calendarStart ? window.Start : calendarStart,
             DateTimeKind.Utc);
-        var notificationEnd = DateTime.SpecifyKind(
+        DateTime notificationEnd = DateTime.SpecifyKind(
             window.End.HasValue && window.End.Value < calendarEnd.AddDays(1)
                 ? window.End.Value
                 : calendarEnd.AddDays(1),
             DateTimeKind.Utc);
-        var notifications = notificationEnd <= notificationStart
+        List<Notification> notifications = notificationEnd <= notificationStart
             ? []
             : await domainContext.Notifications
                 .AsNoTracking()
@@ -344,7 +344,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
                     notification.NotificationTime >= notificationStart &&
                     notification.NotificationTime < notificationEnd)
                 .ToListAsync(cancellationToken);
-        var notificationsByDate = notifications
+        Dictionary<DateTime, List<Notification>> notificationsByDate = notifications
             .GroupBy(notification => notification.NotificationTime.Date)
             .ToDictionary(group => group.Key, group => group.ToList());
 
@@ -364,7 +364,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             Days = CalendarDates(calendarStart, calendarEnd)
                 .Select(day =>
                 {
-                    notificationsByDate.TryGetValue(day.Date, out var dayNotifications);
+                    notificationsByDate.TryGetValue(day.Date, out List<Notification>? dayNotifications);
                     dayNotifications ??= [];
                     return new DashboardCalendarMonthDayModel
                     {
@@ -386,7 +386,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DateTime displayDay,
         CancellationToken cancellationToken)
     {
-        var monitor = await domainContext.MonitorsList
+        MonitorEntity? monitor = await domainContext.MonitorsList
             .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == monitorId, cancellationToken);
         if (monitor is null)
@@ -394,14 +394,14 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             return null;
         }
 
-        var nextDay = displayDay.AddDays(1);
-        var deployment = await FindDeploymentForMonitorDateAsync(monitor.Id, displayDay, nextDay, cancellationToken);
+        DateTime nextDay = displayDay.AddDays(1);
+        Deployment? deployment = await FindDeploymentForMonitorDateAsync(monitor.Id, displayDay, nextDay, cancellationToken);
         if (deployment is null || !await CanReadDeploymentAsync(actor, deployment, cancellationToken))
         {
             return null;
         }
 
-        var notifications = await domainContext.Notifications
+        List<Notification> notifications = await domainContext.Notifications
             .AsNoTracking()
             .Include(notification => notification.Monitor)
             .Where(notification =>
@@ -410,7 +410,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
                 notification.NotificationTime < nextDay)
             .OrderByDescending(notification => notification.NotificationTime)
             .ToListAsync(cancellationToken);
-        var alertLevels = await domainContext.RvtAlertRules
+        List<Alertlevel> alertLevels = await domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(level => level.MonitorId == monitor.Id && !level.IsDeleted)
             .OrderBy(level => level.AlertField)
@@ -443,19 +443,19 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DashboardActor actor,
         CancellationToken cancellationToken)
     {
-        var rows = await BuildMonitorRowsAsync(cancellationToken);
+        List<DashboardMonitorRow> rows = await BuildMonitorRowsAsync(cancellationToken);
         return await ApplyRoleVisibilityAsync(actor, rows, cancellationToken);
     }
 
     // Function summary: Builds monitor rows with current deployment, freshness, and open-notification state.
     private async Task<List<DashboardMonitorRow>> BuildMonitorRowsAsync(CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
-        var monitors = await domainContext.MonitorsList.AsNoTracking().ToListAsync(cancellationToken);
+        DateTime now = DateTime.UtcNow;
+        List<MonitorEntity> monitors = await domainContext.MonitorsList.AsNoTracking().ToListAsync(cancellationToken);
 
         // The ownership window is applied in SQL now, so only deployments that actually own their monitor's
         // data right now come back - previously every open deployment was loaded and then filtered in memory.
-        var deployments = await domainContext.Deployments
+        List<Deployment> deployments = await domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .ThenInclude(contract => contract.Company)
@@ -464,28 +464,28 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             .Where(deployment => deployment.EndDate == null)
             .Where(MonitorOwnershipWindowResolver.OwnsAt(now))
             .ToListAsync(cancellationToken);
-        var currentByMonitor = deployments
+        Dictionary<Guid, Deployment> currentByMonitor = deployments
             .GroupBy(deployment => deployment.MonitorId)
             .ToDictionary(group => group.Key, group => group.OrderByDescending(deployment => deployment.StartDate).First());
 
         // Only monitors with a current deployment can contribute notifications: the lookup below drops anything
         // else. Asking for just those monitors avoids loading open notifications that would be discarded.
-        var deployedMonitorIds = currentByMonitor.Keys.ToList();
-        var notifications = await domainContext.Notifications
+        List<Guid> deployedMonitorIds = currentByMonitor.Keys.ToList();
+        List<Notification> notifications = await domainContext.Notifications
             .AsNoTracking()
             .Where(notification => deployedMonitorIds.Contains(notification.MonitorId) && notification.ClosedTime == null)
             .ToListAsync(cancellationToken);
-        var notificationLookup = notifications
+        Dictionary<Guid, List<Notification>> notificationLookup = notifications
             .Where(notification =>
-                currentByMonitor.TryGetValue(notification.MonitorId, out var deployment) &&
+                currentByMonitor.TryGetValue(notification.MonitorId, out Deployment? deployment) &&
                 MonitorOwnershipWindowResolver.ForDeployment(deployment).Contains(notification.NotificationTime))
             .GroupBy(notification => notification.MonitorId)
             .ToDictionary(group => group.Key, group => group.ToList());
 
         return monitors.Select(monitor =>
         {
-            currentByMonitor.TryGetValue(monitor.Id, out var deployment);
-            notificationLookup.TryGetValue(monitor.Id, out var monitorNotifications);
+            currentByMonitor.TryGetValue(monitor.Id, out Deployment? deployment);
+            notificationLookup.TryGetValue(monitor.Id, out List<Notification>? monitorNotifications);
             return BuildMonitorRow(monitor, deployment, monitorNotifications ?? [], now);
         }).ToList();
     }
@@ -506,7 +506,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             return rows.Where(row => row.IsAssigned).ToList();
         }
 
-        var visibleSiteIds = await VisibleSiteIdsAsync(actor, cancellationToken);
+        HashSet<Guid> visibleSiteIds = await VisibleSiteIdsAsync(actor, cancellationToken);
         return rows.Where(row => row.SiteId.HasValue && visibleSiteIds.Contains(row.SiteId.Value)).ToList();
     }
 
@@ -516,24 +516,24 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         bool openOnly,
         CancellationToken cancellationToken)
     {
-        var monitorIds = rows.Select(row => row.MonitorId).ToHashSet();
+        HashSet<Guid> monitorIds = rows.Select(row => row.MonitorId).ToHashSet();
         if (monitorIds.Count == 0)
         {
             return [];
         }
 
-        var deploymentIds = rows
+        List<Guid> deploymentIds = rows
             .Where(row => row.DeploymentId.HasValue)
             .Select(row => row.DeploymentId!.Value)
             .ToList();
-        var deployments = await domainContext.Deployments
+        List<Deployment> deployments = await domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .Where(deployment => deploymentIds.Contains(deployment.Id))
             .ToListAsync(cancellationToken);
-        var currentByMonitor = deployments.ToDictionary(deployment => deployment.MonitorId);
+        Dictionary<Guid, Deployment> currentByMonitor = deployments.ToDictionary(deployment => deployment.MonitorId);
 
-        var notifications = await domainContext.Notifications
+        List<Notification> notifications = await domainContext.Notifications
             .AsNoTracking()
             .Include(notification => notification.Monitor)
             .Where(notification =>
@@ -542,7 +542,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             .ToListAsync(cancellationToken);
         return notifications
             .Where(notification =>
-                currentByMonitor.TryGetValue(notification.MonitorId, out var deployment) &&
+                currentByMonitor.TryGetValue(notification.MonitorId, out Deployment? deployment) &&
                 MonitorOwnershipWindowResolver.ForDeployment(deployment).Contains(notification.NotificationTime))
             .ToList();
     }
@@ -552,17 +552,17 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DashboardActor actor,
         CancellationToken cancellationToken)
     {
-        var sites = domainContext.Sites
+        IQueryable<Site> sites = domainContext.Sites
             .AsNoTracking()
             .Where(site => !site.Archived);
         if (actor.IsScopedCompanyUser)
         {
-            var visibleSiteIds = await VisibleSiteIdsAsync(actor, cancellationToken);
+            HashSet<Guid> visibleSiteIds = await VisibleSiteIdsAsync(actor, cancellationToken);
             sites = sites.Where(site => visibleSiteIds.Contains(site.Id));
         }
         else if (actor.IsInstaller)
         {
-            var siteIds = await domainContext.Deployments
+            List<Guid> siteIds = await domainContext.Deployments
                 .AsNoTracking()
                 .Where(deployment => deployment.EndDate == null && deployment.Contract.SiteiD.HasValue)
                 .Select(deployment => deployment.Contract.SiteiD!.Value)
@@ -600,7 +600,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         List<Notification> notifications,
         DateTime now)
     {
-        var lastDataTime = LastDataTime(monitor);
+        DateTime? lastDataTime = LastDataTime(monitor);
         return new DashboardMonitorRow
         {
             MonitorId = monitor.Id,
@@ -682,7 +682,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             return visibleSiteIdsCache;
         }
 
-        var siteIds = await domainContext.SiteUsers
+        List<Guid> siteIds = await domainContext.SiteUsers
             .AsNoTracking()
             .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
@@ -711,7 +711,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DateTime to,
         CancellationToken cancellationToken)
     {
-        var deployments = await domainContext.Deployments
+        List<Deployment> deployments = await domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .Where(deployment => deployment.MonitorId == monitorId)
@@ -734,7 +734,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             return true;
         }
 
-        var siteId = deployment.Contract?.SiteiD;
+        Guid? siteId = deployment.Contract?.SiteiD;
         if (!siteId.HasValue || !actor.IsScopedCompanyUser)
         {
             return false;
@@ -760,9 +760,9 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
     // Function summary: Clamps a calendar month into the deployment's valid display range.
     private static DateTime ClampCalendarMonth(Deployment deployment, DateTime selectedMonth)
     {
-        var firstDeploymentMonth = MonthStart(deployment.StartDate);
-        var lastDate = CalendarMaxDate(deployment);
-        var lastDeploymentMonth = MonthStart(lastDate);
+        DateTime firstDeploymentMonth = MonthStart(deployment.StartDate);
+        DateTime lastDate = CalendarMaxDate(deployment);
+        DateTime lastDeploymentMonth = MonthStart(lastDate);
         if (selectedMonth < firstDeploymentMonth)
         {
             return firstDeploymentMonth;
@@ -784,7 +784,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
     // Function summary: Returns the maximum date a deployment can show on the dashboard calendar.
     private static DateTime CalendarMaxDate(Deployment deployment)
     {
-        var today = DateTime.Today;
+        DateTime today = DateTime.Today;
         if (deployment.EndDate.HasValue && deployment.EndDate.Value.Date < today)
         {
             return deployment.EndDate.Value.Date;
@@ -796,21 +796,21 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
     // Function summary: Returns the Monday-aligned calendar grid start.
     private static DateTime StartOfCalendar(DateTime startOfMonth)
     {
-        var offset = ((int)startOfMonth.DayOfWeek + 6) % 7;
+        int offset = ((int)startOfMonth.DayOfWeek + 6) % 7;
         return startOfMonth.Date.AddDays(-offset);
     }
 
     // Function summary: Returns the Sunday-aligned calendar grid end.
     private static DateTime EndOfCalendar(DateTime endOfMonth)
     {
-        var offset = 6 - (((int)endOfMonth.DayOfWeek + 6) % 7);
+        int offset = 6 - (((int)endOfMonth.DayOfWeek + 6) % 7);
         return endOfMonth.Date.AddDays(offset);
     }
 
     // Function summary: Enumerates all dates in a calendar range.
     private static IEnumerable<DateTime> CalendarDates(DateTime start, DateTime end)
     {
-        for (var day = start.Date; day <= end.Date; day = day.AddDays(1))
+        for (DateTime day = start.Date; day <= end.Date; day = day.AddDays(1))
         {
             yield return day;
         }

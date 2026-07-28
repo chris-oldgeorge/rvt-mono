@@ -55,7 +55,7 @@ public sealed class DeliveryRetryScheduleTests
     [TestMethod]
     public void NextDelay_HonoursALongerProviderRetryAfter()
     {
-        var exception = new EmailDeliveryException(
+        EmailDeliveryException exception = new EmailDeliveryException(
             "provider",
             DeliveryFailureKind.Transient,
             "429",
@@ -69,7 +69,7 @@ public sealed class DeliveryRetryScheduleTests
     [TestMethod]
     public void NextDelay_IgnoresAShorterProviderRetryAfter()
     {
-        var exception = new EmailDeliveryException(
+        EmailDeliveryException exception = new EmailDeliveryException(
             "provider",
             DeliveryFailureKind.Transient,
             "429",
@@ -84,7 +84,7 @@ public sealed class DeliveryRetryScheduleTests
     public void NextDelay_BoundsAProviderRetryAfterByTheCap()
     {
         // A mistaken or hostile provider value must not park a message.
-        var exception = new EmailDeliveryException(
+        EmailDeliveryException exception = new EmailDeliveryException(
             "provider",
             DeliveryFailureKind.Transient,
             "429",
@@ -114,8 +114,8 @@ public sealed class DeliveryRetryScheduleTests
     {
         // The two dispatchers express the same policy in different units; the
         // shared schedule must produce identical results for both.
-        var alertOptions = new DurableAlertOptions { InitialRetrySeconds = 30, MaxRetrySeconds = 1800 };
-        var deliveryOptions = new MonitorDeliveryOptions
+        DurableAlertOptions alertOptions = new DurableAlertOptions { InitialRetrySeconds = 30, MaxRetrySeconds = 1800 };
+        MonitorDeliveryOptions deliveryOptions = new MonitorDeliveryOptions
         {
             InitialRetryDelay = TimeSpan.FromSeconds(30),
             RetryCap = TimeSpan.FromSeconds(1800),

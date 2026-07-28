@@ -35,7 +35,7 @@ public class CompaniesController : ControllerBase
     // Function summary: Queries companies through the company application service.
     public async Task<ActionResult<QueryCompaniesResponse>> Query([FromQuery] QueryCompaniesRequest request)
     {
-        var result = await companies.Query(
+        CompanyQueryResult result = await companies.Query(
             new CompanyQuery(
                 request.SearchText,
                 request.Sort,
@@ -65,7 +65,7 @@ public class CompaniesController : ControllerBase
     // Function summary: Retrieves company detail by id.
     public async Task<ActionResult<EntityResponse<CompanyDetailResponse>>> Get(Guid id)
     {
-        var company = await companies.GetAsync(id, HttpContext.RequestAborted);
+        CompanyDetailResponse? company = await companies.GetAsync(id, HttpContext.RequestAborted);
         return company == null ? CompanyNotFound(id) : new EntityResponse<CompanyDetailResponse> { Item = company };
     }
 
@@ -75,14 +75,14 @@ public class CompaniesController : ControllerBase
     // Function summary: Creates a company through the company application service.
     public async Task<ActionResult<EntityResponse<CompanyDetailResponse>>> Create(CompanyMutationRequest request)
     {
-        var result = await companies.CreateAsync(request, HttpContext.RequestAborted);
+        CompanyMutationWorkflowResult result = await companies.CreateAsync(request, HttpContext.RequestAborted);
         AddCommandErrors(result.Errors);
         if (!ModelState.IsValid || !result.CompanyId.HasValue || result.Company == null)
         {
             return ValidationProblem(ModelState);
         }
 
-        var response = new EntityResponse<CompanyDetailResponse>
+        EntityResponse<CompanyDetailResponse> response = new EntityResponse<CompanyDetailResponse>
         {
             Item = result.Company
         };
@@ -97,7 +97,7 @@ public class CompaniesController : ControllerBase
     // Function summary: Updates a company through the company application service.
     public async Task<ActionResult<EntityResponse<CompanyDetailResponse>>> Update(Guid id, CompanyMutationRequest request)
     {
-        var result = await companies.UpdateAsync(id, request, HttpContext.RequestAborted);
+        CompanyMutationWorkflowResult result = await companies.UpdateAsync(id, request, HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return CompanyNotFound(id);
@@ -121,7 +121,7 @@ public class CompaniesController : ControllerBase
     // Function summary: Deletes a company through the company application service.
     public async Task<ActionResult<MutationResponse>> Delete(Guid id)
     {
-        var result = await companies.DeleteAsync(id, HttpContext.RequestAborted);
+        CompanyMutationWorkflowResult result = await companies.DeleteAsync(id, HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return CompanyNotFound(id);
@@ -143,7 +143,7 @@ public class CompaniesController : ControllerBase
     // Function summary: Builds the invalid-sort problem response while preserving the existing company contract.
     private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
     {
-        var problem = ApiProblems.Create(
+        ProblemDetails problem = ApiProblems.Create(
             HttpContext,
             StatusCodes.Status400BadRequest,
             "Invalid sort field",
@@ -165,9 +165,9 @@ public class CompaniesController : ControllerBase
     // Function summary: Maps command validation errors into the API model-state response.
     private void AddCommandErrors(IReadOnlyDictionary<string, string[]> errors)
     {
-        foreach (var error in errors)
+        foreach (KeyValuePair<string, string[]> error in errors)
         {
-            foreach (var message in error.Value)
+            foreach (string message in error.Value)
             {
                 ModelState.AddModelError(error.Key, message);
             }

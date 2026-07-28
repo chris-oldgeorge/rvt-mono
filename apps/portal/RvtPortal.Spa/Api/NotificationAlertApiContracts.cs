@@ -40,7 +40,7 @@ public static class NotificationListStates
             return All;
         }
 
-        var normalized = value.Trim().ToLowerInvariant();
+        string normalized = value.Trim().ToLowerInvariant();
         return Values.Contains(normalized) ? normalized : All;
     }
 }

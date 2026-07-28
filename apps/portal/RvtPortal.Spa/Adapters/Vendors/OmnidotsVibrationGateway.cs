@@ -43,12 +43,12 @@ public sealed class OmnidotsVibrationGateway : IVibrationVendorGateway
             return VendorSyncResult.Failure("Omnidots adapter secret is not configured.");
         }
 
-        if (!Uri.TryCreate(options.Url, UriKind.Absolute, out var endpoint))
+        if (!Uri.TryCreate(options.Url, UriKind.Absolute, out Uri? endpoint))
         {
             return VendorSyncResult.Failure("Omnidots adapter URL is invalid.");
         }
 
-        var payload = new Dictionary<string, object>
+        Dictionary<string, object> payload = new Dictionary<string, object>
         {
             ["secret"] = options.Secret,
             ["serialid"] = serialId,
@@ -56,8 +56,8 @@ public sealed class OmnidotsVibrationGateway : IVibrationVendorGateway
             ["level_alert"] = alertLevel
         };
 
-        var json = JsonSerializer.Serialize(payload);
-        using var content = new StringContent(json, Encoding.UTF8, ContentType);
+        string json = JsonSerializer.Serialize(payload);
+        using StringContent content = new StringContent(json, Encoding.UTF8, ContentType);
         HttpResponseMessage response;
         try
         {

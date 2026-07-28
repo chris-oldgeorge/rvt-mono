@@ -50,10 +50,10 @@ public sealed class ReportGenerationService : IReportGenerationService
 
     public async Task<IReadOnlyList<GeneratedReport>> GenerateScheduledReportsAsync(DateTimeOffset triggerUtc, CancellationToken cancellationToken)
     {
-        var dueRules = await _ruleQueries.GetDueReportRulesAsync(triggerUtc.Date, cancellationToken).ConfigureAwait(false);
-        var generatedReports = new List<GeneratedReport>();
+        IReadOnlyList<ReportRule> dueRules = await _ruleQueries.GetDueReportRulesAsync(triggerUtc.Date, cancellationToken).ConfigureAwait(false);
+        List<GeneratedReport> generatedReports = new List<GeneratedReport>();
 
-        foreach (var rule in dueRules)
+        foreach (ReportRule rule in dueRules)
         {
             try
             {
@@ -81,7 +81,7 @@ public sealed class ReportGenerationService : IReportGenerationService
 
     public async Task<IReadOnlyList<GeneratedReport>> GenerateRuleAsync(Guid reportRuleId, DateTimeOffset triggerUtc, CancellationToken cancellationToken)
     {
-        var rule = await _ruleQueries.GetReportRuleAsync(reportRuleId, cancellationToken).ConfigureAwait(false);
+        ReportRule? rule = await _ruleQueries.GetReportRuleAsync(reportRuleId, cancellationToken).ConfigureAwait(false);
         if (rule is null)
         {
             return [];
@@ -92,20 +92,20 @@ public sealed class ReportGenerationService : IReportGenerationService
 
     public async Task<OneTimeReportResponse> GenerateOneTimeReportAsync(OneTimeReportRequest request, CancellationToken cancellationToken)
     {
-        var errors = OneTimeReportValidator.Validate(request);
+        IReadOnlyList<ValidationError> errors = OneTimeReportValidator.Validate(request);
         if (errors.Count > 0)
         {
             throw new OneTimeReportValidationException(errors);
         }
 
-        var site = await LoadSiteWithInsightsAsync(request.SiteId, request.FromUtc, request.ToUtc, cancellationToken).ConfigureAwait(false);
-        var customerLogo = await _customerLogoProvider.GetSiteLogoAsync(site.Id, cancellationToken).ConfigureAwait(false);
-        var generatedAtUtc = _timeProvider.GetUtcNow();
-        var rendered = await _renderer.RenderAsync(request.ReportName, generatedAtUtc, request.FromUtc, request.ToUtc, site, customerLogo, cancellationToken).ConfigureAwait(false);
-        var reportUri = await _storage.StoreAsync(rendered, cancellationToken).ConfigureAwait(false);
-        var deliveries = await SendReportsAsync(request.RecipientEmails, site.Postcode, rendered, cancellationToken).ConfigureAwait(false);
+        SiteReportData site = await LoadSiteWithInsightsAsync(request.SiteId, request.FromUtc, request.ToUtc, cancellationToken).ConfigureAwait(false);
+        CustomerLogo? customerLogo = await _customerLogoProvider.GetSiteLogoAsync(site.Id, cancellationToken).ConfigureAwait(false);
+        DateTimeOffset generatedAtUtc = _timeProvider.GetUtcNow();
+        RenderedReport rendered = await _renderer.RenderAsync(request.ReportName, generatedAtUtc, request.FromUtc, request.ToUtc, site, customerLogo, cancellationToken).ConfigureAwait(false);
+        Uri reportUri = await _storage.StoreAsync(rendered, cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<ReportDeliverySaveRequest> deliveries = await SendReportsAsync(request.RecipientEmails, site.Postcode, rendered, cancellationToken).ConfigureAwait(false);
 
-        var report = await _generationCommands.SaveGeneratedReportAsync(new GeneratedReportSaveRequest(
+        GeneratedReport report = await _generationCommands.SaveGeneratedReportAsync(new GeneratedReportSaveRequest(
             request.SiteId,
             null,
             new OneTimeReportRuleSaveRequest(request.RequestedByUserId, request.ReportName),
@@ -131,23 +131,23 @@ public sealed class ReportGenerationService : IReportGenerationService
             return [];
         }
 
-        var generatedReports = new List<GeneratedReport>();
-        foreach (var period in ReportPeriodCalculator.CreatePeriods(rule, triggerUtc))
+        List<GeneratedReport> generatedReports = new List<GeneratedReport>();
+        foreach (ReportPeriod period in ReportPeriodCalculator.CreatePeriods(rule, triggerUtc))
         {
-            await using var generationLock = await _generationLocks.TryAcquireAsync(rule.Id, period, cancellationToken).ConfigureAwait(false);
+            await using RuleGenerationLock? generationLock = await _generationLocks.TryAcquireAsync(rule.Id, period, cancellationToken).ConfigureAwait(false);
             if (generationLock is null)
             {
                 continue;
             }
 
-            var site = await LoadSiteWithInsightsAsync(rule.SiteId, period.StartUtc, period.EndUtc, cancellationToken).ConfigureAwait(false);
-            var customerLogo = await _customerLogoProvider.GetSiteLogoAsync(site.Id, cancellationToken).ConfigureAwait(false);
-            var generatedAtUtc = _timeProvider.GetUtcNow();
-            var rendered = await _renderer.RenderAsync(rule.ReportName, generatedAtUtc, period.StartUtc, period.EndUtc, site, customerLogo, cancellationToken).ConfigureAwait(false);
-            var reportUri = await _storage.StoreAsync(rendered, cancellationToken).ConfigureAwait(false);
-            var deliveries = await SendReportsAsync(rule.RecipientEmails, site.Postcode, rendered, cancellationToken).ConfigureAwait(false);
+            SiteReportData site = await LoadSiteWithInsightsAsync(rule.SiteId, period.StartUtc, period.EndUtc, cancellationToken).ConfigureAwait(false);
+            CustomerLogo? customerLogo = await _customerLogoProvider.GetSiteLogoAsync(site.Id, cancellationToken).ConfigureAwait(false);
+            DateTimeOffset generatedAtUtc = _timeProvider.GetUtcNow();
+            RenderedReport rendered = await _renderer.RenderAsync(rule.ReportName, generatedAtUtc, period.StartUtc, period.EndUtc, site, customerLogo, cancellationToken).ConfigureAwait(false);
+            Uri reportUri = await _storage.StoreAsync(rendered, cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<ReportDeliverySaveRequest> deliveries = await SendReportsAsync(rule.RecipientEmails, site.Postcode, rendered, cancellationToken).ConfigureAwait(false);
 
-            var report = await _generationCommands.SaveGeneratedReportAsync(new GeneratedReportSaveRequest(
+            GeneratedReport report = await _generationCommands.SaveGeneratedReportAsync(new GeneratedReportSaveRequest(
                 rule.SiteId,
                 rule.Id,
                 null,
@@ -167,10 +167,10 @@ public sealed class ReportGenerationService : IReportGenerationService
 
     private async Task<SiteReportData> LoadSiteWithInsightsAsync(Guid siteId, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken)
     {
-        var site = await _dataQueries.LoadSiteReportDataAsync(siteId, fromUtc, toUtc, cancellationToken).ConfigureAwait(false);
-        var summary = ReportInsightBuilder.BuildExecutiveSummary(site, fromUtc, toUtc);
-        var heatmaps = ReportInsightBuilder.BuildAlertHeatmaps(site);
-        var narrative = await _narrativeProvider.CreateNarrativeAsync(new ReportNarrativeContext(site.SiteName, summary, heatmaps), cancellationToken).ConfigureAwait(false);
+        SiteReportData site = await _dataQueries.LoadSiteReportDataAsync(siteId, fromUtc, toUtc, cancellationToken).ConfigureAwait(false);
+        ReportExecutiveSummary summary = ReportInsightBuilder.BuildExecutiveSummary(site, fromUtc, toUtc);
+        IReadOnlyList<ReportAlertHeatmap> heatmaps = ReportInsightBuilder.BuildAlertHeatmaps(site);
+        string narrative = await _narrativeProvider.CreateNarrativeAsync(new ReportNarrativeContext(site.SiteName, summary, heatmaps), cancellationToken).ConfigureAwait(false);
         return site with { Insights = new ReportInsights(summary, heatmaps, narrative) };
     }
 
@@ -180,13 +180,13 @@ public sealed class ReportGenerationService : IReportGenerationService
         RenderedReport rendered,
         CancellationToken cancellationToken)
     {
-        var deliveries = new List<ReportDeliverySaveRequest>(recipientEmails.Count);
-        foreach (var recipientEmail in recipientEmails)
+        List<ReportDeliverySaveRequest> deliveries = new List<ReportDeliverySaveRequest>(recipientEmails.Count);
+        foreach (string recipientEmail in recipientEmails)
         {
-            var sentAtUtc = _timeProvider.GetUtcNow();
+            DateTimeOffset sentAtUtc = _timeProvider.GetUtcNow();
             try
             {
-                var sendResult = await _messageSender.SendAsync(
+                ReportSendResult sendResult = await _messageSender.SendAsync(
                     recipientEmail,
                     sitePostcode ?? string.Empty,
                     rendered,
@@ -219,7 +219,7 @@ public sealed class ReportGenerationService : IReportGenerationService
     private static string BoundedError(string? message)
     {
         const int maximumLength = 1024;
-        var error = string.IsNullOrWhiteSpace(message) ? "Report delivery failed." : message.Trim();
+        string error = string.IsNullOrWhiteSpace(message) ? "Report delivery failed." : message.Trim();
         return error.Length <= maximumLength ? error : error[..maximumLength];
     }
 }

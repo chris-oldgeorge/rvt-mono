@@ -10,7 +10,7 @@ public sealed class MyAtmDependencyBoundaryTests
     public void MapperlyPackageReferences_FollowMonitorAppAnalyzerPolicy()
     {
         string repositoryRoot = RepositoryLayout.Root;
-        var violations = EnumeratePrimaryProjectFiles(repositoryRoot)
+        string[] violations = EnumeratePrimaryProjectFiles(repositoryRoot)
             .SelectMany(projectPath => ReadMapperlyReferences(projectPath)
                 .SelectMany(reference => ValidateMapperlyReference(repositoryRoot, projectPath, reference)))
             .Order(StringComparer.Ordinal)
@@ -27,15 +27,15 @@ public sealed class MyAtmDependencyBoundaryTests
         string projectPath,
         XElement packageReference)
     {
-        var relativePath = Path.GetRelativePath(repositoryRoot, projectPath).Replace('\\', '/');
-        var segments = relativePath.Split('/');
-        var projectName = Path.GetFileNameWithoutExtension(projectPath);
-        var projectDirectory = Path.GetFileName(Path.GetDirectoryName(projectPath));
-        var project = packageReference.Document?.Root;
-        var isTestProject = project?
+        string relativePath = Path.GetRelativePath(repositoryRoot, projectPath).Replace('\\', '/');
+        string[] segments = relativePath.Split('/');
+        string projectName = Path.GetFileNameWithoutExtension(projectPath);
+        string? projectDirectory = Path.GetFileName(Path.GetDirectoryName(projectPath));
+        XElement? project = packageReference.Document?.Root;
+        bool isTestProject = project?
             .Descendants()
             .Where(element => element.Name.LocalName == "IsTestProject")
-            .Any(element => bool.TryParse(element.Value, out var value) && value) == true;
+            .Any(element => bool.TryParse(element.Value, out bool value) && value) == true;
 
         if (segments.Length != 5 ||
             !segments[0].Equals("apps", StringComparison.OrdinalIgnoreCase) ||
@@ -66,7 +66,7 @@ public sealed class MyAtmDependencyBoundaryTests
 
     private static IEnumerable<XElement> ReadMapperlyReferences(string projectPath)
     {
-        var project = XDocument.Load(projectPath, LoadOptions.SetLineInfo);
+        XDocument project = XDocument.Load(projectPath, LoadOptions.SetLineInfo);
         return project
             .Descendants()
             .Where(element => element.Name.LocalName == "PackageReference")
@@ -89,13 +89,13 @@ public sealed class MyAtmDependencyBoundaryTests
     public void ProductionCSharp_DoesNotReferenceTheLegacyMyAtmOutbox()
     {
         string repositoryRoot = RepositoryLayout.Root;
-        var productionRoot = Path.Combine(
+        string productionRoot = Path.Combine(
             repositoryRoot,
             "apps",
             "monitors",
             "myatmmonitor",
             "MyAtmMonitor");
-        var forbiddenReferences = new[]
+        string[] forbiddenReferences = new[]
         {
             "MyAtmOutboxMessageEntity",
             "IMyAtmOutbox",
@@ -103,7 +103,7 @@ public sealed class MyAtmDependencyBoundaryTests
             "context.OutboxMessages"
         };
 
-        var violations = Directory
+        string[] violations = Directory
             .EnumerateFiles(productionRoot, "*.cs", SearchOption.AllDirectories)
             .Where(path => !IsGeneratedOutput(path, productionRoot))
             .SelectMany(path => forbiddenReferences
@@ -117,14 +117,14 @@ public sealed class MyAtmDependencyBoundaryTests
 
     private static bool IsGeneratedOutput(string path, string productionRoot)
     {
-        var relativePath = Path.GetRelativePath(productionRoot, path).Replace('\\', '/');
+        string relativePath = Path.GetRelativePath(productionRoot, path).Replace('\\', '/');
         return relativePath.StartsWith("bin/", StringComparison.Ordinal) ||
             relativePath.StartsWith("obj/", StringComparison.Ordinal);
     }
 
     private static bool IsPrimaryRepositoryProject(string path, string repositoryRoot)
     {
-        var relativePath = Path.GetRelativePath(repositoryRoot, path).Replace('\\', '/');
+        string relativePath = Path.GetRelativePath(repositoryRoot, path).Replace('\\', '/');
         return !relativePath.StartsWith(".worktrees/", StringComparison.Ordinal);
     }
 

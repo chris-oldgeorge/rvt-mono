@@ -206,9 +206,9 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         NotificationQuery query,
         CancellationToken cancellationToken)
     {
-        var actor = BuildCloseActor(user);
-        var rows = await BuildNotificationRowsAsync(cancellationToken);
-        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, timeProvider, cancellationToken);
+        NotificationCloseActor actor = BuildCloseActor(user);
+        List<NotificationListModel> rows = await BuildNotificationRowsAsync(cancellationToken);
+        HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, timeProvider, cancellationToken);
         rows = ApplyRoleVisibility(rows, actor, visibleSiteIds).ToList();
         rows = ApplyState(rows, query.State).ToList();
 
@@ -238,7 +238,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
 
         if (!string.IsNullOrWhiteSpace(query.SearchText))
         {
-            var search = query.SearchText.Trim();
+            string search = query.SearchText.Trim();
             rows = rows.Where(row =>
                 Contains(row.FleetNumber, search) ||
                 Contains(row.SerialId, search) ||
@@ -251,7 +251,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         }
 
         rows = ApplySort(rows, query.Sort, query.SortDir).ToList();
-        var total = rows.Count;
+        int total = rows.Count;
         return new NotificationQueryResult
         {
             Results = rows.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToList(),
@@ -276,7 +276,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         Guid id,
         CancellationToken cancellationToken)
     {
-        var notification = await domainContext.Notifications
+        Notification? notification = await domainContext.Notifications
             .AsNoTracking()
             .Include(item => item.Monitor)
             .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
@@ -285,7 +285,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
             return null;
         }
 
-        var deployment = await NotificationCloseWorkflow.FindDeploymentForNotificationAsync(domainContext, notification, cancellationToken);
+        Deployment? deployment = await NotificationCloseWorkflow.FindDeploymentForNotificationAsync(domainContext, notification, cancellationToken);
         return await BuildDetailAsync(user, notification, deployment, cancellationToken);
     }
 
@@ -296,9 +296,9 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         Deployment? deployment,
         CancellationToken cancellationToken)
     {
-        var actor = BuildCloseActor(user);
-        var visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, timeProvider, cancellationToken);
-        var row = BuildNotificationListModel(notification, deployment);
+        NotificationCloseActor actor = BuildCloseActor(user);
+        HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, timeProvider, cancellationToken);
+        NotificationListModel row = BuildNotificationListModel(notification, deployment);
         if (!CanReadNotification(row, actor, visibleSiteIds))
         {
             return null;
@@ -320,7 +320,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         string? note,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(
+        CloseNotificationResult result = await mediator.Send(
             new CloseNotificationCommand(id, note, BuildCloseActor(user)),
             cancellationToken);
         if (result.NotFound || result.Notification == null)
@@ -333,7 +333,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
             return NotificationCloseWorkflowResult.ValidationFailed(result.Errors);
         }
 
-        var detail = await BuildDetailAsync(user, result.Notification, result.Deployment, cancellationToken);
+        NotificationDetailModel? detail = await BuildDetailAsync(user, result.Notification, result.Deployment, cancellationToken);
         return detail == null
             ? NotificationCloseWorkflowResult.NotFoundResult()
             : NotificationCloseWorkflowResult.Success(detail);
@@ -354,18 +354,18 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
     // Function summary: Builds notification rows with effective deployment ownership attached.
     private async Task<List<NotificationListModel>> BuildNotificationRowsAsync(CancellationToken cancellationToken)
     {
-        var notifications = await domainContext.Notifications
+        List<Notification> notifications = await domainContext.Notifications
             .AsNoTracking()
             .Include(notification => notification.Monitor)
             .OrderByDescending(notification => notification.NotificationTime)
             .ToListAsync(cancellationToken);
-        var deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(domainContext, notifications, cancellationToken);
+        Dictionary<Guid, Deployment?> deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(domainContext, notifications, cancellationToken);
 
         return notifications
             .Where(notification => !string.IsNullOrWhiteSpace(notification.Monitor?.FleetNr))
             .Select(notification =>
             {
-                deploymentLookup.TryGetValue(notification.Id, out var deployment);
+                deploymentLookup.TryGetValue(notification.Id, out Deployment? deployment);
                 return BuildNotificationListModel(notification, deployment);
             })
             .ToList();
@@ -374,9 +374,9 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
     // Function summary: Builds the frontend-facing notification row model.
     private static NotificationListModel BuildNotificationListModel(Notification notification, Deployment? deployment)
     {
-        var monitor = notification.Monitor ?? deployment?.Monitor;
-        var contract = deployment?.Contract;
-        var alertType = notification.AlertType.ToString();
+        RVT.Entities.Monitor? monitor = notification.Monitor ?? deployment?.Monitor;
+        Contract? contract = deployment?.Contract;
+        string alertType = notification.AlertType.ToString();
         return new NotificationListModel
         {
             Id = notification.Id,
@@ -413,21 +413,21 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         NotificationListModel row,
         CancellationToken cancellationToken)
     {
-        var graphWindowMinutes = row.TypeOfMonitor == MonitorTypeEnum.Noise.ToString() ? 30 : 5;
-        var related = (await BuildNotificationRowsAsync(cancellationToken))
+        int graphWindowMinutes = row.TypeOfMonitor == MonitorTypeEnum.Noise.ToString() ? 30 : 5;
+        List<NotificationListModel> related = (await BuildNotificationRowsAsync(cancellationToken))
             .Where(item => item.MonitorId == notification.MonitorId && item.Id != notification.Id)
             .Where(item => item.DeploymentId == row.DeploymentId)
             .OrderByDescending(item => item.NotificationTime)
             .Take(10)
             .ToList();
-        var alertLevelEntities = await domainContext.RvtAlertRules
+        List<Alertlevel> alertLevelEntities = await domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(level => level.MonitorId == notification.MonitorId && !level.IsDeleted)
             .OrderBy(level => level.AlertType)
             .ThenBy(level => level.AlertField)
             .ToListAsync(cancellationToken);
 
-        var monitorType = Enum.TryParse<MonitorTypeEnum>(row.TypeOfMonitor, out var parsedMonitorType)
+        MonitorTypeEnum? monitorType = Enum.TryParse<MonitorTypeEnum>(row.TypeOfMonitor, out MonitorTypeEnum parsedMonitorType)
             ? parsedMonitorType
             : (MonitorTypeEnum?)null;
 
@@ -505,7 +505,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
     // Function summary: Sorts notification rows by the requested field and direction.
     private static IEnumerable<NotificationListModel> ApplySort(IEnumerable<NotificationListModel> rows, string sort, string sortDir)
     {
-        var descending = sortDir == SortDirections.Descending;
+        bool descending = sortDir == SortDirections.Descending;
         return sort.ToLowerInvariant() switch
         {
             "typeofmonitor" => OrderRows(rows, row => row.TypeOfMonitor, descending),
@@ -575,7 +575,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
     // Function summary: Builds an alert-level model for notification detail thresholds.
     private static NotificationAlertLevelModel BuildAlertLevelModel(Alertlevel level, MonitorTypeEnum? monitorType)
     {
-        var resolvedMonitorType = monitorType ?? level.Monitor?.TypeOfMonitor;
+        MonitorTypeEnum? resolvedMonitorType = monitorType ?? level.Monitor?.TypeOfMonitor;
         return new NotificationAlertLevelModel
         {
             Id = level.Id,

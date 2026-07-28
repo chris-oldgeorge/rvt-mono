@@ -9,6 +9,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
+using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Common;
 using RvtPortal.Spa.Data;
@@ -56,8 +57,8 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
     // Function summary: Creates a user account and assigns the requested role.
     public async Task<UserAccountCommandResult> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
-        var result = new UserAccountCommandResult();
-        var user = new ApplicationUser
+        UserAccountCommandResult result = new UserAccountCommandResult();
+        ApplicationUser user = new ApplicationUser
         {
             Email = request.Request.Email.Trim(),
             UserName = request.Request.Email.Trim(),
@@ -67,14 +68,14 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
             CompanyRole = request.Request.Role == RoleNames.CompanyUser ? request.Request.CompanyRole?.Trim() : null,
             EmailConfirmed = false
         };
-        var createResult = await userManager.CreateAsync(user);
+        IdentityResult createResult = await userManager.CreateAsync(user);
         if (!createResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, createResult.Errors);
             return result;
         }
 
-        var roleResult = await userManager.AddToRoleAsync(user, request.Request.Role);
+        IdentityResult roleResult = await userManager.AddToRoleAsync(user, request.Request.Role);
         if (!roleResult.Succeeded)
         {
             await userManager.DeleteAsync(user);
@@ -101,8 +102,8 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
     // Function summary: Updates user account fields and role membership.
     public async Task<UserAccountCommandResult> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
     {
-        var result = new UserAccountCommandResult { UserId = request.UserId };
-        var user = await userManager.FindByIdAsync(request.UserId);
+        UserAccountCommandResult result = new UserAccountCommandResult { UserId = request.UserId };
+        ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
             result.NotFound = true;
@@ -113,7 +114,7 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
         {
             if (!string.IsNullOrWhiteSpace(request.CurrentRole))
             {
-                var removeResult = await userManager.RemoveFromRoleAsync(user, request.CurrentRole);
+                IdentityResult removeResult = await userManager.RemoveFromRoleAsync(user, request.CurrentRole);
                 if (!removeResult.Succeeded)
                 {
                     UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, removeResult.Errors);
@@ -121,7 +122,7 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
                 }
             }
 
-            var roleResult = await userManager.AddToRoleAsync(user, request.Request.Role);
+            IdentityResult roleResult = await userManager.AddToRoleAsync(user, request.Request.Role);
             if (!roleResult.Succeeded)
             {
                 if (!string.IsNullOrWhiteSpace(request.CurrentRole))
@@ -141,7 +142,7 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
             user.EmailConfirmed = false;
         }
 
-        var updateResult = await userManager.UpdateAsync(user);
+        IdentityResult updateResult = await userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, updateResult.Errors);
@@ -150,7 +151,7 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
 
         if (request.ReplaceUnconfirmedEmail)
         {
-            var stampResult = await userManager.UpdateSecurityStampAsync(user);
+            IdentityResult stampResult = await userManager.UpdateSecurityStampAsync(user);
             if (!stampResult.Succeeded)
             {
                 UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, stampResult.Errors);
@@ -176,8 +177,8 @@ public sealed class DisableUserCommandHandler : IRequestHandler<DisableUserComma
     // Function summary: Disables a user and refreshes their security stamp.
     public async Task<UserAccountCommandResult> Handle(DisableUserCommand request, CancellationToken cancellationToken)
     {
-        var result = new UserAccountCommandResult { UserId = request.UserId };
-        var user = await userManager.FindByIdAsync(request.UserId);
+        UserAccountCommandResult result = new UserAccountCommandResult { UserId = request.UserId };
+        ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
             result.NotFound = true;
@@ -185,14 +186,14 @@ public sealed class DisableUserCommandHandler : IRequestHandler<DisableUserComma
         }
 
         user.IsDisabled = true;
-        var updateResult = await userManager.UpdateAsync(user);
+        IdentityResult updateResult = await userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, updateResult.Errors);
             return result;
         }
 
-        var stampResult = await userManager.UpdateSecurityStampAsync(user);
+        IdentityResult stampResult = await userManager.UpdateSecurityStampAsync(user);
         if (!stampResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, stampResult.Errors);
@@ -217,8 +218,8 @@ public sealed class EnableUserCommandHandler : IRequestHandler<EnableUserCommand
     // Function summary: Enables a disabled user account.
     public async Task<UserAccountCommandResult> Handle(EnableUserCommand request, CancellationToken cancellationToken)
     {
-        var result = new UserAccountCommandResult { UserId = request.UserId };
-        var user = await userManager.FindByIdAsync(request.UserId);
+        UserAccountCommandResult result = new UserAccountCommandResult { UserId = request.UserId };
+        ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
             result.NotFound = true;
@@ -226,7 +227,7 @@ public sealed class EnableUserCommandHandler : IRequestHandler<EnableUserCommand
         }
 
         user.IsDisabled = false;
-        var updateResult = await userManager.UpdateAsync(user);
+        IdentityResult updateResult = await userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, updateResult.Errors);
@@ -253,8 +254,8 @@ public sealed class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand
     // Function summary: Deletes a user account and removes its site-assignment data atomically.
     public async Task<UserAccountCommandResult> Handle(DeleteUserCommand request, CancellationToken cancellationToken)
     {
-        var result = new UserAccountCommandResult { UserId = request.UserId };
-        var user = await userManager.FindByIdAsync(request.UserId);
+        UserAccountCommandResult result = new UserAccountCommandResult { UserId = request.UserId };
+        ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
             result.NotFound = true;
@@ -262,16 +263,16 @@ public sealed class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand
         }
 
         result.Email = user.Email;
-        var deleteResult = await userManager.DeleteAsync(user);
+        IdentityResult deleteResult = await userManager.DeleteAsync(user);
         if (!deleteResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, deleteResult.Errors);
             return result;
         }
 
-        if (Guid.TryParse(user.Id, out var userId))
+        if (Guid.TryParse(user.Id, out Guid userId))
         {
-            var siteUsers = await domainContext.SiteUsers
+            List<SiteUsers> siteUsers = await domainContext.SiteUsers
                 .Where(siteUser => siteUser.UserId == userId)
                 .ToListAsync(cancellationToken);
             domainContext.SiteUsers.RemoveRange(siteUsers);
@@ -296,7 +297,7 @@ internal static class UserAccountCommandWorkflow
 
     public static void AddIdentityErrors(Dictionary<string, string[]> errors, IEnumerable<IdentityError> identityErrors)
     {
-        foreach (var error in identityErrors)
+        foreach (IdentityError error in identityErrors)
         {
             AddError(errors, error.Code, error.Description);
         }
@@ -304,7 +305,7 @@ internal static class UserAccountCommandWorkflow
 
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }

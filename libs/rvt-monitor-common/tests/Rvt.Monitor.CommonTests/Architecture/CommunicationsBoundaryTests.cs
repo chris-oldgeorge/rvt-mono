@@ -194,7 +194,7 @@ public sealed class CommunicationsBoundaryTests
 
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
             string gitPath = Path.Combine(directory.FullName, ".git");

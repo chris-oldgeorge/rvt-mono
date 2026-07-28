@@ -8,7 +8,7 @@ public sealed class MonitorRemovalApiTests
     [Fact]
     public void MonitorsController_exposes_unattached_removal_endpoints()
     {
-        var methods = typeof(MonitorsController)
+        HashSet<string> methods = typeof(MonitorsController)
             .GetMethods(BindingFlags.Instance | BindingFlags.Public)
             .Select(method => method.Name)
             .ToHashSet(StringComparer.Ordinal);

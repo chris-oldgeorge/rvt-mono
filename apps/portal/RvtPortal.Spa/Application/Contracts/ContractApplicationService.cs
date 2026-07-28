@@ -101,7 +101,7 @@ public sealed class ContractApplicationService : IContractApplicationService
     // Function summary: Returns a paged contract list with filters, search, sorting, and paging applied in EF.
     public async Task<ContractQueryResult> QueryAsync(ContractQuery request, CancellationToken cancellationToken)
     {
-        var requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "contractNumber" : request.Sort.Trim();
+        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "contractNumber" : request.Sort.Trim();
         if (!SortFields.ContainsKey(requestedSort))
         {
             return new ContractQueryResult
@@ -111,7 +111,7 @@ public sealed class ContractApplicationService : IContractApplicationService
             };
         }
 
-        var query = domainContext.Contracts
+        IQueryable<Contract> query = domainContext.Contracts
             .AsNoTracking()
             .Include(contract => contract.Company)
             .Include(contract => contract.Site)
@@ -126,7 +126,7 @@ public sealed class ContractApplicationService : IContractApplicationService
         }
         if (!string.IsNullOrWhiteSpace(request.SearchText))
         {
-            var search = request.SearchText.Trim();
+            string search = request.SearchText.Trim();
             query = query.Where(contract =>
                 contract.ContractNumber.Contains(search) ||
                 contract.Company.CompanyName.Contains(search) ||
@@ -134,8 +134,8 @@ public sealed class ContractApplicationService : IContractApplicationService
         }
 
         query = ApplySort(query, requestedSort, request.SortDir);
-        var total = await query.CountAsync(cancellationToken);
-        var items = await query
+        int total = await query.CountAsync(cancellationToken);
+        List<Contract> items = await query
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
@@ -161,7 +161,7 @@ public sealed class ContractApplicationService : IContractApplicationService
     // Function summary: Returns contract edit options, optionally scoped to a company.
     public async Task<ContractOptionsResponse> OptionsAsync(Guid? companyId, CancellationToken cancellationToken)
     {
-        var companies = await domainContext.Companies
+        List<OptionItem> companies = await domainContext.Companies
             .AsNoTracking()
             .OrderBy(company => company.CompanyName)
             .Select(company => new OptionItem
@@ -170,7 +170,7 @@ public sealed class ContractApplicationService : IContractApplicationService
                 Label = company.CompanyName
             })
             .ToListAsync(cancellationToken);
-        var siteQuery = domainContext.Sites
+        IQueryable<Site> siteQuery = domainContext.Sites
             .AsNoTracking()
             .Include(site => site.Contracts)
             .Where(site => !site.Archived);
@@ -178,7 +178,7 @@ public sealed class ContractApplicationService : IContractApplicationService
         {
             siteQuery = siteQuery.Where(site => !site.Contracts.Any() || site.Contracts.Any(contract => contract.CompanyId == companyId.Value));
         }
-        var sites = await siteQuery
+        List<OptionItem> sites = await siteQuery
             .OrderBy(site => site.SiteName)
             .Select(site => new OptionItem
             {
@@ -197,7 +197,7 @@ public sealed class ContractApplicationService : IContractApplicationService
     // Function summary: Returns contract detail by id, or null when absent.
     public async Task<ContractDetailResponse?> GetAsync(Guid contractId, CancellationToken cancellationToken)
     {
-        var contract = await domainContext.Contracts
+        Contract? contract = await domainContext.Contracts
             .AsNoTracking()
             .Include(item => item.Company)
             .Include(item => item.Site)
@@ -210,8 +210,8 @@ public sealed class ContractApplicationService : IContractApplicationService
         ContractMutationRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new CreateContractCommand(request), cancellationToken);
-        var contract = result.ContractId.HasValue && result.Errors.Count == 0
+        ContractCommandResult result = await mediator.Send(new CreateContractCommand(request), cancellationToken);
+        ContractDetailResponse? contract = result.ContractId.HasValue && result.Errors.Count == 0
             ? await GetAsync(result.ContractId.Value, cancellationToken)
             : null;
         return ContractMutationWorkflowResult.FromCommand(result, contract);
@@ -223,8 +223,8 @@ public sealed class ContractApplicationService : IContractApplicationService
         ContractMutationRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new UpdateContractCommand(contractId, request), cancellationToken);
-        var contract = !result.NotFound && result.Errors.Count == 0
+        ContractCommandResult result = await mediator.Send(new UpdateContractCommand(contractId, request), cancellationToken);
+        ContractDetailResponse? contract = !result.NotFound && result.Errors.Count == 0
             ? await GetAsync(contractId, cancellationToken)
             : null;
         return ContractMutationWorkflowResult.FromCommand(result, contract);
@@ -233,15 +233,15 @@ public sealed class ContractApplicationService : IContractApplicationService
     // Function summary: Deletes a contract through the transactional command pipeline.
     public async Task<ContractMutationWorkflowResult> DeleteAsync(Guid contractId, CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new DeleteContractCommand(contractId), cancellationToken);
+        ContractCommandResult result = await mediator.Send(new DeleteContractCommand(contractId), cancellationToken);
         return ContractMutationWorkflowResult.FromCommand(result);
     }
 
     // Function summary: Builds a contract detail response from a loaded contract entity.
     private async Task<ContractDetailResponse> BuildDetailAsync(Contract contract, CancellationToken cancellationToken)
     {
-        var item = BuildListItem(contract);
-        var options = await OptionsAsync(contract.CompanyId, cancellationToken);
+        ContractListItem item = BuildListItem(contract);
+        ContractOptionsResponse options = await OptionsAsync(contract.CompanyId, cancellationToken);
         return new ContractDetailResponse
         {
             Id = item.Id,
@@ -260,7 +260,7 @@ public sealed class ContractApplicationService : IContractApplicationService
     // Function summary: Applies the requested contract sort.
     private static IQueryable<Contract> ApplySort(IQueryable<Contract> query, string sort, string sortDir)
     {
-        var descending = sortDir == SortDirections.Descending;
+        bool descending = sortDir == SortDirections.Descending;
         return sort.ToLowerInvariant() switch
         {
             "sitename" => descending ? query.OrderByDescending(contract => contract.Site!.SiteName) : query.OrderBy(contract => contract.Site!.SiteName),

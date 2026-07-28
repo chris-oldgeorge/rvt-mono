@@ -8,7 +8,7 @@ public sealed class RepositoryLayoutTests
     [TestMethod]
     public void FindRepositoryRoot_UsesOutputTreeWhenItContainsRepositoryMarkers()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         string repositoryRoot = fixture.CreateRepository("repository");
         string outputDirectory = fixture.CreateDirectory(
             "repository",
@@ -32,7 +32,7 @@ public sealed class RepositoryLayoutTests
     [TestMethod]
     public void FindRepositoryRoot_FallsBackToSourceTreeWhenOutputIsRedirected()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         string repositoryRoot = fixture.CreateRepository("repository");
         string sourceFile = fixture.CreateFile(
             "repository",
@@ -59,7 +59,7 @@ public sealed class RepositoryLayoutTests
     [TestMethod]
     public void FindRepositoryRoot_UsesCurrentDirectoryWhenSourcePathIsMappedAndOutputIsRedirected()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         string repositoryRoot = fixture.CreateRepository("repository");
         string currentDirectory = fixture.CreateDirectory(
             "repository",
@@ -83,7 +83,7 @@ public sealed class RepositoryLayoutTests
     [TestMethod]
     public void FindRepositoryRoot_RejectsDistinctCheckoutCandidates()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         string outputRepository = fixture.CreateRepository("output-repository");
         string sourceRepository = fixture.CreateRepository("source-repository");
         string outputDirectory = fixture.CreateDirectory(
@@ -112,7 +112,7 @@ public sealed class RepositoryLayoutTests
     [TestMethod]
     public void FindRepositoryRoot_RejectsInvalidConfiguredRootWithoutFallingBack()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         string validRepository = fixture.CreateRepository("repository");
         string outputDirectory = fixture.CreateDirectory(
             "repository",
@@ -138,7 +138,7 @@ public sealed class RepositoryLayoutTests
     [TestMethod]
     public void FindRepositoryRoot_AcceptsConfiguredRootFromArbitraryWorkingDirectory()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         string configuredRoot = fixture.CreateRepository("repository");
         string outputDirectory = fixture.CreateDirectory("redirected-output");
         string currentDirectory = fixture.CreateDirectory("arbitrary-current");
@@ -155,7 +155,7 @@ public sealed class RepositoryLayoutTests
     [TestMethod]
     public void FindRepositoryRoot_CollapsesSymlinkAliasesOfTheSameCheckout()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         string repositoryRoot = fixture.CreateRepository("repository");
         string repositoryAlias = fixture.CreateDirectoryLink("repository-alias", repositoryRoot);
         string outputDirectory = fixture.CreateDirectory(
@@ -182,7 +182,7 @@ public sealed class RepositoryLayoutTests
     [TestMethod]
     public void FindRepositoryRoot_RejectsGitMarkerWithoutMonoSolution()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         string falseRoot = fixture.CreateDirectory("not-the-monorepo");
         File.WriteAllText(
             System.IO.Path.Combine(falseRoot, ".git"),
@@ -209,7 +209,7 @@ public sealed class RepositoryLayoutTests
     [TestMethod]
     public void FindRepositoryRoot_AcceptsGitDirectoryMarker()
     {
-        using var fixture = TemporaryDirectory.Create();
+        using TemporaryDirectory fixture = TemporaryDirectory.Create();
         string repositoryRoot = fixture.CreateRepository(
             "repository",
             useGitDirectory: true);

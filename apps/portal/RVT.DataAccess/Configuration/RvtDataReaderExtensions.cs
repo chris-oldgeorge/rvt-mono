@@ -16,7 +16,7 @@ internal static class RvtDataReaderExtensions
     // Function summary: Reads a non-null routine column, allowing legacy result aliases during database cutover.
     public static T GetRequiredValue<T>(this DbDataReader reader, string columnName, params string[] fallbackColumnNames)
     {
-        var ordinal = GetOrdinal(reader, columnName, fallbackColumnNames);
+        int ordinal = GetOrdinal(reader, columnName, fallbackColumnNames);
         if (reader.IsDBNull(ordinal))
         {
             throw new InvalidOperationException($"Column '{columnName}' was null.");
@@ -29,33 +29,33 @@ internal static class RvtDataReaderExtensions
     public static T? GetNullableValue<T>(this DbDataReader reader, string columnName, params string[] fallbackColumnNames)
         where T : struct
     {
-        var ordinal = GetOrdinal(reader, columnName, fallbackColumnNames);
+        int ordinal = GetOrdinal(reader, columnName, fallbackColumnNames);
         return reader.IsDBNull(ordinal) ? null : ConvertValue<T>(reader.GetValue(ordinal));
     }
 
     // Function summary: Retrieves nullable string data, allowing legacy result aliases during database cutover.
     public static string? GetNullableString(this DbDataReader reader, string columnName, params string[] fallbackColumnNames)
     {
-        var ordinal = GetOrdinal(reader, columnName, fallbackColumnNames);
+        int ordinal = GetOrdinal(reader, columnName, fallbackColumnNames);
         return reader.IsDBNull(ordinal) ? null : Convert.ToString(reader.GetValue(ordinal), CultureInfo.InvariantCulture);
     }
 
     // Function summary: Finds the first available canonical or legacy result-column alias.
     private static int GetOrdinal(DbDataReader reader, string columnName, IReadOnlyList<string> fallbackColumnNames)
     {
-        var requestedColumnNames = new[] { columnName }.Concat(fallbackColumnNames);
-        foreach (var requestedColumnName in requestedColumnNames)
+        IEnumerable<string> requestedColumnNames = new[] { columnName }.Concat(fallbackColumnNames);
+        foreach (string? requestedColumnName in requestedColumnNames)
         {
-            var ordinal = FindOrdinal(reader, requestedColumnName, StringComparison.Ordinal);
+            int ordinal = FindOrdinal(reader, requestedColumnName, StringComparison.Ordinal);
             if (ordinal >= 0)
             {
                 return ordinal;
             }
         }
 
-        foreach (var requestedColumnName in requestedColumnNames)
+        foreach (string? requestedColumnName in requestedColumnNames)
         {
-            var ordinal = FindOrdinal(reader, requestedColumnName, StringComparison.OrdinalIgnoreCase);
+            int ordinal = FindOrdinal(reader, requestedColumnName, StringComparison.OrdinalIgnoreCase);
             if (ordinal >= 0)
             {
                 return ordinal;
@@ -72,7 +72,7 @@ internal static class RvtDataReaderExtensions
     // Function summary: Locates a result-column ordinal using the requested name comparison.
     private static int FindOrdinal(DbDataReader reader, string columnName, StringComparison comparison)
     {
-        for (var index = 0; index < reader.FieldCount; index++)
+        for (int index = 0; index < reader.FieldCount; index++)
         {
             if (string.Equals(reader.GetName(index), columnName, comparison))
             {
@@ -86,7 +86,7 @@ internal static class RvtDataReaderExtensions
     // Function summary: Converts provider-specific raw database values into the requested .NET type.
     private static T ConvertValue<T>(object value)
     {
-        var targetType = typeof(T);
+        Type targetType = typeof(T);
         if (value is T typed)
         {
             return typed;

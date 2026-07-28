@@ -36,7 +36,7 @@ public sealed class DurableAlertDispatcher
 
     public async Task DispatchAsync(CancellationToken cancellationToken = default)
     {
-        var deadLetteredIds = new List<Guid>();
+        List<Guid> deadLetteredIds = new List<Guid>();
         for (int index = 0; index < options.BatchSize; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -57,10 +57,10 @@ public sealed class DurableAlertDispatcher
                     throw new InvalidOperationException("No alert delivery adapter is registered for the message kind.");
                 }
 
-                using var timeoutCancellation = new CancellationTokenSource(
+                using CancellationTokenSource timeoutCancellation = new CancellationTokenSource(
                     TimeSpan.FromSeconds(options.DeliveryTimeoutSeconds),
                     timeProvider);
-                using var deliveryCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                using CancellationTokenSource deliveryCancellation = CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
                     timeoutCancellation.Token);
                 AlertDeliveryAudit? audit = await adapter.DeliverAsync(message, deliveryCancellation.Token);

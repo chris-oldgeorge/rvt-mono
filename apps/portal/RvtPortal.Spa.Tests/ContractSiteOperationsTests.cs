@@ -10,9 +10,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RVT.DataAccess.Configuration;
@@ -51,8 +52,8 @@ public class ContractSiteOperationsTests
     // Function summary: Verifies contract create converts date-only values to UTC midnight before the timestamptz guard.
     public void CreateContract_StoresCalendarDatesAsUtcMidnight()
     {
-        using var context = NpgsqlDomainContext();
-        var request = new ContractMutationRequest
+        using RVTDbContext context = NpgsqlDomainContext();
+        ContractMutationRequest request = new ContractMutationRequest
         {
             ContractNumber = "T5-CREATE-DATE",
             CompanyId = Guid.NewGuid(),
@@ -60,7 +61,7 @@ public class ContractSiteOperationsTests
             OffHireDate = new DateTime(2026, 7, 2, 23, 45, 0, DateTimeKind.Local)
         };
 
-        var contract = ContractCommandWorkflow.CreateContract(request);
+        Contract contract = ContractCommandWorkflow.CreateContract(request);
         context.Contracts.Add(contract);
 
         UtcTimestampGuardInterceptor.Guard(context);
@@ -72,8 +73,8 @@ public class ContractSiteOperationsTests
     // Function summary: Verifies contract update converts nullable date-only values to UTC midnight before the timestamptz guard.
     public void UpdateContract_StoresCalendarDatesAsUtcMidnight()
     {
-        using var context = NpgsqlDomainContext();
-        var contract = new Contract
+        using RVTDbContext context = NpgsqlDomainContext();
+        Contract contract = new Contract
         {
             Id = Guid.NewGuid(),
             ContractNumber = "T5-OLD-DATE",
@@ -98,19 +99,19 @@ public class ContractSiteOperationsTests
     // Function summary: Verifies the create command persists a date-only contract through the real PostgreSQL UTC guard.
     public async Task CreateContractCommand_PersistsCalendarDateAgainstRealPostgres()
     {
-        var connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        var options = new DbContextOptionsBuilder<RVTDbContext>()
+        string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseNpgsql(connectionString)
             .AddInterceptors(UtcTimestampGuardInterceptor.Instance)
             .Options;
-        await using var context = new RVTDbContext(options);
-        await using var transaction = await context.Database.BeginTransactionAsync();
-        var company = new Company { Id = Guid.NewGuid(), CompanyName = "T5 Contract Date Company" };
+        await using RVTDbContext context = new RVTDbContext(options);
+        await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync();
+        Company company = new Company { Id = Guid.NewGuid(), CompanyName = "T5 Contract Date Company" };
         context.Companies.Add(company);
         await context.SaveChangesAsync();
-        var handler = new CreateContractCommandHandler(context);
+        CreateContractCommandHandler handler = new CreateContractCommandHandler(context);
 
-        var result = await handler.Handle(new CreateContractCommand(new ContractMutationRequest
+        ContractCommandResult result = await handler.Handle(new CreateContractCommand(new ContractMutationRequest
         {
             ContractNumber = $"T5-{Guid.NewGuid():N}"[..20],
             CompanyId = company.Id,
@@ -119,7 +120,7 @@ public class ContractSiteOperationsTests
         await context.SaveChangesAsync();
         context.ChangeTracker.Clear();
 
-        var persisted = await context.Contracts.SingleAsync(contract => contract.Id == result.ContractId);
+        Contract persisted = await context.Contracts.SingleAsync(contract => contract.Id == result.ContractId);
         Assert.True(result.ShouldCommit);
         Assert.Equal(new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc), persisted.OnHireDate);
         await transaction.RollbackAsync();
@@ -136,11 +137,11 @@ public class ContractSiteOperationsTests
         const string createdContractNumber = "P4-004";
         const string renamedContractNumber = "P4-004A";
 
-        using var factory = new SpaTestApplicationFactory();
-        var alphaId = Guid.NewGuid();
-        var betaId = Guid.NewGuid();
-        var siteId = Guid.NewGuid();
-        var existingContractId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid alphaId = Guid.NewGuid();
+        Guid betaId = Guid.NewGuid();
+        Guid siteId = Guid.NewGuid();
+        Guid existingContractId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = alphaId, CompanyName = "Alpha Hire", Contracts = [] },
@@ -154,11 +155,11 @@ public class ContractSiteOperationsTests
                 SiteiD = siteId,
                 OnHireDate = new DateTime(2026, 1, 1)
             });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
         // Reusing the seeded contract's number is rejected as a duplicate.
-        var duplicate = await client.PostAsJsonAsync("/api/contracts", new ContractMutationRequest
+        HttpResponseMessage duplicate = await client.PostAsJsonAsync("/api/contracts", new ContractMutationRequest
         {
             ContractNumber = existingContractNumber,
             CompanyId = alphaId,
@@ -166,7 +167,7 @@ public class ContractSiteOperationsTests
         });
 
         // Off-hire dated before on-hire is rejected.
-        var invalidDates = await client.PostAsJsonAsync("/api/contracts", new ContractMutationRequest
+        HttpResponseMessage invalidDates = await client.PostAsJsonAsync("/api/contracts", new ContractMutationRequest
         {
             ContractNumber = "P4-002",
             CompanyId = alphaId,
@@ -175,7 +176,7 @@ public class ContractSiteOperationsTests
         });
 
         // A site already belongs to Alpha, so binding it to a Beta contract is rejected.
-        var conflictingSiteCompany = await client.PostAsJsonAsync("/api/contracts", new ContractMutationRequest
+        HttpResponseMessage conflictingSiteCompany = await client.PostAsJsonAsync("/api/contracts", new ContractMutationRequest
         {
             ContractNumber = "P4-003",
             CompanyId = betaId,
@@ -184,21 +185,21 @@ public class ContractSiteOperationsTests
         });
 
         // A valid contract is created, renamed, listed by its shared "P4" prefix, then deleted.
-        var create = await client.PostAsJsonAsync("/api/contracts", new ContractMutationRequest
+        HttpResponseMessage create = await client.PostAsJsonAsync("/api/contracts", new ContractMutationRequest
         {
             ContractNumber = createdContractNumber,
             CompanyId = betaId,
             OnHireDate = new DateTime(2026, 4, 1)
         });
-        var created = await create.Content.ReadFromJsonAsync<EntityResponse<ContractDetailResponse>>();
-        var update = await client.PutAsJsonAsync($"/api/contracts/{created!.Item!.Id}", new ContractMutationRequest
+        EntityResponse<ContractDetailResponse>? created = await create.Content.ReadFromJsonAsync<EntityResponse<ContractDetailResponse>>();
+        HttpResponseMessage update = await client.PutAsJsonAsync($"/api/contracts/{created!.Item!.Id}", new ContractMutationRequest
         {
             ContractNumber = renamedContractNumber,
             CompanyId = betaId,
             OnHireDate = new DateTime(2026, 4, 2)
         });
-        var list = await client.GetFromJsonAsync<QueryContractsResponse>("/api/contracts?searchText=P4&sort=contractNumber");
-        var delete = await client.DeleteAsync($"/api/contracts/{created.Item.Id}");
+        QueryContractsResponse? list = await client.GetFromJsonAsync<QueryContractsResponse>("/api/contracts?searchText=P4&sort=contractNumber");
+        HttpResponseMessage delete = await client.DeleteAsync($"/api/contracts/{created.Item.Id}");
 
         Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, invalidDates.StatusCode);
@@ -213,7 +214,7 @@ public class ContractSiteOperationsTests
     // Function summary: Builds the PostgreSQL model without opening a connection so timestamp guards see actual provider types.
     private static RVTDbContext NpgsqlDomainContext()
     {
-        var options = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
             .Options;
         return new RVTDbContext(options);
@@ -228,9 +229,9 @@ public class ContractSiteOperationsTests
         const string openTime = "08:00";
         const string closeTime = "18:00";
 
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
-        var contractId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid companyId = Guid.NewGuid();
+        Guid contractId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Site Owner", Contracts = [] },
@@ -241,11 +242,11 @@ public class ContractSiteOperationsTests
                 CompanyId = companyId,
                 OnHireDate = new DateTime(2026, 5, 1)
             });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
         // A site without a contract is rejected even though its hours are valid.
-        var missingContract = await client.PostAsJsonAsync("/api/sites", new SiteMutationRequest
+        HttpResponseMessage missingContract = await client.PostAsJsonAsync("/api/sites", new SiteMutationRequest
         {
             SiteName = siteName,
             CompanyId = companyId,
@@ -254,7 +255,7 @@ public class ContractSiteOperationsTests
         });
 
         // The same hours reversed (start after end) are rejected.
-        var invalidTimes = await client.PostAsJsonAsync("/api/sites", new SiteMutationRequest
+        HttpResponseMessage invalidTimes = await client.PostAsJsonAsync("/api/sites", new SiteMutationRequest
         {
             SiteName = siteName,
             CompanyId = companyId,
@@ -264,7 +265,7 @@ public class ContractSiteOperationsTests
         });
 
         // A valid site persists the full weekly schedule declared in SiteWeeklyHours.
-        var create = await client.PostAsJsonAsync("/api/sites", new SiteMutationRequest
+        HttpResponseMessage create = await client.PostAsJsonAsync("/api/sites", new SiteMutationRequest
         {
             SiteName = siteName,
             CompanyId = companyId,
@@ -282,10 +283,10 @@ public class ContractSiteOperationsTests
                 .ToList()
         });
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-        var created = await create.Content.ReadFromJsonAsync<EntityResponse<SiteDetailResponse>>();
-        var siteId = created!.Item!.Id;
+        EntityResponse<SiteDetailResponse>? created = await create.Content.ReadFromJsonAsync<EntityResponse<SiteDetailResponse>>();
+        Guid siteId = created!.Item!.Id;
         Assert.Equal($"/api/sites/{siteId}", create.Headers.Location?.AbsolutePath);
-        var update = await client.PutAsJsonAsync($"/api/sites/{siteId}", new SiteMutationRequest
+        HttpResponseMessage update = await client.PutAsJsonAsync($"/api/sites/{siteId}", new SiteMutationRequest
         {
             SiteName = updatedSiteName,
             CompanyId = companyId,
@@ -294,8 +295,8 @@ public class ContractSiteOperationsTests
             StartTime = openTime,
             EndTime = closeTime
         });
-        var archive = await client.PostAsync($"/api/sites/{siteId}/archive", null);
-        var archived = await archive.Content.ReadFromJsonAsync<EntityResponse<SiteDetailResponse>>();
+        HttpResponseMessage archive = await client.PostAsync($"/api/sites/{siteId}/archive", null);
+        EntityResponse<SiteDetailResponse>? archived = await archive.Content.ReadFromJsonAsync<EntityResponse<SiteDetailResponse>>();
 
         Assert.Equal(HttpStatusCode.BadRequest, missingContract.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, invalidTimes.StatusCode);
@@ -316,13 +317,13 @@ public class ContractSiteOperationsTests
     [Fact]
     public async Task SiteUpdate_MalformedMissingSite_ReturnsMaskedNotFound()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var missingSiteId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid missingSiteId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var response = await client.PutAsJsonAsync(
+        HttpResponseMessage response = await client.PutAsJsonAsync(
             $"/api/sites/{missingSiteId}",
             new SiteMutationRequest
             {
@@ -330,7 +331,7 @@ public class ContractSiteOperationsTests
                 CompanyId = Guid.NewGuid(),
                 EndTime = "not-a-time"
             });
-        using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        using JsonDocument problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("Resource not found.", problem.RootElement.GetProperty("title").GetString());
@@ -342,8 +343,8 @@ public class ContractSiteOperationsTests
     [Fact]
     public async Task SiteUpdate_MalformedExistingSite_ReturnsExactValidationProblem()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var siteId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid siteId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainEntitiesAsync(
             new Site
@@ -353,10 +354,10 @@ public class ContractSiteOperationsTests
                 CreateDate = DateTime.UtcNow,
                 Contracts = []
             });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var response = await client.PutAsJsonAsync(
+        HttpResponseMessage response = await client.PutAsJsonAsync(
             $"/api/sites/{siteId}",
             new SiteMutationRequest
             {
@@ -365,7 +366,7 @@ public class ContractSiteOperationsTests
                 StartTime = "08:00",
                 EndTime = "not-a-time"
             });
-        var errors = await ReadValidationErrorsAsync(response);
+        Dictionary<string, string[]> errors = await ReadValidationErrorsAsync(response);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(2, errors.Count);
@@ -380,12 +381,12 @@ public class ContractSiteOperationsTests
     [Fact]
     public async Task NotificationSetting_InvalidTimeMissingSite_ReturnsMaskedNotFound()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var response = await client.PutAsJsonAsync(
+        HttpResponseMessage response = await client.PutAsJsonAsync(
             $"/api/sites/{Guid.NewGuid()}/notification-settings/{Guid.NewGuid()}",
             new SiteNotificationSettingMutationRequest
             {
@@ -401,8 +402,8 @@ public class ContractSiteOperationsTests
     [Fact]
     public async Task NotificationSetting_InvalidTimeMissingTarget_ReturnsMaskedNotFound()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var siteId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid siteId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainEntitiesAsync(
             new Site
@@ -412,10 +413,10 @@ public class ContractSiteOperationsTests
                 CreateDate = DateTime.UtcNow,
                 Contracts = []
             });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var response = await client.PutAsJsonAsync(
+        HttpResponseMessage response = await client.PutAsJsonAsync(
             $"/api/sites/{siteId}/notification-settings/{Guid.NewGuid()}",
             new SiteNotificationSettingMutationRequest
             {
@@ -431,11 +432,11 @@ public class ContractSiteOperationsTests
     [Fact]
     public async Task NotificationSetting_InvalidTimeExpiredAssignment_ReturnsMaskedNotFound()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
-        var siteId = Guid.NewGuid();
-        var siteUserId = Guid.NewGuid();
-        var companyUser = await factory.SeedUserAsync(
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid companyId = Guid.NewGuid();
+        Guid siteId = Guid.NewGuid();
+        Guid siteUserId = Guid.NewGuid();
+        ApplicationUser companyUser = await factory.SeedUserAsync(
             CompanyUserEmail,
             Password,
             RoleNames.CompanyUser,
@@ -462,10 +463,10 @@ public class ContractSiteOperationsTests
                 StartDate = DateTime.UtcNow.AddDays(-10),
                 EndDate = DateTime.UtcNow.AddDays(-1)
             });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, CompanyUserEmail, Password);
 
-        var response = await client.PutAsJsonAsync(
+        HttpResponseMessage response = await client.PutAsJsonAsync(
             $"/api/sites/{siteId}/notification-settings/{siteUserId}",
             new SiteNotificationSettingMutationRequest
             {
@@ -481,17 +482,17 @@ public class ContractSiteOperationsTests
     [Fact]
     public async Task NotificationSetting_InvalidTimeForeignTarget_ReturnsForbidden()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
-        var siteId = Guid.NewGuid();
-        var ownSiteUserId = Guid.NewGuid();
-        var foreignSiteUserId = Guid.NewGuid();
-        var companyUser = await factory.SeedUserAsync(
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid companyId = Guid.NewGuid();
+        Guid siteId = Guid.NewGuid();
+        Guid ownSiteUserId = Guid.NewGuid();
+        Guid foreignSiteUserId = Guid.NewGuid();
+        ApplicationUser companyUser = await factory.SeedUserAsync(
             CompanyUserEmail,
             Password,
             RoleNames.CompanyUser,
             companyId: companyId);
-        var foreignUser = await factory.SeedUserAsync(
+        ApplicationUser foreignUser = await factory.SeedUserAsync(
             "contracts.foreign@rvt.test",
             Password,
             RoleNames.CompanyUser,
@@ -520,10 +521,10 @@ public class ContractSiteOperationsTests
                 userId: Guid.Parse(foreignUser.Id),
                 id: foreignSiteUserId,
                 startDate: DateTime.UtcNow.AddDays(-1)));
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, CompanyUserEmail, Password);
 
-        var response = await client.PutAsJsonAsync(
+        HttpResponseMessage response = await client.PutAsJsonAsync(
             $"/api/sites/{siteId}/notification-settings/{foreignSiteUserId}",
             new SiteNotificationSettingMutationRequest
             {
@@ -544,11 +545,11 @@ public class ContractSiteOperationsTests
         string endField,
         string startField)
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
-        var request = new SiteMutationRequest
+        SiteMutationRequest request = new SiteMutationRequest
         {
             SiteName = "Malformed End Time Site",
             CompanyId = Guid.NewGuid(),
@@ -572,8 +573,8 @@ public class ContractSiteOperationsTests
                 throw new ArgumentOutOfRangeException(nameof(endField));
         }
 
-        var response = await client.PostAsJsonAsync("/api/sites", request);
-        var errors = await ReadValidationErrorsAsync(response);
+        HttpResponseMessage response = await client.PostAsJsonAsync("/api/sites", request);
+        Dictionary<string, string[]> errors = await ReadValidationErrorsAsync(response);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(2, errors.Count);
@@ -588,12 +589,12 @@ public class ContractSiteOperationsTests
     [Fact]
     public async Task SiteValidation_ReversedLegacyWeekdayPairSerializesOneStartTimeError()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var response = await client.PostAsJsonAsync(
+        HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/sites",
             new SiteMutationRequest
             {
@@ -603,10 +604,10 @@ public class ContractSiteOperationsTests
                 StartTime = "17:00",
                 EndTime = "08:00"
             });
-        var errors = await ReadValidationErrorsAsync(response);
+        Dictionary<string, string[]> errors = await ReadValidationErrorsAsync(response);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var error = Assert.Single(errors);
+        KeyValuePair<string, string[]> error = Assert.Single(errors);
         Assert.Equal(nameof(SiteMutationRequest.StartTime), error.Key);
         Assert.Equal(
             ["Start time needs to be before end time"],
@@ -616,9 +617,9 @@ public class ContractSiteOperationsTests
     [Fact]
     public async Task NotificationSetting_MalformedEndTimeSerializesExactFieldKeys()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var siteId = Guid.NewGuid();
-        var siteUserId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid siteId = Guid.NewGuid();
+        Guid siteUserId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainEntitiesAsync(
             new Site
@@ -635,10 +636,10 @@ public class ContractSiteOperationsTests
                 UserId = Guid.NewGuid(),
                 StartDate = DateTime.UtcNow.AddDays(-1)
             });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var response = await client.PutAsJsonAsync(
+        HttpResponseMessage response = await client.PutAsJsonAsync(
             $"/api/sites/{siteId}/notification-settings/{siteUserId}",
             new SiteNotificationSettingMutationRequest
             {
@@ -647,7 +648,7 @@ public class ContractSiteOperationsTests
                 StartTime = "08:00",
                 EndTime = "not-a-time"
             });
-        var errors = await ReadValidationErrorsAsync(response);
+        Dictionary<string, string[]> errors = await ReadValidationErrorsAsync(response);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(2, errors.Count);
@@ -663,9 +664,9 @@ public class ContractSiteOperationsTests
     // Function summary: Verifies a failed archive export leaves the site active rather than reporting a false success.
     public async Task SiteArchive_WhenExportFails_LeavesSiteActiveAndReturns503()
     {
-        using var factory = new SpaTestApplicationFactory(archiveExportFails: true);
-        var companyId = Guid.NewGuid();
-        var contractId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory(archiveExportFails: true);
+        Guid companyId = Guid.NewGuid();
+        Guid contractId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Archive Owner", Contracts = [] },
@@ -676,10 +677,10 @@ public class ContractSiteOperationsTests
                 CompanyId = companyId,
                 OnHireDate = new DateTime(2026, 5, 1)
             });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var create = await client.PostAsJsonAsync("/api/sites", new SiteMutationRequest
+        HttpResponseMessage create = await client.PostAsJsonAsync("/api/sites", new SiteMutationRequest
         {
             SiteName = "Archive Failure Site",
             CompanyId = companyId,
@@ -687,14 +688,14 @@ public class ContractSiteOperationsTests
             AddressLine1 = "Unit 9",
             City = "Athens"
         });
-        var siteId = (await create.Content.ReadFromJsonAsync<EntityResponse<SiteDetailResponse>>())!.Item!.Id;
+        Guid siteId = (await create.Content.ReadFromJsonAsync<EntityResponse<SiteDetailResponse>>())!.Item!.Id;
 
-        var archive = await client.PostAsync($"/api/sites/{siteId}/archive", null);
+        HttpResponseMessage archive = await client.PostAsync($"/api/sites/{siteId}/archive", null);
 
         // The export threw, so the site must NOT be archived and the caller must be told the export is unavailable
         // - not handed a 200 for an archive that was never created.
         Assert.Equal(HttpStatusCode.ServiceUnavailable, archive.StatusCode);
-        var detail = await client.GetFromJsonAsync<EntityResponse<SiteDetailResponse>>($"/api/sites/{siteId}");
+        EntityResponse<SiteDetailResponse>? detail = await client.GetFromJsonAsync<EntityResponse<SiteDetailResponse>>($"/api/sites/{siteId}");
         Assert.False(detail?.Item?.Archived);
         Assert.Null(detail?.Item?.Archive);
     }
@@ -703,30 +704,30 @@ public class ContractSiteOperationsTests
     // Function summary: Verifies site admins can upload/delete customer logos and reporting can fetch them through the internal API.
     public async Task SiteCustomerLogo_UploadsStreamsAndDeletesThroughProtectedRoutes()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
-        var siteId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid companyId = Guid.NewGuid();
+        Guid siteId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Logo Customer", Contracts = [] },
             new Site { Id = siteId, SiteName = "Logo Site", CreateDate = DateTime.UtcNow, Contracts = [] });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        using var form = new MultipartFormDataContent();
+        using MultipartFormDataContent form = new MultipartFormDataContent();
         form.Add(new ByteArrayContent(PngBytes()), "logo", "customer-logo.png");
-        var upload = await client.PostAsync($"/api/sites/{siteId}/customer-logo", form);
-        var uploaded = await upload.Content.ReadFromJsonAsync<EntityResponse<SiteDetailResponse>>();
-        var detail = await client.GetFromJsonAsync<EntityResponse<SiteDetailResponse>>($"/api/sites/{siteId}");
-        var preview = await client.GetAsync($"/api/sites/{siteId}/customer-logo");
-        using var internalRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/report-content/sites/{siteId}/customer-logo");
+        HttpResponseMessage upload = await client.PostAsync($"/api/sites/{siteId}/customer-logo", form);
+        EntityResponse<SiteDetailResponse>? uploaded = await upload.Content.ReadFromJsonAsync<EntityResponse<SiteDetailResponse>>();
+        EntityResponse<SiteDetailResponse>? detail = await client.GetFromJsonAsync<EntityResponse<SiteDetailResponse>>($"/api/sites/{siteId}");
+        HttpResponseMessage preview = await client.GetAsync($"/api/sites/{siteId}/customer-logo");
+        using HttpRequestMessage internalRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/report-content/sites/{siteId}/customer-logo");
         internalRequest.Headers.TryAddWithoutValidation("X-RVT-Internal-Key", ReportContentKey);
-        var internalFetch = await client.SendAsync(internalRequest);
-        var delete = await client.DeleteAsync($"/api/sites/{siteId}/customer-logo");
-        var afterDelete = await client.GetFromJsonAsync<EntityResponse<SiteDetailResponse>>($"/api/sites/{siteId}");
-        using var afterDeleteRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/report-content/sites/{siteId}/customer-logo");
+        HttpResponseMessage internalFetch = await client.SendAsync(internalRequest);
+        HttpResponseMessage delete = await client.DeleteAsync($"/api/sites/{siteId}/customer-logo");
+        EntityResponse<SiteDetailResponse>? afterDelete = await client.GetFromJsonAsync<EntityResponse<SiteDetailResponse>>($"/api/sites/{siteId}");
+        using HttpRequestMessage afterDeleteRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/report-content/sites/{siteId}/customer-logo");
         afterDeleteRequest.Headers.TryAddWithoutValidation("X-RVT-Internal-Key", ReportContentKey);
-        var missingAfterDelete = await client.SendAsync(afterDeleteRequest);
+        HttpResponseMessage missingAfterDelete = await client.SendAsync(afterDeleteRequest);
 
         Assert.Equal(HttpStatusCode.OK, upload.StatusCode);
         Assert.Equal($"/api/sites/{siteId}/customer-logo", uploaded!.Item!.CustomerLogoUrl);
@@ -744,21 +745,21 @@ public class ContractSiteOperationsTests
     // Function summary: Handles the site customer logo rejects non image payload workflow for this module.
     public async Task SiteCustomerLogo_RejectsNonImagePayload()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var siteId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid siteId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = Guid.NewGuid(), CompanyName = "Logo Customer", Contracts = [] },
             new Site { Id = siteId, SiteName = "Logo Site", CreateDate = DateTime.UtcNow, Contracts = [] });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
         // A payload with a .png name/extension but non-image bytes must be rejected by the
         // magic-byte check rather than stored (and later served back) as an image.
-        using var form = new MultipartFormDataContent();
+        using MultipartFormDataContent form = new MultipartFormDataContent();
         form.Add(new ByteArrayContent(Encoding.UTF8.GetBytes("<svg onload=alert(1)>not really an image</svg>")), "logo", "customer-logo.png");
-        var upload = await client.PostAsync($"/api/sites/{siteId}/customer-logo", form);
-        using var problem = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+        HttpResponseMessage upload = await client.PostAsync($"/api/sites/{siteId}/customer-logo", form);
+        using JsonDocument problem = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.BadRequest, upload.StatusCode);
         Assert.Equal("Invalid customer logo", problem.RootElement.GetProperty("title").GetString());
@@ -772,16 +773,16 @@ public class ContractSiteOperationsTests
     // Function summary: Preserves masked site-not-found ordering before missing-logo validation.
     public async Task SiteCustomerLogo_MissingSiteWithoutFile_ReturnsMaskedNotFound()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var missingSiteId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid missingSiteId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        using var form = new MultipartFormDataContent();
+        using MultipartFormDataContent form = new MultipartFormDataContent();
         form.Add(new StringContent("ignored"), "unrelated");
-        var upload = await client.PostAsync($"/api/sites/{missingSiteId}/customer-logo", form);
-        using var problem = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+        HttpResponseMessage upload = await client.PostAsync($"/api/sites/{missingSiteId}/customer-logo", form);
+        using JsonDocument problem = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.NotFound, upload.StatusCode);
         Assert.Equal("Site not found", problem.RootElement.GetProperty("title").GetString());
@@ -794,14 +795,14 @@ public class ContractSiteOperationsTests
     // Function summary: Preserves the legacy site-not-found payload when deleting a logo for a missing site.
     public async Task SiteCustomerLogo_DeleteMissingSite_ReturnsLegacyNotFound()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var missingSiteId = Guid.NewGuid();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid missingSiteId = Guid.NewGuid();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var delete = await client.DeleteAsync($"/api/sites/{missingSiteId}/customer-logo");
-        using var problem = JsonDocument.Parse(await delete.Content.ReadAsStringAsync());
+        HttpResponseMessage delete = await client.DeleteAsync($"/api/sites/{missingSiteId}/customer-logo");
+        using JsonDocument problem = JsonDocument.Parse(await delete.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
         Assert.Equal("Site not found", problem.RootElement.GetProperty("title").GetString());
@@ -814,16 +815,16 @@ public class ContractSiteOperationsTests
     // Function summary: Handles the company user site access is scoped and can update own notification settings workflow for this module.
     public async Task CompanyUserSiteAccess_IsScopedAndCanUpdateOwnNotificationSettings()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
-        var otherCompanyId = Guid.NewGuid();
-        var assignedSiteId = Guid.NewGuid();
-        var otherSiteId = Guid.NewGuid();
-        var assignedContractId = Guid.NewGuid();
-        var otherContractId = Guid.NewGuid();
-        var monitorId = Guid.NewGuid();
-        var siteUserId = Guid.NewGuid();
-        var companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: companyId);
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid companyId = Guid.NewGuid();
+        Guid otherCompanyId = Guid.NewGuid();
+        Guid assignedSiteId = Guid.NewGuid();
+        Guid otherSiteId = Guid.NewGuid();
+        Guid assignedContractId = Guid.NewGuid();
+        Guid otherContractId = Guid.NewGuid();
+        Guid monitorId = Guid.NewGuid();
+        Guid siteUserId = Guid.NewGuid();
+        ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: companyId);
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Scoped Company", Contracts = [] },
             new Company { Id = otherCompanyId, CompanyName = "Other Company", Contracts = [] },
@@ -851,20 +852,20 @@ public class ContractSiteOperationsTests
                 LimitOn = 10,
                 Level = 12
             });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, CompanyUserEmail, Password);
-        var list = await client.GetFromJsonAsync<QuerySitesResponse>("/api/sites?includeArchived=true");
-        var assigned = await client.GetFromJsonAsync<EntityResponse<SiteDetailResponse>>($"/api/sites/{assignedSiteId}");
-        var unassigned = await client.GetAsync($"/api/sites/{otherSiteId}");
-        var settings = await client.GetFromJsonAsync<SiteNotificationSettingsResponse>($"/api/sites/{assignedSiteId}/notification-settings");
-        var updateSettings = await client.PutAsJsonAsync($"/api/sites/{assignedSiteId}/notification-settings/{siteUserId}", new SiteNotificationSettingMutationRequest
+        QuerySitesResponse? list = await client.GetFromJsonAsync<QuerySitesResponse>("/api/sites?includeArchived=true");
+        EntityResponse<SiteDetailResponse>? assigned = await client.GetFromJsonAsync<EntityResponse<SiteDetailResponse>>($"/api/sites/{assignedSiteId}");
+        HttpResponseMessage unassigned = await client.GetAsync($"/api/sites/{otherSiteId}");
+        SiteNotificationSettingsResponse? settings = await client.GetFromJsonAsync<SiteNotificationSettingsResponse>($"/api/sites/{assignedSiteId}/notification-settings");
+        HttpResponseMessage updateSettings = await client.PutAsJsonAsync($"/api/sites/{assignedSiteId}/notification-settings/{siteUserId}", new SiteNotificationSettingMutationRequest
         {
             Email = false,
             Sms = true,
             StartTime = "09:00",
             EndTime = "17:00"
         });
-        var updatedSettings = await updateSettings.Content.ReadFromJsonAsync<EntityResponse<SiteNotificationSettingItem>>();
+        EntityResponse<SiteNotificationSettingItem>? updatedSettings = await updateSettings.Content.ReadFromJsonAsync<EntityResponse<SiteNotificationSettingItem>>();
         Assert.True(list!.IsScopedToCurrentUser);
         Assert.Single(list.Results);
         Assert.Equal(assignedSiteId, list.Results.Single().Id);
@@ -883,14 +884,14 @@ public class ContractSiteOperationsTests
     // Function summary: Verifies only currently active site assignments grant company-user list and detail access.
     public async Task CompanyUserSiteAccess_RequiresActiveAssignmentWindow()
     {
-        var nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
-        using var factory = new SpaTestApplicationFactory();
-        var companyId = Guid.NewGuid();
-        var expiredSiteId = Guid.NewGuid();
-        var futureSiteId = Guid.NewGuid();
-        var activeSiteId = Guid.NewGuid();
-        var companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: companyId);
-        var userId = Guid.Parse(companyUser.Id);
+        DateTimeOffset nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        Guid companyId = Guid.NewGuid();
+        Guid expiredSiteId = Guid.NewGuid();
+        Guid futureSiteId = Guid.NewGuid();
+        Guid activeSiteId = Guid.NewGuid();
+        ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: companyId);
+        Guid userId = Guid.Parse(companyUser.Id);
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Windowed Company", Contracts = [] },
             new Site { Id = expiredSiteId, SiteName = "Expired Assignment Site", CreateDate = nowUtc.UtcDateTime.AddDays(-30), Contracts = [] },
@@ -914,7 +915,7 @@ public class ContractSiteOperationsTests
                 EndDate = nowUtc.UtcDateTime
             });
 
-        using var fixedTimeFactory = factory.WithWebHostBuilder(builder =>
+        using WebApplicationFactory<Program> fixedTimeFactory = factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
@@ -922,12 +923,12 @@ public class ContractSiteOperationsTests
                 services.AddSingleton<TimeProvider>(new FixedTimeProvider(nowUtc));
             });
         });
-        var client = CreateClient(fixedTimeFactory);
+        HttpClient client = CreateClient(fixedTimeFactory);
         await LoginAsync(client, CompanyUserEmail, Password);
 
-        var expiredDetail = await client.GetAsync($"/api/sites/{expiredSiteId}");
-        var activeDetail = await client.GetAsync($"/api/sites/{activeSiteId}");
-        var list = await client.GetFromJsonAsync<QuerySitesResponse>("/api/sites?includeArchived=true");
+        HttpResponseMessage expiredDetail = await client.GetAsync($"/api/sites/{expiredSiteId}");
+        HttpResponseMessage activeDetail = await client.GetAsync($"/api/sites/{activeSiteId}");
+        QuerySitesResponse? list = await client.GetFromJsonAsync<QuerySitesResponse>("/api/sites?includeArchived=true");
 
         Assert.Equal(HttpStatusCode.NotFound, expiredDetail.StatusCode);
         Assert.Equal(HttpStatusCode.OK, activeDetail.StatusCode);
@@ -938,7 +939,7 @@ public class ContractSiteOperationsTests
     private static async Task<Dictionary<string, string[]>> ReadValidationErrorsAsync(
         HttpResponseMessage response)
     {
-        using var problem = JsonDocument.Parse(
+        using JsonDocument problem = JsonDocument.Parse(
             await response.Content.ReadAsStringAsync());
         return problem.RootElement
             .GetProperty("errors")

@@ -32,7 +32,7 @@ public sealed record SendGridMailOptions
             return;
         }
 
-        var missing = new List<string>();
+        List<string> missing = new List<string>();
         Require(ApiKey, "RVT__SENDGRID_API_KEY", missing);
         Require(FromEmail, "RVT__EMAIL_ALERT_FROM_EMAIL", missing);
         Require(FromName, "RVT__EMAIL_ALERT_FROM_NAME", missing);
@@ -51,13 +51,13 @@ public sealed record SendGridMailOptions
         string name,
         bool defaultValue)
     {
-        var configured = Get(configuration, name);
+        string? configured = Get(configuration, name);
         if (configured is null)
         {
             return defaultValue;
         }
 
-        if (bool.TryParse(configured, out var value))
+        if (bool.TryParse(configured, out bool value))
         {
             return value;
         }

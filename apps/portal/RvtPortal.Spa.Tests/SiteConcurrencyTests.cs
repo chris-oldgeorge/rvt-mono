@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
 using RVT.DataAccess.Context;
@@ -21,33 +22,33 @@ public sealed class SiteConcurrencyTests
     [Fact]
     public async Task ArchiveAsync_ConcurrentRequestsKeepOneDurableArtifactAndReturnStableSuccess()
     {
-        await using var fixture = await RelationalSiteFixture.CreateAsync();
-        await using var firstScope = await fixture.CreateScopeAsync();
-        await using var secondScope = await fixture.CreateScopeAsync();
-        var archives = new CoordinatedArchivePort();
-        var firstService = CreateArchiveService(firstScope, archives);
-        var secondService = CreateArchiveService(secondScope, archives);
-        var admin = Admin();
+        await using RelationalSiteFixture fixture = await RelationalSiteFixture.CreateAsync();
+        await using RelationalSiteScope firstScope = await fixture.CreateScopeAsync();
+        await using RelationalSiteScope secondScope = await fixture.CreateScopeAsync();
+        CoordinatedArchivePort archives = new CoordinatedArchivePort();
+        SiteApplicationService firstService = CreateArchiveService(firstScope, archives);
+        SiteApplicationService secondService = CreateArchiveService(secondScope, archives);
+        PortalUserContext admin = Admin();
 
-        var first = firstService.ArchiveAsync(
+        Task<UseCaseResult<SiteDetailModel>> first = firstService.ArchiveAsync(
             admin,
             fixture.SiteId,
             "first-admin",
             CancellationToken.None);
         await archives.FirstExportEntered;
-        var second = secondService.ArchiveAsync(
+        Task<UseCaseResult<SiteDetailModel>> second = secondService.ArchiveAsync(
             admin,
             fixture.SiteId,
             "second-admin",
             CancellationToken.None);
         await archives.SecondExportEntered;
 
-        var firstResult = await first;
+        UseCaseResult<SiteDetailModel> firstResult = await first;
         archives.AllowSecondExport();
-        var secondResult = await second;
+        UseCaseResult<SiteDetailModel> secondResult = await second;
 
-        await using var verification = await fixture.CreateDomainContextAsync();
-        var metadata = await verification.SiteArchived
+        await using RVTDbContext verification = await fixture.CreateDomainContextAsync();
+        List<SiteArchived> metadata = await verification.SiteArchived
             .AsNoTracking()
             .Where(item => item.SiteId == fixture.SiteId)
             .ToListAsync();
@@ -67,11 +68,11 @@ public sealed class SiteConcurrencyTests
     [Fact]
     public async Task ArchiveAsync_ArchivedLegacyUrlDeletesOnlyStableCandidate()
     {
-        await using var fixture = await RelationalSiteFixture.CreateAsync();
+        await using RelationalSiteFixture fixture = await RelationalSiteFixture.CreateAsync();
         const string legacyArchiveUrl = "https://archive.example/legacy/site.zip";
-        await using (var setup = await fixture.CreateDomainContextAsync())
+        await using (RVTDbContext setup = await fixture.CreateDomainContextAsync())
         {
-            var site = await setup.Sites.SingleAsync(item => item.Id == fixture.SiteId);
+            Site site = await setup.Sites.SingleAsync(item => item.Id == fixture.SiteId);
             site.Archived = true;
             setup.SiteArchived.Add(new SiteArchived
             {
@@ -84,12 +85,12 @@ public sealed class SiteConcurrencyTests
             await setup.SaveChangesAsync();
         }
 
-        await using var scope = await fixture.CreateScopeAsync();
-        var archives = new CoordinatedArchivePort();
+        await using RelationalSiteScope scope = await fixture.CreateScopeAsync();
+        CoordinatedArchivePort archives = new CoordinatedArchivePort();
         archives.TrackActive(fixture.SiteId, legacyArchiveUrl);
-        var service = CreateArchiveService(scope, archives);
+        SiteApplicationService service = CreateArchiveService(scope, archives);
 
-        var result = await service.ArchiveAsync(
+        UseCaseResult<SiteDetailModel> result = await service.ArchiveAsync(
             Admin(),
             fixture.SiteId,
             "retry-admin",
@@ -109,27 +110,27 @@ public sealed class SiteConcurrencyTests
     [Fact]
     public async Task NotificationSettings_ConcurrentFirstWritesKeepOneCompleteRowAndRemainReadable()
     {
-        await using var fixture = await RelationalSiteFixture.CreateAsync();
-        await using var firstScope = await fixture.CreateScopeAsync();
-        await using var secondScope = await fixture.CreateScopeAsync();
-        var firstRequest = new SiteNotificationSettingMutation(
+        await using RelationalSiteFixture fixture = await RelationalSiteFixture.CreateAsync();
+        await using RelationalSiteScope firstScope = await fixture.CreateScopeAsync();
+        await using RelationalSiteScope secondScope = await fixture.CreateScopeAsync();
+        SiteNotificationSettingMutation firstRequest = new SiteNotificationSettingMutation(
             Email: true,
             Sms: false,
             StartTime: "08:00",
             EndTime: "12:00");
-        var secondRequest = new SiteNotificationSettingMutation(
+        SiteNotificationSettingMutation secondRequest = new SiteNotificationSettingMutation(
             Email: false,
             Sms: true,
             StartTime: "13:00",
             EndTime: "17:00");
 
-        var first = firstScope.Adapter.UpsertNotificationSettingAsync(
+        Task first = firstScope.Adapter.UpsertNotificationSettingAsync(
             fixture.SiteUserId,
             firstRequest,
             new TimeSpan(8, 0, 0),
             new TimeSpan(12, 0, 0),
             CancellationToken.None);
-        var second = secondScope.Adapter.UpsertNotificationSettingAsync(
+        Task second = secondScope.Adapter.UpsertNotificationSettingAsync(
             fixture.SiteUserId,
             secondRequest,
             new TimeSpan(13, 0, 0),
@@ -141,34 +142,34 @@ public sealed class SiteConcurrencyTests
             firstScope.DomainContext.SaveChangesAsync(),
             secondScope.DomainContext.SaveChangesAsync());
 
-        await using var verification = await fixture.CreateDomainContextAsync();
-        var rows = await verification.NotificationSettings
+        await using RVTDbContext verification = await fixture.CreateDomainContextAsync();
+        List<NotificationSettings> rows = await verification.NotificationSettings
             .AsNoTracking()
             .Where(item => item.SiteUserId == fixture.SiteUserId)
             .ToListAsync();
-        var row = Assert.Single(rows);
-        var firstValue = new NotificationValue(
+        NotificationSettings row = Assert.Single(rows);
+        NotificationValue firstValue = new NotificationValue(
             true,
             false,
             new TimeSpan(8, 0, 0),
             new TimeSpan(12, 0, 0));
-        var secondValue = new NotificationValue(
+        NotificationValue secondValue = new NotificationValue(
             false,
             true,
             new TimeSpan(13, 0, 0),
             new TimeSpan(17, 0, 0));
-        var persisted = new NotificationValue(
+        NotificationValue persisted = new NotificationValue(
             row.Email,
             row.SMS,
             row.StartTime,
             row.EndTime);
         Assert.Contains(persisted, new[] { firstValue, secondValue });
 
-        var reader = new EfSiteReadAdapter(verification);
-        var firstRead = await reader.GetNotificationSettingsAsync(
+        EfSiteReadAdapter reader = new EfSiteReadAdapter(verification);
+        SiteNotificationSettingsData? firstRead = await reader.GetNotificationSettingsAsync(
             fixture.SiteId,
             CancellationToken.None);
-        var secondRead = await reader.GetNotificationSettingsAsync(
+        SiteNotificationSettingsData? secondRead = await reader.GetNotificationSettingsAsync(
             fixture.SiteId,
             CancellationToken.None);
         Assert.NotNull(firstRead);
@@ -176,23 +177,23 @@ public sealed class SiteConcurrencyTests
         Assert.Equal(firstRead.SiteId, secondRead.SiteId);
         Assert.Equal(firstRead.SiteName, secondRead.SiteName);
         Assert.Equal(firstRead.Assignments, secondRead.Assignments);
-        var assignment = Assert.Single(firstRead.Assignments);
+        SiteNotificationAssignment assignment = Assert.Single(firstRead.Assignments);
         Assert.Equal(fixture.SiteUserId, assignment.SiteUserId);
     }
 
     [Fact]
     public void DomainModel_RequiresOneArchivePerSiteAndOneNotificationSettingPerSiteUser()
     {
-        var options = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseSqlite("Data Source=:memory:")
             .Options;
-        using var context = new RVTDbContext(options);
+        using RVTDbContext context = new RVTDbContext(options);
 
-        var archiveIndex = Assert.Single(
+        IIndex archiveIndex = Assert.Single(
             context.Model.FindEntityType(typeof(SiteArchived))!.GetIndexes(),
             index => index.Properties.Select(property => property.Name)
                 .SequenceEqual([nameof(SiteArchived.SiteId)]));
-        var notificationIndex = Assert.Single(
+        IIndex notificationIndex = Assert.Single(
             context.Model.FindEntityType(typeof(NotificationSettings))!.GetIndexes(),
             index => index.Properties.Select(property => property.Name)
                 .SequenceEqual([nameof(NotificationSettings.SiteUserId)]));
@@ -204,21 +205,21 @@ public sealed class SiteConcurrencyTests
     [Fact]
     public void UniquenessMigration_GeneratesPostgreSqlDeduplicationBeforeUniqueIndexes()
     {
-        var options = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseNpgsql("Host=localhost;Database=rvt_migration_script;Username=rvt")
             .Options;
-        using var context = new RVTDbContext(options);
-        var script = context.Database.GetService<IMigrator>().GenerateScript(
+        using RVTDbContext context = new RVTDbContext(options);
+        string script = context.Database.GetService<IMigrator>().GenerateScript(
             "20260714132042_CanonicalBaseline",
             "20260723234806_EnforceSiteWriteUniqueness");
 
-        var notificationDelete = script.IndexOf(
+        int notificationDelete = script.IndexOf(
             "DELETE FROM public.notification_setting",
             StringComparison.Ordinal);
-        var archiveDelete = script.IndexOf(
+        int archiveDelete = script.IndexOf(
             "DELETE FROM public.site_archived",
             StringComparison.Ordinal);
-        var siteUpdate = script.IndexOf(
+        int siteUpdate = script.IndexOf(
             "UPDATE public.site AS sites",
             StringComparison.Ordinal);
         const string ArchiveUniqueIndex =
@@ -227,11 +228,11 @@ public sealed class SiteConcurrencyTests
         const string NotificationUniqueIndex =
             "CREATE UNIQUE INDEX ix_notification_setting_site_user_id "
             + "ON notification_setting (site_user_id);";
-        var archiveIndex = script.IndexOf(
+        int archiveIndex = script.IndexOf(
             ArchiveUniqueIndex,
             siteUpdate,
             StringComparison.Ordinal);
-        var notificationIndex = script.IndexOf(
+        int notificationIndex = script.IndexOf(
             NotificationUniqueIndex,
             siteUpdate,
             StringComparison.Ordinal);
@@ -303,8 +304,8 @@ public sealed class SiteConcurrencyTests
             Guid siteId,
             CancellationToken cancellationToken)
         {
-            var call = Interlocked.Increment(ref exportCount);
-            var url = StableUrl(siteId);
+            int call = Interlocked.Increment(ref exportCount);
+            string url = StableUrl(siteId);
             ActiveUrls.TryAdd(url, 0);
             if (call == 1)
             {
@@ -334,7 +335,7 @@ public sealed class SiteConcurrencyTests
             CancellationToken cancellationToken)
         {
             ReconciliationRequests.Enqueue((siteId, durableArchiveUrl));
-            var candidateUrl = StableUrl(siteId);
+            string candidateUrl = StableUrl(siteId);
             if (string.Equals(
                     candidateUrl,
                     durableArchiveUrl,
@@ -488,16 +489,16 @@ public sealed class SiteConcurrencyTests
 
         public static async Task<RelationalSiteFixture> CreateAsync()
         {
-            var databasePath = Path.Combine(
+            string databasePath = Path.Combine(
                 Path.GetTempPath(),
                 $"rvt-site-concurrency-{Guid.NewGuid():N}.db");
-            var siteId = Guid.NewGuid();
-            var siteUserId = Guid.NewGuid();
-            var fixture = new RelationalSiteFixture(
+            Guid siteId = Guid.NewGuid();
+            Guid siteUserId = Guid.NewGuid();
+            RelationalSiteFixture fixture = new RelationalSiteFixture(
                 databasePath,
                 siteId,
                 siteUserId);
-            await using var scope = await fixture.CreateScopeAsync();
+            await using RelationalSiteScope scope = await fixture.CreateScopeAsync();
             await CreateTablesAsync(scope.DomainContext);
             await CreateTablesAsync(scope.SearchContext);
             await CreateTablesAsync(scope.ApplicationContext);
@@ -524,18 +525,18 @@ public sealed class SiteConcurrencyTests
 
         public async Task<RelationalSiteScope> CreateScopeAsync()
         {
-            var connection = new SqliteConnection(
+            SqliteConnection connection = new SqliteConnection(
                 $"Data Source={databasePath};Foreign Keys=True;Default Timeout=30;Pooling=False");
             await connection.OpenAsync();
-            var domainContext = new RVTDbContext(
+            RVTDbContext domainContext = new RVTDbContext(
                 new DbContextOptionsBuilder<RVTDbContext>()
                     .UseSqlite(connection)
                     .Options);
-            var searchContext = new RVTSearchContext(
+            RVTSearchContext searchContext = new RVTSearchContext(
                 new DbContextOptionsBuilder<RVTSearchContext>()
                     .UseSqlite(connection)
                     .Options);
-            var applicationContext = new ApplicationDbContext(
+            ApplicationDbContext applicationContext = new ApplicationDbContext(
                 new DbContextOptionsBuilder<ApplicationDbContext>()
                     .UseSqlite(connection)
                     .Options);
@@ -548,10 +549,10 @@ public sealed class SiteConcurrencyTests
 
         public async Task<RVTDbContext> CreateDomainContextAsync()
         {
-            var connection = new SqliteConnection(
+            SqliteConnection connection = new SqliteConnection(
                 $"Data Source={databasePath};Foreign Keys=True;Default Timeout=30;Pooling=False");
             await connection.OpenAsync();
-            var options = new DbContextOptionsBuilder<RVTDbContext>()
+            DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
                 .UseSqlite(connection)
                 .Options;
             return new OwnedConnectionDomainContext(options, connection);
@@ -564,13 +565,13 @@ public sealed class SiteConcurrencyTests
                 File.Delete(databasePath);
             }
 
-            var writeAheadLog = databasePath + "-wal";
+            string writeAheadLog = databasePath + "-wal";
             if (File.Exists(writeAheadLog))
             {
                 File.Delete(writeAheadLog);
             }
 
-            var sharedMemory = databasePath + "-shm";
+            string sharedMemory = databasePath + "-shm";
             if (File.Exists(sharedMemory))
             {
                 File.Delete(sharedMemory);

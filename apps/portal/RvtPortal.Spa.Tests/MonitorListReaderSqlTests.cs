@@ -21,7 +21,7 @@ public sealed class MonitorListReaderSqlTests
     // Function summary: Verifies the monitor list projection translates to PostgreSQL SQL.
     public void BuildBaseRows_TranslatesOnPostgres()
     {
-        var sql = BaseRowsSql();
+        string sql = BaseRowsSql();
 
         Assert.Contains("SELECT", sql, StringComparison.OrdinalIgnoreCase);
     }
@@ -30,11 +30,11 @@ public sealed class MonitorListReaderSqlTests
     // Function summary: Verifies the current deployment is resolved once rather than once per projected column.
     public void BuildBaseRows_ResolvesCurrentDeploymentOnce()
     {
-        var sql = BaseRowsSql();
+        string sql = BaseRowsSql();
 
         // Every projected deployment column used to repeat this ORDER BY, once per column. Collapsing the
         // subquery should leave at most one ordering over the deployment start date in the generated SQL.
-        var orderings = CountOccurrences(sql, "start_date\" DESC");
+        int orderings = CountOccurrences(sql, "start_date\" DESC");
 
         Assert.True(
             orderings <= 1,
@@ -44,11 +44,11 @@ public sealed class MonitorListReaderSqlTests
     // Function summary: Compiles the monitor list projection to SQL without executing it.
     private static string BaseRowsSql()
     {
-        var builder = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptionsBuilder<RVTDbContext> builder = new DbContextOptionsBuilder<RVTDbContext>()
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused");
 
-        using var context = new RVTDbContext(builder.Options);
-        var reader = new MonitorListReader(context);
+        using RVTDbContext context = new RVTDbContext(builder.Options);
+        MonitorListReader reader = new MonitorListReader(context);
 
         // ToQueryString() throws InvalidOperationException if any part of the projection cannot be translated.
         return reader.BuildBaseRows(null).ToQueryString();
@@ -57,8 +57,8 @@ public sealed class MonitorListReaderSqlTests
     // Function summary: Counts non-overlapping occurrences of a marker in the generated SQL.
     private static int CountOccurrences(string text, string marker)
     {
-        var count = 0;
-        var index = text.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        int count = 0;
+        int index = text.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
         while (index >= 0)
         {
             count++;

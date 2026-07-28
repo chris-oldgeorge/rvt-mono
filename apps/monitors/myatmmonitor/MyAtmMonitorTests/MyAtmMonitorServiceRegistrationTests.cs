@@ -18,9 +18,9 @@ public sealed class MyAtmMonitorServiceRegistrationTests
     [TestMethod]
     public void AddMyAtmMonitor_RegistersSharedDeliveryCompositionAsSingletons()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new ServiceCollection();
         services.AddLogging();
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["MyAtmVendor:BaseUrl"] = "https://vendor.example/",
@@ -29,15 +29,15 @@ public sealed class MyAtmMonitorServiceRegistrationTests
             .Build();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddMyAtmMonitor(configuration);
-        var dbClient = new Mock<IDBClient>();
+        Mock<IDBClient> dbClient = new Mock<IDBClient>();
         services.AddSingleton(dbClient.Object);
         services.AddSingleton(new Mock<IMqttClient>().Object);
         services.AddSingleton(new Mock<IMessageService>().Object);
 
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
 
-        var dispatcher = provider.GetRequiredService<MonitorDeliveryDispatcher>();
-        var failureSink = provider.GetRequiredService<IMonitorDeliveryFailureSink>();
+        MonitorDeliveryDispatcher dispatcher = provider.GetRequiredService<MonitorDeliveryDispatcher>();
+        IMonitorDeliveryFailureSink failureSink = provider.GetRequiredService<IMonitorDeliveryFailureSink>();
 
         Assert.AreSame(dbClient.Object, provider.GetRequiredService<IMyAtmAlertCommitCommands>());
         Assert.AreSame(dbClient.Object, provider.GetRequiredService<IMyAtmAccessoryCommands>());

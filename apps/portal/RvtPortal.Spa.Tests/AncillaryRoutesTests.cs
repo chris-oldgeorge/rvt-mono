@@ -23,12 +23,12 @@ public class AncillaryRoutesTests
     // Function summary: Handles the retired mvc utility routes return safe not found problem details workflow for this module.
     public async Task RetiredMvcUtilityRoutes_ReturnSafeNotFoundProblemDetails(string path)
     {
-        using var factory = new SpaTestApplicationFactory();
-        var client = factory.CreateClient();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        HttpClient client = factory.CreateClient();
 
-        using var response = await client.GetAsync(path);
-        var body = await response.Content.ReadAsStringAsync();
-        using var document = JsonDocument.Parse(body);
+        using HttpResponseMessage response = await client.GetAsync(path);
+        string body = await response.Content.ReadAsStringAsync();
+        using JsonDocument document = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
@@ -45,12 +45,12 @@ public class AncillaryRoutesTests
     // Function summary: Handles the unknown API routes return problem details instead of SPA fallback workflow for this module.
     public async Task UnknownApiRoutes_ReturnProblemDetailsInsteadOfSpaFallback(string path)
     {
-        using var factory = new SpaTestApplicationFactory();
-        var client = factory.CreateClient();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        HttpClient client = factory.CreateClient();
 
-        using var response = await client.GetAsync(path);
-        var body = await response.Content.ReadAsStringAsync();
-        using var document = JsonDocument.Parse(body);
+        using HttpResponseMessage response = await client.GetAsync(path);
+        string body = await response.Content.ReadAsStringAsync();
+        using JsonDocument document = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
@@ -63,12 +63,12 @@ public class AncillaryRoutesTests
     // Function summary: Handles the error endpoint returns safe problem details workflow for this module.
     public async Task ErrorEndpoint_ReturnsSafeProblemDetails()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var client = factory.CreateClient();
+        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        HttpClient client = factory.CreateClient();
 
-        using var response = await client.GetAsync("/error");
-        var body = await response.Content.ReadAsStringAsync();
-        using var document = JsonDocument.Parse(body);
+        using HttpResponseMessage response = await client.GetAsync("/error");
+        string body = await response.Content.ReadAsStringAsync();
+        using JsonDocument document = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);

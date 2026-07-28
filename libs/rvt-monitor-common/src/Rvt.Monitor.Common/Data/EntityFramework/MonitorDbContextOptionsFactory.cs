@@ -8,7 +8,7 @@ public static class MonitorDbContextOptionsFactory
         string connectionString)
         where TContext : DbContext
     {
-        var builder = new DbContextOptionsBuilder<TContext>();
+        DbContextOptionsBuilder<TContext> builder = new DbContextOptionsBuilder<TContext>();
         builder.UseNpgsql(connectionString);
         return builder.Options;
     }

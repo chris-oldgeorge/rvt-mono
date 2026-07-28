@@ -134,8 +134,8 @@ namespace Svantek.Api.Http
             string fileName,
             CancellationToken cancellationToken = default)
         {
-            using var content = new MultipartFormDataContent();
-            var values = new[]
+            using MultipartFormDataContent content = new MultipartFormDataContent();
+            KeyValuePair<string, string>[] values = new[]
             {
                 new KeyValuePair<string, string>("key", apiKey),
                 new KeyValuePair<string, string>("project", project.ToString()),
@@ -146,7 +146,7 @@ namespace Svantek.Api.Http
                 new KeyValuePair<string, string>("filename", fileName)
             };
 
-            foreach (var keyValuePair in values)
+            foreach (KeyValuePair<string, string> keyValuePair in values)
             {
                 content.Add(new StringContent(keyValuePair.Value),
                     String.Format("\"{0}\"", keyValuePair.Key));
@@ -200,7 +200,7 @@ namespace Svantek.Api.Http
                 values.Add(new KeyValuePair<string, string>("filename", filename));
             }
 
-            using var content = GetApiContent(values);
+            using MultipartFormDataContent content = GetApiContent(values);
             return await httpClient.PostAsync(
                 API_URL_PROJECTS_GET_DATA,
                 content,
@@ -221,7 +221,7 @@ namespace Svantek.Api.Http
                 values.Add(new KeyValuePair<string, string>("station", stationId));
             }
 
-            using var content = GetApiContent(values);
+            using MultipartFormDataContent content = GetApiContent(values);
             return await httpClient.PostAsync(
                 API_URL_STATIONS_GET_LIST,
                 content,
@@ -241,7 +241,7 @@ namespace Svantek.Api.Http
                 new KeyValuePair<string, string>("data", JsonSerializer.Serialize(arguments)),
             };
 
-            using var content = GetApiContent(values);
+            using MultipartFormDataContent content = GetApiContent(values);
             return await httpClient.PostAsync(
                 API_URL_PROJECTS_GET_RESULT_DATA_MULTI,
                 content,
@@ -252,9 +252,9 @@ namespace Svantek.Api.Http
 
         private static MultipartFormDataContent GetApiContent(List<KeyValuePair<string, string>> values)
         {
-            var content = new MultipartFormDataContent();
+            MultipartFormDataContent content = new MultipartFormDataContent();
 
-            foreach (var keyValuePair in values)
+            foreach (KeyValuePair<string, string> keyValuePair in values)
             {
                 content.Add(new StringContent(keyValuePair.Value), $"\"{keyValuePair.Key}\"");
             }
@@ -271,11 +271,11 @@ namespace Svantek.Api.Http
             catch (JsonException e)
             {
                 // could be an error response
-                var errors = ParseErrorResponse(json);
+                List<ErrorResponse>? errors = ParseErrorResponse(json);
                 if (errors != null && errors.Count > 0)
                 {
-                    var sb = new StringBuilder(errors[0].Response!);
-                    for (var i = 1; i < errors.Count; i++)
+                    StringBuilder sb = new StringBuilder(errors[0].Response!);
+                    for (int i = 1; i < errors.Count; i++)
                     {
                         sb.Append(' ');
                         sb.Append(errors[i].Response);

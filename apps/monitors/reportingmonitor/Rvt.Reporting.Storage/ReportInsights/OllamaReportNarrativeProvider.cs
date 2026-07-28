@@ -24,7 +24,7 @@ public sealed class OllamaReportNarrativeProvider : IReportNarrativeProvider
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var fallback = ReportInsightBuilder.BuildDefaultNarrative(context.SiteName, context.ExecutiveSummary);
+        string fallback = ReportInsightBuilder.BuildDefaultNarrative(context.SiteName, context.ExecutiveSummary);
         if (!_options.Enabled || string.IsNullOrWhiteSpace(_options.BaseUrl) || string.IsNullOrWhiteSpace(_options.Model))
         {
             return fallback;
@@ -32,18 +32,18 @@ public sealed class OllamaReportNarrativeProvider : IReportNarrativeProvider
 
         try
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, _options.TimeoutSeconds)));
-            var endpoint = new Uri(new Uri(_options.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute), "api/generate");
-            var response = await _httpClient.PostAsJsonAsync(endpoint, BuildRequest(context), timeout.Token).ConfigureAwait(false);
+            Uri endpoint = new Uri(new Uri(_options.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute), "api/generate");
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(endpoint, BuildRequest(context), timeout.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 return fallback;
             }
 
-            await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
-            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: timeout.Token).ConfigureAwait(false);
-            return document.RootElement.TryGetProperty("response", out var responseElement)
+            await using Stream stream = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
+            using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: timeout.Token).ConfigureAwait(false);
+            return document.RootElement.TryGetProperty("response", out JsonElement responseElement)
                 ? EmptyToFallback(responseElement.GetString(), fallback)
                 : fallback;
         }

@@ -71,15 +71,15 @@ public static partial class DatabaseNamingRules
     // Function summary: Builds the canonical column name for a foreign key to the referenced table and field.
     public static string BuildForeignKeyColumnName(string referencedTable, string referencedField)
     {
-        var table = ToSnakeCase(referencedTable);
-        var field = ToSnakeCase(referencedField);
+        string table = ToSnakeCase(referencedTable);
+        string field = ToSnakeCase(referencedField);
         return $"{table}_{field}";
     }
 
     // Function summary: Converts a legacy relation identifier into the canonical singular lowercase snake_case name.
     public static string ToCanonicalRelationName(string identifier)
     {
-        var value = ToSnakeCase(identifier);
+        string value = ToSnakeCase(identifier);
         if (string.IsNullOrWhiteSpace(value))
         {
             return value;
@@ -114,7 +114,7 @@ public static partial class DatabaseNamingRules
         value = value.Replace("_sensors", "_sensor", StringComparison.Ordinal);
         value = value.Replace("_actions_", "_action_", StringComparison.Ordinal);
 
-        var finalWord = value.Split('_', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? value;
+        string finalWord = value.Split('_', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? value;
         if (finalWord.EndsWith("ies", StringComparison.Ordinal))
         {
             value = string.Concat(value.AsSpan(0, value.Length - 3), "y");
@@ -177,14 +177,14 @@ public static partial class DatabaseNamingRules
             return "id";
         }
 
-        var value = ToSnakeCase(identifier);
-        return ColumnNameOverrides.TryGetValue(value, out var canonical) ? canonical : value;
+        string value = ToSnakeCase(identifier);
+        return ColumnNameOverrides.TryGetValue(value, out string? canonical) ? canonical : value;
     }
 
     // Function summary: Converts a legacy stored procedure/function identifier into a canonical routine name.
     public static string ToCanonicalRoutineName(string identifier)
     {
-        var value = ToSnakeCase(identifier);
+        string value = ToSnakeCase(identifier);
         if (string.IsNullOrWhiteSpace(value))
         {
             return value;
@@ -201,10 +201,10 @@ public static partial class DatabaseNamingRules
             return string.Empty;
         }
 
-        var builder = new StringBuilder(identifier.Length * 2);
-        for (var index = 0; index < identifier.Length; index++)
+        StringBuilder builder = new StringBuilder(identifier.Length * 2);
+        for (int index = 0; index < identifier.Length; index++)
         {
-            var current = identifier[index];
+            char current = identifier[index];
             if (!char.IsLetterOrDigit(current))
             {
                 AppendUnderscore(builder);
@@ -219,14 +219,14 @@ public static partial class DatabaseNamingRules
             builder.Append(char.ToLowerInvariant(current));
         }
 
-        var value = DuplicateUnderscoreRegex().Replace(builder.ToString().Trim('_'), "_");
+        string value = DuplicateUnderscoreRegex().Replace(builder.ToString().Trim('_'), "_");
         return value.Replace("sitei_d", "site_id", StringComparison.Ordinal);
     }
 
     // Function summary: Flags relation names that look plural under the project naming standard.
     private static bool IsLikelyPluralRelationName(string relationName)
     {
-        var finalWord = relationName.Split('_', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? relationName;
+        string finalWord = relationName.Split('_', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? relationName;
         if (finalWord is "status" or "data")
         {
             return false;
@@ -251,8 +251,8 @@ public static partial class DatabaseNamingRules
     // Function summary: Evaluates whether the current character starts a new identifier word.
     private static bool ShouldSplit(string identifier, int index)
     {
-        var current = identifier[index];
-        var previous = identifier[index - 1];
+        char current = identifier[index];
+        char previous = identifier[index - 1];
         if (char.IsDigit(current) && char.IsLetter(previous))
         {
             return true;

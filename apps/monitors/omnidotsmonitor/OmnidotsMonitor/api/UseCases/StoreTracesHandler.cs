@@ -57,7 +57,7 @@ namespace Omnidots.Api.UseCases
                 latestTraceEndTimes,
                 options,
                 rotationSlot);
-            var failures = new List<OmnidotsMonitorFailure>();
+            List<OmnidotsMonitorFailure> failures = new List<OmnidotsMonitorFailure>();
             int succeeded = 0;
             int tracesStored = 0;
             int samplesStored = 0;
@@ -151,7 +151,7 @@ namespace Omnidots.Api.UseCases
                 return [.. monitors];
             }
 
-            var allowedSerialIds = new HashSet<string>(options.AllowedSerialIds, StringComparer.OrdinalIgnoreCase);
+            HashSet<string> allowedSerialIds = new HashSet<string>(options.AllowedSerialIds, StringComparer.OrdinalIgnoreCase);
             return [.. monitors.Where(monitor => allowedSerialIds.Contains(monitor.SerialId))];
         }
 

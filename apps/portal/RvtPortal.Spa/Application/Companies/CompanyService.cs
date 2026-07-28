@@ -6,18 +6,18 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-10 pending Removed redundant async/await from repository pass-through service methods.
 
-using Microsoft.EntityFrameworkCore;
-using RVT.DataAccess;
-using RVT.DataAccess.Context;
-using RVT.DataAccess.EntityModels.Models;
-using RVT.Entities;
-using RVT.Entities.Ports.Persistence;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using RVT.DataAccess;
+using RVT.DataAccess.Context;
+using RVT.DataAccess.EntityModels.Models;
+using RVT.Entities;
+using RVT.Entities.Ports.Persistence;
 using RVT.Entities.Querying;
 
 namespace RvtPortal.Spa.Application.Companies
@@ -67,7 +67,7 @@ namespace RvtPortal.Spa.Application.Companies
             List<Filter> query = new List<Filter> {
                 new SingleFilter{ Operation = Op.Equals, PropertyName = "CompanyName", Value = CompanyName }
         };
-            var res = await companyRepository.ReadFilteredAsync(query, orderBy.ToArray(), 100, new Paging { paged = true, page = (int)1, pageSize = 200 }, cancellationToken);
+            SearchQueryResult<Company> res = await companyRepository.ReadFilteredAsync(query, orderBy.ToArray(), 100, new Paging { paged = true, page = (int)1, pageSize = 200 }, cancellationToken);
             return res.RecordCount > 0;
         }
 

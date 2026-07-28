@@ -10,7 +10,7 @@ public sealed class MonitorOpenTelemetryOptionsTests
     [TestMethod]
     public void Bind_WhenEnabled_UsesEndpointServiceNameAndLogLevelFromConfiguration()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["OpenTelemetry:Enabled"] = "true",
@@ -21,7 +21,7 @@ public sealed class MonitorOpenTelemetryOptionsTests
             })
             .Build();
 
-        var options = MonitorOpenTelemetryOptions.Bind(configuration, "FallbackMonitor");
+        MonitorOpenTelemetryOptions options = MonitorOpenTelemetryOptions.Bind(configuration, "FallbackMonitor");
 
         Assert.IsTrue(options.Enabled);
         Assert.AreEqual(new Uri("http://otel-collector:4317"), options.OtlpEndpoint);
@@ -33,14 +33,14 @@ public sealed class MonitorOpenTelemetryOptionsTests
     [TestMethod]
     public void Bind_WhenServiceNameIsNotConfigured_UsesMonitorName()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["OpenTelemetry:Enabled"] = "true"
             })
             .Build();
 
-        var options = MonitorOpenTelemetryOptions.Bind(configuration, "AirQMonitor");
+        MonitorOpenTelemetryOptions options = MonitorOpenTelemetryOptions.Bind(configuration, "AirQMonitor");
 
         Assert.AreEqual("AirQMonitor", options.ServiceName);
     }

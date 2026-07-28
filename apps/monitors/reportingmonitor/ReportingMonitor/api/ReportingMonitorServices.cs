@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -29,32 +30,32 @@ public static class ReportingMonitorServices
     {
         services.AddSingleton(provider =>
         {
-            var options = ReportingMonitorOptions.Bind(provider.GetRequiredService<IConfiguration>());
+            ReportingMonitorOptions options = ReportingMonitorOptions.Bind(provider.GetRequiredService<IConfiguration>());
             options.Validate();
             return options;
         });
 
         services.AddSingleton(provider =>
         {
-            var configuration = provider.GetRequiredService<IConfiguration>();
+            IConfiguration configuration = provider.GetRequiredService<IConfiguration>();
             MonitorDb.ValidateLegacyProvider(
                 configuration["RVT:DATABASE_PROVIDER"],
                 configuration["DatabaseProvider"]);
-            var identifierMap = new Dictionary<string, string>(StringComparer.Ordinal);
+            Dictionary<string, string> identifierMap = new Dictionary<string, string>(StringComparer.Ordinal);
             return new MonitorDbOptions(identifierMap);
         });
 
         services.AddScoped(provider =>
         {
-            var configuration = provider.GetRequiredService<IConfiguration>();
-            var connectionString = configuration.GetConnectionString("DefaultConnection");
+            IConfiguration configuration = provider.GetRequiredService<IConfiguration>();
+            string? connectionString = configuration.GetConnectionString("DefaultConnection");
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required for ReportingMonitor.");
             }
 
-            var monitorOptions = provider.GetRequiredService<MonitorDbOptions>();
-            var dbContextOptions = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(connectionString);
+            MonitorDbOptions monitorOptions = provider.GetRequiredService<MonitorDbOptions>();
+            DbContextOptions<ReportingMonitorContext> dbContextOptions = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(connectionString);
             return new ReportingMonitorContext(dbContextOptions, monitorOptions);
         });
         services.AddScoped<ReportingDbClient>();
@@ -70,7 +71,7 @@ public static class ReportingMonitorServices
         services.AddTransmitSms(configuration);
         services.AddSingleton<IOptions<ReportMessageSenderOptions>>(provider =>
         {
-            var options = provider.GetRequiredService<ReportingMonitorOptions>();
+            ReportingMonitorOptions options = provider.GetRequiredService<ReportingMonitorOptions>();
             return Options.Create(new ReportMessageSenderOptions
             {
                 EmailEnabled = options.EmailEnabled,
@@ -80,7 +81,7 @@ public static class ReportingMonitorServices
         });
         services.AddSingleton<IOptions<SpaCustomerLogoClientOptions>>(provider =>
         {
-            var options = provider.GetRequiredService<ReportingMonitorOptions>();
+            ReportingMonitorOptions options = provider.GetRequiredService<ReportingMonitorOptions>();
             return Options.Create(new SpaCustomerLogoClientOptions
             {
                 BaseUrl = options.SpaBackendBaseUrl,
@@ -89,7 +90,7 @@ public static class ReportingMonitorServices
         });
         services.AddSingleton(provider =>
         {
-            var options = provider.GetRequiredService<ReportingMonitorOptions>();
+            ReportingMonitorOptions options = provider.GetRequiredService<ReportingMonitorOptions>();
             return new OllamaReportNarrativeOptions
             {
                 Enabled = options.AiSummaryEnabled,
@@ -117,7 +118,7 @@ public static class ReportingMonitorServices
 
     private static void AddEmailProvider(IServiceCollection services, IConfiguration configuration)
     {
-        var configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
+        string configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
             ?? configuration["RVT__EMAIL_PROVIDER"]
             ?? "SendGrid";
 

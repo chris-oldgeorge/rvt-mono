@@ -10,7 +10,7 @@ public sealed class MyAtmMonitorOptionsTests
     [TestMethod]
     public void Validate_UsesBoundedCataloguePageBudgetByDefault()
     {
-        var options = new MyAtmMonitorOptions();
+        MyAtmMonitorOptions options = new MyAtmMonitorOptions();
 
         options.Validate();
 
@@ -20,7 +20,7 @@ public sealed class MyAtmMonitorOptionsTests
     [TestMethod]
     public void Validate_RejectsNonPositiveCataloguePageBudget()
     {
-        var options = new MyAtmMonitorOptions { MaxDevicePagesPerRun = 0 };
+        MyAtmMonitorOptions options = new MyAtmMonitorOptions { MaxDevicePagesPerRun = 0 };
 
         Assert.ThrowsExactly<OptionsValidationException>(options.Validate);
     }
@@ -28,7 +28,7 @@ public sealed class MyAtmMonitorOptionsTests
     [TestMethod]
     public void Validate_UsesDeliveryTimeoutShorterThanLeaseByDefault()
     {
-        var options = new MyAtmMonitorOptions();
+        MyAtmMonitorOptions options = new MyAtmMonitorOptions();
 
         options.Validate();
 
@@ -42,7 +42,7 @@ public sealed class MyAtmMonitorOptionsTests
     [DataRow(121, 120)]
     public void Validate_RejectsInvalidDeliveryTimeoutAndLeaseCombinations(int timeout, int lease)
     {
-        var options = new MyAtmMonitorOptions
+        MyAtmMonitorOptions options = new MyAtmMonitorOptions
         {
             OutboxDeliveryTimeoutSeconds = timeout,
             OutboxLeaseSeconds = lease
@@ -54,7 +54,7 @@ public sealed class MyAtmMonitorOptionsTests
     [TestMethod]
     public void ToDeliveryOptions_MapsEveryMyAtmOutboxSettingAndValidatesTheCommonOptions()
     {
-        var options = new MyAtmMonitorOptions
+        MyAtmMonitorOptions options = new MyAtmMonitorOptions
         {
             OutboxBatchSize = 17,
             OutboxDeliveryTimeoutSeconds = 90,
@@ -64,7 +64,7 @@ public sealed class MyAtmMonitorOptionsTests
             PortalBaseUrl = "https://portal.example.test/root/"
         };
 
-        var deliveryOptions = options.ToDeliveryOptions("myatm/inserted", "myatm/alerts");
+        MonitorDeliveryOptions deliveryOptions = options.ToDeliveryOptions("myatm/inserted", "myatm/alerts");
 
         Assert.AreEqual(MonitorDeliveryProducers.MyAtm, deliveryOptions.Producer);
         Assert.AreEqual(MonitorDeliveryFailureMode.DeadLetterOnly, deliveryOptions.FailureMode);

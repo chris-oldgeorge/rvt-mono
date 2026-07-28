@@ -16,7 +16,7 @@ public sealed record MonitorDeliveryOptions
 
     public void Validate()
     {
-        var failures = new List<string>();
+        List<string> failures = new List<string>();
 
         if (!MonitorDeliveryProducers.IsKnown(Producer))
         {
@@ -85,7 +85,7 @@ public sealed record MonitorDeliveryOptions
     }
 
     private static bool IsAbsoluteHttpUrl(string value) =>
-        Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+        Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) &&
         (string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
          string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
 }

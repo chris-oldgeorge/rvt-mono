@@ -23,12 +23,12 @@ public sealed class MonitorOwnershipWindowSqlTests
     // Function summary: Verifies the ownership predicate translates to PostgreSQL SQL.
     public void OwnsAt_TranslatesOnPostgres()
     {
-        using var context = new RVTDbContext(
+        using RVTDbContext context = new RVTDbContext(
             new DbContextOptionsBuilder<RVTDbContext>()
                 .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
                 .Options);
 
-        var sql = OwnershipQuerySql(context);
+        string sql = OwnershipQuerySql(context);
 
         // The whole-day off-hire rule must survive translation rather than being silently dropped.
         Assert.Contains("SELECT", sql, StringComparison.OrdinalIgnoreCase);

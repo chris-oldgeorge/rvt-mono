@@ -13,8 +13,8 @@ public sealed class OmnidotsDbMapperTests
     [TestMethod]
     public void ToVibrationMonitorDto_MapsMonitorStatusAndSensor()
     {
-        var id = Guid.NewGuid();
-        var monitor = new MonitorEntity
+        Guid id = Guid.NewGuid();
+        MonitorEntity monitor = new MonitorEntity
         {
             Id = id,
             ListedAtTime = DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
@@ -33,7 +33,7 @@ public sealed class OmnidotsDbMapperTests
             BatteryStatus = 2,
             TypeOfMonitor = VibrationMonitorDto.MONITOR_TYPE_VIBRATION
         };
-        var status = new OmnidotsMonitorStatusEntity
+        OmnidotsMonitorStatusEntity status = new OmnidotsMonitorStatusEntity
         {
             SerialId = "14768",
             MeasurementDuration = 60,
@@ -43,7 +43,7 @@ public sealed class OmnidotsDbMapperTests
             BuildingLevel = "DIN",
             LogFlushInterval = 10
         };
-        var sensor = new OmnidotsSensorEntity
+        OmnidotsSensorEntity sensor = new OmnidotsSensorEntity
         {
             SerialId = "14768",
             Name = "S1",
@@ -53,7 +53,7 @@ public sealed class OmnidotsDbMapperTests
             Online = true
         };
 
-        var dto = OmnidotsDbMapper.ToVibrationMonitorDto(
+        VibrationMonitorDto dto = OmnidotsDbMapper.ToVibrationMonitorDto(
             monitor,
             status,
             sensor,
@@ -72,15 +72,15 @@ public sealed class OmnidotsDbMapperTests
     [TestMethod]
     public void UpdateMonitorEntity_DoesNotOverwriteLatestTimestampOrBatteryStatus()
     {
-        var lastDataTime = DateTime.Parse("2026-07-06T08:01:00Z").ToUniversalTime();
-        var entity = new MonitorEntity
+        DateTime lastDataTime = DateTime.Parse("2026-07-06T08:01:00Z").ToUniversalTime();
+        MonitorEntity entity = new MonitorEntity
         {
             Id = Guid.NewGuid(),
             SerialId = "14768",
             LastDataTime1Min = lastDataTime,
             BatteryStatus = 2
         };
-        var dto = new VibrationMonitorDto(
+        VibrationMonitorDto dto = new VibrationMonitorDto(
             id: entity.Id,
             listedAtTime: DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
             lastDataTime: DateTime.Parse("2030-01-01T00:00:00Z").ToUniversalTime(),
@@ -112,13 +112,13 @@ public sealed class OmnidotsDbMapperTests
     [TestMethod]
     public void ToPeakLevelEntity_MapsPeakRecordDto()
     {
-        var dto = new PeakRecordDto(
+        PeakRecordDto dto = new PeakRecordDto(
             new FDomVtopOverflow(1.1, 1.2, 1.3),
             new FDomVtopOverflow(2.1, 2.2, 2.3),
             new FDomVtopOverflow(3.1, 3.2, 3.3),
             DateTimeOffset.Parse("2026-07-06T08:00:00Z").ToUnixTimeMilliseconds());
 
-        var entity = OmnidotsDbMapper.ToPeakLevelEntity("14768", dto);
+        OmnidotsPeakLevelEntity entity = OmnidotsDbMapper.ToPeakLevelEntity("14768", dto);
 
         Assert.AreEqual("14768", entity.SerialId);
         Assert.AreEqual(1.1, entity.XFdom);

@@ -5,9 +5,9 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
+using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Text;
 
 namespace RvtPortal.Spa.Api;
 
@@ -48,7 +48,7 @@ public class HealthController : ControllerBase
                 "Diagnostic download not available."));
         }
 
-        var bytes = Encoding.UTF8.GetBytes("RVT Portal SPA diagnostics\n");
+        byte[] bytes = Encoding.UTF8.GetBytes("RVT Portal SPA diagnostics\n");
         return File(bytes, "text/plain", "rvt-portal-spa-diagnostics.txt");
     }
 

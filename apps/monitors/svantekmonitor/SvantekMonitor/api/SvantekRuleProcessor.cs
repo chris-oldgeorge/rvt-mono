@@ -109,7 +109,7 @@ namespace Svantek.Api
 
                         foreach (string paramter in parameters)
                         {
-                            var rules = allrules.Where(x => x.AveragingPeriod == averagePeriod && x.Field == paramter).OrderBy(x => x.AlertType).ToList();
+                            List<RvtAlertRuleDto> rules = allrules.Where(x => x.AveragingPeriod == averagePeriod && x.Field == paramter).OrderBy(x => x.AlertType).ToList();
                             ProcessRulesOneAverageOneParamter(monitorDto, rules, start, end, averagePeriod, paramter);
                         }
                     }
@@ -119,14 +119,14 @@ namespace Svantek.Api
 
         private void ProcessRulesOneAverageOneParamter(NoiseMonitorReadDto monitorDto, List<RvtAlertRuleDto> rules, DateTime start, DateTime end, int averagingPeriod, string parameter)
         {
-            var ruleEvaluator = CreateNoiseRuleEvaluator();
+            NoiseRuleEvaluator ruleEvaluator = CreateNoiseRuleEvaluator();
             // first get all the periods to check, every quarter every hour or every day...
             DateTime StartTime = PeriodstartTime(start, averagingPeriod);
             while (StartTime < end && ((TimeSpan)(end - StartTime)) >= TimeSpan.FromSeconds(averagingPeriod)) // once for each period in the range
             {
                 AlertType previousAlert = AlertType.Ignore;
-                var serialId = monitorDto.SerialId!;
-                foreach (var rule in rules)
+                string serialId = monitorDto.SerialId!;
+                foreach (RvtAlertRuleDto rule in rules)
                 {
                     double level = ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, StartTime, StartTime.AddSeconds(averagingPeriod));
                     previousAlert = ruleEvaluator.Evaluate(
@@ -157,7 +157,7 @@ namespace Svantek.Api
                          List<RvtContactDto> contacts
         )
         {
-            var dispatcher = new RuleAlertNotificationDispatcher(
+            RuleAlertNotificationDispatcher dispatcher = new RuleAlertNotificationDispatcher(
                 messageService,
                 operationalCommands.WriteNotification,
                 operationalCommands.WriteNotificationAudit);

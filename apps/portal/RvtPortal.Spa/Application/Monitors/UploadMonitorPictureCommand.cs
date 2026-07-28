@@ -5,10 +5,12 @@
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-06-09 pending Added MediatR command handler for monitor picture upload validation and persistence.
 
+using System.Security.Claims;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using RVT.BusinessLogic.Ports.Storage;
 using RVT.DataAccess.Context;
+using RVT.Entities;
 using RvtPortal.Spa.Api;
 
 namespace RvtPortal.Spa.Application.Monitors;
@@ -47,8 +49,8 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
     // Function summary: Handles monitor picture upload validation, storage, and detail response rebuilding.
     public async Task<UploadMonitorPictureResult> Handle(UploadMonitorPictureCommand request, CancellationToken cancellationToken)
     {
-        var result = new UploadMonitorPictureResult();
-        var deployment = await domainContext.Deployments
+        UploadMonitorPictureResult result = new UploadMonitorPictureResult();
+        Deployment? deployment = await domainContext.Deployments
             .Include(item => item.Contract)
             .ThenInclude(contract => contract.Company)
             .Include(item => item.Contract)
@@ -59,7 +61,7 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
             .FirstOrDefaultAsync(cancellationToken);
         if (deployment == null)
         {
-            var monitorExists = await domainContext.MonitorsList.AnyAsync(item => item.Id == request.MonitorId && !item.Archived, cancellationToken);
+            bool monitorExists = await domainContext.MonitorsList.AnyAsync(item => item.Id == request.MonitorId && !item.Archived, cancellationToken);
             if (monitorExists)
             {
                 AddError(result, "picture", "A current deployment is required before uploading a monitor picture.");
@@ -78,7 +80,7 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
             return result;
         }
 
-        var storedPictureLink = await pictureStorage.SaveAsync(deployment.Id, request.Picture, cancellationToken);
+        string storedPictureLink = await pictureStorage.SaveAsync(deployment.Id, request.Picture, cancellationToken);
         try
         {
             deployment.PictureLink = storedPictureLink;
@@ -90,7 +92,7 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
             throw;
         }
 
-        var user = httpContextAccessor.HttpContext?.User;
+        ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
         if (user == null)
         {
             result.NotFound = true;
@@ -116,8 +118,8 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
             return;
         }
 
-        var extension = Path.GetExtension(picture.FileName).ToLowerInvariant();
-        var supportedExtension = extension is ".jpg" or ".jpeg" or ".png" or ".webp";
+        string extension = Path.GetExtension(picture.FileName).ToLowerInvariant();
+        bool supportedExtension = extension is ".jpg" or ".jpeg" or ".png" or ".webp";
         if (!supportedExtension || !picture.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) || !HasSupportedImageHeader(picture))
         {
             AddError(result, "picture", "Upload a JPG, PNG, or WebP image.");
@@ -128,13 +130,13 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
     private static bool HasSupportedImageHeader(IUploadedContent picture)
     {
         Span<byte> header = stackalloc byte[12];
-        using var stream = picture.OpenReadStream();
-        var read = stream.Read(header);
-        var isJpeg = read >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
-        var isPng = read >= 8 &&
+        using Stream stream = picture.OpenReadStream();
+        int read = stream.Read(header);
+        bool isJpeg = read >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
+        bool isPng = read >= 8 &&
             header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47 &&
             header[4] == 0x0D && header[5] == 0x0A && header[6] == 0x1A && header[7] == 0x0A;
-        var isWebp = read >= 12 &&
+        bool isWebp = read >= 12 &&
             header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46 &&
             header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50;
         return isJpeg || isPng || isWebp;
@@ -143,7 +145,7 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
     // Function summary: Appends a validation error to a command result.
     private static void AddError(UploadMonitorPictureResult result, string key, string message)
     {
-        result.Errors[key] = result.Errors.TryGetValue(key, out var existing)
+        result.Errors[key] = result.Errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }

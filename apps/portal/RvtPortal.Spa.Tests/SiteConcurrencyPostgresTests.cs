@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using RVT.DataAccess.Context;
 using RvtPortal.Application.Sites;
@@ -13,9 +14,9 @@ public sealed class SiteConcurrencyPostgresTests
     [RequiresPostgresFact]
     public async Task AtomicSiteWrites_ConcurrentRequestsKeepOneValidRowPerOwner()
     {
-        await using var fixture = await PostgresSiteFixture.CreateAsync();
+        await using PostgresSiteFixture fixture = await PostgresSiteFixture.CreateAsync();
 
-        var archiveClaims = await Task.WhenAll(
+        SiteArchiveClaimResult[] archiveClaims = await Task.WhenAll(
             fixture.ClaimArchiveAsync("https://archive.example/first.zip"),
             fixture.ClaimArchiveAsync("https://archive.example/second.zip"));
         Assert.Single(archiveClaims, claim => claim.Claimed);
@@ -29,12 +30,12 @@ public sealed class SiteConcurrencyPostgresTests
                     "https://archive.example/second.zip"
                 }));
 
-        var firstRequest = new SiteNotificationSettingMutation(
+        SiteNotificationSettingMutation firstRequest = new SiteNotificationSettingMutation(
             true,
             false,
             "08:00",
             "12:00");
-        var secondRequest = new SiteNotificationSettingMutation(
+        SiteNotificationSettingMutation secondRequest = new SiteNotificationSettingMutation(
             false,
             true,
             "13:00",
@@ -49,7 +50,7 @@ public sealed class SiteConcurrencyPostgresTests
                 new TimeSpan(13, 0, 0),
                 new TimeSpan(17, 0, 0)));
 
-        var state = await fixture.ReadStateAsync();
+        SiteWriteState state = await fixture.ReadStateAsync();
         Assert.Multiple(
             () => Assert.Equal(1, state.ArchiveCount),
             () => Assert.True(state.SiteArchived),
@@ -70,8 +71,8 @@ public sealed class SiteConcurrencyPostgresTests
                         new TimeSpan(17, 0, 0))
                 }));
 
-        await using var readContext = await fixture.CreateDomainContextAsync();
-        var settings = await new EfSiteReadAdapter(readContext)
+        await using RVTDbContext readContext = await fixture.CreateDomainContextAsync();
+        SiteNotificationSettingsData? settings = await new EfSiteReadAdapter(readContext)
             .GetNotificationSettingsAsync(
                 fixture.SiteId,
                 CancellationToken.None);
@@ -113,21 +114,21 @@ public sealed class SiteConcurrencyPostgresTests
 
         public static async Task<PostgresSiteFixture> CreateAsync()
         {
-            var baseConnectionString = Environment.GetEnvironmentVariable(
+            string baseConnectionString = Environment.GetEnvironmentVariable(
                 RequiresPostgresFactAttribute.ConnectionVariable)!;
-            var schema = $"site_concurrency_{Guid.NewGuid():N}";
-            var siteId = Guid.NewGuid();
-            var siteUserId = Guid.NewGuid();
-            var fixture = new PostgresSiteFixture(
+            string schema = $"site_concurrency_{Guid.NewGuid():N}";
+            Guid siteId = Guid.NewGuid();
+            Guid siteUserId = Guid.NewGuid();
+            PostgresSiteFixture fixture = new PostgresSiteFixture(
                 baseConnectionString,
                 schema,
                 siteId,
                 siteUserId);
 
-            await using var connection = new NpgsqlConnection(
+            await using NpgsqlConnection connection = new NpgsqlConnection(
                 baseConnectionString);
             await connection.OpenAsync();
-            await using var command = connection.CreateCommand();
+            await using NpgsqlCommand command = connection.CreateCommand();
             command.CommandText = $"""
                 CREATE SCHEMA "{schema}";
 
@@ -210,7 +211,7 @@ public sealed class SiteConcurrencyPostgresTests
             ExecuteAsync(
                 async (context, adapter, token) =>
                 {
-                    var claim = await adapter.TryClaimArchiveAsync(
+                    SiteArchiveClaimResult claim = await adapter.TryClaimArchiveAsync(
                         SiteId,
                         "postgres-test",
                         archiveUrl,
@@ -250,10 +251,10 @@ public sealed class SiteConcurrencyPostgresTests
 
         public async Task<SiteWriteState> ReadStateAsync()
         {
-            await using var connection = new NpgsqlConnection(
+            await using NpgsqlConnection connection = new NpgsqlConnection(
                 ConnectionString());
             await connection.OpenAsync();
-            await using var command = connection.CreateCommand();
+            await using NpgsqlCommand command = connection.CreateCommand();
             command.CommandText = """
                 SELECT
                     (SELECT COUNT(*) FROM site_archived),
@@ -266,7 +267,7 @@ public sealed class SiteConcurrencyPostgresTests
                 FROM notification_setting
                 LIMIT 1;
                 """;
-            await using var reader = await command.ExecuteReaderAsync();
+            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
             Assert.True(await reader.ReadAsync());
             return new SiteWriteState(
                 checked((int)reader.GetInt64(0)),
@@ -285,9 +286,9 @@ public sealed class SiteConcurrencyPostgresTests
 
         public async Task<RVTDbContext> CreateDomainContextAsync()
         {
-            var connection = new NpgsqlConnection(ConnectionString());
+            NpgsqlConnection connection = new NpgsqlConnection(ConnectionString());
             await connection.OpenAsync();
-            var options = new DbContextOptionsBuilder<RVTDbContext>()
+            DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
                 .UseNpgsql(connection)
                 .Options;
             return new OwnedNpgsqlDomainContext(options, connection);
@@ -295,10 +296,10 @@ public sealed class SiteConcurrencyPostgresTests
 
         public async ValueTask DisposeAsync()
         {
-            await using var connection = new NpgsqlConnection(
+            await using NpgsqlConnection connection = new NpgsqlConnection(
                 baseConnectionString);
             await connection.OpenAsync();
-            await using var command = connection.CreateCommand();
+            await using NpgsqlCommand command = connection.CreateCommand();
             command.CommandText = $"DROP SCHEMA IF EXISTS \"{schema}\" CASCADE;";
             await command.ExecuteNonQueryAsync();
         }
@@ -310,16 +311,16 @@ public sealed class SiteConcurrencyPostgresTests
                 CancellationToken,
                 Task<T>> operation)
         {
-            await using var connection = new NpgsqlConnection(
+            await using NpgsqlConnection connection = new NpgsqlConnection(
                 ConnectionString());
             await connection.OpenAsync();
-            var options = new DbContextOptionsBuilder<RVTDbContext>()
+            DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
                 .UseNpgsql(connection)
                 .Options;
-            await using var context = new RVTDbContext(options);
-            await using var transaction =
+            await using RVTDbContext context = new RVTDbContext(options);
+            await using IDbContextTransaction transaction =
                 await context.Database.BeginTransactionAsync();
-            var result = await operation(
+            T? result = await operation(
                 context,
                 new EfSiteWriteAdapter(context),
                 CancellationToken.None);
@@ -329,7 +330,7 @@ public sealed class SiteConcurrencyPostgresTests
 
         private string ConnectionString()
         {
-            var builder = new NpgsqlConnectionStringBuilder(
+            NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder(
                 baseConnectionString)
             {
                 SearchPath = schema

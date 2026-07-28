@@ -52,7 +52,7 @@ public static class SiteApiMapper
     // Function summary: Maps site detail to the existing API response contract.
     public static SiteDetailResponse ToDetailResponse(SiteDetailModel model, string? customerLogoUrl)
     {
-        var item = ToListItem(model);
+        SiteListItem item = ToListItem(model);
         return new SiteDetailResponse
         {
             Id = item.Id,

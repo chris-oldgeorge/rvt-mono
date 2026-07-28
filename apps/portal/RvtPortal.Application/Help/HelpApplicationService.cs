@@ -24,7 +24,7 @@ public sealed class HelpApplicationService(
             return UseCaseResult<HelpOverviewModel>.Forbidden();
         }
 
-        var result = await reads.QueryPublishedAsync(
+        HelpOverviewModel result = await reads.QueryPublishedAsync(
             EmptyToNull(searchText),
             cancellationToken);
         return UseCaseResult<HelpOverviewModel>.Success(result);
@@ -40,7 +40,7 @@ public sealed class HelpApplicationService(
             return UseCaseResult<HelpArticleModel>.Forbidden();
         }
 
-        var article = await reads.GetPublishedArticleAsync(
+        HelpArticleModel? article = await reads.GetPublishedArticleAsync(
             slug.Trim(),
             cancellationToken);
         return article is null
@@ -58,11 +58,11 @@ public sealed class HelpApplicationService(
             return UseCaseResult<HelpAdminOverviewModel>.Forbidden();
         }
 
-        var normalized = new HelpAdminQuery(
+        HelpAdminQuery normalized = new HelpAdminQuery(
             EmptyToNull(query.SearchText),
             DefaultFilter(query.Status),
             DefaultFilter(query.ContentType));
-        var result = await reads.QueryAdminAsync(normalized, cancellationToken);
+        HelpAdminOverviewModel result = await reads.QueryAdminAsync(normalized, cancellationToken);
         return UseCaseResult<HelpAdminOverviewModel>.Success(result);
     }
 
@@ -76,7 +76,7 @@ public sealed class HelpApplicationService(
             return UseCaseResult<HelpArticleModel>.Forbidden();
         }
 
-        var article = await reads.GetAdminArticleAsync(
+        HelpArticleModel? article = await reads.GetAdminArticleAsync(
             articleId,
             cancellationToken);
         return article is null
@@ -94,7 +94,7 @@ public sealed class HelpApplicationService(
             return Task.FromResult(UseCaseResult<HelpArticleModel>.Forbidden());
         }
 
-        var shape = HelpMutationValidator.ValidateShape(mutation);
+        HelpMutationValidationResult shape = HelpMutationValidator.ValidateShape(mutation);
         if (!shape.IsValid)
         {
             return Task.FromResult(Validation<HelpArticleModel>(shape));
@@ -103,11 +103,11 @@ public sealed class HelpApplicationService(
         return unitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
-                var data = await reads.GetMutationValidationDataAsync(
+                HelpMutationValidationData data = await reads.GetMutationValidationDataAsync(
                     shape.Value!.Source.Slug,
                     articleId: null,
                     token);
-                var validation = HelpMutationValidator.ValidateBusinessRules(
+                HelpMutationValidationResult validation = HelpMutationValidator.ValidateBusinessRules(
                     shape,
                     data,
                     requireExistingArticle: false);
@@ -116,12 +116,12 @@ public sealed class HelpApplicationService(
                     return Validation<HelpArticleModel>(validation);
                 }
 
-                var articleId = await writes.CreateAsync(
+                Guid articleId = await writes.CreateAsync(
                     validation.Value!,
                     UtcNow(),
                     token);
                 await unitOfWork.SaveChangesAsync(token);
-                var article = await reads.GetAdminArticleAsync(articleId, token)
+                HelpArticleModel article = await reads.GetAdminArticleAsync(articleId, token)
                     ?? throw new InvalidOperationException(
                         $"Help article '{articleId}' was not readable after creation.");
                 return UseCaseResult<HelpArticleModel>.Success(article);
@@ -140,7 +140,7 @@ public sealed class HelpApplicationService(
             return Task.FromResult(UseCaseResult<HelpArticleModel>.Forbidden());
         }
 
-        var shape = HelpMutationValidator.ValidateShape(mutation);
+        HelpMutationValidationResult shape = HelpMutationValidator.ValidateShape(mutation);
         if (!shape.IsValid)
         {
             return Task.FromResult(Validation<HelpArticleModel>(shape));
@@ -149,7 +149,7 @@ public sealed class HelpApplicationService(
         return unitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
-                var data = await reads.GetMutationValidationDataAsync(
+                HelpMutationValidationData data = await reads.GetMutationValidationDataAsync(
                     shape.Value!.Source.Slug,
                     articleId,
                     token);
@@ -158,7 +158,7 @@ public sealed class HelpApplicationService(
                     return ArticleNotFound<HelpArticleModel>(articleId);
                 }
 
-                var validation = HelpMutationValidator.ValidateBusinessRules(
+                HelpMutationValidationResult validation = HelpMutationValidator.ValidateBusinessRules(
                     shape,
                     data,
                     requireExistingArticle: true);
@@ -177,7 +177,7 @@ public sealed class HelpApplicationService(
                 }
 
                 await unitOfWork.SaveChangesAsync(token);
-                var article = await reads.GetAdminArticleAsync(articleId, token)
+                HelpArticleModel article = await reads.GetAdminArticleAsync(articleId, token)
                     ?? throw new InvalidOperationException(
                         $"Help article '{articleId}' was not readable after update.");
                 return UseCaseResult<HelpArticleModel>.Success(article);
@@ -209,7 +209,7 @@ public sealed class HelpApplicationService(
                 }
 
                 await unitOfWork.SaveChangesAsync(token);
-                var article = await reads.GetAdminArticleAsync(articleId, token)
+                HelpArticleModel article = await reads.GetAdminArticleAsync(articleId, token)
                     ?? throw new InvalidOperationException(
                         $"Help article '{articleId}' was not readable after publication changed.");
                 return UseCaseResult<HelpArticleModel>.Success(article);
@@ -255,7 +255,7 @@ public sealed class HelpApplicationService(
 
     private static string? EmptyToNull(string? value)
     {
-        var trimmed = value?.Trim();
+        string? trimmed = value?.Trim();
         return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
 

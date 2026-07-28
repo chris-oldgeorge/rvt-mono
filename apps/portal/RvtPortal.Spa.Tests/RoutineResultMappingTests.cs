@@ -9,6 +9,7 @@ using RVT.DataAccess;
 using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
 using RVT.Entities;
+using RVT.Entities.DTO;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -18,14 +19,14 @@ public sealed class RoutineResultMappingTests
     // Function summary: Verifies monitor status routines prefer canonical PostgreSQL result aliases.
     public async Task MonitorStatusTimeCheckMapsCanonicalAliases()
     {
-        var monitorDate = new DateTime(2026, 7, 9, 10, 0, 0);
-        var utcDate = new DateTime(2026, 7, 9, 10, 5, 0);
-        using var context = CreateContext();
-        var repository = new MonitorRepository(
+        DateTime monitorDate = new DateTime(2026, 7, 9, 10, 0, 0);
+        DateTime utcDate = new DateTime(2026, 7, 9, 10, 5, 0);
+        using RVTDbContext context = CreateContext();
+        MonitorRepository repository = new MonitorRepository(
             context,
             FakeRoutineExecutor.FromRow(("monitor_date", monitorDate), ("utc_date", utcDate)));
 
-        var result = await repository.MonitorStatusTimeCheck(Guid.NewGuid());
+        MonitorStatusTimeCheckDto result = await repository.MonitorStatusTimeCheck(Guid.NewGuid());
 
         Assert.Equal(monitorDate, result.MonitorDate);
         Assert.Equal(utcDate, result.UtcDate);
@@ -35,14 +36,14 @@ public sealed class RoutineResultMappingTests
     // Function summary: Verifies monitor status routines still tolerate legacy result aliases during cutover.
     public async Task MonitorStatusTimeCheckFallsBackToLegacyAliases()
     {
-        var monitorDate = new DateTime(2025, 1, 1, 12, 0, 0);
-        var utcDate = new DateTime(2025, 1, 1, 12, 5, 0);
-        using var context = CreateContext();
-        var repository = new MonitorRepository(
+        DateTime monitorDate = new DateTime(2025, 1, 1, 12, 0, 0);
+        DateTime utcDate = new DateTime(2025, 1, 1, 12, 5, 0);
+        using RVTDbContext context = CreateContext();
+        MonitorRepository repository = new MonitorRepository(
             context,
             FakeRoutineExecutor.FromRow(("MonitorDate", monitorDate), ("UtcDate", utcDate)));
 
-        var result = await repository.MonitorStatusTimeCheck(Guid.NewGuid());
+        MonitorStatusTimeCheckDto result = await repository.MonitorStatusTimeCheck(Guid.NewGuid());
 
         Assert.Equal(monitorDate, result.MonitorDate);
         Assert.Equal(utcDate, result.UtcDate);
@@ -59,10 +60,10 @@ public sealed class RoutineResultMappingTests
         const double xVtop = 1.1d;
         const double yVtop = 2.2d;
         const double zVtop = 3.3d;
-        var monitorId = Guid.NewGuid();
-        var notificationId = Guid.NewGuid();
-        var sampleTime = new DateTime(2026, 7, 9, 9, 0, 0);
-        var repository = new OmnidotsBreachesAndAlertsRepository(
+        Guid monitorId = Guid.NewGuid();
+        Guid notificationId = Guid.NewGuid();
+        DateTime sampleTime = new DateTime(2026, 7, 9, 9, 0, 0);
+        OmnidotsBreachesAndAlertsRepository repository = new OmnidotsBreachesAndAlertsRepository(
             FakeRoutineExecutor.FromRow(
                 ("serial_id", serialId),
                 ("fleet_nr", fleetNumber),
@@ -74,9 +75,9 @@ public sealed class RoutineResultMappingTests
                 ("y_vtop", yVtop),
                 ("z_vtop", zVtop)));
 
-        var result = await repository.BreachesAndAlertsForDate(sampleTime);
+        List<BreachesAndAlertsDto> result = await repository.BreachesAndAlertsForDate(sampleTime);
 
-        var row = Assert.Single(result);
+        BreachesAndAlertsDto row = Assert.Single(result);
         Assert.Equal(serialId, row.SerialID);
         Assert.Equal(fleetNumber, row.FleetNr);
         Assert.Equal(monitorId, row.MonitorId);
@@ -89,7 +90,7 @@ public sealed class RoutineResultMappingTests
     // Function summary: Creates an isolated EF context for repository construction without touching a real database.
     private static RVTDbContext CreateContext()
     {
-        var options = new DbContextOptionsBuilder<RVTDbContext>()
+        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
@@ -119,8 +120,8 @@ public sealed class RoutineResultMappingTests
             Func<DbDataReader, T> map,
             CancellationToken cancellationToken = default)
         {
-            using var reader = CreateReader(columns);
-            var rows = new List<T>();
+            using DbDataReader reader = CreateReader(columns);
+            List<T> rows = new List<T>();
             while (reader.Read())
             {
                 rows.Add(map(reader));
@@ -132,14 +133,14 @@ public sealed class RoutineResultMappingTests
         // Function summary: Builds a data reader with predictable routine result-column names and values.
         private static DbDataReader CreateReader(params (string ColumnName, object? Value)[] columns)
         {
-            var table = new DataTable();
-            foreach (var column in columns)
+            DataTable table = new DataTable();
+            foreach ((string ColumnName, object? Value) column in columns)
             {
                 table.Columns.Add(column.ColumnName, column.Value?.GetType() ?? typeof(object));
             }
 
-            var row = table.NewRow();
-            foreach (var column in columns)
+            DataRow row = table.NewRow();
+            foreach ((string ColumnName, object? Value) column in columns)
             {
                 row[column.ColumnName] = column.Value ?? DBNull.Value;
             }

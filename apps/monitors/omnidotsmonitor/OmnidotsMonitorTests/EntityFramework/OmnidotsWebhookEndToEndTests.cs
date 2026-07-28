@@ -42,7 +42,7 @@ public sealed class OmnidotsWebhookEndToEndTests
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext _)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         database = await PostgreSqlIntegrationDatabase.CreateAsync(
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/create.postgres.sql"),
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
@@ -69,17 +69,17 @@ public sealed class OmnidotsWebhookEndToEndTests
     [TestMethod]
     public async Task ProductionWebhook_ConcurrentSignedDuplicateAndReplay_CreateOneDurableDeliverySet()
     {
-        await using var application = await StartApplicationAsync();
-        using var client = application.GetTestClient();
-        var body = ValidBody();
-        var signature = Signature(body);
+        await using WebApplication application = await StartApplicationAsync();
+        using HttpClient client = application.GetTestClient();
+        byte[] body = ValidBody();
+        string signature = Signature(body);
 
-        var responses = await Task.WhenAll(
+        HttpResponseMessage[] responses = await Task.WhenAll(
             PostWebhookAsync(client, body, signature),
             PostWebhookAsync(client, body, signature));
 
         Assert.IsTrue(responses.All(response => response.StatusCode == HttpStatusCode.OK));
-        foreach (var response in responses)
+        foreach (HttpResponseMessage? response in responses)
         {
             Assert.AreEqual("{\"processed\":true}", await response.Content.ReadAsStringAsync());
             response.Dispose();
@@ -87,7 +87,7 @@ public sealed class OmnidotsWebhookEndToEndTests
 
         await AssertSingleDurableDeliverySetAsync();
 
-        using var replay = await PostWebhookAsync(client, body, signature);
+        using HttpResponseMessage replay = await PostWebhookAsync(client, body, signature);
 
         Assert.AreEqual(HttpStatusCode.OK, replay.StatusCode);
         Assert.AreEqual("{\"processed\":true}", await replay.Content.ReadAsStringAsync());
@@ -96,7 +96,7 @@ public sealed class OmnidotsWebhookEndToEndTests
 
     private static async Task<WebApplication> StartApplicationAsync()
     {
-        var builder = WebApplication.CreateBuilder(["--hostBuilder:reloadConfigOnChange=false"]);
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(["--hostBuilder:reloadConfigOnChange=false"]);
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -128,7 +128,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         builder.Services.PostConfigure<DurableAlertOptions>(options =>
             options.PortalBaseUrl = "https://portal.example.test/");
 
-        var app = builder.Build();
+        WebApplication app = builder.Build();
         app.MapOmnidotsMonitorApi();
         await app.StartAsync();
         return app;
@@ -139,7 +139,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         byte[] body,
         string signature)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/webhook");
+        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "/webhook");
         request.Headers.TryAddWithoutValidation(OmnidotsProtocol.SIGNATURE_HEADER, signature);
         request.Content = new ByteArrayContent(body);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -152,7 +152,7 @@ public sealed class OmnidotsWebhookEndToEndTests
 
     private static string Signature(ReadOnlySpan<byte> body)
     {
-        var digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), body);
+        byte[] digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), body);
         return $"sha256={Convert.ToHexStringLower(digest)}";
     }
 
@@ -197,9 +197,9 @@ public sealed class OmnidotsWebhookEndToEndTests
             VALUES (@setting_id, true, true, NULL, NULL, @site_user_id);
             """;
 
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("site_id", SiteId);
         command.Parameters.AddWithValue("created_at", EventTime.AddYears(-1));
         command.Parameters.AddWithValue("monitor_id", MonitorId);
@@ -217,28 +217,28 @@ public sealed class OmnidotsWebhookEndToEndTests
 
     private static async Task<int> CountAsync(string table)
     {
-        var allowedTable = table switch
+        string allowedTable = table switch
         {
             "alert_occurrence" => "alert_occurrence",
             "notification" => "notification",
             "alert_delivery_outbox" => "alert_delivery_outbox",
             _ => throw new ArgumentOutOfRangeException(nameof(table))
         };
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand($"SELECT COUNT(*) FROM {allowedTable};", connection);
+        await using NpgsqlCommand command = new NpgsqlCommand($"SELECT COUNT(*) FROM {allowedTable};", connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static async Task<string[]> ReadDeliveryDestinationsAsync()
     {
-        var values = new List<string>();
-        await using var connection = database!.OpenConnection();
+        List<string> values = new List<string>();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
+        await using NpgsqlCommand command = new NpgsqlCommand(
             "SELECT kind || ':' || destination FROM alert_delivery_outbox ORDER BY kind, destination;",
             connection);
-        await using var reader = await command.ExecuteReaderAsync();
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
             values.Add(reader.GetString(0));

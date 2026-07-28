@@ -14,10 +14,10 @@ public class TransactionPipelineBehaviorTests
     // Function summary: Verifies non-transactional requests bypass Unit of Work persistence.
     public async Task NonTransactionalRequest_BypassesUnitOfWork()
     {
-        var unitOfWork = new RecordingUnitOfWork();
-        var behavior = new TransactionPipelineBehavior<QueryRequest, string>(unitOfWork);
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        TransactionPipelineBehavior<QueryRequest, string> behavior = new TransactionPipelineBehavior<QueryRequest, string>(unitOfWork);
 
-        var response = await behavior.Handle(new QueryRequest(), _ => Task.FromResult("query"), CancellationToken.None);
+        string response = await behavior.Handle(new QueryRequest(), _ => Task.FromResult("query"), CancellationToken.None);
 
         Assert.Equal("query", response);
         Assert.Equal(0, unitOfWork.TransactionCount);
@@ -30,10 +30,10 @@ public class TransactionPipelineBehaviorTests
     // Function summary: Verifies transactional requests save and commit exactly once.
     public async Task TransactionalRequest_SavesAndCommitsOnce()
     {
-        var unitOfWork = new RecordingUnitOfWork();
-        var behavior = new TransactionPipelineBehavior<CommandRequest, string>(unitOfWork);
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        TransactionPipelineBehavior<CommandRequest, string> behavior = new TransactionPipelineBehavior<CommandRequest, string>(unitOfWork);
 
-        var response = await behavior.Handle(new CommandRequest(), _ => Task.FromResult("command"), CancellationToken.None);
+        string response = await behavior.Handle(new CommandRequest(), _ => Task.FromResult("command"), CancellationToken.None);
 
         Assert.Equal("command", response);
         Assert.Equal(1, unitOfWork.TransactionCount);
@@ -46,8 +46,8 @@ public class TransactionPipelineBehaviorTests
     // Function summary: Verifies handler failures roll back and skip save.
     public async Task TransactionalRequest_RollsBackWhenHandlerFails()
     {
-        var unitOfWork = new RecordingUnitOfWork();
-        var behavior = new TransactionPipelineBehavior<CommandRequest, string>(unitOfWork);
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        TransactionPipelineBehavior<CommandRequest, string> behavior = new TransactionPipelineBehavior<CommandRequest, string>(unitOfWork);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => behavior.Handle(
             new CommandRequest(),
@@ -64,8 +64,8 @@ public class TransactionPipelineBehaviorTests
     // Function summary: Verifies save failures roll back the transaction.
     public async Task TransactionalRequest_RollsBackWhenSaveFails()
     {
-        var unitOfWork = new RecordingUnitOfWork { ThrowOnSave = true };
-        var behavior = new TransactionPipelineBehavior<CommandRequest, string>(unitOfWork);
+        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork { ThrowOnSave = true };
+        TransactionPipelineBehavior<CommandRequest, string> behavior = new TransactionPipelineBehavior<CommandRequest, string>(unitOfWork);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => behavior.Handle(
             new CommandRequest(),
@@ -98,7 +98,7 @@ public class TransactionPipelineBehaviorTests
             TransactionCount++;
             try
             {
-                var response = await operation(cancellationToken);
+                TResponse? response = await operation(cancellationToken);
                 CommitCount++;
                 return response;
             }

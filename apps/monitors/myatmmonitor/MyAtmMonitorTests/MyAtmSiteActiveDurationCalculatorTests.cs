@@ -11,9 +11,9 @@ public sealed class MyAtmSiteActiveDurationCalculatorTests
     [TestMethod]
     public void Between_AcrossMultipleSiteDays_AddsOnlyOperatingIntersections()
     {
-        var schedule = WeekdaySchedule(TimeSpan.FromHours(8), TimeSpan.FromHours(18));
+        MyAtmSiteSchedule schedule = WeekdaySchedule(TimeSpan.FromHours(8), TimeSpan.FromHours(18));
 
-        var duration = MyAtmSiteActiveDurationCalculator.Between(
+        TimeSpan duration = MyAtmSiteActiveDurationCalculator.Between(
             schedule,
             LondonUtc(2026, 7, 13, 17),
             LondonUtc(2026, 7, 14, 10),
@@ -25,9 +25,9 @@ public sealed class MyAtmSiteActiveDurationCalculatorTests
     [TestMethod]
     public void Between_ClosedWeekend_ReturnsZero()
     {
-        var schedule = WeekdaySchedule(TimeSpan.FromHours(8), TimeSpan.FromHours(18));
+        MyAtmSiteSchedule schedule = WeekdaySchedule(TimeSpan.FromHours(8), TimeSpan.FromHours(18));
 
-        var duration = MyAtmSiteActiveDurationCalculator.Between(
+        TimeSpan duration = MyAtmSiteActiveDurationCalculator.Between(
             schedule,
             LondonUtc(2026, 7, 18, 8),
             LondonUtc(2026, 7, 19, 18),
@@ -39,9 +39,9 @@ public sealed class MyAtmSiteActiveDurationCalculatorTests
     [TestMethod]
     public void Between_OvernightSchedule_CountsBothSidesOfMidnight()
     {
-        var schedule = WeekdaySchedule(TimeSpan.FromHours(20), TimeSpan.FromHours(4));
+        MyAtmSiteSchedule schedule = WeekdaySchedule(TimeSpan.FromHours(20), TimeSpan.FromHours(4));
 
-        var duration = MyAtmSiteActiveDurationCalculator.Between(
+        TimeSpan duration = MyAtmSiteActiveDurationCalculator.Between(
             schedule,
             LondonUtc(2026, 7, 13, 22),
             LondonUtc(2026, 7, 14, 2),
@@ -53,14 +53,14 @@ public sealed class MyAtmSiteActiveDurationCalculatorTests
     [TestMethod]
     public void Between_SpringForwardAndFallBack_CountsElapsedUtcTime()
     {
-        var schedule = SundaySchedule(TimeSpan.Zero, TimeSpan.FromHours(4));
+        MyAtmSiteSchedule schedule = SundaySchedule(TimeSpan.Zero, TimeSpan.FromHours(4));
 
-        var spring = MyAtmSiteActiveDurationCalculator.Between(
+        TimeSpan spring = MyAtmSiteActiveDurationCalculator.Between(
             schedule,
             LondonUtc(2026, 3, 29, 0),
             LondonUtc(2026, 3, 29, 4),
             London);
-        var fall = MyAtmSiteActiveDurationCalculator.Between(
+        TimeSpan fall = MyAtmSiteActiveDurationCalculator.Between(
             schedule,
             LondonUtc(2026, 10, 25, 0),
             LondonUtc(2026, 10, 25, 4),
@@ -73,7 +73,7 @@ public sealed class MyAtmSiteActiveDurationCalculatorTests
     [TestMethod]
     public void Between_InvalidOrAmbiguousBoundary_RejectsSchedule()
     {
-        var schedule = SundaySchedule(TimeSpan.FromMinutes(90), TimeSpan.FromHours(4));
+        MyAtmSiteSchedule schedule = SundaySchedule(TimeSpan.FromMinutes(90), TimeSpan.FromHours(4));
 
         Assert.ThrowsExactly<MyAtmSiteScheduleConfigurationException>(() =>
             MyAtmSiteActiveDurationCalculator.Between(
@@ -92,9 +92,9 @@ public sealed class MyAtmSiteActiveDurationCalculatorTests
     [TestMethod]
     public void Between_NonUtcInput_RejectsConversionGuessing()
     {
-        var schedule = WeekdaySchedule(TimeSpan.Zero, TimeSpan.FromHours(24));
-        var from = new DateTime(2026, 7, 16, 8, 0, 0, DateTimeKind.Unspecified);
-        var to = new DateTime(2026, 7, 16, 9, 0, 0, DateTimeKind.Utc);
+        MyAtmSiteSchedule schedule = WeekdaySchedule(TimeSpan.Zero, TimeSpan.FromHours(24));
+        DateTime from = new DateTime(2026, 7, 16, 8, 0, 0, DateTimeKind.Unspecified);
+        DateTime to = new DateTime(2026, 7, 16, 9, 0, 0, DateTimeKind.Utc);
 
         Assert.ThrowsExactly<ArgumentException>(() =>
             MyAtmSiteActiveDurationCalculator.Between(schedule, from, to, TimeZoneInfo.Utc));
@@ -103,7 +103,7 @@ public sealed class MyAtmSiteActiveDurationCalculatorTests
     [TestMethod]
     public void Between_IncompleteDailySchedule_RejectsConfiguration()
     {
-        var schedule = new MyAtmSiteSchedule { WeekdayStart = TimeSpan.FromHours(8) };
+        MyAtmSiteSchedule schedule = new MyAtmSiteSchedule { WeekdayStart = TimeSpan.FromHours(8) };
 
         Assert.ThrowsExactly<MyAtmSiteScheduleConfigurationException>(() =>
             MyAtmSiteActiveDurationCalculator.Between(

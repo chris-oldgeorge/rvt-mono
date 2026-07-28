@@ -28,10 +28,10 @@ namespace Rvt.Monitor.Common.Utilities
 
         public static DateTime GetStartTime(long latestTimestampMillis, DateTime endTime, TimeSpan maxTimespan)
         {
-            var startTime = DateTimeUtil.JAN1_1970;
+            DateTime startTime = DateTimeUtil.JAN1_1970;
             startTime = startTime.Add(TimeSpan.FromMilliseconds(latestTimestampMillis));
 
-            var duration = endTime - startTime;
+            TimeSpan duration = endTime - startTime;
             if (duration.TotalSeconds >= maxTimespan.TotalSeconds)
             {
                 startTime = endTime - maxTimespan;

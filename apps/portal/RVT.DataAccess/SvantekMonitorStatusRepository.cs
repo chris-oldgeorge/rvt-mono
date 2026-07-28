@@ -3,16 +3,16 @@
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
-using Microsoft.EntityFrameworkCore;
-using RVT.DataAccess.Context;
-using RVT.DataAccess.EntityModels.Models;
-using RVT.Entities.DTO;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using RVT.DataAccess.Context;
+using RVT.DataAccess.EntityModels.Models;
+using RVT.Entities.DTO;
 
 namespace RVT.DataAccess
 {
@@ -27,7 +27,7 @@ namespace RVT.DataAccess
         // Function summary: Retrieves battery level data for callers.
         public async Task<SvantekBatteryStatus?> ReadBatteryLevelAsync(string SerialId)
         {
-            var details = await DbSet
+            SvantekMonitorStatus? details = await DbSet
                 .AsNoTracking()
                 .Where(W => W.SerialId == SerialId)
                 .FirstOrDefaultAsync();

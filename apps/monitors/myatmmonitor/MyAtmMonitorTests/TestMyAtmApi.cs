@@ -27,7 +27,7 @@ namespace MyAtmMonitorTests
 
         public TestMyAtmApi()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -38,16 +38,16 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestStoreDustLevels_EmptyRules_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageClient);
 
-            var customerId = 656;
+            int customerId = 656;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
                                  Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(Period.Minutes1)));
 
-            var monitors = MyAtmFixture.CustomerDeviceDtos(null);
+            List<DustMonitorDto> monitors = MyAtmFixture.CustomerDeviceDtos(null);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(monitors);
 
@@ -63,7 +63,7 @@ namespace MyAtmMonitorTests
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(It.IsAny<int>(), null), Times.Exactly(1));
-            var expectedDateTime = DateTime.Parse("2023-09-25T10:29:00");
+            DateTime expectedDateTime = DateTime.Parse("2023-09-25T10:29:00");
             dbClient.Verify(c => c.CommitDustImportAsync(It.Is<MyAtmDustImportCommit>(commit =>
                 commit.Monitor.SerialId == "11111" &&
                 commit.Measurements.Count > 0 &&
@@ -88,23 +88,23 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public async Task TestStoreDustLevels_ImportsEveryMeasurementPageAndAdvancesFinalWatermark()
         {
-            var httpClient = new Mock<IHttpClient>();
-            var dbClient = new Mock<IDBClient>();
-            var mqttClient = new Mock<IMqttClient>();
-            var messageClient = new Mock<IMessageService>();
-            var options = new MyAtmMonitorOptions
+            Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
+            Mock<IDBClient> dbClient = new Mock<IDBClient>();
+            Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+            Mock<IMessageService> messageClient = new Mock<IMessageService>();
+            MyAtmMonitorOptions options = new MyAtmMonitorOptions
             {
                 MeasurementPageSize = 2,
                 MaxPagesPerMonitorPerRun = 2
             };
-            var testObj = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, false, options);
-            var customerId = 656;
-            var startTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            var firstPage = MyAtmFixture.MeasurementsResponseJson(2, startTime);
-            var secondPage = MyAtmFixture.MeasurementsResponseJson(1, startTime.AddMinutes(2));
-            var firstRequest = "/api/customers/656/devices/11111/measurements" + TestUtil.MEASUREMENT_SELECT +
+            MyAtmApi testObj = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, false, options);
+            int customerId = 656;
+            DateTime startTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            string firstPage = MyAtmFixture.MeasurementsResponseJson(2, startTime);
+            string secondPage = MyAtmFixture.MeasurementsResponseJson(1, startTime.AddMinutes(2));
+            string firstRequest = "/api/customers/656/devices/11111/measurements" + TestUtil.MEASUREMENT_SELECT +
                                "&$filter=timestamp gt 1970-01-01T00:00:00.0000000Z&$orderby=timestamp asc&$top=2";
-            var secondRequest = "/api/customers/656/devices/11111/measurements" + TestUtil.MEASUREMENT_SELECT +
+            string secondRequest = "/api/customers/656/devices/11111/measurements" + TestUtil.MEASUREMENT_SELECT +
                                 "&$filter=timestamp gt 2024-01-01T00:01:00.0000000Z&$orderby=timestamp asc&$top=2";
 
             httpClient.SetupSequence(client => client.GetAsync(It.IsRegex("/api/customers/656/devices/11111/measurements")))
@@ -134,15 +134,15 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public async Task TestStoreDustLevels_SuccessfulCommitDoesNotDispatchOutbox()
         {
-            var httpClient = new Mock<IHttpClient>();
-            var dbClient = new Mock<IDBClient>();
-            var mqttClient = new Mock<IMqttClient>();
-            var messageClient = new Mock<IMessageService>();
-            var options = new MyAtmMonitorOptions
+            Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
+            Mock<IDBClient> dbClient = new Mock<IDBClient>();
+            Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+            Mock<IMessageService> messageClient = new Mock<IMessageService>();
+            MyAtmMonitorOptions options = new MyAtmMonitorOptions
             {
                 OutboxBatchSize = 2
             };
-            var testObj = new MyAtmApi(
+            MyAtmApi testObj = new MyAtmApi(
                 httpClient.Object,
                 dbClient.Object,
                 mqttClient.Object,
@@ -181,7 +181,7 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public async Task TestStoreDustLevels_FailedCommitDoesNotDispatchOutbox()
         {
-            var testObj = TestUtil.CreateApiAndMocks(
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
@@ -217,16 +217,16 @@ namespace MyAtmMonitorTests
         [DataRow(Period.Hours24, "/daily")]
         public void TestStoreAverageDustLevels_Success(Period period, string urlSuffix)
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageClient);
-            var customerId = 656;
+            int customerId = 656;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements"))).Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(period)));
 
-            var monitors = MyAtmFixture.CustomerDeviceDtos(null);
+            List<DustMonitorDto> monitors = MyAtmFixture.CustomerDeviceDtos(null);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).Returns(monitors);
-            var dt = DateTime.Parse("2023-09-25T10:29:00");
+            DateTime dt = DateTime.Parse("2023-09-25T10:29:00");
             testObj.StoreDustLevels<AvgDeviceMeasurement>(customerId, period);
 
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "11111", urlSuffix))), Times.Exactly(1));
@@ -236,7 +236,7 @@ namespace MyAtmMonitorTests
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(It.IsAny<int>(), null), Times.Exactly(1));
-            var expectedDateTime = DateTime.Parse("2023-10-04T16:00:00");
+            DateTime expectedDateTime = DateTime.Parse("2023-10-04T16:00:00");
             dbClient.Verify(c => c.CommitDustImportAsync(It.Is<MyAtmDustImportCommit>(commit =>
                 commit.Monitor.SerialId == "11111" &&
                 commit.Measurements.Count > 0 &&
@@ -285,16 +285,16 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestStoreDustLevels_TruncatedByTimestamp_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageClient);
 
-            var customerId = 656;
+            int customerId = 656;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
                                  Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(Period.Minutes1)));
 
-            var expectedDateTime = DateTime.UtcNow;
+            DateTime expectedDateTime = DateTime.UtcNow;
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(MyAtmFixture.CustomerDeviceDtos(expectedDateTime));
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
@@ -319,14 +319,14 @@ namespace MyAtmMonitorTests
 
         {
 
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                          out Mock<IDBClient> dbClient,
                                          out Mock<IMqttClient> mqttClient,
                                          out Mock<IMessageService> messageClient);
 
-            var customerId = 656;
-            var expectedDateTime = DateTime.UtcNow;
-            var monitors = MyAtmFixture.CustomerDeviceDtos(expectedDateTime);
+            int customerId = 656;
+            DateTime expectedDateTime = DateTime.UtcNow;
+            List<DustMonitorDto> monitors = MyAtmFixture.CustomerDeviceDtos(expectedDateTime);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(monitors);
 
@@ -338,7 +338,7 @@ namespace MyAtmMonitorTests
 
             dbClient.Verify(c => c.ReadMonitorList(It.IsAny<int>(), null), Times.Exactly(1));
 
-            foreach (var m in monitors)
+            foreach (DustMonitorDto m in monitors)
             {
                 dbClient.Verify(c => c.SetMonitorOffline(m.Id, false), Times.Exactly(1));
             }
@@ -348,7 +348,7 @@ namespace MyAtmMonitorTests
         }
         private static MonitorDeliveryMessage CreateDataInsertedDelivery()
         {
-            var payload = new MonitorDeliveryPayloadV1(
+            MonitorDeliveryPayloadV1 payload = new MonitorDeliveryPayloadV1(
                 Guid.Empty,
                 new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc),
                 "11111",

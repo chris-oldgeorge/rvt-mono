@@ -85,7 +85,7 @@ namespace Omnidots.Api.UseCases
             Action<string, Exception, List<OmnidotsMonitorFailure>> recordFailure,
             CancellationToken cancellationToken)
         {
-            var failures = new List<OmnidotsMonitorFailure>();
+            List<OmnidotsMonitorFailure> failures = new List<OmnidotsMonitorFailure>();
             foreach (VibrationMonitorDto monitor in monitors)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -151,7 +151,7 @@ namespace Omnidots.Api.UseCases
             {
                 DataRow row = table.NewRow();
                 row["SerialId"] = monitor.SerialId;
-                var offset = DateTimeOffset.FromUnixTimeMilliseconds((long)sample.Timestamp);
+                DateTimeOffset offset = DateTimeOffset.FromUnixTimeMilliseconds((long)sample.Timestamp);
                 row["SampleTime"] = offset.DateTime;
                 if (sample.X != null)
                 {

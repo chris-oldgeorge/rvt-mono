@@ -13,8 +13,8 @@ public sealed class HelpAssetUrlPolicyTests
     {
         get
         {
-            var cases = new TheoryData<string, string?, string?, string?, string?, string?>();
-            foreach (var @case in HelpAssetUrlPolicyCases.All)
+            TheoryData<string, string?, string?, string?, string?, string?> cases = new TheoryData<string, string?, string?, string?, string?, string?>();
+            foreach (HelpAssetUrlCase @case in HelpAssetUrlPolicyCases.All)
             {
                 cases.Add(
                     @case.Name,
@@ -41,8 +41,8 @@ public sealed class HelpAssetUrlPolicyTests
     {
         Assert.False(string.IsNullOrWhiteSpace(name));
 
-        var mutation = HelpAssetUrlPolicy.ValidateMutationValue(input);
-        var persisted = HelpAssetUrlPolicy.ValidatePersistedValue(input);
+        HelpAssetUrlValidationResult mutation = HelpAssetUrlPolicy.ValidateMutationValue(input);
+        HelpAssetUrlValidationResult persisted = HelpAssetUrlPolicy.ValidatePersistedValue(input);
 
         Assert.Equal(mutationCanonicalValue, mutation.CanonicalValue);
         Assert.Equal(mutationViolation, mutation.ViolationCode);
@@ -53,7 +53,7 @@ public sealed class HelpAssetUrlPolicyTests
     [Fact]
     public void ValidationResults_ExposeCanonicalValueOnlyForValidInputs()
     {
-        var results = HelpAssetUrlPolicyCases.All
+        HelpAssetUrlValidationResult[] results = HelpAssetUrlPolicyCases.All
             .SelectMany(@case => new[]
             {
                 HelpAssetUrlPolicy.ValidateMutationValue(@case.Input),
@@ -61,8 +61,8 @@ public sealed class HelpAssetUrlPolicyTests
             })
             .ToArray();
 
-        var validResults = results.Where(result => result.IsValid);
-        var invalidResults = results.Where(result => !result.IsValid);
+        IEnumerable<HelpAssetUrlValidationResult> validResults = results.Where(result => result.IsValid);
+        IEnumerable<HelpAssetUrlValidationResult> invalidResults = results.Where(result => !result.IsValid);
 
         Assert.All(validResults, result => Assert.NotNull(result.CanonicalValue));
         Assert.All(invalidResults, result => Assert.Null(result.CanonicalValue));

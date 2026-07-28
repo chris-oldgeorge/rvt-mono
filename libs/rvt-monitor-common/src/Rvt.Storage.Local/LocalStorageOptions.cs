@@ -46,7 +46,7 @@ public sealed record LocalStorageOptions
         string? legacyEnvironmentKey = null,
         string defaultValue = "")
     {
-        var values = new[]
+        string?[] values = new[]
         {
             configuration[providerNeutralKey],
             configuration[$"RVT:{environmentKey}"],

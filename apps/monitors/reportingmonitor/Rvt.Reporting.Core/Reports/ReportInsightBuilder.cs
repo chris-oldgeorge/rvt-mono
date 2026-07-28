@@ -13,7 +13,7 @@ public static class ReportInsightBuilder
     {
         ArgumentNullException.ThrowIfNull(site);
 
-        var summaries = site.Monitors
+        MonitorTypeExecutiveSummary[] summaries = site.Monitors
             .GroupBy(static monitor => monitor.TypeOfMonitor)
             .OrderBy(static group => group.Key)
             .Select(group => BuildMonitorTypeSummary(group.Key, group.ToArray()))
@@ -30,7 +30,7 @@ public static class ReportInsightBuilder
             .GroupBy(static monitor => monitor.TypeOfMonitor)
             .Select(group =>
             {
-                var cells = group
+                ReportAlertHeatmapCell[] cells = group
                     .SelectMany(static monitor => monitor.Notifications)
                     .GroupBy(static notification => new
                     {
@@ -63,16 +63,16 @@ public static class ReportInsightBuilder
             return $"{siteName} had no monitor breach data available for the selected reporting period.";
         }
 
-        var parts = summary.MonitorTypes.Select(static item =>
+        IEnumerable<string> parts = summary.MonitorTypes.Select(static item =>
             string.Create(
                 CultureInfo.InvariantCulture,
                 $"{item.MonitorType}: {item.AlertBreaches} alert breach(es), {item.CautionBreaches} caution breach(es), status {item.Status}"));
 
-        var worst = summary.MonitorTypes
+        MonitorTypeExecutiveSummary? worst = summary.MonitorTypes
             .Where(static item => item.WorstDay is not null)
             .OrderByDescending(static item => item.WorstDayBreaches)
             .FirstOrDefault();
-        var worstText = worst is null
+        string worstText = worst is null
             ? "No worst breach period was identified."
             : $"The busiest breach period was {worst.MonitorType} on {worst.WorstDay:yyyy-MM-dd} at {worst.WorstHour:00}:00 UTC with {worst.WorstHourBreaches} event(s).";
 
@@ -81,15 +81,15 @@ public static class ReportInsightBuilder
 
     public static ReportInsights BuildDeterministicInsights(SiteReportData site, DateTimeOffset fromUtc, DateTimeOffset toUtc)
     {
-        var summary = BuildExecutiveSummary(site, fromUtc, toUtc);
+        ReportExecutiveSummary summary = BuildExecutiveSummary(site, fromUtc, toUtc);
         return new ReportInsights(summary, BuildAlertHeatmaps(site), BuildDefaultNarrative(site.SiteName, summary));
     }
 
     private static MonitorTypeExecutiveSummary BuildMonitorTypeSummary(MonitorType monitorType, MonitorReportData[] monitors)
     {
-        var notifications = monitors.SelectMany(static monitor => monitor.Notifications).ToArray();
-        var alertBreaches = notifications.Count(static notification => notification.AlertType == AlertType.Alert);
-        var cautionBreaches = notifications.Count(static notification => notification.AlertType == AlertType.Caution);
+        NotificationData[] notifications = monitors.SelectMany(static monitor => monitor.Notifications).ToArray();
+        int alertBreaches = notifications.Count(static notification => notification.AlertType == AlertType.Alert);
+        int cautionBreaches = notifications.Count(static notification => notification.AlertType == AlertType.Caution);
         var worstDay = notifications
             .GroupBy(static notification => DateOnly.FromDateTime(notification.CreatedAt.UtcDateTime))
             .Select(static group => new { Day = group.Key, Count = group.Count() })

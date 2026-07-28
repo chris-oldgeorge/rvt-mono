@@ -1,5 +1,6 @@
 using System.Reflection;
 using AirQ.Api;
+using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Api.Ports;
 using AirQ.Api.UseCases;
@@ -30,10 +31,10 @@ public class TestAirQCancellation
     [TestMethod]
     public async Task HttpWebClient_PassesTheCallerTokenToTheVendorRequest()
     {
-        using var cancellation = new CancellationTokenSource();
-        var handler = new TokenCapturingHandler();
-        using var inner = new HttpClient(handler);
-        var subject = new HttpWebClient<object>("https://airq.example.test/", inner);
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        TokenCapturingHandler handler = new TokenCapturingHandler();
+        using HttpClient inner = new HttpClient(handler);
+        HttpWebClient<object> subject = new HttpWebClient<object>("https://airq.example.test/", inner);
 
         await subject.GetAsync("/latestData", cancellation.Token);
 
@@ -43,10 +44,10 @@ public class TestAirQCancellation
     [TestMethod]
     public async Task HttpWebClient_WhenTheCallerCancels_TheVendorRequestIsCancelled()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
-        using var inner = new HttpClient(new TokenCapturingHandler());
-        var subject = new HttpWebClient<object>("https://airq.example.test/", inner);
+        using HttpClient inner = new HttpClient(new TokenCapturingHandler());
+        HttpWebClient<object> subject = new HttpWebClient<object>("https://airq.example.test/", inner);
 
         await Assert.ThrowsAsync<TaskCanceledException>(
             () => subject.GetAsync("/latestData", cancellation.Token));
@@ -55,12 +56,12 @@ public class TestAirQCancellation
     [TestMethod]
     public async Task GatewayLatestSamples_PropagatesTheTokenToTheHttpPort()
     {
-        using var cancellation = new CancellationTokenSource();
-        var httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        Mock<IHttpClient> httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
         httpClient
             .Setup(client => client.GetAsync(It.IsAny<string>(), cancellation.Token))
             .ReturnsAsync("[]");
-        var gateway = new AirQHttpGateway(httpClient.Object);
+        AirQHttpGateway gateway = new AirQHttpGateway(httpClient.Object);
 
         await gateway.GetLatestSamplesAsync("user", "auth", "Device1", DateTime.UtcNow, cancellation.Token);
 
@@ -70,12 +71,12 @@ public class TestAirQCancellation
     [TestMethod]
     public async Task GatewayLatestSamples_ReturnsTheAdvancedWatermarkInsteadOfMutatingAnArgument()
     {
-        var httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
+        Mock<IHttpClient> httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
         httpClient
             .Setup(client => client.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("[]");
-        var gateway = new AirQHttpGateway(httpClient.Object);
-        var watermark = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        AirQHttpGateway gateway = new AirQHttpGateway(httpClient.Object);
+        DateTime watermark = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
         LatestSamplesResult result = await gateway.GetLatestSamplesAsync("user", "auth", "Device1", watermark);
 
@@ -86,13 +87,13 @@ public class TestAirQCancellation
     [TestMethod]
     public async Task GatewayCancellation_SurfacesAsCancellationNotAsAnAdapterFailure()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
-        var httpClient = new Mock<IHttpClient>();
+        Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
         httpClient
             .Setup(client => client.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException(cancellation.Token));
-        var gateway = new AirQHttpGateway(httpClient.Object);
+        AirQHttpGateway gateway = new AirQHttpGateway(httpClient.Object);
 
         // A shutdown must not be recorded as a vendor adapter fault.
         await Assert.ThrowsAsync<OperationCanceledException>(
@@ -102,15 +103,15 @@ public class TestAirQCancellation
     [TestMethod]
     public async Task StoreMonitorsHandler_StopsBeforeTheVendorCallWhenAlreadyCancelled()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
-        var gateway = new Mock<IAirQVendorGateway>(MockBehavior.Strict);
+        Mock<IAirQVendorGateway> gateway = new Mock<IAirQVendorGateway>(MockBehavior.Strict);
         gateway
             .Setup(port => port.GetMonitorsAsync("user", "auth", cancellation.Token))
             .ThrowsAsync(new OperationCanceledException(cancellation.Token));
-        var monitorCommands = new Mock<AirQ.Api.Db.IAirQMonitorCommands>(MockBehavior.Strict);
-        var operationalCommands = new Mock<AirQ.Api.Db.IAirQOperationalCommands>(MockBehavior.Strict);
-        var handler = new StoreMonitorsHandler(
+        Mock<IAirQMonitorCommands> monitorCommands = new Mock<AirQ.Api.Db.IAirQMonitorCommands>(MockBehavior.Strict);
+        Mock<IAirQOperationalCommands> operationalCommands = new Mock<AirQ.Api.Db.IAirQOperationalCommands>(MockBehavior.Strict);
+        StoreMonitorsHandler handler = new StoreMonitorsHandler(
             gateway.Object,
             monitorCommands.Object,
             operationalCommands.Object,

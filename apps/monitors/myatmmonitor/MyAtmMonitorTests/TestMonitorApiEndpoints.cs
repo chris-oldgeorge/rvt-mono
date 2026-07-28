@@ -14,15 +14,15 @@ public class TestMonitorApiEndpoints
     [TestMethod]
     public void MapMyAtmMonitorApi_RegistersExpectedRoutes()
     {
-        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             Args = ["--hostBuilder:reloadConfigOnChange=false"]
         });
-        var app = builder.Build();
+        WebApplication app = builder.Build();
 
         app.MapMyAtmMonitorApi();
 
-        var routes = ((IEndpointRouteBuilder)app).DataSources
+        List<string?> routes = ((IEndpointRouteBuilder)app).DataSources
             .SelectMany(dataSource => dataSource.Endpoints)
             .OfType<RouteEndpoint>()
             .Select(endpoint => endpoint.RoutePattern.RawText)

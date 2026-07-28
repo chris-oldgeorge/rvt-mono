@@ -11,8 +11,8 @@ public sealed class AirQDbMapperTests
     [TestMethod]
     public void ToNoiseMonitorDto_MapsMonitorAndStatusDefaults()
     {
-        var id = Guid.NewGuid();
-        var entity = new MonitorEntity
+        Guid id = Guid.NewGuid();
+        MonitorEntity entity = new MonitorEntity
         {
             Id = id,
             ListedAtTime = DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
@@ -30,7 +30,7 @@ public sealed class AirQDbMapperTests
             Offline = true,
             TypeOfMonitor = NoiseMonitorDto.MONITOR_TYPE_NOISE
         };
-        var status = new AirQMonitorStatusEntity
+        AirQMonitorStatusEntity status = new AirQMonitorStatusEntity
         {
             SerialId = "AIRQ-1",
             UpdateTime = DateTime.Parse("2026-07-06T08:05:00Z").ToUniversalTime(),
@@ -42,7 +42,7 @@ public sealed class AirQDbMapperTests
             PumpHours = "42"
         };
 
-        var dto = AirQDbMapper.ToNoiseMonitorDto(entity, new Dictionary<string, AirQMonitorStatusEntity>
+        NoiseMonitorDto dto = AirQDbMapper.ToNoiseMonitorDto(entity, new Dictionary<string, AirQMonitorStatusEntity>
         {
             ["AIRQ-1"] = status
         });
@@ -63,14 +63,14 @@ public sealed class AirQDbMapperTests
     [TestMethod]
     public void UpdateMonitorEntity_DoesNotOverwriteLatestTimestamp()
     {
-        var lastDataTime = DateTime.Parse("2026-07-06T08:15:00Z").ToUniversalTime();
-        var entity = new MonitorEntity
+        DateTime lastDataTime = DateTime.Parse("2026-07-06T08:15:00Z").ToUniversalTime();
+        MonitorEntity entity = new MonitorEntity
         {
             Id = Guid.NewGuid(),
             SerialId = "AIRQ-1",
             LastDataTime15Min = lastDataTime
         };
-        var dto = new NoiseMonitorDto(
+        NoiseMonitorDto dto = new NoiseMonitorDto(
             id: entity.Id,
             listedAtTime: DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
             lastDataTime: DateTime.Parse("2030-01-01T00:00:00Z").ToUniversalTime(),
@@ -98,10 +98,10 @@ public sealed class AirQDbMapperTests
     [TestMethod]
     public void ToNoiseLevelEntity_MapsNoiseDtoWithSerialId()
     {
-        var sampleTime = DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime();
-        var dto = new NoiseDto(sampleTime, 1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8);
+        DateTime sampleTime = DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime();
+        NoiseDto dto = new NoiseDto(sampleTime, 1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8);
 
-        var entity = AirQDbMapper.ToNoiseLevelEntity("AIRQ-1", dto);
+        AirQNoiseLevelEntity entity = AirQDbMapper.ToNoiseLevelEntity("AIRQ-1", dto);
 
         Assert.AreEqual("AIRQ-1", entity.SerialId);
         Assert.AreEqual(sampleTime, entity.SampleTime);
@@ -118,9 +118,9 @@ public sealed class AirQDbMapperTests
     [TestMethod]
     public void UpdateMonitorStatusEntity_MapsStatusFields()
     {
-        var entity = new AirQMonitorStatusEntity { Id = "AIRQ-1", SerialId = "AIRQ-1" };
-        var updateTime = DateTime.Parse("2026-07-06T08:05:00Z").ToUniversalTime();
-        var dto = new NoiseMonitorStatus(updateTime, NoiseMonitorStatus.ACTIVE, 3, "12.4", null, null, "84");
+        AirQMonitorStatusEntity entity = new AirQMonitorStatusEntity { Id = "AIRQ-1", SerialId = "AIRQ-1" };
+        DateTime updateTime = DateTime.Parse("2026-07-06T08:05:00Z").ToUniversalTime();
+        NoiseMonitorStatus dto = new NoiseMonitorStatus(updateTime, NoiseMonitorStatus.ACTIVE, 3, "12.4", null, null, "84");
 
         AirQDbMapper.UpdateMonitorStatusEntity(entity, dto);
 

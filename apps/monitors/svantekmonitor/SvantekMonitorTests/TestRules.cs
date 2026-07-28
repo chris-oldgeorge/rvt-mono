@@ -1,20 +1,20 @@
 using System.Data;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Org.BouncyCastle.Tls;
+using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Configuration;
+using Rvt.Monitor.Common.Diagnostics;
+using Rvt.Monitor.Common.Mqtt;
+using Rvt.Monitor.Common.Notifications;
+using Rvt.Monitor.Common.Rules;
+using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
 using Svantek.Model.Dto;
 using Svantek.Model.Http;
 using SvantekMonitorTests;
-using Microsoft.Extensions.Logging;
-using Moq;
-using Org.BouncyCastle.Tls;
-using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Notifications;
-using Rvt.Monitor.Common.Rules;
-
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
@@ -26,7 +26,7 @@ namespace SvantekMonitorTests
     {
         public TestRules()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -51,14 +51,14 @@ namespace SvantekMonitorTests
         [DynamicData(nameof(LevelExclusion))]
         public void TestStoreNoiseLevels_WithAlertRuleExclusion_Success(List<RvtAlertRuleDto> rules)
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
                                 Returns(Task<string>.Factory.StartNew(() => SvantekFixture.SamplesResponseJson()));
-            var monitors = SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE);
+            List<NoiseMonitorDto> monitors = SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE);
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(monitors);
 
@@ -96,26 +96,26 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevels_AlertRuleActivatedThenDeactivatedByActivityWindow_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
+            DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
-            var alertLevel = 10.0;
-            var serialId = "MyDevice";
-            var measurements1 = new List<SampleResponse> {
+            double alertLevel = 10.0;
+            string serialId = "MyDevice";
+            List<SampleResponse> measurements1 = new List<SampleResponse> {
                         SvantekFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
-            var measurements2 = new List<SampleResponse> {
+            List<SampleResponse> measurements2 = new List<SampleResponse> {
                         SvantekFixture.CreateSampleResponse(startTime.AddMinutes(15), serialId, alertLevel + 1) };
 
-            var monitors = SvantekFixture.SingleActiveMonitorDto(serialId, null);
+            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, null);
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(monitors);
 
-            var ruleId = Guid.NewGuid();
-            var contacts = SvantekFixture.AlertContacts();
+            Guid ruleId = Guid.NewGuid();
+            List<RvtContactDto> contacts = SvantekFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
 
@@ -123,8 +123,8 @@ namespace SvantekMonitorTests
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements1))).
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements2)));
 
-            var durationSeconds = 15 * 60;
-            var ruleOn = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
+            int durationSeconds = 15 * 60;
+            RvtAlertRuleDto ruleOn = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
                                                     SvantekFixture.CreateActiveRuleActivity(startTime, startTime.AddSeconds(30)),
                                                     AlertType.Alert, false, false, DateTime.UtcNow, null);
             dbClient.SetupSequence(c => c.ReadRules(serialId)).
@@ -173,32 +173,32 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevels_AlertRuleActivatedThenDeactivatedByNoiseLimitOnOff_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
             // In this test we get 3 noise levels first 2 should trigger an alert third should remove the trigger
-            var startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
+            DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
-            var limitOn = 10.0;
-            var limitOff = 8.0;
-            var serialId = "MyDev1";
-            var alertingMeasurements =
+            double limitOn = 10.0;
+            double limitOff = 8.0;
+            string serialId = "MyDev1";
+            List<SampleResponse> alertingMeasurements =
                 new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime, serialId, limitOn) };
-            var nonAlertingMeasurements =
+            List<SampleResponse> nonAlertingMeasurements =
                 new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime.AddMinutes(15), serialId, limitOff) };
 
-            var monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
+            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
             dbClient.Setup(c => c.ReadMonitorList(null)).
                    Returns(monitors);
 
-            var ruleId = Guid.NewGuid();
-            var contacts = SvantekFixture.AlertContacts();
+            Guid ruleId = Guid.NewGuid();
+            List<RvtContactDto> contacts = SvantekFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
-            var durationSeconds = 15 * 60;
-            var rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
+            int durationSeconds = 15 * 60;
+            RvtAlertRuleDto rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
                                                     SvantekFixture.CreateActiveRuleActivity(startTime.AddHours(-1), startTime.AddHours(1)),
                                                     AlertType.Alert, false, false, DateTime.UtcNow, null);
 
@@ -258,31 +258,31 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevels_AlertRuleActiveWritesAlertAccordingToAlertDelay_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var serialId = "MyDev1XXX";
-            var startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
+            string serialId = "MyDev1XXX";
+            DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
-            var alertLevel = 10.0;
-            var measurements = new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
-            var monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
+            double alertLevel = 10.0;
+            List<SampleResponse> measurements = new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
+            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
             dbClient.Setup(c => c.ReadMonitorList(null)).
                                Returns(monitors);
 
-            var ruleId = Guid.NewGuid();
-            var contacts = SvantekFixture.AlertContacts();
+            Guid ruleId = Guid.NewGuid();
+            List<RvtContactDto> contacts = SvantekFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=blah&token=blahh&instrumentID={0}", serialId))).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
-            var ruleActivity = SvantekFixture.CreateActiveRuleActivity(null, null);
-            var durationSeconds = 15 * 60;
-            var created = DateTime.UtcNow;
-            var rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
+            AlertActivityTimeDto ruleActivity = SvantekFixture.CreateActiveRuleActivity(null, null);
+            int durationSeconds = 15 * 60;
+            DateTime created = DateTime.UtcNow;
+            RvtAlertRuleDto rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
                                                    ruleActivity,
                                                    AlertType.Alert, false, false, created, null);
             dbClient.SetupSequence(c => c.ReadRules(serialId)).
@@ -314,8 +314,8 @@ namespace SvantekMonitorTests
             dbClient.Verify(c => c.ReadRules(serialId), Times.Exactly(3));
             dbClient.Verify(c => c.InsertNoiseDtos(serialId, It.IsAny<List<NoiseDto>>()), Times.Exactly(3));
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()), Times.Exactly(3));
-            var expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
-            var expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
+            DateTime expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
+            DateTime expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
             dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
             dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
                 dto => TestUtil.VerifyNotificationDto(dto, rule, alertLevel + 1, expectedDateTime, durationSeconds, alertLevel))),
@@ -340,32 +340,32 @@ namespace SvantekMonitorTests
         [DynamicData(nameof(ThreeAlertContacts))]
         public void TestStoreNoiseLevels_WithVaryingNumberOfContactsForAlertRule_Success(List<RvtContactDto> contacts)
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                          out Mock<IDBClient> dbClient,
                                          out Mock<IMqttClient> mqttClient,
                                          out Mock<IMessageService> messageService);
 
-            var startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
+            DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
-            var alertLevel = 10.0;
-            var serialId = "MyDev1AbC";
-            var measurements = new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
-            var monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
+            double alertLevel = 10.0;
+            string serialId = "MyDev1AbC";
+            List<SampleResponse> measurements = new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
+            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
             dbClient.Setup(c => c.ReadMonitorList(null)).
                    Returns(monitors);
 
-            var ruleId = Guid.NewGuid();
+            Guid ruleId = Guid.NewGuid();
 
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
-            var ruleActivity = SvantekFixture.CreateActiveRuleActivity(null, null);
-            var durationSeconds = 15 * 60;
-            var created = DateTime.UtcNow;
+            AlertActivityTimeDto ruleActivity = SvantekFixture.CreateActiveRuleActivity(null, null);
+            int durationSeconds = 15 * 60;
+            DateTime created = DateTime.UtcNow;
 
-            var rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
+            RvtAlertRuleDto rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
                                                     ruleActivity,
                                                     AlertType.Alert, false, false, created, null);
             dbClient.Setup(c => c.ReadRules(serialId)).
@@ -393,8 +393,8 @@ namespace SvantekMonitorTests
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()),
                 Times.Exactly(1));
 
-            var expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
-            var expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
+            DateTime expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
+            DateTime expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
 
             dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
             dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
@@ -438,31 +438,31 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestStoreNoiseLevels_AlertRuleActivatedButSendMessageFails_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
+            DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
-            var limitOn = 10.0;
-            var limitOff = 8.0;
-            var serialId = "MyDevice123";
-            var measurements =
+            double limitOn = 10.0;
+            double limitOff = 8.0;
+            string serialId = "MyDevice123";
+            List<SampleResponse> measurements =
                           new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime, serialId, limitOn) };
 
-            var monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
+            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
             dbClient.Setup(c => c.ReadMonitorList(null)).
                    Returns(monitors);
 
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
-            var ruleId = Guid.NewGuid(); ;
-            var contacts = SvantekFixture.AlertContacts();
+            Guid ruleId = Guid.NewGuid(); ;
+            List<RvtContactDto> contacts = SvantekFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-            var durationSeconds = 15 * 60;
-            var rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
+            int durationSeconds = 15 * 60;
+            RvtAlertRuleDto rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
                                                     SvantekFixture.CreateActiveRuleActivity(startTime.AddHours(-1), startTime.AddHours(1)),
                                                     AlertType.Alert, false, false, DateTime.UtcNow, null);
             dbClient.Setup(c => c.ReadRules(serialId)).
@@ -491,8 +491,8 @@ namespace SvantekMonitorTests
 
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()), Times.Exactly(1));
 
-            var expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
-            var expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
+            DateTime expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
+            DateTime expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
             dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
 
 
@@ -524,34 +524,34 @@ namespace SvantekMonitorTests
         public void TestStoreNoiseLevels_AlertRuleActivatedButSendMessageExcludedBySendTime_Success(
             string dataTimeStr, string? sendStartTimeStr, string? sendEndTimeStr, int numExpectedMessages)
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            var dataTime = DateTime.Parse(dataTimeStr).ToUniversalTime();
+            DateTime dataTime = DateTime.Parse(dataTimeStr).ToUniversalTime();
 
             TimeSpan? sendStartTime = sendStartTimeStr == null ? null : TimeSpan.Parse(sendStartTimeStr);
             TimeSpan? sendEndTime = sendEndTimeStr == null ? null : TimeSpan.Parse(sendEndTimeStr);
 
-            var limitOn = 10.0;
-            var limitOff = 8.0;
-            var serialId = "MyDevice123";
-            var measurements =
+            double limitOn = 10.0;
+            double limitOff = 8.0;
+            string serialId = "MyDevice123";
+            List<SampleResponse> measurements =
                           new List<SampleResponse> { SvantekFixture.CreateSampleResponse(dataTime, serialId, limitOn) };
 
-            var monitors = SvantekFixture.SingleActiveMonitorDto(serialId, dataTime.AddMinutes(-1).ToUniversalTime());
+            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, dataTime.AddMinutes(-1).ToUniversalTime());
             dbClient.Setup(c => c.ReadMonitorList(null)).
                    Returns(monitors);
 
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
-            var ruleId = Guid.NewGuid();
-            var contacts = SvantekFixture.AlertContacts(sendStartTime, sendEndTime);
+            Guid ruleId = Guid.NewGuid();
+            List<RvtContactDto> contacts = SvantekFixture.AlertContacts(sendStartTime, sendEndTime);
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-            var durationSeconds = 15 * 60;
-            var rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
+            int durationSeconds = 15 * 60;
+            RvtAlertRuleDto rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
                                                     SvantekFixture.CreateActiveRuleActivity(dataTime.AddHours(-1), dataTime.AddHours(1)),
                                                     AlertType.Alert, false, false, DateTime.UtcNow, null);
             dbClient.Setup(c => c.ReadRules(serialId)).
@@ -575,8 +575,8 @@ namespace SvantekMonitorTests
             dbClient.Verify(c => c.InsertNoiseDtos(serialId, It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, dataTime.ToUniversalTime()),
                 Times.Exactly(1));
-            var expectedEndTime = dataTime;
-            var expectedStartTime = expectedEndTime.AddSeconds(-durationSeconds);
+            DateTime expectedEndTime = dataTime;
+            DateTime expectedStartTime = expectedEndTime.AddSeconds(-durationSeconds);
             dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
             dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
                 dto => TestUtil.VerifyNotificationDto(dto, rule, limitOn, expectedEndTime, durationSeconds, limitOn))),
@@ -585,7 +585,7 @@ namespace SvantekMonitorTests
                 Times.Exactly(numExpectedMessages));
             dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
                 Times.Exactly(1));
-            foreach (var monitor in monitors)
+            foreach (NoiseMonitorDto monitor in monitors)
             {
                 dbClient.Verify(c => c.HasOpenNotification(monitor.Id, It.IsAny<string>(), rule.AlertType),
                     Times.Exactly(0));

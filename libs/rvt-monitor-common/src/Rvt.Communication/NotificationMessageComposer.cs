@@ -90,7 +90,7 @@ public sealed class NotificationMessageComposer : INotificationMessageComposer
             throw new ArgumentOutOfRangeException(nameof(channel));
         }
 
-        var template = Templates[(kind, channel)];
+        Template template = Templates[(kind, channel)];
         return new ComposedNotification(
             Substitute(template.Subject, monitorName, callbackUrl),
             Substitute(template.PlainTextBody, monitorName, callbackUrl),

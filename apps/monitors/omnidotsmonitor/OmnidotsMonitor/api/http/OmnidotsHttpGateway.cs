@@ -26,7 +26,7 @@ namespace Omnidots.Api.Http
 
         public async Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken = default)
         {
-            using var content = new MultipartFormDataContent();
+            using MultipartFormDataContent content = new MultipartFormDataContent();
             KeyValuePair<string, string>[] values =
             [
                 new KeyValuePair<string, string>("username", userId),
@@ -146,7 +146,7 @@ namespace Omnidots.Api.Http
         {
             string path = string.Format("/api/v1/configure_measuring_point?token={0}&measuring_point_id={1}",
                                      token, measuringPointId);
-            var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
+            StringContent httpContent = new StringContent(json, Encoding.UTF8, "application/json");
             return await httpClient.PostAsync(path, httpContent, cancellationToken);
         }
 

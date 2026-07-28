@@ -21,14 +21,14 @@ internal sealed class SiteArchiveCsvWriter : ISiteArchiveCsvWriter
     public async Task WriteAsync<T>(string filePath, IAsyncEnumerable<T> rows, CancellationToken cancellationToken)
         where T : class
     {
-        var properties = typeof(T).GetProperties(BindingFlags.Instance | BindingFlags.Public);
-        await using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read);
-        await using var writer = new StreamWriter(fileStream);
+        PropertyInfo[] properties = typeof(T).GetProperties(BindingFlags.Instance | BindingFlags.Public);
+        await using FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read);
+        await using StreamWriter writer = new StreamWriter(fileStream);
 
         await writer.WriteLineAsync(string.Join(Separator, properties.Select(property => EscapeCsvField(property.Name))));
-        await foreach (var row in rows.WithCancellation(cancellationToken))
+        await foreach (T? row in rows.WithCancellation(cancellationToken))
         {
-            var values = properties.Select(property => EscapeCsvField(property.GetValue(row)));
+            IEnumerable<string> values = properties.Select(property => EscapeCsvField(property.GetValue(row)));
             await writer.WriteLineAsync(string.Join(Separator, values));
         }
     }
@@ -36,7 +36,7 @@ internal sealed class SiteArchiveCsvWriter : ISiteArchiveCsvWriter
     // Function summary: Escapes a CSV field per RFC 4180 and neutralizes spreadsheet formula injection.
     private static string EscapeCsvField(object? raw)
     {
-        var field = raw?.ToString() ?? "";
+        string field = raw?.ToString() ?? "";
         if (field.Length > 0 && "=+-@\t\r".Contains(field[0]))
         {
             field = "'" + field;

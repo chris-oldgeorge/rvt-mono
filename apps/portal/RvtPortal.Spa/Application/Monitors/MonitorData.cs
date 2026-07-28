@@ -7,13 +7,13 @@
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
-using RVT.DataAccess.EntityModels.Models;
-using RVT.Entities;
-using RVT.BusinessLogic;
-using RVT.Entities.Querying;
-using AForge.Math;
 using System.Globalization;
 using System.Threading;
+using AForge.Math;
+using RVT.BusinessLogic;
+using RVT.DataAccess.EntityModels.Models;
+using RVT.Entities;
+using RVT.Entities.Querying;
 
 
 namespace RvtPortal.Spa.Application.Monitors
@@ -130,7 +130,7 @@ namespace RvtPortal.Spa.Application.Monitors
         {
             int numEntries = CalculateFourierEntryCount(OmnidotsPeakLevels, MeasurementDuration, UseFastTransform);
 
-            var fourierData = new OmnidotsFourierData
+            OmnidotsFourierData fourierData = new OmnidotsFourierData
             {
                 DataLength = numEntries,
                 XVtopData = new Complex[numEntries],
@@ -141,7 +141,7 @@ namespace RvtPortal.Spa.Application.Monitors
             DateTime? lastTime = null;
             int index = 0;
 
-            foreach (var vibrationLevel in OmnidotsPeakLevels)
+            foreach (OmnidotsPeakLevel vibrationLevel in OmnidotsPeakLevels)
             {
                 index = FillMissingFourierSamples(fourierData, index, numEntries, MeasurementDuration, ref lastTime, vibrationLevel.SampleTime);
                 if (index >= numEntries)
@@ -221,11 +221,11 @@ namespace RvtPortal.Spa.Application.Monitors
         {
             Deployment deployment = (await monitorService.DeploymentReadOneAsync(DeploymentId))!;
 
-            var defaultFromDate = DateTime.Today.AddDays(-1).LocalToUtc(dateTimeProvider);
-            var defaultToDate = DateTime.Today.AddDays(1).LocalToUtc(dateTimeProvider);
-            var (chosenFromDate, chosenToDate) = NormalizeDeploymentDateRange(FromDate, ToDate, defaultFromDate, defaultToDate);
+            DateTime defaultFromDate = DateTime.Today.AddDays(-1).LocalToUtc(dateTimeProvider);
+            DateTime defaultToDate = DateTime.Today.AddDays(1).LocalToUtc(dateTimeProvider);
+            (DateTime chosenFromDate, DateTime chosenToDate) = NormalizeDeploymentDateRange(FromDate, ToDate, defaultFromDate, defaultToDate);
             TimeSpan chosenTimeSpan = chosenToDate - chosenFromDate;
-            var monitor = await monitorService.ReadOneAsync(deployment.MonitorId);
+            RVT.Entities.Monitor? monitor = await monitorService.ReadOneAsync(deployment.MonitorId);
 
             if (TraceId != null)
             {
@@ -237,9 +237,9 @@ namespace RvtPortal.Spa.Application.Monitors
                 return BuildEmptyMonitorData(chosenFromDate, chosenToDate, FilterOption);
             }
 
-            var (minDate, maxDate) = GetDeploymentBounds(deployment, dateTimeProvider);
-            var (validFromDate, validToDate) = ClampDeploymentDateRange(minDate, maxDate, chosenFromDate, chosenToDate, chosenTimeSpan, dateTimeProvider);
-            var monitorData = BuildMonitorData(monitor, minDate, maxDate, validFromDate, validToDate, FilterOption);
+            (DateTime minDate, DateTime maxDate) = GetDeploymentBounds(deployment, dateTimeProvider);
+            (DateTime validFromDate, DateTime validToDate) = ClampDeploymentDateRange(minDate, maxDate, chosenFromDate, chosenToDate, chosenTimeSpan, dateTimeProvider);
+            MonitorData monitorData = BuildMonitorData(monitor, minDate, maxDate, validFromDate, validToDate, FilterOption);
 
             await ApplyMonitorReadings(monitorService, monitorData, monitor, validFromDate, validToDate, FilterOption, GraphData, Page, PageSize, Sort, SortDir);
 
@@ -252,8 +252,8 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Normalizes deployment date range input against the default window.
         private static (DateTime FromDate, DateTime ToDate) NormalizeDeploymentDateRange(DateTime? FromDate, DateTime? ToDate, DateTime defaultFromDate, DateTime defaultToDate)
         {
-            var chosenFromDate = FromDate == null ? defaultFromDate : DateTime.SpecifyKind((DateTime)FromDate, DateTimeKind.Utc);
-            var chosenToDate = ToDate == null ? defaultToDate : DateTime.SpecifyKind((DateTime)ToDate, DateTimeKind.Utc);
+            DateTime chosenFromDate = FromDate == null ? defaultFromDate : DateTime.SpecifyKind((DateTime)FromDate, DateTimeKind.Utc);
+            DateTime chosenToDate = ToDate == null ? defaultToDate : DateTime.SpecifyKind((DateTime)ToDate, DateTimeKind.Utc);
 
             if (chosenToDate > chosenFromDate)
             {
@@ -272,8 +272,8 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Builds monitor data for a vibration trace request.
         private static async Task<MonitorData> BuildTraceMonitorData(IMonitorService monitorService, RVT.Entities.Monitor? monitor, Guid traceId, DateTime defaultFromDate, DateTime defaultToDate, string? FilterOption)
         {
-            var traceIndex = await monitorService.TracesIndexReadOne(traceId);
-            var traces = await monitorService.GetVibrationTraces(traceId);
+            OmnidotsTracesIndex? traceIndex = await monitorService.TracesIndexReadOne(traceId);
+            SearchQueryResult<OmnidotsTrace> traces = await monitorService.GetVibrationTraces(traceId);
 
             return new MonitorData
             {
@@ -303,16 +303,16 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Calculates date bounds from the deployment.
         private static (DateTime MinDate, DateTime MaxDate) GetDeploymentBounds(Deployment deployment, IRvtDateTimeProvider dateTimeProvider)
         {
-            var minDate = deployment.StartDate;
-            var maxDate = deployment.EndDate ?? DateTime.Today.AddDays(2).LocalToUtc(dateTimeProvider).AddMilliseconds(-1);
+            DateTime minDate = deployment.StartDate;
+            DateTime maxDate = deployment.EndDate ?? DateTime.Today.AddDays(2).LocalToUtc(dateTimeProvider).AddMilliseconds(-1);
             return (minDate, maxDate);
         }
 
         // Function summary: Clamps the selected date range to deployment bounds.
         private static (DateTime FromDate, DateTime ToDate) ClampDeploymentDateRange(DateTime minDate, DateTime maxDate, DateTime chosenFromDate, DateTime chosenToDate, TimeSpan chosenTimeSpan, IRvtDateTimeProvider dateTimeProvider)
         {
-            var validFromDate = minDate > chosenFromDate ? minDate : chosenFromDate;
-            var validToDate = maxDate < chosenToDate ? maxDate : chosenToDate;
+            DateTime validFromDate = minDate > chosenFromDate ? minDate : chosenFromDate;
+            DateTime validToDate = maxDate < chosenToDate ? maxDate : chosenToDate;
 
             if (validToDate > validFromDate)
             {
@@ -431,7 +431,7 @@ namespace RvtPortal.Spa.Application.Monitors
         {
             monitorData.FilterOption = FilterOption ?? "time";
             validToDate = ApplyMaxDuration(monitorData, validFromDate, validToDate, FilterOption == "frequency" ? 1 : 3, GraphData);
-            var vibrationLevels = await monitorService.GetOmnidotsPeakLevels(monitor.SerialId, validFromDate, validToDate, Page, PageSize, Sort, SortDir);
+            SearchQueryResult<OmnidotsPeakLevel> vibrationLevels = await monitorService.GetOmnidotsPeakLevels(monitor.SerialId, validFromDate, validToDate, Page, PageSize, Sort, SortDir);
 
             if (monitorData.FilterOption == "frequency")
             {
@@ -459,7 +459,7 @@ namespace RvtPortal.Spa.Application.Monitors
             }
 
             int measurementDuration = (int)monitorStatus.MeasurementDuration;
-            var fourierData = PrepareDataForFourierTransform(vibrationLevels.Value, measurementDuration, true);
+            OmnidotsFourierData fourierData = PrepareDataForFourierTransform(vibrationLevels.Value, measurementDuration, true);
             FourierTransform.FFT(fourierData.XVtopData, FourierTransform.Direction.Forward);
             FourierTransform.FFT(fourierData.YVtopData, FourierTransform.Direction.Forward);
             FourierTransform.FFT(fourierData.ZVtopData, FourierTransform.Direction.Forward);
@@ -475,8 +475,8 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Converts Fourier data into chart-ready magnitudes.
         private static List<OmnidotsFrequencyMagnitudes> BuildFrequencyMagnitudes(OmnidotsFourierData fourierData, int measurementDuration)
         {
-            var frequencyMagnitudes = new List<OmnidotsFrequencyMagnitudes>();
-            for (var i = 0; i < fourierData.DataLength / 2; i++)
+            List<OmnidotsFrequencyMagnitudes> frequencyMagnitudes = new List<OmnidotsFrequencyMagnitudes>();
+            for (int i = 0; i < fourierData.DataLength / 2; i++)
             {
                 frequencyMagnitudes.Add(new OmnidotsFrequencyMagnitudes
                 {

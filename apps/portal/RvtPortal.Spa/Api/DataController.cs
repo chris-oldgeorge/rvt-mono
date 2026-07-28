@@ -45,7 +45,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        var result = await dataApplication.GetGridAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<MonitorDataGridResponse> result = await dataApplication.GetGridAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -60,7 +60,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        var result = await dataApplication.DownloadAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataDownloadWorkflowResult result = await dataApplication.DownloadAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToDownloadResult(result);
     }
 
@@ -75,7 +75,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        var result = await dataApplication.GetGraphAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<MonitorGraphResponse> result = await dataApplication.GetGraphAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -90,7 +90,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        var result = await dataApplication.GetTracesAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<TraceListResponse> result = await dataApplication.GetTracesAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -100,7 +100,7 @@ public class DataController : ControllerBase
     // Function summary: Returns vibration trace samples for a visible deployment and trace.
     public async Task<ActionResult<TraceDetailResponse>> TraceDetail(Guid deploymentId, Guid traceId)
     {
-        var result = await dataApplication.GetTraceDetailAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<TraceDetailResponse> result = await dataApplication.GetTraceDetailAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -110,7 +110,7 @@ public class DataController : ControllerBase
     // Function summary: Streams vibration trace samples as CSV for a visible deployment and trace.
     public async Task<IActionResult> TraceDownload(Guid deploymentId, Guid traceId)
     {
-        var result = await dataApplication.DownloadTraceAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
+        DataDownloadWorkflowResult result = await dataApplication.DownloadTraceAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
         return ToDownloadResult(result);
     }
 
@@ -198,10 +198,10 @@ public class DataController : ControllerBase
     // Function summary: Preserves the wire-format distinction that DateTime model binding loses for offset timestamps.
     private ProblemDetails? ValidateUtcQueryTimestamps()
     {
-        var invalidFields = TimestampQueryFields
+        string[] invalidFields = TimestampQueryFields
             .Where(field =>
             {
-                var value = Request.Query[field].ToString();
+                string value = Request.Query[field].ToString();
                 return value.Length > 0 && !value.EndsWith("Z", StringComparison.OrdinalIgnoreCase);
             })
             .ToArray();
@@ -246,7 +246,7 @@ public class DataController : ControllerBase
     // Function summary: Captures the authenticated caller's data-view role facts for the application service.
     private DataViewActor CurrentActor()
     {
-        var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId)
+        Guid? userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out Guid parsedUserId)
             ? parsedUserId
             : (Guid?)null;
         return new DataViewActor(

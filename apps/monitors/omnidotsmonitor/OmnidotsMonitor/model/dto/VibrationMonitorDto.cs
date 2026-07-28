@@ -100,7 +100,7 @@ namespace Omnidots.Model.Dto
 
             if (measuringPoint.Sensor != null)
             {
-                var s = measuringPoint.Sensor!;
+                Sensor s = measuringPoint.Sensor!;
                 Sensor = new SensorDto(serialId: SerialId, name: s.Name, lastseen: s.Lastseen, batteryCharge: s.BatteryCharge,
                                        connectedUsing: s.ConnectedUsing, online: s.Online);
             }

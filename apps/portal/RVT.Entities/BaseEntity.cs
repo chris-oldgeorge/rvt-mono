@@ -2,10 +2,10 @@
 // Major updates:
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
-using Newtonsoft.Json;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Newtonsoft.Json;
 
 namespace RVT.Entities
 {

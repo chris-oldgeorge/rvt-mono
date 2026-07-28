@@ -63,11 +63,11 @@ namespace MyAtm.Api.Http
             And include more than 50 results (the default response page size). Let's put the maximum supported page size:
             $top=50000
             */
-            for (var attempt = 1; ; attempt++)
+            for (int attempt = 1; ; attempt++)
             {
                 await requestPolicy.WaitForPermitAsync(cancellationToken);
-                using var request = new HttpRequestMessage(HttpMethod.Get, path);
-                using var response = await httpClient.SendAsync(
+                using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, path);
+                using HttpResponseMessage response = await httpClient.SendAsync(
                     request,
                     HttpCompletionOption.ResponseHeadersRead,
                     cancellationToken);
@@ -90,18 +90,18 @@ namespace MyAtm.Api.Http
             HttpContent content,
             CancellationToken cancellationToken)
         {
-            var contentLength = content.Headers.ContentLength;
+            long? contentLength = content.Headers.ContentLength;
             if (contentLength.HasValue && contentLength.Value > maxResponseBytes)
             {
                 throw AdapterException.Of($"HTTP response exceeded the configured {maxResponseBytes}-byte limit.");
             }
 
-            await using var source = await content.ReadAsStreamAsync(cancellationToken);
-            using var destination = new MemoryStream();
-            var buffer = new byte[Math.Min(81920, maxResponseBytes)];
+            await using Stream source = await content.ReadAsStreamAsync(cancellationToken);
+            using MemoryStream destination = new MemoryStream();
+            byte[] buffer = new byte[Math.Min(81920, maxResponseBytes)];
             while (true)
             {
-                var read = await source.ReadAsync(buffer, cancellationToken);
+                int read = await source.ReadAsync(buffer, cancellationToken);
                 if (read == 0)
                 {
                     break;

@@ -14,12 +14,12 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateOneTimeReportAsync_PersistsReportWithHiddenOneTimeRuleWithoutUpdatingLastGenerated()
     {
-        var rules = new FakeRuleQueries();
-        var data = new FakeDataQueries();
-        var locks = new FakeGenerationLocks();
-        var commands = new FakeGenerationCommands();
-        var service = CreateService(rules, data, locks, commands);
-        var request = new OneTimeReportRequest
+        FakeRuleQueries rules = new FakeRuleQueries();
+        FakeDataQueries data = new FakeDataQueries();
+        FakeGenerationLocks locks = new FakeGenerationLocks();
+        FakeGenerationCommands commands = new FakeGenerationCommands();
+        ReportGenerationService service = CreateService(rules, data, locks, commands);
+        OneTimeReportRequest request = new OneTimeReportRequest
         {
             SiteId = data.Site.Id,
             RequestedByUserId = Guid.NewGuid(),
@@ -28,19 +28,19 @@ public sealed class ReportGenerationServiceTests
             RecipientEmails = ["ops@example.com"]
         };
 
-        var response = await service.GenerateOneTimeReportAsync(request, CancellationToken.None);
+        OneTimeReportResponse response = await service.GenerateOneTimeReportAsync(request, CancellationToken.None);
 
         Assert.Equal(commands.OneTimeRuleId, response.ReportRuleId);
         Assert.Single(commands.InsertedReports);
         Assert.Single(commands.SentRows);
-        var saveRequest = Assert.Single(commands.SaveRequests);
+        GeneratedReportSaveRequest saveRequest = Assert.Single(commands.SaveRequests);
         Assert.Null(saveRequest.ReportRuleId);
         Assert.NotNull(saveRequest.OneTimeReportRule);
         Assert.Equal(request.RequestedByUserId, saveRequest.OneTimeReportRule.RequestedByUserId);
         Assert.Equal(request.ReportName, saveRequest.OneTimeReportRule.ReportName);
         Assert.Equal(FrequencyType.OneTime, saveRequest.Frequency);
         Assert.False(saveRequest.UpdateLastGenerated);
-        var delivery = Assert.Single(saveRequest.Deliveries);
+        ReportDeliverySaveRequest delivery = Assert.Single(saveRequest.Deliveries);
         Assert.Equal("ops@example.com", delivery.RecipientEmail);
         Assert.Null(delivery.ErrorMessage);
         Assert.Equal(0, commands.LastGeneratedUpdates);
@@ -52,10 +52,10 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateRuleAsync_SavesReportRecipientsAndLastGeneratedInSingleRequest()
     {
-        var ruleId = Guid.NewGuid();
-        var siteId = Guid.NewGuid();
-        var recipientId = Guid.NewGuid();
-        var rules = new FakeRuleQueries
+        Guid ruleId = Guid.NewGuid();
+        Guid siteId = Guid.NewGuid();
+        Guid recipientId = Guid.NewGuid();
+        FakeRuleQueries rules = new FakeRuleQueries
         {
             Rule = new ReportRule
             {
@@ -66,16 +66,16 @@ public sealed class ReportGenerationServiceTests
                 Recipients = [new ReportRecipient(recipientId, "daily@example.com")]
             }
         };
-        var data = new FakeDataQueries();
-        var locks = new FakeGenerationLocks();
-        var commands = new FakeGenerationCommands();
-        var service = CreateService(rules, data, locks, commands);
-        var triggerUtc = new DateTimeOffset(2026, 6, 30, 8, 15, 0, TimeSpan.Zero);
+        FakeDataQueries data = new FakeDataQueries();
+        FakeGenerationLocks locks = new FakeGenerationLocks();
+        FakeGenerationCommands commands = new FakeGenerationCommands();
+        ReportGenerationService service = CreateService(rules, data, locks, commands);
+        DateTimeOffset triggerUtc = new DateTimeOffset(2026, 6, 30, 8, 15, 0, TimeSpan.Zero);
 
-        var reports = await service.GenerateRuleAsync(ruleId, triggerUtc, CancellationToken.None);
+        IReadOnlyList<GeneratedReport> reports = await service.GenerateRuleAsync(ruleId, triggerUtc, CancellationToken.None);
 
         Assert.Single(reports);
-        var saveRequest = Assert.Single(commands.SaveRequests);
+        GeneratedReportSaveRequest saveRequest = Assert.Single(commands.SaveRequests);
         Assert.Equal(siteId, saveRequest.SiteId);
         Assert.Equal(ruleId, saveRequest.ReportRuleId);
         Assert.Null(saveRequest.OneTimeReportRule);
@@ -83,7 +83,7 @@ public sealed class ReportGenerationServiceTests
         Assert.True(saveRequest.UpdateLastGenerated);
         Assert.Equal(new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero), saveRequest.PeriodStartUtc);
         Assert.Equal(new DateTimeOffset(2026, 6, 29, 23, 59, 59, 999, TimeSpan.Zero), saveRequest.PeriodEndUtc);
-        var delivery = Assert.Single(saveRequest.Deliveries);
+        ReportDeliverySaveRequest delivery = Assert.Single(saveRequest.Deliveries);
         Assert.Equal("daily@example.com", delivery.RecipientEmail);
         Assert.Null(delivery.ErrorMessage);
         Assert.Equal(1, commands.LastGeneratedUpdates);
@@ -92,13 +92,13 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateOneTimeReportAsync_PersistsThrownFailureAndContinuesRemainingRecipients()
     {
-        var rules = new FakeRuleQueries();
-        var data = new FakeDataQueries();
-        var locks = new FakeGenerationLocks();
-        var commands = new FakeGenerationCommands();
-        var sender = new ThrowingThenSuccessfulSender();
-        var service = CreateService(rules, data, locks, commands, sender);
-        var request = new OneTimeReportRequest
+        FakeRuleQueries rules = new FakeRuleQueries();
+        FakeDataQueries data = new FakeDataQueries();
+        FakeGenerationLocks locks = new FakeGenerationLocks();
+        FakeGenerationCommands commands = new FakeGenerationCommands();
+        ThrowingThenSuccessfulSender sender = new ThrowingThenSuccessfulSender();
+        ReportGenerationService service = CreateService(rules, data, locks, commands, sender);
+        OneTimeReportRequest request = new OneTimeReportRequest
         {
             SiteId = data.Site.Id,
             RequestedByUserId = Guid.NewGuid(),
@@ -112,7 +112,7 @@ public sealed class ReportGenerationServiceTests
         Assert.Equal(["fails@example.com", "works@example.com"], sender.AttemptedRecipients);
         Assert.Equal(1, commands.HiddenRuleUpserts);
         Assert.Single(commands.InsertedReports);
-        var deliveries = Assert.Single(commands.SaveRequests).Deliveries;
+        IReadOnlyList<ReportDeliverySaveRequest> deliveries = Assert.Single(commands.SaveRequests).Deliveries;
         Assert.Equal("Delivery provider threw InvalidOperationException.", deliveries[0].ErrorMessage);
         Assert.Null(deliveries[1].ErrorMessage);
     }
@@ -120,16 +120,16 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateOneTimeReportAsync_BoundsReturnedDeliveryFailure()
     {
-        var rules = new FakeRuleQueries();
-        var data = new FakeDataQueries();
-        var commands = new FakeGenerationCommands();
-        var service = CreateService(
+        FakeRuleQueries rules = new FakeRuleQueries();
+        FakeDataQueries data = new FakeDataQueries();
+        FakeGenerationCommands commands = new FakeGenerationCommands();
+        ReportGenerationService service = CreateService(
             rules,
             data,
             new FakeGenerationLocks(),
             commands,
             new FailedSender(new string('x', 1200)));
-        var request = new OneTimeReportRequest
+        OneTimeReportRequest request = new OneTimeReportRequest
         {
             SiteId = data.Site.Id,
             RequestedByUserId = Guid.NewGuid(),
@@ -140,7 +140,7 @@ public sealed class ReportGenerationServiceTests
 
         await service.GenerateOneTimeReportAsync(request, CancellationToken.None);
 
-        var error = Assert.Single(Assert.Single(commands.SaveRequests).Deliveries).ErrorMessage;
+        string? error = Assert.Single(Assert.Single(commands.SaveRequests).Deliveries).ErrorMessage;
         Assert.NotNull(error);
         Assert.Equal(1024, error.Length);
     }
@@ -148,15 +148,15 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateOneTimeReportAsync_PropagatesRequestedDeliveryCancellation()
     {
-        var data = new FakeDataQueries();
-        var commands = new FakeGenerationCommands();
-        var service = CreateService(
+        FakeDataQueries data = new FakeDataQueries();
+        FakeGenerationCommands commands = new FakeGenerationCommands();
+        ReportGenerationService service = CreateService(
             new FakeRuleQueries(),
             data,
             new FakeGenerationLocks(),
             commands,
             new CancellingSender());
-        var request = new OneTimeReportRequest
+        OneTimeReportRequest request = new OneTimeReportRequest
         {
             SiteId = data.Site.Id,
             RequestedByUserId = Guid.NewGuid(),
@@ -164,7 +164,7 @@ public sealed class ReportGenerationServiceTests
             ToUtc = new DateTimeOffset(2026, 6, 30, 0, 0, 0, TimeSpan.Zero),
             RecipientEmails = ["cancelled@example.com"]
         };
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
@@ -176,12 +176,12 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateRuleAsync_UsesSeparateRuleDataLockAndCommandPorts()
     {
-        var site = Site();
-        var rules = new FakeRuleQueries { Rule = DailyRule(site.Id) };
-        var data = new FakeDataQueries { Site = site };
-        var locks = new FakeGenerationLocks();
-        var commands = new FakeGenerationCommands();
-        var service = CreateService(rules, data, locks, commands);
+        SiteReportData site = Site();
+        FakeRuleQueries rules = new FakeRuleQueries { Rule = DailyRule(site.Id) };
+        FakeDataQueries data = new FakeDataQueries { Site = site };
+        FakeGenerationLocks locks = new FakeGenerationLocks();
+        FakeGenerationCommands commands = new FakeGenerationCommands();
+        ReportGenerationService service = CreateService(rules, data, locks, commands);
 
         await service.GenerateRuleAsync(rules.Rule!.Id, new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero), CancellationToken.None);
 
@@ -194,17 +194,17 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateScheduledReportsAsync_ContinuesAfterRuleFailure()
     {
-        var failedSiteId = Guid.NewGuid();
-        var successfulSiteId = Guid.NewGuid();
-        var failedRule = DailyRule(failedSiteId);
-        var successfulRule = DailyRule(successfulSiteId);
-        var rules = new FakeRuleQueries { DueRules = [failedRule, successfulRule] };
-        var data = new FakeDataQueries();
+        Guid failedSiteId = Guid.NewGuid();
+        Guid successfulSiteId = Guid.NewGuid();
+        ReportRule failedRule = DailyRule(failedSiteId);
+        ReportRule successfulRule = DailyRule(successfulSiteId);
+        FakeRuleQueries rules = new FakeRuleQueries { DueRules = [failedRule, successfulRule] };
+        FakeDataQueries data = new FakeDataQueries();
         data.FailingSiteIds.Add(failedSiteId);
-        var commands = new FakeGenerationCommands();
-        var service = CreateService(rules, data, new FakeGenerationLocks(), commands);
+        FakeGenerationCommands commands = new FakeGenerationCommands();
+        ReportGenerationService service = CreateService(rules, data, new FakeGenerationLocks(), commands);
 
-        var reports = await service.GenerateScheduledReportsAsync(
+        IReadOnlyList<GeneratedReport> reports = await service.GenerateScheduledReportsAsync(
             new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero),
             CancellationToken.None);
 
@@ -215,16 +215,16 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateScheduledReportsAsync_PropagatesRequestedCancellation()
     {
-        var cancelledSiteId = Guid.NewGuid();
-        var rules = new FakeRuleQueries { DueRules = [DailyRule(cancelledSiteId)] };
-        var data = new FakeDataQueries();
+        Guid cancelledSiteId = Guid.NewGuid();
+        FakeRuleQueries rules = new FakeRuleQueries { DueRules = [DailyRule(cancelledSiteId)] };
+        FakeDataQueries data = new FakeDataQueries();
         data.CancelledSiteIds.Add(cancelledSiteId);
-        var service = CreateService(
+        ReportGenerationService service = CreateService(
             rules,
             data,
             new FakeGenerationLocks(),
             new FakeGenerationCommands());
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
@@ -348,13 +348,13 @@ public sealed class ReportGenerationServiceTests
         public Task<GeneratedReport> SaveGeneratedReportAsync(GeneratedReportSaveRequest request, CancellationToken cancellationToken)
         {
             SaveRequests.Add(request);
-            var reportRuleId = request.ReportRuleId ?? OneTimeRuleId;
+            Guid reportRuleId = request.ReportRuleId ?? OneTimeRuleId;
             if (request.OneTimeReportRule is not null)
             {
                 HiddenRuleUpserts++;
             }
 
-            var report = new GeneratedReport(Guid.NewGuid(), reportRuleId, request.ReportUri, request.PeriodStartUtc, request.PeriodEndUtc);
+            GeneratedReport report = new GeneratedReport(Guid.NewGuid(), reportRuleId, request.ReportUri, request.PeriodStartUtc, request.PeriodEndUtc);
             InsertedReports.Add(report);
             SentRows.AddRange(request.Deliveries.Select(delivery => (report.ReportId, delivery.RecipientEmail)));
             if (request.UpdateLastGenerated)

@@ -23,9 +23,9 @@ public static class MonitorJobTelemetry
         ILogger logger,
         Func<Task<int>> runAsync)
     {
-        using var activity = ActivitySource.StartActivity("Monitor job", ActivityKind.Internal);
-        var start = Stopwatch.GetTimestamp();
-        var tags = CreateTags(monitorName, jobName, executionMode);
+        using Activity? activity = ActivitySource.StartActivity("Monitor job", ActivityKind.Internal);
+        long start = Stopwatch.GetTimestamp();
+        KeyValuePair<string, object?>[] tags = CreateTags(monitorName, jobName, executionMode);
         SetActivityTags(activity, tags);
 
         StartedCounter.Add(1, tags);
@@ -37,8 +37,8 @@ public static class MonitorJobTelemetry
 
         try
         {
-            var exitCode = await runAsync();
-            var durationSeconds = Stopwatch.GetElapsedTime(start).TotalSeconds;
+            int exitCode = await runAsync();
+            double durationSeconds = Stopwatch.GetElapsedTime(start).TotalSeconds;
             Duration.Record(durationSeconds, CreateTags(monitorName, jobName, executionMode, exitCode));
 
             if (exitCode == 0)
@@ -72,7 +72,7 @@ public static class MonitorJobTelemetry
         }
         catch (Exception exception)
         {
-            var durationSeconds = Stopwatch.GetElapsedTime(start).TotalSeconds;
+            double durationSeconds = Stopwatch.GetElapsedTime(start).TotalSeconds;
             FailedCounter.Add(1, tags);
             Duration.Record(durationSeconds, tags);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
@@ -95,7 +95,7 @@ public static class MonitorJobTelemetry
         string executionMode,
         int? exitCode = null)
     {
-        var tags = new List<KeyValuePair<string, object?>>
+        List<KeyValuePair<string, object?>> tags = new List<KeyValuePair<string, object?>>
         {
             new("rvt.monitor.name", monitorName),
             new("rvt.monitor.job.name", jobName),
@@ -117,7 +117,7 @@ public static class MonitorJobTelemetry
             return;
         }
 
-        foreach (var tag in tags)
+        foreach (KeyValuePair<string, object?> tag in tags)
         {
             activity.SetTag(tag.Key, tag.Value);
         }

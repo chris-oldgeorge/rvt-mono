@@ -26,8 +26,8 @@ public sealed class HelpAssetUrlAuditTests
     {
         get
         {
-            var cases = new TheoryData<string, string?, string?>();
-            foreach (var @case in HelpAssetUrlPolicyCases.All)
+            TheoryData<string, string?, string?> cases = new TheoryData<string, string?, string?>();
+            foreach (HelpAssetUrlCase @case in HelpAssetUrlPolicyCases.All)
             {
                 cases.Add(@case.Name, @case.Input, @case.PersistedViolation);
             }
@@ -59,7 +59,7 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public void Parse_AcceptsEachRequiredFlagOnceAndResolvesReceiptPath()
     {
-        var options = ReleaseAuditOptions.Parse(
+        ReleaseAuditOptions? options = ReleaseAuditOptions.Parse(
         [
             "help-asset-urls",
             "--receipt", "artifacts/help-audit.json",
@@ -95,13 +95,13 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public async Task RunAsync_NonexistentDirectoryFormReceiptIsInvalidWithoutReadingEnvironmentOrCreatingPath()
     {
-        var directoryPath = Path.Combine(
+        string directoryPath = Path.Combine(
             Path.GetTempPath(),
             $"rvt-release-audit-directory-form-{Guid.NewGuid():N}");
-        var receiptArgument = directoryPath + Path.DirectorySeparatorChar;
-        var environmentRead = false;
+        string receiptArgument = directoryPath + Path.DirectorySeparatorChar;
+        bool environmentRead = false;
 
-        var result = await RunProgramAsync(
+        ProgramRunResult result = await RunProgramAsync(
             args: ValidArguments(receiptArgument),
             getEnvironmentVariable: _ =>
             {
@@ -133,7 +133,7 @@ public sealed class HelpAssetUrlAuditTests
     public async Task RunAsync_InvalidInputReturnsUsageWithoutReadingEnvironmentOrEchoingArguments()
     {
         const string secretMarker = "secret-marker-invalid-input";
-        var result = await RunProgramAsync(
+        ProgramRunResult result = await RunProgramAsync(
             args:
             [
                 "help-asset-urls",
@@ -152,8 +152,8 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public async Task RunAsync_MissingConnectionReturnsUsageAndReadsEnvironmentOnce()
     {
-        var lookupCount = 0;
-        var result = await RunProgramAsync(
+        int lookupCount = 0;
+        ProgramRunResult result = await RunProgramAsync(
             getEnvironmentVariable: variableName =>
             {
                 lookupCount++;
@@ -173,11 +173,11 @@ public sealed class HelpAssetUrlAuditTests
         const string rawUrl = "https://private.rvt.test/guide.pdf?token=raw-input";
         string? receiptPath = null;
         string? receiptJson = null;
-        var row = new HelpAssetUrlAuditRow(
+        HelpAssetUrlAuditRow row = new HelpAssetUrlAuditRow(
             Guid.Parse("10000000-0000-0000-0000-000000000001"),
             Guid.Parse("20000000-0000-0000-0000-000000000001"),
             rawUrl);
-        var result = await RunProgramAsync(
+        ProgramRunResult result = await RunProgramAsync(
             readRows: (_, _) => Task.FromResult(
                 new HelpAssetUrlAuditReadResult("rvt_portal", [row])),
             writeReceipt: (path, json, _) =>
@@ -191,8 +191,8 @@ public sealed class HelpAssetUrlAuditTests
         Assert.Equal(Path.GetFullPath("receipt.json"), receiptPath);
         Assert.NotNull(receiptJson);
         Assert.DoesNotContain(rawUrl, receiptJson, StringComparison.Ordinal);
-        using var document = JsonDocument.Parse(receiptJson);
-        var receipt = document.RootElement;
+        using JsonDocument document = JsonDocument.Parse(receiptJson);
+        JsonElement receipt = document.RootElement;
         Assert.Equal("production", receipt.GetProperty("environment").GetString());
         Assert.Equal("rvt_portal", receipt.GetProperty("database").GetString());
         Assert.Equal("2026-07-28T12:34:56+00:00", receipt.GetProperty("executedAtUtc").GetString());
@@ -208,11 +208,11 @@ public sealed class HelpAssetUrlAuditTests
     {
         const string rawRejectedUrl = "http://private.rvt.test/guide.pdf?credential=raw-input";
         string? receiptJson = null;
-        var row = new HelpAssetUrlAuditRow(
+        HelpAssetUrlAuditRow row = new HelpAssetUrlAuditRow(
             Guid.Parse("10000000-0000-0000-0000-000000000001"),
             Guid.Parse("20000000-0000-0000-0000-000000000001"),
             rawRejectedUrl);
-        var result = await RunProgramAsync(
+        ProgramRunResult result = await RunProgramAsync(
             readRows: (_, _) => Task.FromResult(
                 new HelpAssetUrlAuditReadResult("rvt_portal", [row])),
             writeReceipt: (_, json, _) =>
@@ -235,9 +235,9 @@ public sealed class HelpAssetUrlAuditTests
     {
         const string secretMarker = "Password=secret-marker-database";
         const string rawRejectedUrl = "http://private.rvt.test/rejected.pdf";
-        var expectedConnection =
+        string expectedConnection =
             $"Host=database.test;Database=rvt;{secretMarker}";
-        var result = await RunProgramAsync(
+        ProgramRunResult result = await RunProgramAsync(
             getEnvironmentVariable: _ => expectedConnection,
             readRows: (connectionString, _) =>
             {
@@ -268,9 +268,9 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public async Task RunAsync_CancellationReturnsAuditFailure()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var result = await RunProgramAsync(
+        ProgramRunResult result = await RunProgramAsync(
             readRows: (_, cancellationToken) => Task.FromCanceled<HelpAssetUrlAuditReadResult>(
                 cancellationToken),
             cancellationToken: cancellation.Token);
@@ -287,7 +287,7 @@ public sealed class HelpAssetUrlAuditTests
     {
         const string secretMarker = "secret-marker-receipt";
         const string rawRejectedUrl = "http://private.rvt.test/rejected.pdf";
-        var result = await RunProgramAsync(
+        ProgramRunResult result = await RunProgramAsync(
             writeReceipt: (_, _, _) => throw new IOException(
                 $"receipt exception contained {secretMarker} and {rawRejectedUrl}"));
 
@@ -303,17 +303,17 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public async Task RunAsync_ReceiptDirectoryCreationFailureReturnsAuditFailureAndDoesNotPublishReceipt()
     {
-        var testDirectory = Path.Combine(
+        string testDirectory = Path.Combine(
             Path.GetTempPath(),
             $"rvt-release-audit-{Guid.NewGuid():N}");
         Directory.CreateDirectory(testDirectory);
-        var blockingFile = Path.Combine(testDirectory, "not-a-directory");
+        string blockingFile = Path.Combine(testDirectory, "not-a-directory");
         await File.WriteAllTextAsync(blockingFile, "block");
-        var receiptPath = Path.Combine(blockingFile, "receipt.json");
+        string receiptPath = Path.Combine(blockingFile, "receipt.json");
 
         try
         {
-            var result = await RunProgramAsync(
+            ProgramRunResult result = await RunProgramAsync(
                 args: ValidArguments(receiptPath),
                 writeReceipt: HelpAssetUrlAudit.WriteReceiptAsync);
 
@@ -333,10 +333,10 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public async Task WriteReceiptAsync_WritesUtf8WithoutBomAndAtomicallyReplacesExistingReceipt()
     {
-        var testDirectory = Path.Combine(
+        string testDirectory = Path.Combine(
             Path.GetTempPath(),
             $"rvt-release-audit-{Guid.NewGuid():N}");
-        var receiptPath = Path.Combine(testDirectory, "nested", "receipt.json");
+        string receiptPath = Path.Combine(testDirectory, "nested", "receipt.json");
 
         try
         {
@@ -349,7 +349,7 @@ public sealed class HelpAssetUrlAuditTests
                 /*lang=json,strict*/ "{\"outcome\":\"pass\"}\n",
                 CancellationToken.None);
 
-            var bytes = await File.ReadAllBytesAsync(receiptPath);
+            byte[] bytes = await File.ReadAllBytesAsync(receiptPath);
             Assert.False(bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }));
             Assert.Equal(/*lang=json,strict*/ "{\"outcome\":\"pass\"}\n", System.Text.Encoding.UTF8.GetString(bytes));
             Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(receiptPath)!, "*.tmp"));
@@ -370,12 +370,12 @@ public sealed class HelpAssetUrlAuditTests
         string? input,
         string? expectedViolationCode)
     {
-        var row = new HelpAssetUrlAuditRow(
+        HelpAssetUrlAuditRow row = new HelpAssetUrlAuditRow(
             Guid.Parse("10000000-0000-0000-0000-000000000001"),
             Guid.Parse("20000000-0000-0000-0000-000000000001"),
             input);
 
-        var receipt = Classify([row]);
+        HelpAssetUrlAuditReceipt receipt = Classify([row]);
 
         Assert.False(string.IsNullOrWhiteSpace(name));
         Assert.Equal(expectedViolationCode, receipt.Violations.SingleOrDefault()?.ViolationCode);
@@ -384,19 +384,19 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public void Classify_CountsEveryRowAndOmitsValidRowsFromViolations()
     {
-        var invalidRow = new HelpAssetUrlAuditRow(
+        HelpAssetUrlAuditRow invalidRow = new HelpAssetUrlAuditRow(
             Guid.Parse("10000000-0000-0000-0000-000000000001"),
             Guid.Parse("20000000-0000-0000-0000-000000000001"),
             "http://docs.rvt.test/guide.pdf");
-        var validRow = new HelpAssetUrlAuditRow(
+        HelpAssetUrlAuditRow validRow = new HelpAssetUrlAuditRow(
             Guid.Parse("10000000-0000-0000-0000-000000000002"),
             Guid.Parse("20000000-0000-0000-0000-000000000002"),
             "/help-assets/guide.pdf");
 
-        var receipt = Classify([invalidRow, validRow]);
+        HelpAssetUrlAuditReceipt receipt = Classify([invalidRow, validRow]);
 
         Assert.Equal(2, receipt.RowsScanned);
-        var violation = Assert.Single(receipt.Violations);
+        HelpAssetUrlViolation violation = Assert.Single(receipt.Violations);
         Assert.Equal(invalidRow.AssetId, violation.AssetId);
         Assert.Equal(invalidRow.HelpArticleId, violation.HelpArticleId);
         Assert.Equal("absolute_https_required", violation.ViolationCode);
@@ -405,18 +405,18 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public void Classify_OrdersViolationsAndCreatesBlockedReceiptForFindings()
     {
-        var firstArticle = Guid.Parse("20000000-0000-0000-0000-000000000001");
-        var secondArticle = Guid.Parse("20000000-0000-0000-0000-000000000002");
-        var firstAsset = Guid.Parse("10000000-0000-0000-0000-000000000001");
-        var secondAsset = Guid.Parse("10000000-0000-0000-0000-000000000002");
-        var rows = new[]
+        Guid firstArticle = Guid.Parse("20000000-0000-0000-0000-000000000001");
+        Guid secondArticle = Guid.Parse("20000000-0000-0000-0000-000000000002");
+        Guid firstAsset = Guid.Parse("10000000-0000-0000-0000-000000000001");
+        Guid secondAsset = Guid.Parse("10000000-0000-0000-0000-000000000002");
+        HelpAssetUrlAuditRow[] rows = new[]
         {
             new HelpAssetUrlAuditRow(secondAsset, secondArticle, "http://docs.rvt.test/b.pdf"),
             new HelpAssetUrlAuditRow(secondAsset, firstArticle, "https:// user@docs.rvt.test/a.pdf"),
             new HelpAssetUrlAuditRow(firstAsset, firstArticle, "ftp://docs.rvt.test/a.pdf")
         };
 
-        var receipt = Classify(rows);
+        HelpAssetUrlAuditReceipt receipt = Classify(rows);
 
         Assert.Equal("blocked", receipt.Outcome);
         Assert.Equal(receipt.Violations.Count, receipt.ViolationCount);
@@ -433,7 +433,7 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public void Classify_CreatesPassReceiptWhenNoFindingsExist()
     {
-        var receipt = Classify(
+        HelpAssetUrlAuditReceipt receipt = Classify(
         [
             new HelpAssetUrlAuditRow(
                 Guid.Parse("10000000-0000-0000-0000-000000000001"),
@@ -451,7 +451,7 @@ public sealed class HelpAssetUrlAuditTests
     {
         const string validRawUrl = "https://private.rvt.test/valid-guide.pdf?token=raw-input";
         const string invalidRawUrl = "http://private.rvt.test/invalid-guide.pdf?token=raw-input";
-        var receipt = Classify(
+        HelpAssetUrlAuditReceipt receipt = Classify(
         [
             new HelpAssetUrlAuditRow(
                 Guid.Parse("10000000-0000-0000-0000-000000000002"),
@@ -461,7 +461,7 @@ public sealed class HelpAssetUrlAuditTests
                 Guid.Parse("20000000-0000-0000-0000-000000000001"), validRawUrl)
         ]);
 
-        var json = HelpAssetUrlAudit.SerializeReceipt(receipt);
+        string json = HelpAssetUrlAudit.SerializeReceipt(receipt);
 
 #pragma warning disable JSON002 // Raw JSON verifies the stable serialized property order.
         Assert.Equal(
@@ -488,24 +488,24 @@ public sealed class HelpAssetUrlAuditTests
 #pragma warning restore JSON002
         Assert.DoesNotContain(validRawUrl, json, StringComparison.Ordinal);
         Assert.DoesNotContain(invalidRawUrl, json, StringComparison.Ordinal);
-        using var document = JsonDocument.Parse(json);
+        using JsonDocument document = JsonDocument.Parse(json);
         Assert.Equal("blocked", document.RootElement.GetProperty("outcome").GetString());
     }
 
     [RequiresPostgresFact]
     public async Task RowReader_ReadsCompleteCorpusInsideReadOnlyRepeatableReadTransaction()
     {
-        var connectionString = Environment.GetEnvironmentVariable(
+        string? connectionString = Environment.GetEnvironmentVariable(
             RequiresPostgresFactAttribute.ConnectionVariable);
         Assert.False(string.IsNullOrWhiteSpace(connectionString));
 
-        var expectedRows = HelpAssetUrlPolicyCases.All
+        HelpAssetUrlAuditRow[] expectedRows = HelpAssetUrlPolicyCases.All
             .Select((@case, index) => new HelpAssetUrlAuditRow(
                 Guid.Parse($"10000000-0000-0000-0000-{index + 1:D12}"),
                 Guid.Parse($"20000000-0000-0000-0000-{index + 1:D12}"),
                 @case.Input))
             .ToArray();
-        var expectedViolations = HelpAssetUrlPolicyCases.All
+        HelpAssetUrlViolation[] expectedViolations = HelpAssetUrlPolicyCases.All
             .Select((@case, index) => (@case, index))
             .Where(item => item.@case.PersistedViolation is not null)
             .Select(item => new HelpAssetUrlViolation(
@@ -517,9 +517,9 @@ public sealed class HelpAssetUrlAuditTests
             .ThenBy(violation => violation.ViolationCode, StringComparer.Ordinal)
             .ToArray();
 
-        await using var connection = new NpgsqlConnection(connectionString);
+        await using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
-        await using (var create = new NpgsqlCommand(
+        await using (NpgsqlCommand create = new NpgsqlCommand(
             """
             CREATE TEMP TABLE help_asset (
                 id uuid PRIMARY KEY,
@@ -532,9 +532,9 @@ public sealed class HelpAssetUrlAuditTests
             await create.ExecuteNonQueryAsync();
         }
 
-        foreach (var row in expectedRows)
+        foreach (HelpAssetUrlAuditRow? row in expectedRows)
         {
-            await using var insert = new NpgsqlCommand(
+            await using NpgsqlCommand insert = new NpgsqlCommand(
                 """
                 INSERT INTO pg_temp.help_asset (id, help_article_id, url)
                 VALUES ($1, $2, $3);
@@ -548,27 +548,27 @@ public sealed class HelpAssetUrlAuditTests
             await insert.ExecuteNonQueryAsync();
         }
 
-        await using var transaction = await HelpAssetUrlAudit.BeginReadOnlyTransactionAsync(
+        await using NpgsqlTransaction transaction = await HelpAssetUrlAudit.BeginReadOnlyTransactionAsync(
             connection,
             CancellationToken.None);
         try
         {
-            var rows = await HelpAssetUrlAudit.ReadRowsAsync(
+            IReadOnlyList<HelpAssetUrlAuditRow> rows = await HelpAssetUrlAudit.ReadRowsAsync(
                 connection,
                 transaction,
                 HelpAssetRelation.Temporary,
                 CancellationToken.None);
 
-            await using var readOnlyCommand = new NpgsqlCommand(
+            await using NpgsqlCommand readOnlyCommand = new NpgsqlCommand(
                 "SHOW transaction_read_only;",
                 connection,
                 transaction);
-            await using var isolationCommand = new NpgsqlCommand(
+            await using NpgsqlCommand isolationCommand = new NpgsqlCommand(
                 "SHOW transaction_isolation;",
                 connection,
                 transaction);
-            var readOnly = (string?)await readOnlyCommand.ExecuteScalarAsync();
-            var isolation = (string?)await isolationCommand.ExecuteScalarAsync();
+            string? readOnly = (string?)await readOnlyCommand.ExecuteScalarAsync();
+            string? isolation = (string?)await isolationCommand.ExecuteScalarAsync();
 
             Assert.Equal("on", readOnly);
             Assert.Equal("repeatable read", isolation);
@@ -607,9 +607,9 @@ public sealed class HelpAssetUrlAuditTests
         Func<string, string, CancellationToken, Task>? writeReceipt = null,
         CancellationToken cancellationToken = default)
     {
-        var standardOutput = new StringWriter();
-        var standardError = new StringWriter();
-        var exitCode = await ReleaseAuditProgram.RunAsync(
+        StringWriter standardOutput = new StringWriter();
+        StringWriter standardError = new StringWriter();
+        int exitCode = await ReleaseAuditProgram.RunAsync(
             args ?? ValidArguments(),
             getEnvironmentVariable ?? (_ => "Host=database.test;Database=rvt;Password=not-real"),
             () => executedAtUtc,

@@ -9,7 +9,7 @@ public sealed class LocalStorageOptionsTests
     [TestMethod]
     public void Bind_WhenNoSettings_UsesLocalDefaults()
     {
-        var options = LocalStorageOptions.Bind(new ConfigurationBuilder().Build());
+        LocalStorageOptions options = LocalStorageOptions.Bind(new ConfigurationBuilder().Build());
 
         Assert.AreEqual("/data/rvt/blobs", options.RootPath);
         Assert.AreEqual("audiofiles", options.Container);
@@ -19,12 +19,12 @@ public sealed class LocalStorageOptionsTests
     [TestMethod]
     public void Bind_UsesLegacyAudioFolderAsContainerAlias()
     {
-        var configuration = CreateConfiguration(new Dictionary<string, string?>
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
         {
             ["RVT:AUDIO_FOLDER"] = "legacy-audio",
         });
 
-        var options = LocalStorageOptions.Bind(configuration);
+        LocalStorageOptions options = LocalStorageOptions.Bind(configuration);
 
         Assert.AreEqual("legacy-audio", options.Container);
     }
@@ -32,13 +32,13 @@ public sealed class LocalStorageOptionsTests
     [TestMethod]
     public void Bind_PrefersExplicitContainerOverLegacyAudioFolder()
     {
-        var configuration = CreateConfiguration(new Dictionary<string, string?>
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
         {
             ["BlobStorage:Container"] = "provider-neutral",
             ["RVT:AUDIO_FOLDER"] = "legacy-audio",
         });
 
-        var options = LocalStorageOptions.Bind(configuration);
+        LocalStorageOptions options = LocalStorageOptions.Bind(configuration);
 
         Assert.AreEqual("provider-neutral", options.Container);
     }
@@ -46,14 +46,14 @@ public sealed class LocalStorageOptionsTests
     [TestMethod]
     public void Bind_ReadsLiteralRvtEnvironmentKeys()
     {
-        var configuration = CreateConfiguration(new Dictionary<string, string?>
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
         {
             ["RVT__BLOB_LOCAL_ROOT"] = "/var/lib/rvt",
             ["RVT__BLOB_CONTAINER"] = "recordings",
             ["RVT__BLOB_PREFIX"] = "tenant-a",
         });
 
-        var options = LocalStorageOptions.Bind(configuration);
+        LocalStorageOptions options = LocalStorageOptions.Bind(configuration);
 
         Assert.AreEqual("/var/lib/rvt", options.RootPath);
         Assert.AreEqual("recordings", options.Container);
@@ -63,7 +63,7 @@ public sealed class LocalStorageOptionsTests
     [TestMethod]
     public void Bind_WithCustomDefaults_UsesReportingDefaults()
     {
-        var options = LocalStorageOptions.Bind(
+        LocalStorageOptions options = LocalStorageOptions.Bind(
             new ConfigurationBuilder().Build(),
             defaultContainer: "pdfreports",
             defaultPrefix: "rvtreports",
@@ -76,12 +76,12 @@ public sealed class LocalStorageOptionsTests
     [TestMethod]
     public void Bind_WithCustomLegacyKey_UsesReportingContainerAlias()
     {
-        var configuration = CreateConfiguration(new Dictionary<string, string?>
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
         {
             ["RVT:BLOB_REPORT_CONTAINER_NAME"] = "legacy-reports",
         });
 
-        var options = LocalStorageOptions.Bind(
+        LocalStorageOptions options = LocalStorageOptions.Bind(
             configuration,
             defaultContainer: "pdfreports",
             defaultPrefix: "rvtreports",

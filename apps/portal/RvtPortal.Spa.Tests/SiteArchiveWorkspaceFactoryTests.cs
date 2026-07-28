@@ -7,10 +7,10 @@ public sealed class SiteArchiveWorkspaceFactoryTests
     [Fact]
     public async Task Create_UsesUniqueWorkspacesAndOneStableBlobKeyPerSite()
     {
-        var siteId = Guid.NewGuid();
-        var factory = new SiteArchiveWorkspaceFactory();
-        await using var first = factory.Create(siteId);
-        await using var second = factory.Create(siteId);
+        Guid siteId = Guid.NewGuid();
+        SiteArchiveWorkspaceFactory factory = new SiteArchiveWorkspaceFactory();
+        await using SiteArchiveWorkspace first = factory.Create(siteId);
+        await using SiteArchiveWorkspace second = factory.Create(siteId);
 
         Assert.NotEqual(first.RootPath, second.RootPath);
         Assert.NotEqual(first.ZipPath, second.ZipPath);

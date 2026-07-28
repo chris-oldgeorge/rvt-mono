@@ -36,7 +36,7 @@ namespace RVT.DataAccess
         public async Task<MonitorStatusTimeCheckDto> MonitorStatusTimeCheck(Guid MonitorId)
         {
             // PostgreSQL routine execution maps this legacy name to public.monitor_status_time_check.
-            var rows = await routineExecutor.QueryAsync(
+            IReadOnlyList<MonitorStatusTimeCheckDto> rows = await routineExecutor.QueryAsync(
                 "MonitorStatusTimeCheck",
                 new[] { new RvtRoutineParameter("MonitorId", MonitorId) },
                 reader => new MonitorStatusTimeCheckDto
@@ -52,7 +52,7 @@ namespace RVT.DataAccess
         public async Task<List<MonitorStatusForMonthDto>> MonitorStatusForMonth(Guid MonitorId, int Year, int Month)
         {
             // PostgreSQL routine execution maps this legacy name to public.monitor_status_for_month.
-            var rows = await routineExecutor.QueryAsync(
+            IReadOnlyList<MonitorStatusForMonthDto> rows = await routineExecutor.QueryAsync(
                 "MonitorStatusForMonth",
                 new[]
                 {

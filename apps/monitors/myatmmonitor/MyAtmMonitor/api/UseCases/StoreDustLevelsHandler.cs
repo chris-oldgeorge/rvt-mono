@@ -4,6 +4,7 @@ using MyAtm.Api.Http;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
+using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 
 namespace MyAtm.Api.UseCases;
@@ -45,23 +46,23 @@ public sealed class StoreDustLevelsHandler
         Period period,
         CancellationToken cancellationToken = default) where T : BaseDeviceMeasurement
     {
-        var monitors = monitorReader.ReadMonitors(customerId) ?? [];
-        var failures = new MyAtmFailureCollector(operationalCommands);
-        foreach (var monitor in monitors)
+        List<DustMonitorDto> monitors = monitorReader.ReadMonitors(customerId) ?? [];
+        MyAtmFailureCollector failures = new MyAtmFailureCollector(operationalCommands);
+        foreach (DustMonitorDto monitor in monitors)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var cursor = DateTimeUtil.AsUtc(monitor.GetLastDataTime(period) ?? MyAtmApi.JAN1_1970);
-                for (var pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
+                DateTime cursor = DateTimeUtil.AsUtc(monitor.GetLastDataTime(period) ?? MyAtmApi.JAN1_1970);
+                for (int pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
                 {
-                    var page = await gateway.HttpGetDeviceMeasurementPageAsync<T>(
+                    MyAtmMeasurementPage<T> page = await gateway.HttpGetDeviceMeasurementPageAsync<T>(
                         customerId,
                         monitor.SerialId,
                         cursor,
                         period,
                         cancellationToken);
-                    var dtos = page.Measurements
+                    List<DustDto> dtos = page.Measurements
                         .Select(measurement => new DustDto(monitor.SerialId, measurement))
                         .ToList();
                     RvtLogger.Logger.LogInformation(
@@ -73,15 +74,15 @@ public sealed class StoreDustLevelsHandler
 
                     if (dtos.Count > 0)
                     {
-                        var utcNow = timeProvider.GetUtcNow().UtcDateTime;
-                        var pageWatermark = DateTimeUtil.AsUtc(page.NextCursor!.Value);
-                        var rules = ruleQueries.ReadRules(monitor.SerialId, period) ?? [];
-                        var evaluation = ruleEvaluator.Evaluate(monitor, period, rules, dtos, utcNow);
+                        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
+                        DateTime pageWatermark = DateTimeUtil.AsUtc(page.NextCursor!.Value);
+                        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId, period) ?? [];
+                        MyAtmRuleEvaluation evaluation = ruleEvaluator.Evaluate(monitor, period, rules, dtos, utcNow);
                         IReadOnlyList<Rvt.Monitor.Common.Rules.RvtContactDto> contacts =
                             evaluation.AlertOccurrences.Count == 0
                                 ? Array.Empty<Rvt.Monitor.Common.Rules.RvtContactDto>()
                                 : ruleQueries.ReadAlertContacts(monitor.Id);
-                        var occurrences = evaluation.AlertOccurrences
+                        List<AlertOccurrenceProposal> occurrences = evaluation.AlertOccurrences
                             .Select(proposal => proposal with { Contacts = contacts })
                             .ToList();
                         await dustImportCommands.CommitDustImportAsync(

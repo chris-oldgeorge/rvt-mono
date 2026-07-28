@@ -21,7 +21,7 @@ public sealed class RVTSearchContextDesignTimeFactory : IDesignTimeDbContextFact
     // Function summary: Creates the search context for EF tooling without relying on runtime appsettings files.
     public RVTSearchContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<RVTSearchContext>();
+        DbContextOptionsBuilder<RVTSearchContext> optionsBuilder = new DbContextOptionsBuilder<RVTSearchContext>();
         optionsBuilder.UseRvtDatabaseProvider(
             RvtDesignTimeDatabaseOptions.FromEnvironment(),
             RvtDatabaseServiceCollectionExtensions.SearchMigrationsHistoryTable);

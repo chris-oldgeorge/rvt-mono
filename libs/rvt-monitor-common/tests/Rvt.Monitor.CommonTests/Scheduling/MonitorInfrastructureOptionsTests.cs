@@ -9,9 +9,9 @@ public sealed class MonitorInfrastructureOptionsTests
     [TestMethod]
     public void Bind_DefaultsToLocal()
     {
-        var configuration = new ConfigurationBuilder().Build();
+        IConfigurationRoot configuration = new ConfigurationBuilder().Build();
 
-        var options = MonitorInfrastructureOptions.Bind(configuration);
+        MonitorInfrastructureOptions options = MonitorInfrastructureOptions.Bind(configuration);
 
         Assert.AreEqual(MonitorInfrastructure.Local, options.Infrastructure);
         Assert.IsTrue(options.AllowsQuartzScheduler);
@@ -20,14 +20,14 @@ public sealed class MonitorInfrastructureOptionsTests
     [TestMethod]
     public void Bind_ReadsAzureInfrastructure()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Infrastructure"] = "azure"
             })
             .Build();
 
-        var options = MonitorInfrastructureOptions.Bind(configuration);
+        MonitorInfrastructureOptions options = MonitorInfrastructureOptions.Bind(configuration);
 
         Assert.AreEqual(MonitorInfrastructure.Azure, options.Infrastructure);
         Assert.IsFalse(options.AllowsQuartzScheduler);
@@ -36,14 +36,14 @@ public sealed class MonitorInfrastructureOptionsTests
     [TestMethod]
     public void Bind_ReadsPrefixedAzureInfrastructure()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["RVT:Infrastructure"] = "azure"
             })
             .Build();
 
-        var options = MonitorInfrastructureOptions.Bind(configuration);
+        MonitorInfrastructureOptions options = MonitorInfrastructureOptions.Bind(configuration);
 
         Assert.AreEqual(MonitorInfrastructure.Azure, options.Infrastructure);
         Assert.IsFalse(options.AllowsQuartzScheduler);
@@ -52,14 +52,14 @@ public sealed class MonitorInfrastructureOptionsTests
     [TestMethod]
     public void Bind_ThrowsForUnknownInfrastructure()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Infrastructure"] = "serverless"
             })
             .Build();
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             MonitorInfrastructureOptions.Bind(configuration));
 
         Assert.Contains("serverless", exception.Message);

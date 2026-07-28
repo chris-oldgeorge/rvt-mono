@@ -10,10 +10,10 @@ public sealed class MonitorDbContextOptionsFactoryTests
     [TestMethod]
     public void CreateOptions_UsesOnlyNpgsqlProvider()
     {
-        var options = MonitorDbContextOptionsFactory.CreateOptions<DbContext>(
+        DbContextOptions<DbContext> options = MonitorDbContextOptionsFactory.CreateOptions<DbContext>(
             "Host=localhost;Port=5432;Database=rvt;Username=rvt;Password=rvt");
 
-        var extensionNames = options.Extensions
+        string[] extensionNames = options.Extensions
             .Select(extension => extension.GetType().FullName ?? string.Empty)
             .ToArray();
         Assert.IsTrue(extensionNames.Any(name =>

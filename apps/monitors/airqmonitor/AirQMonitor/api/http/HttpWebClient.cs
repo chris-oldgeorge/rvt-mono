@@ -33,7 +33,7 @@ namespace AirQ.Api.Http
         public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
-            using var response = await httpClient.GetAsync(path, cancellationToken);
+            using HttpResponseMessage response = await httpClient.GetAsync(path, cancellationToken);
             var reply = await response.Content.ReadAsStringAsync(cancellationToken);
             if (response.StatusCode != HttpStatusCode.OK)
             {

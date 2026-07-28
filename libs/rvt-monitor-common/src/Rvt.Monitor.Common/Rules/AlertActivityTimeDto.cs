@@ -38,7 +38,7 @@ namespace Rvt.Monitor.Common.Rules
 
         private bool DoesRuleApplyForDay(DateTime dateTime)
         {
-            var dow = dateTime.DayOfWeek;
+            DayOfWeek dow = dateTime.DayOfWeek;
             if (dow == DayOfWeek.Sunday)
             {
                 return Sundays;
@@ -58,7 +58,7 @@ namespace Rvt.Monitor.Common.Rules
             }
 
             // Convert given time of day to local time to allow for daylight saving
-            var localTimeOfDay = DateTimeUtil.UtcToLocal(dateTime.TimeOfDay);
+            TimeSpan localTimeOfDay = DateTimeUtil.UtcToLocal(dateTime.TimeOfDay);
 
             return TimeSpan.Compare((TimeSpan)StartTime, localTimeOfDay) <= 0 &&
                 TimeSpan.Compare((TimeSpan)EndTime, localTimeOfDay) >= 0;

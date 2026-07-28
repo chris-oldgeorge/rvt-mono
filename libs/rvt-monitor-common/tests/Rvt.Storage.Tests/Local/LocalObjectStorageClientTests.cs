@@ -10,19 +10,19 @@ public sealed class LocalObjectStorageClientTests
     public async Task WriteAndOpenReadAsync_StreamContentAndMetadataUnderConfiguredPath()
     {
         using var temporaryDirectory = new TemporaryDirectory();
-        var client = CreateClient(temporaryDirectory.Path, "recordings", "tenant-a/audio");
+        LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", "tenant-a/audio");
         var content = new MemoryStream(
             Encoding.UTF8.GetBytes("recording-data"),
             writable: false);
 
-        var result = await client.WriteAsync(
+        StorageWriteResult result = await client.WriteAsync(
             new StorageWriteRequest(
                 StorageObjectKey.Parse(" clips\\sample.wav "),
                 content,
                 "audio/wav"));
 
         Assert.AreEqual("clips/sample.wav", result.Key.Value);
-        await using var read = await client.OpenReadAsync(result.Key);
+        await using StorageReadResult? read = await client.OpenReadAsync(result.Key);
         Assert.IsNotNull(read);
         Assert.AreEqual("audio/wav", read.ContentType);
         Assert.AreEqual(content.Length, read.Length);
@@ -47,7 +47,7 @@ public sealed class LocalObjectStorageClientTests
     public async Task WriteAsync_CreatesMissingParentDirectories()
     {
         using var temporaryDirectory = new TemporaryDirectory();
-        var client = CreateClient(temporaryDirectory.Path, "recordings", "tenant-a");
+        LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", "tenant-a");
 
         await client.WriteAsync(CreateRequest("nested/levels/sample.wav", [1, 2, 3]));
 
@@ -63,7 +63,7 @@ public sealed class LocalObjectStorageClientTests
     public async Task WriteAsync_OverwritesObjectAndRemovesTemporaryFiles()
     {
         using var temporaryDirectory = new TemporaryDirectory();
-        var client = CreateClient(temporaryDirectory.Path, "recordings", "tenant-a");
+        LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", "tenant-a");
         var key = StorageObjectKey.Parse("sample.wav");
         await client.WriteAsync(new StorageWriteRequest(
             key,
@@ -74,7 +74,7 @@ public sealed class LocalObjectStorageClientTests
             key,
             new MemoryStream(Encoding.UTF8.GetBytes("replacement"), writable: false)));
 
-        await using var read = await client.OpenReadAsync(key);
+        await using StorageReadResult? read = await client.OpenReadAsync(key);
         Assert.IsNotNull(read);
         Assert.IsNull(read.ContentType);
         using var copiedContent = new MemoryStream();
@@ -92,7 +92,7 @@ public sealed class LocalObjectStorageClientTests
     public async Task WriteAsync_WhenContentCopyFails_PreservesObjectAndRemovesTemporaryFile()
     {
         using var temporaryDirectory = new TemporaryDirectory();
-        var client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
+        LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
         var key = StorageObjectKey.Parse("sample.wav");
         await client.WriteAsync(new StorageWriteRequest(
             key,
@@ -101,7 +101,7 @@ public sealed class LocalObjectStorageClientTests
 
         // A filesystem fault is an operational failure and must reach callers
         // through the port contract, with the original cause preserved.
-        var failure = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() =>
+        ObjectStorageException failure = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() =>
             client.WriteAsync(new StorageWriteRequest(
                 key,
                 new ThrowingReadStream(Encoding.UTF8.GetBytes("replacement")),
@@ -109,7 +109,7 @@ public sealed class LocalObjectStorageClientTests
         Assert.AreEqual(StorageFailureKind.Unavailable, failure.Kind);
         Assert.IsInstanceOfType<IOException>(failure.InnerException);
 
-        await using var read = await client.OpenReadAsync(key);
+        await using StorageReadResult? read = await client.OpenReadAsync(key);
         Assert.IsNotNull(read);
         Assert.AreEqual("audio/wav", read.ContentType);
         using var copiedContent = new MemoryStream();
@@ -124,9 +124,9 @@ public sealed class LocalObjectStorageClientTests
     public async Task OpenReadAsync_WhenObjectIsMissing_ReturnsNull()
     {
         using var temporaryDirectory = new TemporaryDirectory();
-        var client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
+        LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
 
-        var result = await client.OpenReadAsync(StorageObjectKey.Parse("missing.wav"));
+        StorageReadResult? result = await client.OpenReadAsync(StorageObjectKey.Parse("missing.wav"));
 
         Assert.IsNull(result);
     }
@@ -135,7 +135,7 @@ public sealed class LocalObjectStorageClientTests
     public async Task DeleteIfExistsAsync_ReturnsExistenceAndDeletesContentTypeMetadata()
     {
         using var temporaryDirectory = new TemporaryDirectory();
-        var client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
+        LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
         var key = StorageObjectKey.Parse("sample.wav");
         await client.WriteAsync(new StorageWriteRequest(
             key,
@@ -161,7 +161,7 @@ public sealed class LocalObjectStorageClientTests
     public async Task Operations_RejectUnsafeConfiguredContainer(string container)
     {
         using var temporaryDirectory = new TemporaryDirectory();
-        var client = CreateClient(temporaryDirectory.Path, container, "tenant-a");
+        LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, container, "tenant-a");
         var key = StorageObjectKey.Parse("escape.wav");
 
         await Assert.ThrowsExactlyAsync<ArgumentException>(() =>
@@ -178,7 +178,7 @@ public sealed class LocalObjectStorageClientTests
     public async Task Operations_RejectUnsafeConfiguredPrefix(string prefix)
     {
         using var temporaryDirectory = new TemporaryDirectory();
-        var client = CreateClient(temporaryDirectory.Path, "recordings", prefix);
+        LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", prefix);
         var key = StorageObjectKey.Parse("escape.wav");
 
         await Assert.ThrowsExactlyAsync<ArgumentException>(() =>
@@ -221,19 +221,19 @@ public sealed class LocalObjectStorageClientTests
             Assert.Inconclusive("Windows symlink creation is unavailable.");
         }
 
-        var client = CreateClient(localRoot.Path, "recordings", string.Empty);
+        LocalObjectStorageClient client = CreateClient(localRoot.Path, "recordings", string.Empty);
         var key = StorageObjectKey.Parse("escape.wav");
 
         // A rejected path is an invalid request, not a disk fault, and is
         // classified as such rather than crossing the port as a raw IOException.
-        foreach (var operation in new Func<Task>[]
+        foreach (Func<Task> operation in new Func<Task>[]
                  {
                      () => client.WriteAsync(CreateRequest(key.Value, [1])),
                      () => client.OpenReadAsync(key),
                      () => client.DeleteIfExistsAsync(key),
                  })
         {
-            var rejected = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() => operation());
+            ObjectStorageException rejected = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() => operation());
             Assert.AreEqual(StorageFailureKind.InvalidRequest, rejected.Kind);
         }
         Assert.IsFalse(File.Exists(Path.Combine(outsideDirectory.Path, "escape.wav")));
@@ -264,19 +264,19 @@ public sealed class LocalObjectStorageClientTests
             Assert.Inconclusive("Windows symlink creation is unavailable.");
         }
 
-        var client = CreateClient(localRoot.Path, "recordings", string.Empty);
+        LocalObjectStorageClient client = CreateClient(localRoot.Path, "recordings", string.Empty);
         var key = StorageObjectKey.Parse("escape.wav");
 
         // A rejected path is an invalid request, not a disk fault, and is
         // classified as such rather than crossing the port as a raw IOException.
-        foreach (var operation in new Func<Task>[]
+        foreach (Func<Task> operation in new Func<Task>[]
                  {
                      () => client.WriteAsync(CreateRequest(key.Value, [1])),
                      () => client.OpenReadAsync(key),
                      () => client.DeleteIfExistsAsync(key),
                  })
         {
-            var rejected = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() => operation());
+            ObjectStorageException rejected = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() => operation());
             Assert.AreEqual(StorageFailureKind.InvalidRequest, rejected.Kind);
         }
         CollectionAssert.AreEqual(new byte[] { 9 }, await File.ReadAllBytesAsync(outsideTargetPath));
@@ -286,7 +286,7 @@ public sealed class LocalObjectStorageClientTests
     public async Task MutatingOperations_WhenAlreadyCancelled_DoNotMutateFilesystem()
     {
         using var temporaryDirectory = new TemporaryDirectory();
-        var client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
+        LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
         var key = StorageObjectKey.Parse("sample.wav");
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();

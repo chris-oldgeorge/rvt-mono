@@ -1,8 +1,13 @@
+// The namespace follows this project's established scheme rather than the
+// folder path; IDE0130 would require a name no sibling file uses.
+#pragma warning disable IDE0130
+using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Omnidots.Api.Http;
 using Omnidots.Api.Ports;
 using Omnidots.Api.UseCases;
+using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace OmnidotsAdapterTests
@@ -78,7 +83,7 @@ namespace OmnidotsAdapterTests
                 .ReturnsAsync("{\"ok\":true,\"token\":\"vendor-token\"}");
             var gateway = new OmnidotsHttpGateway(httpClient.Object, "user", "auth");
 
-            var response = await gateway.AuthenticateAsync(cancellation.Token);
+            TokenResponse response = await gateway.AuthenticateAsync(cancellation.Token);
 
             Assert.AreEqual("vendor-token", response.Token);
             httpClient.VerifyAll();
@@ -112,7 +117,7 @@ namespace OmnidotsAdapterTests
         {
             // Hexagonal boundary: the import use cases must be constructible
             // against the port alone, with no reference to the HTTP adapter.
-            foreach (var handler in new[]
+            foreach (Type? handler in new[]
                      {
                          typeof(StoreMonitorsHandler),
                          typeof(StorePeakRecordsHandler),
@@ -122,7 +127,7 @@ namespace OmnidotsAdapterTests
                          typeof(ConfigureMeasuringPointHandler)
                      })
             {
-                var adapterParameters = handler
+                ParameterInfo[] adapterParameters = handler
                     .GetConstructors()
                     .SelectMany(constructor => constructor.GetParameters())
                     .Where(parameter => parameter.ParameterType == typeof(OmnidotsHttpGateway))

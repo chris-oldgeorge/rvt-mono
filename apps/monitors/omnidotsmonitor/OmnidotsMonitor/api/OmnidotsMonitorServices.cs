@@ -49,7 +49,7 @@ public static class OmnidotsMonitorServices
             .BindConfiguration(OmnidotsMonitoringOptions.SectionName)
             .Configure<IConfiguration>((options, configuration) =>
             {
-                var alertRecipient = configuration["RVT:OMNIDOTS_MONITORING_ALERT_TO"] ??
+                string? alertRecipient = configuration["RVT:OMNIDOTS_MONITORING_ALERT_TO"] ??
                     configuration["RVT__OMNIDOTS_MONITORING_ALERT_TO"];
                 if (!string.IsNullOrWhiteSpace(alertRecipient))
                 {
@@ -142,7 +142,7 @@ public static class OmnidotsMonitorServices
 
     private static void AddEmailProvider(IServiceCollection services, IConfiguration configuration)
     {
-        var configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
+        string configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
             ?? configuration["RVT__EMAIL_PROVIDER"]
             ?? "SendGrid";
 

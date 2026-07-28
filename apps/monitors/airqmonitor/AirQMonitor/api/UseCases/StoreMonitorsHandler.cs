@@ -10,7 +10,7 @@ namespace AirQ.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitors).
     public class StoreMonitorsHandler
     {
-        private readonly IAirQVendorGateway gateway;
+        private readonly IAirQVendorGateway _gateway;
         private readonly IAirQMonitorCommands monitorCommands;
         private readonly IAirQOperationalCommands operationalCommands;
         private readonly AirQTestLocalMonitorFilter testLocalFilter;
@@ -21,7 +21,7 @@ namespace AirQ.Api.UseCases
             IAirQOperationalCommands operationalCommands,
             AirQTestLocalMonitorFilter testLocalFilter)
         {
-            this.gateway = gateway;
+            _gateway = gateway;
             this.monitorCommands = monitorCommands;
             this.operationalCommands = operationalCommands;
             this.testLocalFilter = testLocalFilter;
@@ -32,7 +32,7 @@ namespace AirQ.Api.UseCases
             List<InstrumentResponse> monitors;
             try
             {
-                monitors = testLocalFilter.ApplyCatalog(await gateway.GetMonitorsAsync(userId, userAuth, cancellationToken));
+                monitors = testLocalFilter.ApplyCatalog(await _gateway.GetMonitorsAsync(userId, userAuth, cancellationToken));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -46,12 +46,12 @@ namespace AirQ.Api.UseCases
 
             var dtos = new List<NoiseMonitorDto>();
             var failures = new List<Exception>();
-            foreach (var monitor in monitors)
+            foreach (InstrumentResponse monitor in monitors)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    var metaData = await GetMetaDataAsync(userId: userId, userAuth: userAuth,
+                    List<MetaDataResponse> metaData = await GetMetaDataAsync(userId: userId, userAuth: userAuth,
                                                model: monitor.Name!, serialId: monitor.InstrumentID!,
                                                cancellationToken: cancellationToken);
                     dtos.Add(new NoiseMonitorDto(monitor, metaData.FirstOrDefault() ?? new MetaDataResponse()));
@@ -87,7 +87,7 @@ namespace AirQ.Api.UseCases
 
             try
             {
-                return await gateway.GetMetaDataAsync(userId, userAuth, serialId, cancellationToken);
+                return await _gateway.GetMetaDataAsync(userId, userAuth, serialId, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

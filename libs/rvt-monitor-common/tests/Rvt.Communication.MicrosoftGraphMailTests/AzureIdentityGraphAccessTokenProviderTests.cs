@@ -13,11 +13,11 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_ReturnsTokenFromCredential()
     {
-        var provider = CreateProvider(new StubTokenCredential(new AccessToken("graph-token", DateTimeOffset.MaxValue)));
+        AzureIdentityGraphAccessTokenProvider provider = CreateProvider(new StubTokenCredential(new AccessToken("graph-_token", DateTimeOffset.MaxValue)));
 
-        var token = await provider.GetAccessTokenAsync(CancellationToken.None);
+        var _token = await provider.GetAccessTokenAsync(CancellationToken.None);
 
-        Assert.AreEqual("graph-token", token);
+        Assert.AreEqual("graph-_token", _token);
     }
 
     [TestMethod]
@@ -25,11 +25,11 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     {
         // A wrapped transport fault carries no RequestFailedException, and must
         // not be mistaken for a rejected credential.
-        var failure = new AuthenticationFailedException(
+        var _failure = new AuthenticationFailedException(
             "ClientSecretCredential authentication failed.",
             new HttpRequestException("No such host is known (login.microsoftonline.com:443)."));
 
-        var exception = await AssertDeliveryFailureAsync(failure);
+        EmailDeliveryException exception = await AssertDeliveryFailureAsync(_failure);
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
         Assert.AreEqual("Authentication", exception.Code);
@@ -38,11 +38,11 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenIdentityEndpointTimesOut_ClassifiesTransient()
     {
-        var failure = new AuthenticationFailedException(
+        var _failure = new AuthenticationFailedException(
             "ClientSecretCredential authentication failed.",
             new TaskCanceledException("The request timed out.", new TimeoutException()));
 
-        var exception = await AssertDeliveryFailureAsync(failure);
+        EmailDeliveryException exception = await AssertDeliveryFailureAsync(_failure);
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
     }
@@ -50,13 +50,13 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenSocketFailsDeeperInTheChain_ClassifiesTransient()
     {
-        var failure = new AuthenticationFailedException(
+        var _failure = new AuthenticationFailedException(
             "ClientSecretCredential authentication failed.",
             new InvalidOperationException(
-                "Transport failure.",
+                "Transport _failure.",
                 new SocketException((int)SocketError.ConnectionRefused)));
 
-        var exception = await AssertDeliveryFailureAsync(failure);
+        EmailDeliveryException exception = await AssertDeliveryFailureAsync(_failure);
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
     }
@@ -64,11 +64,11 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenCredentialIsRejected_ClassifiesPermanent()
     {
-        var failure = new AuthenticationFailedException(
+        var _failure = new AuthenticationFailedException(
             "The provided client secret is invalid.",
             new RequestFailedException(401, "AADSTS7000215: Invalid client secret provided."));
 
-        var exception = await AssertDeliveryFailureAsync(failure);
+        EmailDeliveryException exception = await AssertDeliveryFailureAsync(_failure);
 
         Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
         Assert.AreEqual("401", exception.Code);
@@ -77,9 +77,9 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenNoTransportCauseIsPresent_ClassifiesPermanent()
     {
-        var failure = new AuthenticationFailedException("Tenant not found.");
+        var _failure = new AuthenticationFailedException("Tenant not found.");
 
-        var exception = await AssertDeliveryFailureAsync(failure);
+        EmailDeliveryException exception = await AssertDeliveryFailureAsync(_failure);
 
         Assert.AreEqual(DeliveryFailureKind.Permanent, exception.FailureKind);
     }
@@ -87,11 +87,11 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     [TestMethod]
     public async Task GetAccessTokenAsync_WhenIdentityThrottles_ClassifiesTransient()
     {
-        var failure = new AuthenticationFailedException(
+        var _failure = new AuthenticationFailedException(
             "Throttled.",
             new RequestFailedException(429, "Too many requests."));
 
-        var exception = await AssertDeliveryFailureAsync(failure);
+        EmailDeliveryException exception = await AssertDeliveryFailureAsync(_failure);
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
         Assert.AreEqual("429", exception.Code);
@@ -102,7 +102,7 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
     {
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
-        var provider = CreateProvider(new StubTokenCredential(
+        AzureIdentityGraphAccessTokenProvider provider = CreateProvider(new StubTokenCredential(
             new OperationCanceledException(cancellation.Token)));
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(
@@ -111,7 +111,7 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
 
     private static async Task<EmailDeliveryException> AssertDeliveryFailureAsync(Exception credentialFailure)
     {
-        var provider = CreateProvider(new StubTokenCredential(credentialFailure));
+        AzureIdentityGraphAccessTokenProvider provider = CreateProvider(new StubTokenCredential(credentialFailure));
 
         return await Assert.ThrowsExactlyAsync<EmailDeliveryException>(
             () => provider.GetAccessTokenAsync(CancellationToken.None).AsTask());
@@ -122,17 +122,17 @@ public sealed class AzureIdentityGraphAccessTokenProviderTests
 
     private sealed class StubTokenCredential : TokenCredential
     {
-        private readonly AccessToken token;
-        private readonly Exception? failure;
+        private readonly AccessToken _token;
+        private readonly Exception? _failure;
 
-        public StubTokenCredential(AccessToken token) => this.token = token;
+        public StubTokenCredential(AccessToken token) => _token = token;
 
-        public StubTokenCredential(Exception failure) => this.failure = failure;
+        public StubTokenCredential(Exception failure) => _failure = failure;
 
         public override AccessToken GetToken(TokenRequestContext requestContext, CancellationToken cancellationToken) =>
-            failure is null ? token : throw failure;
+            _failure is null ? _token : throw _failure;
 
         public override ValueTask<AccessToken> GetTokenAsync(TokenRequestContext requestContext, CancellationToken cancellationToken) =>
-            failure is null ? ValueTask.FromResult(token) : throw failure;
+            _failure is null ? ValueTask.FromResult(_token) : throw _failure;
     }
 }

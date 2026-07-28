@@ -20,7 +20,7 @@ namespace Rvt.Monitor.Common.Diagnostics
     /// </remarks>
     public class RvtLogger
     {
-        private static volatile ILogger current = NullLogger.Instance;
+        private static volatile ILogger _current = NullLogger.Instance;
 
         private RvtLogger()
         {
@@ -30,22 +30,22 @@ namespace Rvt.Monitor.Common.Diagnostics
         {
             ArgumentNullException.ThrowIfNull(loggerFactory);
             ArgumentException.ThrowIfNullOrWhiteSpace(categoryName);
-            current = loggerFactory.CreateLogger(categoryName);
+            _current = loggerFactory.CreateLogger(categoryName);
         }
 
         /// <summary>
         /// True once a host has supplied a real logger. Composition roots can
         /// assert this; nothing should branch on it to decide whether to log.
         /// </summary>
-        public static bool IsConfigured => !ReferenceEquals(current, NullLogger.Instance);
+        public static bool IsConfigured => !ReferenceEquals(_current, NullLogger.Instance);
 
-        public static ILogger Logger => current;
+        public static ILogger Logger => _current;
 
         /// <summary>
         /// Restores the unconfigured state. Intended for tests that need to
         /// observe behaviour before a host configures logging.
         /// </summary>
-        internal static void Reset() => current = NullLogger.Instance;
+        internal static void Reset() => _current = NullLogger.Instance;
     }
 
 }

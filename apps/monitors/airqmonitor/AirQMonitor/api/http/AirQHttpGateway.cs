@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
-using AirQ.Common;
 using AirQ.Api.Ports;
+using AirQ.Common;
 using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Configuration;
@@ -76,9 +76,9 @@ namespace AirQ.Api.Http
                 throw AdapterException.Of("GetLatestSamples", e);
             }
 
-            var samples = ParseResponse<List<SampleResponse>>(response);
-            var watermark = latestDateTime;
-            var truncated = TruncateByLatestMills(samples, ref watermark);
+            List<SampleResponse> samples = ParseResponse<List<SampleResponse>>(response);
+            DateTime watermark = latestDateTime;
+            List<SampleResponse> truncated = TruncateByLatestMills(samples, ref watermark);
             return new LatestSamplesResult(truncated, watermark);
         }
 
@@ -160,7 +160,7 @@ namespace AirQ.Api.Http
             catch (JsonException e)
             {
                 // could be an error response
-                var errors = ParseErrorResponse(json);
+                List<ErrorResponse>? errors = ParseErrorResponse(json);
                 if (errors != null && errors.Count > 0)
                 {
                     if (errors.Count == 1 && errors[0].Response != null && errors[0].Response!.Contains("No data available!", StringComparison.OrdinalIgnoreCase))
@@ -199,9 +199,9 @@ namespace AirQ.Api.Http
         private static List<SampleResponse> TruncateByLatestMills(List<SampleResponse> samples, ref DateTime latestDateTime)
         {
             var removeList = new List<SampleResponse>();
-            foreach (var sample in samples)
+            foreach (SampleResponse sample in samples)
             {
-                var utcDateTime = DateTimeUtil.ToUtc((DateTime)sample.Utc!);
+                DateTime utcDateTime = DateTimeUtil.ToUtc((DateTime)sample.Utc!);
 
                 if (utcDateTime > DateTime.UtcNow)
                 {
@@ -217,7 +217,7 @@ namespace AirQ.Api.Http
                     removeList.Add(sample);
                 }
             }
-            foreach (var sample in removeList)
+            foreach (SampleResponse sample in removeList)
             {
                 samples.Remove(sample);
             }

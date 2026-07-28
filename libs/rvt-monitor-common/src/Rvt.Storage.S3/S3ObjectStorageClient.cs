@@ -104,7 +104,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
 
         try
         {
-            var response = await client.GetObjectAsync(
+            GetObjectResponse response = await client.GetObjectAsync(
                 new GetObjectRequest
                 {
                     BucketName = bucket,
@@ -213,7 +213,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         var config = new AmazonS3Config { ForcePathStyle = options.ForcePathStyle };
         if (!string.IsNullOrWhiteSpace(options.ServiceUrl))
         {
-            if (!Uri.TryCreate(options.ServiceUrl, UriKind.Absolute, out var serviceUri))
+            if (!Uri.TryCreate(options.ServiceUrl, UriKind.Absolute, out Uri? serviceUri))
             {
                 throw new InvalidOperationException(
                     "RVT__S3_SERVICE_URL must be an absolute URI.");

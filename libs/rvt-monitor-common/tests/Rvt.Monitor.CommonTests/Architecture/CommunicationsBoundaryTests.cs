@@ -31,7 +31,7 @@ public sealed class CommunicationsBoundaryTests
             "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj"));
         Assert.DoesNotContain("PackageReference Include=\"SendGrid\"", commonProject);
 
-        var commonSource = ReadProductionSource(root, "libs/rvt-monitor-common/src/Rvt.Monitor.Common");
+        IReadOnlyList<(string RelativePath, string Text)> commonSource = ReadProductionSource(root, "libs/rvt-monitor-common/src/Rvt.Monitor.Common");
         Assert.IsFalse(commonSource.Any(file => file.Text.Contains(
             "Email" + "Sender.",
             StringComparison.Ordinal)));
@@ -176,7 +176,7 @@ public sealed class CommunicationsBoundaryTests
     private static void AssertProviderOwnership(string expectedProject, params string[] markers)
     {
         var root = FindRepositoryRoot();
-        var providerReferences = ReadProductionSource(root, "libs/rvt-monitor-common/src")
+        (string RelativePath, string Text)[] providerReferences = ReadProductionSource(root, "libs/rvt-monitor-common/src")
             .Where(file => markers.Any(marker => file.Text.Contains(marker, StringComparison.Ordinal)))
             .ToArray();
 

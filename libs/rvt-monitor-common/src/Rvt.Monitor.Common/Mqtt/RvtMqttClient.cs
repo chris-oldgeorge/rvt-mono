@@ -18,7 +18,7 @@ namespace Rvt.Monitor.Common.Mqtt
     {
         private readonly MQTTnet.Client.IMqttClient mqttClient;
         private readonly SemaphoreSlim connectLock = new(1, 1);
-        private readonly MqttOptions options;
+        private readonly MqttOptions _options;
 
         /// <summary>
         /// Preserves the historical environment-driven configuration for hosts
@@ -32,7 +32,7 @@ namespace Rvt.Monitor.Common.Mqtt
         public RvtMqttClient(MqttOptions options)
         {
             ArgumentNullException.ThrowIfNull(options);
-            this.options = options;
+            _options = options;
             mqttClient = new MqttFactory().CreateMqttClient();
 
             Task _mqttClient_ConnectedAsync(MqttClientConnectedEventArgs arg)
@@ -58,7 +58,7 @@ namespace Rvt.Monitor.Common.Mqtt
             string message,
             CancellationToken cancellationToken = default)
         {
-            if (!options.Enabled)
+            if (!_options.Enabled)
             {
                 RvtLogger.Logger.LogInformation("MQTT is disabled, not publishing.");
                 return;
@@ -96,15 +96,15 @@ namespace Rvt.Monitor.Common.Mqtt
 
         private X509Certificate2 GetCert()
         {
-            if (!options.HasClientCertificate)
+            if (!_options.HasClientCertificate)
             {
                 throw new InvalidOperationException(
                     "MQTT is enabled but RVT__MQTT_CERTIFICATE_PATH and RVT__MQTT_PRIVATE_KEY_PATH are not configured.");
             }
 
             using var pemCertificate = X509Certificate2.CreateFromPemFile(
-                options.CertificatePath,
-                options.PrivateKeyPath);
+                _options.CertificatePath,
+                _options.PrivateKeyPath);
             return X509CertificateLoader.LoadPkcs12(pemCertificate.Export(X509ContentType.Pkcs12), null);
         }
 
@@ -133,16 +133,16 @@ namespace Rvt.Monitor.Common.Mqtt
         public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
         {
 
-            if (!options.Enabled)
+            if (!_options.Enabled)
             {
                 RvtLogger.Logger.LogInformation("MQTT is disabled, not connecting.");
                 return true;
             }
 
-            var ack = await mqttClient!.ConnectAsync(new MqttClientOptionsBuilder()
-                .WithTcpServer(options.Hostname, options.Port)
-                .WithClientId(options.ClientId)
-                .WithCredentials(options.Username, "")
+            MqttClientConnectResult ack = await mqttClient!.ConnectAsync(new MqttClientOptionsBuilder()
+                .WithTcpServer(_options.Hostname, _options.Port)
+                .WithClientId(_options.ClientId)
+                .WithCredentials(_options.Username, "")
                 .WithTlsOptions(options =>
                 {
                     options.UseTls();

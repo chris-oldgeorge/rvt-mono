@@ -47,10 +47,10 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         ArgumentNullException.ThrowIfNull(request.Content);
 
         cancellationToken.ThrowIfCancellationRequested();
-        var localRoot = GetLocalRootPath();
-        var targetPath = GetTargetPath(localRoot, request.Key);
-        var metadataPath = GetContentTypeMetadataPath(targetPath);
-        var targetDirectory = Path.GetDirectoryName(targetPath)
+        string localRoot = GetLocalRootPath();
+        string targetPath = GetTargetPath(localRoot, request.Key);
+        string metadataPath = GetContentTypeMetadataPath(targetPath);
+        string targetDirectory = Path.GetDirectoryName(targetPath)
             ?? throw new InvalidOperationException(
                 $"The local object target directory for resource '{resourceName}' could not be determined.");
 
@@ -127,9 +127,9 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var localRoot = GetLocalRootPath();
-        var targetPath = GetTargetPath(localRoot, key);
-        var metadataPath = GetContentTypeMetadataPath(targetPath);
+        string localRoot = GetLocalRootPath();
+        string targetPath = GetTargetPath(localRoot, key);
+        string metadataPath = GetContentTypeMetadataPath(targetPath);
         EnsureNoExistingReparsePoints(localRoot, targetPath);
         EnsureNoExistingReparsePoints(localRoot, metadataPath);
 
@@ -149,7 +149,7 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
                 FileBufferSize,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-            var contentType = File.Exists(metadataPath)
+            string? contentType = File.Exists(metadataPath)
                 ? await File.ReadAllTextAsync(metadataPath, cancellationToken)
                 : null;
             return new StorageReadResult(content, contentType, content.Length);
@@ -186,13 +186,13 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var localRoot = GetLocalRootPath();
-        var targetPath = GetTargetPath(localRoot, key);
-        var metadataPath = GetContentTypeMetadataPath(targetPath);
+        string localRoot = GetLocalRootPath();
+        string targetPath = GetTargetPath(localRoot, key);
+        string metadataPath = GetContentTypeMetadataPath(targetPath);
         EnsureNoExistingReparsePoints(localRoot, targetPath);
         EnsureNoExistingReparsePoints(localRoot, metadataPath);
 
-        var existed = File.Exists(targetPath);
+        bool existed = File.Exists(targetPath);
         if (existed)
         {
             File.Delete(targetPath);
@@ -205,7 +205,7 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
     public Uri GetObjectUri(StorageObjectKey key)
     {
         ArgumentNullException.ThrowIfNull(key);
-        var targetPath = GetTargetPath(GetLocalRootPath(), key);
+        string targetPath = GetTargetPath(GetLocalRootPath(), key);
         return new Uri(targetPath);
     }
 
@@ -255,18 +255,18 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         string localRoot,
         StorageObjectKey key)
     {
-        var container = NormalizeConfiguredPath(
+        string container = NormalizeConfiguredPath(
             options.Container,
             nameof(options.Container),
             required: true);
-        var prefix = NormalizeConfiguredPath(
+        string prefix = NormalizeConfiguredPath(
             options.Prefix,
             nameof(options.Prefix),
             required: false);
-        var relativeObjectPath = key.Value.Replace('/', Path.DirectorySeparatorChar);
-        var targetPath = Path.GetFullPath(
+        string relativeObjectPath = key.Value.Replace('/', Path.DirectorySeparatorChar);
+        string targetPath = Path.GetFullPath(
             Path.Combine(localRoot, container, prefix, relativeObjectPath));
-        var relativeTargetPath = Path.GetRelativePath(localRoot, targetPath);
+        string relativeTargetPath = Path.GetRelativePath(localRoot, targetPath);
 
         if (Path.IsPathRooted(relativeTargetPath)
             || relativeTargetPath == ".."
@@ -287,7 +287,7 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
 
     private static string GetContentTypeMetadataPath(string targetPath)
     {
-        var directory = Path.GetDirectoryName(targetPath)
+        string directory = Path.GetDirectoryName(targetPath)
             ?? throw new InvalidOperationException(
                 "The local object content-type metadata directory could not be determined.");
         return Path.Combine(directory, $".{Path.GetFileName(targetPath)}.content-type");
@@ -298,10 +298,10 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         Stream content,
         CancellationToken cancellationToken)
     {
-        var targetDirectory = Path.GetDirectoryName(targetPath)
+        string targetDirectory = Path.GetDirectoryName(targetPath)
             ?? throw new InvalidOperationException(
                 "The local object temporary directory could not be determined.");
-        var temporaryPath = Path.Combine(
+        string temporaryPath = Path.Combine(
             targetDirectory,
             $".{Path.GetFileName(targetPath)}.{Guid.NewGuid():N}.tmp");
 
@@ -338,10 +338,10 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         string targetPath,
         StorageObjectKey? key = null)
     {
-        var relativeTargetPath = Path.GetRelativePath(localRoot, targetPath);
-        var pathComponent = localRoot;
+        string relativeTargetPath = Path.GetRelativePath(localRoot, targetPath);
+        string pathComponent = localRoot;
 
-        foreach (var segment in relativeTargetPath.Split(
+        foreach (string segment in relativeTargetPath.Split(
                      [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
                      StringSplitOptions.RemoveEmptyEntries))
         {

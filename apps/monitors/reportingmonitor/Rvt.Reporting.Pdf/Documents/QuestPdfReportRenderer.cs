@@ -24,10 +24,10 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
         cancellationToken.ThrowIfCancellationRequested();
 
         QuestPDF.Settings.License = LicenseType.Community;
-        var chrome = BuildReportChrome(reportName, generatedAtUtc, fromUtc, toUtc, site);
+        ReportChrome chrome = BuildReportChrome(reportName, generatedAtUtc, fromUtc, toUtc, site);
         var rvtLogoPath = FindRvtLogoPath();
-        var graphs = BuildReportGraphs(site);
-        var insights = site.Insights ?? ReportInsightBuilder.BuildDeterministicInsights(site, fromUtc, toUtc);
+        IReadOnlyList<ReportGraph> graphs = BuildReportGraphs(site);
+        ReportInsights insights = site.Insights ?? ReportInsightBuilder.BuildDeterministicInsights(site, fromUtc, toUtc);
         var bytes = Document.Create(container =>
         {
             container.Page(page =>
@@ -70,7 +70,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
                     }
                     else
                     {
-                        foreach (var monitor in site.Monitors)
+                        foreach (MonitorReportData monitor in site.Monitors)
                         {
                             column.Item().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8).Column(monitorColumn =>
                             {
@@ -153,8 +153,8 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
         int? averagingPeriodSeconds,
         Func<MonitorReportData, IReadOnlyList<MeasurementPoint>> selectPoints)
     {
-        var typeMonitors = monitors.Where(monitor => monitor.TypeOfMonitor == monitorType).ToArray();
-        var series = typeMonitors
+        MonitorReportData[] typeMonitors = monitors.Where(monitor => monitor.TypeOfMonitor == monitorType).ToArray();
+        ReportGraphSeries[] series = typeMonitors
             .Select(monitor => new ReportGraphSeries(MonitorLabel(monitor), selectPoints(monitor).OrderBy(static point => point.MeasuredAt).ToArray()))
             .Where(static item => item.Points.Count > 0)
             .ToArray();
@@ -164,7 +164,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
             return;
         }
 
-        var limits = typeMonitors
+        ReportGraphLimit[] limits = typeMonitors
             .SelectMany(monitor => monitor.AlertRules)
             .Where(rule => RuleMatchesGraph(rule, graphField, averagingPeriodSeconds))
             .GroupBy(rule => new { rule.AlertType, rule.Threshold, Unit = rule.Unit ?? unit })
@@ -207,7 +207,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
         }
 
         column.Item().PaddingTop(8).Text("Graphs").FontSize(14).Bold();
-        foreach (var graph in graphs)
+        foreach (ReportGraph graph in graphs)
         {
             column.Item().PaddingTop(6).Column(graphColumn =>
             {
@@ -249,7 +249,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
                 header.Cell().Element(HeaderCell).Text("Worst period");
             });
 
-            foreach (var summary in insights.ExecutiveSummary.MonitorTypes)
+            foreach (MonitorTypeExecutiveSummary summary in insights.ExecutiveSummary.MonitorTypes)
             {
                 table.Cell().Element(BodyCell).Text(summary.MonitorType.ToString());
                 table.Cell().Element(BodyCell).Text(summary.Status.ToString()).FontColor(StatusColor(summary.Status)).Bold();
@@ -268,7 +268,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
         }
 
         column.Item().PaddingTop(8).Text("Alert Heatmaps").FontSize(14).Bold();
-        foreach (var heatmap in heatmaps)
+        foreach (ReportAlertHeatmap heatmap in heatmaps)
         {
             column.Item().PaddingTop(6).Column(heatmapColumn =>
             {
@@ -289,9 +289,9 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
         const decimal bottom = 46m;
         var plotWidth = width - left - right;
         var plotHeight = height - top - bottom;
-        var points = graph.Series.SelectMany(static series => series.Points).ToArray();
-        var minTime = points.Min(static point => point.MeasuredAt);
-        var maxTime = points.Max(static point => point.MeasuredAt);
+        MeasurementPoint[] points = graph.Series.SelectMany(static series => series.Points).ToArray();
+        DateTimeOffset minTime = points.Min(static point => point.MeasuredAt);
+        DateTimeOffset maxTime = points.Max(static point => point.MeasuredAt);
         var minValue = Math.Min(points.Min(static point => point.Value), graph.Limits.Select(static limit => limit.Value).DefaultIfEmpty(points.Min(static point => point.Value)).Min());
         var maxValue = Math.Max(points.Max(static point => point.Value), graph.Limits.Select(static limit => limit.Value).DefaultIfEmpty(points.Max(static point => point.Value)).Max());
 
@@ -317,7 +317,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
 
         for (var index = 0; index < graph.Limits.Count; index++)
         {
-            var limit = graph.Limits[index];
+            ReportGraphLimit limit = graph.Limits[index];
             var y = MapY(limit.Value, minValue, yRange, top, plotHeight);
             var color = limit.AlertType == AlertType.Alert ? "#dc2626" : "#f59e0b";
             lines.Add($"""<line x1="{SvgNumber(left, "0")}" y1="{SvgNumber(y)}" x2="{SvgNumber(width - right, "0")}" y2="{SvgNumber(y)}" stroke="{color}" stroke-width="1.4" stroke-dasharray="6 4"/>""");
@@ -326,14 +326,14 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
 
         for (var index = 0; index < graph.Series.Count; index++)
         {
-            var series = graph.Series[index];
+            ReportGraphSeries series = graph.Series[index];
             var color = GraphColors[index % GraphColors.Length];
             var mapped = series.Points
                 .Select(point => $"{SvgNumber(MapX(point.MeasuredAt, minTime, xRangeSeconds, left, plotWidth))},{SvgNumber(MapY(point.Value, minValue, yRange, top, plotHeight))}")
                 .ToArray();
             lines.Add($"""<polyline points="{string.Join(' ', mapped)}" fill="none" stroke="{color}" stroke-width="2"/>""");
 
-            foreach (var point in series.Points)
+            foreach (MeasurementPoint point in series.Points)
             {
                 lines.Add($"""<circle cx="{SvgNumber(MapX(point.MeasuredAt, minTime, xRangeSeconds, left, plotWidth))}" cy="{SvgNumber(MapY(point.Value, minValue, yRange, top, plotHeight))}" r="2.4" fill="{color}"/>""");
             }
@@ -356,7 +356,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
         const decimal cellWidth = 22m;
         const decimal cellHeight = 20m;
         const decimal bottomPadding = 6m;
-        var days = heatmap.Cells.Select(static cell => cell.Day).Distinct().Order().ToArray();
+        DateOnly[] days = heatmap.Cells.Select(static cell => cell.Day).Distinct().Order().ToArray();
         // The viewBox must grow with the number of days. A fixed height clipped
         // every row past the eighth, which silently truncated monthly and
         // 31-day one-time reports.
@@ -377,13 +377,13 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
 
         for (var dayIndex = 0; dayIndex < days.Length; dayIndex++)
         {
-            var day = days[dayIndex];
+            DateOnly day = days[dayIndex];
             var y = top + dayIndex * cellHeight;
             lines.Add($"""<text x="4" y="{y + 14:0}" font-family="Arial" font-size="9" fill="#374151">{XmlEscape(day.ToString("dd/MM", CultureInfo.InvariantCulture))}</text>""");
 
             for (var hour = 0; hour < 24; hour++)
             {
-                var cell = cellsByDayHour.GetValueOrDefault((day, hour));
+                ReportAlertHeatmapCell? cell = cellsByDayHour.GetValueOrDefault((day, hour));
                 var count = cell is null ? 0 : cell.AlertCount + cell.CautionCount;
                 var color = HeatmapColor(count, maxCount, cell?.AlertCount > 0);
                 var x = left + hour * cellWidth;
@@ -424,7 +424,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
 
     private static void ComposeAlertRuleTable(ColumnDescriptor column, string title, MonitorReportData monitor, AlertType alertType)
     {
-        var rules = monitor.AlertRules.Where(rule => rule.AlertType == alertType).ToArray();
+        AlertRuleData[] rules = monitor.AlertRules.Where(rule => rule.AlertType == alertType).ToArray();
         if (rules.Length == 0)
         {
             return;
@@ -467,7 +467,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
                 }
             });
 
-            foreach (var rule in rules)
+            foreach (AlertRuleData? rule in rules)
             {
                 table.Cell().Element(BodyCell).Text(rule.Name ?? rule.Field);
                 table.Cell().Element(BodyCell).Text(FormattableString.Invariant($"{rule.Threshold:0.##} {rule.Unit}").Trim());

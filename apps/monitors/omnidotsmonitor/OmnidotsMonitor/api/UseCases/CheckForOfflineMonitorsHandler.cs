@@ -63,7 +63,7 @@ namespace Omnidots.Api.UseCases
                             {
                                 var failure = new InvalidOperationException(
                                     "Monitor timezone is missing or invalid.");
-                                var message = $"CheckForOfflineMonitors serialId={monitor.SerialId}";
+                                string message = $"CheckForOfflineMonitors serialId={monitor.SerialId}";
                                 failures.Add(OmnidotsMonitorFailure.Record(
                                     monitor.SerialId,
                                     failure,
@@ -83,7 +83,7 @@ namespace Omnidots.Api.UseCases
                             }
                             catch (SiteScheduleConfigurationException failure)
                             {
-                                var message = $"CheckForOfflineMonitors serialId={monitor.SerialId}";
+                                string message = $"CheckForOfflineMonitors serialId={monitor.SerialId}";
                                 failures.Add(OmnidotsMonitorFailure.Record(
                                     monitor.SerialId,
                                     failure,

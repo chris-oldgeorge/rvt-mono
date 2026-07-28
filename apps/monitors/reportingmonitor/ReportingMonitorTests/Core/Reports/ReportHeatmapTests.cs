@@ -1,3 +1,6 @@
+// The namespace follows this project's established scheme rather than the
+// folder path; IDE0130 would require a name no sibling file uses.
+#pragma warning disable IDE0130
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -13,8 +16,8 @@ namespace Rvt.Reporting.Core.Tests.Reports;
 /// </summary>
 public sealed class ReportHeatmapTests
 {
-    private const decimal Top = 20m;
-    private const decimal CellHeight = 20m;
+    private const decimal _top = 20m;
+    private const decimal _cellHeight = 20m;
 
     [Theory]
     [InlineData(1)]
@@ -24,10 +27,10 @@ public sealed class ReportHeatmapTests
     [InlineData(31)]
     public void BuildHeatmapSvg_KeepsEveryDayRowInsideTheViewBox(int dayCount)
     {
-        var svg = InvokeBuildHeatmapSvg(CreateHeatmap(dayCount));
+        string svg = InvokeBuildHeatmapSvg(CreateHeatmap(dayCount));
 
-        var viewBoxHeight = ParseViewBoxHeight(svg);
-        var lowestRowBottom = Top + (dayCount * CellHeight);
+        decimal viewBoxHeight = ParseViewBoxHeight(svg);
+        decimal lowestRowBottom = _top + (dayCount * _cellHeight);
 
         Assert.True(
             viewBoxHeight >= lowestRowBottom,
@@ -39,12 +42,12 @@ public sealed class ReportHeatmapTests
     {
         const int dayCount = 31;
 
-        var svg = InvokeBuildHeatmapSvg(CreateHeatmap(dayCount));
+        string svg = InvokeBuildHeatmapSvg(CreateHeatmap(dayCount));
 
-        for (var offset = 0; offset < dayCount; offset++)
+        for (int offset = 0; offset < dayCount; offset++)
         {
             var day = new DateOnly(2026, 3, 1).AddDays(offset);
-            var label = day.ToString("dd/MM", CultureInfo.InvariantCulture);
+            string label = day.ToString("dd/MM", CultureInfo.InvariantCulture);
             Assert.Contains(label, svg, StringComparison.Ordinal);
         }
     }
@@ -52,8 +55,8 @@ public sealed class ReportHeatmapTests
     [Fact]
     public void BuildHeatmapSvg_GrowsHeightWithDayCount()
     {
-        var shortReport = ParseViewBoxHeight(InvokeBuildHeatmapSvg(CreateHeatmap(2)));
-        var longReport = ParseViewBoxHeight(InvokeBuildHeatmapSvg(CreateHeatmap(30)));
+        decimal shortReport = ParseViewBoxHeight(InvokeBuildHeatmapSvg(CreateHeatmap(2)));
+        decimal longReport = ParseViewBoxHeight(InvokeBuildHeatmapSvg(CreateHeatmap(30)));
 
         Assert.True(longReport > shortReport);
     }
@@ -66,7 +69,7 @@ public sealed class ReportHeatmapTests
             MonitorType.Noise,
             [new ReportAlertHeatmapCell(day, 5, 2, 1, 78m)]);
 
-        var svg = InvokeBuildHeatmapSvg(heatmap);
+        string svg = InvokeBuildHeatmapSvg(heatmap);
 
         Assert.Contains(">3</text>", svg, StringComparison.Ordinal);
     }

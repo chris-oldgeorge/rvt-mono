@@ -6,6 +6,7 @@ using Omnidots.Api.Db;
 using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
+using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 
@@ -21,16 +22,16 @@ public sealed class ConfigureMeasuringPointHandlerTests
 
     public ConfigureMeasuringPointHandlerTests()
     {
-        var loggerFactory = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Debug));
+        ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Debug));
         RvtLogger.CreateLogger(loggerFactory, nameof(ConfigureMeasuringPointHandlerTests));
     }
 
     [TestMethod]
     public async Task RunAsync_InvalidSecurityOptions_PrecedeJsonParsing()
     {
-        var handler = CreateHandler(
-            out var httpClient,
-            out var monitorQueries,
+        ConfigureMeasuringPointHandler handler = CreateHandler(
+            out Mock<IHttpClient>? httpClient,
+            out Mock<IOmnidotsMonitorQueries>? monitorQueries,
             options: new OmnidotsApiSecurityOptions());
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
@@ -43,7 +44,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_MalformedJson_ThrowsJsonExceptionBeforeAuthentication()
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
             handler.RunAsync(Bytes("{\"secret\":"), CancellationToken.None));
@@ -58,9 +59,9 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_MissingOrNonStringSecret_ThrowsAuthenticationException(string json)
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
 
-        var exception = await Assert.ThrowsExactlyAsync<OmnidotsConfigurationAuthenticationException>(() =>
+        OmnidotsConfigurationAuthenticationException exception = await Assert.ThrowsExactlyAsync<OmnidotsConfigurationAuthenticationException>(() =>
             handler.RunAsync(Bytes(json), CancellationToken.None));
 
         Assert.AreEqual("Measuring point configuration authentication failed.", exception.Message);
@@ -71,7 +72,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_WrongSecret_PrecedesInvalidBusinessFields()
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         const string json = """
             {
               "secret": "wrong-secret",
@@ -95,7 +96,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
         string propertyName,
         string propertyValue)
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         var json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"{SerialId}\",\"{propertyName}\":{propertyValue}}}";
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
@@ -108,7 +109,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_BlankSerialId_ThrowsJsonException()
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         var json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"   \"}}";
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
@@ -127,7 +128,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_InvalidTuningValue_ThrowsJsonException(string propertyName, string propertyValue)
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         var json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"{SerialId}\",\"{propertyName}\":{propertyValue}}}";
 
         await Assert.ThrowsExactlyAsync<JsonException>(() =>
@@ -149,13 +150,13 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_UsesOnlyDeployedWebhookAndReturnsExactSafeResult()
     {
-        var handler = CreateSuccessfulHandler(
-            out var httpClient,
-            out var monitorQueries,
-            out var capture);
+        ConfigureMeasuringPointHandler handler = CreateSuccessfulHandler(
+            out Mock<IHttpClient>? httpClient,
+            out Mock<IOmnidotsMonitorQueries>? monitorQueries,
+            out ConfigRequestCapture? capture);
         var json = $"{{\"secret\":\"{ConfigSecret}\",\"serialid\":\"{SerialId}\",\"level_alert\":10,\"level_caution\":7}}";
 
-        var result = await handler.RunAsync(Bytes(json), CancellationToken.None);
+        ConfigureMeasuringPointResult result = await handler.RunAsync(Bytes(json), CancellationToken.None);
 
         Assert.IsNotNull(capture.Request);
         Assert.AreEqual(WebhookUrl, capture.Request.WebhookRecipient!.Url);
@@ -181,11 +182,11 @@ public sealed class ConfigureMeasuringPointHandlerTests
         string? endTime,
         bool useTunedTraceValues)
     {
-        var siteTimes = CreateSiteTimes(weekdays, sundays, saturdays, startTime, endTime);
-        var handler = CreateSuccessfulHandler(
-            out var httpClient,
-            out var monitorQueries,
-            out var capture,
+        SiteTimes siteTimes = CreateSiteTimes(weekdays, sundays, saturdays, startTime, endTime);
+        ConfigureMeasuringPointHandler handler = CreateSuccessfulHandler(
+            out Mock<IHttpClient>? httpClient,
+            out Mock<IOmnidotsMonitorQueries>? monitorQueries,
+            out ConfigRequestCapture? capture,
             siteTimes);
         var request = new Dictionary<string, object?>
         {
@@ -201,7 +202,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
             request["trace_post_trigger"] = 5.5;
         }
 
-        var result = await handler.RunAsync(
+        ConfigureMeasuringPointResult result = await handler.RunAsync(
             Bytes(JsonSerializer.Serialize(request)),
             CancellationToken.None);
 
@@ -227,7 +228,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_VendorFalseResponse_ThrowsSafeVendorException()
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         SetupMonitor(monitorQueries);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"ok\":true,\"token\":\"vendor-token\"}");
@@ -236,7 +237,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
                 It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"ok\":false,\"message\":\"raw-vendor-body-marker\"}");
 
-        var exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
+        OmnidotsVendorConfigurationException exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
             handler.RunAsync(Bytes(ValidJson()), CancellationToken.None));
 
         AssertSafeVendorException(exception);
@@ -245,12 +246,12 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_VendorNetworkFailure_ThrowsSafeVendorException()
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         SetupMonitor(monitorQueries);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("raw-vendor-body-marker"));
 
-        var exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
+        OmnidotsVendorConfigurationException exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
             handler.RunAsync(Bytes(ValidJson()), CancellationToken.None));
 
         AssertSafeVendorException(exception);
@@ -259,12 +260,12 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_InvalidVendorResponse_ThrowsSafeVendorException()
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         SetupMonitor(monitorQueries);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("raw-vendor-body-marker");
 
-        var exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
+        OmnidotsVendorConfigurationException exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
             handler.RunAsync(Bytes(ValidJson()), CancellationToken.None));
 
         AssertSafeVendorException(exception);
@@ -273,7 +274,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_SafeConcreteClientFailure_ThrowsSafeVendorException()
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         SetupMonitor(monitorQueries);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"ok\":true,\"token\":\"vendor-token\"}");
@@ -282,7 +283,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
                 It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(AdapterException.Of("Omnidots API request failed."));
 
-        var exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
+        OmnidotsVendorConfigurationException exception = await Assert.ThrowsExactlyAsync<OmnidotsVendorConfigurationException>(() =>
             handler.RunAsync(Bytes(ValidJson()), CancellationToken.None));
 
         AssertSafeVendorException(exception);
@@ -291,7 +292,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     [TestMethod]
     public async Task RunAsync_CancellationWhileAwaitingVendorCall_IsPreserved()
     {
-        var handler = CreateHandler(out var httpClient, out var monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         SetupMonitor(monitorQueries);
         var pendingResponse = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
@@ -313,10 +314,10 @@ public sealed class ConfigureMeasuringPointHandlerTests
         out ConfigRequestCapture capture,
         SiteTimes? siteTimes = null)
     {
-        var handler = CreateHandler(out httpClient, out monitorQueries);
+        ConfigureMeasuringPointHandler handler = CreateHandler(out httpClient, out monitorQueries);
         SetupMonitor(monitorQueries, siteTimes);
         capture = new ConfigRequestCapture();
-        var requestCapture = capture;
+        ConfigRequestCapture requestCapture = capture;
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"ok\":true,\"token\":\"vendor-token\"}");
         httpClient.Setup(client => client.PostAsync(
@@ -344,7 +345,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
         Mock<IOmnidotsMonitorQueries> monitorQueries,
         SiteTimes? siteTimes = null)
     {
-        var monitor = OmnidotsFixture.MonitorsList(1, serialIdIn: 23422).Single();
+        VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1, serialIdIn: 23422).Single();
         monitorQueries.Setup(queries => queries.ReadMonitor(SerialId)).Returns(monitor);
         monitorQueries.Setup(queries => queries.ReadSiteTimes(monitor.Id)).Returns(siteTimes ?? new SiteTimes());
     }

@@ -1,9 +1,11 @@
 using System.Globalization;
+using AirQ.Api;
 using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Moq.Language.Flow;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
@@ -21,7 +23,7 @@ namespace AirQMonitorTests
     {
         public TestAirQApiNoiseLevels()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -31,13 +33,13 @@ namespace AirQMonitorTests
         [TestMethod]
         public async Task TestStoreNoiseLevels_EmptyRules_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
 
-            var monitors = AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE);
+            List<NoiseMonitorDto> monitors = AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE);
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
@@ -68,7 +70,7 @@ namespace AirQMonitorTests
         [TestMethod]
         public async Task TestStoreNoiseLevels_TruncatedByTimestamp_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
@@ -93,7 +95,7 @@ namespace AirQMonitorTests
         public async Task TestStoreNoiseLevelsForYesterday_Success()
         {
 
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             var yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
@@ -124,10 +126,10 @@ namespace AirQMonitorTests
         {
 
             var dateStr = "2023-09-11";
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            var regex =
+            IReturnsResult<IHttpClient> regex =
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.DateSamplesResponseJson()));
 
@@ -171,7 +173,7 @@ namespace AirQMonitorTests
         [TestMethod]
         public async Task TestStoreNoiseLevelsInactiveMonitor_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
@@ -198,7 +200,7 @@ namespace AirQMonitorTests
         {
 
             var dateStr = "2023-09-11";
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).

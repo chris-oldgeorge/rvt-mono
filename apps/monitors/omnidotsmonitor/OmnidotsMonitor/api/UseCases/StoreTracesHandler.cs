@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
 using Omnidots.Api.Http;
+using Omnidots.Api.Ports;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Utilities;
-using Omnidots.Api.Ports;
 
 namespace Omnidots.Api.UseCases
 {
@@ -14,7 +14,7 @@ namespace Omnidots.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiTraces).
     public class StoreTracesHandler
     {
-        private readonly IOmnidotsVendorGateway gateway;
+        private readonly IOmnidotsVendorGateway _gateway;
         private readonly OmnidotsMonitorReader monitorReader;
         private readonly IOmnidotsMeasurementCommands measurementCommands;
         private readonly IOmnidotsOperationalCommands operationalCommands;
@@ -31,7 +31,7 @@ namespace Omnidots.Api.UseCases
             OmnidotsTraceCollectionOptions options,
             TimeProvider timeProvider)
         {
-            this.gateway = gateway;
+            _gateway = gateway;
             this.monitorReader = monitorReader;
             this.measurementCommands = measurementCommands;
             this.operationalCommands = operationalCommands;
@@ -42,7 +42,7 @@ namespace Omnidots.Api.UseCases
 
         public async Task RunAsync(DateTime last, CancellationToken cancellationToken = default)
         {
-            var startedAt = timeProvider.GetTimestamp();
+            long startedAt = timeProvider.GetTimestamp();
             var monitors = monitorReader.ReadMonitors(last);
             options.Validate();
             var eligibleMonitors = EligibleMonitors(monitors);
@@ -51,16 +51,16 @@ namespace Omnidots.Api.UseCases
                     eligibleMonitors.Select(monitor => monitor.SerialId).ToArray())
                     ?? new Dictionary<string, DateTime>()
                 : new Dictionary<string, DateTime>();
-            var rotationSlot = timeProvider.GetUtcNow().ToUnixTimeSeconds() / 300;
+            long rotationSlot = timeProvider.GetUtcNow().ToUnixTimeSeconds() / 300;
             var selectedMonitors = OmnidotsTraceMonitorSelector.Select(
                 monitors,
                 latestTraceEndTimes,
                 options,
                 rotationSlot);
             var failures = new List<OmnidotsMonitorFailure>();
-            var succeeded = 0;
-            var tracesStored = 0;
-            var samplesStored = 0;
+            int succeeded = 0;
+            int tracesStored = 0;
+            int samplesStored = 0;
 
             if (selectedMonitors.Count == 0)
             {
@@ -68,7 +68,7 @@ namespace Omnidots.Api.UseCases
                 return;
             }
 
-            var token = (await gateway.AuthenticateAsync(cancellationToken)).Token!;
+            string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
 
             foreach (var monitor in selectedMonitors)
             {
@@ -81,7 +81,7 @@ namespace Omnidots.Api.UseCases
                 }
                 catch (Exception e)
                 {
-                    var msg = string.Format("Failed to read traces for serialId={0}", monitor.SerialId!);
+                    string msg = string.Format("Failed to read traces for serialId={0}", monitor.SerialId!);
                     failures.Add(OmnidotsMonitorFailure.Record(
                         monitor.SerialId,
                         e,
@@ -106,7 +106,7 @@ namespace Omnidots.Api.UseCases
 
         private async Task<TraceReadResult> ReadTracesAsync(string token, string serialId, DateTime start, DateTime? end, CancellationToken cancellationToken)
         {
-            var tracesList = await gateway.GetTracesListAsync(token, serialId, start, end, cancellationToken);
+            var tracesList = await _gateway.GetTracesListAsync(token, serialId, start, end, cancellationToken);
 
             if (tracesList.Traces == null)
             {
@@ -118,14 +118,14 @@ namespace Omnidots.Api.UseCases
             RvtLogger.Logger.LogInformation("ReadTraces for serialId={Value1}  traceslist size={Value2}",
                 serialId, tracesList.Traces.Count);
 
-            var traceCount = 0;
-            var sampleCount = 0;
+            int traceCount = 0;
+            int sampleCount = 0;
             foreach (var traceInfo in tracesList.Traces)
             {
                 var tStart = DateTimeUtil.FromMillis(traceInfo.StartTime);
                 var tEnd = DateTimeUtil.FromMillis(traceInfo.EndTime);
 
-                var tracesResponse = await gateway.GetTracesAsync(token, serialId, tStart, tEnd, cancellationToken);
+                var tracesResponse = await _gateway.GetTracesAsync(token, serialId, tStart, tEnd, cancellationToken);
                 var traces = tracesResponse.Traces ?? [];
                 RvtLogger.Logger.LogInformation("Number of traces={Value1}", traces.Count);
                 measurementCommands.WriteTraces(serialId, traces);

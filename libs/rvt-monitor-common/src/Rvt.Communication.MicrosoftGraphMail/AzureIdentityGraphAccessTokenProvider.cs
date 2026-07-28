@@ -36,7 +36,7 @@ public sealed class AzureIdentityGraphAccessTokenProvider : IMicrosoftGraphAcces
         }
         catch (AuthenticationFailedException exception)
         {
-            var requestFailure = FindInner<RequestFailedException>(exception);
+            RequestFailedException? requestFailure = FindInner<RequestFailedException>(exception);
             DeliveryFailureKind kind;
             if (requestFailure is not null)
             {
@@ -73,7 +73,7 @@ public sealed class AzureIdentityGraphAccessTokenProvider : IMicrosoftGraphAcces
 
     private static bool IsTransportFailure(Exception exception)
     {
-        for (var current = exception.InnerException; current is not null; current = current.InnerException)
+        for (Exception? current = exception.InnerException; current is not null; current = current.InnerException)
         {
             if (current is HttpRequestException
                 or System.Net.Sockets.SocketException
@@ -91,7 +91,7 @@ public sealed class AzureIdentityGraphAccessTokenProvider : IMicrosoftGraphAcces
     private static TException? FindInner<TException>(Exception exception)
         where TException : Exception
     {
-        for (var current = exception.InnerException; current is not null; current = current.InnerException)
+        for (Exception? current = exception.InnerException; current is not null; current = current.InnerException)
         {
             if (current is TException match)
             {

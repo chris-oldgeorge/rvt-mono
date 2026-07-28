@@ -168,7 +168,7 @@ public static class MyAtmMonitorServices
 
     private static void AddEmailProvider(IServiceCollection services, IConfiguration configuration)
     {
-        var configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
+        string configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
             ?? configuration["RVT__EMAIL_PROVIDER"]
             ?? "SendGrid";
 

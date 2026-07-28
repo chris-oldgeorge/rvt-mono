@@ -13,8 +13,8 @@ namespace Rvt.Monitor.CommonTests.Delivery;
 [TestClass]
 public sealed class DeliveryRetryScheduleTests
 {
-    private static readonly TimeSpan Initial = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan Cap = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan _initial = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _cap = TimeSpan.FromMinutes(30);
 
     [TestMethod]
     [DataRow(1, 30)]
@@ -23,7 +23,7 @@ public sealed class DeliveryRetryScheduleTests
     [DataRow(4, 240)]
     public void NextDelay_DoublesFromTheInitialDelay(int attemptCount, int expectedSeconds)
     {
-        var delay = DeliveryRetrySchedule.NextDelay(attemptCount, Initial, Cap);
+        TimeSpan delay = DeliveryRetrySchedule.NextDelay(attemptCount, _initial, _cap);
 
         Assert.AreEqual(TimeSpan.FromSeconds(expectedSeconds), delay);
     }
@@ -33,13 +33,13 @@ public sealed class DeliveryRetryScheduleTests
     [DataRow(1)]
     public void NextDelay_TreatsTheFirstAttemptAsTheInitialDelay(int attemptCount)
     {
-        Assert.AreEqual(Initial, DeliveryRetrySchedule.NextDelay(attemptCount, Initial, Cap));
+        Assert.AreEqual(_initial, DeliveryRetrySchedule.NextDelay(attemptCount, _initial, _cap));
     }
 
     [TestMethod]
     public void NextDelay_IsBoundedByTheCap()
     {
-        Assert.AreEqual(Cap, DeliveryRetrySchedule.NextDelay(20, Initial, Cap));
+        Assert.AreEqual(_cap, DeliveryRetrySchedule.NextDelay(20, _initial, _cap));
     }
 
     [TestMethod]
@@ -47,9 +47,9 @@ public sealed class DeliveryRetryScheduleTests
     {
         // The exponent is computed in double so a runaway attempt count reaches
         // the cap rather than wrapping the tick arithmetic into a negative.
-        var delay = DeliveryRetrySchedule.NextDelay(int.MaxValue, Initial, Cap);
+        TimeSpan delay = DeliveryRetrySchedule.NextDelay(int.MaxValue, _initial, _cap);
 
-        Assert.AreEqual(Cap, delay);
+        Assert.AreEqual(_cap, delay);
     }
 
     [TestMethod]
@@ -61,7 +61,7 @@ public sealed class DeliveryRetryScheduleTests
             "429",
             TimeSpan.FromMinutes(5));
 
-        var delay = DeliveryRetrySchedule.NextDelay(1, Initial, Cap, exception);
+        TimeSpan delay = DeliveryRetrySchedule.NextDelay(1, _initial, _cap, exception);
 
         Assert.AreEqual(TimeSpan.FromMinutes(5), delay);
     }
@@ -75,7 +75,7 @@ public sealed class DeliveryRetryScheduleTests
             "429",
             TimeSpan.FromSeconds(1));
 
-        var delay = DeliveryRetrySchedule.NextDelay(3, Initial, Cap, exception);
+        TimeSpan delay = DeliveryRetrySchedule.NextDelay(3, _initial, _cap, exception);
 
         Assert.AreEqual(TimeSpan.FromSeconds(120), delay);
     }
@@ -90,15 +90,15 @@ public sealed class DeliveryRetryScheduleTests
             "429",
             TimeSpan.FromDays(7));
 
-        var delay = DeliveryRetrySchedule.NextDelay(1, Initial, Cap, exception);
+        TimeSpan delay = DeliveryRetrySchedule.NextDelay(1, _initial, _cap, exception);
 
-        Assert.AreEqual(Cap, delay);
+        Assert.AreEqual(_cap, delay);
     }
 
     [TestMethod]
     public void NextDelay_WithANonDeliveryException_UsesTheExponentialSchedule()
     {
-        var delay = DeliveryRetrySchedule.NextDelay(2, Initial, Cap, new InvalidOperationException());
+        TimeSpan delay = DeliveryRetrySchedule.NextDelay(2, _initial, _cap, new InvalidOperationException());
 
         Assert.AreEqual(TimeSpan.FromSeconds(60), delay);
     }
@@ -106,7 +106,7 @@ public sealed class DeliveryRetryScheduleTests
     [TestMethod]
     public void NextDelay_WithANonPositiveCap_IsZero()
     {
-        Assert.AreEqual(TimeSpan.Zero, DeliveryRetrySchedule.NextDelay(3, Initial, TimeSpan.Zero));
+        Assert.AreEqual(TimeSpan.Zero, DeliveryRetrySchedule.NextDelay(3, _initial, TimeSpan.Zero));
     }
 
     [TestMethod]
@@ -123,11 +123,11 @@ public sealed class DeliveryRetryScheduleTests
 
         for (var attempt = 1; attempt <= 10; attempt++)
         {
-            var fromAlerts = DeliveryRetrySchedule.NextDelay(
+            TimeSpan fromAlerts = DeliveryRetrySchedule.NextDelay(
                 attempt,
                 TimeSpan.FromSeconds(alertOptions.InitialRetrySeconds),
                 TimeSpan.FromSeconds(alertOptions.MaxRetrySeconds));
-            var fromDelivery = DeliveryRetrySchedule.NextDelay(
+            TimeSpan fromDelivery = DeliveryRetrySchedule.NextDelay(
                 attempt,
                 deliveryOptions.InitialRetryDelay,
                 deliveryOptions.RetryCap);

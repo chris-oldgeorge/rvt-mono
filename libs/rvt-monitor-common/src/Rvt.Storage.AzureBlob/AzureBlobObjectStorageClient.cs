@@ -50,7 +50,7 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         ArgumentNullException.ThrowIfNull(request.Key);
         ArgumentNullException.ThrowIfNull(request.Content);
 
-        var blobClient = GetBlobClient(request.Key);
+        BlobClient blobClient = GetBlobClient(request.Key);
         try
         {
             await containerClient.CreateIfNotExistsAsync(
@@ -92,7 +92,7 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
 
         try
         {
-            var response = await GetBlobClient(key).DownloadStreamingAsync(
+            Response<BlobDownloadStreamingResult> response = await GetBlobClient(key).DownloadStreamingAsync(
                 new BlobDownloadOptions(),
                 cancellationToken);
             return new StorageReadResult(
@@ -131,7 +131,7 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
 
         try
         {
-            var response = await GetBlobClient(key).DeleteIfExistsAsync(
+            Response<bool> response = await GetBlobClient(key).DeleteIfExistsAsync(
                 cancellationToken: cancellationToken);
             return response.Value;
         }
@@ -168,7 +168,7 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
 
         if (!string.IsNullOrWhiteSpace(options.ServiceUri))
         {
-            if (!Uri.TryCreate(options.ServiceUri, UriKind.Absolute, out var serviceUri))
+            if (!Uri.TryCreate(options.ServiceUri, UriKind.Absolute, out Uri? serviceUri))
             {
                 throw new InvalidOperationException(
                     "RVT__BLOB_SERVICE_URI must be an absolute URI.");

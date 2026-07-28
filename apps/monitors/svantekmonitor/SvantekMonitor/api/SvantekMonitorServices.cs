@@ -63,7 +63,7 @@ public static class SvantekMonitorServices
             }
             catch (Exception e)
             {
-                var dbClient = provider.GetRequiredService<IDBClient>();
+                IDBClient dbClient = provider.GetRequiredService<IDBClient>();
                 dbClient.HandleException("failed to start monitor application", e);
                 throw; // Need this to kill the instance.
             }

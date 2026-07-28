@@ -12,7 +12,7 @@ namespace Rvt.Monitor.CommonTests.Configuration;
 [TestClass]
 public sealed class MonitorRulePolicyTests
 {
-    private static readonly DateTime SaturdayOutsideWindow =
+    private static readonly DateTime _saturdayOutsideWindow =
         new(2026, 3, 7, 22, 0, 0, DateTimeKind.Utc);
 
     [TestMethod]
@@ -51,18 +51,18 @@ public sealed class MonitorRulePolicyTests
     [TestMethod]
     public void IsActive_WithoutATimeWindowPolicy_ConsidersOnlyTheDay()
     {
-        var rule = CreateSaturdayRule();
+        AlertActivityTimeDto rule = CreateSaturdayRule();
 
         // The time is outside the configured window, but this policy ignores it.
-        Assert.IsTrue(rule.IsActive(SaturdayOutsideWindow, MonitorRulePolicy.ForMonitorKind("myatm")));
+        Assert.IsTrue(rule.IsActive(_saturdayOutsideWindow, MonitorRulePolicy.ForMonitorKind("myatm")));
     }
 
     [TestMethod]
     public void IsActive_WithATimeWindowPolicy_ConsidersTheDayAndTheWindow()
     {
-        var rule = CreateSaturdayRule();
+        AlertActivityTimeDto rule = CreateSaturdayRule();
 
-        Assert.IsFalse(rule.IsActive(SaturdayOutsideWindow, MonitorRulePolicy.ForMonitorKind("airq")));
+        Assert.IsFalse(rule.IsActive(_saturdayOutsideWindow, MonitorRulePolicy.ForMonitorKind("airq")));
     }
 
     [TestMethod]
@@ -77,8 +77,8 @@ public sealed class MonitorRulePolicyTests
             EndTime = TimeSpan.FromHours(18),
         };
 
-        Assert.IsFalse(rule.IsActive(SaturdayOutsideWindow, MonitorRulePolicy.ForMonitorKind("myatm")));
-        Assert.IsFalse(rule.IsActive(SaturdayOutsideWindow, MonitorRulePolicy.ForMonitorKind("airq")));
+        Assert.IsFalse(rule.IsActive(_saturdayOutsideWindow, MonitorRulePolicy.ForMonitorKind("myatm")));
+        Assert.IsFalse(rule.IsActive(_saturdayOutsideWindow, MonitorRulePolicy.ForMonitorKind("airq")));
     }
 
     [TestMethod]
@@ -94,15 +94,15 @@ public sealed class MonitorRulePolicyTests
             Policy = MonitorRulePolicy.ForMonitorKind("myatm"),
         };
 
-        Assert.IsTrue(rule.IsActive(SaturdayOutsideWindow));
+        Assert.IsTrue(rule.IsActive(_saturdayOutsideWindow));
     }
 
     [TestMethod]
     public void IsActive_WithANullPolicy_ThrowsArgumentNullException()
     {
-        var rule = CreateSaturdayRule();
+        AlertActivityTimeDto rule = CreateSaturdayRule();
 
-        Assert.ThrowsExactly<ArgumentNullException>(() => rule.IsActive(SaturdayOutsideWindow, null!));
+        Assert.ThrowsExactly<ArgumentNullException>(() => rule.IsActive(_saturdayOutsideWindow, null!));
     }
 
     private static AlertActivityTimeDto CreateSaturdayRule() => new()

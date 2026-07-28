@@ -43,7 +43,7 @@ public sealed class MonitorDeliveryDispatcher
         for (var index = 0; index < options.BatchSize; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var message = await queries.ClaimNextDueAsync(
+            MonitorDeliveryMessage? message = await queries.ClaimNextDueAsync(
                 options.Producer,
                 DateTime.UtcNow,
                 options.LeaseDuration,
@@ -174,7 +174,7 @@ public sealed class MonitorDeliveryDispatcher
         string text,
         CancellationToken cancellationToken)
     {
-        var mqttMessage = payload.CustomerId.HasValue
+        RvtMqttMessage mqttMessage = payload.CustomerId.HasValue
             ? new RvtMqttMessage(payload.Timestamp, payload.CustomerId.Value, payload.SerialId, text)
             : new RvtMqttMessage(payload.Timestamp, payload.SerialId, text);
         await mqttClient.PublishAsync(
@@ -195,7 +195,7 @@ public sealed class MonitorDeliveryDispatcher
         bool outcomeRecorded;
         if (terminal)
         {
-            var audit = payload is null
+            MonitorDeliveryAudit? audit = payload is null
                 ? null
                 : CreateAudit(message, payload, error, DateTime.UtcNow);
             outcomeRecorded = await commands.DeadLetterAsync(

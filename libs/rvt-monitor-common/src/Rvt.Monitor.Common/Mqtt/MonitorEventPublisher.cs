@@ -93,7 +93,7 @@ public class MonitorEventPublisher : IMonitorEventPublisher
         int? customerId,
         CancellationToken cancellationToken = default)
     {
-        var mqttMessage = customerId.HasValue
+        RvtMqttMessage mqttMessage = customerId.HasValue
             ? new RvtMqttMessage(timestamp, customerId.Value, serialId, message)
             : new RvtMqttMessage(timestamp, serialId, message);
 

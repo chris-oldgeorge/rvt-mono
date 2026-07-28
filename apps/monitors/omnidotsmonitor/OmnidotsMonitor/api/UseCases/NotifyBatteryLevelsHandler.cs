@@ -40,7 +40,7 @@ namespace Omnidots.Api.UseCases
             {
                 if (monitor.Sensor != null)
                 {
-                    var batteryLevel = monitor.Sensor!.BatteryCharge;
+                    int batteryLevel = monitor.Sensor!.BatteryCharge;
                     RvtLogger.Logger.LogDebug("NotifyBatteryLevels Battery level={Value1} for serialId={Value2} status={Value3}", batteryLevel, monitor.SerialId!, monitor.BatteryStatus!);
 
                     if (batteryLevel < 0) // -1 means there is no valid value for battery level so ignore

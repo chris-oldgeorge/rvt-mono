@@ -22,7 +22,7 @@ public sealed class LocalObjectStorageFailureContractTests
             "recordings",
             new LocalStorageOptions { RootPath = rootAsFile, Container = "container" });
 
-        var failure = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() =>
+        ObjectStorageException failure = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() =>
             client.WriteAsync(new StorageWriteRequest(
                 StorageObjectKey.Parse("sample.bin"),
                 new MemoryStream([1, 2, 3], writable: false),
@@ -40,7 +40,7 @@ public sealed class LocalObjectStorageFailureContractTests
             "recordings",
             new LocalStorageOptions { RootPath = temporary.Path, Container = "container" });
 
-        var uri = client.GetObjectUri(StorageObjectKey.Parse("nested/sample.bin"));
+        Uri uri = client.GetObjectUri(StorageObjectKey.Parse("nested/sample.bin"));
 
         Assert.IsTrue(uri.IsFile, $"Expected a file URI but got '{uri}'.");
         Assert.IsTrue(

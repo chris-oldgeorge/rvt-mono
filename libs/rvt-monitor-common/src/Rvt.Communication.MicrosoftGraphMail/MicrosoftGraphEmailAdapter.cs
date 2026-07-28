@@ -63,7 +63,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
 
         if (httpClientFactory is not null)
         {
-            using var operationClient = httpClientFactory.CreateClient(
+            using HttpClient operationClient = httpClientFactory.CreateClient(
                 MicrosoftGraphMailServiceCollectionExtensions.HttpClientName);
             var operationAdapter = new MicrosoftGraphEmailAdapter(
                 operationClient,
@@ -79,7 +79,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
             return;
         }
 
-        var attachments = request.Attachments.Count == 0
+        GraphFileAttachment[]? attachments = request.Attachments.Count == 0
             ? null
             : request.Attachments.Select(ToSmallAttachment).ToArray();
         var hasHtmlBody = !string.IsNullOrWhiteSpace(request.HtmlBody);
@@ -105,7 +105,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         EmailDeliveryRequest request,
         CancellationToken cancellationToken)
     {
-        var body = Body(request);
+        GraphItemBody body = Body(request);
         var draft = new GraphMessage(
             request.Subject,
             body,
@@ -145,7 +145,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         }
 
         var draftId = Uri.EscapeDataString(draftResponse.Id);
-        foreach (var attachment in request.Attachments)
+        foreach (EmailAttachment attachment in request.Attachments)
         {
             if (attachment.Length < SmallAttachmentLimit)
             {
@@ -160,7 +160,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
                 continue;
             }
 
-            var session = await CreateUploadSessionAsync(
+            MicrosoftGraphUploadSession session = await CreateUploadSessionAsync(
                 senderPath,
                 draftId,
                 attachment,
@@ -211,7 +211,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
                 "InvalidUploadSession");
         }
 
-        if (!Uri.TryCreate(response?.UploadUrl, UriKind.Absolute, out var uploadUri) ||
+        if (!Uri.TryCreate(response?.UploadUrl, UriKind.Absolute, out Uri? uploadUri) ||
             uploadUri.Scheme != Uri.UriSchemeHttps)
         {
             throw new EmailDeliveryException(
@@ -228,7 +228,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         EmailAttachment attachment,
         CancellationToken cancellationToken)
     {
-        using var stream = attachment.OpenRead();
+        using Stream stream = attachment.OpenRead();
         var buffer = new byte[UploadChunkLength];
         long offset = 0;
         while (offset < attachment.Length)
@@ -305,7 +305,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
 
     private static GraphFileAttachment ToSmallAttachment(EmailAttachment attachment)
     {
-        using var stream = attachment.OpenRead();
+        using Stream stream = attachment.OpenRead();
         using var buffer = new MemoryStream();
         stream.CopyTo(buffer);
         return new GraphFileAttachment(
@@ -338,7 +338,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         {
             // Transport faults reaching the identity endpoint are retryable;
             // only a genuine credential rejection is permanent.
-            var kind = exception is HttpRequestException
+            DeliveryFailureKind kind = exception is HttpRequestException
                 or System.Net.Sockets.SocketException
                 or IOException
                 or TimeoutException

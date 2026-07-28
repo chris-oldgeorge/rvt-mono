@@ -28,7 +28,7 @@ public sealed class RvtLoggerTests
     {
         RvtLogger.Reset();
 
-        var logger = RvtLogger.Logger;
+        ILogger logger = RvtLogger.Logger;
 
         Assert.IsNotNull(logger);
         // The whole point: a logging call on an unconfigured logger is a no-op,
@@ -40,7 +40,7 @@ public sealed class RvtLoggerTests
     [TestMethod]
     public void Logger_AfterConfiguration_ReturnsTheHostLogger()
     {
-        using var factory = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Trace));
+        using ILoggerFactory factory = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Trace));
 
         RvtLogger.CreateLogger(factory, "category");
 

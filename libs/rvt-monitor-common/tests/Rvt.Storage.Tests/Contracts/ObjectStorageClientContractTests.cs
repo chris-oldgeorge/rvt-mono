@@ -10,10 +10,10 @@ public abstract class ObjectStorageClientContractTests
     {
         // Every adapter implemented this identically before it was added to the
         // port, which forced consumers to bind to concrete adapter types.
-        await using var fixture = await CreateFixtureAsync();
+        await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
 
-        var uri = fixture.Client.GetObjectUri(key);
+        Uri uri = fixture.Client.GetObjectUri(key);
 
         Assert.IsTrue(uri.IsAbsoluteUri, $"Expected an absolute URI but got '{uri}'.");
         Assert.IsNotEmpty(uri.Scheme);
@@ -22,7 +22,7 @@ public abstract class ObjectStorageClientContractTests
     [TestMethod]
     public async Task GetObjectUri_WithNullKey_ThrowsArgumentNullException()
     {
-        await using var fixture = await CreateFixtureAsync();
+        await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
 
         Assert.ThrowsExactly<ArgumentNullException>(() => fixture.Client.GetObjectUri(null!));
     }
@@ -30,11 +30,11 @@ public abstract class ObjectStorageClientContractTests
     [TestMethod]
     public async Task WriteAsync_WithNonSeekableContent_ReturnsSameNormalizedKey()
     {
-        await using var fixture = await CreateFixtureAsync();
+        await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         var key = StorageObjectKey.Parse(" project\\source//sample.bin ");
         await using var content = new NonSeekableReadStream([1, 2, 3]);
 
-        var result = await fixture.Client.WriteAsync(
+        StorageWriteResult result = await fixture.Client.WriteAsync(
             new StorageWriteRequest(key, content, "application/octet-stream"));
 
         Assert.AreSame(key, result.Key);
@@ -44,7 +44,7 @@ public abstract class ObjectStorageClientContractTests
     [TestMethod]
     public async Task OpenReadAsync_AfterWrite_ReturnsEqualContentAndMetadata()
     {
-        await using var fixture = await CreateFixtureAsync();
+        await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         byte[] expectedContent = [4, 5, 6, 7];
 
@@ -54,7 +54,7 @@ public abstract class ObjectStorageClientContractTests
             expectedContent,
             "application/octet-stream");
 
-        await using var result = await fixture.Client.OpenReadAsync(key);
+        await using StorageReadResult? result = await fixture.Client.OpenReadAsync(key);
 
         Assert.IsNotNull(result);
         Assert.AreEqual("application/octet-stream", result.ContentType);
@@ -65,9 +65,9 @@ public abstract class ObjectStorageClientContractTests
     [TestMethod]
     public async Task OpenReadAsync_WhenKeyIsMissing_ReturnsNull()
     {
-        await using var fixture = await CreateFixtureAsync();
+        await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
 
-        var result = await fixture.Client.OpenReadAsync(
+        StorageReadResult? result = await fixture.Client.OpenReadAsync(
             StorageObjectKey.Parse("project-a/source-a/missing.bin"));
 
         Assert.IsNull(result);
@@ -76,7 +76,7 @@ public abstract class ObjectStorageClientContractTests
     [TestMethod]
     public async Task WriteAsync_WhenKeyExists_ReplacesContent()
     {
-        await using var fixture = await CreateFixtureAsync();
+        await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2], "first/type");
 
@@ -92,7 +92,7 @@ public abstract class ObjectStorageClientContractTests
     [TestMethod]
     public async Task DeleteIfExistsAsync_ReturnsTrueThenFalse()
     {
-        await using var fixture = await CreateFixtureAsync();
+        await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "application/octet-stream");
 
@@ -107,7 +107,7 @@ public abstract class ObjectStorageClientContractTests
     [TestMethod]
     public async Task WriteAsync_WhenCallerAlreadyCancelled_PreservesExistingObject()
     {
-        await using var fixture = await CreateFixtureAsync();
+        await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "original/type");
         using var cancellation = new CancellationTokenSource();
@@ -131,7 +131,7 @@ public abstract class ObjectStorageClientContractTests
     [TestMethod]
     public async Task OpenReadAsync_WhenCallerAlreadyCancelled_PreservesExistingObject()
     {
-        await using var fixture = await CreateFixtureAsync();
+        await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "original/type");
         using var cancellation = new CancellationTokenSource();
@@ -150,7 +150,7 @@ public abstract class ObjectStorageClientContractTests
     [TestMethod]
     public async Task DeleteIfExistsAsync_WhenCallerAlreadyCancelled_PreservesExistingObject()
     {
-        await using var fixture = await CreateFixtureAsync();
+        await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "original/type");
         using var cancellation = new CancellationTokenSource();
@@ -183,7 +183,7 @@ public abstract class ObjectStorageClientContractTests
         byte[] expectedContent,
         string? expectedContentType)
     {
-        await using var result = await client.OpenReadAsync(key);
+        await using StorageReadResult? result = await client.OpenReadAsync(key);
         Assert.IsNotNull(result);
         Assert.AreEqual(expectedContentType, result.ContentType);
         Assert.AreEqual(expectedContent.Length, result.Length);

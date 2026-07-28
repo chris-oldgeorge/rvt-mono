@@ -38,9 +38,9 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public void MapOmnidotsMonitorApi_RegistersExpectedRoutes()
     {
-        var builder = WebApplication.CreateBuilder(["--hostBuilder:reloadConfigOnChange=false"]);
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(["--hostBuilder:reloadConfigOnChange=false"]);
         builder.Services.AddRateLimiter();
-        var app = builder.Build();
+        WebApplication app = builder.Build();
 
         app.MapOmnidotsMonitorApi();
 
@@ -65,7 +65,7 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_MissingBlankMalformedOrMismatchedSignature_Returns401(string kind)
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
         var body = ValidWebhookBody();
         var signature = kind switch
         {
@@ -74,9 +74,9 @@ public sealed class TestMonitorApiEndpoints
             "malformed" => "SHA256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             _ => "sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         };
-        using var request = CreateWebhookRequest(body, signature);
+        using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
-        using var response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request);
 
         var problem = await AssertProblemAsync(
             response,
@@ -89,14 +89,14 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_MultipleSignatureValues_Returns401()
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
         var body = ValidWebhookBody();
-        using var request = CreateWebhookRequest(body, signature: null);
+        using HttpRequestMessage request = CreateWebhookRequest(body, signature: null);
         request.Headers.TryAddWithoutValidation(
             OmnidotsProtocol.SIGNATURE_HEADER,
             [Signature(body), "sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]);
 
-        using var response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request);
 
         await AssertProblemAsync(response, HttpStatusCode.Unauthorized, "Unauthorized webhook request.");
         Assert.AreEqual(0, app.Ingress.AcceptCount);
@@ -105,12 +105,12 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_CommaCombinedSignatureValue_Returns401()
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
         var body = ValidWebhookBody();
         var signature = $"{Signature(body)},sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        using var request = CreateWebhookRequest(body, signature);
+        using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
-        using var response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request);
 
         await AssertProblemAsync(response, HttpStatusCode.Unauthorized, "Unauthorized webhook request.");
         Assert.AreEqual(0, app.Ingress.AcceptCount);
@@ -119,11 +119,11 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_AuthenticatedMalformedUtf8_Returns400()
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
         byte[] body = [0x7b, 0x22, 0x78, 0x22, 0x3a, 0xff, 0x7d];
-        using var request = CreateWebhookRequest(body, Signature(body));
+        using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body));
 
-        using var response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request);
 
         await AssertProblemAsync(response, HttpStatusCode.BadRequest, "Invalid webhook payload.");
         Assert.AreEqual(0, app.Ingress.AcceptCount);
@@ -134,12 +134,12 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_AuthenticatedMalformedJsonOrSchema_Returns400WithoutLeakage(string json)
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
         var body = Encoding.UTF8.GetBytes(json);
         var signature = Signature(body);
-        using var request = CreateWebhookRequest(body, signature);
+        using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
-        using var response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request);
 
         var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "Invalid webhook payload.");
         AssertNoLeakage(problem, app.Logs, BodySentinel, signature, WebhookSecret);
@@ -151,13 +151,13 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_FreshOrDurableDuplicate_ReturnsExact200Body(bool duplicate)
     {
-        var result = IngressResult(duplicate);
+        AlertIngressResult result = IngressResult(duplicate);
         var ingress = new CapturingIngress((_, _) => Task.FromResult(result));
-        await using var app = await EndpointApp.StartAsync(ingress: ingress);
+        await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress);
         var body = ValidWebhookBody();
-        using var request = CreateWebhookRequest(body, Signature(body));
+        using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body));
 
-        using var response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request);
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
         Assert.AreEqual("application/json", response.Content.Headers.ContentType?.MediaType);
@@ -171,12 +171,12 @@ public sealed class TestMonitorApiEndpoints
         var ingress = new CapturingIngress((_, _) => throw new AlertTransientPersistenceException(
             RawException,
             new InvalidOperationException($"{RawException}:{Destination}")));
-        await using var app = await EndpointApp.StartAsync(ingress: ingress);
+        await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress);
         var body = ValidWebhookBody();
         var signature = Signature(body);
-        using var request = CreateWebhookRequest(body, signature);
+        using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
-        using var response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request);
 
         var problem = await AssertProblemAsync(
             response,
@@ -190,12 +190,12 @@ public sealed class TestMonitorApiEndpoints
     {
         var ingress = new CapturingIngress((_, _) => throw new InvalidOperationException(
             $"{RawException}:{Destination}"));
-        await using var app = await EndpointApp.StartAsync(ingress: ingress);
+        await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress);
         var body = ValidWebhookBody();
         var signature = Signature(body);
-        using var request = CreateWebhookRequest(body, signature);
+        using HttpRequestMessage request = CreateWebhookRequest(body, signature);
 
-        using var response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request);
 
         var problem = await AssertProblemAsync(
             response,
@@ -207,11 +207,11 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_OversizedBody_Returns413()
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
         var body = new byte[BoundedJsonRequestReader.MaxBodyBytes + 1];
-        using var request = CreateWebhookRequest(body, Signature(body));
+        using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body));
 
-        using var response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request);
 
         await AssertProblemAsync(response, HttpStatusCode.RequestEntityTooLarge, "Request body too large.");
         Assert.AreEqual(0, app.Ingress.AcceptCount);
@@ -220,11 +220,11 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task Webhook_UnsupportedMediaType_Returns415()
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
         var body = ValidWebhookBody();
-        using var request = CreateWebhookRequest(body, Signature(body), "text/plain");
+        using HttpRequestMessage request = CreateWebhookRequest(body, Signature(body), "text/plain");
 
-        using var response = await app.Client.SendAsync(request);
+        using HttpResponseMessage response = await app.Client.SendAsync(request);
 
         await AssertProblemAsync(response, HttpStatusCode.UnsupportedMediaType, "Unsupported media type.");
         Assert.AreEqual(0, app.Ingress.AcceptCount);
@@ -234,21 +234,21 @@ public sealed class TestMonitorApiEndpoints
     public async Task Webhook_ConcurrencyLimitHasNoQueueAndReturns429ProblemDetails()
     {
         var ingress = new BlockingIngress();
-        var options = ValidOptions();
+        OmnidotsApiSecurityOptions options = ValidOptions();
         options.WebhookConcurrencyLimit = 1;
-        await using var app = await EndpointApp.StartAsync(ingress: ingress, options: options);
+        await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress, options: options);
         var body = ValidWebhookBody();
-        using var firstRequest = CreateWebhookRequest(body, Signature(body));
-        var firstResponseTask = app.Client.SendAsync(firstRequest);
+        using HttpRequestMessage firstRequest = CreateWebhookRequest(body, Signature(body));
+        Task<HttpResponseMessage> firstResponseTask = app.Client.SendAsync(firstRequest);
         await ingress.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        using var secondRequest = CreateWebhookRequest(body, Signature(body));
+        using HttpRequestMessage secondRequest = CreateWebhookRequest(body, Signature(body));
 
-        using var secondResponse = await app.Client.SendAsync(secondRequest);
+        using HttpResponseMessage secondResponse = await app.Client.SendAsync(secondRequest);
 
         await AssertProblemAsync(secondResponse, HttpStatusCode.TooManyRequests, "Too many requests.");
         Assert.AreEqual(1, ingress.AcceptCount);
         ingress.Release.TrySetResult();
-        using var firstResponse = await firstResponseTask;
+        using HttpResponseMessage firstResponse = await firstResponseTask;
         Assert.AreEqual(HttpStatusCode.OK, firstResponse.StatusCode);
     }
 
@@ -257,9 +257,9 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task ConfigureMeasuringPoint_MissingOrWrongSecret_Returns401(string json)
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
 
-        using var response = await app.Client.PostAsync(
+        using HttpResponseMessage response = await app.Client.PostAsync(
             "/configure-measuring-point",
             JsonContent(json), It.IsAny<CancellationToken>());
 
@@ -275,9 +275,9 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task ConfigureMeasuringPoint_MalformedOrUnsupportedRequest_Returns400(string json)
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
 
-        using var response = await app.Client.PostAsync(
+        using HttpResponseMessage response = await app.Client.PostAsync(
             "/configure-measuring-point",
             JsonContent(json), It.IsAny<CancellationToken>());
 
@@ -291,9 +291,9 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task ConfigureMeasuringPoint_Success_ReturnsExactSafe200Body()
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
 
-        using var response = await app.Client.PostAsync(
+        using HttpResponseMessage response = await app.Client.PostAsync(
             "/configure-measuring-point",
             JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
 
@@ -307,11 +307,11 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task ConfigureMeasuringPoint_OversizedBody_Returns413()
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
         using var content = new ByteArrayContent(new byte[BoundedJsonRequestReader.MaxBodyBytes + 1]);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-        using var response = await app.Client.PostAsync("/configure-measuring-point", content, It.IsAny<CancellationToken>());
+        using HttpResponseMessage response = await app.Client.PostAsync("/configure-measuring-point", content, It.IsAny<CancellationToken>());
 
         await AssertProblemAsync(response, HttpStatusCode.RequestEntityTooLarge, "Request body too large.");
     }
@@ -319,10 +319,10 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task ConfigureMeasuringPoint_UnsupportedMediaType_Returns415()
     {
-        await using var app = await EndpointApp.StartAsync();
+        await using EndpointApp app = await EndpointApp.StartAsync();
         using var content = new StringContent(ValidConfigurationJson(), Encoding.UTF8, "text/plain");
 
-        using var response = await app.Client.PostAsync("/configure-measuring-point", content, It.IsAny<CancellationToken>());
+        using HttpResponseMessage response = await app.Client.PostAsync("/configure-measuring-point", content, It.IsAny<CancellationToken>());
 
         await AssertProblemAsync(response, HttpStatusCode.UnsupportedMediaType, "Unsupported media type.");
     }
@@ -330,14 +330,14 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task ConfigureMeasuringPoint_VendorFailure_ReturnsSanitized502Boundary()
     {
-        var vendorClient = DefaultVendorClient();
+        Mock<IHttpClient> vendorClient = DefaultVendorClient();
         vendorClient.Setup(client => client.PostAsync(
                 "/api/v1/user/authenticate",
                 It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync($"{{\"ok\":false,\"message\":\"{VendorResponse}\"}}");
-        await using var app = await EndpointApp.StartAsync(vendorClient: vendorClient);
+        await using EndpointApp app = await EndpointApp.StartAsync(vendorClient: vendorClient);
 
-        using var response = await app.Client.PostAsync(
+        using HttpResponseMessage response = await app.Client.PostAsync(
             "/configure-measuring-point",
             JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
 
@@ -357,12 +357,12 @@ public sealed class TestMonitorApiEndpoints
     [TestMethod]
     public async Task ConfigureMeasuringPoint_UnexpectedFailure_Returns500WithoutLeakage()
     {
-        var queries = DefaultMonitorQueries();
+        Mock<IOmnidotsMonitorQueries> queries = DefaultMonitorQueries();
         queries.Setup(query => query.ReadMonitor("23423"))
             .Throws(new InvalidOperationException($"{RawException}:{Destination}"));
-        await using var app = await EndpointApp.StartAsync(monitorQueries: queries);
+        await using EndpointApp app = await EndpointApp.StartAsync(monitorQueries: queries);
 
-        using var response = await app.Client.PostAsync(
+        using HttpResponseMessage response = await app.Client.PostAsync(
             "/configure-measuring-point",
             JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
 
@@ -378,29 +378,29 @@ public sealed class TestMonitorApiEndpoints
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var vendorClient = DefaultVendorClient();
+        Mock<IHttpClient> vendorClient = DefaultVendorClient();
         vendorClient.Setup(client => client.PostAsync(
                 "/api/v1/user/authenticate",
                 It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Callback(() => entered.TrySetResult())
             .Returns(release.Task);
-        var options = ValidOptions();
+        OmnidotsApiSecurityOptions options = ValidOptions();
         options.ConfigureConcurrencyLimit = 1;
-        await using var app = await EndpointApp.StartAsync(
+        await using EndpointApp app = await EndpointApp.StartAsync(
             options: options,
             vendorClient: vendorClient);
-        var firstResponseTask = app.Client.PostAsync(
+        Task<HttpResponseMessage> firstResponseTask = app.Client.PostAsync(
             "/configure-measuring-point",
             JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-        using var secondResponse = await app.Client.PostAsync(
+        using HttpResponseMessage secondResponse = await app.Client.PostAsync(
             "/configure-measuring-point",
             JsonContent(ValidConfigurationJson()), It.IsAny<CancellationToken>());
 
         await AssertProblemAsync(secondResponse, HttpStatusCode.TooManyRequests, "Too many requests.");
         release.TrySetResult("{\"ok\":true,\"token\":\"test-token\"}");
-        using var firstResponse = await firstResponseTask;
+        using HttpResponseMessage firstResponse = await firstResponseTask;
         Assert.AreEqual(HttpStatusCode.OK, firstResponse.StatusCode);
     }
 
@@ -509,7 +509,7 @@ public sealed class TestMonitorApiEndpoints
     private static Mock<IOmnidotsMonitorQueries> DefaultMonitorQueries()
     {
         var queries = new Mock<IOmnidotsMonitorQueries>();
-        var monitor = OmnidotsFixture.MonitorsList(1, alwaysMakeSensor: true, serialIdIn: 23422)[0];
+        VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1, alwaysMakeSensor: true, serialIdIn: 23422)[0];
         queries.Setup(query => query.ReadMonitor("23423")).Returns(monitor);
         queries.Setup(query => query.ReadSiteTimes(monitor.Id)).Returns(OmnidotsFixture.AlwaysOpenSiteTimes());
         return queries;
@@ -557,7 +557,7 @@ public sealed class TestMonitorApiEndpoints
                 new OmnidotsHttpGateway(vendorClient.Object, "vendor-user", "vendor-auth"),
                 monitorQueries.Object,
                 options);
-            var builder = WebApplication.CreateBuilder(["--hostBuilder:reloadConfigOnChange=false"]);
+            WebApplicationBuilder builder = WebApplication.CreateBuilder(["--hostBuilder:reloadConfigOnChange=false"]);
             builder.WebHost.UseTestServer();
             builder.Logging.ClearProviders();
             builder.Logging.AddProvider(logs);
@@ -566,7 +566,7 @@ public sealed class TestMonitorApiEndpoints
             builder.Services.AddRateLimiter();
             builder.Services.AddSingleton<IConfigureOptions<RateLimiterOptions>>(
                 new OmnidotsRateLimiterOptionsSetup(Options.Create(options)));
-            var app = builder.Build();
+            WebApplication app = builder.Build();
             RvtLogger.CreateLogger(app.Services.GetRequiredService<ILoggerFactory>(), "OmnidotsEndpointTests");
             app.MapOmnidotsMonitorApi();
             await app.StartAsync();

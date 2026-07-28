@@ -26,7 +26,7 @@ namespace Omnidots.Api
             BatteryCaution = 2
         }
 
-        private readonly IOmnidotsVendorGateway gateway;
+        private readonly IOmnidotsVendorGateway _gateway;
         private readonly StoreMonitorsHandler storeMonitors;
         private readonly CheckForOfflineMonitorsHandler checkForOfflineMonitors;
         private readonly StorePeakRecordsHandler storePeakRecords;
@@ -94,11 +94,11 @@ namespace Omnidots.Api
             OmnidotsTraceCollectionOptions traceCollectionOptions,
             TimeProvider timeProvider)
         {
-            gateway = new OmnidotsHttpGateway(httpClient, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
+            _gateway = new OmnidotsHttpGateway(httpClient, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             var monitorReader = new OmnidotsMonitorReader(dbClient, testLocal);
             var eventPublisher = new MonitorEventPublisher(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
             var ruleProcessor = new OmnidotsRuleProcessor(dbClient, dbClient, messageService, RvtConfig.PORTAL_BASE_URL);
-            storeMonitors = new StoreMonitorsHandler(gateway, dbClient, dbClient, testLocal);
+            storeMonitors = new StoreMonitorsHandler(_gateway, dbClient, dbClient, testLocal);
             checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(
                 dbClient,
                 monitorReader,
@@ -107,7 +107,7 @@ namespace Omnidots.Api
                 dbClient,
                 ruleProcessor);
             storePeakRecords = new StorePeakRecordsHandler(
-                gateway,
+                _gateway,
                 monitorReader,
                 dbClient,
                 cursorQueries,
@@ -115,7 +115,7 @@ namespace Omnidots.Api
                 dbClient,
                 eventPublisher);
             storeVeffRecords = new StoreVeffRecordsHandler(
-                gateway,
+                _gateway,
                 monitorReader,
                 dbClient,
                 cursorQueries,
@@ -123,7 +123,7 @@ namespace Omnidots.Api
                 dbClient,
                 eventPublisher);
             storeVdvRecords = new StoreVdvRecordsHandler(
-                gateway,
+                _gateway,
                 monitorReader,
                 dbClient,
                 cursorQueries,
@@ -131,7 +131,7 @@ namespace Omnidots.Api
                 dbClient,
                 eventPublisher);
             storeTraces = new StoreTracesHandler(
-                gateway,
+                _gateway,
                 monitorReader,
                 dbClient,
                 dbClient,
@@ -148,7 +148,7 @@ namespace Omnidots.Api
         }
 
         public Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken = default) =>
-            gateway.AuthenticateAsync(cancellationToken);
+            _gateway.AuthenticateAsync(cancellationToken);
 
         public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
             storeMonitors.RunAsync(cancellationToken);
@@ -162,7 +162,7 @@ namespace Omnidots.Api
         public Task StorePeakRecordsLastDataTimeNewAsync(CancellationToken cancellationToken = default) =>
             storePeakRecords.RunAsync(cancellationToken);
 
-        public Task StorePeakRecordsAsync(int minutesSinceLastExecuted, CancellationToken cancellationToken = default) =>
+        public Task StorePeakRecordsAsync(CancellationToken cancellationToken = default) =>
             storePeakRecords.RunAsync(cancellationToken);
 
         public Task StoreVeffRecordsAsync(TimeSpan lookback, CancellationToken cancellationToken = default) =>

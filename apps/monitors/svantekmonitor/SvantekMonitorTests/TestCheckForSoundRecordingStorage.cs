@@ -17,8 +17,8 @@ public sealed class TestCheckForSoundRecordingStorage
     {
         var notificationId = Guid.Parse("4cb38822-3497-4650-bac0-82da974c1d28");
         var notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
-        var soundContent = new byte[] { 82, 73, 70, 70, 1, 2, 3, 4 };
-        var filesResponse = """
+        byte[] soundContent = new byte[] { 82, 73, 70, 70, 1, 2, 3, 4 };
+        string filesResponse = """
             {
               "status": "ok",
               "files": [
@@ -82,7 +82,7 @@ public sealed class TestCheckForSoundRecordingStorage
     {
         var notificationId = Guid.Parse("4cb38822-3497-4650-bac0-82da974c1d28");
         var notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
-        var identifier = $"sound:{notificationId}";
+        string identifier = $"sound:{notificationId}";
         const string filesResponse = """
             {"status":"ok","files":[[]],"files_size":1}
             """;
@@ -126,7 +126,7 @@ public sealed class TestCheckForSoundRecordingStorage
     {
         var notificationId = Guid.Parse("4cb38822-3497-4650-bac0-82da974c1d28");
         var notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
-        var identifier = $"sound:{notificationId}";
+        string identifier = $"sound:{notificationId}";
         const string filesResponse = """
             {
               "status":"ok",

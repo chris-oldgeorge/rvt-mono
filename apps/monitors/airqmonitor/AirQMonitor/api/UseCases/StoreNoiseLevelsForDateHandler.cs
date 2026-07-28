@@ -1,6 +1,7 @@
 using AirQ.Api.Db;
 using AirQ.Api.Ports;
 using AirQ.Model.Dto;
+using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
@@ -12,7 +13,7 @@ namespace AirQ.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitorsNoiseLevels).
     public class StoreNoiseLevelsForDateHandler
     {
-        private readonly IAirQVendorGateway gateway;
+        private readonly IAirQVendorGateway _gateway;
         private readonly AirQMonitorReader monitorReader;
         private readonly IAirQMeasurementCommands measurementCommands;
         private readonly IAirQOperationalCommands operationalCommands;
@@ -23,7 +24,7 @@ namespace AirQ.Api.UseCases
             IAirQMeasurementCommands measurementCommands,
             IAirQOperationalCommands operationalCommands)
         {
-            this.gateway = gateway;
+            _gateway = gateway;
             this.monitorReader = monitorReader;
             this.measurementCommands = measurementCommands;
             this.operationalCommands = operationalCommands;
@@ -33,9 +34,9 @@ namespace AirQ.Api.UseCases
         {
             try
             {
-                var monitors = monitorReader.ReadMonitors();
+                List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
                 var failures = new List<Exception>();
-                foreach (var monitor in monitors)
+                foreach (NoiseMonitorDto monitor in monitors)
                 {
                     if (!monitor.MonitorStatus.IsMonitorActive())
                     {
@@ -49,10 +50,10 @@ namespace AirQ.Api.UseCases
                     cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
-                        var samples = await gateway.GetSamplesForDateAsync(userId, userAuth, serialId, dateStr, cancellationToken);
+                        List<SampleResponse> samples = await _gateway.GetSamplesForDateAsync(userId, userAuth, serialId, dateStr, cancellationToken);
 
                         var dtos = new List<NoiseDto>();
-                        foreach (var sample in samples)
+                        foreach (SampleResponse sample in samples)
                         {
                             dtos.Add(new NoiseDto(sample));
                         }

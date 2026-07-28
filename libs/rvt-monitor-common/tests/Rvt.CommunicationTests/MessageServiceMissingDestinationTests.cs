@@ -20,7 +20,7 @@ public sealed class MessageServiceMissingDestinationTests
         var delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
         var service = new MessageService(delivery.Object);
 
-        var exception = await Assert.ThrowsExactlyAsync<CommsException>(
+        CommsException exception = await Assert.ThrowsExactlyAsync<CommsException>(
             () => service.SendMessageAsync(
                 LegacyMessageKind.Alert,
                 LegacyMessageChannel.SMS,
@@ -57,7 +57,7 @@ public sealed class MessageServiceMissingDestinationTests
         var delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
         var service = new MessageService(delivery.Object);
 
-        var exception = await Assert.ThrowsExactlyAsync<CommsException>(
+        CommsException exception = await Assert.ThrowsExactlyAsync<CommsException>(
             () => service.SendMessageAsync(
                 LegacyMessageKind.Alert,
                 LegacyMessageChannel.Email,

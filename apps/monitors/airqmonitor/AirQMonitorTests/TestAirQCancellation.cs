@@ -1,3 +1,4 @@
+using System.Reflection;
 using AirQ.Api;
 using AirQ.Api.Http;
 using AirQ.Api.Ports;
@@ -76,7 +77,7 @@ namespace AirQMonitorTests
             var gateway = new AirQHttpGateway(httpClient.Object);
             var watermark = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
-            var result = await gateway.GetLatestSamplesAsync("user", "auth", "Device1", watermark);
+            LatestSamplesResult result = await gateway.GetLatestSamplesAsync("user", "auth", "Device1", watermark);
 
             Assert.IsNotNull(result.Samples);
             Assert.AreEqual(watermark, result.LatestDateTime);
@@ -133,14 +134,14 @@ namespace AirQMonitorTests
         {
             // Hexagonal boundary: the import use cases must be constructible
             // against the port alone, with no reference to the HTTP adapter.
-            foreach (var handler in new[]
+            foreach (Type? handler in new[]
                      {
                          typeof(StoreMonitorsHandler),
                          typeof(StoreNoiseLevelsHandler),
                          typeof(StoreNoiseLevelsForDateHandler)
                      })
             {
-                var gatewayParameters = handler
+                ParameterInfo[] gatewayParameters = handler
                     .GetConstructors()
                     .SelectMany(constructor => constructor.GetParameters())
                     .Where(parameter => parameter.ParameterType == typeof(AirQHttpGateway))

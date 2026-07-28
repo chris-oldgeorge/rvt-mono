@@ -97,7 +97,7 @@ public class SvantekApi
             dbClient,
             messageService,
             eventPublisher);
-        var calculator = noiseRequestWindowCalculator ??
+        NoiseRequestWindowCalculator calculator = noiseRequestWindowCalculator ??
             new NoiseRequestWindowCalculator(new SvantekImportOptions());
 
         storeMonitors = new StoreMonitorsHandler(gateway, dbClient, dbClient, testLocal);

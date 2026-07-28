@@ -37,7 +37,7 @@ namespace Omnidots.Api.Http
         {
             RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
             using var response = await httpClient.GetAsync(path, cancellationToken);
-            var reply = await response.Content.ReadAsStringAsync(cancellationToken);
+            string reply = await response.Content.ReadAsStringAsync(cancellationToken);
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 throw AdapterException.Of("HTTP ERROR response=", SensitiveLogRedactor.RedactJson(reply));
@@ -73,7 +73,7 @@ namespace Omnidots.Api.Http
                 throw AdapterException.Of("Omnidots API request failed.");
             }
 
-            var reply = await response.Content.ReadAsStringAsync(cancellationToken);
+            string reply = await response.Content.ReadAsStringAsync(cancellationToken);
             return reply;
         }
     }

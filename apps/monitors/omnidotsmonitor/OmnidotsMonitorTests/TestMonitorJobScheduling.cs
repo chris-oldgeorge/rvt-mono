@@ -12,9 +12,10 @@ using Omnidots.Api.Db;
 using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
+using Omnidots.Model.Dto;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Alerts.Persistence;
-using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Hosting;
 using Rvt.Monitor.Common.Mqtt;
@@ -38,11 +39,11 @@ public sealed class TestMonitorJobScheduling
     [DataRow("StoreVdvRecords", "/api/v1/get_vdv_records")]
     public async Task RunAsync_ImportsRequestedVibrationSeriesWithinPastWindow(string jobName, string endpoint)
     {
-        var api = TestUtil.CreateApiAndMocks(
-            out var httpClient,
-            out var dbClient,
-            out var mqttClient,
-            out var messageService);
+        OmnidotsApi api = TestUtil.CreateApiAndMocks(
+            out Mock<IHttpClient>? httpClient,
+            out Mock<IDBClient>? dbClient,
+            out Mock<IMqttClient>? mqttClient,
+            out Mock<IMessageService>? messageService);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Returns(OmnidotsFixture.AuthenticateTask());
         dbClient.Setup(client => client.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(1));
@@ -52,17 +53,17 @@ public sealed class TestMonitorJobScheduling
             .Callback<string, CancellationToken>((url, _) => requestedUrl = url)
             .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
 
-        using var provider = LegacyJobProvider(api);
+        using ServiceProvider provider = LegacyJobProvider(api);
         var earliestStartTime = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(2)).Subtract(TimeSpan.FromMinutes(5)).ToUnixTimeMilliseconds();
         var earliestEndTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var task = InvokeJobRunner(jobName, provider);
+        Task<int> task = InvokeJobRunner(jobName, provider);
 
         Assert.AreEqual(0, await task);
         var latestStartTime = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(2)).Subtract(TimeSpan.FromMinutes(5)).ToUnixTimeMilliseconds();
         var latestEndTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
         Assert.IsNotNull(requestedUrl);
-        var query = ParseQuery(requestedUrl);
+        IReadOnlyDictionary<string, string> query = ParseQuery(requestedUrl);
         var startTime = long.Parse(query["start_time"]);
         var endTime = long.Parse(query["end_time"]);
 
@@ -106,9 +107,9 @@ public sealed class TestMonitorJobScheduling
             },
             notifier.Object,
             new FixedTimeProvider(utcNow));
-        using var provider = LegacyJobProvider(api);
+        using ServiceProvider provider = LegacyJobProvider(api);
 
-        var run = InvokeJobRunner("Monitoring", provider);
+        Task<int> run = InvokeJobRunner("Monitoring", provider);
 
         Assert.IsFalse(run.IsCompleted);
         delivery.SetResult();
@@ -119,14 +120,14 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public async Task RunAsync_StorePeakRecordsLastDataTime_UsesPeakCursorAndAtomicImport()
     {
-        var api = TestUtil.CreateApiAndMocks(
-            out var httpClient,
-            out var dbClient,
-            out var mqttClient,
-            out var messageService,
-            out var cursorQueries,
-            out var importCommands);
-        var monitor = OmnidotsFixture.MonitorsList(
+        OmnidotsApi api = TestUtil.CreateApiAndMocks(
+            out Mock<IHttpClient>? httpClient,
+            out Mock<IDBClient>? dbClient,
+            out Mock<IMqttClient>? mqttClient,
+            out Mock<IMessageService>? messageService,
+            out Mock<IOmnidotsImportCursorQueries>? cursorQueries,
+            out Mock<IOmnidotsMeasurementImportCommands>? importCommands);
+        VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(
             1,
             lastDataTime: new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc)).Single();
         var cursor = new DateTime(2026, 7, 13, 6, 30, 0, DateTimeKind.Utc);
@@ -143,16 +144,16 @@ public sealed class TestMonitorJobScheduling
             .Returns(cursor);
         cursorQueries.Setup(query => query.ReadLatestMeasurementTime("1", OmnidotsMeasurementSeries.Peak))
             .Returns(cursor.AddDays(-1));
-        var before = DateTime.UtcNow;
+        DateTime before = DateTime.UtcNow;
 
         var result = await RunJob(api, "StorePeakRecordsLastDataTime");
-        var after = DateTime.UtcNow;
+        DateTime after = DateTime.UtcNow;
 
         Assert.AreEqual(0, result);
         Assert.IsNotNull(requestedUrl);
-        var query = ParseQuery(requestedUrl);
+        IReadOnlyDictionary<string, string> query = ParseQuery(requestedUrl);
         Assert.AreEqual(DateTimeUtil.GetMillis(cursor.AddMinutes(-5)), long.Parse(query["start_time"]));
-        var endTime = DateTimeUtil.JAN1_1970.AddMilliseconds(long.Parse(query["end_time"]));
+        DateTime endTime = DateTimeUtil.JAN1_1970.AddMilliseconds(long.Parse(query["end_time"]));
         Assert.IsTrue(endTime >= before.AddSeconds(-1) && endTime <= after);
         cursorQueries.Verify(query => query.ReadImportCursor("1", OmnidotsMeasurementSeries.Peak), Times.Once);
         cursorQueries.Verify(query => query.ReadLatestMeasurementTime(
@@ -166,14 +167,14 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public async Task RunAsync_StorePeakRecordsLastDataTime_UsesLatestPeakMeasurementWhenCursorAbsent()
     {
-        var api = TestUtil.CreateApiAndMocks(
-            out var httpClient,
-            out var dbClient,
-            out var mqttClient,
-            out var messageService,
-            out var cursorQueries,
-            out var importCommands);
-        var monitor = OmnidotsFixture.MonitorsList(
+        OmnidotsApi api = TestUtil.CreateApiAndMocks(
+            out Mock<IHttpClient>? httpClient,
+            out Mock<IDBClient>? dbClient,
+            out Mock<IMqttClient>? mqttClient,
+            out Mock<IMessageService>? messageService,
+            out Mock<IOmnidotsImportCursorQueries>? cursorQueries,
+            out Mock<IOmnidotsMeasurementImportCommands>? importCommands);
+        VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(
             1,
             lastDataTime: new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc)).Single();
         var latestMeasurement = new DateTime(2026, 7, 12, 4, 20, 0, DateTimeKind.Utc);
@@ -204,15 +205,15 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public async Task RunAsync_StorePeakRecordsLastDataTime_BootstrapsFromMonitorTimestampWhenNoStoredPeakData()
     {
-        var api = TestUtil.CreateApiAndMocks(
-            out var httpClient,
-            out var dbClient,
-            out var mqttClient,
-            out var messageService,
-            out var cursorQueries,
-            out var importCommands);
+        OmnidotsApi api = TestUtil.CreateApiAndMocks(
+            out Mock<IHttpClient>? httpClient,
+            out Mock<IDBClient>? dbClient,
+            out Mock<IMqttClient>? mqttClient,
+            out Mock<IMessageService>? messageService,
+            out Mock<IOmnidotsImportCursorQueries>? cursorQueries,
+            out Mock<IOmnidotsMeasurementImportCommands>? importCommands);
         var bootstrap = new DateTime(2026, 7, 2, 9, 45, 0, DateTimeKind.Utc);
-        var monitor = OmnidotsFixture.MonitorsList(1, lastDataTime: bootstrap).Single();
+        VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1, lastDataTime: bootstrap).Single();
         string? requestedUrl = null;
 
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
@@ -238,11 +239,11 @@ public sealed class TestMonitorJobScheduling
     [TestMethod]
     public async Task RunAsync_WhenOnlyMonitorImportFails_ReturnedTaskFaults()
     {
-        var api = TestUtil.CreateApiAndMocks(
-            out var httpClient,
-            out var dbClient,
-            out var mqttClient,
-            out var messageService);
+        OmnidotsApi api = TestUtil.CreateApiAndMocks(
+            out Mock<IHttpClient>? httpClient,
+            out Mock<IDBClient>? dbClient,
+            out Mock<IMqttClient>? mqttClient,
+            out Mock<IMessageService>? messageService);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Returns(OmnidotsFixture.AuthenticateTask());
         dbClient.Setup(client => client.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(1));
@@ -250,10 +251,10 @@ public sealed class TestMonitorJobScheduling
                 url.StartsWith("/api/v1/get_veff_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
             .Returns(OmnidotsFixture.StringTask("invalid-json"));
 
-        using var provider = LegacyJobProvider(api);
-        var task = InvokeJobRunner("StoreVeffRecords", provider);
+        using ServiceProvider provider = LegacyJobProvider(api);
+        Task<int> task = InvokeJobRunner("StoreVeffRecords", provider);
 
-        var exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => task);
+        OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => task);
         Assert.AreEqual("StoreVeffRecords", exception.Operation);
         Assert.IsTrue(task.IsFaulted);
         dbClient.Verify(client => client.HandleException("StoreVeffRecords serialId=1", It.IsAny<Exception>()), Times.Once);
@@ -264,11 +265,11 @@ public sealed class TestMonitorJobScheduling
     {
         var appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
         Assert.IsTrue(File.Exists(appSettingsPath), $"Expected appsettings at '{appSettingsPath}'.");
-        using var appSettings = File.OpenRead(appSettingsPath);
-        var configuration = new ConfigurationBuilder()
+        using FileStream appSettings = File.OpenRead(appSettingsPath);
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddJsonStream(appSettings)
             .Build();
-        var jobs = MonitorSchedulerOptions.Bind(configuration).GetEnabledJobs();
+        IReadOnlyList<MonitorJobSchedule> jobs = MonitorSchedulerOptions.Bind(configuration).GetEnabledJobs();
 
         Assert.IsTrue(jobs.Any(job => job.Name == "StoreVeffRecords" && job.Cron == "0 0 0/2 * * ?"));
         Assert.IsTrue(jobs.Any(job => job.Name == "StoreVdvRecords" && job.Cron == "0 15 0/2 * * ?"));
@@ -301,10 +302,10 @@ public sealed class TestMonitorJobScheduling
                 It.IsAny<TimeSpan>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((ClaimedAlertDelivery?)null);
-        var services = AlertJobServices(store.Object);
+        ServiceCollection services = AlertJobServices(store.Object);
         services.AddSingleton<OmnidotsService>(_ =>
             throw new AssertFailedException("DispatchAlerts must not resolve the legacy OmnidotsService."));
-        using var provider = services.BuildServiceProvider();
+        using ServiceProvider provider = services.BuildServiceProvider();
 
         var result = await InvokeJobRunner("DispatchAlerts", provider);
 
@@ -321,8 +322,8 @@ public sealed class TestMonitorJobScheduling
                 now.AddDays(-90),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(3);
-        var services = AlertJobServices(store.Object, new FixedTimeProvider(now));
-        using var provider = services.BuildServiceProvider();
+        ServiceCollection services = AlertJobServices(store.Object, new FixedTimeProvider(now));
+        using ServiceProvider provider = services.BuildServiceProvider();
 
         var result = await InvokeJobRunner("CleanupAlerts", provider);
 
@@ -484,7 +485,7 @@ public sealed class TestMonitorJobScheduling
 
     private static async Task<int> RunJob(OmnidotsApi api, string jobName)
     {
-        using var provider = LegacyJobProvider(api);
+        using ServiceProvider provider = LegacyJobProvider(api);
         return await InvokeJobRunner(jobName, provider);
     }
 
@@ -511,9 +512,9 @@ public sealed class TestMonitorJobScheduling
 
     private static Task<int> InvokeJobRunner(string jobName, IServiceProvider provider)
     {
-        var runner = typeof(OmnidotsApi).Assembly.GetType("Omnidots.Api.MonitorJobRunner", throwOnError: true)!;
-        var method = runner.GetMethod("RunAsync", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
-        var parameters = method.GetParameters();
+        Type runner = typeof(OmnidotsApi).Assembly.GetType("Omnidots.Api.MonitorJobRunner", throwOnError: true)!;
+        MethodInfo method = runner.GetMethod("RunAsync", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
+        ParameterInfo[] parameters = method.GetParameters();
         Assert.IsTrue(parameters.Length is 2 or 3);
         Assert.AreEqual(typeof(IServiceProvider), parameters[1].ParameterType);
         return (Task<int>)method.Invoke(

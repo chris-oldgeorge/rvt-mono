@@ -20,7 +20,7 @@ public static class MonitorApiEndpoints
 
     public static IEndpointRouteBuilder MapAirQMonitorApi(this IEndpointRouteBuilder endpoints)
     {
-        var configuration = endpoints.ServiceProvider.GetRequiredService<IConfiguration>();
+        IConfiguration configuration = endpoints.ServiceProvider.GetRequiredService<IConfiguration>();
         var apiKey = configuration["RVT:MONITOR_API_KEY"]
             ?? configuration["RVT__MONITOR_API_KEY"];
         var apiKeyValidator = AirQApiKeyValidator.Create(apiKey);
@@ -30,7 +30,7 @@ public static class MonitorApiEndpoints
         endpoints.MapPost("/store-noise-levels-for-date",
             async context =>
             {
-                var result = await StoreNoiseLevelsForDateAsync(context, apiKeyValidator);
+                IResult result = await StoreNoiseLevelsForDateAsync(context, apiKeyValidator);
                 await result.ExecuteAsync(context);
             });
 
@@ -64,7 +64,7 @@ public static class MonitorApiEndpoints
             return Results.BadRequest();
         }
 
-        var importer = context.RequestServices.GetRequiredService<IAirQDateImporter>();
+        IAirQDateImporter importer = context.RequestServices.GetRequiredService<IAirQDateImporter>();
         await importer.StoreNoiseLevelsForDateAsync(canonicalDate, context.RequestAborted);
         return Results.Ok();
     }
@@ -72,7 +72,7 @@ public static class MonitorApiEndpoints
     private static bool TryGetCanonicalDate(string? value, out string canonicalDate)
     {
         canonicalDate = string.Empty;
-        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly date))
         {
             return false;
         }

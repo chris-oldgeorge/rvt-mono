@@ -1,3 +1,6 @@
+// The namespace follows this project's established scheme rather than the
+// folder path; IDE0130 would require a name no sibling file uses.
+#pragma warning disable IDE0130
 using System.Globalization;
 using Rvt.Reporting.Core.Models;
 using Rvt.Reporting.Pdf.Documents;
@@ -14,7 +17,7 @@ public sealed class ReportInvariantFormattingTests
     [Fact]
     public void BuildReportGraphs_FormatsThresholdsInvariantlyUnderACommaDecimalCulture()
     {
-        var label = WithCulture(
+        string label = WithCulture(
             new CultureInfo("de-DE"),
             static () => QuestPdfReportRenderer.BuildReportGraphs(CreateSiteWithThreshold(42.5m))
                 .SelectMany(static graph => graph.Limits)
@@ -33,9 +36,9 @@ public sealed class ReportInvariantFormattingTests
             .Select(static limit => limit.Label)
             .Single();
 
-        var invariant = WithCulture(CultureInfo.InvariantCulture, BuildLabel);
-        var german = WithCulture(new CultureInfo("de-DE"), BuildLabel);
-        var french = WithCulture(new CultureInfo("fr-FR"), BuildLabel);
+        string invariant = WithCulture(CultureInfo.InvariantCulture, BuildLabel);
+        string german = WithCulture(new CultureInfo("de-DE"), BuildLabel);
+        string french = WithCulture(new CultureInfo("fr-FR"), BuildLabel);
 
         Assert.Equal(invariant, german);
         Assert.Equal(invariant, french);

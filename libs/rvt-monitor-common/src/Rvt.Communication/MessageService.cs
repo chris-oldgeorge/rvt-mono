@@ -35,7 +35,7 @@ public sealed class MessageService(INotificationDeliveryService notificationDeli
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contact);
-        var channel = ToChannel(messsageType);
+        NotificationChannel channel = ToChannel(messsageType);
         var destination = channel == NotificationChannel.Email
             ? contact.EmailAddress
             : contact.PhoneNumber;

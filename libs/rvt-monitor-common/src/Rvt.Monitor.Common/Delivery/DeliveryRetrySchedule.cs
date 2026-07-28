@@ -28,8 +28,8 @@ public static class DeliveryRetrySchedule
             return TimeSpan.Zero;
         }
 
-        var exponential = Exponential(attemptCount, initialDelay, cap);
-        var requested = RequestedRetryAfter(exception);
+        TimeSpan exponential = Exponential(attemptCount, initialDelay, cap);
+        TimeSpan requested = RequestedRetryAfter(exception);
         var ticks = Math.Min(Math.Max(exponential.Ticks, requested.Ticks), cap.Ticks);
         return TimeSpan.FromTicks(Math.Max(0, ticks));
     }

@@ -1,9 +1,11 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Omnidots.Api;
 using Omnidots.Api.Db;
 using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
+using Omnidots.Model.Dto;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
@@ -21,7 +23,7 @@ namespace OmnidotsAdapterTests
     {
         public TestOmnidotsApiException()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -31,7 +33,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task TestAuthenticate_BadJson_ThrowsCorrectException()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                     out Mock<IDBClient> dbClient,
                                                     out Mock<IMqttClient> mqttClient,
                                                     out Mock<IMessageService> messageClient);
@@ -39,7 +41,7 @@ namespace OmnidotsAdapterTests
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask("blah"));
 
-            var exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
+            AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
                 await testObj.AuthenticateAsync();
             });
@@ -60,7 +62,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task TestAuthenticate_ErrorJson_ThrowsCorrectException()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
@@ -69,7 +71,7 @@ namespace OmnidotsAdapterTests
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.ErrorJson()));
 
-            var exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
+            AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
                 await testObj.AuthenticateAsync();
             });
@@ -88,7 +90,7 @@ namespace OmnidotsAdapterTests
         public async Task TestStoreMonitors_BadJson_ThrowsCorrectException()
         {
 
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
@@ -102,7 +104,7 @@ namespace OmnidotsAdapterTests
             httpClient.Setup(c => c.GetAsync(measuringPointsUrl, It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask("bang"));
 
-            var exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
+            AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
                 await testObj.StoreMonitorsAsync();
             });
@@ -122,7 +124,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task TestStoreMonitors_ErrorJson_ThrowsCorrectException()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
@@ -136,7 +138,7 @@ namespace OmnidotsAdapterTests
             httpClient.Setup(c => c.GetAsync(measuringPointsUrl, It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.ErrorJson()));
 
-            var exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
+            AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
 
                 await testObj.StoreMonitorsAsync();
@@ -156,7 +158,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task TestStorePeakRecords_BadJson_ThrowsCorrectException()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
@@ -174,7 +176,7 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.StringTask("Blahh"));
 
 
-            var exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsAsync(OmnidotsFixture.MINUTES_ELAPSED));
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsAsync());
             Assert.AreEqual("StorePeakRecords", exception.Operation);
             CollectionAssert.AreEqual(new[] { "1", "2" }, exception.Failures.Select(failure => failure.SerialId).ToArray());
 
@@ -190,7 +192,7 @@ namespace OmnidotsAdapterTests
                 Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StorePeakRecords serialId=2", It.IsAny<AdapterException>()),
                 Times.Exactly(1));
-            var cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
+            Mock<IOmnidotsImportCursorQueries> cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
             cursorQueries.Verify(
                 c => c.ReadImportCursor(It.IsAny<string>(), OmnidotsMeasurementSeries.Peak), Times.Exactly(2));
             cursorQueries.Verify(
@@ -204,7 +206,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task TestStorePeakRecords_ErrorJson_ThrowsCorrectException()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                   out Mock<IMessageService> messageClient);
@@ -222,7 +224,7 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.ErrorJson()));
 
 
-            var exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsAsync(OmnidotsFixture.MINUTES_ELAPSED));
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsAsync());
             Assert.AreEqual("StorePeakRecords", exception.Operation);
             CollectionAssert.AreEqual(new[] { "1", "2" }, exception.Failures.Select(failure => failure.SerialId).ToArray());
 
@@ -238,7 +240,7 @@ namespace OmnidotsAdapterTests
                 Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StorePeakRecords serialId=2", It.IsAny<AdapterException>()),
                 Times.Exactly(1));
-            var cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
+            Mock<IOmnidotsImportCursorQueries> cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
             cursorQueries.Verify(
                 c => c.ReadImportCursor(It.IsAny<string>(), OmnidotsMeasurementSeries.Peak), Times.Exactly(2));
             cursorQueries.Verify(
@@ -252,7 +254,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task StorePeakRecords_FirstMonitorFails_AttemptsSecondAndThrowsAggregateFailure()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
@@ -270,7 +272,7 @@ namespace OmnidotsAdapterTests
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
 
             await AssertAggregateFailure(
-                () => testObj.StorePeakRecordsAsync(OmnidotsFixture.MINUTES_ELAPSED),
+                () => testObj.StorePeakRecordsAsync(),
                 "StorePeakRecords",
                 "1");
 
@@ -284,7 +286,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task StoreVeffRecords_FirstMonitorFails_AttemptsSecondAndThrowsAggregateFailure()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
@@ -316,7 +318,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task StoreVdvRecords_FirstMonitorFails_AttemptsSecondAndThrowsAggregateFailure()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
@@ -348,11 +350,11 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task StoreTraces_FirstMonitorFails_AttemptsSecondAndThrowsAggregateFailure()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
-            var monitors = OmnidotsFixture.MonitorsList(1, serialIdIn: 23422);
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(1, serialIdIn: 23422);
             monitors.Add(OmnidotsFixture.MonitorsList(1, serialIdIn: 23422).Single());
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).Returns(monitors);
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
@@ -381,7 +383,7 @@ namespace OmnidotsAdapterTests
             string operation,
             string endpoint)
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
@@ -402,13 +404,13 @@ namespace OmnidotsAdapterTests
 
             Func<Task> import = operation switch
             {
-                "StorePeakRecords" => () => testObj.StorePeakRecordsAsync(OmnidotsFixture.MINUTES_ELAPSED),
+                "StorePeakRecords" => () => testObj.StorePeakRecordsAsync(),
                 "StoreVeffRecords" => () => testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2)),
                 "StoreVdvRecords" => () => testObj.StoreVdvRecordsAsync(TimeSpan.FromHours(2)),
                 _ => throw new AssertFailedException($"Unexpected operation '{operation}'.")
             };
 
-            var exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(import);
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(import);
 
             AssertRecordingFailureContext(exception, operation, "1", recordingException);
             httpClient.Verify(c => c.GetAsync(It.Is<string>(url =>
@@ -420,11 +422,11 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task StoreTraces_WhenRecordingFailureThrows_AttemptsSecondAndPreservesBothFailures()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
-            var monitors = OmnidotsFixture.MonitorsList(1, serialIdIn: 23422);
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(1, serialIdIn: 23422);
             monitors.Add(OmnidotsFixture.MonitorsList(1, serialIdIn: 23422).Single());
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).Returns(monitors);
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
@@ -437,7 +439,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.HandleException("Failed to read traces for serialId=23423", It.IsAny<AdapterException>()))
                 .Throws(recordingException);
 
-            var exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5)));
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5)));
 
             AssertRecordingFailureContext(exception, "StoreTraces", "23423", recordingException);
             httpClient.Verify(c => c.GetAsync(It.Is<string>(url =>
@@ -449,7 +451,7 @@ namespace OmnidotsAdapterTests
 
         private static async Task AssertAggregateFailure(Func<Task> action, string operation, string failedSerialId)
         {
-            var exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(action);
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(action);
             Assert.AreEqual(operation, exception.Operation);
             CollectionAssert.AreEqual(
                 new[] { failedSerialId },
@@ -469,7 +471,7 @@ namespace OmnidotsAdapterTests
             Assert.IsFalse(exception.ToString().Contains("secret-value", StringComparison.Ordinal));
             Assert.IsNull(exception.InnerException);
 
-            var failure = exception.Failures[0];
+            OmnidotsMonitorFailure failure = exception.Failures[0];
             Assert.IsInstanceOfType<AdapterException>(failure.Exception);
             Assert.AreSame(recordingException, failure.RecordingException);
         }

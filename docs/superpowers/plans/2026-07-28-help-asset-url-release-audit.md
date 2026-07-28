@@ -660,8 +660,12 @@ Do not print exception messages.
 
 - [ ] **Step 5: Implement `Program.cs` as a thin composition root**
 
-Top-level code calls `ReleaseAuditProgram.RunAsync(args, ...)` and returns its
-exit code. It reads `RVT_RELEASE_AUDIT_CONNECTION` once through the injected
+Use a namespaced internal `ReleaseAuditEntryPoint.Main` that calls
+`ReleaseAuditProgram.RunAsync(args, ...)` once and returns its exit code.
+Literal top-level statements are not used because they generate a global
+internal `Program` type that conflicts with the SPA host's global `Program`
+when `RVT.ReleaseAudit` internals are visible to the shared SPA test assembly.
+The entry point reads `RVT_RELEASE_AUDIT_CONNECTION` once through the injected
 environment lookup. It must not build a Portal host, load `appsettings.json`,
 or resolve services from the SPA container.
 

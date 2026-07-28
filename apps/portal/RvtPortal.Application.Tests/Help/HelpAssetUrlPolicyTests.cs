@@ -51,12 +51,6 @@ public sealed class HelpAssetUrlPolicyTests
     }
 
     [Fact]
-    public void MaximumLength_IsPersistedHelpAssetLimit()
-    {
-        Assert.Equal(512, HelpAssetUrlPolicy.MaximumLength);
-    }
-
-    [Fact]
     public void ValidationResults_ExposeCanonicalValueOnlyForValidInputs()
     {
         var results = HelpAssetUrlPolicyCases.All

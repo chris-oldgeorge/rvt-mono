@@ -299,8 +299,12 @@ public sealed class RepositoryLayoutTests
 
         public static TemporaryDirectory Create()
         {
+            string temporaryRoot = OperatingSystem.IsMacOS() &&
+                Directory.Exists("/private/tmp")
+                    ? "/private/tmp"
+                    : System.IO.Path.GetTempPath();
             string path = System.IO.Path.Combine(
-                System.IO.Path.GetTempPath(),
+                temporaryRoot,
                 $"rvt-repository-layout-{Guid.NewGuid():N}");
             Directory.CreateDirectory(path);
             return new TemporaryDirectory(path);

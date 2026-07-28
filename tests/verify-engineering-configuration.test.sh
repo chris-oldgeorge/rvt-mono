@@ -125,7 +125,7 @@ is_hardened_npm_install() {
   grep -Fqx "$expected_command" "$path" || return 1
   npm_ci_lines="$(awk '
     /^[[:space:]]*#/ { next }
-    /(^|[[:space:]])npm[[:space:]]+ci([[:space:]]|$)/ { count++ }
+    /(^|[^[:alnum:]_])npm[[:space:]]+ci($|[^[:alnum:]_])/ { count++ }
     END { print count + 0 }
   ' "$path")"
   [[ "$npm_ci_lines" == "1" ]]
@@ -168,12 +168,16 @@ assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignor
 assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'env CI=true npm ci' "frontend verifier env-wrapped bare install"
 assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'CI=true npm ci' "frontend verifier assignment-prefixed bare install"
 assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'command env CI=true npm ci' "frontend verifier nested-wrapper bare install"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' "sh -c 'npm ci'" "frontend verifier single-quoted shell bare install"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'bash -c "npm ci"' "frontend verifier double-quoted shell bare install"
 assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN npm ci # comment' "Dockerfile inline-comment bare install"
 assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN npm ci ' "Dockerfile whitespace bare install"
 assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN command npm ci' "Dockerfile command-wrapped bare install"
 assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN env CI=true npm ci' "Dockerfile env-wrapped bare install"
 assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN CI=true npm ci' "Dockerfile assignment-prefixed bare install"
 assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN command env CI=true npm ci' "Dockerfile nested-wrapper bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' "RUN sh -c 'npm ci'" "Dockerfile single-quoted shell bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN bash -c "npm ci"' "Dockerfile double-quoted shell bare install"
 
 declare -a representative_projects=(
   "apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj|latest|true"

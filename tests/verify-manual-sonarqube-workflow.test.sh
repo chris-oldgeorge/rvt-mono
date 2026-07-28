@@ -78,10 +78,10 @@ uses_steps.each do |step|
 end
 
 expected_actions = {
-  "actions/checkout" => "34e114876b0b11c390a56381ad16ebd13914f8d5",
+  "actions/checkout" => "d23441a48e516b6c34aea4fa41551a30e30af803",
   "actions/setup-java" => "c1e323688fd81a25caa38c78aa6df2d33d3e20d9",
-  "actions/setup-dotnet" => "67a3573c9a986a3f9c594539f4ab511d57bb3ce9",
-  "actions/setup-node" => "49933ea5288caeca8642d1e84afbd3f7d6820020"
+  "actions/setup-dotnet" => "26b0ec14cb23fa6904739307f278c14f94c95bf1",
+  "actions/setup-node" => "249970729cb0ef3589644e2896645e5dc5ba9c38"
 }
 expected_actions.each do |action_name, commit|
   assert(uses_steps.any? { |step| scalar(step.fetch("uses"), "action reference") == "#{action_name}@#{commit}" }, "missing pinned #{action_name} action")

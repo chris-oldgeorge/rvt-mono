@@ -123,9 +123,9 @@ def verify_workflow(source)
   assert(uses_steps.length == 3, "workflow must use checkout, setup-dotnet, and setup-node")
 
   expected_actions = {
-    "actions/checkout" => "34e114876b0b11c390a56381ad16ebd13914f8d5",
-    "actions/setup-dotnet" => "67a3573c9a986a3f9c594539f4ab511d57bb3ce9",
-    "actions/setup-node" => "49933ea5288caeca8642d1e84afbd3f7d6820020"
+    "actions/checkout" => "d23441a48e516b6c34aea4fa41551a30e30af803",
+    "actions/setup-dotnet" => "26b0ec14cb23fa6904739307f278c14f94c95bf1",
+    "actions/setup-node" => "249970729cb0ef3589644e2896645e5dc5ba9c38"
   }
   expected_actions.each do |action_name, commit|
     expected = "#{action_name}@#{commit}"
@@ -255,8 +255,8 @@ mutations = {
   "write permission" => ["  contents: read", "  contents: write"],
   "shallow checkout" => ["          fetch-depth: 0", "          fetch-depth: 1"],
   "unpinned checkout" => [
-    "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
-    "actions/checkout@v4"
+    "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+    "actions/checkout@v6"
   ],
   "self-hosted runner" => ["    runs-on: ubuntu-latest", "    runs-on: self-hosted"],
   "job permission override" => [

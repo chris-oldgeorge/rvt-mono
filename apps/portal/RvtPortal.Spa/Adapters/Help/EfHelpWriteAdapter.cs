@@ -34,9 +34,7 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
             CreatedAtUtc = nowUtc,
             UpdatedAtUtc = nowUtc
         };
-        article.Assets = source.Assets
-            .Select(asset => CreateAsset(article, asset))
-            .ToList();
+        article.Assets = [.. source.Assets.Select(asset => CreateAsset(article, asset))];
         domainContext.HelpArticles.Add(article);
 
         return article.Id;

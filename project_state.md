@@ -1,5 +1,102 @@
 # Project State
 
+## Authoritative current checkpoint — Help Admin R2 conditional, R1 partial — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- This checkpoint supersedes later historical Help Admin `READY` wording in
+  this file. Preserve those sections as implementation history, but use this
+  section and `Current active state - Help Admin - 2026-07-28` for the current
+  release decision.
+- R9 is integrated into `main`: merge commit `1a48378` and integration-state
+  commit `0675479`. Its final review returned `Ready—Yes`.
+- R1 has started only as a separate worktree/branch:
+  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/r1-architecture-guards` on
+  `codex/r1-architecture-guards` at `0675479`. The worktree is clean and has no
+  R1 implementation commit. The 17 known stale repository-layout/Mapperly
+  failures recorded by the R9 aggregate remain the bounded R1 starting set;
+  R1 is partial/not complete.
+- R2 implementation is on `/private/tmp/rvt-mono-help-admin`, branch
+  `codex/help-admin-application-boundary`. This final-review wave began from
+  `a86b041` (`fix: canonicalize materialized standards roots`) and retains the
+  earlier Help application-boundary, adapter, client, HTTP, browser, and
+  rollback evidence.
+- Help Admin release status is `CONDITIONAL`, not `READY`. There is no recorded
+  execution of
+  `apps/portal/docs/release/validate-help-asset-urls.sql` against the release
+  databases, and this checkpoint did not access a production or release
+  database.
+- Exact release gate: execute the committed read-only script against every
+  release database targeted by deployment. Each execution must return exactly
+  zero rows, and its receipt must record the environment/database identity,
+  UTC execution time, script revision, and returned-row count. Any returned row
+  or missing receipt blocks Help Admin release. Only after every receipt records
+  zero rows may the functionality matrix change to `READY` and architecture
+  checklist item R2 be checked complete.
+- Final-review code/test corrections:
+  - the SQL now rejects whole-value whitespace as
+    `HelpMutationValidator` does, including
+    `https://docs.rvt.test/a b.pdf` and `/help-assets/a b.pdf`;
+  - `CutoverReadinessTests` contains a non-live policy guard plus an opt-in
+    PostgreSQL sample-row execution using only `pg_temp.help_asset`;
+  - `HelpAdminPanel` holds publication-button refs by article ID, arms focus
+    only after the refreshed overview resolves and commits, and selects the
+    next, previous, first refreshed, or New FAQ fallback when a status filter
+    removes the changed article.
+- The canonical `main..HEAD` engineering-standards RED additionally exposed
+  CSH-002 and WEB-001 formatting failures plus IDE0305 collection and IDE1006
+  private-field naming failures on the Help branch. The scoped correction
+  formats only the reported Help/client surfaces, uses collection expressions
+  in the read/write adapters and API mapper, and renames private fields to
+  `contentTypes`, `assetTypes`, `articleSummaryProjection`, and
+  `articleProjection`. No verifier, baseline, exception, or standards-policy
+  file was changed.
+- Current file structure for this wave:
+  - `apps/portal/docs/release/validate-help-asset-urls.sql` — read-only
+    persisted-row release gate;
+  - `apps/portal/RvtPortal.Spa.Tests/CutoverReadinessTests.cs` — static
+    read-only/policy guard and opt-in PostgreSQL sample execution;
+  - `apps/portal/RvtPortal.Client/src/admin/HelpAdminPanel.tsx` and
+    `HelpAdminPanel.test.tsx` — post-refresh publication focus and fallbacks;
+  - `apps/portal/RvtPortal.Client/src/api/client.ts`, `client.test.ts`,
+    `src/dtos.ts`, and `tests/e2e/help-admin.spec.ts` — Prettier-only branch
+    range compliance;
+  - `apps/portal/RvtPortal.Application/Help/HelpMutationValidator.cs`,
+    `RvtPortal.Spa/Adapters/Help/EfHelpReadAdapter.cs`,
+    `EfHelpWriteAdapter.cs`, `RvtPortal.Spa/Api/Mappers/HelpApiMapper.cs`, and
+    `RvtPortal.Spa/ServiceCollectionExtensions.cs` — formatter/naming-only
+    branch range compliance;
+  - `docs/release/portal/FUNCTIONALITY_READINESS_MATRIX.md` and
+    `docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md`
+    — conditional release decision and unchecked R2 gate.
+- Current Help Admin variable definitions:
+  - `PendingFocus` includes `article`, `publication`, `asset`, `add-asset`, and
+    `new-article` targets;
+  - `articleEditRefs` and `articlePublicationRefs` are maps keyed by persisted
+    article ID; `assetTitleRefs` is keyed by immutable client asset key;
+  - publication refresh selection uses `articlesBeforeRefresh`,
+    `changedIndex`, `refreshedOverview`, `refreshedIds`, `nextArticle`,
+    `previousArticle`, and `fallbackArticle`;
+  - cutover sample execution separates `acceptedUrls`,
+    `rejectedUrls`, `expectedRejectedIds`, and `actualRejectedIds`.
+- Fresh final-review verification:
+  - RED client focus run: 3 intended failures and 6 passes;
+  - RED cutover run: the non-live whitespace guard failed and the opt-in
+    PostgreSQL sample execution skipped because
+    `RVT_TEST_POSTGRES_CONNECTION` was unset;
+  - GREEN focused client: 3 files and 60 tests passed;
+  - GREEN focused backend/cutover: 59 passed and the same 1 opt-in PostgreSQL
+    test skipped;
+  - client lint exited 0 with 0 errors and the 2 pre-existing
+    `DataViewPanels.tsx` Fast Refresh warnings;
+  - client production build passed with 1,606 modules transformed;
+  - scoped C# whitespace and IDE0305/IDE1006 formatter verification passed;
+  - Prettier check passed for all seven changed Help client/e2e surfaces;
+  - `git diff --check` passed.
+- Exact remaining gates are: obtain and record the zero-row release-database
+  receipts; then change Help Admin to `READY` and check R2. R1 must separately
+  repair and mutation-prove the 17 stale architecture/layout expectations.
+  After R1 and R2, continue the ordered review with R3 reporting lineage.
+
 ## R9 integrated into main — R1 next 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
@@ -4098,8 +4195,10 @@ Next-session instruction: Read project_state.md to get up to speed
   - `CutoverReadinessTests` verifies canonical table selection, HTTPS and
     `/help-assets/` checks, backslash/control rejection, read-only behavior,
     and deterministic ordering; removing the HTTPS check made it fail;
-  - Help Admin is `READY` in the functionality matrix and R2 is resolved in the
-    architecture review;
+  - this historical checkpoint marked Help Admin `READY` in the functionality
+    matrix and R2 resolved in the architecture review. The authoritative
+    checkpoint above corrects that claim: release remains conditional until
+    every release database has a recorded zero-row execution;
   - rollback disables admin navigation/route and admin endpoints while
     preserving published Help and persisted content.
 - Fresh verification:
@@ -4272,20 +4371,24 @@ Next-session instruction: Read project_state.md to get up to speed
 
 ## Current active state - Help Admin - 2026-07-28
 
-- The current branch is `codex/help-admin-application-boundary` at the Help
-  integration state described in
-  `Help Admin application-boundary integration - 2026-07-28` above.
-- Implementation, release documentation, full backend/client/browser
-  verification, release-export dry run, and whole-branch self-review are
-  complete.
+- The current branch is `codex/help-admin-application-boundary` in
+  `/private/tmp/rvt-mono-help-admin`. The implementation and prior
+  backend/client/browser/export evidence remain in place, with the
+  final-review URL-policy and publication-focus corrections described in the
+  authoritative top checkpoint.
+- R2 and Help Admin release are `CONDITIONAL`. No production/release database
+  was accessed during this correction, and no receipt records execution of
+  `apps/portal/docs/release/validate-help-asset-urls.sql` against every release
+  database. The exact zero-row receipt gate in the top checkpoint remains.
 - The branch is published as
   `origin/codex/help-admin-application-boundary`. Draft pull request
   `chris-oldgeorge/rvt-mono#4` targets `main`:
   `https://github.com/chris-oldgeorge/rvt-mono/pull/4`.
 - No merge has been performed. The draft PR records the stacked integration
-  dependency and must not be marked ready until that dependency is resolved.
-- Before integration, merge the separate engineering-standards work so
-  `eng/standards` is committed, then rerun
-  `scripts/verify-engineering-standards.sh --base 96fa359 --head HEAD`.
+  history and must not be marked ready until the release-database gate is
+  satisfied.
+- R9/engineering standards are now merged into `main`; this branch contains
+  that merge. R1 remains a clean, no-implementation-commit partial branch at
+  `0675479` and must proceed separately.
 
 Next-session instruction: Read project_state.md to get up to speed

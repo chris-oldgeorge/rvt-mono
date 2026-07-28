@@ -27,14 +27,13 @@ public static class HelpApiMapper
             request.IsPublished,
             request.SectionSortOrder,
             request.SortOrder,
-            request.Assets
+            [.. request.Assets
                 .Select(asset => new HelpAssetMutation(
                     asset.Id,
                     asset.Title,
                     asset.AssetType,
                     asset.Url,
-                    asset.SortOrder))
-                .ToList());
+                    asset.SortOrder))]);
 
     // Function summary: Maps a published Help overview model to the existing API response contract.
     public static HelpOverviewResponse ToOverviewResponse(HelpOverviewModel model)
@@ -42,7 +41,7 @@ public static class HelpApiMapper
         return new HelpOverviewResponse
         {
             SearchText = model.SearchText,
-            Sections = model.Sections.Select(ToSectionResponse).ToList()
+            Sections = [.. model.Sections.Select(ToSectionResponse)]
         };
     }
 
@@ -54,8 +53,8 @@ public static class HelpApiMapper
             SearchText = model.SearchText,
             Status = model.Status,
             ContentType = model.ContentType,
-            Sections = model.Sections.Select(ToSectionResponse).ToList(),
-            Articles = model.Articles.Select(ToArticleResponse).ToList()
+            Sections = [.. model.Sections.Select(ToSectionResponse)],
+            Articles = [.. model.Articles.Select(ToArticleResponse)]
         };
     }
 
@@ -77,7 +76,7 @@ public static class HelpApiMapper
             IsPublished = model.IsPublished,
             CreatedAtUtc = model.CreatedAtUtc,
             UpdatedAtUtc = model.UpdatedAtUtc,
-            Assets = model.Assets.Select(ToAssetResponse).ToList()
+            Assets = [.. model.Assets.Select(ToAssetResponse)]
         };
     }
 
@@ -90,7 +89,7 @@ public static class HelpApiMapper
             Title = model.Title,
             Slug = model.Slug,
             SortOrder = model.SortOrder,
-            Articles = model.Articles.Select(ToArticleSummaryResponse).ToList()
+            Articles = [.. model.Articles.Select(ToArticleSummaryResponse)]
         };
     }
 

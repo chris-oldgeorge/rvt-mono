@@ -1,4 +1,4 @@
-﻿// File summary: Guards database cutover artifacts that still carry production migration risk.
+// File summary: Guards database cutover artifacts that still carry production migration risk.
 // - 2026-07-17 pending Replaced runtime regex compilation with a generated regex for warning-free verification.
 // - 2026-07-14 pending Repointed post-load guardrails at database/postgres/post-load after retiring RVT.DatabaseMigrator.
 // Major updates:
@@ -16,7 +16,9 @@
 // - 2026-06-09 pending Added canonical EF baseline and snapshot guardrails before future migration scaffolding.
 
 using System.Text.RegularExpressions;
+using Npgsql;
 using RVT.DataAccess.Configuration;
+using RvtPortal.Spa.Tests.Support;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -42,6 +44,7 @@ public partial class CutoverReadinessTests
         Assert.Contains("url NOT LIKE '/help-assets/%'", sql, StringComparison.Ordinal);
         Assert.Contains("url !~ '^https://", sql, StringComparison.Ordinal);
         Assert.Contains("[[:cntrl:]\\\\]", sql, StringComparison.Ordinal);
+        Assert.Contains("url ~ '[[:space:]]'", sql, StringComparison.Ordinal);
         Assert.Contains("ORDER BY help_article_id, id", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("INSERT ", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("UPDATE ", sql, StringComparison.OrdinalIgnoreCase);
@@ -50,6 +53,93 @@ public partial class CutoverReadinessTests
         Assert.DoesNotContain("DROP ", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("CREATE ", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TRUNCATE ", sql, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [RequiresPostgresFact]
+    public async Task HelpAssetUrlReadinessQuery_FlagsApplicationPolicySamples()
+    {
+        var scriptPath = Path.Combine(
+            FindRepositoryRoot(),
+            "docs",
+            "release",
+            "validate-help-asset-urls.sql");
+        var sql = File.ReadAllText(scriptPath).Replace(
+            "public.help_asset",
+            "pg_temp.help_asset",
+            StringComparison.Ordinal);
+        var acceptedUrls = new[]
+        {
+            "https://docs.rvt.test/guide.pdf",
+            "https://docs.rvt.test",
+            "/help-assets/guides/guide.pdf"
+        };
+        var rejectedUrls = new[]
+        {
+            "https://docs.rvt.test/a b.pdf",
+            "/help-assets/a b.pdf",
+            "http://docs.rvt.test/guide.pdf",
+            "//docs.rvt.test/guide.pdf",
+            "https://user:password@docs.rvt.test/guide.pdf",
+            "/help-assets\\guide.pdf"
+        };
+
+        await using var connection = new NpgsqlConnection(
+            Environment.GetEnvironmentVariable(
+                RequiresPostgresFactAttribute.ConnectionVariable));
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        await using (var create = new NpgsqlCommand(
+            """
+            CREATE TEMP TABLE help_asset (
+                id uuid PRIMARY KEY,
+                help_article_id uuid NOT NULL,
+                url text NULL
+            ) ON COMMIT DROP;
+            """,
+            connection,
+            transaction))
+        {
+            await create.ExecuteNonQueryAsync();
+        }
+
+        var expectedRejectedIds = new List<Guid>();
+        foreach (var (url, shouldBeRejected) in acceptedUrls
+            .Select(url => (url, false))
+            .Concat(rejectedUrls.Select(url => (url, true))))
+        {
+            var id = Guid.NewGuid();
+            if (shouldBeRejected)
+            {
+                expectedRejectedIds.Add(id);
+            }
+
+            await using var insert = new NpgsqlCommand(
+                """
+                INSERT INTO pg_temp.help_asset (id, help_article_id, url)
+                VALUES ($1, $2, $3);
+                """,
+                connection,
+                transaction);
+            insert.Parameters.AddWithValue(id);
+            insert.Parameters.AddWithValue(Guid.NewGuid());
+            insert.Parameters.AddWithValue(url);
+            await insert.ExecuteNonQueryAsync();
+        }
+
+        var actualRejectedIds = new List<Guid>();
+        await using (var readiness = new NpgsqlCommand(sql, connection, transaction))
+        await using (var reader = await readiness.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                actualRejectedIds.Add(reader.GetGuid(0));
+            }
+        }
+
+        Assert.Equal(
+            expectedRejectedIds.Order(),
+            actualRejectedIds.Order());
+        await transaction.RollbackAsync();
     }
 
     [Fact]

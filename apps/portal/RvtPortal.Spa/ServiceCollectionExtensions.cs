@@ -1,4 +1,4 @@
-﻿// File summary: Supports the ASP.NET Core host that serves the RVT React portal and backend API.
+// File summary: Supports the ASP.NET Core host that serves the RVT React portal and backend API.
 // Major updates:
 // - 2026-07-28 Registered application-owned Help use cases and EF read/write adapters.
 // - 2026-07-23 Registered the application-owned Sites read port and EF adapter.
@@ -37,40 +37,40 @@ using Microsoft.Extensions.Configuration;
 using Rvt.Communication.Abstractions;
 using Rvt.Communication.SendGridMail;
 using RVT.BusinessLogic;
-using RVT.DataAccess;
-using RVT.Entities.Ports.Persistence;
-using RvtPortal.Application.Identity;
-using RvtPortal.Application.Common;
-using RvtPortal.Application.Help.Ports;
-using RvtPortal.Application.Sites.Ports;
 using RVT.BusinessLogic.Notifications;
 using RVT.BusinessLogic.Ports.Notifications;
 using RVT.BusinessLogic.Ports.Storage;
 using RVT.BusinessLogic.Ports.Vendors;
 using RVT.BusinessLogic.Reports;
-using RvtPortal.Spa.Adapters.Notifications;
-using RvtPortal.Spa.Adapters.Reporting;
-using RvtPortal.Spa.Adapters.Storage;
-using RvtPortal.Spa.Adapters.Vendors;
+using RVT.DataAccess;
+using RVT.Entities.Ports.Persistence;
+using RvtPortal.Application.Common;
+using RvtPortal.Application.Help.Ports;
+using RvtPortal.Application.Identity;
+using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Adapters.Archive;
 using RvtPortal.Spa.Adapters.Help;
+using RvtPortal.Spa.Adapters.Notifications;
+using RvtPortal.Spa.Adapters.Reporting;
 using RvtPortal.Spa.Adapters.Sites;
+using RvtPortal.Spa.Adapters.Storage;
+using RvtPortal.Spa.Adapters.Vendors;
+using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.AlertLevels;
 using RvtPortal.Spa.Application.Auth;
-using RvtPortal.Spa.Application.Companies;
-using RvtPortal.Spa.Application.Monitors;
 using RvtPortal.Spa.Application.Common;
+using RvtPortal.Spa.Application.Companies;
 using RvtPortal.Spa.Application.Contracts;
-using RvtPortal.Spa.Application.Data;
-using RvtPortal.Spa.Application.Lookups;
 using RvtPortal.Spa.Application.Dashboard;
+using RvtPortal.Spa.Application.Data;
 using RvtPortal.Spa.Application.Installers;
+using RvtPortal.Spa.Application.Lookups;
+using RvtPortal.Spa.Application.Monitors;
 using RvtPortal.Spa.Application.Notifications;
 using RvtPortal.Spa.Application.ReportContent;
-using RvtPortal.Spa.Application.Reports;
 using RvtPortal.Spa.Application.ReportRules;
+using RvtPortal.Spa.Application.Reports;
 using RvtPortal.Spa.Application.Users;
-using RvtPortal.Spa.Api;
 
 namespace RvtPortal.Spa;
 

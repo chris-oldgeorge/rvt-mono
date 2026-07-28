@@ -2,7 +2,7 @@
 // Major updates:
 // - 2026-07-28 Added focused Help Admin workflow regressions.
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HelpAdminOverviewResponse, HelpArticleResponse } from '../dtos';
 import { HelpAdminPanel } from './HelpAdminPanel';
@@ -12,12 +12,12 @@ const api = vi.hoisted(() => ({
   deleteHelpArticle: vi.fn(),
   queryAdminHelp: vi.fn(),
   setHelpArticlePublication: vi.fn(),
-  updateHelpArticle: vi.fn()
+  updateHelpArticle: vi.fn(),
 }));
 
 vi.mock('../api/client', () => ({
   ...api,
-  isAbortError: () => false
+  isAbortError: () => false,
 }));
 
 const existingArticle: HelpArticleResponse = {
@@ -41,9 +41,9 @@ const existingArticle: HelpArticleResponse = {
       assetType: 'Document',
       url: '/help-assets/dust.pdf',
       internalPath: '/help-assets/dust.pdf',
-      sortOrder: 1
-    }
-  ]
+      sortOrder: 1,
+    },
+  ],
 };
 
 const secondArticle: HelpArticleResponse = {
@@ -51,7 +51,7 @@ const secondArticle: HelpArticleResponse = {
   id: 'article-2',
   title: 'Noise FAQ',
   slug: 'noise-faq',
-  assets: []
+  assets: [],
 };
 
 function overview(articles: HelpArticleResponse[]): HelpAdminOverviewResponse {
@@ -60,17 +60,12 @@ function overview(articles: HelpArticleResponse[]): HelpAdminOverviewResponse {
     status: 'All',
     contentType: 'All',
     sections: [],
-    articles
+    articles,
   };
 }
 
 function renderHelpAdmin() {
-  return render(
-    <HelpAdminPanel
-      onNavigate={vi.fn()}
-      onRequestError={vi.fn()}
-    />
-  );
+  return render(<HelpAdminPanel onNavigate={vi.fn()} onRequestError={vi.fn()} />);
 }
 
 describe('HelpAdminPanel', () => {
@@ -83,17 +78,17 @@ describe('HelpAdminPanel', () => {
     api.queryAdminHelp.mockResolvedValue(overview([existingArticle]));
     api.deleteHelpArticle.mockResolvedValue({
       id: existingArticle.id,
-      message: 'Help article removed.'
+      message: 'Help article removed.',
     });
     api.setHelpArticlePublication.mockResolvedValue({
-      item: { ...existingArticle, isPublished: true }
+      item: { ...existingArticle, isPublished: true },
     });
     api.updateHelpArticle.mockImplementation(async (_id, request) => ({
       item: {
         ...existingArticle,
         ...request,
-        assets: existingArticle.assets
-      }
+        assets: existingArticle.assets,
+      },
     }));
   });
 
@@ -120,12 +115,10 @@ describe('HelpAdminPanel', () => {
         title: 'Dust monitoring guide',
         assetType: 'Document',
         url: '/help-assets/dust.pdf',
-        sortOrder: 1
-      }
+        sortOrder: 1,
+      },
     ]);
-    await waitFor(() => expect(
-      screen.getByRole('button', { name: 'Edit Dust FAQ' })
-    ).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Dust FAQ' })).toHaveFocus());
   });
 
   it('focuses new asset rows and a deterministic fallback after removal', async () => {
@@ -147,7 +140,7 @@ describe('HelpAdminPanel', () => {
       id: 'article-2',
       title: 'New FAQ',
       slug: 'new-faq',
-      assets: []
+      assets: [],
     };
     api.createHelpArticle.mockImplementation(async () => {
       api.queryAdminHelp.mockResolvedValue(overview([existingArticle, createdArticle]));
@@ -156,28 +149,73 @@ describe('HelpAdminPanel', () => {
     renderHelpAdmin();
     fireEvent.click(await screen.findByRole('button', { name: 'New FAQ' }));
     fireEvent.change(screen.getByLabelText('Title'), {
-      target: { value: 'New FAQ' }
+      target: { value: 'New FAQ' },
     });
     fireEvent.change(screen.getByLabelText('Body'), {
-      target: { value: 'New body' }
+      target: { value: 'New body' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Create FAQ' }));
 
-    expect(
-      await screen.findByRole('button', { name: 'Edit New FAQ' })
-    ).toHaveFocus();
+    expect(await screen.findByRole('button', { name: 'Edit New FAQ' })).toHaveFocus();
   });
 
-  it('restores article action focus after publication changes', async () => {
+  it('waits for the refreshed overview before focusing the changed publication action', async () => {
+    let resolveRefresh!: (value: HelpAdminOverviewResponse) => void;
+    api.queryAdminHelp.mockResolvedValueOnce(overview([existingArticle])).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
     renderHelpAdmin();
-    fireEvent.click(await screen.findByRole('button', {
-      name: 'Publish Dust FAQ'
-    }));
+    const publish = await screen.findByRole('button', {
+      name: 'Publish Dust FAQ',
+    });
+    publish.focus();
+    fireEvent.click(publish);
 
-    await waitFor(() => expect(api.setHelpArticlePublication).toHaveBeenCalled());
-    await waitFor(() => expect(
-      screen.getByRole('button', { name: 'Edit Dust FAQ' })
-    ).toHaveFocus());
+    await waitFor(() => expect(api.queryAdminHelp).toHaveBeenCalledTimes(2));
+    expect(publish).toHaveFocus();
+    await act(async () => resolveRefresh(overview([{ ...existingArticle, isPublished: true }])));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Unpublish Dust FAQ' })).toHaveFocus());
+  });
+
+  it('focuses the next publication action when the changed article leaves the status filter', async () => {
+    api.queryAdminHelp
+      .mockResolvedValueOnce(overview([existingArticle, secondArticle]))
+      .mockResolvedValueOnce(overview([existingArticle, secondArticle]))
+      .mockResolvedValueOnce(overview([secondArticle]));
+    renderHelpAdmin();
+    fireEvent.change(await screen.findByLabelText('Status'), {
+      target: { value: 'Draft' },
+    });
+    await waitFor(() => expect(api.queryAdminHelp).toHaveBeenCalledTimes(2));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Publish Dust FAQ',
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Publish Noise FAQ' })).toHaveFocus());
+  });
+
+  it('focuses New FAQ when the changed article is the last match for the status filter', async () => {
+    api.queryAdminHelp
+      .mockResolvedValueOnce(overview([existingArticle]))
+      .mockResolvedValueOnce(overview([existingArticle]))
+      .mockResolvedValueOnce(overview([]));
+    renderHelpAdmin();
+    fireEvent.change(await screen.findByLabelText('Status'), {
+      target: { value: 'Draft' },
+    });
+    await waitFor(() => expect(api.queryAdminHelp).toHaveBeenCalledTimes(2));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Publish Dust FAQ',
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'New FAQ' })).toHaveFocus());
   });
 
   it('focuses the next article after deletion', async () => {
@@ -188,14 +226,14 @@ describe('HelpAdminPanel', () => {
       return { id, message: 'Help article removed.' };
     });
     renderHelpAdmin();
-    fireEvent.click(await screen.findByRole('button', {
-      name: 'Delete Dust FAQ'
-    }));
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Delete Dust FAQ',
+      }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
-    await waitFor(() => expect(
-      screen.getByRole('button', { name: 'Edit Noise FAQ' })
-    ).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Noise FAQ' })).toHaveFocus());
   });
 
   it('focuses the previous article or New FAQ after deletion', async () => {
@@ -206,23 +244,23 @@ describe('HelpAdminPanel', () => {
       return { id, message: 'Help article removed.' };
     });
     const view = renderHelpAdmin();
-    fireEvent.click(await screen.findByRole('button', {
-      name: 'Delete Noise FAQ'
-    }));
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Delete Noise FAQ',
+      }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    await waitFor(() => expect(
-      screen.getByRole('button', { name: 'Edit Dust FAQ' })
-    ).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Dust FAQ' })).toHaveFocus());
 
     view.unmount();
     articles = [existingArticle];
     renderHelpAdmin();
-    fireEvent.click(await screen.findByRole('button', {
-      name: 'Delete Dust FAQ'
-    }));
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Delete Dust FAQ',
+      }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    await waitFor(() => expect(
-      screen.getByRole('button', { name: 'New FAQ' })
-    ).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'New FAQ' })).toHaveFocus());
   });
 });

@@ -34,7 +34,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
             .ThenBy(article => article.Section!.Title)
             .ThenBy(article => article.SortOrder)
             .ThenBy(article => article.Title)
-            .Select(ArticleSummaryProjection)
+            .Select(articleSummaryProjection)
             .ToListAsync(cancellationToken);
         var sectionIds = articles
             .Select(article => article.SectionId)
@@ -70,7 +70,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
                 article.IsPublished &&
                 article.Section != null &&
                 article.Section.IsPublished)
-            .Select(ArticleProjection)
+            .Select(articleProjection)
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -121,7 +121,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
             .ThenBy(article => article.Section == null ? "" : article.Section.Title)
             .ThenBy(article => article.SortOrder)
             .ThenBy(article => article.Title)
-            .Select(ArticleProjection)
+            .Select(articleProjection)
             .ToListAsync(cancellationToken);
 
         var sectionArticleQuery = ApplySearch(
@@ -131,7 +131,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
         var sectionArticles = await sectionArticleQuery
             .OrderBy(article => article.SortOrder)
             .ThenBy(article => article.Title)
-            .Select(ArticleSummaryProjection)
+            .Select(articleSummaryProjection)
             .ToListAsync(cancellationToken);
         var sections = await domainContext.HelpSections
             .AsNoTracking()
@@ -161,7 +161,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
         return await domainContext.HelpArticles
             .AsNoTracking()
             .Where(article => article.Id == articleId)
-            .Select(ArticleProjection)
+            .Select(articleProjection)
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -180,12 +180,11 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
                 article => article.Slug == slug && article.Id != articleId,
                 cancellationToken);
         IReadOnlySet<Guid> assetIds = articleId.HasValue
-            ? (await domainContext.HelpAssets
+            ? [.. await domainContext.HelpAssets
                 .AsNoTracking()
                 .Where(asset => asset.HelpArticleId == articleId.Value)
                 .Select(asset => asset.Id)
-                .ToListAsync(cancellationToken))
-                .ToHashSet()
+                .ToListAsync(cancellationToken)]
             : new HashSet<Guid>();
 
         return new HelpMutationValidationData(
@@ -264,7 +263,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
             .ToDictionary(
                 group => group.Key,
                 group => group.Select(article => article.Model).ToList());
-        return sections
+        return [.. sections
             .Select(section => new HelpSectionModel
             {
                 Id = section.Id,
@@ -272,8 +271,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
                 Slug = section.Slug,
                 SortOrder = section.SortOrder,
                 Articles = articlesBySection.GetValueOrDefault(section.Id) ?? []
-            })
-            .ToList();
+            })];
     }
 
     private static string? NormalizeSearch(string? searchText)
@@ -283,7 +281,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
     }
 
     private static readonly Expression<Func<HelpArticle, HelpArticleSummaryRow>>
-        ArticleSummaryProjection =
+        articleSummaryProjection =
             article => new HelpArticleSummaryRow(
                 article.SectionId,
                 new HelpArticleSummaryModel
@@ -300,7 +298,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
                 });
 
     private static readonly Expression<Func<HelpArticle, HelpArticleModel>>
-        ArticleProjection =
+        articleProjection =
             article => new HelpArticleModel
             {
                 Id = article.Id,

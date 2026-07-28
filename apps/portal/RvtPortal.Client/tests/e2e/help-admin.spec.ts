@@ -11,21 +11,16 @@ test('Help Admin supports the approved content lifecycle', async ({ page }) => {
   await page.route('**/api/help/admin**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    const articleMatch = url.pathname.match(
-      /^\/api\/help\/admin\/articles\/([^/]+)$/
-    );
-    const publicationMatch = url.pathname.match(
-      /^\/api\/help\/admin\/articles\/([^/]+)\/publication$/
-    );
+    const articleMatch = url.pathname.match(/^\/api\/help\/admin\/articles\/([^/]+)$/);
+    const publicationMatch = url.pathname.match(/^\/api\/help\/admin\/articles\/([^/]+)\/publication$/);
 
-    if (request.method() === 'POST' &&
-        url.pathname === '/api/help/admin/articles') {
+    if (request.method() === 'POST' && url.pathname === '/api/help/admin/articles') {
       const mutation = request.postDataJSON();
       article = articleFromMutation(mutation);
       await route.fulfill({
         contentType: 'application/json',
         json: { item: article },
-        status: 201
+        status: 201,
       });
       return;
     }
@@ -36,7 +31,7 @@ test('Help Admin supports the approved content lifecycle', async ({ page }) => {
       await route.fulfill({
         contentType: 'application/json',
         json: { item: article },
-        status: 200
+        status: 200,
       });
       return;
     }
@@ -47,7 +42,7 @@ test('Help Admin supports the approved content lifecycle', async ({ page }) => {
       await route.fulfill({
         contentType: 'application/json',
         json: { item: article },
-        status: 200
+        status: 200,
       });
       return;
     }
@@ -57,7 +52,7 @@ test('Help Admin supports the approved content lifecycle', async ({ page }) => {
       await route.fulfill({
         contentType: 'application/json',
         json: { id: 'help-e2e-id', message: 'Help article removed.' },
-        status: 200
+        status: 200,
       });
       return;
     }
@@ -66,7 +61,7 @@ test('Help Admin supports the approved content lifecycle', async ({ page }) => {
       await route.fulfill({
         contentType: 'application/json',
         json: { item: article },
-        status: 200
+        status: 200,
       });
       return;
     }
@@ -78,16 +73,16 @@ test('Help Admin supports the approved content lifecycle', async ({ page }) => {
         status: url.searchParams.get('status') ?? 'All',
         contentType: url.searchParams.get('contentType') ?? 'All',
         sections: [],
-        articles: article ? [article] : []
+        articles: article ? [article] : [],
       },
-      status: 200
+      status: 200,
     });
   });
   await page.route('**/api/help/articles/**', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
       json: { item: article },
-      status: article ? 200 : 404
+      status: article ? 200 : 404,
     });
   });
   await page.route('**/api/help', async (route) => {
@@ -96,26 +91,29 @@ test('Help Admin supports the approved content lifecycle', async ({ page }) => {
       json: {
         searchText: '',
         sections: article?.isPublished
-          ? [{
-              id: 'general-id',
-              title: article.sectionTitle,
-              slug: article.sectionSlug,
-              sortOrder: 1,
-              articles: [article]
-            }]
-          : []
+          ? [
+              {
+                id: 'general-id',
+                title: article.sectionTitle,
+                slug: article.sectionSlug,
+                sortOrder: 1,
+                articles: [article],
+              },
+            ]
+          : [],
       },
-      status: 200
+      status: 200,
     });
   });
 
   await page.goto('/help');
-  await expect(page.getByRole('heading', {
-    level: 1,
-    name: 'Help',
-    exact: true
-  }))
-    .toBeVisible();
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: 'Help',
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Help/FAQ' }).click();
   await expect(page).toHaveURL(/\/admin\/help$/);
   await page.getByLabel('Title').fill('New FAQ');
@@ -131,8 +129,10 @@ test('Help Admin supports the approved content lifecycle', async ({ page }) => {
   await page.getByRole('button', { name: 'Preview New FAQ' }).click();
   await expect(page).toHaveURL(/\/help\/new-faq$/);
   await expect(page.getByRole('heading', { name: 'New FAQ' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'External guide' }))
-    .toHaveAttribute('href', 'https://docs.rvt.test/guide');
+  await expect(page.getByRole('link', { name: 'External guide' })).toHaveAttribute(
+    'href',
+    'https://docs.rvt.test/guide',
+  );
 
   await page.getByRole('button', { name: 'Help/FAQ' }).click();
   await page.getByRole('button', { name: 'Edit New FAQ' }).click();
@@ -142,13 +142,11 @@ test('Help Admin supports the approved content lifecycle', async ({ page }) => {
   await expect(page.getByText('Help article updated.')).toBeVisible();
   await page.getByRole('button', { name: 'Delete Updated FAQ' }).click();
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
-  await expect(page.getByText('No help articles match the current filters.'))
-    .toBeVisible();
+  await expect(page.getByText('No help articles match the current filters.')).toBeVisible();
 
   roles = ['CompanyUser'];
   await page.goto('/admin/help');
-  await expect(page.getByRole('heading', { name: /access denied/i }))
-    .toBeVisible();
+  await expect(page.getByRole('heading', { name: /access denied/i })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Help/FAQ' })).toHaveCount(0);
 });
 
@@ -176,10 +174,7 @@ type HelpArticleFixture = {
   }>;
 };
 
-function articleFromMutation(
-  mutation: Record<string, unknown>,
-  existing?: HelpArticleFixture
-): HelpArticleFixture {
+function articleFromMutation(mutation: Record<string, unknown>, existing?: HelpArticleFixture): HelpArticleFixture {
   const assets = mutation.assets as Array<Record<string, unknown>>;
   return {
     id: existing?.id ?? 'help-e2e-id',
@@ -201,15 +196,12 @@ function articleFromMutation(
       assetType: asset.assetType as string,
       url: asset.url as string,
       internalPath: null,
-      sortOrder: asset.sortOrder as number
-    }))
+      sortOrder: asset.sortOrder as number,
+    })),
   };
 }
 
-async function mockShell(
-  page: import('@playwright/test').Page,
-  roles: () => string[]
-) {
+async function mockShell(page: import('@playwright/test').Page, roles: () => string[]) {
   await page.route('**/api/auth/me', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
@@ -219,10 +211,10 @@ async function mockShell(
           id: 'help-user-id',
           email: 'help.user@rvt.test',
           name: 'Help User',
-          roles: roles()
-        }
+          roles: roles(),
+        },
       },
-      status: 200
+      status: 200,
     });
   });
   await page.route('**/api/health', async (route) => {
@@ -231,9 +223,9 @@ async function mockShell(
       json: {
         status: 'Healthy',
         framework: 'Testing',
-        serverTimeUtc: new Date(0).toISOString()
+        serverTimeUtc: new Date(0).toISOString(),
       },
-      status: 200
+      status: 200,
     });
   });
   await page.route('**/api/auth/profile', async (route) => {
@@ -245,9 +237,9 @@ async function mockShell(
         name: 'Help User',
         role: roles()[0] ?? null,
         companyRole: null,
-        companyName: null
+        companyName: null,
       },
-      status: 200
+      status: 200,
     });
   });
   await page.route('**/api/dashboard/summary', async (route) => {
@@ -260,9 +252,9 @@ async function mockShell(
         monitorsOffline: 0,
         openAlerts: 0,
         siteStatus: [],
-        recentActivity: []
+        recentActivity: [],
       },
-      status: 200
+      status: 200,
     });
   });
 }

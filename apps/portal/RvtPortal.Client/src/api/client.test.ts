@@ -9,13 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  ApiError,
-  createHelpArticle,
-  downloadFile,
-  getHealth,
-  queryCompanies
-} from './client';
+import { ApiError, createHelpArticle, downloadFile, getHealth, queryCompanies } from './client';
 
 const apiDirectory = dirname(fileURLToPath(import.meta.url));
 
@@ -25,29 +19,40 @@ describe('API client infrastructure', () => {
   });
 
   it('includes API correlation ids on problem responses', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(
-      { title: 'Invalid request', detail: 'Sort field is not supported.', correlationId: 'problem-id' },
-      400,
-      { 'X-Correlation-Id': 'header-id' }
-    )));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse(
+          { title: 'Invalid request', detail: 'Sort field is not supported.', correlationId: 'problem-id' },
+          400,
+          { 'X-Correlation-Id': 'header-id' },
+        ),
+      ),
+    );
 
     await expect(getHealth()).rejects.toMatchObject({
       name: 'ApiError',
       status: 400,
       message: 'Sort field is not supported.',
-      correlationId: 'header-id'
+      correlationId: 'header-id',
     } satisfies Partial<ApiError>);
   });
 
   it('downloads files without navigating away from the SPA', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('RVT diagnostics', {
-      headers: {
-        'Content-Disposition': 'attachment; filename="rvt-diagnostics.txt"',
-        'Content-Type': 'text/plain',
-        'X-Correlation-Id': 'download-id'
-      },
-      status: 200
-    })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('RVT diagnostics', {
+            headers: {
+              'Content-Disposition': 'attachment; filename="rvt-diagnostics.txt"',
+              'Content-Type': 'text/plain',
+              'X-Correlation-Id': 'download-id',
+            },
+            status: 200,
+          }),
+      ),
+    );
 
     const file = await downloadFile('/api/health/diagnostics/download');
 
@@ -61,7 +66,9 @@ describe('API client infrastructure', () => {
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
 
-    await expect(downloadFile('https://attacker.example/api/health/diagnostics/download')).rejects.toThrow(/unsafe API request URL/i);
+    await expect(downloadFile('https://attacker.example/api/health/diagnostics/download')).rejects.toThrow(
+      /unsafe API request URL/i,
+    );
     await expect(downloadFile('/content/report.csv')).rejects.toThrow(/unsafe API request URL/i);
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -69,21 +76,24 @@ describe('API client infrastructure', () => {
   it('passes abort signals through generated API helper calls', async () => {
     const controller = new AbortController();
     let observedSignal: AbortSignal | undefined;
-    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      observedSignal = init?.signal ?? undefined;
-      return jsonResponse({
-        results: [],
-        total: 0,
-        page: 1,
-        pageSize: 10,
-        totalPages: 0,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        searchText: '',
-        sort: 'companyName',
-        sortDir: 'Ascending'
-      });
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        observedSignal = init?.signal ?? undefined;
+        return jsonResponse({
+          results: [],
+          total: 0,
+          page: 1,
+          pageSize: 10,
+          totalPages: 0,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          searchText: '',
+          sort: 'companyName',
+          sortDir: 'Ascending',
+        });
+      }),
+    );
 
     await queryCompanies(new URLSearchParams(), { signal: controller.signal });
 
@@ -91,10 +101,7 @@ describe('API client infrastructure', () => {
   });
 
   it('creates Help articles through the canonical admin route', async () => {
-    const fetch = vi.fn(async (
-      _input: RequestInfo | URL,
-      _init?: RequestInit
-    ) => jsonResponse({ item: null }, 201));
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => jsonResponse({ item: null }, 201));
     vi.stubGlobal('fetch', fetch);
 
     await createHelpArticle({
@@ -107,12 +114,11 @@ describe('API client infrastructure', () => {
       isPublished: false,
       sectionSortOrder: 1,
       sortOrder: 1,
-      assets: []
+      assets: [],
     });
 
     const [requestUrl, requestInit] = fetch.mock.calls[0];
-    expect(new URL(requestUrl.toString()).pathname)
-      .toBe('/api/help/admin/articles');
+    expect(new URL(requestUrl.toString()).pathname).toBe('/api/help/admin/articles');
     expect(requestInit).toEqual(expect.objectContaining({ method: 'POST' }));
   });
 
@@ -140,8 +146,8 @@ function jsonResponse(body: unknown, status: number, headers: Record<string, str
   return new Response(JSON.stringify(body), {
     headers: {
       'Content-Type': 'application/problem+json',
-      ...headers
+      ...headers,
     },
-    status
+    status,
   });
 }

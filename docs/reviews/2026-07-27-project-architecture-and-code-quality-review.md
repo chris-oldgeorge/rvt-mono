@@ -46,7 +46,7 @@ merely to increase the project count.
 
 ## Material findings
 
-### 1. Help Admin release decision and runtime behavior disagree — resolved 2026-07-28
+### 1. Help Admin release decision and runtime behavior disagree — implementation resolved; release gate pending
 
 The Portal release matrix says Help Admin is excluded, but the client still
 imports `HelpAdminPanel`, exposes `/admin/help` in navigation, resolves the
@@ -64,7 +64,12 @@ HTTP authorization independently protect admin operations.
 
 Assets remain URL metadata only. Persisted rows must pass the HTTPS or
 `/help-assets/` policy; release requires
-`apps/portal/docs/release/validate-help-asset-urls.sql` to return zero rows.
+`apps/portal/docs/release/validate-help-asset-urls.sql` to return zero rows
+when executed against every release database. No such release-database
+execution receipt is recorded yet, so Help Admin remains conditional. Each
+receipt must identify the environment/database, UTC execution time, script
+revision, and zero returned rows; a missing receipt or any returned row blocks
+release.
 Stable persisted asset IDs and client-only row keys are covered by focused
 regressions, and the browser journey covers create, publish, preview, edit,
 delete, and Company User denial. Rollback may disable the admin route/endpoints
@@ -276,9 +281,12 @@ build/test guarded.
       tooling and machine-readable baselines remain part of R9.
 - [ ] **R1 — Repair architecture guards.** Replace stale repository paths and
       prove the boundary tests fail for real violations.
-- [x] **R2 — Align Help Admin with the release decision.** Shipment was
-      explicitly approved and completed behind the application boundary with
-      readiness SQL, role, stable-identity/focus, HTTP, and browser evidence.
+- [ ] **R2 — Align Help Admin with the release decision.** Shipment was
+      explicitly approved and the application-boundary, role,
+      stable-identity/focus, HTTP, browser, and read-only readiness-query work
+      is complete. R2 remains conditional until the readiness query is
+      executed against every release database and each recorded result is zero
+      rows.
 - [ ] **R3 — Select the authoritative reporting lineage.** Inventory unique
       behavior, migrate it, and merge/remove or rename duplicate projects.
 - [ ] **R4 — Retire dead Portal infrastructure.** Complete shared storage

@@ -16,12 +16,11 @@ import type { components } from './api/schema';
 
 type Schema = components['schemas'];
 type NonNullablePart<T> = Exclude<T, null | undefined>;
-type ApiSchemaObject<T> =
-  T extends readonly (infer Item)[]
-    ? ApiSchemaObject<Item>[]
-    : T extends Record<string, unknown>
-      ? { [Key in keyof T]-?: ApiSchemaValue<T[Key]> }
-      : NonNullablePart<T>;
+type ApiSchemaObject<T> = T extends readonly (infer Item)[]
+  ? ApiSchemaObject<Item>[]
+  : T extends Record<string, unknown>
+    ? { [Key in keyof T]-?: ApiSchemaValue<T[Key]> }
+    : NonNullablePart<T>;
 type ApiSchemaValue<T> =
   NonNullablePart<T> extends readonly (infer Item)[]
     ? ApiSchemaObject<Item>[]
@@ -63,7 +62,10 @@ export type UserDetailResponse = ApiSchema<'UserDetailResponse'> & {
   availableRoles: OptionItem[];
   companies: OptionItem[];
 };
-export type UserMutationRequest = Omit<ApiSchema<'UserMutationRequest'>, 'name' | 'mobilePhone' | 'companyId' | 'companyRole'> & {
+export type UserMutationRequest = Omit<
+  ApiSchema<'UserMutationRequest'>,
+  'name' | 'mobilePhone' | 'companyId' | 'companyRole'
+> & {
   name?: string | null;
   mobilePhone?: string | null;
   companyId?: string | null;
@@ -252,10 +254,14 @@ export type SiteMutationRequest = Omit<
 };
 export type SiteOptionsResponse = ApiSchema<'SiteOptionsResponse'>;
 export type QuerySiteMonitorsResponse = ApiSchema<'QuerySiteMonitorsResponse'> & PagedResponse<SiteMonitorItem>;
-export type QuerySiteNotificationsResponse = ApiSchema<'QuerySiteNotificationsResponse'> & PagedResponse<SiteNotificationItem>;
+export type QuerySiteNotificationsResponse = ApiSchema<'QuerySiteNotificationsResponse'> &
+  PagedResponse<SiteNotificationItem>;
 export type SiteNotificationSettingsResponse = ApiSchema<'SiteNotificationSettingsResponse'>;
 export type SiteNotificationSettingItem = ApiSchema<'SiteNotificationSettingItem'>;
-export type SiteNotificationSettingMutationRequest = Omit<ApiSchema<'SiteNotificationSettingMutationRequest'>, 'startTime' | 'endTime'> & {
+export type SiteNotificationSettingMutationRequest = Omit<
+  ApiSchema<'SiteNotificationSettingMutationRequest'>,
+  'startTime' | 'endTime'
+> & {
   startTime?: string | null;
   endTime?: string | null;
 };
@@ -272,9 +278,10 @@ export type MonitorListItem = ApiSchema<'MonitorListItem'> & {
   firmwareVersion: string;
   typeOfMonitor: string;
 };
-export type QueryMonitorsResponse = ApiSchema<'QueryMonitorsResponse'> & PagedResponse<MonitorListItem> & {
-  state: MonitorListState;
-};
+export type QueryMonitorsResponse = ApiSchema<'QueryMonitorsResponse'> &
+  PagedResponse<MonitorListItem> & {
+    state: MonitorListState;
+  };
 export type MonitorRemovalImpactResponse = {
   deploymentCount: number;
   notificationCount: number;
@@ -310,15 +317,16 @@ export type MonitorDeploymentSummary = {
   offHireDate?: string | null;
   addedDate: string;
 };
-export type MonitorDetailResponse = ApiSchema<'MonitorDetailResponse'> & MonitorListItem & {
-  monitorNotes: string;
-  latestReading?: MonitorMetricSummary | null;
-  latestAverage?: MonitorMetricSummary | null;
-  latestBattery?: MonitorMetricSummary | null;
-  deploymentSummary?: MonitorDeploymentSummary | null;
-  alertLevels: MonitorAlertLevelItem[];
-  recentNotifications: MonitorNotificationItem[];
-};
+export type MonitorDetailResponse = ApiSchema<'MonitorDetailResponse'> &
+  MonitorListItem & {
+    monitorNotes: string;
+    latestReading?: MonitorMetricSummary | null;
+    latestAverage?: MonitorMetricSummary | null;
+    latestBattery?: MonitorMetricSummary | null;
+    deploymentSummary?: MonitorDeploymentSummary | null;
+    alertLevels: MonitorAlertLevelItem[];
+    recentNotifications: MonitorNotificationItem[];
+  };
 export type MonitorMutationRequest = Omit<
   ApiSchema<'MonitorMutationRequest'>,
   'fleetNumber' | 'calibrationDate' | 'calibrationDue' | 'deploymentId' | 'lat' | 'lng' | 'location' | 'what3words'
@@ -379,7 +387,10 @@ export type ReportRuleOptionsResponse = ApiSchema<'ReportRuleOptionsResponse'> &
   daysOfWeek: OptionItem[];
   alertRuleGuidelines?: ReportAlertRuleGuidelineItem[];
 };
-export type ReportRuleMutationRequest = Omit<ApiSchema<'ReportRuleMutationRequest'>, 'frequency' | 'dayOfWeek' | 'dayOfMonth' | 'reportName'> & {
+export type ReportRuleMutationRequest = Omit<
+  ApiSchema<'ReportRuleMutationRequest'>,
+  'frequency' | 'dayOfWeek' | 'dayOfMonth' | 'reportName'
+> & {
   frequency: number;
   dayOfWeek?: number | null;
   dayOfMonth?: number | null;
@@ -427,15 +438,17 @@ export type NotificationListItem = ApiSchema<'NotificationListItem'> & {
   limitName: string;
   alertStatus: string;
 };
-export type QueryNotificationsResponse = ApiSchema<'QueryNotificationsResponse'> & PagedResponse<NotificationListItem> & {
-  state: NotificationListState;
-};
-export type NotificationDetailResponse = ApiSchema<'NotificationDetailResponse'> & NotificationListItem & {
-  graphFromUtc: string;
-  graphToUtc: string;
-  relatedNotifications: NotificationListItem[];
-  alertLevels: AlertLevelItem[];
-};
+export type QueryNotificationsResponse = ApiSchema<'QueryNotificationsResponse'> &
+  PagedResponse<NotificationListItem> & {
+    state: NotificationListState;
+  };
+export type NotificationDetailResponse = ApiSchema<'NotificationDetailResponse'> &
+  NotificationListItem & {
+    graphFromUtc: string;
+    graphToUtc: string;
+    relatedNotifications: NotificationListItem[];
+    alertLevels: AlertLevelItem[];
+  };
 export type NotificationCloseRequest = ApiSchema<'NotificationCloseRequest'>;
 export type NotificationBatchCloseRequest = ApiSchema<'NotificationBatchCloseRequest'>;
 export type NotificationBatchCloseResponse = ApiSchema<'NotificationBatchCloseResponse'>;
@@ -445,14 +458,15 @@ export type QueryAlertLevelsRequest = QueryCompaniesRequest & {
 };
 export type AlertLevelItem = ApiSchema<'AlertLevelItem'>;
 export type AlertLevelOptionsResponse = ApiSchema<'AlertLevelOptionsResponse'>;
-export type QueryAlertLevelsResponse = ApiSchema<'QueryAlertLevelsResponse'> & PagedResponse<AlertLevelItem> & {
-  monitorId: string;
-  serialId: string;
-  fleetNumber?: string | null;
-  typeOfMonitor: string;
-  canManage: boolean;
-  options: AlertLevelOptionsResponse;
-};
+export type QueryAlertLevelsResponse = ApiSchema<'QueryAlertLevelsResponse'> &
+  PagedResponse<AlertLevelItem> & {
+    monitorId: string;
+    serialId: string;
+    fleetNumber?: string | null;
+    typeOfMonitor: string;
+    canManage: boolean;
+    options: AlertLevelOptionsResponse;
+  };
 export type AlertLevelMutationRequest = ApiSchema<'AlertLevelMutationRequest'>;
 export type VibrationAlertLevelMutationRequest = ApiSchema<'VibrationAlertLevelMutationRequest'>;
 export type VibrationAlertLevelResponse = ApiSchema<'VibrationAlertLevelResponse'>;
@@ -523,11 +537,12 @@ export type TraceListRequest = {
 };
 export type MonitorDataColumn = ApiSchema<'MonitorDataColumn'>;
 export type MonitorDataRow = ApiSchema<'MonitorDataRow'>;
-export type MonitorDataGridResponse = Omit<ApiSchema<'MonitorDataGridResponse'>, 'columns' | 'rows' | 'sortDir'> & PagedResponse<MonitorDataRow> & {
-  columns: MonitorDataColumn[];
-  rows: MonitorDataRow[];
-  sortDir: SortDirection;
-};
+export type MonitorDataGridResponse = Omit<ApiSchema<'MonitorDataGridResponse'>, 'columns' | 'rows' | 'sortDir'> &
+  PagedResponse<MonitorDataRow> & {
+    columns: MonitorDataColumn[];
+    rows: MonitorDataRow[];
+    sortDir: SortDirection;
+  };
 export type MonitorGraphPoint = ApiSchema<'MonitorGraphPoint'>;
 export type MonitorGraphDataset = ApiSchema<'MonitorGraphDataset'> & {
   points: MonitorGraphPoint[];

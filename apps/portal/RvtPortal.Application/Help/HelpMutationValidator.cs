@@ -18,7 +18,7 @@ public sealed record HelpMutationValidationResult(
 
 public static partial class HelpMutationValidator
 {
-    private static readonly IReadOnlyDictionary<string, string> ContentTypes =
+    private static readonly IReadOnlyDictionary<string, string> contentTypes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["FAQ"] = "FAQ",
@@ -28,7 +28,7 @@ public static partial class HelpMutationValidator
             ["Definition"] = "Definition"
         };
 
-    private static readonly IReadOnlyDictionary<string, string> AssetTypes =
+    private static readonly IReadOnlyDictionary<string, string> assetTypes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["Document"] = "Document",
@@ -73,7 +73,7 @@ public static partial class HelpMutationValidator
         var contentType = CanonicalValue(
             nameof(HelpArticleMutation.ContentType),
             mutation.ContentType,
-            ContentTypes,
+            contentTypes,
             "Content type must be FAQ, Article, Document, Video, or Definition.",
             errors);
 
@@ -100,7 +100,7 @@ public static partial class HelpMutationValidator
             var assetType = CanonicalValue(
                 $"{prefix}.AssetType",
                 asset.AssetType,
-                AssetTypes,
+                assetTypes,
                 "Asset type must be Document, Video, or Link.",
                 errors);
             var assetUrl = Required(

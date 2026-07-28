@@ -63,13 +63,16 @@ canonical create route is `POST /api/help/admin/articles`, and application plus
 HTTP authorization independently protect admin operations.
 
 Assets remain URL metadata only. Persisted rows must pass the HTTPS or
-`/help-assets/` policy; release requires
-`apps/portal/docs/release/validate-help-asset-urls.sql` to return zero rows
-when executed against every release database. No such release-database
-execution receipt is recorded yet, so Help Admin remains conditional. Each
-receipt must identify the environment/database, UTC execution time, script
-revision, and zero returned rows; a missing receipt or any returned row blocks
-release.
+`/help-assets/` policy. The read-only
+`apps/portal/docs/release/validate-help-asset-urls.sql` query is a useful coarse
+preflight, but it is not equivalent to the application's .NET URI validation:
+it accepts `https://:443/guide.pdf` and rejects the valid
+`https://docs.rvt.test?download=1`. Help Admin therefore remains conditional
+pending one shared BCL-only `HelpAssetUrlPolicy`, a read-only .NET
+release-audit adapter that reuses it, and zero-finding receipts from that audit
+for every release database. Each receipt must identify the
+environment/database, UTC execution time, application revision, and returned
+finding count; a missing receipt or any finding blocks release.
 Stable persisted asset IDs and client-only row keys are covered by focused
 regressions, and the browser journey covers create, publish, preview, edit,
 delete, and Company User denial. Rollback may disable the admin route/endpoints
@@ -178,18 +181,21 @@ also retain manually constructed `HttpClient` paths.
 factory-created or typed clients, propagate cancellation, and remove obsolete
 synchronous signatures only after the compatibility allowlist reaches zero.
 
-### 9. Architecture tests contain stale monorepo paths
+### 9. Architecture guards now use portable monorepo paths
 
-MyAtm and Svantek architecture tests construct paths such as
-`myatmmonitor/MyAtmMonitor` and `svantekmonitor/SvantekMonitor`, rather than the
-current `apps/monitors/...` paths. One Mapperly rule also assumes a fixed
-three-segment path.
+The MyATM and Svantek R1 repository-reading tests now resolve the checkout
+through the shared `Rvt.Monitor.IntegrationTesting.RepositoryLayout` helper.
+The helper recognizes `Rvt.Mono.slnx` plus either a normal `.git` directory or
+a worktree `.git` file, searches the ordinary test output tree first, and falls
+back to its compile-time source location when MSBuild artifacts are redirected
+outside the checkout.
 
-**Impact:** Several tests fail before evaluating the intended policy and
-therefore provide incomplete architectural protection.
-
-**Recommendation:** Introduce one shared repository-layout test helper and make
-all boundary tests resolve projects through it.
+**Resolution (2026-07-28):** The focused normal and redirected-output suites
+both pass: 4/4 helper tests, 38/38 MyATM tests, and 5/5 Svantek tests. The
+disposable `tests/verify-r1-architecture-guards.test.sh` worktree harness also
+proves that a Mapperly reference in `MyAtmMonitorTests.csproj` and a forbidden
+`Rvt.Monitor.Common` package dependency in `MyAtmMonitor.csproj` are rejected
+by the intended architecture policies before the baseline is restored.
 
 ### 10. Repository style and tooling are inconsistent
 
@@ -279,14 +285,17 @@ build/test guarded.
 - [x] **Standards foundation.** Approve and publish the repository-wide
       engineering standard and ratcheted governance model. Automated root
       tooling and machine-readable baselines remain part of R9.
-- [ ] **R1 — Repair architecture guards.** Replace stale repository paths and
-      prove the boundary tests fail for real violations.
+- [x] **R1 — Repair architecture guards.** Replace stale repository paths and
+      prove the boundary tests fail for real violations. Completed 2026-07-28
+      with portable normal/redirected-output discovery and two disposable
+      mutation proofs.
 - [ ] **R2 — Align Help Admin with the release decision.** Shipment was
       explicitly approved and the application-boundary, role,
-      stable-identity/focus, HTTP, browser, and read-only readiness-query work
-      is complete. R2 remains conditional until the readiness query is
-      executed against every release database and each recorded result is zero
-      rows.
+      stable-identity/focus, HTTP, and browser work is complete. R2 remains
+      conditional because the SQL preflight is not equivalent to .NET URI
+      validation. Complete the shared BCL-only URL policy and read-only .NET
+      release-audit adapter, then record zero-finding audit receipts for every
+      release database.
 - [ ] **R3 — Select the authoritative reporting lineage.** Inventory unique
       behavior, migrate it, and merge/remove or rename duplicate projects.
 - [ ] **R4 — Retire dead Portal infrastructure.** Complete shared storage
@@ -325,8 +334,11 @@ At review time:
 - Portal architecture tests passed 44/44;
 - shared communication, storage, Common, ReportingMonitor, and relevant
   Omnidots architecture suites passed; and
-- MyAtm and Svantek architecture failures were traced to stale layout
-  assumptions rather than demonstrated production boundary violations.
+- R1 completion verification passed 4/4 shared repository-layout tests, 38/38
+  focused MyATM tests, and 5/5 focused Svantek tests in both normal and
+  externally redirected MSBuild output layouts; the Mapperly project-shape and
+  forbidden internal-package mutations were both rejected in a disposable
+  worktree.
 
 ## Suffixed sidecar-file investigation
 

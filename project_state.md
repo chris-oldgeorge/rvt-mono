@@ -1,5 +1,79 @@
 # Project State
 
+## R1 architecture guards complete; Help Admin release still conditional — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- R1 is complete on the unmerged implementation branch
+  `codex/r1-architecture-guards`. The implementation builds on `aaa20de`
+  (`Repair monorepo test paths`) and `f59d5d1` (`Record monorepo path repair
+  verification`) and is recorded in `0fd8921` (`test: add portable monitor
+  repository layout`), `b1433eb` (`style: satisfy repository layout
+  standards`), `f44bf24` (`test: share monitor repository layout discovery`),
+  and `74de1f8` (`test: prove R1 architecture guards reject mutations`).
+  Task 4 changes only this state file and the architecture review; it does not
+  merge or modify `main`.
+- `Rvt.Monitor.IntegrationTesting.RepositoryLayout` is the shared monitor
+  test-support authority for the monorepo root and repository-relative paths.
+  It requires `Rvt.Mono.slnx` plus either a normal `.git` directory or a
+  worktree `.git` file, searches the ordinary test output tree first, and
+  falls back to its compile-time source location when MSBuild output is
+  redirected outside the checkout.
+- Eight MyATM and two Svantek repository-reading test files now use the shared
+  helper. No AirQ, Omnidots, ReportingMonitor, Portal, shared-library,
+  production monitor, database, package, or later-roadmap migration was
+  absorbed.
+- Focused normal proof passed 4/4 helper tests, 38/38 MyATM tests, and 5/5
+  Svantek tests. The same 4/4, 38/38, and 5/5 suites passed with
+  `UseArtifactsOutput=true`, with all test assemblies rooted in a disposable
+  directory outside the repository. Restore/build/test execution was
+  deliberately serialized, then tests used `--no-build --no-restore`, because
+  this host's parallel MSBuild child nodes are unreliable.
+- `tests/verify-r1-architecture-guards.test.sh` created and removed a detached
+  disposable worktree. It proved that Mapperly in the MyATM test project and a
+  forbidden `Rvt.Monitor.Common` package dependency in the MyATM production
+  project both fail for their intended architecture diagnostics, then proved
+  the restored baseline passes 2/2.
+- Mono-layout, mono-solution, RVT common source-boundary normal/regression,
+  engineering-standards, and `git diff --check` verification passed. No
+  PostgreSQL integration credential or production/release database was used.
+- Current R1 file structure:
+  - `libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/RepositoryLayout.cs`
+    — shared repository-root and path authority;
+  - `libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting.Tests/RepositoryLayoutTests.cs`
+    — normal checkout, worktree, redirected-output, and failure coverage;
+  - eight repository-reading files under
+    `apps/monitors/myatmmonitor/MyAtmMonitorTests/` and two under
+    `apps/monitors/svantekmonitor/SvantekMonitorTests/` — shared-helper
+    consumers;
+  - `tests/verify-r1-architecture-guards.test.sh` — disposable two-mutation
+    proof; and
+  - `docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md`
+    — authoritative checklist, with R1 checked complete.
+- Current R1 variable definitions:
+  - `RepositoryLayout._repositoryRoot` lazily resolves `Root`;
+    `GetPath(params string[] segments)` combines repository-relative paths;
+    `outputDirectory` and `sourceFilePath` are the two ordered discovery
+    inputs; `sourceDirectory`, `startDirectories`, `startDirectory`,
+    `directory`, and `gitPath` hold discovery state;
+  - the mutation harness uses `repo_root`, `temp_root`, `mutation_root`,
+    `test_output`, `test_project`, `mapperly_project`, `consumer_project`,
+    `mapperly_filter`, `source_filter`, and `baseline_filter`; and
+  - `label`, `filter`, `expected_diagnostic`, and `status` define each
+    mutation assertion.
+- Help Admin's R2 implementation is merged to `main`, but its release status
+  remains `CONDITIONAL` and R2 remains unchecked. The SQL preflight and the
+  .NET application validator are demonstrably not equivalent: SQL accepts
+  `https://:443/guide.pdf` and rejects the valid
+  `https://docs.rvt.test?download=1`. A zero-row SQL result is therefore not a
+  sufficient release receipt.
+- The pending R2 design decision is to introduce one shared BCL-only
+  `HelpAssetUrlPolicy` and a read-only .NET release-audit adapter that reuses
+  it, then run that audit against every release database and record
+  zero-finding receipts. No production/release database was accessed while
+  completing R1 or documenting this decision.
+- The architecture review now marks R1 and R9 complete. R2 remains
+  conditional/unchecked; R3-R8 and R10-R11 remain pending and unchanged.
+
 ## Local main reconciled after Help Admin merge — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

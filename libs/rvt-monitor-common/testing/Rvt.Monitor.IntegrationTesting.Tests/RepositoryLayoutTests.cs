@@ -103,10 +103,10 @@ public sealed class RepositoryLayoutTests
                 currentDirectory,
                 configuredRoot: null));
 
-        StringAssert.Contains(exception.Message, "output");
-        StringAssert.Contains(exception.Message, outputRepository);
-        StringAssert.Contains(exception.Message, "source");
-        StringAssert.Contains(exception.Message, sourceRepository);
+        Assert.Contains("output", exception.Message);
+        Assert.Contains(outputRepository, exception.Message);
+        Assert.Contains("source", exception.Message);
+        Assert.Contains(sourceRepository, exception.Message);
     }
 
     [TestMethod]
@@ -131,8 +131,8 @@ public sealed class RepositoryLayoutTests
                 validRepository,
                 invalidConfiguredRoot));
 
-        StringAssert.Contains(exception.Message, "RVT_MONOREPO_ROOT");
-        StringAssert.Contains(exception.Message, invalidConfiguredRoot);
+        Assert.Contains("RVT_MONOREPO_ROOT", exception.Message);
+        Assert.Contains(invalidConfiguredRoot, exception.Message);
     }
 
     [TestMethod]
@@ -201,9 +201,9 @@ public sealed class RepositoryLayoutTests
                 currentDirectory,
                 configuredRoot: null));
 
-        StringAssert.Contains(exception.Message, redirectedOutput);
-        StringAssert.Contains(exception.Message, sourceFile);
-        StringAssert.Contains(exception.Message, "RVT_MONOREPO_ROOT");
+        Assert.Contains(redirectedOutput, exception.Message);
+        Assert.Contains(sourceFile, exception.Message);
+        Assert.Contains("RVT_MONOREPO_ROOT", exception.Message);
     }
 
     [TestMethod]
@@ -255,7 +255,7 @@ public sealed class RepositoryLayoutTests
         ArgumentException exception = Assert.ThrowsExactly<ArgumentException>(
             () => RepositoryLayout.GetPath("apps", rootedSegment));
 
-        StringAssert.Contains(exception.Message, rootedSegment);
+        Assert.Contains(rootedSegment, exception.Message);
     }
 
     [TestMethod]
@@ -270,7 +270,7 @@ public sealed class RepositoryLayoutTests
         ArgumentException exception = Assert.ThrowsExactly<ArgumentException>(
             () => RepositoryLayout.GetPath("apps", invalidSegment));
 
-        StringAssert.Contains(exception.Message, "segment");
+        Assert.Contains("segment", exception.Message);
     }
 
     [TestMethod]

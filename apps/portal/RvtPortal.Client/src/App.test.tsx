@@ -97,6 +97,35 @@ describe('App', () => {
     expect(name).toHaveValue('Edited locally');
   });
 
+  it('retains profile save feedback after the updated profile starts a new editing session', async () => {
+    globalThis.history.replaceState(null, '', '/profile');
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/auth/profile' && init?.method === 'PUT') {
+          return jsonResponse({
+            id: 'profile-id',
+            email: 'admin@rvt.test',
+            name: 'Saved Profile',
+            role: 'RVTAdmin',
+            companyRole: 'Operations',
+            companyName: null
+          });
+        }
+
+        return undefined;
+      }
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText(/^name$/i)).toHaveValue('Admin User'));
+    fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'Saved Profile' } });
+    fireEvent.click(screen.getByRole('button', { name: /save profile/i }));
+
+    expect(await screen.findByText('Your details have been updated.')).toBeInTheDocument();
+  });
+
   it('renders admin navigation for RVT admin users', async () => {
     globalThis.history.replaceState(null, '', '/');
     stubFetch({ auth: { isAuthenticated: true, user: adminUser } });
@@ -1048,6 +1077,10 @@ function stubFetch({ auth, profileStatus = 200, companyRequestCount, dashboardRe
     }
 
     if (url.pathname === '/api/auth/profile') {
+      const overriddenResponse = routeOverride?.(url, init);
+      if (overriddenResponse) {
+        return overriddenResponse;
+      }
       if (profileStatus !== 200) {
         return jsonResponse({ title: 'Unauthorized', detail: 'Session expired' }, profileStatus);
       }

@@ -1335,13 +1335,25 @@ type AccountPanelProps = Readonly<{
 
 // Function summary: Renders the AccountPanel React component and wires its local UI behavior.
 function AccountPanel({ profile, onProfileChanged }: AccountPanelProps) {
+  const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const profileFormKey = profile
     ? [profile.id, profile.email, profile.name, profile.mobilePhone, profile.companyRole].join('|')
     : 'profile-loading';
 
+  function handleProfileChanged(updated: ProfileResponse) {
+    onProfileChanged(updated);
+    setProfileStatus('Your details have been updated.');
+  }
+
   return (
     <section className="account-grid" aria-label="Account management">
-      <ProfileForm key={profileFormKey} profile={profile} onProfileChanged={onProfileChanged} />
+      <ProfileForm
+        key={profileFormKey}
+        profile={profile}
+        status={profileStatus}
+        onProfileChanged={handleProfileChanged}
+        onProfileFeedbackDismiss={() => setProfileStatus(null)}
+      />
       <PasswordForm />
     </section>
   );
@@ -1393,28 +1405,28 @@ function NotFoundPanel({ onNavigateHome }: NotFoundPanelProps) {
 
 type ProfileFormProps = Readonly<{
   profile: ProfileResponse | null;
+  status: string | null;
   onProfileChanged: (profile: ProfileResponse) => void;
+  onProfileFeedbackDismiss: () => void;
 }>;
 
 // Function summary: Renders the ProfileForm React component and wires its local UI behavior.
-function ProfileForm({ profile, onProfileChanged }: ProfileFormProps) {
+function ProfileForm({ profile, status, onProfileChanged, onProfileFeedbackDismiss }: ProfileFormProps) {
   const [email, setEmail] = useState(profile?.email ?? '');
   const [name, setName] = useState(profile?.name ?? '');
   const [mobilePhone, setMobilePhone] = useState(profile?.mobilePhone ?? '');
   const [companyRole, setCompanyRole] = useState(profile?.companyRole ?? '');
-  const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
-    setStatus(null);
+    onProfileFeedbackDismiss();
     setError(null);
     try {
       const updated = await updateProfile({ email, name, mobilePhone, companyRole });
       onProfileChanged(updated);
-      setStatus('Your details have been updated.');
     } catch (err) {
       setError((err as Error).message);
     } finally {

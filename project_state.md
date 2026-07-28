@@ -1,5 +1,48 @@
 # Project State
 
+## Authoritative checkpoint: RVT.Utilities retired — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- `apps/portal/RVT.Utilities` was confirmed production-dead and retired.
+  `AzureBlobService.cs` and `RVT.Utilities.csproj` are deleted. The remaining
+  active Portal production projects are `RVT.BusinessLogic`, `RVT.DataAccess`,
+  `RVT.Entities`, `RVT.ReleaseAudit`, `RVT.SchemaDeploy`,
+  `RvtPortal.Application`, and `RvtPortal.Spa`.
+- The direct project references were removed from `RVT.BusinessLogic` and
+  `RvtPortal.Spa`. The project and its legacy GUID configuration were removed
+  from both `Rvt.Mono.slnx` and `apps/portal/RvtPortal.Spa.sln`; the mono
+  solution now contains exactly the 50 `.csproj` files discovered under its
+  governed module roots.
+- The utility-specific assembly probe was removed from
+  `RvtPortal.Spa.Tests/CqrsArchitectureTests.cs`. The remaining
+  `BusinessLogicAssembly_DoesNotReferenceSendGrid` test preserves the
+  independent business-layer boundary without referencing a retired assembly.
+- Stale project-specific `.gitignore` entries, all nine deleted-file
+  engineering-baseline records, and current README, onboarding, testing,
+  cutover, and architecture-review references were cleaned. Historical plans,
+  reports, and source comments remain historical records.
+- Verification passed: the exact solution verifier first failed at 51 listed
+  versus 50 discovered projects after deletion, then passed after graph
+  cleanup; forced serial restore passed; the full Release mono solution built
+  with 0 warnings and 0 errors; Portal backend tests passed 548, skipped 11,
+  and failed 0; mono layout and solution verifiers passed; all 24 engineering
+  standards policy tests passed; engineering-configuration mutation tests
+  passed; the working-tree standards verifier passed; JSON validation and
+  `git diff --check` passed.
+- A full `dotnet test Rvt.Mono.slnx` run was also attempted. It exits 1 in
+  monitor integration fixtures because `RVT__POSTGRES_INTEGRATION_CONNECTION`
+  is not set in this credential-free shell; those fixtures fail during class
+  initialization before exercising the retired-project change. No credential
+  was added or requested to bypass that environment requirement.
+- No environment-variable or runtime configuration definition changed.
+  Configuration keys formerly read only by the deleted service are no longer
+  consumed through `RVT.Utilities`; no replacement compatibility shim was
+  added.
+- The repository-wide secret scan completed before file inspection. Two
+  Omnidots test-data findings were explicitly identified by the user as false
+  positives and excluded from content inspection. Later Sonar CLI scan attempts
+  hit a macOS keychain-backend error; no flagged file was read.
+
 ## Authoritative checkpoint: Portal lint modernization ready for review — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

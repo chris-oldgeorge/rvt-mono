@@ -99,18 +99,19 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
   const query = useMemo<HelpAdminQuery>(() => ({ searchText, status, contentType }), [contentType, searchText, status]);
   const queryExecution = useMemo<HelpAdminExecution>(() => ({ query }), [query]);
   const activeExecution = refreshExecution?.query === query ? refreshExecution : queryExecution;
-  const overview = overviewResult?.overview ?? null;
+  const retainedOverview = overviewResult?.overview ?? null;
+  const overview = overviewResult?.execution === activeExecution ? overviewResult.overview : null;
   const isLoading = completedExecution !== activeExecution;
   const contentTypes = useMemo(() => {
     const values = new Set(['FAQ', 'Article', 'Document', 'Video', 'Definition']);
-    overview?.articles.forEach((article) => values.add(article.contentType));
+    retainedOverview?.articles.forEach((article) => values.add(article.contentType));
     return [
       'All',
       ...Array.from(values)
         .filter(Boolean)
         .sort((left, right) => left.localeCompare(right)),
     ];
-  }, [overview]);
+  }, [retainedOverview]);
   // Function summary: Loads Help CMS admin article data.
   const loadArticles = useCallback(async () => {
     const execution: HelpAdminExecution = { query };
@@ -359,8 +360,8 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
         {notice && <Notice tone="success" message={notice} />}
         {!isLoading && error && <Notice tone="error" message={error} />}
         {isLoading && <p className="muted-text">Loading help articles...</p>}
-        <div className="admin-help-list" hidden={isLoading}>
-          {overview?.articles.map((article) => (
+        <div className="admin-help-list" hidden={isLoading || !overview}>
+          {retainedOverview?.articles.map((article) => (
             <article
               className={selectedArticle?.id === article.id ? 'help-admin-card selected' : 'help-admin-card'}
               key={article.id}
@@ -433,7 +434,9 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
               </div>
             </article>
           ))}
-          {overview?.articles.length === 0 && <p className="muted-text">No help articles match the current filters.</p>}
+          {retainedOverview?.articles.length === 0 && (
+            <p className="muted-text">No help articles match the current filters.</p>
+          )}
         </div>
       </section>
 

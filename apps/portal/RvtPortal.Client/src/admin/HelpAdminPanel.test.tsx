@@ -66,10 +66,12 @@ function overview(articles: HelpArticleResponse[]): HelpAdminOverviewResponse {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((next) => {
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((next, fail) => {
     resolve = next;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
 
 function renderHelpAdmin() {
@@ -218,6 +220,32 @@ describe('HelpAdminPanel', () => {
 
     expect(screen.getByRole('button', { name: 'Publish Noise FAQ' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Publish Dust FAQ' })).not.toBeInTheDocument();
+  });
+
+  it('does not expose an earlier overview after the active filter request fails', async () => {
+    const draftRequest = deferred<HelpAdminOverviewResponse>();
+    const onRequestError = vi.fn();
+    api.queryAdminHelp
+      .mockResolvedValueOnce(overview([existingArticle]))
+      .mockReturnValueOnce(draftRequest.promise);
+    render(<HelpAdminPanel onNavigate={vi.fn()} onRequestError={onRequestError} />);
+
+    expect(await screen.findByRole('button', { name: 'Publish Dust FAQ' })).toBeInTheDocument();
+    const status = screen.getByLabelText('Status');
+    status.focus();
+    fireEvent.change(status, { target: { value: 'Draft' } });
+    await waitFor(() => expect(api.queryAdminHelp).toHaveBeenCalledTimes(2));
+
+    expect(screen.getByText('Loading help articles...')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Publish Dust FAQ' })).not.toBeInTheDocument();
+    expect(status).toHaveFocus();
+
+    await act(async () => draftRequest.reject(new Error('Draft filter failed.')));
+
+    expect(await screen.findByText('Draft filter failed.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Publish Dust FAQ' })).not.toBeInTheDocument();
+    expect(status).toHaveFocus();
+    expect(onRequestError).toHaveBeenCalledWith(expect.objectContaining({ message: 'Draft filter failed.' }));
   });
 
   it('gives each same-filter mutation refresh distinct pending and result ownership', async () => {

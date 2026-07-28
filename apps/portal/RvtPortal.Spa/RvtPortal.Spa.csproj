@@ -7,7 +7,7 @@
     <UserSecretsId>rvtportal-spa-alpha-dev</UserSecretsId>
     <SpaRoot>..\RvtPortal.Client\</SpaRoot>
     <SpaProxyServerUrl>http://localhost:5173</SpaProxyServerUrl>
-    <SpaProxyLaunchCommand>cmd.exe /c "pushd $(SpaRoot) &amp;&amp; npm run dev:vs &amp;&amp; popd"</SpaProxyLaunchCommand>
+    <SpaProxyLaunchCommand>node.exe node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort</SpaProxyLaunchCommand>
   </PropertyGroup>
 
   <ItemGroup>

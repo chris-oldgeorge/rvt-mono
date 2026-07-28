@@ -1,5 +1,41 @@
 # Project State
 
+## Authoritative checkpoint: Portal lint modernization ready for review — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Current review branch: `codex/portal-lint-modernization`. Design:
+  `docs/superpowers/specs/2026-07-28-portal-lint-modernization-design.md`.
+  Implementation plan:
+  `docs/superpowers/plans/2026-07-28-portal-lint-modernization.md`.
+  The branch was integrated with finalized `origin/main` Sonar remediation by
+  normal merge commit `3f2dabe0a12e984c88f98a3cbb8d857a8e7e4d07`; there were
+  no conflicts. The prior stale, uncommitted Sonar planning state is preserved
+  (not applied and not dropped) as
+  `stash@{0}: pre-lint-integration-stale-sonar-project-state`.
+- The disposable full-profile baseline contained 38 findings: 36 lint errors
+  and the two established `react-refresh/only-export-components` warnings.
+  The Portal configuration now enables all of `js.configs.recommended`,
+  `typescript-eslint` `configs.recommended`, and
+  `reactHooks.configs.recommended.rules`; it retains the established React
+  Refresh warning configuration plus the existing TypeScript unused-variable
+  and naming-convention project rules.
+- Final Portal verification on Node 24 passed: ESLint exits 0 with no errors
+  and exactly the two established Fast Refresh warnings in
+  `src/operations/DataViewPanels.tsx` (894:17 and 903:17); Vitest reports
+  11 files and 101 tests passed; `tsc -b && vite build` passed; and `npm audit`
+  reports zero vulnerabilities.
+- Repository verification passed on the integrated branch: `scripts/verify-engineering-standards.sh --base origin/main --head HEAD` exits 0,
+  `tests/verify-engineering-standards-workflow.test.sh` passes,
+  `tests/verify-manual-sonarqube-workflow.test.sh` passes, and
+  `git diff --check` is clean. The verifier's informational baseline-decrease
+  lines do not represent a policy violation.
+- This scope added no lint suppression, exception, severity downgrade,
+  dependency change, backend change, database change, API contract change, or
+  Help Admin/R2 release-status change. Help Admin/R2 remains conditional on
+  its separate operator release-database audit.
+- Next step: complete independent Task 8 and whole-branch review, then push
+  this dedicated review branch and open the prepared draft pull request.
+
 ## Authoritative checkpoint: Sonar reliability follow-up merged — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

@@ -6,8 +6,8 @@
 
 **Implementation head before this report:** `2286532`
 
-**Disposition:** R9 enforcement implemented; final Ready remains pending
-independent re-review of the final-audit remediations
+**Disposition:** R9 enforcement implemented; final independent review
+`Ready—Yes`
 
 ## Outcome
 
@@ -36,15 +36,15 @@ suppressed, and no production database credential was used.
 | Changed-surface verifier | `988c0e9`, `6bc3b26`, `f5f1472`, `8d50a96`, `20c3bde`, `5c850cc`, `30acaca` |
 | Frontend formatting and naming | `e8759f6`, `d0d659c` |
 | Baseline and module policy | `604912d`, `71a84a0`, `20d89b0`, `331c181`, `d3ab241`, `76eecc4` |
-| Local and CI integration | `bfa78d0`, `dd3910d`, `299d971`, `c03ba2e`, `2286532`, `ea6fd74` |
-| Final-audit hardening | `33e8c60`, `ed8f123` |
-| Documentation evidence | `a098090`; this tracked final-audit evidence update |
+| Local and CI integration | `bfa78d0`, `dd3910d`, `299d971`, `c03ba2e`, `2286532`, `ea6fd74`, `6754d6d`, `5b6cd5b`, `5f0caac` |
+| Final-audit hardening | `33e8c60`, `ed8f123`, `8cbeffc` |
+| Documentation evidence | `a098090`, `d58bc4a`, `c09b562`; this final Ready update |
 
 ## Final-audit remediation status
 
 The final audit found gaps after the original implementation report. The
-following remediations are committed, but the branch is not declared final
-Ready until an independent reviewer accepts the combined result:
+following remediations are committed and the combined branch has been accepted
+by independent final review:
 
 - **Finding 5 — exception applicability:** the model could validate a
   symbol-scoped exception even though ratchet comparison applied only exact
@@ -67,8 +67,17 @@ Ready until an independent reviewer accepts the combined result:
   ownership.
 
 The audit also produced separate policy-materialization and pull-request CI
-findings. They are remediated by `33e8c60` and `ea6fd74` respectively and are
-part of the required combined re-review.
+findings. They are remediated by `33e8c60`, `8cbeffc`, `ea6fd74`, `6754d6d`,
+`5b6cd5b`, and `5f0caac`. The final workflow contract uses exact root, job,
+action-step, and run-step schemas; runs its own guard before changed-range
+analysis; and rejects GitHub Actions command/policy override injection.
+
+The final independent whole-branch review found no Critical, Important, or
+Minor issue and returned `Ready—Yes`. Final controller verification repeated
+the 50/50 model-policy matrix, configuration and verifier suites, automatic and
+manual workflow guards, integration mutations with zero acceptances,
+working-tree ratchet, documentation/source-boundary guards, diff hygiene, and
+clean-worktree checks.
 
 ## Baseline
 

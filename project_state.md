@@ -1,29 +1,36 @@
 # Project State
 
-## R9 final review pending — do not start R1 2026-07-28
+## R9 final review approved — integration next 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
 - Active worktree:
   `/Users/oldgeorge/Developer/rvt-mono/.worktrees/repository-engineering-standards`
   (also exposed through `/Users/oldgeorge/Documents/rvt-mono`); branch:
   `codex/repository-engineering-standards`.
-- R9 implementation is complete, but final Ready is not approved. Do not start
-  R1 or follow an older “R1 next” checkpoint until the combined final-audit
-  review and final branch verification pass.
-- Final-audit remediation through `8cbeffc` includes trusted materialized
-  policy, pull-request CI enforcement, fail-closed exact-path exceptions,
-  load-bearing documentation authority links, and tracked full-logical-unit
-  review evidence.
-- The current correction makes the authoritative remediation review’s link to
-  `docs/development/engineering-standards.md` a required source/target
-  relationship in the documentation layout guard. Its fixture must prove that
-  removing the review link fails.
-- Remaining gates, in order:
-  1. obtain independent review of the combined final-audit commits;
-  2. run the final standards, documentation, workflow, link, and diff checks;
-  3. declare Ready and proceed to integration only after those gates pass.
-- Final Ready remains pending; no push or merge is authorized by this
-  checkpoint.
+- R9 implementation and the combined final audit are complete at `5f0caac`
+  (`test: close workflow execution schema`). Independent final review found no
+  Critical, Important, or Minor issue and returned `Ready—Yes`.
+- Final-audit remediation includes trusted requested-head/base policy,
+  monotonic baselines, exact current-and-trusted exception intersection,
+  automatic least-privilege pull-request CI, locked restores, fail-closed
+  exact-path exceptions, exact workflow execution schemas, load-bearing
+  documentation authority links, and tracked full-logical-unit review
+  evidence.
+- Final controller verification passed:
+  - model and module-policy tests: 50/50;
+  - engineering configuration and full verifier scenarios;
+  - automatic workflow, integration, and manual Sonar guards with zero
+    accepted mutations;
+  - working-tree ratchet, documentation mutations, source-boundary and runner
+    guards;
+  - `git diff --check` and clean-worktree checks.
+- The branch is ready for integration. Next process step: merge and push the
+  reviewed R9 branch according to the repository workflow, then start the
+  separate test-first R1 plan. Do not start R1 before integration is complete.
+- Residual classified work is unchanged: 2,050 baselined identities / 8,024
+  diagnostics; five existing NU1903 advisories; and backend aggregate results
+  of 1,896 passed, 203 failed, 10 skipped (186 dedicated-test-DB cases and 17
+  existing R1 layout/Mapperly cases).
 
 ## Historical checkpoint — R9 implementation recorded before final audit
 

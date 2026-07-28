@@ -67,11 +67,86 @@ def logical_shell_commands(source)
     .reject(&:empty?)
 end
 
+NPM_OPTIONS_WITH_ARGUMENT = %w[
+  --cache
+  --prefix
+  --registry
+  --userconfig
+  --workspace
+  -C
+  -w
+].freeze
+MONOREPO_PHASES = %w[restore build test].freeze
+
+def shell_command_words(command)
+  # Deliberately conservative: quoted/subshell command text is tokenized too,
+  # so ambiguous embedded invocations fail closed instead of evading the guard.
+  command.tr(%q{"'()}, "    ").split
+end
+
+def shell_assignment?(word)
+  word.match?(/\A[A-Za-z_][A-Za-z0-9_]*=/)
+end
+
+def command_executable_index(words)
+  index = 0
+
+  loop do
+    index += 1 while index < words.length && shell_assignment?(words[index])
+
+    case words[index]
+    when "command"
+      index += 1
+      index += 1 while index < words.length && words[index].start_with?("-")
+    when "env"
+      index += 1
+      index += 1 while index < words.length &&
+        (words[index].start_with?("-") || shell_assignment?(words[index]))
+    else
+      break
+    end
+  end
+
+  index += 1 while index < words.length && shell_assignment?(words[index])
+  index
+end
+
+def executable_basename(word)
+  word.to_s.tr("\\", "/").split("/").last.to_s.downcase
+end
+
+def dotnet_executable_word?(word)
+  %w[dotnet dotnet.exe].include?(executable_basename(word))
+end
+
+def npm_executable_word?(word)
+  %w[npm npm.cmd].include?(executable_basename(word))
+end
+
+def monorepo_solution_word?(word)
+  normalized = word.tr("\\", "/")
+  normalized == "Rvt.Mono.slnx" ||
+    normalized == "${solution}" ||
+    normalized.end_with?("/Rvt.Mono.slnx")
+end
+
 def monorepo_phase_occurrences(command, phase)
-  phase_pattern = Regexp.escape(phase)
-  command.scan(
-    /(?<![A-Za-z0-9_.-])dotnet[[:space:]]+#{phase_pattern}[[:space:]]+(?:"\$\{solution\}"|"?\$\{repo_root\}\/Rvt\.Mono\.slnx"?|Rvt\.Mono\.slnx)(?=[[:space:]"']|\z)/
-  ).length
+  words = shell_command_words(command)
+  words.each_index.count do |dotnet_index|
+    next false unless dotnet_executable_word?(words[dotnet_index])
+
+    next_dotnet_index = ((dotnet_index + 1)...words.length).find do |index|
+      dotnet_executable_word?(words[index])
+    end || words.length
+    phase_index = ((dotnet_index + 1)...next_dotnet_index).find do |index|
+      MONOREPO_PHASES.include?(words[index])
+    end
+    next false unless phase_index && words[phase_index] == phase
+
+    words[(phase_index + 1)...next_dotnet_index].any? do |word|
+      monorepo_solution_word?(word)
+    end
+  end
 end
 
 def standards_occurrences(command)
@@ -81,7 +156,20 @@ def standards_occurrences(command)
 end
 
 def npm_ci_occurrences(command)
-  command.scan(/\Anpm[[:space:]]+ci(?=[[:space:]]|\z)/).length
+  words = shell_command_words(command)
+  index = command_executable_index(words)
+  return 0 unless npm_executable_word?(words[index])
+
+  index += 1
+  while index < words.length
+    word = words[index]
+    return 1 if word == "ci"
+    return 0 unless word.start_with?("-")
+
+    index += NPM_OPTIONS_WITH_ARGUMENT.include?(word) ? 2 : 1
+  end
+
+  0
 end
 
 def boundary_occurrences(command)
@@ -382,6 +470,30 @@ when "npm-continuation"
 when "npm-chain"
   needle = "          npm run test:coverage\n"
   [needle, "          npm ci && npm ci\n#{needle}"]
+when "npm-command-wrapper"
+  needle = "          npm run test:coverage\n"
+  [needle, "          command npm ci\n#{needle}"]
+when "npm-env-wrapper"
+  needle = "          npm run test:coverage\n"
+  [needle, "          env FOO=bar npm ci\n#{needle}"]
+when "npm-prefix-option"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm --prefix apps/portal/RvtPortal.Client ci\n#{needle}"]
+when "npm-subshell"
+  needle = "          npm run test:coverage\n"
+  [needle, "          (npm ci)\n#{needle}"]
+when "npm-silent-option"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm --silent ci\n#{needle}"]
+when "npm-foreground-scripts-option"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm --foreground-scripts ci\n#{needle}"]
+when "npm-absolute-executable"
+  needle = "          npm run test:coverage\n"
+  [needle, "          /usr/bin/npm ci\n#{needle}"]
+when "npm-windows-executable"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm.cmd ci\n#{needle}"]
 when "standards-continue-on-error"
   needle = "      - name: Verify engineering standards\n"
   [needle, "#{needle}        continue-on-error: true\n"]
@@ -395,6 +507,110 @@ when "pre-standards-release-build"
     "        run: dotnet build Rvt.Mono.slnx -c Release --nologo\n" \
     "\n" \
     "      - name: Verify engineering standards\n"
+  [needle, replacement]
+when "pre-standards-restore-options-before-solution"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature monorepo restore\n" \
+    "        run: dotnet restore --verbosity quiet Rvt.Mono.slnx\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-build-options-before-solution"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature monorepo build\n" \
+    "        run: dotnet build --configuration Release Rvt.Mono.slnx\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-dotnet-global-option"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature monorepo build\n" \
+    "        run: dotnet --nologo build Rvt.Mono.slnx\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-quoted-restore"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature monorepo restore\n" \
+    "        run: dotnet restore \"Rvt.Mono.slnx\" --verbosity quiet\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-quoted-build"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature monorepo build\n" \
+    "        run: dotnet build \"Rvt.Mono.slnx\" --configuration Release\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-test-options-before-solution"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature monorepo test\n" \
+    "        run: dotnet test --configuration Release Rvt.Mono.slnx\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-option-order-chain"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature chained monorepo build\n" \
+    "        run: true && dotnet --nologo build --configuration Release \"Rvt.Mono.slnx\"\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-command-prefix"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature wrapped monorepo restore\n" \
+    "        run: command dotnet restore Rvt.Mono.slnx\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-env-prefix"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature wrapped monorepo build\n" \
+    "        run: env FOO=bar dotnet build Rvt.Mono.slnx\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-absolute-dotnet"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature absolute-path monorepo restore\n" \
+    "        run: /usr/bin/dotnet restore Rvt.Mono.slnx\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-windows-dotnet"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature Windows monorepo build\n" \
+    "        run: dotnet.exe build Rvt.Mono.slnx\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-absolute-solution"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature absolute-solution monorepo restore\n" \
+    "        run: dotnet restore /workspace/Rvt.Mono.slnx\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-windows-solution"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature Windows-solution monorepo build\n" \
+    "        run: dotnet build C:\\repo\\Rvt.Mono.slnx\n" \
+    "\n" \
+    "#{needle}"
   [needle, replacement]
 else
   abort "unknown workflow mutation: #{mutation_key}"
@@ -432,13 +648,44 @@ assert_build_mutation_rejected() {
   cp "${build_copy}" "${mutated_build}"
   cp "${workflow_copy}" "${mutation_root}/.github/workflows/sonarqube.yml"
 
-  ruby - "${mutated_build}" <<'RUBY'
-path = ARGV.fetch(0)
+  ruby - "${mutation_key}" "${mutated_build}" <<'RUBY'
+mutation_key = ARGV.fetch(0)
+path = ARGV.fetch(1)
 source = File.read(path, encoding: "utf-8")
 needle = "bash scripts/verify-postgresql-only.sh .\n"
-replacement = "dotnet restore Rvt.Mono.slnx --verbosity quiet\n\n#{needle}"
+command = {
+  "pre-boundary-restore" =>
+    "dotnet restore Rvt.Mono.slnx --verbosity quiet",
+  "pre-boundary-restore-options-before-solution" =>
+    "dotnet restore --verbosity quiet Rvt.Mono.slnx",
+  "pre-boundary-build-options-before-solution" =>
+    "dotnet build --configuration Release Rvt.Mono.slnx",
+  "pre-boundary-dotnet-global-option" =>
+    "dotnet --nologo build Rvt.Mono.slnx",
+  "pre-boundary-quoted-restore" =>
+    'dotnet restore "Rvt.Mono.slnx" --verbosity quiet',
+  "pre-boundary-quoted-build" =>
+    'dotnet build "Rvt.Mono.slnx" --configuration Release',
+  "pre-boundary-test-options-before-solution" =>
+    "dotnet test --configuration Release Rvt.Mono.slnx",
+  "pre-boundary-option-order-chain" =>
+    'true && dotnet --nologo build --configuration Release "Rvt.Mono.slnx"',
+  "pre-boundary-command-prefix" =>
+    "command dotnet restore Rvt.Mono.slnx",
+  "pre-boundary-env-prefix" =>
+    "env FOO=bar dotnet build Rvt.Mono.slnx",
+  "pre-boundary-absolute-dotnet" =>
+    "/usr/bin/dotnet restore Rvt.Mono.slnx",
+  "pre-boundary-windows-dotnet" =>
+    "dotnet.exe build Rvt.Mono.slnx",
+  "pre-boundary-absolute-solution" =>
+    "dotnet restore /workspace/Rvt.Mono.slnx",
+  "pre-boundary-windows-solution" =>
+    "dotnet build C:\\repo\\Rvt.Mono.slnx"
+}.fetch(mutation_key)
+replacement = "#{command}\n\n#{needle}"
 mutated = source.sub(needle, replacement)
-abort "pre-boundary restore mutation did not change #{path}" if mutated == source
+abort "#{mutation_key} mutation did not change #{path}" if mutated == source
 File.write(path, mutated, mode: "w", encoding: "utf-8")
 RUBY
 
@@ -455,6 +702,17 @@ assert_workflow_mutation_rejected "npm-options" "npm ci with options"
 assert_workflow_mutation_rejected "npm-inline-comment" "npm ci with an inline comment"
 assert_workflow_mutation_rejected "npm-continuation" "continued npm ci"
 assert_workflow_mutation_rejected "npm-chain" "chained duplicate npm ci"
+assert_workflow_mutation_rejected "npm-command-wrapper" "command-wrapped npm ci"
+assert_workflow_mutation_rejected "npm-env-wrapper" "env-wrapped npm ci"
+assert_workflow_mutation_rejected "npm-prefix-option" "npm ci after a prefix option"
+assert_workflow_mutation_rejected "npm-subshell" "subshell npm ci"
+assert_workflow_mutation_rejected "npm-silent-option" "npm ci after --silent"
+assert_workflow_mutation_rejected \
+  "npm-foreground-scripts-option" "npm ci after --foreground-scripts"
+assert_workflow_mutation_rejected \
+  "npm-absolute-executable" "absolute-path npm ci"
+assert_workflow_mutation_rejected \
+  "npm-windows-executable" "npm.cmd ci"
 assert_workflow_mutation_rejected \
   "standards-continue-on-error" "non-blocking standards step"
 assert_workflow_mutation_rejected \
@@ -463,12 +721,91 @@ assert_build_mutation_rejected \
   "pre-boundary-restore" "monorepo restore before the PostgreSQL boundary"
 assert_workflow_mutation_rejected \
   "pre-standards-release-build" "Release build before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-restore-options-before-solution" \
+  "option-first monorepo restore before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-restore-options-before-solution" \
+  "option-first monorepo restore before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-build-options-before-solution" \
+  "option-first monorepo build before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-build-options-before-solution" \
+  "option-first monorepo build before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-dotnet-global-option" \
+  "global-option monorepo build before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-dotnet-global-option" \
+  "global-option monorepo build before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-quoted-restore" \
+  "quoted-solution restore before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-quoted-restore" \
+  "quoted-solution restore before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-quoted-build" \
+  "quoted-solution build before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-quoted-build" \
+  "quoted-solution build before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-test-options-before-solution" \
+  "option-first monorepo test before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-test-options-before-solution" \
+  "option-first monorepo test before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-option-order-chain" \
+  "chained option-order monorepo build before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-option-order-chain" \
+  "chained option-order monorepo build before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-command-prefix" \
+  "command-wrapped monorepo restore before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-command-prefix" \
+  "command-wrapped monorepo restore before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-env-prefix" \
+  "env-wrapped monorepo build before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-env-prefix" \
+  "env-wrapped monorepo build before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-absolute-dotnet" \
+  "absolute-path dotnet restore before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-absolute-dotnet" \
+  "absolute-path dotnet restore before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-windows-dotnet" \
+  "dotnet.exe build before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-windows-dotnet" \
+  "dotnet.exe build before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-absolute-solution" \
+  "absolute-solution restore before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-absolute-solution" \
+  "absolute-solution restore before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-windows-solution" \
+  "Windows-solution build before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-windows-solution" \
+  "Windows-solution build before standards verification"
 
 if ((mutation_failures > 0)); then
   printf 'FAIL: %d guard mutation acceptance(s) detected.\n' \
     "${mutation_failures}" >&2
   exit 1
 fi
+printf 'Guard mutation acceptances: 0.\n'
 
 remove_standards_command() {
   local path="$1"

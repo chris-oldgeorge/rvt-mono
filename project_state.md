@@ -1,5 +1,37 @@
 # Project State
 
+## Authoritative checkpoint: Portal npm advisories remediated — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Current branch: `codex/portal-npm-advisories`, forked from merged `main`
+  checkpoint `000f6c5`. The bounded implementation plan is
+  `docs/superpowers/plans/2026-07-28-portal-npm-advisory-remediation.md`.
+- The Node 24 `npm audit --package-lock-only` baseline reported six
+  high-severity advisories: the ESLint 9 dependency graph reached vulnerable
+  `minimatch`/`brace-expansion`, and Vite's lock entry held vulnerable PostCSS
+  8.5.14.
+- The direct lint toolchain now resolves `eslint` 10.8.0, `@eslint/js` 10.0.1,
+  `typescript-eslint` 8.65.0, `eslint-plugin-react-hooks` 7.1.1, and
+  `eslint-plugin-react-refresh` 0.5.3. The obsolete transitive overrides were
+  removed. The lock resolves `minimatch` 10.2.6, `brace-expansion` 5.0.8, and
+  PostCSS 8.5.24 while retaining Vite 6.4.3.
+- ESLint 10 and React Hooks 7 expanded their recommended presets. To keep this
+  security-only change behavior-neutral, `eslint.config.js` explicitly
+  preserves the former Hooks rules (`rules-of-hooks` and `exhaustive-deps`)
+  and leaves the three new ESLint core recommendations and React Compiler
+  rules for a dedicated lint-modernization scope.
+- Fresh `node:24-alpine` verification passed: `npm ci`, lint with 0 errors and
+  the same two Fast Refresh warnings, all 78 Vitest tests, the Vite production
+  build, and `npm audit` with zero vulnerabilities at every severity.
+- The committed changed-range engineering-standards ratchet passed against
+  `origin/main`. Both workflow contract tests passed, and `git diff --check`
+  is clean.
+- No application runtime dependencies, application source behavior, database
+  configuration, secrets, or Help Admin/R2 release-audit conditions changed.
+- Next step: commit this checkpoint, push
+  `codex/portal-npm-advisories`, open a draft PR against `main`, and monitor
+  the Engineering standards check.
+
 ## Authoritative checkpoint: PR #5 merged into main — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

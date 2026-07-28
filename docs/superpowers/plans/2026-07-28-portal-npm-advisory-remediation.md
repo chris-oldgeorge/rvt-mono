@@ -29,7 +29,7 @@
 - Consumes: the existing flat config in `apps/portal/RvtPortal.Client/eslint.config.js`
 - Produces: an npm dependency graph compatible with Node 24 and ESLint 10
 
-- [ ] **Step 1: Preserve the failing security test**
+- [x] **Step 1: Preserve the failing security test**
 
 Run:
 
@@ -42,7 +42,7 @@ docker run --rm \
 
 Expected: exit `1`, reporting six high-severity vulnerabilities through ESLint/minimatch/brace-expansion and PostCSS.
 
-- [ ] **Step 2: Upgrade the peer-compatible lint toolchain**
+- [x] **Step 2: Upgrade the peer-compatible lint toolchain**
 
 Set these development dependency ranges in `package.json`:
 
@@ -56,7 +56,7 @@ Set these development dependency ranges in `package.json`:
 
 Remove the obsolete `overrides` block after the upgraded graph no longer contains `@eslint/eslintrc` or legacy `minimatch` releases.
 
-- [ ] **Step 3: Regenerate the lockfile with Node 24**
+- [x] **Step 3: Regenerate the lockfile with Node 24**
 
 Run in a writable Node 24 container copy:
 
@@ -78,7 +78,7 @@ when it still satisfies Vite's semver range.
 
 Expected: the lock resolves ESLint 10.8.0, `brace-expansion` 5.0.8 or newer, and PostCSS 8.5.18 or newer.
 
-- [ ] **Step 4: Verify the security test turns green**
+- [x] **Step 4: Verify the security test turns green**
 
 Run:
 
@@ -91,7 +91,7 @@ docker run --rm \
 
 Expected: exit `0` and `found 0 vulnerabilities`.
 
-- [ ] **Step 5: Commit the dependency graph**
+- [x] **Step 5: Commit the dependency graph**
 
 ```bash
 git add apps/portal/RvtPortal.Client/package.json \
@@ -110,7 +110,7 @@ git commit -m "build: remediate Portal npm advisories"
 - Consumes: the regenerated package lock from Task 1
 - Produces: lint, test, and production-build evidence under Node 24
 
-- [ ] **Step 1: Verify the upgraded presets expose the policy delta**
+- [x] **Step 1: Verify the upgraded presets expose the policy delta**
 
 Run the Node 24 install and `npm run lint` command from the complete gate
 below before changing `eslint.config.js`.
@@ -119,7 +119,7 @@ Expected: the audit is clean, but lint fails because React Hooks 7 adds React
 Compiler rules to `recommended` and `@eslint/js` 10 adds
 `no-unassigned-vars`, `no-useless-assignment`, and `preserve-caught-error`.
 
-- [ ] **Step 2: Preserve the established lint contract**
+- [x] **Step 2: Preserve the established lint contract**
 
 Replace the spread of `reactHooks.configs.recommended.rules` with:
 
@@ -137,7 +137,7 @@ security-only scope:
 'preserve-caught-error': 'off',
 ```
 
-- [ ] **Step 3: Install and run the complete Portal verification gate**
+- [x] **Step 3: Install and run the complete Portal verification gate**
 
 Run:
 
@@ -156,7 +156,7 @@ docker run --rm \
 
 Expected: npm install succeeds without peer conflicts; lint has zero errors and only the two existing Fast Refresh warnings; all 78 Vitest tests pass; Vite production build succeeds; audit reports zero vulnerabilities.
 
-- [ ] **Step 4: Inspect the resolved security floors**
+- [x] **Step 4: Inspect the resolved security floors**
 
 Run:
 
@@ -173,7 +173,7 @@ for (const name of ["eslint", "brace-expansion", "postcss"]) {
 
 Expected: no ESLint 9, no `brace-expansion` version below 5.0.8, and no PostCSS version below 8.5.18.
 
-- [ ] **Step 5: Run repository policy verification**
+- [x] **Step 5: Run repository policy verification**
 
 Run:
 
@@ -195,7 +195,7 @@ Expected: every command exits `0`.
 - Consumes: the verified package graph and command evidence from Tasks 1-2
 - Produces: the durable resume checkpoint and reviewable GitHub branch
 
-- [ ] **Step 1: Update the authoritative checkpoint**
+- [x] **Step 1: Update the authoritative checkpoint**
 
 Record the dedicated branch, old and new advisory counts, exact direct package versions, resolved `brace-expansion` and PostCSS security floors, test totals, lint warning count, build result, and repository policy results. Preserve Help Admin/R2 as separate conditional operator work.
 

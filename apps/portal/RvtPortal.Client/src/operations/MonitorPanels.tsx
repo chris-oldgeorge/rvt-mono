@@ -808,7 +808,8 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
   const [sortDir, setSortDir] = useState<SortDirection>('Ascending');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const backPath = returnToOr(locationPath, '/monitors');
   const columns = useMemo<DataGridColumn<UnattachedMonitorListItem>[]>(() => [
@@ -826,34 +827,54 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
     sort: sortKey,
     sortDir
   }), [page, searchText, sortDir, sortKey]);
+  const requestKey = JSON.stringify(query);
+  const isLoading = isRefreshing || completedRequestKey !== requestKey;
 
-  // Function summary: Loads unattached monitor removal candidates from the API.
-  const loadMonitors = useCallback(async (signal?: AbortSignal) => {
-    setIsLoading(true);
+  // Function summary: Refreshes unattached monitor removal candidates after an event-owned mutation.
+  const refreshMonitors = useCallback(async () => {
+    setIsRefreshing(true);
     try {
-      const response = await queryUnattachedMonitors(query, { signal });
+      const response = await queryUnattachedMonitors(query);
       setMonitors(response.results);
       setTotal(response.total);
       setTotalPages(response.totalPages);
       setError(null);
+      setCompletedRequestKey(requestKey);
     } catch (err) {
       if (isAbortError(err)) {
         return;
       }
       setError((err as Error).message);
       onRequestError(err);
+      setCompletedRequestKey(requestKey);
     } finally {
-      if (!signal?.aborted) {
-        setIsLoading(false);
-      }
+      setIsRefreshing(false);
     }
-  }, [onRequestError, query]);
+  }, [onRequestError, query, requestKey]);
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadMonitors(controller.signal);
+    queryUnattachedMonitors(query, { signal: controller.signal })
+      .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setMonitors(response.results);
+        setTotal(response.total);
+        setTotalPages(response.totalPages);
+        setError(null);
+        setCompletedRequestKey(requestKey);
+      })
+      .catch((err: Error) => {
+        if (isAbortError(err)) {
+          return;
+        }
+        setError(err.message);
+        onRequestError(err);
+        setCompletedRequestKey(requestKey);
+      });
     return () => controller.abort();
-  }, [loadMonitors]);
+  }, [onRequestError, query, requestKey]);
 
   // Function summary: Handles search text changes for unattached monitor removal candidates.
   function handleSearch(value: string) {
@@ -880,7 +901,7 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
       setNotice(response.message);
       setSelectedMonitor(null);
       setReason('');
-      await loadMonitors();
+      await refreshMonitors();
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);

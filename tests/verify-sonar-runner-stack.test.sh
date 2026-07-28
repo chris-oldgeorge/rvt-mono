@@ -71,11 +71,28 @@ python3 - "${dockerfile}" <<'PY'
 import re
 import sys
 
+def assert_https_only_runner_download(dockerfile):
+    runner_download_prefix = "RUN curl -fsSLo actions-runner.tar.gz " + chr(92)
+    download_start = dockerfile.find(runner_download_prefix)
+    assert download_start != -1, "runner archive download command must stay present"
+    checksum_start = dockerfile.find("\n    && echo ", download_start)
+    assert checksum_start != -1, "runner archive checksum verification must immediately follow the download"
+    download_command = dockerfile[download_start:checksum_start]
+    assert "\n      --proto '=https' " + chr(92) in download_command, "runner archive download must accept HTTPS only"
+    assert "\n      --proto-redir '=https' " + chr(92) in download_command, "runner archive download redirects must remain HTTPS only"
+
+
 dockerfile = open(sys.argv[1], encoding="utf-8").read()
 assert "ARG RUNNER_VERSION=2.334.0" in dockerfile, "runner version must stay pinned"
 assert "ARG RUNNER_SHA256=f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4" in dockerfile, "runner checksum must stay pinned"
-assert "--proto '=https'" in dockerfile, "runner archive download must accept HTTPS only"
-assert "--proto-redir '=https'" in dockerfile, "runner archive download redirects must remain HTTPS only"
+assert_https_only_runner_download(dockerfile)
+decoy_protocol = dockerfile.replace("--proto '=https'", "# --proto '=https'", 1) + "\nRUN echo \"--proto '=https'\"\n"
+try:
+    assert_https_only_runner_download(decoy_protocol)
+except AssertionError:
+    print("Rejected runner archive decoy protocol flag outside the download command.")
+else:
+    raise AssertionError("runner archive protocol guard accepted a decoy protocol flag outside the download command")
 assert "libssl3t64" in dockerfile, "Ubuntu Noble runner image must install libssl3t64"
 assert "liblttng-ust1t64" in dockerfile, "Ubuntu Noble runner image must install liblttng-ust1t64"
 assert "libkrb5-3" in dockerfile, "runner image must install the Kerberos runtime"

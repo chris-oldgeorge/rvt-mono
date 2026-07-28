@@ -160,13 +160,38 @@ assert_npm_install_mutation_rejected() {
 portal_frontend_verifier="$root_dir/apps/portal/scripts/verify-frontend.sh"
 portal_client_dockerfile="$root_dir/apps/portal/RvtPortal.Client/Dockerfile"
 
-portal_runtime_stage="$(awk '
-  /^FROM / { stage = $0 "\n"; next }
-  { stage = stage $0 "\n" }
-  END { printf "%s", stage }
-' "$portal_client_dockerfile")"
-[[ "$portal_runtime_stage" == *$'USER 101:101\n'* ]] || fail "Portal client Dockerfile final runtime stage must run as UID/GID 101:101"
-[[ "$portal_runtime_stage" == *$'USER 101:101\nENTRYPOINT'* || "$portal_runtime_stage" == *$'USER 101:101\nCMD'* || "$portal_runtime_stage" == *$'USER 101:101\nEXPOSE'* ]] || fail "Portal client Dockerfile runtime user must be declared before runtime execution"
+final_dockerfile_stage() {
+  awk '
+    /^[[:space:]]*FROM[[:space:]]/ { stage = $0 "\n"; next }
+    { stage = stage $0 "\n" }
+    END { printf "%s", stage }
+  ' "$1"
+}
+
+has_portal_runtime_user() {
+  local dockerfile="$1"
+  local stage
+  local user_instruction_line
+  local runtime_instruction_line
+
+  stage="$(final_dockerfile_stage "$dockerfile")"
+  user_instruction_line="$(printf '%s\n' "$stage" | awk '/^[[:space:]]*USER[[:space:]]+101:101[[:space:]]*(#.*)?$/ { print NR; exit }')"
+  runtime_instruction_line="$(printf '%s\n' "$stage" | awk '/^[[:space:]]*(ENTRYPOINT|CMD|HEALTHCHECK)[[:space:]]/ { print NR; exit }')"
+
+  [[ -n "$user_instruction_line" ]] || return 1
+  [[ -z "$runtime_instruction_line" || "$user_instruction_line" -lt "$runtime_instruction_line" ]]
+}
+
+assert_portal_runtime_user_mutation_rejected() {
+  local mutation_path="$temp_dir/$(basename "$portal_client_dockerfile").runtime-user-comment.mutation"
+
+  sed 's/^[[:space:]]*USER 101:101$/# USER 101:101/' "$portal_client_dockerfile" > "$mutation_path"
+  has_portal_runtime_user "$mutation_path" && fail "Portal client commented runtime-user mutation bypassed the Dockerfile USER guard"
+  printf 'Rejected Portal client commented runtime-user mutation.\n'
+}
+
+has_portal_runtime_user "$portal_client_dockerfile" || fail "Portal client Dockerfile final runtime stage must declare USER 101:101 before runtime execution"
+assert_portal_runtime_user_mutation_rejected
 
 assert_hardened_npm_install "$portal_frontend_verifier" 'npm ci --ignore-scripts' "Portal frontend verifier"
 assert_hardened_npm_install "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' "Portal client Dockerfile"

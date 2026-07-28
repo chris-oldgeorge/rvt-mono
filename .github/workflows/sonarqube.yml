@@ -95,6 +95,8 @@ jobs:
             /d:sonar.cs.vscoveragexml.reportsPaths=artifacts/coverage/coverage.xml \
             /d:sonar.javascript.lcov.reportPaths=apps/portal/RvtPortal.Client/coverage/lcov.info \
             /d:sonar.scanner.scanAll=true \
+            /d:sonar.postgres.file.suffixes=sql,pgsql,psql \
+            /d:sonar.plsql.file.suffixes=tab,pkb \
             '/d:sonar.cpd.exclusions=apps/portal/database/**,apps/portal/RVT.DataAccess/Migrations/**,apps/portal/RVT.DataAccess/EntityModels/Models/**,apps/portal/RvtPortal.Client/dist/**,apps/portal/RvtPortal.Client/coverage/**,apps/portal/RvtPortal.Client/src/api/schema.d.ts,**/bin/**,**/obj/**' \
             '/d:sonar.coverage.exclusions=apps/portal/database/**,apps/portal/RVT.DataAccess/Migrations/**,apps/portal/RVT.DataAccess/EntityModels/Models/**,apps/portal/RvtPortal.Client/dist/**,apps/portal/RvtPortal.Client/coverage/**,apps/portal/RvtPortal.Client/src/api/schema.d.ts,**/bin/**,**/obj/**' \
             /d:sonar.qualitygate.wait=true \

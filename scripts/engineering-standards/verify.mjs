@@ -586,22 +586,15 @@ function provisionAssetDirectory(repoRoot, executionRoot, relativePath, label) {
 }
 
 function finalizeChangedScope(repoRoot, input) {
-  const parsedRanges = parseUnifiedDiffRanges(input.patch, repoRoot);
+  const { ranges: parsedRanges, deletionOnlyPaths } = parseUnifiedDiffRanges(input.patch, repoRoot);
   const sourcePaths = input.paths.filter((item) => isSourcePath(item) && !isIgnoredPath(item));
 
   for (const item of sourcePaths) {
     validateSourceFile(repoRoot, item);
     if (
       !input.untracked.has(item) &&
-      !input.newPaths.has(item) &&
-      (parsedRanges.get(item)?.length ?? 0) === 0
-    ) {
-      throw new InvocationError(`Changed source path has no new-side hunk: ${item}`);
-    }
-    if (
-      input.newPaths.has(item) &&
-      !input.untracked.has(item) &&
-      (parsedRanges.get(item)?.length ?? 0) === 0
+      (parsedRanges.get(item)?.length ?? 0) === 0 &&
+      !deletionOnlyPaths.has(item)
     ) {
       throw new InvocationError(`Changed source path has no new-side hunk: ${item}`);
     }
@@ -621,6 +614,7 @@ function finalizeChangedScope(repoRoot, input) {
 
 function parseUnifiedDiffRanges(patch, repoRoot) {
   const ranges = new Map();
+  const deletionOnlyPaths = new Set();
   let currentPath;
   let sawDiff = false;
 
@@ -672,6 +666,8 @@ function parseUnifiedDiffRanges(patch, repoRoot) {
         const items = ranges.get(currentPath) ?? [];
         items.push({ startLine, endLine: startLine + count - 1 });
         ranges.set(currentPath, items);
+      } else {
+        deletionOnlyPaths.add(currentPath);
       }
     }
   }
@@ -679,7 +675,7 @@ function parseUnifiedDiffRanges(patch, repoRoot) {
   if (patch !== '' && !sawDiff) {
     throw new InvocationError('Malformed unified diff: missing file header');
   }
-  return ranges;
+  return { ranges, deletionOnlyPaths };
 }
 
 function validatePatchPath(repoRoot, candidate) {

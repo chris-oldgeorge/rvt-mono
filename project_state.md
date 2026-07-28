@@ -1,5 +1,294 @@
 # Project State
 
+## Authoritative checkpoint: Node 24 and engineering-standards CI hardening — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Current branch: `codex/help-asset-url-release-audit`, based on the existing
+  Help audit and Portal email-toggle delivery scope. This checkpoint
+  supersedes lower current-state and next-step statements while retaining them
+  as historical evidence.
+- CI hardening commits after the prior feature checkpoint are:
+  `b9d663c` (remove the runner's undeclared ripgrep dependency),
+  `743005c` (standardize the Node 24 toolchain), and `b33e86e`
+  (accept deletion-only changed ranges).
+- All first-party workflow references now use SHA-pinned Node 24 action
+  implementations: `actions/checkout` v6 at
+  `d23441a48e516b6c34aea4fa41551a30e30af803`,
+  `actions/setup-dotnet` v5 at
+  `26b0ec14cb23fa6904739307f278c14f94c95bf1`, and
+  `actions/setup-node` v6 at
+  `249970729cb0ef3589644e2896645e5dc5ba9c38`. The governed workflows and
+  contract tests were updated together.
+- Portal client development and build declarations now converge on Node 24:
+  `apps/portal/RvtPortal.Client/.nvmrc` contains `24`,
+  `package.json` requires `>=24 <25`, `@types/node` is on major 24, and the
+  lockfile was regenerated with the pinned `node:24-alpine` image used by the
+  Portal Dockerfile.
+- The GitHub Engineering standards check exposed a verifier defect: a retained
+  source file whose range change only deleted lines was rejected for lacking a
+  new-side range. `scripts/engineering-standards/verify.mjs` now records
+  zero-length new-side hunks as deletion-only paths, so those valid changes
+  can be verified while metadata-only changes and empty added source files
+  remain rejected.
+- GitHub Actions run `30352635145` confirmed the Node 24 transition itself:
+  checkout v6, setup-dotnet v5, setup-node v6, npm install, restore, standards
+  model, engineering configuration, and workflow-contract steps all passed.
+  The remaining changed-range failure was unrelated to Node. It exposed style
+  diagnostics in the full PR diff that a local check had missed because local
+  branch `main` pointed at `b9d663c` while `origin/main` and the PR base were
+  `129419a`. For this branch, committed-range verification must use
+  `--base origin/main` or the CI `--base auto`, not the local `main` label.
+- The full-PR style remediation formats the release-audit CLI and option
+  predicates, simplifies Portal registration and test collection creation,
+  removes two unused imports, orders test imports, renames the private test
+  timestamp field to camel case, and annotates intentional JSON literals.
+  The shared Help URL corpus keeps its neutral namespace with a documented
+  `IDE0130` suppression because the same source is linked into two differently
+  named test projects.
+- `tests/verify-engineering-standards.test.sh` contains the committed-range
+  regression: it deletes a member from `src/Clock.cs`, verifies the range, and
+  asserts successful analysis. The full verifier scenario suite passed.
+  Mode-only changes still fail closed.
+- After the style remediation, targeted Roslyn style and whitespace checks
+  passed. `RvtPortal.Application.Tests` passed 75/75 tests and
+  `RvtPortal.Spa.Tests` passed 546 tests with 11 opt-in PostgreSQL tests
+  skipped. The committed remote-base ratchet passed against `origin/main`
+  with baseline decreases and no policy violation. Replacement GitHub Actions
+  run `30353535675` passed every step, including Node 24 setup and the
+  changed-range engineering-standards check.
+- Node 24 container verification passed: ESLint completed with the same two
+  pre-existing Fast Refresh warnings and no errors, all 78 Vitest tests passed,
+  and the production Vite build passed. The current dependency tree still
+  reports six high-severity npm advisories; dependency remediation remains
+  separate pending work.
+- No secrets, application variable definitions, or deployment behavior changed
+  in this hardening. The Portal email setting remains `RVT:EMAIL_ENABLED`,
+  supplied by environment variable `RVT__Email_ENABLED`, defaulting to `true`.
+- PR #5 remains a draft. Next step: review the complete PR scope and, when
+  approved, mark it ready for review. The separate six-high-severity npm
+  advisory remediation remains pending and is not part of this toolchain
+  alignment.
+
+## Authoritative checkpoint: Help audit and Portal email-toggle scopes — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Current authoritative head: `55cba79` (`feat: configure portal email
+  delivery`). This checkpoint supersedes every lower current-state or
+  next-step statement while preserving all lower sections as historical
+  evidence. The current branch remains
+  `codex/help-asset-url-release-audit`.
+- Help asset URL release-audit scope is implemented and remains `CONDITIONAL`:
+  Help Admin/R2 cannot be marked ready until an operator runs the deployed
+  audit against each target release database and retains a complete
+  zero-finding receipt. The Help audit checkpoint through `8f69d82` remains
+  accurate as historical implementation detail; commits `48f4121`, `400490d`,
+  `e5ef12d`, and `55cba79` follow it.
+- Portal email-toggle scope is complete. The changed source and test files are
+  `apps/portal/RvtPortal.Spa/ServiceCollectionExtensions.cs` and
+  `apps/portal/RvtPortal.Spa.Tests/SendGridConfigurationTests.cs`.
+  `RVT:EMAIL_ENABLED` controls `SendGridMailOptions.Enabled`; its environment
+  variable spelling is `RVT__Email_ENABLED` (configuration keys are
+  case-insensitive). An absent value defaults to `true`, and `false` disables
+  the SendGrid provider.
+- Portal registration preserves the existing `EmailConfiguration` API-key and
+  sender metadata behavior. It registers the same resolved options both
+  directly with `AddSendGridMail(sendGridMailOptions)` and through
+  `IOptions<SendGridMailOptions>` using `Options.Create`, so direct-provider
+  delivery and options consumers agree on the enabled state. It does not alter
+  credentials, deployment secrets, `EmailConfiguration`, `UseDebugEmail`, or
+  `Auth:SkipPasswordResetEmail` behavior.
+- Reported final test totals using
+  `/private/tmp/rvt-dotnet-sdk-10.0.302/dotnet` with `--no-restore --nologo`:
+  Application tests: 75 passed, 0 skipped, 0 failed (75 total); SPA tests:
+  546 passed, 11 opt-in PostgreSQL tests skipped, 0 failed (557 total);
+  combined: 621 passed, 11 skipped, 0 failed (632 total). `git diff --check`
+  passed after this checkpoint update.
+
+## R2 Help asset URL release audit implemented; operator receipt pending — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- This top checkpoint is the current authority for the Help asset URL release
+  audit. It supersedes the provisional Task 7 checkpoint and every lower R2
+  implementation/next-step statement while retaining the lower sections as
+  historical evidence.
+- Current branch: `codex/help-asset-url-release-audit`. The implementation
+  sequence after approved base `129419a` is:
+  `325074a` (implementation plan), `9dfafef` (transaction test seam),
+  `e4dd080` (shared URL policy), `3c102ba` (behavioral policy tests),
+  `a38e4f8` (mutation-policy delegation), `f574299` (audit behavior-test
+  refinement), `369052e` (URL-limit behavior cleanup), `88c018e` (audit core),
+  `d29f0ec` (read-only audit runner), `e5aac08` (receipt-path hardening),
+  `9f307b2` (namespaced entry-point clarification), `76fde37` (transaction
+  proof), `a61d580` (solution registration and SQL retirement), `c3534a7`
+  (artifact publishing and operator documentation), `d989f66` (Task 7 stale
+  SQL-guidance correction), and `8f69d82` (solution-membership ratchet
+  correction).
+- `apps/portal/RvtPortal.Application/Help/HelpAssetUrlPolicy.cs` is the sole
+  BCL-only URL authority.
+  `apps/portal/RvtPortal.Application/Help/HelpMutationValidator.cs` delegates
+  mutation validation to it. The shared corpus is
+  `apps/portal/RvtPortal.Application.Tests/Help/HelpAssetUrlPolicyCases.cs`;
+  pure policy coverage is in
+  `apps/portal/RvtPortal.Application.Tests/Help/HelpAssetUrlPolicyTests.cs`,
+  and mutation/audit parity, receipt secrecy, exit behavior, classification,
+  and opt-in transaction coverage are in
+  `apps/portal/RvtPortal.Spa.Tests/HelpAssetUrlAuditTests.cs` and
+  `apps/portal/RvtPortal.Spa.Tests/HelpApplicationServiceTests.cs`.
+- The isolated audit adapter is
+  `apps/portal/RVT.ReleaseAudit/RVT.ReleaseAudit.csproj`, with its entry point,
+  option parser, reader/classifier, and receipt writer in `Program.cs`,
+  `ReleaseAuditOptions.cs`, and `HelpAssetUrlAudit.cs`. It reads the fixed
+  `public.help_asset` relation in a repeatable-read, read-only transaction,
+  classifies every row through the application policy, rolls the transaction
+  back, and writes a deterministic receipt containing IDs and stable violation
+  codes but no URLs or credentials.
+- `RVT.ReleaseAudit` is registered in both `Rvt.Mono.slnx` and
+  `apps/portal/RvtPortal.Spa.sln`.
+  `apps/portal/scripts/verify-backend.sh` publishes and asserts
+  `artifacts/release-audit/RVT.ReleaseAudit.dll` alongside
+  `artifacts/backend/RvtPortal.Spa.dll`. These local artifact directories are
+  generated verification output, not tracked release evidence. Audit receipts
+  belong in the release evidence store outside source control.
+- Operator and maintenance contracts are recorded in
+  `apps/portal/README.md`,
+  `docs/release/portal/CUTOVER_RUNBOOK.md`,
+  `docs/development/portal/development-guidelines.md`,
+  `docs/release/portal/FUNCTIONALITY_READINESS_MATRIX.md`, and
+  `docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md`.
+  The required operator sequence is: deploy the Portal and audit artifacts
+  from one revision; apply EF migrations and `RVT.SchemaDeploy`; provide a
+  least-privilege read-only connection through the environment; run
+  `help-asset-urls`; and retain the receipt outside the repository.
+- Variable definitions contain no values:
+  - `RVT_RELEASE_AUDIT_CONNECTION` is the only runtime source for the targeted
+    release database connection;
+  - `RVT_TEST_POSTGRES_CONNECTION` enables only the opt-in disposable
+    PostgreSQL transaction test, which uses `pg_temp.help_asset` and otherwise
+    skips.
+- Stable policy violation kinds are `required`, `too_long`, `not_canonical`,
+  `unsafe_character`, `unsupported_relative_path`,
+  `absolute_https_required`, `host_required`, `user_info_forbidden`, and
+  `malformed_uri`. Stable process outcomes are exit `0` for a complete
+  zero-finding audit, `10` for a complete audit with findings, `2` for invalid
+  input or a missing runtime connection, and `3` for database/read,
+  cancellation, or receipt-write failure. Exit `10`, `2`, `3`, a missing
+  receipt, or any finding blocks Help Admin enablement.
+- The obsolete
+  `apps/portal/docs/release/validate-help-asset-urls.sql` is deleted. Active
+  Portal/release documentation no longer invokes it. Its remaining text
+  references are confined to superseded implementation plans and historical
+  checkpoints; the executable audit is the live production-query authority.
+- Fresh final verification used
+  `/private/tmp/rvt-dotnet-sdk-10.0.302/dotnet`, ran serially with both database
+  variables unset, and produced:
+  - solution restore: all projects up-to-date in `0.59s`, 0 warnings and
+    0 errors;
+  - Release solution build: success in `10.54s`, 0 warnings and 0 errors;
+  - Application tests: 75 passed, 0 skipped, 0 failed;
+  - SPA tests: 544 passed, 11 opt-in database tests skipped, 0 failed;
+  - combined tests: 619 passed, 11 skipped, 0 failed, 630 total;
+  - `tests/verify-mono-solution.test.sh`,
+    `tests/verify-rvt-common-source-boundary.test.sh`, and
+    `scripts/verify-engineering-standards.sh --working-tree`: passed, with the
+    standards ratchet reporting baseline decreases and no increase; and
+  - `git diff --check`: passed.
+- Verification limitation: the approved Task 8 plan named the nonexistent
+  `tests/verify-rvt-mono-solution.test.sh`. Repository inventory and history
+  confirmed the tracked aggregate ratchet is
+  `tests/verify-mono-solution.test.sh`; the owner authorized that exact
+  substitution. VSTest and the engineering-standards disposable-worktree
+  check required minimum sandbox escalation for local socket/worktree access;
+  the commands and scope were otherwise unchanged.
+- The no-secret audit reviewed all 50 matches. They are explicit CI,
+  local-test/local-development sentinel values or documentation placeholders;
+  no release credential is committed. The retired-SQL audit reviewed all nine
+  matches in the pre-checkpoint tree and the new checkpoint reference (ten
+  final-tree matches); they are historical/superseded records, not an active
+  script or operator instruction.
+- No production or release database or credential was used. Final verification
+  made no database connection. The earlier transaction proof used only a
+  disposable local PostgreSQL container and a connection-scoped
+  `pg_temp.help_asset` table.
+- Help Admin remains `CONDITIONAL` and R2 remains unchecked. Tool
+  implementation and local test evidence cannot make it `READY`; every target
+  release database still requires one complete zero-finding receipt produced
+  from the deployed revision.
+- R4 Portal blob client/service unification remains approved future pending
+  work and is not part of this implementation.
+- Next step: an operator must run the deployed audit against each target
+  release database and preserve each zero-finding receipt. Do not start R3 or
+  blob unification as the next action.
+
+## R2 implementation plan authored; execution not started — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- This top checkpoint is the sole current authority for the Help asset URL
+  release-audit work. It supersedes the lower R2 pause/next-step wording while
+  preserving the integrated R1 state.
+- The configured workspace
+  `/Users/oldgeorge/Documents/rvt-mono` resolves to
+  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/repository-engineering-standards`.
+  That clean historical worktree was switched to the plan-only branch
+  `codex/help-asset-url-release-audit-plan`, based exactly on synchronized
+  `main`/`origin/main` commit `129419a`
+  (`docs: approve Help asset URL release audit design`). The main checkout
+  remains `/Users/oldgeorge/Developer/rvt-mono`.
+- The implementation plan is now authored at
+  `docs/superpowers/plans/2026-07-28-help-asset-url-release-audit.md`.
+  It follows the approved design in
+  `docs/superpowers/specs/2026-07-28-help-asset-url-release-audit-design.md`
+  and defines eight independently reviewable, test-first tasks with focused
+  RED/GREEN commands and commits.
+- Planned source structure:
+  - `RvtPortal.Application/Help/HelpAssetUrlPolicy.cs` will become the sole
+    BCL-only URL authority;
+  - `RVT.ReleaseAudit/{RVT.ReleaseAudit.csproj,Program.cs,ReleaseAuditOptions.cs,HelpAssetUrlAudit.cs}`
+    will form the isolated Npgsql console adapter;
+  - `RvtPortal.Application.Tests/Help/HelpAssetUrlPolicyCases.cs` will be the
+    single test-corpus source linked into the SPA audit/parity tests;
+  - `RvtPortal.Application.Tests/Help/HelpAssetUrlPolicyTests.cs` and
+    `RvtPortal.Spa.Tests/HelpAssetUrlAuditTests.cs` will cover pure policy,
+    mutation/audit parity, receipt/exit secrecy, and opt-in PostgreSQL behavior;
+  - both solution catalogs and the Portal backend publish script will include
+    the audit artifact; and
+  - the obsolete `apps/portal/docs/release/validate-help-asset-urls.sql` and
+    its two source-contract tests will be deleted during implementation.
+- Planned variable and contract definitions:
+  - `RVT_RELEASE_AUDIT_CONNECTION` is the only runtime release connection
+    source;
+  - `RVT_TEST_POSTGRES_CONNECTION` is the only opt-in disposable PostgreSQL
+    test connection;
+  - production reads are fixed to `public.help_asset`; the test-only relation
+    is fixed to the connection-scoped `pg_temp.help_asset`;
+  - URL violation codes remain `required`, `too_long`, `not_canonical`,
+    `unsafe_character`, `unsupported_relative_path`,
+    `absolute_https_required`, `host_required`, `user_info_forbidden`, and
+    `malformed_uri`;
+  - process exit codes remain `0` pass, `10` complete findings, `2` invalid
+    input, and `3` database/incomplete-read/receipt failure; and
+  - mutation validation preserves its existing required, maximum-length, and
+    unsafe-URL field/message contracts.
+- No implementation source, project, test, SQL, workflow, release script, or
+  runtime documentation has been changed. No production/release/shared
+  database or credential was accessed. The historical production credential
+  must not be used during implementation.
+- Help Admin remains `CONDITIONAL` and R2 remains unchecked. Implementing the
+  tool will not by itself make the capability `READY`; every targeted release
+  database still needs a complete zero-finding receipt from the deployed
+  revision.
+- The blob storage client/service unification remains approved future pending
+  R4 work and is explicitly outside this plan.
+- Plan self-review confirmed coverage of every approved violation code, the
+  four exit outcomes, mutation message compatibility, fixed production/test
+  relations, read-only repeatable-read execution, deterministic secret-safe
+  receipts, SQL deletion, artifact publishing, and the conditional release
+  boundary. `git diff --check` and the engineering-standards working-tree
+  ratchet passed with no increase.
+- Next step: review the committed plan, then choose its execution mode:
+  subagent-driven development (recommended) or inline execution. Do not begin
+  the implementation branch `codex/help-asset-url-release-audit` until that
+  choice is made.
+
 ## R1 integrated; R2 release-audit design approved and paused — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

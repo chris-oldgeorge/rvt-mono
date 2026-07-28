@@ -33,8 +33,7 @@
 // - 2026-07-08 pending Registered user-list and dashboard breach application services for controller cleanup.
 
 using MediatR;
-using Microsoft.Extensions.Configuration;
-using Rvt.Communication.Abstractions;
+using Microsoft.Extensions.Options;
 using Rvt.Communication.SendGridMail;
 using RVT.BusinessLogic;
 using RVT.BusinessLogic.Notifications;
@@ -103,13 +102,16 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(15);
         });
         services.AddOptions<PortalEmailOptions>().BindConfiguration("EmailConfiguration");
-        services.AddSendGridMail(new SendGridMailOptions
+        var emailEnabled = configuration.GetValue("RVT:EMAIL_ENABLED", true);
+        var sendGridMailOptions = new SendGridMailOptions
         {
-            Enabled = true,
+            Enabled = emailEnabled,
             ApiKey = configuration["EmailConfiguration:SENDGRID_API_KEY"] ?? string.Empty,
             FromEmail = configuration["EmailConfiguration:Sending_Email_Address"] ?? string.Empty,
             FromName = "RVT Cloud"
-        });
+        };
+        services.AddSingleton(Options.Create(sendGridMailOptions));
+        services.AddSendGridMail(sendGridMailOptions);
         services.AddScoped<IEmailDelivery, RvtCommonEmailDelivery>();
         services.AddScoped<IAccountMessenger, AccountMessenger>();
         services.AddScoped<IApiResultMapper, ApiResultMapper>();

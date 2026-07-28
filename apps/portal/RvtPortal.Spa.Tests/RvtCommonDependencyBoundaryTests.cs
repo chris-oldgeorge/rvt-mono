@@ -43,6 +43,17 @@ public sealed class RvtCommonDependencyBoundaryTests
     }
 
     [Fact]
+    public void Scanner_IgnoresSolutionProjectMembershipBecauseItIsNotADependency()
+    {
+        using var fixture = TemporaryDirectory.Create();
+        File.WriteAllText(
+            Path.Combine(fixture.Path, "Portal.sln"),
+            "Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"Rvt.Monitor.Common\", \"libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj\", \"{65FAF867-E680-46FC-A921-8F5D9DE0180E}\"");
+
+        Assert.Empty(RepositoryDependencyScanner.FindCommonReferences(fixture.Path));
+    }
+
+    [Fact]
     // RVT common is an adapter-side dependency: only the host (RvtPortal.Spa) may reference its source project.
     // The business core reaches email through its own IEmailDelivery port, so the hexagonal boundary still holds.
     public void RvtCommon_IsConfinedToTheHostAdapterProject()
@@ -147,7 +158,6 @@ public sealed class RvtCommonDependencyBoundaryTests
             ".csproj",
             ".props",
             ".targets",
-            ".sln",
             ".config"
         ];
 

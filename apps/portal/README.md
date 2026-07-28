@@ -94,6 +94,30 @@ npm run test:e2e
 
 CI runs the same core gates on Windows, publishes the `RvtPortal.Spa` artifact, and then performs SonarCloud analysis after restore/build.
 
+## Release Audit And Help Admin Enablement
+
+Publish and deploy the `RvtPortal.Spa` and `RVT.ReleaseAudit` artifacts from
+the same revision. Then apply the EF migrations and `RVT.SchemaDeploy`. Supply
+the audit with a least-privilege, read-only connection through
+`RVT_RELEASE_AUDIT_CONNECTION`, and run `help-asset-urls` with the target
+environment, deployed revision, and receipt path:
+
+```bash
+RVT_RELEASE_AUDIT_CONNECTION='<secret connection string>' \
+dotnet apps/portal/artifacts/release-audit/RVT.ReleaseAudit.dll \
+  help-asset-urls \
+  --environment production \
+  --revision '<deployed git sha>' \
+  --receipt 'artifacts/release/help-asset-urls-production.json'
+```
+
+The placeholder is documentation only. Operators must not put the connection in
+shell history, command arguments, logs, or receipts. Help Admin can be enabled
+only after every target database returns exit `0` and produces a complete,
+zero-finding receipt. Exit `10`, `2`, `3`, or a missing receipt blocks the
+release. Retain receipts in the release evidence store, never in source
+control.
+
 ## Release Notes
 
 This clean repository is prepared for the RVT Portal SPA migration stream. The active solution includes only the portal SPA host, SPA client, test project, and supporting RVT class libraries.

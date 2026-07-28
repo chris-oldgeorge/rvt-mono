@@ -22,6 +22,7 @@
     <Project Path="apps/portal/RVT.BusinessLogic/RVT.BusinessLogic.csproj" />
     <Project Path="apps/portal/RVT.DataAccess/RVT.DataAccess.csproj" />
     <Project Path="apps/portal/RVT.Entities/RVT.Entities.csproj" />
+    <Project Path="apps/portal/RVT.ReleaseAudit/RVT.ReleaseAudit.csproj" />
     <Project Path="apps/portal/RVT.SchemaDeploy/RVT.SchemaDeploy.csproj" />
     <Project Path="apps/portal/RVT.Utilities/RVT.Utilities.csproj" />
     <Project Path="apps/portal/RvtPortal.Application/RvtPortal.Application.csproj" />

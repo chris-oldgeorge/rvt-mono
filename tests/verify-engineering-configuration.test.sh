@@ -95,7 +95,7 @@ assert_root_probe_diagnostic() {
 
   [[ $status -ne 0 ]] || fail "expected root code-style diagnostic beneath ${project#$temp_dir/}: $output"
   [[ -f "$report" ]] || fail "dotnet format did not write a diagnostic report beneath ${project#$temp_dir/}: $output"
-  rg -q '"DiagnosticId": "IDE1006"' "$report" || fail "expected IDE1006 root code-style diagnostic beneath ${project#$temp_dir/}: $output"
+  grep -Fq '"DiagnosticId": "IDE1006"' "$report" || fail "expected IDE1006 root code-style diagnostic beneath ${project#$temp_dir/}: $output"
 }
 
 assert_root_probe_diagnostic_absent() {
@@ -111,7 +111,7 @@ assert_root_probe_diagnostic_absent() {
   set -e
 
   [[ $status -eq 0 ]] || fail "nested-root mutation retained root code-style diagnostic beneath ${project#$temp_dir/}: $output"
-  [[ ! -f "$report" ]] || ! rg -q '"DiagnosticId": "IDE1006"' "$report" || fail "nested-root mutation retained IDE1006 beneath ${project#$temp_dir/}: $output"
+  [[ ! -f "$report" ]] || ! grep -Fq '"DiagnosticId": "IDE1006"' "$report" || fail "nested-root mutation retained IDE1006 beneath ${project#$temp_dir/}: $output"
 }
 
 require_file "$root_dir/.editorconfig"

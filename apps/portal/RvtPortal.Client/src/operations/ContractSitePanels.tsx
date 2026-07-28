@@ -826,6 +826,7 @@ function SiteDetailPanel({
           )}
           {settings && (
             <NotificationSettingsPanel
+              key={settings.siteId}
               settings={settings}
               canManage={canManage}
               currentUserId={currentUserId}
@@ -1168,15 +1169,25 @@ function SiteAssignmentsPanel({
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   useEffect(() => {
+    let isCurrent = true;
     getSiteAssignments(siteId)
       .then((response) => {
+        if (!isCurrent) {
+          return;
+        }
         setAssignments(response.item ?? null);
         setError(null);
       })
       .catch((err: Error) => {
+        if (!isCurrent) {
+          return;
+        }
         setError(err.message);
         onRequestError(err);
       });
+    return () => {
+      isCurrent = false;
+    };
   }, [onRequestError, siteId]);
   async function runMutation(action: () => Promise<{ item?: SiteAssignmentResponse | null }>) {
     setIsBusy(true);
@@ -1297,7 +1308,11 @@ function NotificationSettingsPanel({
           ...settings,
           settings: settings.settings.map((item) => item.siteUserId === updatedItem.siteUserId ? updatedItem : item)
         });
-        setDraftOverrides((current) => withoutNotificationDraft(current, setting.siteUserId));
+        setDraftOverrides((current) => (
+          notificationDraftMatches(current[setting.siteUserId], draft)
+            ? withoutNotificationDraft(current, setting.siteUserId)
+            : current
+        ));
       }
     } catch (err) {
       setError((err as Error).message);
@@ -1361,6 +1376,16 @@ function NotificationSettingsPanel({
       )}
     </NestedSection>
   );
+}
+
+function notificationDraftMatches(
+  current: SiteNotificationSettingMutationRequest | undefined,
+  submitted: SiteNotificationSettingMutationRequest,
+) {
+  return current?.email === submitted.email
+    && current.sms === submitted.sms
+    && current.startTime === submitted.startTime
+    && current.endTime === submitted.endTime;
 }
 // Function summary: Renders the NestedSection React component and wires its local UI behavior.
 function NestedSection({ title, icon, children }: Readonly<{ title: string; icon: ReactNode; children: ReactNode }>) {

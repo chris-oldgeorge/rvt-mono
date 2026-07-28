@@ -661,6 +661,7 @@ function ReportRuleUsersPanel({
   const [assignedSortDir, setAssignedSortDir] = useState<SortDirection>('Ascending');
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const usersRequestGeneration = useRef(0);
 
   const availableQuery = useMemo<QueryCompaniesRequest>(() => ({
     searchText: availableSearch,
@@ -698,6 +699,7 @@ function ReportRuleUsersPanel({
   const backPath = returnToOr(locationPath, '/reports/rules');
 
   const refreshUsersAfterMutation = useCallback(async () => {
+    const generation = ++usersRequestGeneration.current;
     setAvailable((current) => ({ ...current, isLoading: true, error: null }));
     setAssigned((current) => ({ ...current, isLoading: true, error: null }));
     try {
@@ -705,22 +707,34 @@ function ReportRuleUsersPanel({
         queryReportRuleAvailableUsers(ruleId, availableQuery),
         queryReportRuleAssignedUsers(ruleId, assignedQuery)
       ]);
+      if (generation !== usersRequestGeneration.current) {
+        return;
+      }
       setContext((current) => contextFromPagedUsers(assignedResponse) ?? contextFromPagedUsers(availableResponse) ?? current);
       setAvailable(userGridFromResponse(availableResponse));
       setAssigned(userGridFromResponse(assignedResponse));
       setError(null);
     } catch (err) {
+      if (generation !== usersRequestGeneration.current) {
+        return;
+      }
       if (isAbortError(err)) {
         return;
       }
       try {
         const response = await getReportRuleUsers(ruleId);
+        if (generation !== usersRequestGeneration.current) {
+          return;
+        }
         const item = response.item ?? null;
         setContext(item ? contextFromAssignments(item) : null);
         setAvailable(item ? userGridFromUsers(item.availableUsers, availableQuery) : emptyUserGrid());
         setAssigned(item ? userGridFromUsers(item.assignedUsers, assignedQuery) : emptyUserGrid());
         setError(null);
       } catch (fallbackErr) {
+        if (generation !== usersRequestGeneration.current) {
+          return;
+        }
         const message = (fallbackErr as Error).message || (err as Error).message;
         setAvailable((current) => ({ ...current, error: message, isLoading: false }));
         setAssigned((current) => ({ ...current, error: message, isLoading: false }));
@@ -732,11 +746,12 @@ function ReportRuleUsersPanel({
 
   useEffect(() => {
     const controller = new AbortController();
+    const generation = ++usersRequestGeneration.current;
     const availableRequest = queryReportRuleAvailableUsers(ruleId, availableQuery, { signal: controller.signal });
     const assignedRequest = queryReportRuleAssignedUsers(ruleId, assignedQuery, { signal: controller.signal });
 
     Promise.resolve().then(() => {
-      if (controller.signal.aborted) {
+      if (controller.signal.aborted || generation !== usersRequestGeneration.current) {
         return;
       }
       setAvailable((current) => ({ ...current, isLoading: true, error: null }));
@@ -745,7 +760,7 @@ function ReportRuleUsersPanel({
 
     Promise.all([availableRequest, assignedRequest])
       .then(([availableResponse, assignedResponse]) => {
-        if (controller.signal.aborted) {
+        if (controller.signal.aborted || generation !== usersRequestGeneration.current) {
           return;
         }
         setContext((current) => contextFromPagedUsers(assignedResponse) ?? contextFromPagedUsers(availableResponse) ?? current);
@@ -754,12 +769,12 @@ function ReportRuleUsersPanel({
         setError(null);
       })
       .catch((err: unknown) => {
-        if (isAbortError(err) || controller.signal.aborted) {
+        if (isAbortError(err) || controller.signal.aborted || generation !== usersRequestGeneration.current) {
           return;
         }
         getReportRuleUsers(ruleId)
           .then((response) => {
-            if (controller.signal.aborted) {
+            if (controller.signal.aborted || generation !== usersRequestGeneration.current) {
               return;
             }
             const item = response.item ?? null;
@@ -769,7 +784,7 @@ function ReportRuleUsersPanel({
             setError(null);
           })
           .catch((fallbackErr: unknown) => {
-            if (controller.signal.aborted) {
+            if (controller.signal.aborted || generation !== usersRequestGeneration.current) {
               return;
             }
             const message = (fallbackErr as Error).message || (err as Error).message;

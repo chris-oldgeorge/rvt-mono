@@ -26,7 +26,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, AppErrorBoundary } from './App';
+import { SitesPanel } from './operations/ContractSitePanels';
 import { MonitorsPanel } from './operations/MonitorPanels';
+import { ReportsPanel } from './operations/ReportPanels';
 
 const adminUser = {
   id: 'admin-id',
@@ -1198,6 +1200,163 @@ describe('App', () => {
     expect(screen.getByPlaceholderText(/search assigned users/i)).toBeInTheDocument();
     expect(screen.getByText('available@rvt.test')).toBeInTheDocument();
     expect(screen.getByText('assigned@rvt.test')).toBeInTheDocument();
+  });
+
+  it('keeps a newer notification edit when an earlier save completes', async () => {
+    const savedSetting = deferredResponse();
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/sites/site-a') {
+          return jsonResponse({ item: siteDetail('site-a', 'Site A') });
+        }
+        if (url.pathname === '/api/sites/site-a/notification-settings') {
+          return jsonResponse(notificationSettings('site-a', '08:00'));
+        }
+        if (url.pathname === '/api/users/site-assignments/site-a') {
+          return jsonResponse({ item: siteAssignments('assigned-a@rvt.test') });
+        }
+        if (url.pathname === '/api/sites/site-a/notification-settings/site-user-id' && init?.method === 'PUT') {
+          return savedSetting.promise;
+        }
+        return undefined;
+      }
+    });
+
+    renderSitePanel('/sites/site-a');
+
+    const startTime = await screen.findByLabelText(/notification start time/i);
+    fireEvent.change(startTime, { target: { value: '09:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    fireEvent.change(startTime, { target: { value: '10:00' } });
+
+    await act(async () => savedSetting.resolve(jsonResponse({
+      item: notificationSetting('site-user-id', '09:00')
+    })));
+
+    expect(startTime).toHaveValue('10:00');
+  });
+
+  it('starts a fresh notification editing session when the site changes', async () => {
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        const siteId = url.pathname.match(/^\/api\/sites\/(site-[ab])$/)?.[1];
+        if (siteId) {
+          return jsonResponse({ item: siteDetail(siteId, siteId === 'site-a' ? 'Site A' : 'Site B') });
+        }
+        const settingsSiteId = url.pathname.match(/^\/api\/sites\/(site-[ab])\/notification-settings$/)?.[1];
+        if (settingsSiteId) {
+          return jsonResponse(notificationSettings(settingsSiteId, settingsSiteId === 'site-a' ? '08:00' : '11:00'));
+        }
+        if (url.pathname === '/api/users/site-assignments/site-a' || url.pathname === '/api/users/site-assignments/site-b') {
+          return jsonResponse({ item: siteAssignments('assigned@rvt.test') });
+        }
+        return undefined;
+      }
+    });
+
+    const { rerender } = renderSitePanel('/sites/site-a');
+    const startTime = await screen.findByLabelText(/notification start time/i);
+    fireEvent.change(startTime, { target: { value: '09:00' } });
+
+    rerenderSitePanel(rerender, '/sites/site-b');
+
+    await waitFor(() => expect(screen.getByLabelText(/notification start time/i)).toHaveValue('11:00'));
+  });
+
+  it('keeps current site assignments when an older site request completes later', async () => {
+    const siteAAssignments = deferredResponse();
+    const siteBAssignments = deferredResponse();
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        const siteId = url.pathname.match(/^\/api\/sites\/(site-[ab])$/)?.[1];
+        if (siteId) {
+          return jsonResponse({ item: siteDetail(siteId, siteId === 'site-a' ? 'Site A' : 'Site B') });
+        }
+        const settingsSiteId = url.pathname.match(/^\/api\/sites\/(site-[ab])\/notification-settings$/)?.[1];
+        if (settingsSiteId) {
+          return jsonResponse(notificationSettings(settingsSiteId, '08:00'));
+        }
+        if (url.pathname === '/api/users/site-assignments/site-a') {
+          return siteAAssignments.promise;
+        }
+        if (url.pathname === '/api/users/site-assignments/site-b') {
+          return siteBAssignments.promise;
+        }
+        return undefined;
+      }
+    });
+
+    const { rerender } = renderSitePanel('/sites/site-a');
+    await waitFor(() => expect(fetchedUrls().some((url) => url.pathname === '/api/users/site-assignments/site-a')).toBe(true));
+
+    rerenderSitePanel(rerender, '/sites/site-b');
+    await waitFor(() => expect(fetchedUrls().some((url) => url.pathname === '/api/users/site-assignments/site-b')).toBe(true));
+
+    await act(async () => siteBAssignments.resolve(jsonResponse({ item: siteAssignments('current-site@rvt.test') })));
+    expect(await screen.findByText('current-site@rvt.test')).toBeInTheDocument();
+    await act(async () => siteAAssignments.resolve(jsonResponse({ item: siteAssignments('stale-site@rvt.test') })));
+
+    expect(screen.getByText('current-site@rvt.test')).toBeInTheDocument();
+    expect(screen.queryByText('stale-site@rvt.test')).not.toBeInTheDocument();
+  });
+
+  it('keeps mutation-refreshed report recipients when an earlier query resolves last', async () => {
+    const oldAvailable = deferredResponse();
+    let mutationCompleted = false;
+    let oldQueryStarted = false;
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/report-rules/report-rule-id/available-users') {
+          if (url.searchParams.get('searchText') === 'old' && !mutationCompleted) {
+            oldQueryStarted = true;
+            return oldAvailable.promise;
+          }
+          return jsonResponse(reportUserPage(url, [reportUser(
+            mutationCompleted ? 'fresh-available-id' : 'add-user-id',
+            mutationCompleted ? 'fresh.available@rvt.test' : 'add.user@rvt.test',
+            mutationCompleted ? 'Fresh Available' : 'Add User'
+          )]));
+        }
+        if (url.pathname === '/api/report-rules/report-rule-id/assigned-users') {
+          return jsonResponse(reportUserPage(url, [reportUser(
+            mutationCompleted ? 'fresh-assigned-id' : 'old-assigned-id',
+            mutationCompleted ? 'fresh.assigned@rvt.test' : 'old.assigned@rvt.test',
+            mutationCompleted ? 'Fresh Assigned' : 'Old Assigned'
+          )]));
+        }
+        if (url.pathname === '/api/report-rules/report-rule-id/users' && init?.method === 'POST') {
+          mutationCompleted = true;
+          return jsonResponse({ item: reportUserAssignments() });
+        }
+        return undefined;
+      }
+    });
+
+    render(
+      <ReportsPanel
+        locationPath="/reports/rules/report-rule-id/users"
+        onNavigate={() => {}}
+        onRequestError={() => {}}
+      />
+    );
+
+    await screen.findByText('add.user@rvt.test');
+    fireEvent.change(screen.getByPlaceholderText(/search available users/i), { target: { value: 'old' } });
+    fireEvent.click(screen.getByRole('button', { name: /add report user/i }));
+    await waitFor(() => expect(oldQueryStarted).toBe(true));
+
+    expect(await screen.findByText('fresh.assigned@rvt.test')).toBeInTheDocument();
+    await act(async () => oldAvailable.resolve(jsonResponse(reportUserPage(
+      new URL('/api/report-rules/report-rule-id/available-users?searchText=old', 'http://localhost'),
+      [reportUser('stale-available-id', 'stale.available@rvt.test', 'Stale Available')]
+    ))));
+
+    expect(screen.getByText('fresh.assigned@rvt.test')).toBeInTheDocument();
+    expect(screen.queryByText('old.assigned@rvt.test')).not.toBeInTheDocument();
   });
 
   it('lets admins search report recipients without losing assigned recipients', async () => {
@@ -2416,6 +2575,108 @@ function reportUserPage(url: URL, users: ReturnType<typeof reportUser>[]) {
     searchText: url.searchParams.get('searchText') ?? '',
     sort: url.searchParams.get('sort') ?? 'email',
     sortDir: url.searchParams.get('sortDir') ?? 'Ascending'
+  };
+}
+
+function renderSitePanel(locationPath: string) {
+  return render(
+    <SitesPanel
+      locationPath={locationPath}
+      onNavigate={() => {}}
+      onRequestError={() => {}}
+      canManage
+      currentUserId={adminUser.id}
+    />
+  );
+}
+
+function rerenderSitePanel(rerender: ReturnType<typeof render>['rerender'], locationPath: string) {
+  rerender(
+    <SitesPanel
+      locationPath={locationPath}
+      onNavigate={() => {}}
+      onRequestError={() => {}}
+      canManage
+      currentUserId={adminUser.id}
+    />
+  );
+}
+
+function siteDetail(id: string, siteName: string) {
+  return {
+    id,
+    siteName,
+    archived: false,
+    createDate: '2026-01-01T00:00:00Z',
+    siteAddress: '1 Test Street',
+    contracts: 'RVT-C-001',
+    companyId: 'company-id',
+    companyName: 'RVT Group',
+    siteContact: 'Company User',
+    customerLogoUrl: null,
+    monitorCount: 0,
+    openNotificationCount: 0,
+    startTime: '08:00',
+    endTime: '18:00',
+    satStartTime: null,
+    satEndTime: null,
+    sunStartTime: null,
+    sunEndTime: null,
+    operatingHours: [],
+    contractList: [],
+    monitors: [],
+    openNotifications: [],
+    archive: null,
+    companies: [],
+    availableContracts: [],
+    canManage: true
+  };
+}
+
+function notificationSettings(siteId: string, startTime: string) {
+  return {
+    siteId,
+    siteName: siteId,
+    settings: [notificationSetting('site-user-id', startTime)]
+  };
+}
+
+function notificationSetting(siteUserId: string, startTime: string) {
+  return {
+    siteUserId,
+    userId: adminUser.id,
+    userName: adminUser.name,
+    userEmail: adminUser.email,
+    siteContact: false,
+    email: true,
+    sms: false,
+    startTime,
+    endTime: '18:00'
+  };
+}
+
+function siteAssignments(email: string) {
+  return {
+    availableUsers: [],
+    assignedUsers: [{
+      id: email,
+      email,
+      name: 'Assigned User',
+      companyRole: 'Operations',
+      siteContact: false
+    }]
+  };
+}
+
+function reportUserAssignments() {
+  return {
+    reportRuleId: 'report-rule-id',
+    siteId: 'site-id',
+    siteName: 'RVT Test Site',
+    companyId: 'company-id',
+    companyName: 'RVT Group',
+    availableUsers: [],
+    assignedUsers: [reportUser('fresh-assigned-id', 'fresh.assigned@rvt.test', 'Fresh Assigned')]
   };
 }
 

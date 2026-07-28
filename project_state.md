@@ -1,12 +1,29 @@
 # Project State
 
-## Authoritative checkpoint: engineering-standards deletion-only hunk repair — 2026-07-28
+## Authoritative checkpoint: Node 24 and engineering-standards CI hardening — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
 - Current branch: `codex/help-asset-url-release-audit`, based on the existing
   Help audit and Portal email-toggle delivery scope. This checkpoint
   supersedes lower current-state and next-step statements while retaining them
   as historical evidence.
+- CI hardening commits after the prior feature checkpoint are:
+  `b9d663c` (remove the runner's undeclared ripgrep dependency),
+  `743005c` (standardize the Node 24 toolchain), and `b33e86e`
+  (accept deletion-only changed ranges).
+- All first-party workflow references now use SHA-pinned Node 24 action
+  implementations: `actions/checkout` v6 at
+  `d23441a48e516b6c34aea4fa41551a30e30af803`,
+  `actions/setup-dotnet` v5 at
+  `26b0ec14cb23fa6904739307f278c14f94c95bf1`, and
+  `actions/setup-node` v6 at
+  `249970729cb0ef3589644e2896645e5dc5ba9c38`. The governed workflows and
+  contract tests were updated together.
+- Portal client development and build declarations now converge on Node 24:
+  `apps/portal/RvtPortal.Client/.nvmrc` contains `24`,
+  `package.json` requires `>=24 <25`, `@types/node` is on major 24, and the
+  lockfile was regenerated with the pinned `node:24-alpine` image used by the
+  Portal Dockerfile.
 - The GitHub Engineering standards check exposed a verifier defect: a retained
   source file whose range change only deleted lines was rejected for lacking a
   new-side range. `scripts/engineering-standards/verify.mjs` now records
@@ -15,12 +32,20 @@
   remain rejected.
 - `tests/verify-engineering-standards.test.sh` contains the committed-range
   regression: it deletes a member from `src/Clock.cs`, verifies the range, and
-  asserts successful analysis. The full suite passed after the repair, and
-  `git diff --check` passed.
-- No application variable definitions, secrets, runtime configuration, or
-  deployment behavior changed in this repair. The Portal email setting remains
-  `RVT:EMAIL_ENABLED`, supplied by environment variable
-  `RVT__Email_ENABLED`, defaulting to `true`.
+  asserts successful analysis. The full verifier scenario suite passed, and
+  the exact CI command
+  `scripts/verify-engineering-standards.sh --base main --head HEAD` passed.
+  Mode-only changes still fail closed.
+- Node 24 container verification passed: ESLint completed with the same two
+  pre-existing Fast Refresh warnings and no errors, all 78 Vitest tests passed,
+  and the production Vite build passed. The current dependency tree still
+  reports six high-severity npm advisories; dependency remediation remains
+  separate pending work.
+- No secrets, application variable definitions, or deployment behavior changed
+  in this hardening. The Portal email setting remains `RVT:EMAIL_ENABLED`,
+  supplied by environment variable `RVT__Email_ENABLED`, defaulting to `true`.
+- Next step: commit this durable checkpoint, push the three CI-hardening
+  commits to PR #5, and monitor the Engineering standards check to green.
 
 ## Authoritative checkpoint: Help audit and Portal email-toggle scopes — 2026-07-28
 

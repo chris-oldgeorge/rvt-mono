@@ -53,8 +53,9 @@
   passed. `RvtPortal.Application.Tests` passed 75/75 tests and
   `RvtPortal.Spa.Tests` passed 546 tests with 11 opt-in PostgreSQL tests
   skipped. The committed remote-base ratchet passed against `origin/main`
-  with baseline decreases and no policy violation. The replacement GitHub
-  Actions run remains the final verification step.
+  with baseline decreases and no policy violation. Replacement GitHub Actions
+  run `30353535675` passed every step, including Node 24 setup and the
+  changed-range engineering-standards check.
 - Node 24 container verification passed: ESLint completed with the same two
   pre-existing Fast Refresh warnings and no errors, all 78 Vitest tests passed,
   and the production Vite build passed. The current dependency tree still
@@ -63,8 +64,10 @@
 - No secrets, application variable definitions, or deployment behavior changed
   in this hardening. The Portal email setting remains `RVT:EMAIL_ENABLED`,
   supplied by environment variable `RVT__Email_ENABLED`, defaulting to `true`.
-- Next step: push the style-remediation commit to PR #5 and monitor the
-  replacement Engineering standards run to green.
+- PR #5 remains a draft. Next step: review the complete PR scope and, when
+  approved, mark it ready for review. The separate six-high-severity npm
+  advisory remediation remains pending and is not part of this toolchain
+  alignment.
 
 ## Authoritative checkpoint: Help audit and Portal email-toggle scopes — 2026-07-28
 

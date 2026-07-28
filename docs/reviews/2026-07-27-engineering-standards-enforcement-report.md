@@ -56,7 +56,10 @@ Ready until an independent reviewer accepts the combined result:
   enforcement guide, and report executable requirements. The same commit adds
   the tracked full-logical-unit review record below. A disposable repository
   fixture proves that removing any of the six links or moving the normative
-  target fails the guard.
+  target fails the guard. The final correction also makes the authoritative
+  architecture/code-quality remediation review’s link to the normative
+  standard a required source/target relationship with its own removal
+  mutation.
 - **Minor documentation finding — stale execution plan:** every genuinely
   completed Task 1–7 step is now checked in the implementation plan.
 - **Minor documentation finding — incomplete rule catalog:** the design rule
@@ -120,7 +123,7 @@ and diff packages are supporting detail, not the sole evidence.
 | Frontend enforcement policy | Complete Prettier/ESLint configuration, package scripts, lockfile effect, generated-source exclusion, and naming rule | Accepted after lint, formatter, test, production-build, and real naming mutation evidence |
 | Baseline and module policy | Complete baseline lifecycle, exception register, project/package/test-framework census, and evaluated module policy | Accepted after deterministic, no-op, decrease-only, concurrency, symlink, lock, and solution-census mutations |
 | Local and CI gates | Complete local phase order and complete workflow dependency-install, restore, verifier, build, coverage, and failure-propagation units | Accepted after wrapper, option, targetless-command, punctuation, removal, duplication, and reordering mutations; pull-request trigger hardening is in `ea6fd74` |
-| Documentation authority and evidence | Root README, documentation index, normative standard, operator guide, design, plan, and enforcement report as one navigable authority unit | Remediated in `ed8f123`; all six required entry-point links and target existence are now load-bearing |
+| Documentation authority and evidence | Root README, documentation index, authoritative remediation review, normative standard, operator guide, design, plan, and enforcement report as one navigable authority unit | All seven required source/target links and target existence are load-bearing; a dedicated mutation removes the remediation-review standard link |
 
 This record does not declare the final audit passed. Independent re-review of
 the combined final-audit commits remains the next gate.

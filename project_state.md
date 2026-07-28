@@ -1,6 +1,31 @@
 # Project State
 
-## R9 enforcement implemented — R1 next 2026-07-28
+## R9 final review pending — do not start R1 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Active worktree:
+  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/repository-engineering-standards`
+  (also exposed through `/Users/oldgeorge/Documents/rvt-mono`); branch:
+  `codex/repository-engineering-standards`.
+- R9 implementation is complete, but final Ready is not approved. Do not start
+  R1 or follow an older “R1 next” checkpoint until the combined final-audit
+  review and final branch verification pass.
+- Final-audit remediation through `8cbeffc` includes trusted materialized
+  policy, pull-request CI enforcement, fail-closed exact-path exceptions,
+  load-bearing documentation authority links, and tracked full-logical-unit
+  review evidence.
+- The current correction makes the authoritative remediation review’s link to
+  `docs/development/engineering-standards.md` a required source/target
+  relationship in the documentation layout guard. Its fixture must prove that
+  removing the review link fails.
+- Remaining gates, in order:
+  1. obtain independent review of the combined final-audit commits;
+  2. run the final standards, documentation, workflow, link, and diff checks;
+  3. declare Ready and proceed to integration only after those gates pass.
+- Final Ready remains pending; no push or merge is authorized by this
+  checkpoint.
+
+## Historical checkpoint — R9 implementation recorded before final audit
 
 - Resume instruction: `Read project_state.md to get up to speed`.
 - Physical worktree:
@@ -63,9 +88,10 @@
   deliverable; the classified backend outcomes remain visible work.
 - Exact commands and requirement traceability are in
   `docs/reviews/2026-07-27-engineering-standards-enforcement-report.md`.
-- Next step: write and execute a separate R1 plan for stale MyAtm/Svantek and
-  related monitor architecture paths plus the shared repository-layout helper.
-  Keep R2 product behavior and R3 reporting-lineage decisions out of R1.
+- Historical next step at the time was to write and execute a separate R1 plan
+  for stale MyAtm/Svantek and related monitor architecture paths plus the
+  shared repository-layout helper. The top pending-final-review checkpoint
+  supersedes that instruction until R9 is independently accepted.
 - Remaining sequence after R1: R2 Help Admin; R3 reporting lineage; R4 dead
   Portal infrastructure/blob unification; R5 Portal vertical extraction; R6
   monitor narrow ports; R7 async compatibility removal; R8 selectable Common

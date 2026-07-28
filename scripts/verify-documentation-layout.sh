@@ -118,6 +118,7 @@ entry_point_paths=(
   "$documentation_index"
   "$documentation_index"
   "$documentation_index"
+  "docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md"
 )
 entry_point_targets=(
   "docs/development/engineering-standards.md"
@@ -126,6 +127,7 @@ entry_point_targets=(
   "development/engineering-standards.md"
   "development/engineering-standards-enforcement.md"
   "reviews/2026-07-27-engineering-standards-enforcement-report.md"
+  "../development/engineering-standards.md"
 )
 
 if [[ ! -f "$repo_root/$documentation_index" ]]; then

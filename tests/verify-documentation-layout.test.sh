@@ -71,6 +71,11 @@ cat > "$fixture_root/docs/index.md" <<'EOF'
 [Report](reviews/2026-07-27-engineering-standards-enforcement-report.md)
 EOF
 
+cat > \
+  "$fixture_root/docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md" <<'EOF'
+[RVT Engineering Standards](../development/engineering-standards.md)
+EOF
+
 touch \
   "$fixture_root/apps/monitors/README.md" \
   "$fixture_root/apps/monitors/AGENTS.md" \
@@ -147,6 +152,11 @@ assert_mutation_rejected \
   "docs/index.md" \
   'reviews/2026-07-27-engineering-standards-enforcement-report.md' \
   'reviews/removed.md'
+assert_mutation_rejected \
+  "removed authoritative remediation-review standard link" \
+  "docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md" \
+  '../development/engineering-standards.md' \
+  '../development/removed.md'
 
 mv \
   "$fixture_root/docs/development/engineering-standards.md" \

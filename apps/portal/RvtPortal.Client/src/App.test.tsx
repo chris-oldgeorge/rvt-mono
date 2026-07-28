@@ -26,6 +26,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, AppErrorBoundary } from './App';
+import { MonitorsPanel } from './operations/MonitorPanels';
 
 const adminUser = {
   id: 'admin-id',
@@ -885,6 +886,146 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Retried Compliance')).toBeInTheDocument());
     expect(screen.queryByText(/reports unavailable/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the current report-rule query when an older delete refresh resolves last', async () => {
+    globalThis.history.replaceState(null, '', '/reports/rules');
+    const oldRefresh = deferredResponse();
+    const currentQuery = deferredResponse();
+    let emptyQueryRequestCount = 0;
+    const reportRulePage = (url: URL, reportName: string) => ({
+      results: [{
+        id: `${reportName.toLowerCase().replaceAll(' ', '-')}-id`,
+        siteId: 'site-id',
+        siteName: 'RVT Test Site',
+        frequency: 2,
+        frequencyLabel: 'Weekly',
+        dayOfWeek: 1,
+        dayOfMonth: null,
+        reportName,
+        lastGenerated: null,
+        canManage: true,
+        assignedUserCount: 1
+      }],
+      total: 1,
+      page: Number(url.searchParams.get('page') ?? 1),
+      pageSize: 10,
+      totalPages: 1,
+      hasPreviousPage: false,
+      hasNextPage: false,
+      searchText: url.searchParams.get('searchText') ?? '',
+      sort: url.searchParams.get('sort') ?? 'lastGenerated',
+      sortDir: url.searchParams.get('sortDir') ?? 'Ascending'
+    });
+    vi.stubGlobal('confirm', vi.fn(() => true));
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/report-rules/old-rule-id' && init?.method === 'DELETE') {
+          return jsonResponse({ message: 'Deleted' });
+        }
+        if (url.pathname !== '/api/report-rules') {
+          return undefined;
+        }
+
+        const searchText = url.searchParams.get('searchText') ?? '';
+        if (!searchText) {
+          emptyQueryRequestCount += 1;
+          return emptyQueryRequestCount === 1
+            ? jsonResponse(reportRulePage(url, 'Old Rule'))
+            : oldRefresh.promise;
+        }
+        if (searchText === 'current') {
+          return currentQuery.promise;
+        }
+        return undefined;
+      }
+    });
+
+    render(<App />);
+
+    await screen.findByText('Old Rule');
+    fireEvent.click(screen.getByRole('button', { name: /delete report rule/i }));
+    await waitFor(() => expect(emptyQueryRequestCount).toBe(2));
+    fireEvent.change(screen.getByPlaceholderText(/search rules/i), { target: { value: 'current' } });
+    await waitFor(() => expect(screen.getByText('Loading data...')).toBeInTheDocument());
+
+    currentQuery.resolve(jsonResponse(reportRulePage(new URL('/api/report-rules?searchText=current', 'http://localhost'), 'Current Rule')));
+    await screen.findByText('Current Rule');
+    oldRefresh.resolve(jsonResponse(reportRulePage(new URL('/api/report-rules', 'http://localhost'), 'Stale Rule')));
+
+    await waitFor(() => expect(screen.queryByText('Stale Rule')).not.toBeInTheDocument());
+    expect(screen.getByText('Current Rule')).toBeInTheDocument();
+  });
+
+  it('shows monitor loading until its current request completes', async () => {
+    const pending = deferredResponse();
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => url.pathname === '/api/monitors' ? pending.promise : undefined
+    });
+
+    render(
+      <MonitorsPanel
+        locationPath="/monitors"
+        onNavigate={() => {}}
+        onRequestError={() => {}}
+        canManage
+        canUseInstallerTools
+        installerOnly={false}
+      />
+    );
+
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    pending.resolve(jsonResponse(monitorPage(new URL('/api/monitors', 'http://localhost'), 'MON-COMPLETE')));
+
+    await screen.findByText('MON-COMPLETE');
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the current monitor tab when the available tabs change', async () => {
+    const installerStates: string[] = [];
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        if (url.pathname === '/api/monitors') {
+          return jsonResponse(monitorPage(url, 'MON-NEW'));
+        }
+        if (url.pathname === '/api/installer/monitors') {
+          installerStates.push(url.searchParams.get('state') ?? '');
+          return jsonResponse(monitorPage(url, 'MON-INSTALLER'));
+        }
+        return undefined;
+      }
+    });
+
+    const { rerender } = render(
+      <MonitorsPanel
+        locationPath="/monitors?state=new"
+        onNavigate={() => {}}
+        onRequestError={() => {}}
+        canManage
+        canUseInstallerTools
+        installerOnly={false}
+      />
+    );
+
+    await screen.findByText('MON-NEW');
+    rerender(
+      <MonitorsPanel
+        locationPath="/monitors?state=new"
+        onNavigate={() => {}}
+        onRequestError={() => {}}
+        canManage={false}
+        canUseInstallerTools
+        installerOnly
+      />
+    );
+
+    await screen.findByText('MON-INSTALLER');
+    expect(installerStates).toEqual(['installer']);
+    expect(globalThis.location.search).toContain('state=installer');
+    expect(screen.getByRole('tab', { name: /installer/i })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('supports report-rule wizard setup and manual generation from the edit view', async () => {

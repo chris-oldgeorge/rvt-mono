@@ -24,7 +24,7 @@ import {
   UserRound,
   UsersRound
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   addReportRuleUser,
@@ -260,6 +260,8 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
+  const activeRequestController = useRef<AbortController | null>(null);
+  const requestGeneration = useRef(0);
 
   const query = useMemo<QueryReportRulesRequest>(() => ({
     searchText,
@@ -271,6 +273,21 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   const requestKey = JSON.stringify(query);
   const isLoading = completedRequestKey !== requestKey;
 
+  const claimRequest = useCallback(() => {
+    activeRequestController.current?.abort();
+    const controller = new AbortController();
+    const generation = requestGeneration.current + 1;
+    requestGeneration.current = generation;
+    activeRequestController.current = controller;
+    return { controller, generation };
+  }, []);
+
+  const ownsRequest = useCallback((controller: AbortController, generation: number) => (
+    activeRequestController.current === controller &&
+    requestGeneration.current === generation &&
+    !controller.signal.aborted
+  ), []);
+
   const columns = useMemo<DataGridColumn<ReportRuleListItem>[]>(() => [
     { key: 'reportName', header: 'Rule', sortable: true, render: (rule) => rule.reportName || 'Scheduled Report' },
     { key: 'siteName', header: 'Site', sortable: true, render: (rule) => rule.siteName },
@@ -280,30 +297,34 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   ], []);
 
   const refreshRules = useCallback(async () => {
+    const { controller, generation } = claimRequest();
     setCompletedRequestKey(null);
     try {
-      const response = await queryReportRules(query);
+      const response = await queryReportRules(query, { signal: controller.signal });
+      if (!ownsRequest(controller, generation)) {
+        return;
+      }
       setRules(response.results);
       setTotal(response.total);
       setTotalPages(response.totalPages);
       setError(null);
       setCompletedRequestKey(requestKey);
     } catch (err) {
-      if (isAbortError(err)) {
+      if (!ownsRequest(controller, generation) || isAbortError(err)) {
         return;
       }
       setError((err as Error).message);
       onRequestError(err);
       setCompletedRequestKey(requestKey);
     }
-  }, [onRequestError, query, requestKey]);
+  }, [claimRequest, onRequestError, ownsRequest, query, requestKey]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    const { controller, generation } = claimRequest();
     globalThis.history.replaceState(null, '', buildRulesUrl({ searchText, page, sort: sortKey, sortDir }));
     queryReportRules(query, { signal: controller.signal })
       .then((response) => {
-        if (controller.signal.aborted) {
+        if (!ownsRequest(controller, generation)) {
           return;
         }
         setRules(response.results);
@@ -313,7 +334,7 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
         setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (!ownsRequest(controller, generation) || isAbortError(err)) {
           return;
         }
         setError(err.message);
@@ -321,7 +342,7 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
         setCompletedRequestKey(requestKey);
       });
     return () => controller.abort();
-  }, [onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
+  }, [claimRequest, onRequestError, ownsRequest, page, query, requestKey, searchText, sortDir, sortKey]);
 
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {

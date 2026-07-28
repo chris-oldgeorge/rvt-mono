@@ -18,8 +18,6 @@ namespace Omnidots.Api
             this.omnidotsApi = omnidotsApi;
         }
 
-        public string Liveness() => RvtConfig.SERVICE_NAME + RvtConfig.SERVICE_VERSION;
-
         public Task StoreMonitorsAsync(CancellationToken cancellationToken = default)
         {
             return omnidotsApi.StoreMonitorsAsync(cancellationToken);

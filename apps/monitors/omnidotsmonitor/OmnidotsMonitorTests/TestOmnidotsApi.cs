@@ -50,7 +50,8 @@ namespace OmnidotsAdapterTests
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.AuthenticateTask());
 
-            TokenResponse response = await testObj.AuthenticateAsync();
+            var gateway = new OmnidotsHttpGateway(httpClient.Object, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
+            TokenResponse response = await gateway.AuthenticateAsync();
             AssertTokenResponse(response);
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
@@ -440,7 +441,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns(new List<RvtAlertRuleDto>());
 
-            await testObj.StorePeakRecordsAsync();
+            await testObj.StorePeakRecordsLastDataTimeAsync();
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
@@ -495,7 +496,7 @@ namespace OmnidotsAdapterTests
             cursorQueries.Setup(c => c.ReadImportCursor("1", OmnidotsMeasurementSeries.Peak))
                 .Returns(cursor);
 
-            await testObj.StorePeakRecordsAsync();
+            await testObj.StorePeakRecordsLastDataTimeAsync();
 
             Assert.IsNotNull(requestedUrl);
             Assert.AreEqual(DateTimeUtil.GetMillis(cursor.AddMinutes(-5)), RequestTime(requestedUrl, "start_time"));

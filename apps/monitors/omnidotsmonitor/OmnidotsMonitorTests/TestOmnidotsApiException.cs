@@ -9,6 +9,7 @@ using Omnidots.Model.Dto;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
+using Rvt.Monitor.Common.Configuration;
 namespace OmnidotsAdapterTests
 {
 
@@ -36,9 +37,10 @@ namespace OmnidotsAdapterTests
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask("blah"));
 
+            var gateway = new OmnidotsHttpGateway(httpClient.Object, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
-                await testObj.AuthenticateAsync();
+                await gateway.AuthenticateAsync();
             });
 
             Assert.AreEqual("Failed ! Invalid ErrorResponse", exception.Message);
@@ -66,9 +68,10 @@ namespace OmnidotsAdapterTests
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.ErrorJson()));
 
+            var gateway = new OmnidotsHttpGateway(httpClient.Object, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
-                await testObj.AuthenticateAsync();
+                await gateway.AuthenticateAsync();
             });
             Assert.AreEqual("Failed ! error message='Some error message.'", exception.Message);
 
@@ -171,7 +174,7 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.StringTask("Blahh"));
 
 
-            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsAsync());
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsLastDataTimeAsync());
             Assert.AreEqual("StorePeakRecords", exception.Operation);
             CollectionAssert.AreEqual(new[] { "1", "2" }, exception.Failures.Select(failure => failure.SerialId).ToArray());
 
@@ -219,7 +222,7 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.ErrorJson()));
 
 
-            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsAsync());
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsLastDataTimeAsync());
             Assert.AreEqual("StorePeakRecords", exception.Operation);
             CollectionAssert.AreEqual(new[] { "1", "2" }, exception.Failures.Select(failure => failure.SerialId).ToArray());
 
@@ -267,7 +270,7 @@ namespace OmnidotsAdapterTests
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
 
             await AssertAggregateFailure(
-                () => testObj.StorePeakRecordsAsync(),
+                () => testObj.StorePeakRecordsLastDataTimeAsync(),
                 "StorePeakRecords",
                 "1");
 
@@ -399,7 +402,7 @@ namespace OmnidotsAdapterTests
 
             Func<Task> import = operation switch
             {
-                "StorePeakRecords" => () => testObj.StorePeakRecordsAsync(),
+                "StorePeakRecords" => () => testObj.StorePeakRecordsLastDataTimeAsync(),
                 "StoreVeffRecords" => () => testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2)),
                 "StoreVdvRecords" => () => testObj.StoreVdvRecordsAsync(TimeSpan.FromHours(2)),
                 _ => throw new AssertFailedException($"Unexpected operation '{operation}'.")

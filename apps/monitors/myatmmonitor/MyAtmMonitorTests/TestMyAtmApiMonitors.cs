@@ -46,7 +46,7 @@ namespace MyAtmMonitorTests
                 actual.SendEndTime == expected.SendEndTime);
 
         [TestMethod]
-        public void TestStoreMonitors_Success()
+        public async Task TestStoreMonitors_Success()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                 out Mock<IDBClient> dbClient,
@@ -62,7 +62,7 @@ namespace MyAtmMonitorTests
             httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/22222")).
                 Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DeviceInfoResponseJson("22222")));
 
-            testObj.StoreMonitors(123);
+            await testObj.StoreMonitorsAsync(123);
 
             httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100"), Times.Exactly(1));
             httpClient.Verify(c => c.GetAsync("/api/customers/123/devices/11111"), Times.Exactly(1));
@@ -79,7 +79,7 @@ namespace MyAtmMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreMonitors_UsesConfiguredPageSizeForPaging()
+        public async Task TestStoreMonitors_UsesConfiguredPageSizeForPaging()
         {
             var httpClient = new Mock<IHttpClient>();
             var dbClient = new Mock<IDBClient>();
@@ -131,7 +131,7 @@ namespace MyAtmMonitorTests
             httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/33333"))
                 .ReturnsAsync(MyAtmFixture.DeviceInfoResponseJson("33333"));
 
-            testObj.StoreMonitors(123);
+            await testObj.StoreMonitorsAsync(123);
 
             httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=2"), Times.Once);
             httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=2&$top=2"), Times.Once);
@@ -139,7 +139,7 @@ namespace MyAtmMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreMonitors_TestLocal_WritesOnlyDemoDustMonitor()
+        public async Task TestStoreMonitors_TestLocal_WritesOnlyDemoDustMonitor()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                 out Mock<IDBClient> dbClient,
@@ -156,7 +156,7 @@ namespace MyAtmMonitorTests
             httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/99999")).
                 Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DeviceInfoResponseJson("99999")));
 
-            testObj.StoreMonitors(123);
+            await testObj.StoreMonitorsAsync(123);
 
             dbClient.Verify(c => c.WriteMonitorList(It.Is<List<DustMonitorDto>>(
                 monitors => monitors.Count == 1 && monitors[0].SerialId == "21972")), Times.Exactly(1));
@@ -226,7 +226,7 @@ namespace MyAtmMonitorTests
             """;
 
         [TestMethod]
-        public void TestStoreAccessoryInfo_Success()
+        public async Task TestStoreAccessoryInfo_Success()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                          out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
@@ -243,7 +243,7 @@ namespace MyAtmMonitorTests
                     It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
 
-            testObj.StoreAccessoryInfo(customerId);
+            await testObj.StoreAccessoryInfoAsync(customerId);
 
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.AccessoryPageRequestPattern(656, "11111"))), Times.Exactly(1));
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.AccessoryPageRequestPattern(656, "22222"))), Times.Exactly(1));
@@ -261,7 +261,7 @@ namespace MyAtmMonitorTests
         }
 
         [TestMethod]
-        public void TestCheckForOfflineMonitors_MonitorsOfflineFor23Hours_Success()
+        public async Task TestCheckForOfflineMonitors_MonitorsOfflineFor23Hours_Success()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
@@ -272,7 +272,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), It.IsAny<DateTime?>())).
                 Returns(new List<DustMonitorDto>());
 
-            testObj.CheckForOfflineMonitors(customerId);
+            await testObj.CheckForOfflineMonitorsAsync(customerId);
 
             httpClient.VerifyNoOtherCalls();
 
@@ -289,7 +289,7 @@ namespace MyAtmMonitorTests
         [DataRow(24 * 60, 0)]
         [DataRow((24 * 60) + 1, 60)]
         [TestMethod]
-        public void TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
+        public async Task TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
@@ -309,7 +309,7 @@ namespace MyAtmMonitorTests
                 .Callback<MyAtmAlertCommit, CancellationToken>((commit, _) => commits.Add(commit))
                 .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
 
-            testObj.CheckForOfflineMonitors(customerId);
+            await testObj.CheckForOfflineMonitorsAsync(customerId);
 
             httpClient.VerifyNoOtherCalls();
 
@@ -346,7 +346,7 @@ namespace MyAtmMonitorTests
         };
 
         [TestMethod]
-        public void TestCheckForOfflineMonitors_OfflineMonitorWithRecentData_MarkedOnline()
+        public async Task TestCheckForOfflineMonitors_OfflineMonitorWithRecentData_MarkedOnline()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
@@ -363,7 +363,7 @@ namespace MyAtmMonitorTests
             }
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), It.IsAny<DateTime?>())).Returns(monitors);
 
-            testObj.CheckForOfflineMonitors(customerId);
+            await testObj.CheckForOfflineMonitorsAsync(customerId);
 
             httpClient.VerifyNoOtherCalls();
 

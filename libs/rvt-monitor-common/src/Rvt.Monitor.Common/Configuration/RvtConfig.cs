@@ -172,7 +172,6 @@ public sealed class RvtConfig
         };
     }
 
-    internal static string MonitorKind => Defaults.Kind;
 
     /// <summary>
     /// The resolved monitor-specific rule behaviour. Shared rules take this as
@@ -194,8 +193,6 @@ public sealed class RvtConfig
     public static readonly string MQTT_USERNAME = GetSetting("RVT__MQTT_USERNAME", "client1-authn-ID");
     public static readonly string MQTT_CERTIFICATE_PATH = GetSetting("RVT__MQTT_CERTIFICATE_PATH");
     public static readonly string MQTT_PRIVATE_KEY_PATH = GetSetting("RVT__MQTT_PRIVATE_KEY_PATH");
-    public static readonly bool SMS_ENABLED = GetBoolSetting("RVT__SMS_ENABLED");
-    public static readonly bool EMAIL_ENABLED = GetBoolSetting("RVT__EMAIL_ENABLED");
     public static readonly string DB_CONNECTION_STRING = GetSetting("ConnectionStrings__DefaultConnection");
     public static readonly bool TESTLOCAL = GetBoolSetting("testlocal");
     public static string PORTAL_BASE_URL => GetSetting("RVT__PORTAL_BASE_URL", Defaults.PortalBaseUrl);
@@ -208,10 +205,6 @@ public sealed class RvtConfig
     public static string USER_AUTH => Credentials.UserAuth;
     public static string TOKEN => Credentials.Token;
     public static readonly bool USE_TOKEN = GetBoolSetting("RVT__OMNIDOTS_USE_TOKEN", true);
-    public static readonly string WEBHOOK_URL = GetSetting("RVT__OMNIDOTS_WEBHOOK_URL");
-    public static readonly string WEBHOOK_SECRET = GetSetting("RVT__OMNIDOTS_WEBHOOK_SECRET");
-    public static readonly string CONFIG_SECRET = GetSetting("RVT__OMNIDOTS_CONFIG_SECRET");
-    public static readonly int NOTIFICATION_DELAY_MINUTES = GetIntSetting("RVT__NOTIFICATION_DELAY_MINUTES", 5);
 
     public static readonly string API_KEY = GetSetting("RVT__SVANTEK_API_KEY");
 }

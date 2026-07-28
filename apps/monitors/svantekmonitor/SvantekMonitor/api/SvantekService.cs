@@ -12,8 +12,6 @@ public sealed class SvantekService : ISvantekMonitorJobs
         this.svantekApi = svantekApi;
     }
 
-    public string Liveness() => RvtConfig.SERVICE_NAME + RvtConfig.SERVICE_VERSION;
-
     public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
         svantekApi.StoreMonitorsAsync(cancellationToken);
 

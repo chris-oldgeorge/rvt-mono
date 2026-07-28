@@ -146,9 +146,6 @@ namespace Omnidots.Api
                 timeProvider);
         }
 
-        public Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken = default) =>
-            _gateway.AuthenticateAsync(cancellationToken);
-
         public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
             storeMonitors.RunAsync(cancellationToken);
 
@@ -156,12 +153,6 @@ namespace Omnidots.Api
             checkForOfflineMonitors.RunAsync(cancellationToken);
 
         public Task StorePeakRecordsLastDataTimeAsync(CancellationToken cancellationToken = default) =>
-            storePeakRecords.RunAsync(cancellationToken);
-
-        public Task StorePeakRecordsLastDataTimeNewAsync(CancellationToken cancellationToken = default) =>
-            storePeakRecords.RunAsync(cancellationToken);
-
-        public Task StorePeakRecordsAsync(CancellationToken cancellationToken = default) =>
             storePeakRecords.RunAsync(cancellationToken);
 
         public Task StoreVeffRecordsAsync(TimeSpan lookback, CancellationToken cancellationToken = default) =>

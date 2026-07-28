@@ -15,6 +15,10 @@ last_repo=
 last_output=
 last_status=0
 
+# Test overrides model local invocation by default, even when this harness is
+# itself launched by a CI runner. Focused cases opt back into GitHub Actions.
+export GITHUB_ACTIONS=false
+
 cleanup() {
   sleep 30 &
   cleanup_pid_probe=$!
@@ -196,6 +200,26 @@ run_verify_default_commands() {
   set -e
 }
 
+run_verify_in_github_actions_with_override() {
+  local override_name="$1"
+  local override_value="$2"
+
+  set +e
+  last_output="$(
+    cd "$last_repo"
+    unset RVT_STANDARDS_DOTNET_COMMAND
+    unset RVT_STANDARDS_PRETTIER_COMMAND
+    unset RVT_STANDARDS_ESLINT_COMMAND
+    unset RVT_STANDARDS_BASELINE_PATH
+    unset RVT_STANDARDS_EXCEPTIONS_PATH
+    export GITHUB_ACTIONS=true
+    export "${override_name}=${override_value}"
+    scripts/verify-engineering-standards.sh --working-tree 2>&1
+  )"
+  last_status=$?
+  set -e
+}
+
 write_dotnet_report() {
   local destination="$1"
   local file_path="$2"
@@ -329,6 +353,33 @@ exit "$RVT_FAKE_ESLINT_STATUS"
 EOF
 chmod +x "$fake_bin/fake-dotnet" "$fake_bin/fake-prettier" "$fake_bin/fake-eslint"
 ln -s "$fake_bin/fake-dotnet" "$default_bin/dotnet"
+
+# GitHub Actions must reject every command and policy-path override before
+# policy loading or source tools can be influenced.
+for override_name in \
+  RVT_STANDARDS_DOTNET_COMMAND \
+  RVT_STANDARDS_PRETTIER_COMMAND \
+  RVT_STANDARDS_ESLINT_COMMAND \
+  RVT_STANDARDS_BASELINE_PATH \
+  RVT_STANDARDS_EXCEPTIONS_PATH; do
+  create_repo "github-actions-${override_name}"
+  run_verify_in_github_actions_with_override "$override_name" "unsafe"
+  assert_status 2
+  assert_output "$override_name"
+  assert_output "GITHUB_ACTIONS=true"
+  assert_log_absent
+done
+
+# The same test-only injection boundary remains available outside CI.
+create_repo local-override-support
+printf '\n' >> "$last_repo/src/Clock.cs"
+printf 'export const changed = 43;\n' \
+  >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+run_verify --working-tree
+assert_status 0
+assert_log_contains "dotnet <--sentinel> <two words>"
+assert_log_contains "prettier cwd=<$last_repo/apps/portal/RvtPortal.Client>"
+assert_log_contains "eslint cwd=<$last_repo/apps/portal/RvtPortal.Client>"
 
 # Clean changed-scope checks do not invoke source tools.
 create_repo clean

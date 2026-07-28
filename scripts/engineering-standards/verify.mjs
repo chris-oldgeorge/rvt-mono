@@ -80,6 +80,13 @@ const exceptionAuthorizationFields = [
   'removalCondition',
   'validation'
 ];
+const githubActionsForbiddenOverrides = [
+  'RVT_STANDARDS_DOTNET_COMMAND',
+  'RVT_STANDARDS_PRETTIER_COMMAND',
+  'RVT_STANDARDS_ESLINT_COMMAND',
+  'RVT_STANDARDS_BASELINE_PATH',
+  'RVT_STANDARDS_EXCEPTIONS_PATH'
+];
 
 class PolicyError extends Error {}
 class InvocationError extends Error {}
@@ -149,6 +156,19 @@ function parseArguments(argv) {
   }
 
   return parsed;
+}
+
+function assertNoGitHubActionsOverrides() {
+  if (process.env.GITHUB_ACTIONS !== 'true') return;
+
+  const configured = githubActionsForbiddenOverrides.filter(
+    (name) => process.env[name] !== undefined
+  );
+  if (configured.length === 0) return;
+
+  throw new InvocationError(
+    `Environment overrides are forbidden when GITHUB_ACTIONS=true: ${configured.join(', ')}`
+  );
 }
 
 function setMode(parsed, mode) {
@@ -1430,6 +1450,7 @@ function repositoryRoot() {
 function main() {
   const options = parseArguments(process.argv.slice(2));
   if (options.help) return 0;
+  assertNoGitHubActionsOverrides();
   const repoRoot = repositoryRoot();
   const scope = resolveScope(repoRoot, options);
   let policy;

@@ -45,5 +45,8 @@ jobs:
       - name: Verify engineering configuration
         run: tests/verify-engineering-configuration.test.sh
 
+      - name: Verify automatic workflow contract
+        run: tests/verify-engineering-standards-workflow.test.sh
+
       - name: Verify changed-range engineering standards
         run: scripts/verify-engineering-standards.sh --base auto --head HEAD

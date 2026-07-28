@@ -86,9 +86,10 @@ def verify_workflow(source)
   end
 
   steps = sequence(job.fetch("steps"), "steps").map { |node| mapping(node, "step") }
-  assert(steps.length == 8, "workflow must define exactly the eight required setup and gate steps")
+  assert(steps.length == 9, "workflow must define exactly the nine required setup and gate steps")
   steps.each do |step|
     name = step.key?("name") ? scalar(step.fetch("name"), "step name") : "unnamed step"
+    assert(!step.key?("env"), "#{name} must not define environment overrides")
     assert(!step.key?("if"), "#{name} must be unconditional")
     assert(!step.key?("continue-on-error"), "#{name} must block on failure")
   end
@@ -158,6 +159,8 @@ def verify_workflow(source)
       "node --test tests/engineering-standards-model.test.mjs tests/verify-engineering-standards-policy.test.mjs",
     "Verify engineering configuration" =>
       "tests/verify-engineering-configuration.test.sh",
+    "Verify automatic workflow contract" =>
+      "tests/verify-engineering-standards-workflow.test.sh",
     "Verify changed-range engineering standards" =>
       "scripts/verify-engineering-standards.sh --base auto --head HEAD"
   }
@@ -185,6 +188,7 @@ def verify_workflow(source)
     "Restore monorepo",
     "Verify standards model and module policy",
     "Verify engineering configuration",
+    "Verify automatic workflow contract",
     "Verify changed-range engineering standards"
   ]
   indexes = ordered_names.map { |name| steps.index(named_step.call(name)) }
@@ -244,6 +248,15 @@ mutations = {
       "        run: tests/verify-engineering-configuration.test.sh\n\n",
     ""
   ],
+  "removed workflow contract gate" => [
+    "      - name: Verify automatic workflow contract\n" \
+      "        run: tests/verify-engineering-standards-workflow.test.sh\n\n",
+    ""
+  ],
+  "nonblocking workflow contract gate" => [
+    "      - name: Verify automatic workflow contract\n",
+    "      - name: Verify automatic workflow contract\n        continue-on-error: true\n"
+  ],
   "changed-range bypass" => [
     "scripts/verify-engineering-standards.sh --base auto --head HEAD",
     "scripts/verify-engineering-standards.sh --all"
@@ -264,6 +277,32 @@ mutations["reordered gates"] = [
   "#{model_block}\n#{configuration_block}",
   "#{configuration_block}\n#{model_block}"
 ]
+
+workflow_contract_block =
+  "      - name: Verify automatic workflow contract\n" \
+  "        run: tests/verify-engineering-standards-workflow.test.sh\n"
+changed_range_block =
+  "      - name: Verify changed-range engineering standards\n" \
+  "        run: scripts/verify-engineering-standards.sh --base auto --head HEAD\n"
+mutations["workflow contract after changed-range gate"] = [
+  "#{workflow_contract_block}\n#{changed_range_block}",
+  "#{changed_range_block}\n#{workflow_contract_block}"
+]
+
+[
+  "RVT_STANDARDS_DOTNET_COMMAND",
+  "RVT_STANDARDS_PRETTIER_COMMAND",
+  "RVT_STANDARDS_ESLINT_COMMAND",
+  "RVT_STANDARDS_BASELINE_PATH",
+  "RVT_STANDARDS_EXCEPTIONS_PATH"
+].each do |override|
+  mutations["#{override} step override"] = [
+    "      - name: Verify changed-range engineering standards\n",
+    "      - name: Verify changed-range engineering standards\n" \
+      "        env:\n" \
+      "          #{override}: unsafe\n"
+  ]
+end
 
 mutations.each do |label, (needle, replacement)|
   mutated = source.sub(needle, replacement)

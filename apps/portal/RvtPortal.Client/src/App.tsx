@@ -885,25 +885,25 @@ type ConfirmEmailPageProps = PublicPageProps & Readonly<{
 
 // Function summary: Renders the ConfirmEmailPage React component and wires its local UI behavior.
 function ConfirmEmailPage({ onAuthenticated, onNavigate }: ConfirmEmailPageProps) {
+  const params = new URLSearchParams(globalThis.location.search);
+  const userId = params.get('userId') ?? '';
+  const code = params.get('code') ?? '';
+  const parameterError = !userId || !code
+    ? 'A user and confirmation code must be supplied.'
+    : null;
+  const confirmationCode = code;
   const [confirmation, setConfirmation] = useState<ConfirmEmailResponse | null>(null);
-  const [confirmationCode, setConfirmationCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('Confirming email');
-  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState(parameterError ? '' : 'Confirming email');
+  const [error, setError] = useState<string | null>(parameterError);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(globalThis.location.search);
-    const userId = params.get('userId') ?? '';
-    const code = params.get('code') ?? '';
-    if (!userId || !code) {
-      setError('A user and confirmation code must be supplied.');
-      setMessage('');
+    if (parameterError) {
       return;
     }
-    setConfirmationCode(code);
-    confirmEmail(userId, code)
+    confirmEmail(userId, confirmationCode)
       .then((response) => {
         setConfirmation(response);
         setMessage('Email confirmed');
@@ -912,7 +912,7 @@ function ConfirmEmailPage({ onAuthenticated, onNavigate }: ConfirmEmailPageProps
         setError(err.message);
         setMessage('');
       });
-  }, []);
+  }, [confirmationCode, parameterError, userId]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -1023,7 +1023,10 @@ type PortalShellProps = Readonly<{
 function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: PortalShellProps) {
   const [health, setHealth] = useState<GetHealthResponse | null>(null);
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
-  const [shellError, setShellError] = useState<string | null>(null);
+  const [shellError, setShellError] = useState<{
+    route: ProtectedRoute;
+    message: string;
+  } | null>(null);
   const [adminExpanded, setAdminExpanded] = useState(true);
   const user = auth.user ?? null;
   const visibleItems = useMemo(() => visibleNavigation(user), [user]);
@@ -1033,6 +1036,7 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
   const accountItems = useMemo(() => navigationGroup(visibleItems, 'account'), [visibleItems]);
   const contentRoute = canAccessRoute(route, user) ? route : 'access-denied';
   const isAdminRouteActive = adminItems.some((item) => item.route === contentRoute);
+  const visibleShellError = shellError?.route === route ? shellError.message : null;
 
   const handleAccessRequestError = useCallback((error: unknown) => {
     if (isUnauthorized(error)) {
@@ -1041,7 +1045,10 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
       return true;
     }
     if (isForbidden(error)) {
-      setShellError('You do not have permission to use that part of the portal.');
+      setShellError({
+        route,
+        message: 'You do not have permission to use that part of the portal.'
+      });
       if (route !== 'access-denied') {
         onNavigate('/access-denied');
       }
@@ -1058,12 +1065,8 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
     if (handleAccessRequestError(error)) {
       return;
     }
-    setShellError((error as Error).message);
-  }, [handleAccessRequestError]);
-
-  useEffect(() => {
-    setShellError(null);
-  }, [route]);
+    setShellError({ route, message: (error as Error).message });
+  }, [handleAccessRequestError, route]);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(handleShellRequestError);
@@ -1151,7 +1154,7 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
             <span>{getUserRoles(user).join(', ') || 'No role'}</span>
           </div>
         </section>
-        {shellError && <Notice tone="error" message={shellError} />}
+        {visibleShellError && <Notice tone="error" message={visibleShellError} />}
         {contentRoute === 'dashboard' && (
           <DashboardPanel auth={auth} onNavigate={onNavigate} onRequestError={handleRequestError} />
         )}
@@ -1332,9 +1335,13 @@ type AccountPanelProps = Readonly<{
 
 // Function summary: Renders the AccountPanel React component and wires its local UI behavior.
 function AccountPanel({ profile, onProfileChanged }: AccountPanelProps) {
+  const profileFormKey = profile
+    ? [profile.id, profile.email, profile.name, profile.mobilePhone, profile.companyRole].join('|')
+    : 'profile-loading';
+
   return (
     <section className="account-grid" aria-label="Account management">
-      <ProfileForm profile={profile} onProfileChanged={onProfileChanged} />
+      <ProfileForm key={profileFormKey} profile={profile} onProfileChanged={onProfileChanged} />
       <PasswordForm />
     </section>
   );
@@ -1391,23 +1398,13 @@ type ProfileFormProps = Readonly<{
 
 // Function summary: Renders the ProfileForm React component and wires its local UI behavior.
 function ProfileForm({ profile, onProfileChanged }: ProfileFormProps) {
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [mobilePhone, setMobilePhone] = useState('');
-  const [companyRole, setCompanyRole] = useState('');
+  const [email, setEmail] = useState(profile?.email ?? '');
+  const [name, setName] = useState(profile?.name ?? '');
+  const [mobilePhone, setMobilePhone] = useState(profile?.mobilePhone ?? '');
+  const [companyRole, setCompanyRole] = useState(profile?.companyRole ?? '');
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!profile) {
-      return;
-    }
-    setEmail(profile.email);
-    setName(profile.name ?? '');
-    setMobilePhone(profile.mobilePhone ?? '');
-    setCompanyRole(profile.companyRole ?? '');
-  }, [profile]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

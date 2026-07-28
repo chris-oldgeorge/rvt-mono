@@ -71,6 +71,32 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { name: /please sign in/i })).not.toBeInTheDocument();
   });
 
+  it('rejects an incomplete confirmation URL without issuing a confirmation request', async () => {
+    globalThis.history.replaceState(null, '', '/confirm-email?userId=user-id');
+    stubFetch({ auth: { isAuthenticated: false, user: null } });
+
+    render(<App />);
+
+    expect(
+      await screen.findByText('A user and confirmation code must be supplied.'),
+    ).toBeInTheDocument();
+    expect(
+      fetchedUrls().some((url) => url.pathname === '/api/auth/confirm-email'),
+    ).toBe(false);
+  });
+
+  it('initializes profile fields and keeps local edits user-owned', async () => {
+    globalThis.history.replaceState(null, '', '/profile');
+    stubFetch({ auth: { isAuthenticated: true, user: adminUser } });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText(/^name$/i)).toHaveValue('Admin User'));
+    const name = screen.getByLabelText(/^name$/i);
+    fireEvent.change(name, { target: { value: 'Edited locally' } });
+    expect(name).toHaveValue('Edited locally');
+  });
+
   it('renders admin navigation for RVT admin users', async () => {
     globalThis.history.replaceState(null, '', '/');
     stubFetch({ auth: { isAuthenticated: true, user: adminUser } });

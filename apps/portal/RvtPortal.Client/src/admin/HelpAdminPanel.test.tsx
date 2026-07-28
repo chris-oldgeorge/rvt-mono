@@ -225,9 +225,7 @@ describe('HelpAdminPanel', () => {
   it('does not expose an earlier overview after the active filter request fails', async () => {
     const draftRequest = deferred<HelpAdminOverviewResponse>();
     const onRequestError = vi.fn();
-    api.queryAdminHelp
-      .mockResolvedValueOnce(overview([existingArticle]))
-      .mockReturnValueOnce(draftRequest.promise);
+    api.queryAdminHelp.mockResolvedValueOnce(overview([existingArticle])).mockReturnValueOnce(draftRequest.promise);
     render(<HelpAdminPanel onNavigate={vi.fn()} onRequestError={onRequestError} />);
 
     expect(await screen.findByRole('button', { name: 'Publish Dust FAQ' })).toBeInTheDocument();

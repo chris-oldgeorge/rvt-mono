@@ -28,20 +28,20 @@ const leafletMocks = vi.hoisted(() => {
       setView: mapSetView,
       fitBounds: mapFitBounds,
       invalidateSize: mapInvalidateSize,
-      remove: mapRemove
+      remove: mapRemove,
     })),
     tileLayer: vi.fn(() => ({
-      addTo: vi.fn()
+      addTo: vi.fn(),
     })),
     latLngBounds: vi.fn((latLngs: Array<[number, number]>) => ({ latLngs })),
     marker: vi.fn(() => {
       const marker = {
         bindTooltip: vi.fn(() => marker),
-        addTo: vi.fn()
+        addTo: vi.fn(),
       };
       return marker;
     }),
-    divIcon: vi.fn((options: unknown) => options)
+    divIcon: vi.fn((options: unknown) => options),
   };
 });
 
@@ -49,11 +49,14 @@ vi.mock('leaflet', () => leafletMocks);
 
 describe('MonitorMap', () => {
   beforeEach(() => {
-    vi.stubGlobal('ResizeObserver', class ResizeObserver {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    });
+    vi.stubGlobal(
+      'ResizeObserver',
+      class ResizeObserver {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
   });
 
   afterEach(() => {
@@ -71,6 +74,15 @@ describe('MonitorMap', () => {
 
     expect(leafletMocks.map).toHaveBeenCalledTimes(1);
     expect(leafletMocks.mapRemove).not.toHaveBeenCalled();
+  });
+
+  it('rebuilds Leaflet with the latest committed marker content', async () => {
+    const { rerender } = render(<MonitorMap markers={[markerFixture()]} />);
+    await waitFor(() => expect(leafletMocks.mapSetView).toHaveBeenCalledTimes(1));
+
+    rerender(<MonitorMap markers={[{ ...markerFixture(), latitude: 40.7128, longitude: -74.006 }]} />);
+
+    await waitFor(() => expect(leafletMocks.mapSetView).toHaveBeenLastCalledWith([40.7128, -74.006], 13));
   });
 
   it('invalidates the Leaflet size after creation so tiles fill the container', async () => {
@@ -100,8 +112,8 @@ describe('MonitorMap', () => {
     expect(leafletMocks.tileLayer).toHaveBeenCalledWith(
       'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       expect.objectContaining({
-        attribution: expect.stringContaining('OpenStreetMap')
-      })
+        attribution: expect.stringContaining('OpenStreetMap'),
+      }),
     );
   });
 });
@@ -121,7 +133,7 @@ function markerFixture(): MapMonitorMarker {
     fleetNumber: 'RVT-001',
     serialId: 'SER-001',
     lastDataTime: '2026-06-26T12:00:00Z',
-    what3words: 'filled.count.soap'
+    what3words: 'filled.count.soap',
   };
 }
 

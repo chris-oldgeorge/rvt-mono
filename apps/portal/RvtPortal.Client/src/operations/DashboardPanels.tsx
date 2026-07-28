@@ -9,25 +9,9 @@
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 // - 2026-06-09 pending Reused shared monitor map component for embedded detail parity.
 
-import {
-  Activity,
-  Bell,
-  CalendarDays,
-  Edit3,
-  Eye,
-  Gauge,
-  MapPin,
-  RefreshCcw,
-  Search,
-  ShieldAlert
-} from 'lucide-react';
+import { Activity, Bell, CalendarDays, Edit3, Eye, Gauge, MapPin, RefreshCcw, Search, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  getDashboardSummary,
-  isAbortError,
-  queryBreachesAlerts,
-  querySites
-} from '../api/client';
+import { getDashboardSummary, isAbortError, queryBreachesAlerts, querySites } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
 import { Notice } from '../components/FormControls';
@@ -40,13 +24,13 @@ import type {
   DashboardSummaryResponse,
   QuerySitesRequest,
   SiteListItem,
-  SortDirection
+  SortDirection,
 } from '../dtos';
 
 const roleNames = {
   masterAdmin: 'RVTMasterAdmin',
   installer: 'RVTInstaller',
-  companyUser: 'CompanyUser'
+  companyUser: 'CompanyUser',
 } as const;
 
 type DashboardPanelProps = Readonly<{
@@ -55,36 +39,61 @@ type DashboardPanelProps = Readonly<{
   onRequestError: (error: unknown) => void;
 }>;
 
+type DashboardSummaryResult = Readonly<{
+  requestKey: string;
+  summary: DashboardSummaryResponse | null;
+  error: string | null;
+}>;
+
+type RequestExecution<T> = Readonly<{
+  query: T;
+}>;
+
+type SiteSearchResult = Readonly<{
+  execution: RequestExecution<QuerySitesRequest>;
+  sites: SiteListItem[];
+  total: number;
+  totalPages: number;
+  error: string | null;
+}>;
+
+type BreachesAlertsExecution = Readonly<{
+  date: string;
+}>;
+
+type BreachesAlertsResult = Readonly<{
+  execution: BreachesAlertsExecution;
+  response: BreachesAlertsResponse | null;
+  error: string | null;
+}>;
+
 const siteSearchPageSize = 50;
 
 // Function summary: Renders the DashboardPanel React component and wires its local UI behavior.
 export function DashboardPanel({ auth, onNavigate, onRequestError }: DashboardPanelProps) {
-  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [summaryResult, setSummaryResult] = useState<DashboardSummaryResult | null>(null);
+  const summaryRequestKey = 'dashboard-summary';
+  const summary = summaryResult?.requestKey === summaryRequestKey ? summaryResult.summary : null;
+  const error = summaryResult?.requestKey === summaryRequestKey ? summaryResult.error : null;
+  const isLoading = summaryResult?.requestKey !== summaryRequestKey;
   const userRoles = auth.user?.roles ?? [];
   const isMasterAdmin = userRoles.includes(roleNames.masterAdmin);
   const isInstaller = userRoles.includes(roleNames.installer);
 
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
     getDashboardSummary({ signal: controller.signal })
       .then((response) => {
-        setSummary(response);
-        setError(null);
+        if (!controller.signal.aborted) {
+          setSummaryResult({ requestKey: summaryRequestKey, summary: response, error: null });
+        }
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setError(err.message);
+        setSummaryResult({ requestKey: summaryRequestKey, summary: null, error: err.message });
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
       });
     return () => controller.abort();
   }, [onRequestError]);
@@ -164,31 +173,40 @@ export function DashboardPanel({ auth, onNavigate, onRequestError }: DashboardPa
 // Function summary: Renders the legacy dashboard Site Search widget for admin and company users.
 function DashboardSiteSearch({
   onNavigate,
-  onRequestError
+  onRequestError,
 }: Readonly<{ onNavigate: (path: string) => void; onRequestError: (error: unknown) => void }>) {
-  const [sites, setSites] = useState<SiteListItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+  const [siteSearchResult, setSiteSearchResult] = useState<SiteSearchResult | null>(null);
   const [searchText, setSearchText] = useState('');
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState('siteName');
   const [sortDir, setSortDir] = useState<SortDirection>('Ascending');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const columns = useMemo<DataGridColumn<SiteListItem>[]>(() => [
-    { key: 'contracts', header: 'Contracts', sortable: true, render: (site) => site.contracts || 'None' },
-    { key: 'siteName', header: 'Site Name', sortable: true, render: (site) => site.siteName || 'None' },
-    { key: 'siteAddress', header: 'Address', sortable: true, render: (site) => site.siteAddress || 'None' },
-    { key: 'companyName', header: 'Company Name', sortable: true, render: (site) => site.companyName || 'None' }
-  ], []);
-  const query = useMemo<QuerySitesRequest>(() => ({
-    searchText,
-    includeArchived: false,
-    page,
-    pageSize: siteSearchPageSize,
-    sort: sortKey,
-    sortDir
-  }), [page, searchText, sortDir, sortKey]);
+  const columns = useMemo<DataGridColumn<SiteListItem>[]>(
+    () => [
+      { key: 'contracts', header: 'Contracts', sortable: true, render: (site) => site.contracts || 'None' },
+      { key: 'siteName', header: 'Site Name', sortable: true, render: (site) => site.siteName || 'None' },
+      { key: 'siteAddress', header: 'Address', sortable: true, render: (site) => site.siteAddress || 'None' },
+      { key: 'companyName', header: 'Company Name', sortable: true, render: (site) => site.companyName || 'None' },
+    ],
+    [],
+  );
+  const query = useMemo<QuerySitesRequest>(
+    () => ({
+      searchText,
+      includeArchived: false,
+      page,
+      pageSize: siteSearchPageSize,
+      sort: sortKey,
+      sortDir,
+    }),
+    [page, searchText, sortDir, sortKey],
+  );
+  const execution = useMemo<RequestExecution<QuerySitesRequest>>(() => ({ query }), [query]);
+  const activeResult = siteSearchResult?.execution === execution ? siteSearchResult : null;
+  const sites = activeResult?.sites ?? [];
+  const total = activeResult?.total ?? 0;
+  const totalPages = activeResult?.totalPages ?? 0;
+  const error = activeResult?.error ?? null;
+  const isLoading = siteSearchResult?.execution !== execution;
   const handleSortChange = useCallback((key: string, direction: GridSortDirection) => {
     setSortKey(key);
     setSortDir(direction);
@@ -197,28 +215,27 @@ function DashboardSiteSearch({
 
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
-    querySites(query, { signal: controller.signal })
+    querySites(execution.query, { signal: controller.signal })
       .then((response) => {
-        setSites(response.results);
-        setTotal(response.total);
-        setTotalPages(response.totalPages);
-        setError(null);
+        if (!controller.signal.aborted) {
+          setSiteSearchResult({
+            execution,
+            sites: response.results,
+            total: response.total,
+            totalPages: response.totalPages,
+            error: null,
+          });
+        }
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setError(err.message);
+        setSiteSearchResult({ execution, sites: [], total: 0, totalPages: 0, error: err.message });
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
       });
     return () => controller.abort();
-  }, [onRequestError, query]);
+  }, [execution, onRequestError]);
 
   return (
     <section className="panel">
@@ -232,7 +249,14 @@ function DashboardSiteSearch({
       <div className="toolbar-row site-search-form">
         <label className="search-box">
           <Search size={18} aria-hidden="true" />
-          <input value={searchText} onChange={(event) => { setSearchText(event.target.value); setPage(1); }} placeholder="Search sites" />
+          <input
+            value={searchText}
+            onChange={(event) => {
+              setSearchText(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search sites"
+          />
         </label>
       </div>
       <DataGrid
@@ -254,14 +278,14 @@ function DashboardSiteSearch({
           {
             label: 'View site',
             icon: <Eye size={16} aria-hidden="true" />,
-            onClick: (site) => onNavigate(`/sites/${site.id}`)
+            onClick: (site) => onNavigate(`/sites/${site.id}`),
           },
           {
             label: 'Edit site',
             icon: <Edit3 size={16} aria-hidden="true" />,
             onClick: (site) => onNavigate(`/sites/${site.id}/edit`),
-            disabled: (site) => site.archived
-          }
+            disabled: (site) => site.archived,
+          },
         ]}
       />
     </section>
@@ -271,35 +295,34 @@ function DashboardSiteSearch({
 // Function summary: Renders the BreachesAlertsWidget React component and wires its local UI behavior.
 function BreachesAlertsWidget({ onRequestError }: Readonly<{ onRequestError: (error: unknown) => void }>) {
   const [date, setDate] = useState(todayInputValue());
-  const [response, setResponse] = useState<BreachesAlertsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [breachesAlertsResult, setBreachesAlertsResult] = useState<BreachesAlertsResult | null>(null);
+  const execution = useMemo<BreachesAlertsExecution>(() => ({ date }), [date]);
+  const activeResult = breachesAlertsResult?.execution === execution ? breachesAlertsResult : null;
+  const response = activeResult?.response ?? null;
+  const error = activeResult?.error ?? null;
+  const isLoading = breachesAlertsResult?.execution !== execution;
 
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
-    queryBreachesAlerts({ date, page: 1, pageSize: 8, sort: 'notificationTime', sortDir: 'Descending' }, { signal: controller.signal })
+    queryBreachesAlerts(
+      { date: execution.date, page: 1, pageSize: 8, sort: 'notificationTime', sortDir: 'Descending' },
+      { signal: controller.signal },
+    )
       .then((nextResponse) => {
         if (controller.signal.aborted) {
           return;
         }
-        setResponse(nextResponse);
-        setError(null);
+        setBreachesAlertsResult({ execution, response: nextResponse, error: null });
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setError(err.message);
+        setBreachesAlertsResult({ execution, response: null, error: err.message });
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
       });
     return () => controller.abort();
-  }, [date, onRequestError]);
+  }, [execution, onRequestError]);
 
   return (
     <section className="panel">
@@ -329,7 +352,10 @@ function BreachesAlertsWidget({ onRequestError }: Readonly<{ onRequestError: (er
           </thead>
           <tbody>
             {(response?.results ?? []).map((item) => (
-              <BreachesAlertsRow item={item} key={item.notificationId ?? `${item.monitorId}-${item.notificationTime}`} />
+              <BreachesAlertsRow
+                item={item}
+                key={item.notificationId ?? `${item.monitorId}-${item.notificationTime}`}
+              />
             ))}
             {response?.results.length === 0 && (
               <tr>
@@ -355,7 +381,9 @@ function NotificationList({ notifications }: Readonly<{ notifications: ReadonlyA
         <div className="notification-card" key={notification.id}>
           <span className={`status-chip ${notificationTone(notification)}`}>{notification.alertType}</span>
           <strong>{notification.fleetNumber || notification.serialId}</strong>
-          <span>{notification.alertField} / {formatNumber(notification.level)}</span>
+          <span>
+            {notification.alertField} / {formatNumber(notification.level)}
+          </span>
           <time>{formatDateTime(notification.notificationTime)}</time>
         </div>
       ))}

@@ -27,9 +27,9 @@ import {
   SlidersHorizontal,
   Trash2,
   Upload,
-  Wrench
+  Wrench,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   addDefaultMonitorAlertLevels,
@@ -47,7 +47,7 @@ import {
   removeUnattachedMonitor,
   updateInstallerDeployment,
   updateMonitor,
-  uploadMonitorPicture
+  uploadMonitorPicture,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
@@ -70,10 +70,11 @@ import type {
   MonitorNotificationItem,
   QueryMonitorsRequest,
   SortDirection,
-  UnattachedMonitorListItem
+  UnattachedMonitorListItem,
 } from '../dtos';
 
 const pageSize = 10;
+type ListExecution<TQuery> = Readonly<{ query: TQuery }>;
 
 type MonitorsPanelProps = Readonly<{
   locationPath: string;
@@ -100,11 +101,17 @@ export function MonitorsPanel({
   onRequestError,
   canManage = false,
   canUseInstallerTools = false,
-  installerOnly = false
+  installerOnly = false,
 }: MonitorsPanelProps) {
   const mode = parseMonitorRoute(locationPath);
   if (mode.kind === 'unattached' && canManage) {
-    return <UnattachedMonitorRemovalPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <UnattachedMonitorRemovalPanel
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (mode.kind === 'detail') {
     return (
@@ -120,10 +127,24 @@ export function MonitorsPanel({
     );
   }
   if (mode.kind === 'edit' && canManage) {
-    return <MonitorEditPanel monitorId={mode.monitorId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <MonitorEditPanel
+        monitorId={mode.monitorId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (mode.kind === 'installer' && canUseInstallerTools) {
-    return <InstallerDeploymentPanel monitorId={mode.monitorId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <InstallerDeploymentPanel
+        monitorId={mode.monitorId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (mode.kind === 'alert-levels' && !installerOnly) {
     return (
@@ -166,7 +187,7 @@ function MonitorListPanel({
   onRequestError,
   canManage,
   canUseInstallerTools,
-  installerOnly
+  installerOnly,
 }: MonitorsPanelProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const tabs = useMemo(() => monitorTabs(Boolean(canManage), Boolean(installerOnly)), [canManage, installerOnly]);
@@ -180,76 +201,87 @@ function MonitorListPanel({
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryMonitorsRequest> | null>(null);
   const [isAddingDefaults, setIsAddingDefaults] = useState(false);
-  const columns = useMemo<DataGridColumn<MonitorListItem>[]>(() => [
-    {
-      key: 'fleetNumber',
-      header: 'Fleet',
-      sortable: true,
-      render: (monitor) => (
-        <span className="cell-with-icon">
-          <Gauge size={16} aria-hidden="true" />
-          {monitor.fleetNumber || 'Unassigned'}
-        </span>
-      )
-    },
-    { key: 'serialId', header: 'Serial', sortable: true, render: (monitor) => monitor.serialId },
-    { key: 'typeOfMonitor', header: 'Type', sortable: true, render: (monitor) => monitor.typeOfMonitor },
-    { key: 'siteName', header: 'Site', sortable: true, render: (monitor) => monitor.siteName || 'Not deployed' },
-    { key: 'contractNumber', header: 'Contract', sortable: true, render: (monitor) => monitor.contractNumber || 'None' },
-    { key: 'online', header: 'Online', render: (monitor) => monitor.isOffline ? 'No' : 'Yes' },
-    { key: 'alerts', header: 'Alerts', render: (monitor) => monitor.hasAlerts ? 'Yes' : 'No' },
-    { key: 'cautions', header: 'Cautions', render: (monitor) => monitor.hasCautions ? 'Yes' : 'No' },
-    {
-      key: 'lastDataTime',
-      header: 'Status',
-      sortable: true,
-      render: (monitor) => <MonitorStatusBadge monitor={monitor} />
-    }
-  ], []);
-  const query = useMemo<QueryMonitorsRequest>(() => ({
-    searchText,
-    page,
-    pageSize,
-    sort: sortKey,
-    sortDir,
-    state
-  }), [page, searchText, sortDir, sortKey, state]);
+  const columns = useMemo<DataGridColumn<MonitorListItem>[]>(
+    () => [
+      {
+        key: 'fleetNumber',
+        header: 'Fleet',
+        sortable: true,
+        render: (monitor) => (
+          <span className="cell-with-icon">
+            <Gauge size={16} aria-hidden="true" />
+            {monitor.fleetNumber || 'Unassigned'}
+          </span>
+        ),
+      },
+      { key: 'serialId', header: 'Serial', sortable: true, render: (monitor) => monitor.serialId },
+      { key: 'typeOfMonitor', header: 'Type', sortable: true, render: (monitor) => monitor.typeOfMonitor },
+      { key: 'siteName', header: 'Site', sortable: true, render: (monitor) => monitor.siteName || 'Not deployed' },
+      {
+        key: 'contractNumber',
+        header: 'Contract',
+        sortable: true,
+        render: (monitor) => monitor.contractNumber || 'None',
+      },
+      { key: 'online', header: 'Online', render: (monitor) => (monitor.isOffline ? 'No' : 'Yes') },
+      { key: 'alerts', header: 'Alerts', render: (monitor) => (monitor.hasAlerts ? 'Yes' : 'No') },
+      { key: 'cautions', header: 'Cautions', render: (monitor) => (monitor.hasCautions ? 'Yes' : 'No') },
+      {
+        key: 'lastDataTime',
+        header: 'Status',
+        sortable: true,
+        render: (monitor) => <MonitorStatusBadge monitor={monitor} />,
+      },
+    ],
+    [],
+  );
+  const effectiveState = tabs.some((tab) => tab.state === state) ? state : tabs[0].state;
+  const query = useMemo<QueryMonitorsRequest>(
+    () => ({
+      searchText,
+      page,
+      pageSize,
+      sort: sortKey,
+      sortDir,
+      state: effectiveState,
+    }),
+    [effectiveState, page, searchText, sortDir, sortKey],
+  );
+  const execution = useMemo<ListExecution<QueryMonitorsRequest>>(() => ({ query }), [query]);
+  const isLoading = completedExecution !== execution;
   const returnPath = currentRoutePath(locationPath);
 
   useEffect(() => {
-    if (!tabs.some((tab) => tab.state === state)) {
-      setState(tabs[0].state);
-    }
-  }, [state, tabs]);
-
-  useEffect(() => {
     const controller = new AbortController();
-    globalThis.history.replaceState(null, '', buildMonitorsUrl({ searchText, page, sort: sortKey, sortDir, state }));
-    setIsLoading(true);
+    globalThis.history.replaceState(
+      null,
+      '',
+      buildMonitorsUrl({ searchText, page, sort: sortKey, sortDir, state: effectiveState }),
+    );
     const load = installerOnly ? queryInstallerMonitors : queryMonitors;
-    load(query, { signal: controller.signal })
+    load(execution.query, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setMonitors(response.results);
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
+        setCompletedExecution(execution);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [installerOnly, onRequestError, page, query, searchText, sortDir, sortKey, state]);
+  }, [effectiveState, execution, installerOnly, onRequestError, page, searchText, sortDir, sortKey]);
 
   // Function summary: Handles the handle state workflow for this module.
   function handleState(nextState: MonitorListState) {
@@ -292,11 +324,20 @@ function MonitorListPanel({
         </div>
         {canManage && (
           <div className="button-row">
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo('/monitors/unattached', returnPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo('/monitors/unattached', returnPath))}
+            >
               <Trash2 size={17} aria-hidden="true" />
               <span>Unattached</span>
             </button>
-            <button className="secondary-button" type="button" onClick={handleDefaultLevels} disabled={isAddingDefaults}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={handleDefaultLevels}
+              disabled={isAddingDefaults}
+            >
               <RefreshCcw size={17} aria-hidden="true" />
               <span>{isAddingDefaults ? 'Adding defaults' : 'Default Alerts'}</span>
             </button>
@@ -306,10 +347,10 @@ function MonitorListPanel({
       <div className="segmented-control" role="tablist" aria-label="Monitor list states">
         {tabs.map((tab) => (
           <button
-            className={state === tab.state ? 'active' : ''}
+            className={effectiveState === tab.state ? 'active' : ''}
             type="button"
             role="tab"
-            aria-selected={state === tab.state}
+            aria-selected={effectiveState === tab.state}
             key={tab.state}
             onClick={() => handleState(tab.state)}
           >
@@ -319,7 +360,11 @@ function MonitorListPanel({
       </div>
       <label className="search-box">
         <Search size={18} aria-hidden="true" />
-        <input value={searchText} onChange={(event) => handleSearch(event.target.value)} placeholder="Search monitors" />
+        <input
+          value={searchText}
+          onChange={(event) => handleSearch(event.target.value)}
+          placeholder="Search monitors"
+        />
       </label>
       {notice && <Notice tone="success" message={notice} />}
       <DataGrid
@@ -341,20 +386,20 @@ function MonitorListPanel({
           {
             label: 'View monitor',
             icon: <Eye size={16} aria-hidden="true" />,
-            onClick: (monitor) => onNavigate(withReturnTo(`/monitors/${monitor.id}`, returnPath))
+            onClick: (monitor) => onNavigate(withReturnTo(`/monitors/${monitor.id}`, returnPath)),
           },
           {
             label: 'Edit monitor',
             icon: <Edit3 size={16} aria-hidden="true" />,
             onClick: (monitor) => onNavigate(withReturnTo(`/monitors/${monitor.id}/edit`, returnPath)),
-            disabled: (monitor) => !canManage || !monitor.canEdit
+            disabled: (monitor) => !canManage || !monitor.canEdit,
           },
           {
             label: 'Installer edit',
             icon: <Wrench size={16} aria-hidden="true" />,
             onClick: (monitor) => onNavigate(withReturnTo(`/monitors/${monitor.id}/installer`, returnPath)),
-            disabled: (monitor) => !canUseInstallerTools || !monitor.canInstallerEdit
-          }
+            disabled: (monitor) => !canUseInstallerTools || !monitor.canInstallerEdit,
+          },
         ]}
       />
     </section>
@@ -369,7 +414,7 @@ function MonitorDetailPanel({
   onRequestError,
   canManage,
   canUseInstallerTools,
-  installerOnly
+  installerOnly,
 }: MonitorsPanelProps & Readonly<{ monitorId: string }>) {
   const [monitor, setMonitor] = useState<MonitorDetailResponse | null>(null);
   const [status, setStatus] = useState<InstallerMonitorStatusResponse | null>(null);
@@ -416,21 +461,36 @@ function MonitorDetailPanel({
           <h2>{monitor?.fleetNumber || monitor?.serialId || 'Loading monitor'}</h2>
         </div>
         <div className="button-row">
-          <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>Back</button>
+          <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>
+            Back
+          </button>
           {canManage && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/monitors/${monitorId}/edit`, detailPath))} disabled={!monitor}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/monitors/${monitorId}/edit`, detailPath))}
+              disabled={!monitor}
+            >
               <Edit3 size={17} aria-hidden="true" />
               <span>Edit</span>
             </button>
           )}
           {canUseInstallerTools && monitor?.canInstallerEdit && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/monitors/${monitorId}/installer`, detailPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/monitors/${monitorId}/installer`, detailPath))}
+            >
               <Wrench size={17} aria-hidden="true" />
               <span>Deployment</span>
             </button>
           )}
           {canManage && monitor?.siteId && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/monitors/assign?siteId=${monitor.siteId}`, detailPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/monitors/assign?siteId=${monitor.siteId}`, detailPath))}
+            >
               <SlidersHorizontal size={17} aria-hidden="true" />
               <span>Assignments</span>
             </button>
@@ -442,19 +502,31 @@ function MonitorDetailPanel({
             </button>
           )}
           {!installerOnly && monitor && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/monitors/${monitorId}/alert-levels`, detailPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/monitors/${monitorId}/alert-levels`, detailPath))}
+            >
               <Bell size={17} aria-hidden="true" />
               <span>Alert Levels</span>
             </button>
           )}
           {!installerOnly && monitor?.deploymentId && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/data?deploymentId=${monitor.deploymentId}`, detailPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/data?deploymentId=${monitor.deploymentId}`, detailPath))}
+            >
               <BarChart3 size={17} aria-hidden="true" />
               <span>Data</span>
             </button>
           )}
           {!installerOnly && monitor?.siteId && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/maps?siteId=${monitor.siteId}`, detailPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/maps?siteId=${monitor.siteId}`, detailPath))}
+            >
               <MapPinned size={17} aria-hidden="true" />
               <span>Map</span>
             </button>
@@ -480,7 +552,10 @@ function MonitorDetailPanel({
             <DetailItem label="Site" value={monitor.siteName || 'Not deployed'} />
             <DetailItem label="Contract" value={monitor.contractNumber || 'None'} />
             <DetailItem label="Last Data" value={formatDateTime(monitor.lastDataTime) || 'No data'} />
-            <DetailItem label="Status" value={status?.status || monitor.statusLabel || (monitor.isOffline ? 'Offline' : 'Online')} />
+            <DetailItem
+              label="Status"
+              value={status?.status || monitor.statusLabel || (monitor.isOffline ? 'Offline' : 'Online')}
+            />
             <DetailItem label="Location" value={monitor.location || 'Not recorded'} />
             <DetailItem label="What3words" value={monitor.what3words || 'Not recorded'} />
             <DetailItem label="Coordinates" value={formatCoordinates(monitor.lat, monitor.lng)} />
@@ -557,11 +632,13 @@ function MonitorDetailPanel({
               pageSize={Math.max(monitor.recentNotifications.length, 1)}
               total={monitor.recentNotifications.length}
               totalPages={monitor.recentNotifications.length > 0 ? 1 : 0}
-              rowActions={[{
-                label: 'View notification',
-                icon: <Eye size={16} aria-hidden="true" />,
-                onClick: (notification) => onNavigate(withReturnTo(`/notifications/${notification.id}`, detailPath))
-              }]}
+              rowActions={[
+                {
+                  label: 'View notification',
+                  icon: <Eye size={16} aria-hidden="true" />,
+                  onClick: (notification) => onNavigate(withReturnTo(`/notifications/${notification.id}`, detailPath)),
+                },
+              ]}
             />
           </section>
         </>
@@ -571,7 +648,12 @@ function MonitorDetailPanel({
 }
 
 // Function summary: Renders the MonitorEditPanel React component and wires its local UI behavior.
-function MonitorEditPanel({ monitorId, locationPath, onNavigate, onRequestError }: MonitorsPanelProps & Readonly<{ monitorId: string }>) {
+function MonitorEditPanel({
+  monitorId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+}: MonitorsPanelProps & Readonly<{ monitorId: string }>) {
   const [monitor, setMonitor] = useState<MonitorDetailResponse | null>(null);
   const [fleetNumber, setFleetNumber] = useState('');
   const [calibrationDate, setCalibrationDate] = useState('');
@@ -616,7 +698,7 @@ function MonitorEditPanel({ monitorId, locationPath, onNavigate, onRequestError 
       location,
       what3words,
       lat: numberOrNull(lat),
-      lng: numberOrNull(lng)
+      lng: numberOrNull(lng),
     };
     try {
       let response = await updateMonitor(monitorId, request);
@@ -639,7 +721,9 @@ function MonitorEditPanel({ monitorId, locationPath, onNavigate, onRequestError 
           <p>Monitor</p>
           <h2>Edit Monitor</h2>
         </div>
-        <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>Back</button>
+        <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>
+          Back
+        </button>
       </div>
       {error && <Notice tone="error" message={error} />}
       <form className="form-grid" onSubmit={handleSubmit}>
@@ -674,21 +758,35 @@ function MonitorEditPanel({ monitorId, locationPath, onNavigate, onRequestError 
               />
             </FormField>
             {safeHref(monitor.pictureLink) && (
-              <a className="secondary-link" href={safeHref(monitor.pictureLink) ?? undefined} target="_blank" rel="noreferrer">
+              <a
+                className="secondary-link"
+                href={safeHref(monitor.pictureLink) ?? undefined}
+                target="_blank"
+                rel="noreferrer"
+              >
                 <Upload size={16} aria-hidden="true" />
                 <span>Current picture</span>
               </a>
             )}
           </>
         )}
-        <SubmitButton icon={<Save size={17} aria-hidden="true" />} isSubmitting={isSubmitting} idleLabel="Save Monitor" />
+        <SubmitButton
+          icon={<Save size={17} aria-hidden="true" />}
+          isSubmitting={isSubmitting}
+          idleLabel="Save Monitor"
+        />
       </form>
     </section>
   );
 }
 
 // Function summary: Renders the InstallerDeploymentPanel React component and wires its local UI behavior.
-function InstallerDeploymentPanel({ monitorId, locationPath, onNavigate, onRequestError }: MonitorsPanelProps & Readonly<{ monitorId: string }>) {
+function InstallerDeploymentPanel({
+  monitorId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+}: MonitorsPanelProps & Readonly<{ monitorId: string }>) {
   const [monitor, setMonitor] = useState<MonitorDetailResponse | null>(null);
   const [location, setLocation] = useState('');
   const [what3words, setWhat3words] = useState('');
@@ -751,7 +849,7 @@ function InstallerDeploymentPanel({ monitorId, locationPath, onNavigate, onReque
         location,
         what3words,
         lat: Number(lat || 0),
-        lng: Number(lng || 0)
+        lng: Number(lng || 0),
       });
       onNavigate(withReturnTo(`/monitors/${response.item?.id ?? monitorId}`, backPath));
     } catch (err) {
@@ -769,7 +867,9 @@ function InstallerDeploymentPanel({ monitorId, locationPath, onNavigate, onReque
           <p>Installer</p>
           <h2>{monitor?.fleetNumber || 'Deployment'}</h2>
         </div>
-        <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>Back</button>
+        <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>
+          Back
+        </button>
       </div>
       {notice && <Notice tone="success" message={notice} />}
       {error && <Notice tone="error" message={error} />}
@@ -780,7 +880,13 @@ function InstallerDeploymentPanel({ monitorId, locationPath, onNavigate, onReque
         <FormField label="What3words">
           <div className="input-with-action">
             <input value={what3words} maxLength={256} onChange={(event) => setWhat3words(event.target.value)} />
-            <button className="icon-button" type="button" onClick={handleConvert} disabled={isConverting} aria-label="Convert what3words">
+            <button
+              className="icon-button"
+              type="button"
+              onClick={handleConvert}
+              disabled={isConverting}
+              aria-label="Convert what3words"
+            >
               <MapPinned size={16} aria-hidden="true" />
             </button>
           </div>
@@ -791,7 +897,11 @@ function InstallerDeploymentPanel({ monitorId, locationPath, onNavigate, onReque
         <FormField label="Longitude">
           <input value={lng} inputMode="decimal" onChange={(event) => setLng(event.target.value)} />
         </FormField>
-        <SubmitButton icon={<Save size={17} aria-hidden="true" />} isSubmitting={isSubmitting} idleLabel="Save Deployment" />
+        <SubmitButton
+          icon={<Save size={17} aria-hidden="true" />}
+          isSubmitting={isSubmitting}
+          idleLabel="Save Deployment"
+        />
       </form>
     </section>
   );
@@ -810,52 +920,107 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
   const [sortDir, setSortDir] = useState<SortDirection>('Ascending');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryMonitorsRequest> | null>(null);
+  const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryMonitorsRequest> | null>(null);
+  const activeRequestController = useRef<AbortController | null>(null);
+  const requestGeneration = useRef(0);
   const [isRemoving, setIsRemoving] = useState(false);
   const backPath = returnToOr(locationPath, '/monitors');
-  const columns = useMemo<DataGridColumn<UnattachedMonitorListItem>[]>(() => [
-    { key: 'fleetNumber', header: 'Fleet', sortable: true, render: (monitor) => monitor.fleetNumber || 'Unassigned' },
-    { key: 'serialId', header: 'Serial', sortable: true, render: (monitor) => monitor.serialId },
-    { key: 'typeOfMonitor', header: 'Type', sortable: true, render: (monitor) => monitor.typeOfMonitor },
-    { key: 'model', header: 'Model', render: (monitor) => monitor.model || 'Unknown' },
-    { key: 'impact', header: 'Related data', render: (monitor) => removalImpactLabel(monitor) },
-    { key: 'removalMode', header: 'Removal', render: (monitor) => monitor.willArchiveOnRemoval ? 'Archive' : 'Delete' }
-  ], []);
-  const query = useMemo<QueryMonitorsRequest>(() => ({
-    searchText,
-    page,
-    pageSize,
-    sort: sortKey,
-    sortDir
-  }), [page, searchText, sortDir, sortKey]);
+  const columns = useMemo<DataGridColumn<UnattachedMonitorListItem>[]>(
+    () => [
+      { key: 'fleetNumber', header: 'Fleet', sortable: true, render: (monitor) => monitor.fleetNumber || 'Unassigned' },
+      { key: 'serialId', header: 'Serial', sortable: true, render: (monitor) => monitor.serialId },
+      { key: 'typeOfMonitor', header: 'Type', sortable: true, render: (monitor) => monitor.typeOfMonitor },
+      { key: 'model', header: 'Model', render: (monitor) => monitor.model || 'Unknown' },
+      { key: 'impact', header: 'Related data', render: (monitor) => removalImpactLabel(monitor) },
+      {
+        key: 'removalMode',
+        header: 'Removal',
+        render: (monitor) => (monitor.willArchiveOnRemoval ? 'Archive' : 'Delete'),
+      },
+    ],
+    [],
+  );
+  const query = useMemo<QueryMonitorsRequest>(
+    () => ({
+      searchText,
+      page,
+      pageSize,
+      sort: sortKey,
+      sortDir,
+    }),
+    [page, searchText, sortDir, sortKey],
+  );
+  const effectExecution = useMemo<ListExecution<QueryMonitorsRequest>>(() => ({ query }), [query]);
+  const currentExecution = refreshExecution?.query === query ? refreshExecution : effectExecution;
+  const isLoading = completedExecution !== currentExecution;
 
-  // Function summary: Loads unattached monitor removal candidates from the API.
-  const loadMonitors = useCallback(async (signal?: AbortSignal) => {
-    setIsLoading(true);
+  const claimRequest = useCallback(() => {
+    activeRequestController.current?.abort();
+    const controller = new AbortController();
+    const generation = requestGeneration.current + 1;
+    requestGeneration.current = generation;
+    activeRequestController.current = controller;
+    return { controller, generation };
+  }, []);
+
+  const ownsRequest = useCallback(
+    (controller: AbortController, generation: number) =>
+      activeRequestController.current === controller &&
+      requestGeneration.current === generation &&
+      !controller.signal.aborted,
+    [],
+  );
+
+  // Function summary: Refreshes unattached monitor removal candidates after an event-owned mutation.
+  const refreshMonitors = useCallback(async () => {
+    const execution: ListExecution<QueryMonitorsRequest> = { query };
+    const { controller, generation } = claimRequest();
+    setRefreshExecution(execution);
+    setCompletedExecution(null);
     try {
-      const response = await queryUnattachedMonitors(query, { signal });
+      const response = await queryUnattachedMonitors(execution.query, { signal: controller.signal });
+      if (!ownsRequest(controller, generation)) {
+        return;
+      }
       setMonitors(response.results);
       setTotal(response.total);
       setTotalPages(response.totalPages);
       setError(null);
+      setCompletedExecution(execution);
     } catch (err) {
-      if (isAbortError(err)) {
+      if (!ownsRequest(controller, generation) || isAbortError(err)) {
         return;
       }
       setError((err as Error).message);
       onRequestError(err);
-    } finally {
-      if (!signal?.aborted) {
-        setIsLoading(false);
-      }
+      setCompletedExecution(execution);
     }
-  }, [onRequestError, query]);
+  }, [claimRequest, onRequestError, ownsRequest, query]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    void loadMonitors(controller.signal);
+    const { controller, generation } = claimRequest();
+    queryUnattachedMonitors(effectExecution.query, { signal: controller.signal })
+      .then((response) => {
+        if (!ownsRequest(controller, generation)) {
+          return;
+        }
+        setMonitors(response.results);
+        setTotal(response.total);
+        setTotalPages(response.totalPages);
+        setError(null);
+        setCompletedExecution(effectExecution);
+      })
+      .catch((err: Error) => {
+        if (!ownsRequest(controller, generation) || isAbortError(err)) {
+          return;
+        }
+        setError(err.message);
+        onRequestError(err);
+        setCompletedExecution(effectExecution);
+      });
     return () => controller.abort();
-  }, [loadMonitors]);
+  }, [claimRequest, effectExecution, onRequestError, ownsRequest]);
 
   // Function summary: Handles search text changes for unattached monitor removal candidates.
   function handleSearch(value: string) {
@@ -875,6 +1040,7 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
       return;
     }
 
+    const removeGeneration = requestGeneration.current;
     setIsRemoving(true);
     setError(null);
     try {
@@ -882,7 +1048,10 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
       setNotice(response.message);
       setSelectedMonitor(null);
       setReason('');
-      await loadMonitors();
+      if (requestGeneration.current !== removeGeneration) {
+        return;
+      }
+      await refreshMonitors();
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);
@@ -899,11 +1068,17 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
           <p>Admin</p>
           <h2>Unattached Monitors</h2>
         </div>
-        <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>Back</button>
+        <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>
+          Back
+        </button>
       </div>
       <label className="search-box">
         <Search size={18} aria-hidden="true" />
-        <input value={searchText} onChange={(event) => handleSearch(event.target.value)} placeholder="Search unattached monitors" />
+        <input
+          value={searchText}
+          onChange={(event) => handleSearch(event.target.value)}
+          placeholder="Search unattached monitors"
+        />
       </label>
       {notice && <Notice tone="success" message={notice} />}
       {error && <Notice tone="error" message={error} />}
@@ -932,11 +1107,13 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
         sortDirection={sortDir}
         onPageChange={setPage}
         onSortChange={handleSortChange}
-        rowActions={[{
-          label: 'Remove monitor',
-          icon: <Trash2 size={16} aria-hidden="true" />,
-          onClick: (monitor) => setSelectedMonitor(monitor)
-        }]}
+        rowActions={[
+          {
+            label: 'Remove monitor',
+            icon: <Trash2 size={16} aria-hidden="true" />,
+            onClick: (monitor) => setSelectedMonitor(monitor),
+          },
+        ]}
       />
       <ConfirmDialog
         open={Boolean(selectedMonitor)}
@@ -961,7 +1138,7 @@ function MonitorAssignmentPanel({
   contractId,
   locationPath,
   onNavigate,
-  onRequestError
+  onRequestError,
 }: MonitorsPanelProps & Readonly<{ siteId: string; contractId?: string | null }>) {
   const [context, setContext] = useState<MonitorAssignmentContextResponse | null>(null);
   const [selectedContractId, setSelectedContractId] = useState(contractId ?? '');
@@ -983,7 +1160,9 @@ function MonitorAssignmentPanel({
   // Function summary: Handles the handle contract change workflow for this module.
   function handleContractChange(value: string) {
     setSelectedContractId(value);
-    const assignmentPath = value ? `/monitors/assign?siteId=${siteId}&contractId=${value}` : `/monitors/assign?siteId=${siteId}`;
+    const assignmentPath = value
+      ? `/monitors/assign?siteId=${siteId}&contractId=${value}`
+      : `/monitors/assign?siteId=${siteId}`;
     onNavigate(withReturnTo(assignmentPath, backPath));
   }
 
@@ -1026,14 +1205,18 @@ function MonitorAssignmentPanel({
           <p>Site Assignment</p>
           <h2>{context?.siteName ?? 'Monitor Assignment'}</h2>
         </div>
-        <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>Back</button>
+        <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>
+          Back
+        </button>
       </div>
       {error && <Notice tone="error" message={error} />}
       <FormField label="Contract">
         <select value={selectedContractId} onChange={(event) => handleContractChange(event.target.value)}>
           <option value="">Select a contract</option>
           {context?.contracts.map((contract) => (
-            <option value={contract.value} key={contract.value}>{contract.label}</option>
+            <option value={contract.value} key={contract.value}>
+              {contract.label}
+            </option>
           ))}
         </select>
       </FormField>
@@ -1053,12 +1236,14 @@ function MonitorAssignmentPanel({
             pageSize={Math.max(context?.availableMonitors.length ?? 0, 1)}
             total={context?.availableMonitors.length ?? 0}
             totalPages={(context?.availableMonitors.length ?? 0) > 0 ? 1 : 0}
-            rowActions={[{
-              label: 'Assign monitor',
-              icon: <Plus size={16} aria-hidden="true" />,
-              onClick: handleAdd,
-              disabled: () => isBusy || !selectedContractId
-            }]}
+            rowActions={[
+              {
+                label: 'Assign monitor',
+                icon: <Plus size={16} aria-hidden="true" />,
+                onClick: handleAdd,
+                disabled: () => isBusy || !selectedContractId,
+              },
+            ]}
           />
         </div>
         <div>
@@ -1076,12 +1261,14 @@ function MonitorAssignmentPanel({
             pageSize={Math.max(context?.assignedMonitors.length ?? 0, 1)}
             total={context?.assignedMonitors.length ?? 0}
             totalPages={(context?.assignedMonitors.length ?? 0) > 0 ? 1 : 0}
-            rowActions={[{
-              label: 'Remove monitor',
-              icon: <Trash2 size={16} aria-hidden="true" />,
-              onClick: handleRemove,
-              disabled: () => isBusy
-            }]}
+            rowActions={[
+              {
+                label: 'Remove monitor',
+                icon: <Trash2 size={16} aria-hidden="true" />,
+                onClick: handleRemove,
+                disabled: () => isBusy,
+              },
+            ]}
           />
         </div>
       </section>
@@ -1091,11 +1278,7 @@ function MonitorAssignmentPanel({
 
 // Function summary: Renders the MonitorStatusBadge React component and wires its local UI behavior.
 function MonitorStatusBadge({ monitor }: Readonly<{ monitor: MonitorListItem }>) {
-  return (
-    <span className={`status-chip ${monitorStatusClassName(monitor)}`}>
-      {monitorStatusLabel(monitor)}
-    </span>
-  );
+  return <span className={`status-chip ${monitorStatusClassName(monitor)}`}>{monitorStatusLabel(monitor)}</span>;
 }
 
 // Function summary: Handles the monitor status label workflow for this module.
@@ -1128,7 +1311,7 @@ function removalImpactLabel(monitor: UnattachedMonitorListItem) {
     impact.deploymentCount ? `${impact.deploymentCount} deployments` : null,
     impact.notificationCount ? `${impact.notificationCount} notifications` : null,
     impact.alertRuleCount ? `${impact.alertRuleCount} alert rules` : null,
-    impact.measurementRowCount ? `${impact.measurementRowCount} data rows` : null
+    impact.measurementRowCount ? `${impact.measurementRowCount} data rows` : null,
   ].filter(Boolean);
 
   return parts.join(', ');
@@ -1150,7 +1333,7 @@ const alertLevelColumns: DataGridColumn<MonitorAlertLevelItem>[] = [
   { key: 'limitOn', header: 'On', render: (level) => level.limitOn },
   { key: 'limitOff', header: 'Off', render: (level) => level.limitOff },
   { key: 'averagingPeriod', header: 'Average', render: (level) => `${level.averagingPeriod}s` },
-  { key: 'isActive', header: 'Active', render: (level) => level.isActive ? 'Yes' : 'No' }
+  { key: 'isActive', header: 'Active', render: (level) => (level.isActive ? 'Yes' : 'No') },
 ];
 
 const notificationColumns: DataGridColumn<MonitorNotificationItem>[] = [
@@ -1159,14 +1342,14 @@ const notificationColumns: DataGridColumn<MonitorNotificationItem>[] = [
   { key: 'alertField', header: 'Field', render: (notification) => notification.alertField },
   { key: 'level', header: 'Level', render: (notification) => notification.level },
   { key: 'limitOn', header: 'Limit', render: (notification) => notification.limitOn },
-  { key: 'closedTime', header: 'State', render: (notification) => notification.closedTime ? 'Closed' : 'Open' }
+  { key: 'closedTime', header: 'State', render: (notification) => (notification.closedTime ? 'Closed' : 'Open') },
 ];
 
 const assignmentColumns: DataGridColumn<MonitorListItem>[] = [
   { key: 'fleetNumber', header: 'Fleet', render: (monitor) => monitor.fleetNumber || 'Unassigned' },
   { key: 'serialId', header: 'Serial', render: (monitor) => monitor.serialId },
   { key: 'typeOfMonitor', header: 'Type', render: (monitor) => monitor.typeOfMonitor },
-  { key: 'siteName', header: 'Site', render: (monitor) => monitor.siteName || 'Not deployed' }
+  { key: 'siteName', header: 'Site', render: (monitor) => monitor.siteName || 'Not deployed' },
 ];
 
 // Function summary: Handles the monitor tabs workflow for this module.
@@ -1181,13 +1364,13 @@ function monitorTabs(canManage: boolean, installerOnly: boolean): Array<{ state:
       { state: 'not-in-use', label: 'Not In Use' },
       { state: 'offline', label: 'Offline' },
       { state: 'online', label: 'Online' },
-      { state: 'installer', label: 'Installer' }
+      { state: 'installer', label: 'Installer' },
     ];
   }
   return [
     { state: 'all', label: 'All' },
     { state: 'offline', label: 'Offline' },
-    { state: 'online', label: 'Online' }
+    { state: 'online', label: 'Online' },
   ];
 }
 
@@ -1202,7 +1385,7 @@ function parseMonitorRoute(locationPath: string): MonitorRoute {
     return {
       kind: 'assignment',
       siteId: url.searchParams.get('siteId') ?? '',
-      contractId: url.searchParams.get('contractId')
+      contractId: url.searchParams.get('contractId'),
     };
   }
   if (segments[1] === 'unattached') {
@@ -1229,7 +1412,7 @@ function buildMonitorsUrl({
   page,
   sort,
   sortDir,
-  state
+  state,
 }: {
   searchText: string;
   page: number;
@@ -1265,7 +1448,7 @@ function pathWithQuery(path: string, params: URLSearchParams) {
 // Function summary: Handles the normalize state workflow for this module.
 function normalizeState(value: string | null, fallback: MonitorListState): MonitorListState {
   const states: MonitorListState[] = ['all', 'new', 'not-in-use', 'offline', 'online', 'installer'];
-  return states.includes(value as MonitorListState) ? value as MonitorListState : fallback;
+  return states.includes(value as MonitorListState) ? (value as MonitorListState) : fallback;
 }
 
 // Function summary: Handles the normalize sort direction workflow for this module.
@@ -1283,7 +1466,7 @@ function parsePositiveInt(value: string | null, fallback: number) {
 function MonitorMetricCard({
   title,
   metric,
-  fallback
+  fallback,
 }: Readonly<{ title: string; metric?: MonitorMetricSummary | null; fallback: string }>) {
   return (
     <div className="metric-card">
@@ -1302,21 +1485,23 @@ function monitorDetailMarkers(monitor: MonitorDetailResponse): MapMonitorMarker[
     return [];
   }
 
-  return [{
-    monitorId: monitor.id,
-    deploymentId: monitor.deploymentId ?? monitor.id,
-    latitude: monitor.lat,
-    longitude: monitor.lng,
-    typeOfMonitor: monitor.typeOfMonitor,
-    offline: monitor.isOffline,
-    alert: monitor.hasAlerts,
-    caution: monitor.hasCautions,
-    siteName: monitor.siteName,
-    fleetNumber: monitor.fleetNumber,
-    serialId: monitor.serialId,
-    lastDataTime: monitor.lastDataTime,
-    what3words: monitor.what3words
-  }];
+  return [
+    {
+      monitorId: monitor.id,
+      deploymentId: monitor.deploymentId ?? monitor.id,
+      latitude: monitor.lat,
+      longitude: monitor.lng,
+      typeOfMonitor: monitor.typeOfMonitor,
+      offline: monitor.isOffline,
+      alert: monitor.hasAlerts,
+      caution: monitor.hasCautions,
+      siteName: monitor.siteName,
+      fleetNumber: monitor.fleetNumber,
+      serialId: monitor.serialId,
+      lastDataTime: monitor.lastDataTime,
+      what3words: monitor.what3words,
+    },
+  ];
 }
 
 // Function summary: Formats monitor metric values with their unit for display.
@@ -1329,7 +1514,11 @@ function formatMetricValue(metric?: MonitorMetricSummary | null) {
   return `${metric.value}${unit}`;
 }
 
-function resetSearchPage(value: string, setSearchText: (nextValue: string) => void, setPage: (nextPage: number) => void) {
+function resetSearchPage(
+  value: string,
+  setSearchText: (nextValue: string) => void,
+  setPage: (nextPage: number) => void,
+) {
   setSearchText(value);
   setPage(1);
 }

@@ -23,22 +23,25 @@
 // - 2026-06-25 pending Covered vibration alert-level peak-only display without averaging period.
 // - 2026-07-08 pending Waited for routed panels to settle in navigation tests to remove React act warnings.
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, AppErrorBoundary } from './App';
+import { SitesPanel } from './operations/ContractSitePanels';
+import { MonitorsPanel } from './operations/MonitorPanels';
+import { ReportsPanel } from './operations/ReportPanels';
 
 const adminUser = {
   id: 'admin-id',
   email: 'admin@rvt.test',
   name: 'Admin User',
-  roles: ['RVTAdmin']
+  roles: ['RVTAdmin'],
 };
 
 const installerUser = {
   id: 'installer-id',
   email: 'installer@rvt.test',
   name: 'Installer User',
-  roles: ['RVTInstaller']
+  roles: ['RVTInstaller'],
 };
 
 describe('App', () => {
@@ -69,6 +72,57 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: /privacy policy/i })).toBeInTheDocument());
     expect(screen.getByText(/your privacy is important to rvt group/i)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /please sign in/i })).not.toBeInTheDocument();
+  });
+
+  it('rejects an incomplete confirmation URL without issuing a confirmation request', async () => {
+    globalThis.history.replaceState(null, '', '/confirm-email?userId=user-id');
+    stubFetch({ auth: { isAuthenticated: false, user: null } });
+
+    render(<App />);
+
+    expect(await screen.findByText('A user and confirmation code must be supplied.')).toBeInTheDocument();
+    expect(fetchedUrls().some((url) => url.pathname === '/api/auth/confirm-email')).toBe(false);
+  });
+
+  it('initializes profile fields and keeps local edits user-owned', async () => {
+    globalThis.history.replaceState(null, '', '/profile');
+    stubFetch({ auth: { isAuthenticated: true, user: adminUser } });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText(/^name$/i)).toHaveValue('Admin User'));
+    const name = screen.getByLabelText(/^name$/i);
+    fireEvent.change(name, { target: { value: 'Edited locally' } });
+    expect(name).toHaveValue('Edited locally');
+  });
+
+  it('retains profile save feedback after the updated profile starts a new editing session', async () => {
+    globalThis.history.replaceState(null, '', '/profile');
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/auth/profile' && init?.method === 'PUT') {
+          return jsonResponse({
+            id: 'profile-id',
+            email: 'admin@rvt.test',
+            name: 'Saved Profile',
+            role: 'RVTAdmin',
+            companyRole: 'Operations',
+            companyName: null,
+          });
+        }
+
+        return undefined;
+      },
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText(/^name$/i)).toHaveValue('Admin User'));
+    fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'Saved Profile' } });
+    fireEvent.click(screen.getByRole('button', { name: /save profile/i }));
+
+    expect(await screen.findByText('Your details have been updated.')).toBeInTheDocument();
   });
 
   it('renders admin navigation for RVT admin users', async () => {
@@ -124,7 +178,10 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^reports$/i })).toBeInTheDocument());
     expect(screen.getByRole('link', { name: /skip to content/i })).toHaveAttribute('href', '#main-content');
     expect(document.querySelector('#main-content')).toHaveAttribute('tabindex', '-1');
-    expect(within(screen.getByRole('navigation')).getByRole('button', { name: /reports/i })).toHaveAttribute('aria-current', 'page');
+    expect(within(screen.getByRole('navigation')).getByRole('button', { name: /reports/i })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
   });
 
   it('shows only installer monitor navigation for installers', async () => {
@@ -186,7 +243,9 @@ describe('App', () => {
     fireEvent.change(searchInput, { target: { value: 'acme' } });
 
     await waitFor(() => {
-      expect(fetchedUrls().some((url) => url.pathname === '/api/sites' && url.searchParams.get('searchText') === 'acme')).toBe(true);
+      expect(
+        fetchedUrls().some((url) => url.pathname === '/api/sites' && url.searchParams.get('searchText') === 'acme'),
+      ).toBe(true);
     });
     fireEvent.click(screen.getByRole('button', { name: /view site/i }));
     expect(globalThis.location.pathname).toBe('/sites/site-id');
@@ -240,11 +299,12 @@ describe('App', () => {
           results: [
             {
               id: 'acme-company-id',
-              companyName: url.searchParams.get('searchText') === 'Acme Environmental' ? 'Acme Environmental' : 'RVT Group',
+              companyName:
+                url.searchParams.get('searchText') === 'Acme Environmental' ? 'Acme Environmental' : 'RVT Group',
               userCount: 3,
               sites: '2',
-              contracts: '4'
-            }
+              contracts: '4',
+            },
           ],
           total: 1,
           page: 1,
@@ -254,20 +314,72 @@ describe('App', () => {
           hasNextPage: false,
           searchText: url.searchParams.get('searchText') ?? '',
           sort: 'companyName',
-          sortDir: 'Ascending'
+          sortDir: 'Ascending',
         });
-      }
+      },
     });
 
     render(<App />);
 
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^companies$/i })).toBeInTheDocument());
     fireEvent.change(screen.getByPlaceholderText(/search companies/i), { target: { value: 'acme' } });
+    await screen.findByText('Acme Environmental');
+    fireEvent.change(screen.getByPlaceholderText(/search companies/i), { target: { value: 'a' } });
+    expect(screen.queryByText('Acme Environmental')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/search companies/i), { target: { value: 'acme' } });
     await waitFor(() => expect(screen.getByRole('button', { name: /^Acme Environmental$/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /^Acme Environmental$/i }));
 
     await waitFor(() => expect(screen.getByText('Acme Environmental')).toBeInTheDocument());
-    expect(fetchedUrls().some((url) => url.pathname === '/api/companies' && url.searchParams.get('searchText') === 'Acme Environmental')).toBe(true);
+    expect(
+      fetchedUrls().some(
+        (url) => url.pathname === '/api/companies' && url.searchParams.get('searchText') === 'Acme Environmental',
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps the latest company suggestions when an older lookup resolves last', async () => {
+    let resolveAcme!: (response: Response) => void;
+    let resolveRvt!: (response: Response) => void;
+    globalThis.history.replaceState(null, '', '/companies');
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        if (url.pathname === '/api/lookups/companies' && url.searchParams.get('query') === 'acme') {
+          return new Promise((resolve) => {
+            resolveAcme = resolve;
+          });
+        }
+
+        if (url.pathname === '/api/lookups/companies' && url.searchParams.get('query') === 'rvt') {
+          return new Promise((resolve) => {
+            resolveRvt = resolve;
+          });
+        }
+
+        return undefined;
+      },
+    });
+
+    render(<App />);
+
+    const search = await screen.findByPlaceholderText(/search companies/i);
+    fireEvent.change(search, { target: { value: 'acme' } });
+    await waitFor(() => expect(resolveAcme).toBeTypeOf('function'));
+    fireEvent.change(search, { target: { value: 'rvt' } });
+    await waitFor(() => expect(resolveRvt).toBeTypeOf('function'));
+
+    await act(async () =>
+      resolveRvt(jsonResponse({ kind: 'companies', query: 'rvt', take: 8, results: ['RVT Group'] })),
+    );
+    expect(await screen.findByRole('button', { name: 'RVT Group' })).toBeInTheDocument();
+    await act(async () =>
+      resolveAcme(jsonResponse({ kind: 'companies', query: 'acme', take: 8, results: ['Acme Environmental'] })),
+    );
+
+    expect(screen.getByRole('button', { name: 'RVT Group' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Acme Environmental' })).not.toBeInTheDocument();
   });
 
   it('returns admin edit forms to the filtered list that opened them', async () => {
@@ -287,10 +399,10 @@ describe('App', () => {
             siteCount: 1,
             contractCount: 1,
             sites: '1',
-            contracts: '1'
-          }
+            contracts: '1',
+          },
         });
-      }
+      },
     });
 
     render(<App />);
@@ -329,8 +441,8 @@ describe('App', () => {
               siteId: 'site-id',
               siteName: 'RVT Test Site',
               companies: contractTestCompanies(),
-              sites: [{ value: 'site-id', label: 'RVT Test Site' }]
-            }
+              sites: [{ value: 'site-id', label: 'RVT Test Site' }],
+            },
           });
         }
 
@@ -341,12 +453,12 @@ describe('App', () => {
 
           return jsonResponse({
             companies: contractTestCompanies(),
-            sites: [{ value: 'site-id', label: 'RVT Test Site' }]
+            sites: [{ value: 'site-id', label: 'RVT Test Site' }],
           });
         }
 
         return undefined;
-      }
+      },
     });
 
     render(<App />);
@@ -404,13 +516,16 @@ describe('App', () => {
         }
 
         return jsonResponse({ item: { customerLogoUrl: '/api/sites/site-id/customer-logo' } });
-      }
+      },
     });
 
     render(<App />);
 
     await waitFor(() => expect(screen.getByRole('heading', { name: /edit site/i })).toBeInTheDocument());
-    expect(await screen.findByRole('img', { name: /customer logo/i })).toHaveAttribute('src', '/api/sites/site-id/customer-logo');
+    expect(await screen.findByRole('img', { name: /customer logo/i })).toHaveAttribute(
+      'src',
+      '/api/sites/site-id/customer-logo',
+    );
 
     const logoFile = new File(['logo'], 'customer-logo.png', { type: 'image/png' });
     fireEvent.change(screen.getByLabelText(/customer logo image/i), { target: { files: [logoFile] } });
@@ -455,10 +570,16 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^help$/i })).toBeInTheDocument());
     await waitFor(() => expect(screen.getByRole('heading', { name: /data readings/i })).toBeInTheDocument());
     expect(screen.getByText('Dust reading definitions')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /open article/i })).toHaveAttribute('href', '/help/dust-reading-definitions');
+    expect(screen.getByRole('link', { name: /open article/i })).toHaveAttribute(
+      'href',
+      '/help/dust-reading-definitions',
+    );
     fireEvent.click(screen.getByRole('link', { name: /open article/i }));
     await waitFor(() => expect(screen.getByRole('heading', { name: /dust reading definitions/i })).toBeInTheDocument());
-    expect(screen.getByRole('link', { name: /dust monitoring guide/i })).toHaveAttribute('href', '/help-assets/data-readings/dust-guide.pdf');
+    expect(screen.getByRole('link', { name: /dust monitoring guide/i })).toHaveAttribute(
+      'href',
+      '/help-assets/data-readings/dust-guide.pdf',
+    );
   });
 
   it('lets RVT admins manage Help FAQ content from the Admin menu', async () => {
@@ -467,7 +588,9 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /help\/faq management/i })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: /help\/faq management/i })).toBeInTheDocument(),
+    );
     await waitFor(() => expect(screen.getByText('Draft FAQ')).toBeInTheDocument());
     const typeFilter = screen.getAllByLabelText(/^type$/i)[0] as HTMLSelectElement;
     expect(Array.from(typeFilter.options).map((option) => option.value)).toEqual([
@@ -477,7 +600,7 @@ describe('App', () => {
       'Definition',
       'Document',
       'FAQ',
-      'Video'
+      'Video',
     ]);
     fireEvent.click(screen.getByRole('button', { name: /edit draft faq/i }));
     fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Updated FAQ' } });
@@ -534,7 +657,7 @@ describe('App', () => {
         }
 
         return undefined;
-      }
+      },
     });
 
     render(<App />);
@@ -547,6 +670,524 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.queryByText('MON-STALE')).not.toBeInTheDocument());
     expect(screen.getByText('MON-FRESH')).toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      route: '/contracts',
+      endpoint: '/api/contracts',
+      searchPlaceholder: /search contracts/i,
+      currentText: 'RVT-C-001',
+    },
+    {
+      route: '/sites',
+      endpoint: '/api/sites',
+      searchPlaceholder: /search sites/i,
+      currentText: 'RVT Test Site',
+    },
+    {
+      route: '/monitors',
+      endpoint: '/api/monitors',
+      searchPlaceholder: /search monitors/i,
+      currentText: 'MON-ONLINE',
+    },
+    {
+      route: '/notifications',
+      endpoint: '/api/notifications',
+      searchPlaceholder: /search notifications/i,
+      currentText: 'MON-ONLINE',
+    },
+    {
+      route: '/reports',
+      endpoint: '/api/reports',
+      searchPlaceholder: /search reports/i,
+      currentText: 'Weekly Compliance',
+    },
+  ])(
+    'ignores a late generic failure from an aborted $endpoint list request',
+    async ({ route, endpoint, searchPlaceholder, currentText }) => {
+      globalThis.history.replaceState(null, '', route);
+      const staleRequest = deferredResponse();
+      let heldInitialRequest = false;
+      stubFetch({
+        auth: { isAuthenticated: true, user: adminUser },
+        routeOverride: (url) => {
+          if (url.pathname !== endpoint) {
+            return undefined;
+          }
+
+          const searchText = url.searchParams.get('searchText') ?? '';
+          if (!searchText && !heldInitialRequest) {
+            heldInitialRequest = true;
+            return staleRequest.promise;
+          }
+
+          return undefined;
+        },
+      });
+
+      render(<App />);
+
+      await waitFor(() => expect(heldInitialRequest).toBe(true));
+      fireEvent.change(await screen.findByPlaceholderText(searchPlaceholder), { target: { value: 'current' } });
+      await waitFor(() => expect(screen.getAllByText(currentText)[0]).toBeInTheDocument());
+
+      await act(async () => staleRequest.reject(new Error('Stale list failure')));
+
+      expect(screen.getAllByText(currentText)[0]).toBeInTheDocument();
+      expect(screen.queryByText('Stale list failure')).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+    },
+  );
+
+  it('ignores a late generic failure from an aborted alert-level list request', async () => {
+    globalThis.history.replaceState(null, '', '/monitors/monitor-id/alert-levels');
+    const staleRequest = deferredResponse();
+    let heldInitialRequest = false;
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        if (url.pathname === '/api/alert-levels' && !heldInitialRequest) {
+          heldInitialRequest = true;
+          return staleRequest.promise;
+        }
+
+        return undefined;
+      },
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(heldInitialRequest).toBe(true));
+    fireEvent.click(await screen.findByRole('button', { name: /parameter/i }));
+    await waitFor(() => expect(screen.getByText('Peak')).toBeInTheDocument());
+
+    await act(async () => staleRequest.reject(new Error('Stale alert-level failure')));
+
+    expect(screen.getByText('Peak')).toBeInTheDocument();
+    expect(screen.queryByText('Stale alert-level failure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      route: '/contracts',
+      endpoint: '/api/contracts',
+      searchPlaceholder: /search contracts/i,
+      oldText: 'RVT-C-001',
+      currentText: 'RVT-C-A2',
+      staleText: 'RVT-C-B',
+      page: contractPage,
+    },
+    {
+      route: '/sites',
+      endpoint: '/api/sites',
+      searchPlaceholder: /search sites/i,
+      oldText: 'RVT Test Site',
+      currentText: 'Current A2 Site',
+      staleText: 'Stale B Site',
+      page: sitePage,
+    },
+    {
+      route: '/monitors',
+      endpoint: '/api/monitors',
+      searchPlaceholder: /search monitors/i,
+      oldText: 'MON-ONLINE',
+      currentText: 'MON-A2',
+      staleText: 'MON-B',
+      page: monitorPage,
+    },
+    {
+      route: '/notifications',
+      endpoint: '/api/notifications',
+      searchPlaceholder: /search notifications/i,
+      oldText: 'PM10 > 50',
+      currentText: 'Current A2 threshold',
+      staleText: 'Stale B threshold',
+      page: notificationPage,
+    },
+    {
+      route: '/reports',
+      endpoint: '/api/reports',
+      searchPlaceholder: /search reports/i,
+      oldText: 'Weekly Compliance',
+      currentText: 'Current A2 Report',
+      staleText: 'Stale B Report',
+      page: generatedReportPage,
+    },
+  ])(
+    'keeps the repeated A2 $endpoint execution loading and authoritative',
+    async ({ route, endpoint, searchPlaceholder, oldText, currentText, staleText, page: pageFixture }) => {
+      globalThis.history.replaceState(null, '', route);
+      const bridgeRequest = deferredResponse();
+      const currentRequest = deferredResponse();
+      let emptyRequestCount = 0;
+      stubFetch({
+        auth: { isAuthenticated: true, user: adminUser },
+        routeOverride: (url) => {
+          if (url.pathname !== endpoint) {
+            return undefined;
+          }
+
+          const searchText = url.searchParams.get('searchText') ?? '';
+          if (searchText === 'bridge') {
+            return bridgeRequest.promise;
+          }
+          if (!searchText) {
+            emptyRequestCount += 1;
+            return emptyRequestCount === 1 ? undefined : currentRequest.promise;
+          }
+          return undefined;
+        },
+      });
+
+      render(<App />);
+
+      await screen.findByText(oldText);
+      const searchInput = screen.getByPlaceholderText(searchPlaceholder);
+      fireEvent.change(searchInput, { target: { value: 'bridge' } });
+      await waitFor(() =>
+        expect(
+          fetchedUrls().some((url) => url.pathname === endpoint && url.searchParams.get('searchText') === 'bridge'),
+        ).toBe(true),
+      );
+      fireEvent.change(searchInput, { target: { value: '' } });
+      await waitFor(() => expect(emptyRequestCount).toBe(2));
+
+      expect(screen.getByText('Loading data...')).toBeInTheDocument();
+      expect(screen.queryByText(oldText)).not.toBeInTheDocument();
+
+      await act(async () =>
+        currentRequest.resolve(jsonResponse(pageFixture(new URL(endpoint, 'http://localhost'), currentText))),
+      );
+      await screen.findByText(currentText);
+      await act(async () =>
+        bridgeRequest.resolve(
+          jsonResponse(pageFixture(new URL(`${endpoint}?searchText=bridge`, 'http://localhost'), staleText)),
+        ),
+      );
+
+      expect(screen.getByText(currentText)).toBeInTheDocument();
+      expect(screen.queryByText(staleText)).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+    },
+  );
+
+  it('keeps a repeated alert-level execution loading and authoritative', async () => {
+    globalThis.history.replaceState(null, '', '/monitors/monitor-id/alert-levels');
+    const bridgeRequest = deferredResponse();
+    const currentRequest = deferredResponse();
+    let ascendingRequestCount = 0;
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        if (url.pathname !== '/api/alert-levels') {
+          return undefined;
+        }
+
+        const sortDir = url.searchParams.get('sortDir') ?? 'Ascending';
+        if (sortDir === 'Descending') {
+          return bridgeRequest.promise;
+        }
+        ascendingRequestCount += 1;
+        return ascendingRequestCount === 1 ? undefined : currentRequest.promise;
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText('Peak');
+    fireEvent.click(screen.getByRole('button', { name: /parameter/i }));
+    await waitFor(() =>
+      expect(
+        fetchedUrls().some(
+          (url) => url.pathname === '/api/alert-levels' && url.searchParams.get('sortDir') === 'Descending',
+        ),
+      ).toBe(true),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /parameter/i }));
+    await waitFor(() => expect(ascendingRequestCount).toBe(2));
+
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.queryByText('Peak')).not.toBeInTheDocument();
+
+    await act(async () =>
+      currentRequest.resolve(
+        jsonResponse(
+          alertLevelPage(
+            new URL('/api/alert-levels?monitorId=monitor-id&sortDir=Ascending', 'http://localhost'),
+            'Current A2 parameter',
+          ),
+        ),
+      ),
+    );
+    await screen.findByText('Current A2 parameter');
+    await act(async () =>
+      bridgeRequest.resolve(
+        jsonResponse(
+          alertLevelPage(
+            new URL('/api/alert-levels?monitorId=monitor-id&sortDir=Descending', 'http://localhost'),
+            'Stale B parameter',
+          ),
+        ),
+      ),
+    );
+
+    expect(screen.getByText('Current A2 parameter')).toBeInTheDocument();
+    expect(screen.queryByText('Stale B parameter')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      route: '/monitors/unattached',
+      endpoint: '/api/monitors/unattached',
+      searchPlaceholder: /search unattached monitors/i,
+      oldText: 'SER-OLD-001',
+      currentText: 'SER-A2',
+      staleText: 'SER-B',
+      page: unattachedMonitorPage,
+    },
+    {
+      route: '/reports/rules',
+      endpoint: '/api/report-rules',
+      searchPlaceholder: /search rules/i,
+      oldText: 'Old Rule',
+      currentText: 'Current A2 Rule',
+      staleText: 'Stale B Rule',
+      page: reportRulePage,
+    },
+  ])(
+    'keeps the owned repeated A2 $endpoint execution loading and authoritative',
+    async ({ route, endpoint, searchPlaceholder, oldText, currentText, staleText, page: pageFixture }) => {
+      globalThis.history.replaceState(null, '', route);
+      const bridgeRequest = deferredResponse();
+      const currentRequest = deferredResponse();
+      let emptyRequestCount = 0;
+      stubFetch({
+        auth: { isAuthenticated: true, user: adminUser },
+        routeOverride: (url) => {
+          if (url.pathname !== endpoint) {
+            return undefined;
+          }
+
+          const searchText = url.searchParams.get('searchText') ?? '';
+          if (searchText === 'bridge') {
+            return bridgeRequest.promise;
+          }
+          if (!searchText) {
+            emptyRequestCount += 1;
+            return emptyRequestCount === 1 ? jsonResponse(pageFixture(url, oldText)) : currentRequest.promise;
+          }
+          return undefined;
+        },
+      });
+
+      render(<App />);
+
+      await screen.findByText(oldText);
+      const searchInput = screen.getByPlaceholderText(searchPlaceholder);
+      fireEvent.change(searchInput, { target: { value: 'bridge' } });
+      await waitFor(() =>
+        expect(
+          fetchedUrls().some((url) => url.pathname === endpoint && url.searchParams.get('searchText') === 'bridge'),
+        ).toBe(true),
+      );
+      fireEvent.change(searchInput, { target: { value: '' } });
+      await waitFor(() => expect(emptyRequestCount).toBe(2));
+
+      expect(screen.getByText('Loading data...')).toBeInTheDocument();
+      expect(screen.queryByText(oldText)).not.toBeInTheDocument();
+
+      await act(async () =>
+        currentRequest.resolve(jsonResponse(pageFixture(new URL(endpoint, 'http://localhost'), currentText))),
+      );
+      await screen.findByText(currentText);
+      await act(async () =>
+        bridgeRequest.resolve(
+          jsonResponse(pageFixture(new URL(`${endpoint}?searchText=bridge`, 'http://localhost'), staleText)),
+        ),
+      );
+
+      expect(screen.getByText(currentText)).toBeInTheDocument();
+      expect(screen.queryByText(staleText)).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+    },
+  );
+
+  it('keeps a newer notification query authoritative over a delayed close and owns a normal refresh', async () => {
+    globalThis.history.replaceState(null, '', '/notifications');
+    const staleMutation = deferredResponse();
+    const currentQuery = deferredResponse();
+    const normalMutation = deferredResponse();
+    const normalRefresh = deferredResponse();
+    let mutationCount = 0;
+    let emptyQueryCount = 0;
+    let currentQueryCount = 0;
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/notifications/batch-close' && init?.method === 'POST') {
+          mutationCount += 1;
+          return mutationCount === 1 ? staleMutation.promise : normalMutation.promise;
+        }
+        if (url.pathname !== '/api/notifications') {
+          return undefined;
+        }
+
+        const searchText = url.searchParams.get('searchText') ?? '';
+        if (!searchText) {
+          emptyQueryCount += 1;
+          return jsonResponse(notificationPage(url, emptyQueryCount === 1 ? 'Old A threshold' : 'Stale A threshold'));
+        }
+        if (searchText === 'current') {
+          currentQueryCount += 1;
+          return currentQueryCount === 1 ? currentQuery.promise : normalRefresh.promise;
+        }
+        return undefined;
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText('Old A threshold');
+    fireEvent.click(screen.getByRole('checkbox', { name: /select notification mon-a2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /close 1/i }));
+    fireEvent.change(screen.getByPlaceholderText(/search notifications/i), { target: { value: 'current' } });
+    await waitFor(() => expect(currentQueryCount).toBe(1));
+    await act(async () =>
+      currentQuery.resolve(
+        jsonResponse(
+          notificationPage(new URL('/api/notifications?searchText=current', 'http://localhost'), 'Current B threshold'),
+        ),
+      ),
+    );
+    await screen.findByText('Current B threshold');
+
+    await act(async () =>
+      staleMutation.resolve(
+        jsonResponse({ requested: 1, closedIds: ['old-a-threshold-id'], forbiddenIds: [], missingIds: [] }),
+      ),
+    );
+
+    await screen.findByText(/closed 1 of 1 selected notifications/i);
+    expect(screen.getByText('Current B threshold')).toBeInTheDocument();
+    expect(screen.queryByText('Stale A threshold')).not.toBeInTheDocument();
+    expect(emptyQueryCount).toBe(1);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /select notification mon-a2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /close 1/i }));
+    await act(async () =>
+      normalMutation.resolve(
+        jsonResponse({ requested: 1, closedIds: ['current-b-threshold-id'], forbiddenIds: [], missingIds: [] }),
+      ),
+    );
+    await waitFor(() => expect(currentQueryCount).toBe(2));
+
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.queryByText('Current B threshold')).not.toBeInTheDocument();
+
+    await act(async () =>
+      normalRefresh.resolve(
+        jsonResponse(
+          notificationPage(
+            new URL('/api/notifications?searchText=current', 'http://localhost'),
+            'Refreshed B threshold',
+          ),
+        ),
+      ),
+    );
+
+    await screen.findByText('Refreshed B threshold');
+    expect(screen.queryByRole('button', { name: /close 1/i })).not.toBeInTheDocument();
+    expect(currentQueryCount).toBe(2);
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+  });
+
+  it('keeps a newer alert-level sort authoritative over a delayed delete and owns a normal refresh', async () => {
+    globalThis.history.replaceState(null, '', '/monitors/monitor-id/alert-levels');
+    const staleMutation = deferredResponse();
+    const currentQuery = deferredResponse();
+    const normalMutation = deferredResponse();
+    const normalRefresh = deferredResponse();
+    let mutationCount = 0;
+    let ascendingQueryCount = 0;
+    let descendingQueryCount = 0;
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname.startsWith('/api/alert-levels/') && init?.method === 'DELETE') {
+          mutationCount += 1;
+          return mutationCount === 1 ? staleMutation.promise : normalMutation.promise;
+        }
+        if (url.pathname !== '/api/alert-levels') {
+          return undefined;
+        }
+
+        const sortDir = url.searchParams.get('sortDir') ?? 'Ascending';
+        if (sortDir === 'Ascending') {
+          ascendingQueryCount += 1;
+          return jsonResponse(
+            alertLevelPage(url, ascendingQueryCount === 1 ? 'Old A parameter' : 'Stale A parameter', 'Dust'),
+          );
+        }
+        descendingQueryCount += 1;
+        return descendingQueryCount === 1 ? currentQuery.promise : normalRefresh.promise;
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText('Old A parameter');
+    fireEvent.click(screen.getByRole('button', { name: /delete alert level/i }));
+    fireEvent.click(screen.getByRole('button', { name: /parameter/i }));
+    await waitFor(() => expect(descendingQueryCount).toBe(1));
+    await act(async () =>
+      currentQuery.resolve(
+        jsonResponse(
+          alertLevelPage(
+            new URL('/api/alert-levels?monitorId=monitor-id&sortDir=Descending', 'http://localhost'),
+            'Current B parameter',
+            'Dust',
+          ),
+        ),
+      ),
+    );
+    await screen.findByText('Current B parameter');
+
+    await act(async () => staleMutation.resolve(jsonResponse({ message: 'Deleted' })));
+
+    await screen.findByText(/alert level has been deleted/i);
+    expect(screen.getByText('Current B parameter')).toBeInTheDocument();
+    expect(screen.queryByText('Stale A parameter')).not.toBeInTheDocument();
+    expect(ascendingQueryCount).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /delete alert level/i }));
+    await act(async () => normalMutation.resolve(jsonResponse({ message: 'Deleted' })));
+    await waitFor(() => expect(descendingQueryCount).toBe(2));
+
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.queryByText('Current B parameter')).not.toBeInTheDocument();
+
+    await act(async () =>
+      normalRefresh.resolve(
+        jsonResponse(
+          alertLevelPage(
+            new URL('/api/alert-levels?monitorId=monitor-id&sortDir=Descending', 'http://localhost'),
+            'Refreshed B parameter',
+            'Dust',
+          ),
+        ),
+      ),
+    );
+
+    await screen.findByText('Refreshed B parameter');
+    expect(descendingQueryCount).toBe(2);
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
   });
 
   it('returns monitor edit forms to the filtered list that opened them', async () => {
@@ -587,7 +1228,10 @@ describe('App', () => {
     expect(screen.getByText('Dust PM10 live reading')).toBeInTheDocument();
     expect(screen.getByLabelText(/monitor detail map/i)).toBeInTheDocument();
     expect(screen.getByText('48')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /monitor location/i })).toHaveAttribute('src', '/api/monitors/monitor-id/picture');
+    expect(screen.getByRole('img', { name: /monitor location/i })).toHaveAttribute(
+      'src',
+      '/api/monitors/monitor-id/picture',
+    );
     expect(screen.getByRole('heading', { name: /deployment details/i })).toBeInTheDocument();
     expect(screen.getAllByText('MON-CON-001').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /view notification/i }));
@@ -624,10 +1268,95 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /^archive$/i }));
 
     await waitFor(() => {
-      expect(fetchedUrls().some((url) => url.pathname === '/api/monitors/unattached')).toBe(true);
-      expect(fetchedUrls().some((url) => url.pathname === '/api/monitors/11111111-1111-1111-1111-111111111111/unattached')).toBe(true);
+      expect(fetchedUrls().filter((url) => url.pathname === '/api/monitors/unattached')).toHaveLength(2);
+      expect(
+        fetchedUrls().some((url) => url.pathname === '/api/monitors/11111111-1111-1111-1111-111111111111/unattached'),
+      ).toBe(true);
     });
     await waitFor(() => expect(screen.getByText(/has been archived/i)).toBeInTheDocument());
+  });
+
+  it('keeps a newer unattached-monitor search authoritative over an older removal refresh', async () => {
+    globalThis.history.replaceState(null, '', '/monitors/unattached');
+    const oldRefresh = deferredResponse();
+    const currentQuery = deferredResponse();
+    let emptyQueryRequestCount = 0;
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (
+          url.pathname === '/api/monitors/11111111-1111-1111-1111-111111111111/unattached' &&
+          init?.method === 'DELETE'
+        ) {
+          return jsonResponse({
+            id: '11111111-1111-1111-1111-111111111111',
+            action: 'archived',
+            message: "Monitor 'RVT-OLD-001' has been archived because related data exists.",
+            impact: {
+              deploymentCount: 1,
+              notificationCount: 2,
+              alertRuleCount: 3,
+              measurementTableCount: 1,
+              measurementRowCount: 20,
+              hasRelatedData: true,
+            },
+          });
+        }
+        if (url.pathname !== '/api/monitors/unattached') {
+          return undefined;
+        }
+
+        const searchText = url.searchParams.get('searchText') ?? '';
+        if (!searchText) {
+          emptyQueryRequestCount += 1;
+          return emptyQueryRequestCount === 1
+            ? jsonResponse(unattachedMonitorPage(url, 'SER-OLD-001'))
+            : oldRefresh.promise;
+        }
+        if (searchText === 'current') {
+          return currentQuery.promise;
+        }
+        return undefined;
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText('SER-OLD-001');
+    fireEvent.click(screen.getByRole('button', { name: /remove monitor/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^archive$/i }));
+    await waitFor(() => expect(emptyQueryRequestCount).toBe(2));
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.queryByText('SER-OLD-001')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/search unattached monitors/i), { target: { value: 'current' } });
+    await waitFor(() =>
+      expect(
+        fetchedUrls().some(
+          (url) => url.pathname === '/api/monitors/unattached' && url.searchParams.get('searchText') === 'current',
+        ),
+      ).toBe(true),
+    );
+
+    await act(async () => {
+      currentQuery.resolve(
+        jsonResponse(
+          unattachedMonitorPage(
+            new URL('/api/monitors/unattached?searchText=current', 'http://localhost'),
+            'SER-CURRENT',
+          ),
+        ),
+      );
+    });
+    await act(async () => {
+      oldRefresh.resolve(
+        jsonResponse(unattachedMonitorPage(new URL('/api/monitors/unattached', 'http://localhost'), 'SER-STALE')),
+      );
+    });
+
+    await screen.findByText('SER-CURRENT');
+    expect(screen.queryByText('SER-STALE')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
   });
 
   it('renders the notifications operations route for RVT admin users', async () => {
@@ -636,7 +1365,9 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^notifications$/i })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: /^notifications$/i })).toBeInTheDocument(),
+    );
     await waitFor(() => expect(screen.getByText('PM10 > 50')).toBeInTheDocument());
   });
 
@@ -675,8 +1406,8 @@ describe('App', () => {
               companyName: 'RVT Group',
               limitName: 'PM10 > 50',
               alertStatus: 'Closed',
-              canClose: false
-            }
+              canClose: false,
+            },
           ],
           total: 1,
           page: 1,
@@ -689,14 +1420,16 @@ describe('App', () => {
           sortDir: 'Descending',
           state: 'all',
           isScopedToCurrentUser: false,
-          canClose: true
+          canClose: true,
         });
-      }
+      },
     });
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^notifications$/i })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: /^notifications$/i })).toBeInTheDocument(),
+    );
     await waitFor(() => expect(screen.getByRole('columnheader', { name: /closed note/i })).toBeInTheDocument());
     expect(screen.getByText('Investigated from SPA')).toBeInTheDocument();
   });
@@ -763,8 +1496,8 @@ describe('App', () => {
               frequency: 2,
               frequencyLabel: 'Weekly',
               reportName: 'Retried Compliance',
-              contracts: 'RVT-C-001'
-            }
+              contracts: 'RVT-C-001',
+            },
           ],
           total: 1,
           page: 1,
@@ -774,9 +1507,9 @@ describe('App', () => {
           hasNextPage: false,
           searchText: url.searchParams.get('searchText') ?? '',
           sort: 'reportDate',
-          sortDir: 'Descending'
+          sortDir: 'Descending',
         });
-      }
+      },
     });
 
     render(<App />);
@@ -786,6 +1519,226 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Retried Compliance')).toBeInTheDocument());
     expect(screen.queryByText(/reports unavailable/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the current report-rule query when an older delete refresh resolves last', async () => {
+    globalThis.history.replaceState(null, '', '/reports/rules');
+    const oldRefresh = deferredResponse();
+    const currentQuery = deferredResponse();
+    let emptyQueryRequestCount = 0;
+    const reportRulePage = (url: URL, reportName: string) => ({
+      results: [
+        {
+          id: `${reportName.toLowerCase().replaceAll(' ', '-')}-id`,
+          siteId: 'site-id',
+          siteName: 'RVT Test Site',
+          frequency: 2,
+          frequencyLabel: 'Weekly',
+          dayOfWeek: 1,
+          dayOfMonth: null,
+          reportName,
+          lastGenerated: null,
+          canManage: true,
+          assignedUserCount: 1,
+        },
+      ],
+      total: 1,
+      page: Number(url.searchParams.get('page') ?? 1),
+      pageSize: 10,
+      totalPages: 1,
+      hasPreviousPage: false,
+      hasNextPage: false,
+      searchText: url.searchParams.get('searchText') ?? '',
+      sort: url.searchParams.get('sort') ?? 'lastGenerated',
+      sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+    });
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/report-rules/old-rule-id' && init?.method === 'DELETE') {
+          return jsonResponse({ message: 'Deleted' });
+        }
+        if (url.pathname !== '/api/report-rules') {
+          return undefined;
+        }
+
+        const searchText = url.searchParams.get('searchText') ?? '';
+        if (!searchText) {
+          emptyQueryRequestCount += 1;
+          return emptyQueryRequestCount === 1 ? jsonResponse(reportRulePage(url, 'Old Rule')) : oldRefresh.promise;
+        }
+        if (searchText === 'current') {
+          return currentQuery.promise;
+        }
+        return undefined;
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText('Old Rule');
+    fireEvent.click(screen.getByRole('button', { name: /delete report rule/i }));
+    await waitFor(() => expect(emptyQueryRequestCount).toBe(2));
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.queryByText('Old Rule')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/search rules/i), { target: { value: 'current' } });
+    await waitFor(() => expect(screen.getByText('Loading data...')).toBeInTheDocument());
+
+    currentQuery.resolve(
+      jsonResponse(reportRulePage(new URL('/api/report-rules?searchText=current', 'http://localhost'), 'Current Rule')),
+    );
+    await screen.findByText('Current Rule');
+    oldRefresh.resolve(jsonResponse(reportRulePage(new URL('/api/report-rules', 'http://localhost'), 'Stale Rule')));
+
+    await waitFor(() => expect(screen.queryByText('Stale Rule')).not.toBeInTheDocument());
+    expect(screen.getByText('Current Rule')).toBeInTheDocument();
+  });
+
+  it('does not let a delayed delete reclaim a newer report-rule query', async () => {
+    globalThis.history.replaceState(null, '', '/reports/rules');
+    const deleteRequest = deferredResponse();
+    const currentQuery = deferredResponse();
+    let emptyQueryRequestCount = 0;
+    const reportRulePage = (url: URL, reportName: string) => ({
+      results: [
+        {
+          id: `${reportName.toLowerCase().replaceAll(' ', '-')}-id`,
+          siteId: 'site-id',
+          siteName: 'RVT Test Site',
+          frequency: 2,
+          frequencyLabel: 'Weekly',
+          dayOfWeek: 1,
+          dayOfMonth: null,
+          reportName,
+          lastGenerated: null,
+          canManage: true,
+          assignedUserCount: 1,
+        },
+      ],
+      total: 1,
+      page: Number(url.searchParams.get('page') ?? 1),
+      pageSize: 10,
+      totalPages: 1,
+      hasPreviousPage: false,
+      hasNextPage: false,
+      searchText: url.searchParams.get('searchText') ?? '',
+      sort: url.searchParams.get('sort') ?? 'lastGenerated',
+      sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+    });
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/report-rules/old-rule-id' && init?.method === 'DELETE') {
+          return deleteRequest.promise;
+        }
+        if (url.pathname !== '/api/report-rules') {
+          return undefined;
+        }
+
+        const searchText = url.searchParams.get('searchText') ?? '';
+        if (!searchText) {
+          emptyQueryRequestCount += 1;
+          return jsonResponse(reportRulePage(url, 'Old Rule'));
+        }
+        if (searchText === 'current') {
+          return currentQuery.promise;
+        }
+        return undefined;
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText('Old Rule');
+    fireEvent.click(screen.getByRole('button', { name: /delete report rule/i }));
+    fireEvent.change(screen.getByPlaceholderText(/search rules/i), { target: { value: 'current' } });
+    await waitFor(() => expect(screen.getByText('Loading data...')).toBeInTheDocument());
+
+    deleteRequest.resolve(jsonResponse({ message: 'Deleted' }));
+    currentQuery.resolve(
+      jsonResponse(reportRulePage(new URL('/api/report-rules?searchText=current', 'http://localhost'), 'Current Rule')),
+    );
+
+    await screen.findByText('Current Rule');
+    expect(emptyQueryRequestCount).toBe(1);
+  });
+
+  it('shows monitor loading until its current request completes', async () => {
+    const pending = deferredResponse();
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => (url.pathname === '/api/monitors' ? pending.promise : undefined),
+    });
+
+    render(
+      <MonitorsPanel
+        locationPath="/monitors"
+        onNavigate={() => {}}
+        onRequestError={() => {}}
+        canManage
+        canUseInstallerTools
+        installerOnly={false}
+      />,
+    );
+
+    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    pending.resolve(jsonResponse(monitorPage(new URL('/api/monitors', 'http://localhost'), 'MON-COMPLETE')));
+
+    await screen.findByText('MON-COMPLETE');
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the current monitor tab when the available tabs change', async () => {
+    const installerStates: string[] = [];
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        if (url.pathname === '/api/monitors') {
+          return jsonResponse(monitorPage(url, 'MON-NEW'));
+        }
+        if (url.pathname === '/api/installer/monitors') {
+          installerStates.push(url.searchParams.get('state') ?? '');
+          return jsonResponse(monitorPage(url, 'MON-INSTALLER'));
+        }
+        return undefined;
+      },
+    });
+
+    const { rerender } = render(
+      <MonitorsPanel
+        locationPath="/monitors?state=new"
+        onNavigate={() => {}}
+        onRequestError={() => {}}
+        canManage
+        canUseInstallerTools
+        installerOnly={false}
+      />,
+    );
+
+    await screen.findByText('MON-NEW');
+    rerender(
+      <MonitorsPanel
+        locationPath="/monitors?state=new"
+        onNavigate={() => {}}
+        onRequestError={() => {}}
+        canManage={false}
+        canUseInstallerTools
+        installerOnly
+      />,
+    );
+
+    await screen.findByText('MON-INSTALLER');
+    expect(installerStates).toEqual(['installer']);
+    expect(globalThis.location.search).toContain('state=installer');
+    expect(screen.getByRole('tab', { name: /installer/i })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('supports report-rule wizard setup and manual generation from the edit view', async () => {
@@ -806,7 +1759,9 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /generate now/i }));
 
     await waitFor(() => expect(screen.getByText(/manual generation queued/i)).toBeInTheDocument());
-    expect(fetchedUrls().some((url) => url.pathname === '/api/report-rules/report-rule-id/generation-requests')).toBe(true);
+    expect(fetchedUrls().some((url) => url.pathname === '/api/report-rules/report-rule-id/generation-requests')).toBe(
+      true,
+    );
   });
 
   it('offers daily report rules without weekly or monthly schedule fields', async () => {
@@ -848,24 +1803,26 @@ describe('App', () => {
             assignedUserCount: 1,
             sites: [
               { value: 'active-site-id', label: 'Active Report Site' },
-              { value: 'archived-site-id', label: 'Archived Report Site', disabled: true }
+              { value: 'archived-site-id', label: 'Archived Report Site', disabled: true },
             ],
             frequencies: [
               { value: '1', label: 'Daily' },
               { value: '2', label: 'Weekly' },
-              { value: '3', label: 'Monthly' }
+              { value: '3', label: 'Monthly' },
             ],
             daysOfWeek: [{ value: '1', label: 'Monday' }],
-            alertRuleGuidelines: []
-          }
+            alertRuleGuidelines: [],
+          },
         });
-      }
+      },
     });
 
     render(<App />);
 
     const siteSelect = await screen.findByLabelText(/^site$/i);
-    await waitFor(() => expect(within(siteSelect).getByRole('option', { name: /archived report site/i })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(within(siteSelect).getByRole('option', { name: /archived report site/i })).toBeInTheDocument(),
+    );
     const archivedOption = within(siteSelect).getByRole('option', { name: /archived report site/i });
 
     expect(siteSelect).toHaveValue('archived-site-id');
@@ -894,6 +1851,188 @@ describe('App', () => {
     expect(screen.getByText('assigned@rvt.test')).toBeInTheDocument();
   });
 
+  it('keeps a newer notification edit when an earlier save completes', async () => {
+    const savedSetting = deferredResponse();
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/sites/site-a') {
+          return jsonResponse({ item: siteDetail('site-a', 'Site A') });
+        }
+        if (url.pathname === '/api/sites/site-a/notification-settings') {
+          return jsonResponse(notificationSettings('site-a', '08:00'));
+        }
+        if (url.pathname === '/api/users/site-assignments/site-a') {
+          return jsonResponse({ item: siteAssignments('assigned-a@rvt.test') });
+        }
+        if (url.pathname === '/api/sites/site-a/notification-settings/site-user-id' && init?.method === 'PUT') {
+          return savedSetting.promise;
+        }
+        return undefined;
+      },
+    });
+
+    renderSitePanel('/sites/site-a');
+
+    const startTime = await screen.findByLabelText(/notification start time/i);
+    fireEvent.change(startTime, { target: { value: '09:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    fireEvent.change(startTime, { target: { value: '10:00' } });
+
+    await act(async () =>
+      savedSetting.resolve(
+        jsonResponse({
+          item: notificationSetting('site-user-id', '09:00'),
+        }),
+      ),
+    );
+
+    expect(startTime).toHaveValue('10:00');
+  });
+
+  it('starts a fresh notification editing session when the site changes', async () => {
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        const siteId = url.pathname.match(/^\/api\/sites\/(site-[ab])$/)?.[1];
+        if (siteId) {
+          return jsonResponse({ item: siteDetail(siteId, siteId === 'site-a' ? 'Site A' : 'Site B') });
+        }
+        const settingsSiteId = url.pathname.match(/^\/api\/sites\/(site-[ab])\/notification-settings$/)?.[1];
+        if (settingsSiteId) {
+          return jsonResponse(notificationSettings(settingsSiteId, settingsSiteId === 'site-a' ? '08:00' : '11:00'));
+        }
+        if (
+          url.pathname === '/api/users/site-assignments/site-a' ||
+          url.pathname === '/api/users/site-assignments/site-b'
+        ) {
+          return jsonResponse({ item: siteAssignments('assigned@rvt.test') });
+        }
+        return undefined;
+      },
+    });
+
+    const { rerender } = renderSitePanel('/sites/site-a');
+    const startTime = await screen.findByLabelText(/notification start time/i);
+    fireEvent.change(startTime, { target: { value: '09:00' } });
+
+    rerenderSitePanel(rerender, '/sites/site-b');
+
+    await waitFor(() => expect(screen.getByLabelText(/notification start time/i)).toHaveValue('11:00'));
+  });
+
+  it('keeps current site assignments when an older site request completes later', async () => {
+    const siteAAssignments = deferredResponse();
+    const siteBAssignments = deferredResponse();
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        const siteId = url.pathname.match(/^\/api\/sites\/(site-[ab])$/)?.[1];
+        if (siteId) {
+          return jsonResponse({ item: siteDetail(siteId, siteId === 'site-a' ? 'Site A' : 'Site B') });
+        }
+        const settingsSiteId = url.pathname.match(/^\/api\/sites\/(site-[ab])\/notification-settings$/)?.[1];
+        if (settingsSiteId) {
+          return jsonResponse(notificationSettings(settingsSiteId, '08:00'));
+        }
+        if (url.pathname === '/api/users/site-assignments/site-a') {
+          return siteAAssignments.promise;
+        }
+        if (url.pathname === '/api/users/site-assignments/site-b') {
+          return siteBAssignments.promise;
+        }
+        return undefined;
+      },
+    });
+
+    const { rerender } = renderSitePanel('/sites/site-a');
+    await waitFor(() =>
+      expect(fetchedUrls().some((url) => url.pathname === '/api/users/site-assignments/site-a')).toBe(true),
+    );
+
+    rerenderSitePanel(rerender, '/sites/site-b');
+    await waitFor(() =>
+      expect(fetchedUrls().some((url) => url.pathname === '/api/users/site-assignments/site-b')).toBe(true),
+    );
+
+    await act(async () => siteBAssignments.resolve(jsonResponse({ item: siteAssignments('current-site@rvt.test') })));
+    expect(await screen.findByText('current-site@rvt.test')).toBeInTheDocument();
+    await act(async () => siteAAssignments.resolve(jsonResponse({ item: siteAssignments('stale-site@rvt.test') })));
+
+    expect(screen.getByText('current-site@rvt.test')).toBeInTheDocument();
+    expect(screen.queryByText('stale-site@rvt.test')).not.toBeInTheDocument();
+  });
+
+  it('keeps mutation-refreshed report recipients when an earlier query resolves last', async () => {
+    const oldAvailable = deferredResponse();
+    let mutationCompleted = false;
+    let oldQueryStarted = false;
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/report-rules/report-rule-id/available-users') {
+          if (url.searchParams.get('searchText') === 'old' && !mutationCompleted) {
+            oldQueryStarted = true;
+            return oldAvailable.promise;
+          }
+          return jsonResponse(
+            reportUserPage(url, [
+              reportUser(
+                mutationCompleted ? 'fresh-available-id' : 'add-user-id',
+                mutationCompleted ? 'fresh.available@rvt.test' : 'add.user@rvt.test',
+                mutationCompleted ? 'Fresh Available' : 'Add User',
+              ),
+            ]),
+          );
+        }
+        if (url.pathname === '/api/report-rules/report-rule-id/assigned-users') {
+          return jsonResponse(
+            reportUserPage(url, [
+              reportUser(
+                mutationCompleted ? 'fresh-assigned-id' : 'old-assigned-id',
+                mutationCompleted ? 'fresh.assigned@rvt.test' : 'old.assigned@rvt.test',
+                mutationCompleted ? 'Fresh Assigned' : 'Old Assigned',
+              ),
+            ]),
+          );
+        }
+        if (url.pathname === '/api/report-rules/report-rule-id/users' && init?.method === 'POST') {
+          mutationCompleted = true;
+          return jsonResponse({ item: reportUserAssignments() });
+        }
+        return undefined;
+      },
+    });
+
+    render(
+      <ReportsPanel
+        locationPath="/reports/rules/report-rule-id/users"
+        onNavigate={() => {}}
+        onRequestError={() => {}}
+      />,
+    );
+
+    await screen.findByText('add.user@rvt.test');
+    fireEvent.change(screen.getByPlaceholderText(/search available users/i), { target: { value: 'old' } });
+    fireEvent.click(screen.getByRole('button', { name: /add report user/i }));
+    await waitFor(() => expect(oldQueryStarted).toBe(true));
+
+    expect(await screen.findByText('fresh.assigned@rvt.test')).toBeInTheDocument();
+    await act(async () =>
+      oldAvailable.resolve(
+        jsonResponse(
+          reportUserPage(
+            new URL('/api/report-rules/report-rule-id/available-users?searchText=old', 'http://localhost'),
+            [reportUser('stale-available-id', 'stale.available@rvt.test', 'Stale Available')],
+          ),
+        ),
+      ),
+    );
+
+    expect(screen.getByText('fresh.assigned@rvt.test')).toBeInTheDocument();
+    expect(screen.queryByText('old.assigned@rvt.test')).not.toBeInTheDocument();
+  });
+
   it('lets admins search report recipients without losing assigned recipients', async () => {
     globalThis.history.replaceState(null, '', '/reports/rules/report-rule-id/users');
     stubFetch({
@@ -901,13 +2040,19 @@ describe('App', () => {
       routeOverride: (url) => {
         if (url.pathname === '/api/report-rules/report-rule-id/available-users') {
           const search = url.searchParams.get('searchText') ?? '';
-          return jsonResponse(reportUserPage(url, [
-            reportUser('filtered-available-user-id', 'filtered.available@rvt.test', search ? 'Filtered Available' : 'Available User')
-          ]));
+          return jsonResponse(
+            reportUserPage(url, [
+              reportUser(
+                'filtered-available-user-id',
+                'filtered.available@rvt.test',
+                search ? 'Filtered Available' : 'Available User',
+              ),
+            ]),
+          );
         }
 
         return undefined;
-      }
+      },
     });
 
     render(<App />);
@@ -917,9 +2062,13 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('filtered.available@rvt.test')).toBeInTheDocument());
     expect(screen.getByText('assigned@rvt.test')).toBeInTheDocument();
-    expect(fetchedUrls().some((url) =>
-      url.pathname === '/api/report-rules/report-rule-id/available-users' &&
-      url.searchParams.get('searchText') === 'filtered')).toBe(true);
+    expect(
+      fetchedUrls().some(
+        (url) =>
+          url.pathname === '/api/report-rules/report-rule-id/available-users' &&
+          url.searchParams.get('searchText') === 'filtered',
+      ),
+    ).toBe(true);
   });
 
   it('renders the data views route for RVT admin users', async () => {
@@ -973,7 +2122,7 @@ describe('App', () => {
     render(
       <AppErrorBoundary>
         <ThrowingPanel />
-      </AppErrorBoundary>
+      </AppErrorBoundary>,
     );
 
     expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
@@ -1009,356 +2158,397 @@ function fetchedUrls() {
 }
 
 // Function summary: Handles the stub fetch workflow for this module.
-function stubFetch({ auth, profileStatus = 200, companyRequestCount, dashboardRequestCount, routeOverride }: StubFetchOptions) {
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(input.toString(), 'http://localhost');
+function stubFetch({
+  auth,
+  profileStatus = 200,
+  companyRequestCount,
+  dashboardRequestCount,
+  routeOverride,
+}: StubFetchOptions) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input.toString(), 'http://localhost');
 
-    if (url.pathname === '/api/auth/me') {
-      return jsonResponse(auth);
-    }
-
-    if (url.pathname === '/api/health') {
-      return jsonResponse({ status: 'Healthy', framework: 'Testing', serverTimeUtc: new Date(0).toISOString() });
-    }
-
-    if (url.pathname === '/api/auth/profile') {
-      if (profileStatus !== 200) {
-        return jsonResponse({ title: 'Unauthorized', detail: 'Session expired' }, profileStatus);
+      if (url.pathname === '/api/auth/me') {
+        return jsonResponse(auth);
       }
-      return jsonResponse({
-        id: 'profile-id',
-        email: 'admin@rvt.test',
-        name: 'Admin User',
-        role: 'RVTAdmin',
-        companyRole: 'Operations',
-        companyName: null
-      });
-    }
 
-    const overriddenResponse = routeOverride?.(url, init);
-    if (overriddenResponse) {
-      return overriddenResponse;
-    }
-
-    if (url.pathname === '/api/dashboard/summary') {
-      if (dashboardRequestCount) {
-        dashboardRequestCount.value += 1;
+      if (url.pathname === '/api/health') {
+        return jsonResponse({ status: 'Healthy', framework: 'Testing', serverTimeUtc: new Date(0).toISOString() });
       }
-      return jsonResponse({
-        role: 'RVTAdmin',
-        monitorCounts: {
-          new: 1,
-          notUsed: 1,
-          online: 2,
-          offline: 1,
-          assigned: 3
-        },
-        openAlerts: 1,
-        openCautions: 1,
-        sites: [{ value: 'site-id', label: 'RVT Test Site' }],
-        calendarDeployments: [{ value: 'deployment-id', label: 'P8-DUST - RVT Test Site' }],
-        recentNotifications: [
-          {
-            id: 'dashboard-notification-id',
-            monitorId: 'monitor-id',
-            fleetNumber: 'P8-DUST',
-            serialId: 'SER-P8',
-            alertType: 'Alert',
-            alertField: 'pm10',
-            level: 61,
-            notificationTime: '2026-05-24T10:00:00Z',
-            siteName: 'RVT Test Site'
-          }
-        ]
-      });
-    }
 
-    if (url.pathname === '/api/data/deployments/deployment-id/grid') {
-      return jsonResponse({
-        deploymentId: 'deployment-id',
-        monitorId: 'monitor-id',
-        monitorName: 'Dust Monitor DATA-DUST',
-        monitorType: 'Dust',
-        minDate: '2026-05-24T09:00:00Z',
-        maxDate: '2026-05-24T10:00:00Z',
-        fromDate: '2026-05-24T09:00:00Z',
-        toDate: '2026-05-24T10:00:00Z',
-        fromDateChanged: false,
-        toDateChanged: false,
-        maxDuration: null,
-        filterOption: 'raw',
-        filterOptions: [{ value: 'raw', label: 'Raw' }],
-        columns: [
-          { key: 'sampleTime', label: 'Sample Time' },
-          { key: 'pm10', label: 'PM10' }
-        ],
-        rows: [
-          {
-            sampleTime: '2026-05-24T10:00:00Z',
-            values: { pm10: 42.3 }
-          }
-        ],
-        total: 1,
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        sort: 'sampleTime',
-        sortDir: 'Descending'
-      });
-    }
-
-    if (url.pathname === '/api/data/deployments/deployment-id/graph') {
-      return jsonResponse({
-        deploymentId: 'deployment-id',
-        monitorId: 'monitor-id',
-        monitorName: 'Dust Monitor DATA-DUST',
-        monitorType: 'Dust',
-        graphName: 'Dust levels',
-        minDate: '2026-05-24T09:00:00Z',
-        maxDate: '2026-05-24T10:00:00Z',
-        fromDate: '2026-05-24T09:00:00Z',
-        toDate: '2026-05-24T10:00:00Z',
-        fromDateChanged: false,
-        toDateChanged: false,
-        maxDuration: null,
-        filterOption: 'raw',
-        filterOptions: [{ value: 'raw', label: 'Raw' }],
-        xAxisLabel: 'Sample Time',
-        xAxisField: 'sampleTime',
-        xAxisUnit: '',
-        xAxisNumeric: false,
-        yAxisLabel: 'ug/m3',
-        decimalPlaces: 1,
-        datasets: [
-          {
-            key: 'pm10',
-            label: 'PM10',
-            points: [{ time: '2026-05-24T10:00:00Z', y: 42.3 }]
-          }
-        ],
-        thresholds: []
-      });
-    }
-
-    if (url.pathname === '/api/data/deployments/deployment-id/traces') {
-      return jsonResponse({
-        deploymentId: 'deployment-id',
-        monitorId: 'monitor-id',
-        monitorName: 'Dust Monitor DATA-DUST',
-        monitorType: 'Vibration',
-        traces: [
-          {
-            id: 'trace-id',
-            startTime: '2026-05-24T10:00:00Z',
-            endTime: '2026-05-24T10:00:30Z',
-            durationSeconds: 30
-          }
-        ]
-      });
-    }
-
-    if (url.pathname === '/api/data/deployments/deployment-id/traces/trace-id') {
-      return jsonResponse({
-        deploymentId: 'deployment-id',
-        monitorId: 'monitor-id',
-        traceId: 'trace-id',
-        monitorName: 'Dust Monitor DATA-DUST',
-        fromDate: '2026-05-24T10:00:00Z',
-        toDate: '2026-05-24T10:00:30Z',
-        samples: [{ index: 1, x: 0.1, y: 0.2, z: 0.3 }]
-      });
-    }
-
-    if (url.pathname === '/api/dashboard/map-markers') {
-      return jsonResponse({
-        siteId: url.searchParams.get('siteId'),
-        siteName: 'RVT Test Site',
-        isScopedToCurrentUser: false,
-        markers: [
-          {
-            monitorId: 'monitor-id',
-            deploymentId: 'deployment-id',
-            latitude: 51.501,
-            longitude: -0.141,
-            typeOfMonitor: 'Dust',
-            offline: false,
-            alert: true,
-            caution: false,
-            siteName: 'RVT Test Site',
-            fleetNumber: 'P8-DUST',
-            serialId: 'SER-P8',
-            lastDataTime: '2026-05-24T10:00:00Z',
-            what3words: 'filled.count.soap'
-          }
-        ]
-      });
-    }
-
-    if (url.pathname === '/api/dashboard/calendar/month') {
-      return jsonResponse({
-        monitorId: 'monitor-id',
-        deploymentId: 'deployment-id',
-        fleetNumber: 'P8-DUST',
-        serialId: 'SER-P8',
-        typeOfMonitor: 'Dust',
-        year: 2026,
-        month: 5,
-        startDate: '2026-05-01T00:00:00Z',
-        endDate: '2026-05-31T00:00:00Z',
-        unit: 'Βµg/mΒ³',
-        deployments: [{ value: 'deployment-id', label: 'P8-DUST - RVT Test Site' }],
-        days: [
-          {
-            date: '2026-05-24T00:00:00Z',
-            isCurrentMonth: true,
-            status: 'Alert',
-            average: 61,
-            notificationCount: 1
-          }
-        ]
-      });
-    }
-
-    if (url.pathname === '/api/dashboard/calendar/day') {
-      return jsonResponse({
-        monitorId: 'monitor-id',
-        displayDay: '2026-05-24T00:00:00Z',
-        fleetNumber: 'P8-DUST',
-        typeOfMonitor: 'Dust',
-        unit: 'Βµg/mΒ³',
-        values: [{ label: 'pm10', value: 61 }],
-        alertLevels: [
-          {
-            id: 'alert-level-id',
-            monitorId: 'monitor-id',
-            serialId: 'SER-P8',
-            alertField: 'pm10',
-            limitOn: 50,
-            limitOff: 45,
-            alertType: 'Alert',
-            isActive: true,
-            averagingPeriod: 3600,
-            averagingPeriodLabel: '1 hour',
-            weekdays: true,
-            saturdays: true,
-            sundays: true,
-            startTime: null,
-            endTime: null,
-            isDeleted: false
-          }
-        ],
-        notifications: [
-          {
-            id: 'dashboard-notification-id',
-            monitorId: 'monitor-id',
-            fleetNumber: 'P8-DUST',
-            serialId: 'SER-P8',
-            alertType: 'Alert',
-            alertField: 'pm10',
-            level: 61,
-            notificationTime: '2026-05-24T10:00:00Z'
-          }
-        ]
-      });
-    }
-
-    if (url.pathname === '/api/companies') {
-      if (companyRequestCount) {
-        companyRequestCount.value += 1;
+      if (url.pathname === '/api/auth/profile') {
+        const overriddenResponse = routeOverride?.(url, init);
+        if (overriddenResponse) {
+          return overriddenResponse;
+        }
+        if (profileStatus !== 200) {
+          return jsonResponse({ title: 'Unauthorized', detail: 'Session expired' }, profileStatus);
+        }
+        return jsonResponse({
+          id: 'profile-id',
+          email: 'admin@rvt.test',
+          name: 'Admin User',
+          role: 'RVTAdmin',
+          companyRole: 'Operations',
+          companyName: null,
+        });
       }
-      return jsonResponse({
-        results: [
-          {
-            id: 'company-id',
-            companyName: 'RVT Group',
-            userCount: 2,
-            sites: '1',
-            contracts: '1'
-          }
-        ],
-        total: 1,
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        searchText: '',
-        sort: 'companyName',
-        sortDir: 'Ascending'
-      });
-    }
 
-    if (url.pathname === '/api/users') {
-      return jsonResponse({
-        results: [
-          {
-            id: 'company-user-id',
-            companyId: 'company-id',
-            companyName: 'RVT Group',
-            isDisabled: false,
-            name: 'Company User',
-            email: 'company.user@rvt.test',
-            phoneNumber: '07123456789',
-            companyRole: 'Site contact',
-            role: 'CompanyUser',
-            siteCount: 1,
-            emailConfirmed: true,
-            canView: true,
-            canEdit: true,
-            canDisable: true,
-            canEnable: false,
-            canDelete: true,
-            canSendConfirmation: false,
-            canSendPasswordReset: true,
-            canManageNotificationSettings: true
-          }
-        ],
-        total: 1,
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        searchText: '',
-        sort: 'email',
-        sortDir: 'Ascending',
-        companyId: null,
-        companyName: null
-      });
-    }
+      const overriddenResponse = routeOverride?.(url, init);
+      if (overriddenResponse) {
+        return overriddenResponse;
+      }
 
-    if (url.pathname === '/api/contracts') {
-      return jsonResponse({
-        results: [
-          {
-            id: 'contract-id',
-            contractNumber: 'RVT-C-001',
-            onHireDate: '2026-01-01T00:00:00Z',
-            offHireDate: null,
-            companyId: 'company-id',
-            companyName: 'RVT Group',
-            siteId: 'site-id',
-            siteName: 'RVT Test Site'
-          }
-        ],
-        total: 1,
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        searchText: '',
-        sort: 'contractNumber',
-        sortDir: 'Ascending'
-      });
-    }
+      if (url.pathname === '/api/dashboard/summary') {
+        if (dashboardRequestCount) {
+          dashboardRequestCount.value += 1;
+        }
+        return jsonResponse({
+          role: 'RVTAdmin',
+          monitorCounts: {
+            new: 1,
+            notUsed: 1,
+            online: 2,
+            offline: 1,
+            assigned: 3,
+          },
+          openAlerts: 1,
+          openCautions: 1,
+          sites: [{ value: 'site-id', label: 'RVT Test Site' }],
+          calendarDeployments: [{ value: 'deployment-id', label: 'P8-DUST - RVT Test Site' }],
+          recentNotifications: [
+            {
+              id: 'dashboard-notification-id',
+              monitorId: 'monitor-id',
+              fleetNumber: 'P8-DUST',
+              serialId: 'SER-P8',
+              alertType: 'Alert',
+              alertField: 'pm10',
+              level: 61,
+              notificationTime: '2026-05-24T10:00:00Z',
+              siteName: 'RVT Test Site',
+            },
+          ],
+        });
+      }
 
-    if (url.pathname === '/api/sites') {
-      return jsonResponse({
-        results: [
-          {
+      if (url.pathname === '/api/data/deployments/deployment-id/grid') {
+        return jsonResponse({
+          deploymentId: 'deployment-id',
+          monitorId: 'monitor-id',
+          monitorName: 'Dust Monitor DATA-DUST',
+          monitorType: 'Dust',
+          minDate: '2026-05-24T09:00:00Z',
+          maxDate: '2026-05-24T10:00:00Z',
+          fromDate: '2026-05-24T09:00:00Z',
+          toDate: '2026-05-24T10:00:00Z',
+          fromDateChanged: false,
+          toDateChanged: false,
+          maxDuration: null,
+          filterOption: 'raw',
+          filterOptions: [{ value: 'raw', label: 'Raw' }],
+          columns: [
+            { key: 'sampleTime', label: 'Sample Time' },
+            { key: 'pm10', label: 'PM10' },
+          ],
+          rows: [
+            {
+              sampleTime: '2026-05-24T10:00:00Z',
+              values: { pm10: 42.3 },
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          sort: 'sampleTime',
+          sortDir: 'Descending',
+        });
+      }
+
+      if (url.pathname === '/api/data/deployments/deployment-id/graph') {
+        return jsonResponse({
+          deploymentId: 'deployment-id',
+          monitorId: 'monitor-id',
+          monitorName: 'Dust Monitor DATA-DUST',
+          monitorType: 'Dust',
+          graphName: 'Dust levels',
+          minDate: '2026-05-24T09:00:00Z',
+          maxDate: '2026-05-24T10:00:00Z',
+          fromDate: '2026-05-24T09:00:00Z',
+          toDate: '2026-05-24T10:00:00Z',
+          fromDateChanged: false,
+          toDateChanged: false,
+          maxDuration: null,
+          filterOption: 'raw',
+          filterOptions: [{ value: 'raw', label: 'Raw' }],
+          xAxisLabel: 'Sample Time',
+          xAxisField: 'sampleTime',
+          xAxisUnit: '',
+          xAxisNumeric: false,
+          yAxisLabel: 'ug/m3',
+          decimalPlaces: 1,
+          datasets: [
+            {
+              key: 'pm10',
+              label: 'PM10',
+              points: [{ time: '2026-05-24T10:00:00Z', y: 42.3 }],
+            },
+          ],
+          thresholds: [],
+        });
+      }
+
+      if (url.pathname === '/api/data/deployments/deployment-id/traces') {
+        return jsonResponse({
+          deploymentId: 'deployment-id',
+          monitorId: 'monitor-id',
+          monitorName: 'Dust Monitor DATA-DUST',
+          monitorType: 'Vibration',
+          traces: [
+            {
+              id: 'trace-id',
+              startTime: '2026-05-24T10:00:00Z',
+              endTime: '2026-05-24T10:00:30Z',
+              durationSeconds: 30,
+            },
+          ],
+        });
+      }
+
+      if (url.pathname === '/api/data/deployments/deployment-id/traces/trace-id') {
+        return jsonResponse({
+          deploymentId: 'deployment-id',
+          monitorId: 'monitor-id',
+          traceId: 'trace-id',
+          monitorName: 'Dust Monitor DATA-DUST',
+          fromDate: '2026-05-24T10:00:00Z',
+          toDate: '2026-05-24T10:00:30Z',
+          samples: [{ index: 1, x: 0.1, y: 0.2, z: 0.3 }],
+        });
+      }
+
+      if (url.pathname === '/api/dashboard/map-markers') {
+        return jsonResponse({
+          siteId: url.searchParams.get('siteId'),
+          siteName: 'RVT Test Site',
+          isScopedToCurrentUser: false,
+          markers: [
+            {
+              monitorId: 'monitor-id',
+              deploymentId: 'deployment-id',
+              latitude: 51.501,
+              longitude: -0.141,
+              typeOfMonitor: 'Dust',
+              offline: false,
+              alert: true,
+              caution: false,
+              siteName: 'RVT Test Site',
+              fleetNumber: 'P8-DUST',
+              serialId: 'SER-P8',
+              lastDataTime: '2026-05-24T10:00:00Z',
+              what3words: 'filled.count.soap',
+            },
+          ],
+        });
+      }
+
+      if (url.pathname === '/api/dashboard/calendar/month') {
+        return jsonResponse({
+          monitorId: 'monitor-id',
+          deploymentId: 'deployment-id',
+          fleetNumber: 'P8-DUST',
+          serialId: 'SER-P8',
+          typeOfMonitor: 'Dust',
+          year: 2026,
+          month: 5,
+          startDate: '2026-05-01T00:00:00Z',
+          endDate: '2026-05-31T00:00:00Z',
+          unit: 'Βµg/mΒ³',
+          deployments: [{ value: 'deployment-id', label: 'P8-DUST - RVT Test Site' }],
+          days: [
+            {
+              date: '2026-05-24T00:00:00Z',
+              isCurrentMonth: true,
+              status: 'Alert',
+              average: 61,
+              notificationCount: 1,
+            },
+          ],
+        });
+      }
+
+      if (url.pathname === '/api/dashboard/calendar/day') {
+        return jsonResponse({
+          monitorId: 'monitor-id',
+          displayDay: '2026-05-24T00:00:00Z',
+          fleetNumber: 'P8-DUST',
+          typeOfMonitor: 'Dust',
+          unit: 'Βµg/mΒ³',
+          values: [{ label: 'pm10', value: 61 }],
+          alertLevels: [
+            {
+              id: 'alert-level-id',
+              monitorId: 'monitor-id',
+              serialId: 'SER-P8',
+              alertField: 'pm10',
+              limitOn: 50,
+              limitOff: 45,
+              alertType: 'Alert',
+              isActive: true,
+              averagingPeriod: 3600,
+              averagingPeriodLabel: '1 hour',
+              weekdays: true,
+              saturdays: true,
+              sundays: true,
+              startTime: null,
+              endTime: null,
+              isDeleted: false,
+            },
+          ],
+          notifications: [
+            {
+              id: 'dashboard-notification-id',
+              monitorId: 'monitor-id',
+              fleetNumber: 'P8-DUST',
+              serialId: 'SER-P8',
+              alertType: 'Alert',
+              alertField: 'pm10',
+              level: 61,
+              notificationTime: '2026-05-24T10:00:00Z',
+            },
+          ],
+        });
+      }
+
+      if (url.pathname === '/api/companies') {
+        if (companyRequestCount) {
+          companyRequestCount.value += 1;
+        }
+        return jsonResponse({
+          results: [
+            {
+              id: 'company-id',
+              companyName: 'RVT Group',
+              userCount: 2,
+              sites: '1',
+              contracts: '1',
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          searchText: '',
+          sort: 'companyName',
+          sortDir: 'Ascending',
+        });
+      }
+
+      if (url.pathname === '/api/users') {
+        return jsonResponse({
+          results: [
+            {
+              id: 'company-user-id',
+              companyId: 'company-id',
+              companyName: 'RVT Group',
+              isDisabled: false,
+              name: 'Company User',
+              email: 'company.user@rvt.test',
+              phoneNumber: '07123456789',
+              companyRole: 'Site contact',
+              role: 'CompanyUser',
+              siteCount: 1,
+              emailConfirmed: true,
+              canView: true,
+              canEdit: true,
+              canDisable: true,
+              canEnable: false,
+              canDelete: true,
+              canSendConfirmation: false,
+              canSendPasswordReset: true,
+              canManageNotificationSettings: true,
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          searchText: '',
+          sort: 'email',
+          sortDir: 'Ascending',
+          companyId: null,
+          companyName: null,
+        });
+      }
+
+      if (url.pathname === '/api/contracts') {
+        return jsonResponse({
+          results: [
+            {
+              id: 'contract-id',
+              contractNumber: 'RVT-C-001',
+              onHireDate: '2026-01-01T00:00:00Z',
+              offHireDate: null,
+              companyId: 'company-id',
+              companyName: 'RVT Group',
+              siteId: 'site-id',
+              siteName: 'RVT Test Site',
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          searchText: '',
+          sort: 'contractNumber',
+          sortDir: 'Ascending',
+        });
+      }
+
+      if (url.pathname === '/api/sites') {
+        return jsonResponse({
+          results: [
+            {
+              id: 'site-id',
+              siteName: 'RVT Test Site',
+              archived: false,
+              createDate: '2026-01-01T00:00:00Z',
+              siteAddress: '1 Test Street',
+              contracts: 'RVT-C-001',
+              companyId: 'company-id',
+              companyName: 'RVT Group',
+              siteContact: 'Company User',
+              monitorCount: 2,
+              openNotificationCount: 1,
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          searchText: '',
+          sort: 'siteName',
+          sortDir: 'Ascending',
+          isScopedToCurrentUser: false,
+        });
+      }
+
+      if (url.pathname === '/api/sites/site-id') {
+        return jsonResponse({
+          item: {
             id: 'site-id',
             siteName: 'RVT Test Site',
             archived: false,
@@ -1368,123 +2558,132 @@ function stubFetch({ auth, profileStatus = 200, companyRequestCount, dashboardRe
             companyId: 'company-id',
             companyName: 'RVT Group',
             siteContact: 'Company User',
+            customerLogoUrl: '/api/sites/site-id/customer-logo',
             monitorCount: 2,
-            openNotificationCount: 1
-          }
-        ],
-        total: 1,
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        searchText: '',
-        sort: 'siteName',
-        sortDir: 'Ascending',
-        isScopedToCurrentUser: false
-      });
-    }
-
-    if (url.pathname === '/api/sites/site-id') {
-      return jsonResponse({
-        item: {
-          id: 'site-id',
-          siteName: 'RVT Test Site',
-          archived: false,
-          createDate: '2026-01-01T00:00:00Z',
-          siteAddress: '1 Test Street',
-          contracts: 'RVT-C-001',
-          companyId: 'company-id',
-          companyName: 'RVT Group',
-          siteContact: 'Company User',
-          customerLogoUrl: '/api/sites/site-id/customer-logo',
-          monitorCount: 2,
-          openNotificationCount: 1,
-          startTime: '08:00',
-          endTime: '18:00',
-          satStartTime: null,
-          satEndTime: null,
-          sunStartTime: null,
-          sunEndTime: null,
-          operatingHours: [
-            { dayOfWeek: 1, dayName: 'Monday', startTime: '07:00', endTime: '17:00', isClosed: false },
-            { dayOfWeek: 2, dayName: 'Tuesday', startTime: '08:00', endTime: '18:00', isClosed: false },
-            { dayOfWeek: 3, dayName: 'Wednesday', startTime: '09:00', endTime: '19:00', isClosed: false },
-            { dayOfWeek: 4, dayName: 'Thursday', startTime: null, endTime: null, isClosed: true },
-            { dayOfWeek: 5, dayName: 'Friday', startTime: '08:30', endTime: '16:30', isClosed: false },
-            { dayOfWeek: 6, dayName: 'Saturday', startTime: '10:00', endTime: '14:00', isClosed: false },
-            { dayOfWeek: 7, dayName: 'Sunday', startTime: null, endTime: null, isClosed: true }
-          ],
-          contractList: [],
-          monitors: [
-            {
-              id: 'monitor-id',
-              deploymentId: 'deployment-id',
-              fleetNumber: 'MON-ONLINE',
-              serialId: 'SER-P5',
-              monitorName: 'Dust Monitor',
-              typeOfMonitor: 'Dust',
-              contractId: 'contract-id',
-              contractNumber: 'RVT-C-001',
-              lastDataTime: '2026-01-02T00:00:00Z',
-              offLine: false,
-              lat: 51.501,
-              lng: -0.141,
-              what3words: 'filled.count.soap'
-            }
-          ],
-          openNotifications: [
-            {
-              id: 'notification-id',
-              monitorId: 'monitor-id',
-              fleetNumber: 'MON-ONLINE',
-              serialId: 'SER-P5',
-              alertType: 'Alert',
-              alertField: 'pm10',
-              limitOn: 45,
-              level: 48,
-              notificationTime: '2026-01-02T10:00:00Z'
-            }
-          ],
-          archive: null,
-          companies: [{ value: 'company-id', label: 'RVT Group' }],
-          availableContracts: [{ value: 'contract-id', label: 'RVT-C-001' }],
-          canManage: true
-        }
-      });
-    }
-
-    if (url.pathname === '/api/help/admin') {
-      return jsonResponse({
-        searchText: url.searchParams.get('searchText') ?? '',
-        status: url.searchParams.get('status') ?? 'All',
-        contentType: url.searchParams.get('contentType') ?? 'All',
-        sections: [
-          {
-            id: 'help-section-id',
-            title: 'Data Readings',
-            slug: 'data-readings',
-            sortOrder: 0,
-            articles: [
+            openNotificationCount: 1,
+            startTime: '08:00',
+            endTime: '18:00',
+            satStartTime: null,
+            satEndTime: null,
+            sunStartTime: null,
+            sunEndTime: null,
+            operatingHours: [
+              { dayOfWeek: 1, dayName: 'Monday', startTime: '07:00', endTime: '17:00', isClosed: false },
+              { dayOfWeek: 2, dayName: 'Tuesday', startTime: '08:00', endTime: '18:00', isClosed: false },
+              { dayOfWeek: 3, dayName: 'Wednesday', startTime: '09:00', endTime: '19:00', isClosed: false },
+              { dayOfWeek: 4, dayName: 'Thursday', startTime: null, endTime: null, isClosed: true },
+              { dayOfWeek: 5, dayName: 'Friday', startTime: '08:30', endTime: '16:30', isClosed: false },
+              { dayOfWeek: 6, dayName: 'Saturday', startTime: '10:00', endTime: '14:00', isClosed: false },
+              { dayOfWeek: 7, dayName: 'Sunday', startTime: null, endTime: null, isClosed: true },
+            ],
+            contractList: [],
+            monitors: [
               {
-                id: 'help-article-id',
-                title: 'Draft FAQ',
-                slug: 'draft-faq',
-                summary: 'Draft Help CMS content.',
-                contentType: 'FAQ',
-                sectionTitle: 'Data Readings',
-                sectionSlug: 'data-readings',
-                sectionSortOrder: 0,
-                sortOrder: 0
-              }
-            ]
-          }
-        ],
-        articles: [
-          {
+                id: 'monitor-id',
+                deploymentId: 'deployment-id',
+                fleetNumber: 'MON-ONLINE',
+                serialId: 'SER-P5',
+                monitorName: 'Dust Monitor',
+                typeOfMonitor: 'Dust',
+                contractId: 'contract-id',
+                contractNumber: 'RVT-C-001',
+                lastDataTime: '2026-01-02T00:00:00Z',
+                offLine: false,
+                lat: 51.501,
+                lng: -0.141,
+                what3words: 'filled.count.soap',
+              },
+            ],
+            openNotifications: [
+              {
+                id: 'notification-id',
+                monitorId: 'monitor-id',
+                fleetNumber: 'MON-ONLINE',
+                serialId: 'SER-P5',
+                alertType: 'Alert',
+                alertField: 'pm10',
+                limitOn: 45,
+                level: 48,
+                notificationTime: '2026-01-02T10:00:00Z',
+              },
+            ],
+            archive: null,
+            companies: [{ value: 'company-id', label: 'RVT Group' }],
+            availableContracts: [{ value: 'contract-id', label: 'RVT-C-001' }],
+            canManage: true,
+          },
+        });
+      }
+
+      if (url.pathname === '/api/help/admin') {
+        return jsonResponse({
+          searchText: url.searchParams.get('searchText') ?? '',
+          status: url.searchParams.get('status') ?? 'All',
+          contentType: url.searchParams.get('contentType') ?? 'All',
+          sections: [
+            {
+              id: 'help-section-id',
+              title: 'Data Readings',
+              slug: 'data-readings',
+              sortOrder: 0,
+              articles: [
+                {
+                  id: 'help-article-id',
+                  title: 'Draft FAQ',
+                  slug: 'draft-faq',
+                  summary: 'Draft Help CMS content.',
+                  contentType: 'FAQ',
+                  sectionTitle: 'Data Readings',
+                  sectionSlug: 'data-readings',
+                  sectionSortOrder: 0,
+                  sortOrder: 0,
+                },
+              ],
+            },
+          ],
+          articles: [
+            {
+              id: 'help-article-id',
+              title: 'Draft FAQ',
+              slug: 'draft-faq',
+              summary: 'Draft Help CMS content.',
+              body: 'Draft FAQ body.',
+              contentType: 'FAQ',
+              sectionTitle: 'Data Readings',
+              sectionSlug: 'data-readings',
+              sectionSortOrder: 0,
+              sortOrder: 0,
+              isPublished: false,
+              createdAtUtc: '2026-06-08T00:00:00Z',
+              updatedAtUtc: '2026-06-08T00:00:00Z',
+              assets: [],
+            },
+            {
+              id: 'help-article-lowercase-type-id',
+              title: 'Lowercase type article',
+              slug: 'lowercase-type-article',
+              summary: 'Custom Help CMS content.',
+              body: 'Custom body.',
+              contentType: 'article',
+              sectionTitle: 'Data Readings',
+              sectionSlug: 'data-readings',
+              sectionSortOrder: 0,
+              sortOrder: 1,
+              isPublished: true,
+              createdAtUtc: '2026-06-08T00:00:00Z',
+              updatedAtUtc: '2026-06-08T00:00:00Z',
+              assets: [],
+            },
+          ],
+        });
+      }
+
+      if (url.pathname === '/api/help/admin/articles/help-article-id') {
+        return jsonResponse({
+          item: {
             id: 'help-article-id',
-            title: 'Draft FAQ',
-            slug: 'draft-faq',
+            title: 'Updated FAQ',
+            slug: 'updated-faq',
             summary: 'Draft Help CMS content.',
             body: 'Draft FAQ body.',
             contentType: 'FAQ',
@@ -1492,189 +2691,195 @@ function stubFetch({ auth, profileStatus = 200, companyRequestCount, dashboardRe
             sectionSlug: 'data-readings',
             sectionSortOrder: 0,
             sortOrder: 0,
-            isPublished: false,
+            isPublished: true,
             createdAtUtc: '2026-06-08T00:00:00Z',
-            updatedAtUtc: '2026-06-08T00:00:00Z',
-            assets: []
+            updatedAtUtc: '2026-06-10T00:00:00Z',
+            assets: [],
           },
-          {
-            id: 'help-article-lowercase-type-id',
-            title: 'Lowercase type article',
-            slug: 'lowercase-type-article',
-            summary: 'Custom Help CMS content.',
-            body: 'Custom body.',
-            contentType: 'article',
+        });
+      }
+
+      if (url.pathname === '/api/help') {
+        return jsonResponse({
+          searchText: url.searchParams.get('searchText') ?? '',
+          sections: [
+            {
+              id: 'help-section-id',
+              title: 'Data Readings',
+              slug: 'data-readings',
+              sortOrder: 0,
+              articles: [
+                {
+                  id: 'help-article-id',
+                  title: 'Dust reading definitions',
+                  slug: 'dust-reading-definitions',
+                  summary: 'Common dust-reading terms used in RVT Cloud.',
+                  contentType: 'FAQ',
+                  sectionTitle: 'Data Readings',
+                  sectionSlug: 'data-readings',
+                  sectionSortOrder: 0,
+                  sortOrder: 0,
+                },
+              ],
+            },
+          ],
+        });
+      }
+
+      if (url.pathname === '/api/help/articles/dust-reading-definitions') {
+        return jsonResponse({
+          item: {
+            id: 'help-article-id',
+            title: 'Dust reading definitions',
+            slug: 'dust-reading-definitions',
+            summary: 'Common dust-reading terms used in RVT Cloud.',
+            body: 'PM10 and PM2.5 readings represent particulate matter levels captured from site monitors.',
+            contentType: 'FAQ',
             sectionTitle: 'Data Readings',
             sectionSlug: 'data-readings',
             sectionSortOrder: 0,
-            sortOrder: 1,
+            sortOrder: 0,
             isPublished: true,
             createdAtUtc: '2026-06-08T00:00:00Z',
             updatedAtUtc: '2026-06-08T00:00:00Z',
-            assets: []
-          }
-        ]
-      });
-    }
-
-    if (url.pathname === '/api/help/admin/articles/help-article-id') {
-      return jsonResponse({
-        item: {
-          id: 'help-article-id',
-          title: 'Updated FAQ',
-          slug: 'updated-faq',
-          summary: 'Draft Help CMS content.',
-          body: 'Draft FAQ body.',
-          contentType: 'FAQ',
-          sectionTitle: 'Data Readings',
-          sectionSlug: 'data-readings',
-          sectionSortOrder: 0,
-          sortOrder: 0,
-          isPublished: true,
-          createdAtUtc: '2026-06-08T00:00:00Z',
-          updatedAtUtc: '2026-06-10T00:00:00Z',
-          assets: []
-        }
-      });
-    }
-
-    if (url.pathname === '/api/help') {
-      return jsonResponse({
-        searchText: url.searchParams.get('searchText') ?? '',
-        sections: [
-          {
-            id: 'help-section-id',
-            title: 'Data Readings',
-            slug: 'data-readings',
-            sortOrder: 0,
-            articles: [
+            assets: [
               {
-                id: 'help-article-id',
-                title: 'Dust reading definitions',
-                slug: 'dust-reading-definitions',
-                summary: 'Common dust-reading terms used in RVT Cloud.',
-                contentType: 'FAQ',
-                sectionTitle: 'Data Readings',
-                sectionSlug: 'data-readings',
-                sectionSortOrder: 0,
-                sortOrder: 0
-              }
-            ]
-          }
-        ]
-      });
-    }
+                id: 'help-asset-id',
+                title: 'Dust monitoring guide',
+                assetType: 'Document',
+                url: '/help-assets/data-readings/dust-guide.pdf',
+                internalPath: 'help-assets/data-readings/dust-guide.pdf',
+                sortOrder: 0,
+              },
+            ],
+          },
+        });
+      }
 
-    if (url.pathname === '/api/help/articles/dust-reading-definitions') {
-      return jsonResponse({
-        item: {
-          id: 'help-article-id',
-          title: 'Dust reading definitions',
-          slug: 'dust-reading-definitions',
-          summary: 'Common dust-reading terms used in RVT Cloud.',
-          body: 'PM10 and PM2.5 readings represent particulate matter levels captured from site monitors.',
-          contentType: 'FAQ',
-          sectionTitle: 'Data Readings',
-          sectionSlug: 'data-readings',
-          sectionSortOrder: 0,
-          sortOrder: 0,
-          isPublished: true,
-          createdAtUtc: '2026-06-08T00:00:00Z',
-          updatedAtUtc: '2026-06-08T00:00:00Z',
-          assets: [
+      if (url.pathname === '/api/sites/site-id/notification-settings') {
+        return jsonResponse({
+          siteId: 'site-id',
+          siteName: 'RVT Test Site',
+          settings: [],
+        });
+      }
+
+      if (url.pathname === '/api/monitors/unattached') {
+        return jsonResponse({
+          results: [
             {
-              id: 'help-asset-id',
-              title: 'Dust monitoring guide',
-              assetType: 'Document',
-              url: '/help-assets/data-readings/dust-guide.pdf',
-              internalPath: 'help-assets/data-readings/dust-guide.pdf',
-              sortOrder: 0
-            }
-          ]
-        }
-      });
-    }
+              id: '11111111-1111-1111-1111-111111111111',
+              fleetNumber: 'RVT-OLD-001',
+              serialId: 'SER-OLD-001',
+              manufacturer: 'RVT',
+              model: 'Dust',
+              firmwareVersion: '1.0',
+              typeOfMonitor: 'Dust',
+              contractId: null,
+              contractNumber: null,
+              siteId: null,
+              siteName: null,
+              companyId: null,
+              companyName: null,
+              startDate: null,
+              endDate: null,
+              lastDataTime: null,
+              isAssigned: false,
+              isOffline: false,
+              hasAlerts: false,
+              hasCautions: false,
+              canEdit: true,
+              canAssign: false,
+              canInstallerEdit: false,
+              hasRelatedData: true,
+              willArchiveOnRemoval: true,
+              impact: {
+                deploymentCount: 1,
+                notificationCount: 2,
+                alertRuleCount: 3,
+                measurementTableCount: 1,
+                measurementRowCount: 20,
+                hasRelatedData: true,
+              },
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          searchText: '',
+          sort: 'fleetNumber',
+          sortDir: 'Ascending',
+          canRemove: true,
+        });
+      }
 
-    if (url.pathname === '/api/sites/site-id/notification-settings') {
-      return jsonResponse({
-        siteId: 'site-id',
-        siteName: 'RVT Test Site',
-        settings: []
-      });
-    }
-
-    if (url.pathname === '/api/monitors/unattached') {
-      return jsonResponse({
-        results: [
-          {
-            id: '11111111-1111-1111-1111-111111111111',
-            fleetNumber: 'RVT-OLD-001',
-            serialId: 'SER-OLD-001',
-            manufacturer: 'RVT',
-            model: 'Dust',
-            firmwareVersion: '1.0',
-            typeOfMonitor: 'Dust',
-            contractId: null,
-            contractNumber: null,
-            siteId: null,
-            siteName: null,
-            companyId: null,
-            companyName: null,
-            startDate: null,
-            endDate: null,
-            lastDataTime: null,
-            isAssigned: false,
-            isOffline: false,
-            hasAlerts: false,
-            hasCautions: false,
-            canEdit: true,
-            canAssign: false,
-            canInstallerEdit: false,
+      if (url.pathname === '/api/monitors/11111111-1111-1111-1111-111111111111/unattached') {
+        return jsonResponse({
+          id: '11111111-1111-1111-1111-111111111111',
+          action: 'archived',
+          message: "Monitor 'RVT-OLD-001' has been archived because related data exists.",
+          impact: {
+            deploymentCount: 1,
+            notificationCount: 2,
+            alertRuleCount: 3,
+            measurementTableCount: 1,
+            measurementRowCount: 20,
             hasRelatedData: true,
-            willArchiveOnRemoval: true,
-            impact: {
-              deploymentCount: 1,
-              notificationCount: 2,
-              alertRuleCount: 3,
-              measurementTableCount: 1,
-              measurementRowCount: 20,
-              hasRelatedData: true
-            }
-          }
-        ],
-        total: 1,
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        searchText: '',
-        sort: 'fleetNumber',
-        sortDir: 'Ascending',
-        canRemove: true
-      });
-    }
+          },
+        });
+      }
 
-    if (url.pathname === '/api/monitors/11111111-1111-1111-1111-111111111111/unattached') {
-      return jsonResponse({
-        id: '11111111-1111-1111-1111-111111111111',
-        action: 'archived',
-        message: "Monitor 'RVT-OLD-001' has been archived because related data exists.",
-        impact: {
-          deploymentCount: 1,
-          notificationCount: 2,
-          alertRuleCount: 3,
-          measurementTableCount: 1,
-          measurementRowCount: 20,
-          hasRelatedData: true
-        }
-      });
-    }
+      if (url.pathname === '/api/monitors') {
+        return jsonResponse({
+          results: [
+            {
+              id: 'monitor-id',
+              deploymentId: 'deployment-id',
+              fleetNumber: 'MON-ONLINE',
+              serialId: 'SER-P5',
+              manufacturer: 'RVT',
+              model: 'Dust',
+              firmwareVersion: '1.0',
+              typeOfMonitor: 'Dust',
+              contractId: 'contract-id',
+              contractNumber: 'RVT-C-001',
+              siteId: 'site-id',
+              siteName: 'RVT Test Site',
+              companyId: 'company-id',
+              companyName: 'RVT Group',
+              startDate: '2026-01-01T00:00:00Z',
+              lastDataTime: '2026-01-02T00:00:00Z',
+              isAssigned: true,
+              isOffline: false,
+              hasAlerts: true,
+              hasCautions: false,
+              canEdit: true,
+              canAssign: false,
+              canInstallerEdit: true,
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          searchText: '',
+          sort: 'fleetNumber',
+          sortDir: 'Ascending',
+          state: 'all',
+          isScopedToCurrentUser: false,
+          canManage: true,
+          canUseInstallerTools: true,
+        });
+      }
 
-    if (url.pathname === '/api/monitors') {
-      return jsonResponse({
-        results: [
-          {
+      if (url.pathname === '/api/monitors/monitor-id') {
+        return jsonResponse({
+          item: {
             id: 'monitor-id',
             deploymentId: 'deployment-id',
             fleetNumber: 'MON-ONLINE',
@@ -1684,12 +2889,13 @@ function stubFetch({ auth, profileStatus = 200, companyRequestCount, dashboardRe
             firmwareVersion: '1.0',
             typeOfMonitor: 'Dust',
             contractId: 'contract-id',
-            contractNumber: 'RVT-C-001',
+            contractNumber: 'MON-CON-001',
             siteId: 'site-id',
             siteName: 'RVT Test Site',
             companyId: 'company-id',
             companyName: 'RVT Group',
             startDate: '2026-01-01T00:00:00Z',
+            endDate: null,
             lastDataTime: '2026-01-02T00:00:00Z',
             isAssigned: true,
             isOffline: false,
@@ -1697,165 +2903,164 @@ function stubFetch({ auth, profileStatus = 200, companyRequestCount, dashboardRe
             hasCautions: false,
             canEdit: true,
             canAssign: false,
-            canInstallerEdit: true
-          }
-        ],
-        total: 1,
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        searchText: '',
-        sort: 'fleetNumber',
-        sortDir: 'Ascending',
-        state: 'all',
-        isScopedToCurrentUser: false,
-        canManage: true,
-        canUseInstallerTools: true
-      });
-    }
+            canInstallerEdit: true,
+            listedAtTime: '2025-12-01T00:00:00Z',
+            calibrationDate: null,
+            calibrationDue: null,
+            lat: 51.5,
+            lng: -0.12,
+            location: 'North boundary',
+            what3words: 'filled.count.soap',
+            pictureLink: '/api/monitors/monitor-id/picture',
+            statusLabel: 'Online',
+            monitorNotes: 'No notes for this monitor',
+            latestReading: {
+              label: 'Latest Breach',
+              field: 'pm10',
+              value: 48,
+              unit: 'ug/m3',
+              sampleTime: '2026-01-02T10:00:00Z',
+              detail: 'Dust PM10 live reading',
+            },
+            latestAverage: {
+              label: 'Latest 15 Min Average',
+              field: 'pm10',
+              value: 24.5,
+              unit: 'ug/m3',
+              sampleTime: '2026-01-02T10:15:00Z',
+              detail: 'Dust PM10 15 minute average',
+            },
+            latestBattery: {
+              label: 'Battery Charge',
+              field: 'batteryCharge',
+              value: 87,
+              unit: '%',
+              sampleTime: '2026-01-02T09:58:00Z',
+              detail: 'Omnidots sensor status',
+            },
+            deploymentSummary: {
+              contractNumber: 'MON-CON-001',
+              siteName: 'RVT Test Site',
+              companyName: 'RVT Group',
+              onHireDate: '2026-01-01T00:00:00Z',
+              offHireDate: null,
+              addedDate: '2026-01-01T00:00:00Z',
+            },
+            alertLevels: [],
+            recentNotifications: [
+              {
+                id: 'notification-id',
+                monitorId: 'monitor-id',
+                notificationTime: '2026-01-02T10:00:00Z',
+                alertType: 'Alert',
+                alertField: 'pm10',
+                limitOn: 45,
+                level: 48,
+                closedTime: null,
+              },
+            ],
+          },
+        });
+      }
 
-    if (url.pathname === '/api/monitors/monitor-id') {
-      return jsonResponse({
-        item: {
-          id: 'monitor-id',
-          deploymentId: 'deployment-id',
-          fleetNumber: 'MON-ONLINE',
-          serialId: 'SER-P5',
-          manufacturer: 'RVT',
-          model: 'Dust',
-          firmwareVersion: '1.0',
-          typeOfMonitor: 'Dust',
-          contractId: 'contract-id',
-          contractNumber: 'MON-CON-001',
-          siteId: 'site-id',
-          siteName: 'RVT Test Site',
-          companyId: 'company-id',
-          companyName: 'RVT Group',
-          startDate: '2026-01-01T00:00:00Z',
-          endDate: null,
-          lastDataTime: '2026-01-02T00:00:00Z',
-          isAssigned: true,
-          isOffline: false,
-          hasAlerts: true,
-          hasCautions: false,
-          canEdit: true,
-          canAssign: false,
-          canInstallerEdit: true,
-          listedAtTime: '2025-12-01T00:00:00Z',
-          calibrationDate: null,
-          calibrationDue: null,
-          lat: 51.5,
-          lng: -0.12,
-          location: 'North boundary',
-          what3words: 'filled.count.soap',
-          pictureLink: '/api/monitors/monitor-id/picture',
-          statusLabel: 'Online',
-          monitorNotes: 'No notes for this monitor',
-          latestReading: {
-            label: 'Latest Breach',
-            field: 'pm10',
-            value: 48,
-            unit: 'ug/m3',
-            sampleTime: '2026-01-02T10:00:00Z',
-            detail: 'Dust PM10 live reading'
+      if (url.pathname === '/api/alert-levels') {
+        return jsonResponse({
+          monitorId: 'monitor-id',
+          serialId: 'SER-V1',
+          fleetNumber: 'VIB-PEAK',
+          typeOfMonitor: 'Vibration',
+          canManage: true,
+          options: {
+            monitorId: 'monitor-id',
+            serialId: 'SER-V1',
+            typeOfMonitor: 'Vibration',
+            alertFields: [{ value: 'Peak', label: 'Peak' }],
+            alertTypes: [
+              { value: 'Alert', label: 'Alert' },
+              { value: 'Caution', label: 'Caution' },
+            ],
+            averagingPeriods: [],
           },
-          latestAverage: {
-            label: 'Latest 15 Min Average',
-            field: 'pm10',
-            value: 24.5,
-            unit: 'ug/m3',
-            sampleTime: '2026-01-02T10:15:00Z',
-            detail: 'Dust PM10 15 minute average'
-          },
-          latestBattery: {
-            label: 'Battery Charge',
-            field: 'batteryCharge',
-            value: 87,
-            unit: '%',
-            sampleTime: '2026-01-02T09:58:00Z',
-            detail: 'Omnidots sensor status'
-          },
-          deploymentSummary: {
-            contractNumber: 'MON-CON-001',
-            siteName: 'RVT Test Site',
-            companyName: 'RVT Group',
-            onHireDate: '2026-01-01T00:00:00Z',
-            offHireDate: null,
-            addedDate: '2026-01-01T00:00:00Z'
-          },
-          alertLevels: [],
-          recentNotifications: [
+          results: [
+            {
+              id: 'vibration-alert-id',
+              monitorId: 'monitor-id',
+              serialId: 'SER-V1',
+              alertField: 'Peak',
+              limitOn: 8,
+              limitOff: 5,
+              alertType: 'Alert',
+              isActive: false,
+              averagingPeriod: 60,
+              averagingPeriodLabel: '',
+              weekdays: true,
+              saturdays: false,
+              sundays: false,
+              startTime: null,
+              endTime: null,
+              isDeleted: false,
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          searchText: '',
+          sort: 'alertField',
+          sortDir: 'Ascending',
+        });
+      }
+
+      if (url.pathname === '/api/notifications') {
+        return jsonResponse({
+          results: [
             {
               id: 'notification-id',
               monitorId: 'monitor-id',
-              notificationTime: '2026-01-02T10:00:00Z',
+              deploymentId: 'deployment-id',
+              fleetNumber: 'MON-ONLINE',
+              serialId: 'SER-P5',
+              typeOfMonitor: 'Dust',
               alertType: 'Alert',
-              alertField: 'pm10',
-              limitOn: 45,
-              level: 48,
-              closedTime: null
-            }
-          ]
-        }
-      });
-    }
-
-    if (url.pathname === '/api/alert-levels') {
-      return jsonResponse({
-        monitorId: 'monitor-id',
-        serialId: 'SER-V1',
-        fleetNumber: 'VIB-PEAK',
-        typeOfMonitor: 'Vibration',
-        canManage: true,
-        options: {
-          monitorId: 'monitor-id',
-          serialId: 'SER-V1',
-          typeOfMonitor: 'Vibration',
-          alertFields: [{ value: 'Peak', label: 'Peak' }],
-          alertTypes: [
-            { value: 'Alert', label: 'Alert' },
-            { value: 'Caution', label: 'Caution' }
+              alertField: 'PM10',
+              limitOn: 50,
+              level: 61,
+              averagingPeriod: 900,
+              notificationTime: '2026-01-02T10:00:00Z',
+              closedTime: null,
+              closedByUser: null,
+              closedNote: null,
+              contractId: 'contract-id',
+              contractNumber: 'RVT-C-001',
+              siteId: 'site-id',
+              siteName: 'RVT Test Site',
+              companyId: 'company-id',
+              companyName: 'RVT Group',
+              limitName: 'PM10 > 50',
+              alertStatus: 'Open',
+              canClose: true,
+            },
           ],
-          averagingPeriods: []
-        },
-        results: [
-          {
-            id: 'vibration-alert-id',
-            monitorId: 'monitor-id',
-            serialId: 'SER-V1',
-            alertField: 'Peak',
-            limitOn: 8,
-            limitOff: 5,
-            alertType: 'Alert',
-            isActive: false,
-            averagingPeriod: 60,
-            averagingPeriodLabel: '',
-            weekdays: true,
-            saturdays: false,
-            sundays: false,
-            startTime: null,
-            endTime: null,
-            isDeleted: false
-          }
-        ],
-        total: 1,
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        searchText: '',
-        sort: 'alertField',
-        sortDir: 'Ascending'
-      });
-    }
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          searchText: '',
+          sort: 'notificationTime',
+          sortDir: 'Descending',
+          state: 'open',
+          isScopedToCurrentUser: false,
+          canClose: true,
+        });
+      }
 
-    if (url.pathname === '/api/notifications') {
-      return jsonResponse({
-        results: [
-          {
+      if (url.pathname === '/api/notifications/notification-id') {
+        return jsonResponse({
+          item: {
             id: 'notification-id',
             monitorId: 'monitor-id',
             deploymentId: 'deployment-id',
@@ -1866,7 +3071,6 @@ function stubFetch({ auth, profileStatus = 200, companyRequestCount, dashboardRe
             alertField: 'PM10',
             limitOn: 50,
             level: 61,
-            averagingPeriod: 900,
             notificationTime: '2026-01-02T10:00:00Z',
             closedTime: null,
             closedByUser: null,
@@ -1879,186 +3083,148 @@ function stubFetch({ auth, profileStatus = 200, companyRequestCount, dashboardRe
             companyName: 'RVT Group',
             limitName: 'PM10 > 50',
             alertStatus: 'Open',
-            canClose: true
-          }
-        ],
-        total: 1,
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        searchText: '',
-        sort: 'notificationTime',
-        sortDir: 'Descending',
-        state: 'open',
-        isScopedToCurrentUser: false,
-        canClose: true
-      });
-    }
+            canClose: true,
+            location: 'North boundary',
+            what3words: 'filled.count.soap',
+            graphFromUtc: '2026-01-02T09:00:00Z',
+            graphToUtc: '2026-01-02T11:00:00Z',
+            relatedNotifications: [],
+            alertLevels: [],
+          },
+        });
+      }
 
-    if (url.pathname === '/api/notifications/notification-id') {
-      return jsonResponse({
-        item: {
-          id: 'notification-id',
-          monitorId: 'monitor-id',
-          deploymentId: 'deployment-id',
-          fleetNumber: 'MON-ONLINE',
-          serialId: 'SER-P5',
-          typeOfMonitor: 'Dust',
-          alertType: 'Alert',
-          alertField: 'PM10',
-          limitOn: 50,
-          level: 61,
-          notificationTime: '2026-01-02T10:00:00Z',
-          closedTime: null,
-          closedByUser: null,
-          closedNote: null,
-          contractId: 'contract-id',
-          contractNumber: 'RVT-C-001',
-          siteId: 'site-id',
-          siteName: 'RVT Test Site',
-          companyId: 'company-id',
-          companyName: 'RVT Group',
-          limitName: 'PM10 > 50',
-          alertStatus: 'Open',
-          canClose: true,
-          location: 'North boundary',
-          what3words: 'filled.count.soap',
-          graphFromUtc: '2026-01-02T09:00:00Z',
-          graphToUtc: '2026-01-02T11:00:00Z',
-          relatedNotifications: [],
-          alertLevels: []
-        }
-      });
-    }
+      if (url.pathname === '/api/reports') {
+        return jsonResponse({
+          results: [
+            {
+              id: 'report-id',
+              siteId: 'site-id',
+              siteName: 'RVT Test Site',
+              reportDate: '2026-01-07T08:00:00Z',
+              reportFrom: '2026-01-01T00:00:00Z',
+              reportTo: '2026-01-07T00:00:00Z',
+              reportLink: 'https://reports.rvt.test/weekly.pdf',
+              reportRuleId: 'report-rule-id',
+              frequency: 2,
+              frequencyLabel: 'Weekly',
+              reportName: 'Weekly Compliance',
+              contracts: 'RVT-C-001',
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+          searchText: '',
+          sort: 'reportDate',
+          sortDir: 'Descending',
+        });
+      }
 
-    if (url.pathname === '/api/reports') {
-      return jsonResponse({
-        results: [
-          {
-            id: 'report-id',
-            siteId: 'site-id',
-            siteName: 'RVT Test Site',
-            reportDate: '2026-01-07T08:00:00Z',
-            reportFrom: '2026-01-01T00:00:00Z',
-            reportTo: '2026-01-07T00:00:00Z',
-            reportLink: 'https://reports.rvt.test/weekly.pdf',
-            reportRuleId: 'report-rule-id',
-            frequency: 2,
-            frequencyLabel: 'Weekly',
-            reportName: 'Weekly Compliance',
-            contracts: 'RVT-C-001'
-          }
-        ],
-        total: 1,
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        hasPreviousPage: false,
-        hasNextPage: false,
-        searchText: '',
-        sort: 'reportDate',
-        sortDir: 'Descending'
-      });
-    }
-
-    if (url.pathname === '/api/report-rules/options') {
-      return jsonResponse({
-        sites: [{ value: 'site-id', label: 'RVT Test Site' }],
-        frequencies: [
-          { value: '1', label: 'Daily' },
-          { value: '2', label: 'Weekly' },
-          { value: '3', label: 'Monthly' }
-        ],
-        daysOfWeek: [{ value: '1', label: 'Monday' }],
-        alertRuleGuidelines: [
-          {
-            monitorType: 'Dust',
-            title: 'Dust alert rules',
-            summary: 'Use PM10 and PM2.5 thresholds for dust monitors.'
-          }
-        ]
-      });
-    }
-
-    if (url.pathname === '/api/report-rules/report-rule-id') {
-      return jsonResponse({
-        item: {
-          id: 'report-rule-id',
-          siteId: 'site-id',
-          siteName: 'RVT Test Site',
-          frequency: 2,
-          frequencyLabel: 'Weekly',
-          dayOfWeek: 1,
-          dayOfMonth: null,
-          reportName: 'Weekly Compliance',
-          lastGenerated: null,
-          canManage: true,
-          assignedUserCount: 1,
+      if (url.pathname === '/api/report-rules/options') {
+        return jsonResponse({
           sites: [{ value: 'site-id', label: 'RVT Test Site' }],
           frequencies: [
             { value: '1', label: 'Daily' },
             { value: '2', label: 'Weekly' },
-            { value: '3', label: 'Monthly' }
+            { value: '3', label: 'Monthly' },
           ],
           daysOfWeek: [{ value: '1', label: 'Monday' }],
           alertRuleGuidelines: [
             {
               monitorType: 'Dust',
               title: 'Dust alert rules',
-              summary: 'Use PM10 and PM2.5 thresholds for dust monitors.'
-            }
-          ]
-        }
-      });
-    }
+              summary: 'Use PM10 and PM2.5 thresholds for dust monitors.',
+            },
+          ],
+        });
+      }
 
-    if (url.pathname === '/api/report-rules/report-rule-id/generation-requests') {
-      return jsonResponse({
-        id: 'generation-request-id',
-        reportRuleId: 'report-rule-id',
-        status: 'Queued',
-        message: 'Manual generation queued.',
-        requestedAtUtc: '2026-06-24T10:00:00Z'
-      });
-    }
+      if (url.pathname === '/api/report-rules/report-rule-id') {
+        return jsonResponse({
+          item: {
+            id: 'report-rule-id',
+            siteId: 'site-id',
+            siteName: 'RVT Test Site',
+            frequency: 2,
+            frequencyLabel: 'Weekly',
+            dayOfWeek: 1,
+            dayOfMonth: null,
+            reportName: 'Weekly Compliance',
+            lastGenerated: null,
+            canManage: true,
+            assignedUserCount: 1,
+            sites: [{ value: 'site-id', label: 'RVT Test Site' }],
+            frequencies: [
+              { value: '1', label: 'Daily' },
+              { value: '2', label: 'Weekly' },
+              { value: '3', label: 'Monthly' },
+            ],
+            daysOfWeek: [{ value: '1', label: 'Monday' }],
+            alertRuleGuidelines: [
+              {
+                monitorType: 'Dust',
+                title: 'Dust alert rules',
+                summary: 'Use PM10 and PM2.5 thresholds for dust monitors.',
+              },
+            ],
+          },
+        });
+      }
 
-    if (url.pathname === '/api/report-rules/report-rule-id/users') {
-      return jsonResponse({
-        item: {
+      if (url.pathname === '/api/report-rules/report-rule-id/generation-requests') {
+        return jsonResponse({
+          id: 'generation-request-id',
           reportRuleId: 'report-rule-id',
-          siteId: 'site-id',
-          siteName: 'RVT Test Site',
-          companyId: 'company-id',
-          companyName: 'RVT Group',
-          availableUsers: [reportUser('available-user-id', 'available@rvt.test', 'Available User')],
-          assignedUsers: [reportUser('assigned-user-id', 'assigned@rvt.test', 'Assigned User')]
-        }
-      });
-    }
+          status: 'Queued',
+          message: 'Manual generation queued.',
+          requestedAtUtc: '2026-06-24T10:00:00Z',
+        });
+      }
 
-    if (url.pathname === '/api/report-rules/report-rule-id/available-users') {
-      return jsonResponse(reportUserPage(url, [reportUser('available-user-id', 'available@rvt.test', 'Available User')]));
-    }
+      if (url.pathname === '/api/report-rules/report-rule-id/users') {
+        return jsonResponse({
+          item: {
+            reportRuleId: 'report-rule-id',
+            siteId: 'site-id',
+            siteName: 'RVT Test Site',
+            companyId: 'company-id',
+            companyName: 'RVT Group',
+            availableUsers: [reportUser('available-user-id', 'available@rvt.test', 'Available User')],
+            assignedUsers: [reportUser('assigned-user-id', 'assigned@rvt.test', 'Assigned User')],
+          },
+        });
+      }
 
-    if (url.pathname === '/api/report-rules/report-rule-id/assigned-users') {
-      return jsonResponse(reportUserPage(url, [reportUser('assigned-user-id', 'assigned@rvt.test', 'Assigned User')]));
-    }
+      if (url.pathname === '/api/report-rules/report-rule-id/available-users') {
+        return jsonResponse(
+          reportUserPage(url, [reportUser('available-user-id', 'available@rvt.test', 'Available User')]),
+        );
+      }
 
-    if (url.pathname.startsWith('/api/lookups')) {
-      return jsonResponse({ kind: 'companies', query: 'rvt', take: 8, results: ['RVT Group'] });
-    }
+      if (url.pathname === '/api/report-rules/report-rule-id/assigned-users') {
+        return jsonResponse(
+          reportUserPage(url, [reportUser('assigned-user-id', 'assigned@rvt.test', 'Assigned User')]),
+        );
+      }
 
-    return new Response(null, { status: 404 });
-  }));
+      if (url.pathname.startsWith('/api/lookups')) {
+        return jsonResponse({ kind: 'companies', query: 'rvt', take: 8, results: ['RVT Group'] });
+      }
+
+      return new Response(null, { status: 404 });
+    }),
+  );
 }
 
 // Function summary: Builds shared company options for contract form retry tests.
 function contractTestCompanies() {
   return [
     { value: 'company-id', label: 'RVT Group' },
-    { value: 'other-company-id', label: 'Other Company' }
+    { value: 'other-company-id', label: 'Other Company' },
   ];
 }
 
@@ -2083,7 +3249,7 @@ function reportUser(id: string, email: string, name: string) {
     canDelete: true,
     canSendConfirmation: false,
     canSendPasswordReset: true,
-    canManageNotificationSettings: true
+    canManageNotificationSettings: true,
   };
 }
 
@@ -2105,18 +3271,182 @@ function reportUserPage(url: URL, users: ReturnType<typeof reportUser>[]) {
     hasNextPage: false,
     searchText: url.searchParams.get('searchText') ?? '',
     sort: url.searchParams.get('sort') ?? 'email',
-    sortDir: url.searchParams.get('sortDir') ?? 'Ascending'
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+  };
+}
+
+function renderSitePanel(locationPath: string) {
+  return render(
+    <SitesPanel
+      locationPath={locationPath}
+      onNavigate={() => {}}
+      onRequestError={() => {}}
+      canManage
+      currentUserId={adminUser.id}
+    />,
+  );
+}
+
+function rerenderSitePanel(rerender: ReturnType<typeof render>['rerender'], locationPath: string) {
+  rerender(
+    <SitesPanel
+      locationPath={locationPath}
+      onNavigate={() => {}}
+      onRequestError={() => {}}
+      canManage
+      currentUserId={adminUser.id}
+    />,
+  );
+}
+
+function siteDetail(id: string, siteName: string) {
+  return {
+    id,
+    siteName,
+    archived: false,
+    createDate: '2026-01-01T00:00:00Z',
+    siteAddress: '1 Test Street',
+    contracts: 'RVT-C-001',
+    companyId: 'company-id',
+    companyName: 'RVT Group',
+    siteContact: 'Company User',
+    customerLogoUrl: null,
+    monitorCount: 0,
+    openNotificationCount: 0,
+    startTime: '08:00',
+    endTime: '18:00',
+    satStartTime: null,
+    satEndTime: null,
+    sunStartTime: null,
+    sunEndTime: null,
+    operatingHours: [],
+    contractList: [],
+    monitors: [],
+    openNotifications: [],
+    archive: null,
+    companies: [],
+    availableContracts: [],
+    canManage: true,
+  };
+}
+
+function notificationSettings(siteId: string, startTime: string) {
+  return {
+    siteId,
+    siteName: siteId,
+    settings: [notificationSetting('site-user-id', startTime)],
+  };
+}
+
+function notificationSetting(siteUserId: string, startTime: string) {
+  return {
+    siteUserId,
+    userId: adminUser.id,
+    userName: adminUser.name,
+    userEmail: adminUser.email,
+    siteContact: false,
+    email: true,
+    sms: false,
+    startTime,
+    endTime: '18:00',
+  };
+}
+
+function siteAssignments(email: string) {
+  return {
+    availableUsers: [],
+    assignedUsers: [
+      {
+        id: email,
+        email,
+        name: 'Assigned User',
+        companyRole: 'Operations',
+        siteContact: false,
+      },
+    ],
+  };
+}
+
+function reportUserAssignments() {
+  return {
+    reportRuleId: 'report-rule-id',
+    siteId: 'site-id',
+    siteName: 'RVT Test Site',
+    companyId: 'company-id',
+    companyName: 'RVT Group',
+    availableUsers: [],
+    assignedUsers: [reportUser('fresh-assigned-id', 'fresh.assigned@rvt.test', 'Fresh Assigned')],
   };
 }
 
 // Function summary: Builds a deferred response fixture so tests can resolve stale requests out of order.
 function deferredResponse() {
   let resolve!: (response: Response) => void;
-  const promise = new Promise<Response>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<Response>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
 
-  return { promise, resolve };
+  return { promise, resolve, reject };
+}
+
+// Function summary: Builds a contract list page fixture for request-execution tests.
+function contractPage(url: URL, contractNumber: string) {
+  return {
+    results: [
+      {
+        id: `${contractNumber.toLowerCase()}-id`,
+        contractNumber,
+        onHireDate: '2026-01-01T00:00:00Z',
+        offHireDate: null,
+        companyId: 'company-id',
+        companyName: 'RVT Group',
+        siteId: 'site-id',
+        siteName: 'RVT Test Site',
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'contractNumber',
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+  };
+}
+
+// Function summary: Builds a site list page fixture for request-execution tests.
+function sitePage(url: URL, siteName: string) {
+  return {
+    results: [
+      {
+        id: `${siteName.toLowerCase().replaceAll(' ', '-')}-id`,
+        siteName,
+        archived: false,
+        createDate: '2026-01-01T00:00:00Z',
+        siteAddress: '1 Test Street',
+        contracts: 'RVT-C-001',
+        companyId: 'company-id',
+        companyName: 'RVT Group',
+        siteContact: 'Company User',
+        monitorCount: 2,
+        openNotificationCount: 1,
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'siteName',
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+    isScopedToCurrentUser: false,
+  };
 }
 
 // Function summary: Builds a monitor list page fixture for stale-response tests.
@@ -2146,8 +3476,8 @@ function monitorPage(url: URL, fleetNumber: string) {
         hasCautions: false,
         canEdit: true,
         canAssign: false,
-        canInstallerEdit: true
-      }
+        canInstallerEdit: true,
+      },
     ],
     total: 1,
     page: Number(url.searchParams.get('page') ?? 1),
@@ -2161,7 +3491,210 @@ function monitorPage(url: URL, fleetNumber: string) {
     state: url.searchParams.get('state') ?? 'all',
     isScopedToCurrentUser: false,
     canManage: true,
-    canUseInstallerTools: true
+    canUseInstallerTools: true,
+  };
+}
+
+// Function summary: Builds a notification list page fixture for request-execution tests.
+function notificationPage(url: URL, limitName: string) {
+  return {
+    results: [
+      {
+        id: `${limitName.toLowerCase().replaceAll(' ', '-')}-id`,
+        monitorId: 'monitor-id',
+        deploymentId: 'deployment-id',
+        fleetNumber: 'MON-A2',
+        serialId: 'SER-P5',
+        typeOfMonitor: 'Dust',
+        alertType: 'Alert',
+        alertField: 'PM10',
+        limitOn: 50,
+        level: 61,
+        averagingPeriod: 900,
+        notificationTime: '2026-01-02T10:00:00Z',
+        closedTime: null,
+        closedByUser: null,
+        closedNote: null,
+        contractId: 'contract-id',
+        contractNumber: 'RVT-C-001',
+        siteId: 'site-id',
+        siteName: 'RVT Test Site',
+        companyId: 'company-id',
+        companyName: 'RVT Group',
+        limitName,
+        alertStatus: 'Open',
+        canClose: true,
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'notificationTime',
+    sortDir: url.searchParams.get('sortDir') ?? 'Descending',
+    state: url.searchParams.get('state') ?? 'open',
+    canClose: true,
+  };
+}
+
+// Function summary: Builds a generated-report page fixture for request-execution tests.
+function generatedReportPage(url: URL, reportName: string) {
+  return {
+    results: [
+      {
+        id: `${reportName.toLowerCase().replaceAll(' ', '-')}-id`,
+        siteId: 'site-id',
+        siteName: 'RVT Test Site',
+        reportDate: '2026-01-07T08:00:00Z',
+        reportFrom: '2026-01-01T00:00:00Z',
+        reportTo: '2026-01-07T00:00:00Z',
+        reportLink: 'https://reports.rvt.test/current.pdf',
+        reportRuleId: 'report-rule-id',
+        frequency: 2,
+        frequencyLabel: 'Weekly',
+        reportName,
+        contracts: 'RVT-C-001',
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'reportDate',
+    sortDir: url.searchParams.get('sortDir') ?? 'Descending',
+  };
+}
+
+// Function summary: Builds an alert-level page fixture for request-execution tests.
+function alertLevelPage(url: URL, alertField: string, typeOfMonitor = 'Vibration') {
+  return {
+    monitorId: 'monitor-id',
+    serialId: 'SER-V1',
+    fleetNumber: 'VIB-A2',
+    typeOfMonitor,
+    canManage: true,
+    options: {
+      monitorId: 'monitor-id',
+      serialId: 'SER-V1',
+      typeOfMonitor,
+      alertFields: [{ value: alertField, label: alertField }],
+      alertTypes: [{ value: 'Alert', label: 'Alert' }],
+      averagingPeriods: [],
+    },
+    results: [
+      {
+        id: `${alertField.toLowerCase().replaceAll(' ', '-')}-id`,
+        monitorId: 'monitor-id',
+        serialId: 'SER-V1',
+        alertField,
+        limitOn: 8,
+        limitOff: 5,
+        alertType: 'Alert',
+        averagingPeriod: 0,
+        averagingPeriodLabel: '',
+        startTime: null,
+        endTime: null,
+        days: [],
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: '',
+    sort: url.searchParams.get('sort') ?? 'alertField',
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+  };
+}
+
+// Function summary: Builds a report-rule page fixture for request-execution tests.
+function reportRulePage(url: URL, reportName: string) {
+  return {
+    results: [
+      {
+        id: `${reportName.toLowerCase().replaceAll(' ', '-')}-id`,
+        siteId: 'site-id',
+        siteName: 'RVT Test Site',
+        frequency: 2,
+        frequencyLabel: 'Weekly',
+        dayOfWeek: 1,
+        dayOfMonth: null,
+        reportName,
+        lastGenerated: null,
+        canManage: true,
+        assignedUserCount: 1,
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'lastGenerated',
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+  };
+}
+
+// Function summary: Builds an unattached-monitor page fixture for request-ownership tests.
+function unattachedMonitorPage(url: URL, serialId: string) {
+  return {
+    results: [
+      {
+        id: serialId === 'SER-OLD-001' ? '11111111-1111-1111-1111-111111111111' : `${serialId.toLowerCase()}-id`,
+        fleetNumber: serialId.replace('SER-', 'RVT-'),
+        serialId,
+        manufacturer: 'RVT',
+        model: 'Dust',
+        firmwareVersion: '1.0',
+        typeOfMonitor: 'Dust',
+        contractId: null,
+        contractNumber: null,
+        siteId: null,
+        siteName: null,
+        companyId: null,
+        companyName: null,
+        startDate: null,
+        endDate: null,
+        lastDataTime: null,
+        isAssigned: false,
+        isOffline: false,
+        hasAlerts: false,
+        hasCautions: false,
+        canEdit: true,
+        canAssign: false,
+        canInstallerEdit: false,
+        hasRelatedData: true,
+        willArchiveOnRemoval: true,
+        impact: {
+          deploymentCount: 1,
+          notificationCount: 2,
+          alertRuleCount: 3,
+          measurementTableCount: 1,
+          measurementRowCount: 20,
+          hasRelatedData: true,
+        },
+      },
+    ],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'fleetNumber',
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+    canRemove: true,
   };
 }
 
@@ -2169,7 +3702,7 @@ function monitorPage(url: URL, fleetNumber: string) {
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     headers: { 'Content-Type': 'application/json' },
-    status
+    status,
   });
 }
 

@@ -31,7 +31,7 @@ import {
   Upload,
   UserPlus,
   UserRound,
-  X
+  X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
@@ -57,13 +57,15 @@ import {
   updateContract,
   uploadSiteCustomerLogo,
   updateSite,
-  updateSiteNotificationSetting
+  updateSiteNotificationSetting,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
 import { ConfirmDialog, FormField, Notice, SubmitButton } from '../components/FormControls';
 import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
+import { notificationSettingDraft, withoutNotificationDraft } from './notificationDrafts';
+import type { NotificationDraftOverrides } from './notificationDrafts';
 import type {
   ContractDetailResponse,
   ContractListItem,
@@ -82,9 +84,10 @@ import type {
   SiteNotificationSettingsResponse,
   SiteOptionsResponse,
   SiteUserAssignmentItem,
-  SortDirection
+  SortDirection,
 } from '../dtos';
 const pageSize = 10;
+type ListExecution<TQuery> = Readonly<{ query: TQuery }>;
 const siteOperatingDays: SiteOperatingHours[] = [
   { dayOfWeek: 1, dayName: 'Monday', startTime: '08:00', endTime: '18:00', isClosed: false },
   { dayOfWeek: 2, dayName: 'Tuesday', startTime: '08:00', endTime: '18:00', isClosed: false },
@@ -92,32 +95,36 @@ const siteOperatingDays: SiteOperatingHours[] = [
   { dayOfWeek: 4, dayName: 'Thursday', startTime: '08:00', endTime: '18:00', isClosed: false },
   { dayOfWeek: 5, dayName: 'Friday', startTime: '08:00', endTime: '18:00', isClosed: false },
   { dayOfWeek: 6, dayName: 'Saturday', startTime: '', endTime: '', isClosed: true },
-  { dayOfWeek: 7, dayName: 'Sunday', startTime: '', endTime: '', isClosed: true }
+  { dayOfWeek: 7, dayName: 'Sunday', startTime: '', endTime: '', isClosed: true },
 ];
 type OperationsPanelCallbacks = Readonly<{
   onNavigate: (path: string) => void;
   onRequestError: (error: unknown) => void;
 }>;
 
-type OperationsRouteProps = OperationsPanelCallbacks & Readonly<{
-  locationPath: string;
-}>;
+type OperationsRouteProps = OperationsPanelCallbacks &
+  Readonly<{
+    locationPath: string;
+  }>;
 
-type SitesPanelProps = OperationsRouteProps & Readonly<{
-  canManage?: boolean;
-  currentUserId?: string | null;
-}>;
+type SitesPanelProps = OperationsRouteProps &
+  Readonly<{
+    canManage?: boolean;
+    currentUserId?: string | null;
+  }>;
 
-type SiteListPanelProps = OperationsRouteProps & Readonly<{
-  canManage?: boolean;
-}>;
+type SiteListPanelProps = OperationsRouteProps &
+  Readonly<{
+    canManage?: boolean;
+  }>;
 
-type SiteDetailPanelProps = OperationsPanelCallbacks & Readonly<{
-  siteId: string;
-  locationPath: string;
-  canManage?: boolean;
-  currentUserId?: string | null;
-}>;
+type SiteDetailPanelProps = OperationsPanelCallbacks &
+  Readonly<{
+    siteId: string;
+    locationPath: string;
+    canManage?: boolean;
+    currentUserId?: string | null;
+  }>;
 
 type NotificationSettingsPanelProps = Readonly<{
   settings: SiteNotificationSettingsResponse;
@@ -131,13 +138,16 @@ type NotificationSettingsPanelProps = Readonly<{
 function useGridSortHandler(
   setSortKey: (key: string) => void,
   setSortDir: (direction: SortDirection) => void,
-  setPage: (page: number) => void
+  setPage: (page: number) => void,
 ) {
-  return useCallback((key: string, direction: GridSortDirection) => {
-    setSortKey(key);
-    setSortDir(direction);
-    setPage(1);
-  }, [setPage, setSortDir, setSortKey]);
+  return useCallback(
+    (key: string, direction: GridSortDirection) => {
+      setSortKey(key);
+      setSortDir(direction);
+      setPage(1);
+    },
+    [setPage, setSortDir, setSortKey],
+  );
 }
 
 // Function summary: Renders the ContractsPanel React component and wires its local UI behavior.
@@ -147,21 +157,48 @@ export function ContractsPanel({ locationPath, onNavigate, onRequestError }: Ope
     return <ContractFormPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
   }
   if (mode.kind === 'edit') {
-    return <ContractFormPanel contractId={mode.contractId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <ContractFormPanel
+        contractId={mode.contractId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (mode.kind === 'detail') {
-    return <ContractDetailPanel contractId={mode.contractId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <ContractDetailPanel
+        contractId={mode.contractId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   return <ContractListPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
 }
 // Function summary: Renders the SitesPanel React component and wires its local UI behavior.
-export function SitesPanel({ locationPath, onNavigate, onRequestError, canManage = false, currentUserId }: SitesPanelProps) {
+export function SitesPanel({
+  locationPath,
+  onNavigate,
+  onRequestError,
+  canManage = false,
+  currentUserId,
+}: SitesPanelProps) {
   const mode = parseSitesMode(locationPath);
   if (mode.kind === 'create' && canManage) {
     return <SiteFormPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
   }
   if (mode.kind === 'edit' && canManage) {
-    return <SiteFormPanel siteId={mode.siteId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <SiteFormPanel
+        siteId={mode.siteId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (mode.kind === 'detail') {
     return (
@@ -175,7 +212,14 @@ export function SitesPanel({ locationPath, onNavigate, onRequestError, canManage
       />
     );
   }
-  return <SiteListPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} canManage={canManage} />;
+  return (
+    <SiteListPanel
+      locationPath={locationPath}
+      onNavigate={onNavigate}
+      onRequestError={onRequestError}
+      canManage={canManage}
+    />
+  );
 }
 // Function summary: Renders the ContractListPanel React component and wires its local UI behavior.
 function ContractListPanel({ locationPath, onNavigate, onRequestError }: OperationsRouteProps) {
@@ -188,58 +232,70 @@ function ContractListPanel({ locationPath, onNavigate, onRequestError }: Operati
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'contractNumber');
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const columns = useMemo<DataGridColumn<ContractListItem>[]>(() => [
-    {
-      key: 'contractNumber',
-      header: 'Contract',
-      sortable: true,
-      render: (contract) => (
-        <span className="cell-with-icon">
-          <FileText size={16} aria-hidden="true" />
-          {contract.contractNumber}
-        </span>
-      )
-    },
-    { key: 'siteName', header: 'Site', sortable: true, render: (contract) => contract.siteName || 'Unassigned' },
-    { key: 'companyName', header: 'Company', sortable: true, render: (contract) => contract.companyName || 'None' },
-    { key: 'onHireDate', header: 'On Hire', sortable: true, render: (contract) => formatDate(contract.onHireDate) },
-    { key: 'offHireDate', header: 'Off Hire', sortable: true, render: (contract) => formatDate(contract.offHireDate) || 'Open' }
-  ], []);
-  const query = useMemo<QueryContractsRequest>(() => ({
-    searchText,
-    page,
-    pageSize,
-    sort: sortKey,
-    sortDir
-  }), [page, searchText, sortDir, sortKey]);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryContractsRequest> | null>(null);
+  const columns = useMemo<DataGridColumn<ContractListItem>[]>(
+    () => [
+      {
+        key: 'contractNumber',
+        header: 'Contract',
+        sortable: true,
+        render: (contract) => (
+          <span className="cell-with-icon">
+            <FileText size={16} aria-hidden="true" />
+            {contract.contractNumber}
+          </span>
+        ),
+      },
+      { key: 'siteName', header: 'Site', sortable: true, render: (contract) => contract.siteName || 'Unassigned' },
+      { key: 'companyName', header: 'Company', sortable: true, render: (contract) => contract.companyName || 'None' },
+      { key: 'onHireDate', header: 'On Hire', sortable: true, render: (contract) => formatDate(contract.onHireDate) },
+      {
+        key: 'offHireDate',
+        header: 'Off Hire',
+        sortable: true,
+        render: (contract) => formatDate(contract.offHireDate) || 'Open',
+      },
+    ],
+    [],
+  );
+  const query = useMemo<QueryContractsRequest>(
+    () => ({
+      searchText,
+      page,
+      pageSize,
+      sort: sortKey,
+      sortDir,
+    }),
+    [page, searchText, sortDir, sortKey],
+  );
+  const execution = useMemo<ListExecution<QueryContractsRequest>>(() => ({ query }), [query]);
+  const isLoading = completedExecution !== execution;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
   const returnPath = currentRoutePath(locationPath);
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildContractsUrl({ searchText, page, sort: sortKey, sortDir }));
-    setIsLoading(true);
-    queryContracts(query, { signal: controller.signal })
+    queryContracts(execution.query, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setContracts(response.results);
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
+        setCompletedExecution(execution);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [onRequestError, page, query, searchText, sortDir, sortKey]);
+  }, [execution, onRequestError, page, searchText, sortDir, sortKey]);
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
     setSearchText(value);
@@ -252,14 +308,22 @@ function ContractListPanel({ locationPath, onNavigate, onRequestError }: Operati
           <p>Operations</p>
           <h2>Contracts</h2>
         </div>
-        <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo('/contracts/new', returnPath))}>
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={() => onNavigate(withReturnTo('/contracts/new', returnPath))}
+        >
           <Plus size={17} aria-hidden="true" />
           <span>Create Contract</span>
         </button>
       </div>
       <label className="search-box">
         <Search size={18} aria-hidden="true" />
-        <input value={searchText} onChange={(event) => handleSearch(event.target.value)} placeholder="Search contracts" />
+        <input
+          value={searchText}
+          onChange={(event) => handleSearch(event.target.value)}
+          placeholder="Search contracts"
+        />
       </label>
       <DataGrid
         columns={columns}
@@ -280,20 +344,25 @@ function ContractListPanel({ locationPath, onNavigate, onRequestError }: Operati
           {
             label: 'View contract',
             icon: <Eye size={16} aria-hidden="true" />,
-            onClick: (contract) => onNavigate(withReturnTo(`/contracts/${contract.id}`, returnPath))
+            onClick: (contract) => onNavigate(withReturnTo(`/contracts/${contract.id}`, returnPath)),
           },
           {
             label: 'Edit contract',
             icon: <Edit3 size={16} aria-hidden="true" />,
-            onClick: (contract) => onNavigate(withReturnTo(`/contracts/${contract.id}/edit`, returnPath))
-          }
+            onClick: (contract) => onNavigate(withReturnTo(`/contracts/${contract.id}/edit`, returnPath)),
+          },
         ]}
       />
     </section>
   );
 }
 // Function summary: Renders the ContractDetailPanel React component and wires its local UI behavior.
-function ContractDetailPanel({ contractId, locationPath, onNavigate, onRequestError }: OperationsRouteProps & Readonly<{ contractId: string }>) {
+function ContractDetailPanel({
+  contractId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+}: OperationsRouteProps & Readonly<{ contractId: string }>) {
   const [contract, setContract] = useState<ContractDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -333,8 +402,15 @@ function ContractDetailPanel({ contractId, locationPath, onNavigate, onRequestEr
           <h2>{contract?.contractNumber ?? 'Loading contract'}</h2>
         </div>
         <div className="button-row">
-          <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>Back</button>
-          <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/contracts/${contractId}/edit`, detailPath))} disabled={!contract}>
+          <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>
+            Back
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => onNavigate(withReturnTo(`/contracts/${contractId}/edit`, detailPath))}
+            disabled={!contract}
+          >
             <Edit3 size={17} aria-hidden="true" />
             <span>Edit</span>
           </button>
@@ -353,7 +429,11 @@ function ContractDetailPanel({ contractId, locationPath, onNavigate, onRequestEr
           <ReadOnlyRow label="On Hire Date" value={formatDate(contract.onHireDate)} />
           <ReadOnlyRow label="Off Hire Date" value={formatDate(contract.offHireDate) || 'Open'} />
           {contract.siteId && (
-            <button className="secondary-button inline" type="button" onClick={() => onNavigate(withReturnTo(`/sites/${contract.siteId}`, detailPath))}>
+            <button
+              className="secondary-button inline"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/sites/${contract.siteId}`, detailPath))}
+            >
               <MapPinned size={17} aria-hidden="true" />
               <span>Open site</span>
             </button>
@@ -380,7 +460,12 @@ type ContractFormState = {
   offHireDate: string;
 };
 // Function summary: Renders the ContractFormPanel React component and wires its local UI behavior.
-function ContractFormPanel({ contractId, locationPath, onNavigate, onRequestError }: OperationsRouteProps & Readonly<{ contractId?: string }>) {
+function ContractFormPanel({
+  contractId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+}: OperationsRouteProps & Readonly<{ contractId?: string }>) {
   const isEdit = Boolean(contractId);
   const backPath = returnToOr(locationPath, contractId ? `/contracts/${contractId}` : '/contracts');
   const [form, setForm] = useState<ContractFormState>({
@@ -388,7 +473,7 @@ function ContractFormPanel({ contractId, locationPath, onNavigate, onRequestErro
     companyId: '',
     siteId: '',
     onHireDate: toDateInput(new Date().toISOString()),
-    offHireDate: ''
+    offHireDate: '',
   });
   const [options, setOptions] = useState<ContractOptionsResponse>({ companies: [], sites: [] });
   const [status, setStatus] = useState<string | null>(null);
@@ -418,7 +503,7 @@ function ContractFormPanel({ contractId, locationPath, onNavigate, onRequestErro
             companyId: item.companyId,
             siteId: item.siteId ?? '',
             onHireDate: toDateInput(item.onHireDate),
-            offHireDate: toDateInput(item.offHireDate)
+            offHireDate: toDateInput(item.offHireDate),
           });
           setOptions({ companies: item.companies, sites: item.sites });
         }
@@ -451,7 +536,7 @@ function ContractFormPanel({ contractId, locationPath, onNavigate, onRequestErro
         companyId: form.companyId,
         siteId: form.siteId || null,
         onHireDate: form.onHireDate,
-        offHireDate: form.offHireDate || null
+        offHireDate: form.offHireDate || null,
       };
       const response = isEdit && contractId ? await updateContract(contractId, payload) : await createContract(payload);
       const saved = response.item;
@@ -479,13 +564,19 @@ function ContractFormPanel({ contractId, locationPath, onNavigate, onRequestErro
       </div>
       <form className="form-grid compact-form" onSubmit={handleSubmit}>
         <FormField label="Contract Number">
-          <input value={form.contractNumber} onChange={(event) => setForm({ ...form, contractNumber: event.target.value })} maxLength={20} />
+          <input
+            value={form.contractNumber}
+            onChange={(event) => setForm({ ...form, contractNumber: event.target.value })}
+            maxLength={20}
+          />
         </FormField>
         <FormField label="Company">
           <select value={form.companyId} onChange={(event) => handleCompanyChange(event.target.value)}>
             <option value="">Select a Company</option>
             {options.companies.map((company) => (
-              <option value={company.value} key={company.value}>{company.label}</option>
+              <option value={company.value} key={company.value}>
+                {company.label}
+              </option>
             ))}
           </select>
         </FormField>
@@ -493,19 +584,33 @@ function ContractFormPanel({ contractId, locationPath, onNavigate, onRequestErro
           <select value={form.siteId} onChange={(event) => setForm({ ...form, siteId: event.target.value })}>
             <option value="">Unassigned</option>
             {options.sites.map((site) => (
-              <option value={site.value} key={site.value}>{site.label}</option>
+              <option value={site.value} key={site.value}>
+                {site.label}
+              </option>
             ))}
           </select>
         </FormField>
         <FormField label="On Hire Date">
-          <input value={form.onHireDate} onChange={(event) => setForm({ ...form, onHireDate: event.target.value })} type="date" />
+          <input
+            value={form.onHireDate}
+            onChange={(event) => setForm({ ...form, onHireDate: event.target.value })}
+            type="date"
+          />
         </FormField>
         <FormField label="Off Hire Date">
-          <input value={form.offHireDate} onChange={(event) => setForm({ ...form, offHireDate: event.target.value })} type="date" />
+          <input
+            value={form.offHireDate}
+            onChange={(event) => setForm({ ...form, offHireDate: event.target.value })}
+            type="date"
+          />
         </FormField>
         {status && <Notice tone="success" message={status} />}
         {error && <Notice tone="error" message={error} />}
-        <SubmitButton icon={<Save size={17} aria-hidden="true" />} isSubmitting={isSubmitting} idleLabel={isEdit ? 'Update Contract' : 'Create Contract'} />
+        <SubmitButton
+          icon={<Save size={17} aria-hidden="true" />}
+          isSubmitting={isSubmitting}
+          idleLabel={isEdit ? 'Update Contract' : 'Create Contract'}
+        />
       </form>
     </section>
   );
@@ -520,63 +625,90 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
   const [includeArchived, setIncludeArchived] = useState(initialParams.get('archived') === 'true');
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'createDate');
-  const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir') ?? 'Descending'));
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    normalizeSortDirection(initialParams.get('sortDir') ?? 'Descending'),
+  );
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const columns = useMemo<DataGridColumn<SiteListItem>[]>(() => [
-    {
-      key: 'siteName',
-      header: 'Site',
-      sortable: true,
-      render: (site) => (
-        <span className="cell-with-icon">
-          <MapPinned size={16} aria-hidden="true" />
-          {site.siteName}
-        </span>
-      )
-    },
-    { key: 'companyName', header: 'Company', sortable: true, render: (site) => site.companyName || 'None' },
-    { key: 'contracts', header: 'Contracts', sortable: true, render: (site) => site.contracts || 'None' },
-    { key: 'siteAddress', header: 'Address', sortable: true, render: (site) => site.siteAddress || 'None' },
-    { key: 'monitorCount', header: 'Monitors', align: 'end', render: (site) => site.monitorCount },
-    { key: 'openNotificationCount', header: 'Open Alerts', align: 'end', render: (site) => site.openNotificationCount },
-    { key: 'archived', header: 'State', render: (site) => site.archived ? <span className="status-chip muted">Archived</span> : <span className="status-chip">Active</span> }
-  ], []);
-  const query = useMemo<QuerySitesRequest>(() => ({
-    searchText,
-    includeArchived,
-    page,
-    pageSize,
-    sort: sortKey,
-    sortDir
-  }), [includeArchived, page, searchText, sortDir, sortKey]);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QuerySitesRequest> | null>(null);
+  const columns = useMemo<DataGridColumn<SiteListItem>[]>(
+    () => [
+      {
+        key: 'siteName',
+        header: 'Site',
+        sortable: true,
+        render: (site) => (
+          <span className="cell-with-icon">
+            <MapPinned size={16} aria-hidden="true" />
+            {site.siteName}
+          </span>
+        ),
+      },
+      { key: 'companyName', header: 'Company', sortable: true, render: (site) => site.companyName || 'None' },
+      { key: 'contracts', header: 'Contracts', sortable: true, render: (site) => site.contracts || 'None' },
+      { key: 'siteAddress', header: 'Address', sortable: true, render: (site) => site.siteAddress || 'None' },
+      { key: 'monitorCount', header: 'Monitors', align: 'end', render: (site) => site.monitorCount },
+      {
+        key: 'openNotificationCount',
+        header: 'Open Alerts',
+        align: 'end',
+        render: (site) => site.openNotificationCount,
+      },
+      {
+        key: 'archived',
+        header: 'State',
+        render: (site) =>
+          site.archived ? (
+            <span className="status-chip muted">Archived</span>
+          ) : (
+            <span className="status-chip">Active</span>
+          ),
+      },
+    ],
+    [],
+  );
+  const query = useMemo<QuerySitesRequest>(
+    () => ({
+      searchText,
+      includeArchived,
+      page,
+      pageSize,
+      sort: sortKey,
+      sortDir,
+    }),
+    [includeArchived, page, searchText, sortDir, sortKey],
+  );
+  const execution = useMemo<ListExecution<QuerySitesRequest>>(() => ({ query }), [query]);
+  const isLoading = completedExecution !== execution;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
   const returnPath = currentRoutePath(locationPath);
   useEffect(() => {
     const controller = new AbortController();
-    globalThis.history.replaceState(null, '', buildSitesUrl({ searchText, includeArchived, page, sort: sortKey, sortDir }));
-    setIsLoading(true);
-    querySites(query, { signal: controller.signal })
+    globalThis.history.replaceState(
+      null,
+      '',
+      buildSitesUrl({ searchText, includeArchived, page, sort: sortKey, sortDir }),
+    );
+    querySites(execution.query, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setSites(response.results);
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
+        setCompletedExecution(execution);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [includeArchived, onRequestError, page, query, searchText, sortDir, sortKey]);
+  }, [execution, includeArchived, onRequestError, page, searchText, sortDir, sortKey]);
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
     setSearchText(value);
@@ -590,7 +722,11 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
           <h2>Sites</h2>
         </div>
         {canManage && (
-          <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo('/sites/new', returnPath))}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => onNavigate(withReturnTo('/sites/new', returnPath))}
+          >
             <Plus size={17} aria-hidden="true" />
             <span>Create Site</span>
           </button>
@@ -602,7 +738,14 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
           <input value={searchText} onChange={(event) => handleSearch(event.target.value)} placeholder="Search sites" />
         </label>
         <label className="checkbox-row compact">
-          <input checked={includeArchived} onChange={(event) => { setIncludeArchived(event.target.checked); setPage(1); }} type="checkbox" />
+          <input
+            checked={includeArchived}
+            onChange={(event) => {
+              setIncludeArchived(event.target.checked);
+              setPage(1);
+            }}
+            type="checkbox"
+          />
           <span>Archived</span>
         </label>
       </div>
@@ -625,14 +768,14 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
           {
             label: 'View site',
             icon: <Eye size={16} aria-hidden="true" />,
-            onClick: (site) => onNavigate(withReturnTo(`/sites/${site.id}`, returnPath))
+            onClick: (site) => onNavigate(withReturnTo(`/sites/${site.id}`, returnPath)),
           },
           {
             label: 'Edit site',
             icon: <Edit3 size={16} aria-hidden="true" />,
             onClick: (site) => onNavigate(withReturnTo(`/sites/${site.id}/edit`, returnPath)),
-            disabled: (site) => !canManage || site.archived
-          }
+            disabled: (site) => !canManage || site.archived,
+          },
         ]}
       />
     </section>
@@ -645,7 +788,7 @@ function SiteDetailPanel({
   onNavigate,
   onRequestError,
   canManage = false,
-  currentUserId
+  currentUserId,
 }: SiteDetailPanelProps) {
   const [site, setSite] = useState<SiteDetailResponse | null>(null);
   const [settings, setSettings] = useState<SiteNotificationSettingsResponse | null>(null);
@@ -687,39 +830,73 @@ function SiteDetailPanel({
           <h2>{site?.siteName ?? 'Loading site'}</h2>
         </div>
         <div className="button-row">
-          <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>Back</button>
+          <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>
+            Back
+          </button>
           {site && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/maps?siteId=${site.id}`, detailPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/maps?siteId=${site.id}`, detailPath))}
+            >
               <MapPinned size={17} aria-hidden="true" />
               <span>Open map</span>
             </button>
           )}
           {site?.monitors[0]?.deploymentId && (
             <>
-              <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/data?deploymentId=${site.monitors[0].deploymentId}`, detailPath))}>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() =>
+                  onNavigate(withReturnTo(`/data?deploymentId=${site.monitors[0].deploymentId}`, detailPath))
+                }
+              >
                 <BarChart3 size={17} aria-hidden="true" />
                 <span>Open data</span>
               </button>
-              <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/calendar?deploymentId=${site.monitors[0].deploymentId}`, detailPath))}>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() =>
+                  onNavigate(withReturnTo(`/calendar?deploymentId=${site.monitors[0].deploymentId}`, detailPath))
+                }
+              >
                 <CalendarDays size={17} aria-hidden="true" />
                 <span>Open calendar</span>
               </button>
             </>
           )}
           {site && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/notifications?q=${encodeURIComponent(site.siteName)}`, detailPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() =>
+                onNavigate(withReturnTo(`/notifications?q=${encodeURIComponent(site.siteName)}`, detailPath))
+              }
+            >
               <Bell size={17} aria-hidden="true" />
               <span>Open notifications</span>
             </button>
           )}
           {canManage && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/sites/${siteId}/edit`, detailPath))} disabled={!site || site.archived}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/sites/${siteId}/edit`, detailPath))}
+              disabled={!site || site.archived}
+            >
               <Edit3 size={17} aria-hidden="true" />
               <span>Edit</span>
             </button>
           )}
           {canManage && (
-            <button className="danger-button" type="button" onClick={() => setConfirmArchive(true)} disabled={!site || site.archived}>
+            <button
+              className="danger-button"
+              type="button"
+              onClick={() => setConfirmArchive(true)}
+              disabled={!site || site.archived}
+            >
               <Archive size={17} aria-hidden="true" />
               <span>Archive</span>
             </button>
@@ -747,7 +924,12 @@ function SiteDetailPanel({
                   key={hours.dayOfWeek}
                 />
               ))}
-              {site.archive && <ReadOnlyRow label="Archived" value={`${formatDate(site.archive.archived)} by ${site.archive.createdBy || 'Unknown'}`} />}
+              {site.archive && (
+                <ReadOnlyRow
+                  label="Archived"
+                  value={`${formatDate(site.archive.archived)} by ${site.archive.createdBy || 'Unknown'}`}
+                />
+              )}
             </div>
           </div>
           {siteMonitorMarkers(site).length > 0 && (
@@ -762,7 +944,11 @@ function SiteDetailPanel({
                 { key: 'contractNumber', header: 'Contract', render: (contract) => contract.contractNumber },
                 { key: 'companyName', header: 'Company', render: (contract) => contract.companyName || 'None' },
                 { key: 'onHireDate', header: 'On Hire', render: (contract) => formatDate(contract.onHireDate) },
-                { key: 'offHireDate', header: 'Off Hire', render: (contract) => formatDate(contract.offHireDate) || 'Open' }
+                {
+                  key: 'offHireDate',
+                  header: 'Off Hire',
+                  render: (contract) => formatDate(contract.offHireDate) || 'Open',
+                },
               ]}
               rows={site.contractList}
               getRowKey={(contract) => contract.id}
@@ -771,11 +957,17 @@ function SiteDetailPanel({
               pageSize={Math.max(site.contractList.length, 1)}
               total={site.contractList.length}
               totalPages={site.contractList.length > 0 ? 1 : 0}
-              rowActions={canManage ? [{
-                label: 'View contract',
-                icon: <Eye size={16} aria-hidden="true" />,
-                onClick: (contract) => onNavigate(withReturnTo(`/contracts/${contract.id}`, detailPath))
-              }] : []}
+              rowActions={
+                canManage
+                  ? [
+                      {
+                        label: 'View contract',
+                        icon: <Eye size={16} aria-hidden="true" />,
+                        onClick: (contract) => onNavigate(withReturnTo(`/contracts/${contract.id}`, detailPath)),
+                      },
+                    ]
+                  : []
+              }
             />
           </NestedSection>
           <NestedSection title="Current Monitors" icon={<Gauge size={18} aria-hidden="true" />}>
@@ -785,7 +977,11 @@ function SiteDetailPanel({
                 { key: 'serialId', header: 'Serial', render: (monitor) => monitor.serialId || 'None' },
                 { key: 'typeOfMonitor', header: 'Type', render: (monitor) => monitor.typeOfMonitor },
                 { key: 'contractNumber', header: 'Contract', render: (monitor) => monitor.contractNumber },
-                { key: 'lastDataTime', header: 'Last Data', render: (monitor) => formatDateTime(monitor.lastDataTime) || 'None' }
+                {
+                  key: 'lastDataTime',
+                  header: 'Last Data',
+                  render: (monitor) => formatDateTime(monitor.lastDataTime) || 'None',
+                },
               ]}
               rows={site.monitors}
               getRowKey={(monitor) => monitor.deploymentId}
@@ -799,11 +995,19 @@ function SiteDetailPanel({
           <NestedSection title="Open Alerts" icon={<Bell size={18} aria-hidden="true" />}>
             <DataGrid
               columns={[
-                { key: 'fleetNumber', header: 'Fleet Nr', render: (notification) => notification.fleetNumber || 'None' },
+                {
+                  key: 'fleetNumber',
+                  header: 'Fleet Nr',
+                  render: (notification) => notification.fleetNumber || 'None',
+                },
                 { key: 'alertField', header: 'Field', render: (notification) => notification.alertField || 'None' },
                 { key: 'level', header: 'Level', render: (notification) => notification.level ?? '' },
                 { key: 'limitOn', header: 'Limit', render: (notification) => notification.limitOn ?? '' },
-                { key: 'notificationTime', header: 'Time', render: (notification) => formatDateTime(notification.notificationTime) }
+                {
+                  key: 'notificationTime',
+                  header: 'Time',
+                  render: (notification) => formatDateTime(notification.notificationTime),
+                },
               ]}
               rows={site.openNotifications}
               getRowKey={(notification) => notification.id}
@@ -814,11 +1018,10 @@ function SiteDetailPanel({
               totalPages={site.openNotifications.length > 0 ? 1 : 0}
             />
           </NestedSection>
-          {canManage && (
-            <SiteAssignmentsPanel siteId={siteId} onRequestError={onRequestError} />
-          )}
+          {canManage && <SiteAssignmentsPanel siteId={siteId} onRequestError={onRequestError} />}
           {settings && (
             <NotificationSettingsPanel
+              key={settings.siteId}
               settings={settings}
               canManage={canManage}
               currentUserId={currentUserId}
@@ -852,7 +1055,12 @@ type SiteFormState = {
   operatingHours: SiteOperatingHours[];
 };
 // Function summary: Renders the SiteFormPanel React component and wires its local UI behavior.
-function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: OperationsRouteProps & Readonly<{ siteId?: string }>) {
+function SiteFormPanel({
+  siteId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+}: OperationsRouteProps & Readonly<{ siteId?: string }>) {
   const isEdit = Boolean(siteId);
   const backPath = returnToOr(locationPath, siteId ? `/sites/${siteId}` : '/sites');
   const formPath = currentRoutePath(locationPath);
@@ -865,7 +1073,7 @@ function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: Ope
     postcode: '',
     city: '',
     county: '',
-    operatingHours: siteOperatingDays
+    operatingHours: siteOperatingDays,
   });
   const [options, setOptions] = useState<SiteOptionsResponse>({ companies: [], contracts: [] });
   const [status, setStatus] = useState<string | null>(null);
@@ -903,7 +1111,7 @@ function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: Ope
             postcode: item.postcode ?? '',
             city: item.city ?? '',
             county: item.county ?? '',
-            operatingHours: normalizeOperatingHours(item.operatingHours, item)
+            operatingHours: normalizeOperatingHours(item.operatingHours, item),
           });
           setCustomerLogoUrl(item.customerLogoUrl ?? null);
           setOptions({ companies: item.companies, contracts: item.availableContracts });
@@ -926,11 +1134,9 @@ function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: Ope
   function updateOperatingHours(dayOfWeek: number, patch: Partial<SiteOperatingHours>) {
     setForm((current) => ({
       ...current,
-      operatingHours: current.operatingHours.map((hours) => (
-        hours.dayOfWeek === dayOfWeek
-          ? { ...hours, ...patch }
-          : hours
-      ))
+      operatingHours: current.operatingHours.map((hours) =>
+        hours.dayOfWeek === dayOfWeek ? { ...hours, ...patch } : hours,
+      ),
     }));
   }
   async function handleSubmit(event: FormEvent) {
@@ -954,7 +1160,7 @@ function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: Ope
         satEndTime: form.operatingHours.find((hours) => hours.dayOfWeek === 6)?.endTime || null,
         sunStartTime: form.operatingHours.find((hours) => hours.dayOfWeek === 7)?.startTime || null,
         sunEndTime: form.operatingHours.find((hours) => hours.dayOfWeek === 7)?.endTime || null,
-        operatingHours: form.operatingHours
+        operatingHours: form.operatingHours,
       };
       const response = isEdit && siteId ? await updateSite(siteId, payload) : await createSite(payload);
       const saved = response.item;
@@ -1029,19 +1235,33 @@ function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: Ope
       </div>
       <form className="form-grid compact-form" onSubmit={handleSubmit}>
         <FormField label="Site Name">
-          <input value={form.siteName} onChange={(event) => setForm({ ...form, siteName: event.target.value })} maxLength={100} />
+          <input
+            value={form.siteName}
+            onChange={(event) => setForm({ ...form, siteName: event.target.value })}
+            maxLength={100}
+          />
         </FormField>
         <FormField label="Company">
-          <select value={form.companyId} onChange={(event) => handleCompanyChange(event.target.value)} disabled={isEdit}>
+          <select
+            value={form.companyId}
+            onChange={(event) => handleCompanyChange(event.target.value)}
+            disabled={isEdit}
+          >
             <option value="">Select a Company</option>
             {options.companies.map((company) => (
-              <option value={company.value} key={company.value}>{company.label}</option>
+              <option value={company.value} key={company.value}>
+                {company.label}
+              </option>
             ))}
           </select>
         </FormField>
         {!isEdit && (
           <div className="form-action-row">
-            <button className="secondary-button inline" type="button" onClick={() => onNavigate(withReturnTo('/companies/new', formPath))}>
+            <button
+              className="secondary-button inline"
+              type="button"
+              onClick={() => onNavigate(withReturnTo('/companies/new', formPath))}
+            >
               <Plus size={16} aria-hidden="true" />
               <span>Add Company</span>
             </button>
@@ -1049,17 +1269,28 @@ function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: Ope
         )}
         {!isEdit && (
           <FormField label="Contract">
-            <select value={form.contractId} onChange={(event) => setForm({ ...form, contractId: event.target.value })} disabled={!canSelectContract}>
+            <select
+              value={form.contractId}
+              onChange={(event) => setForm({ ...form, contractId: event.target.value })}
+              disabled={!canSelectContract}
+            >
               <option value="">Select a Contract</option>
               {options.contracts.map((contract) => (
-                <option value={contract.value} key={contract.value}>{contract.label}</option>
+                <option value={contract.value} key={contract.value}>
+                  {contract.label}
+                </option>
               ))}
             </select>
           </FormField>
         )}
         {!isEdit && (
           <div className="form-action-row">
-            <button className="secondary-button inline" type="button" onClick={handleAddContract} disabled={!canSelectContract}>
+            <button
+              className="secondary-button inline"
+              type="button"
+              onClick={handleAddContract}
+              disabled={!canSelectContract}
+            >
               <Plus size={16} aria-hidden="true" />
               <span>Add Contract</span>
             </button>
@@ -1085,11 +1316,21 @@ function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: Ope
               />
             </FormField>
             <div className="customer-logo-actions">
-              <button className="secondary-button" type="button" onClick={handleUploadLogo} disabled={isLogoSubmitting || !logoFile}>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={handleUploadLogo}
+                disabled={isLogoSubmitting || !logoFile}
+              >
                 <Upload size={16} aria-hidden="true" />
                 <span>Upload Logo</span>
               </button>
-              <button className="secondary-button danger" type="button" onClick={handleDeleteLogo} disabled={isLogoSubmitting || !customerLogoUrl}>
+              <button
+                className="secondary-button danger"
+                type="button"
+                onClick={handleDeleteLogo}
+                disabled={isLogoSubmitting || !customerLogoUrl}
+              >
                 <Trash2 size={16} aria-hidden="true" />
                 <span>Delete Logo</span>
               </button>
@@ -1099,19 +1340,39 @@ function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: Ope
           </section>
         )}
         <FormField label="Address Line 1">
-          <input value={form.addressLine1} onChange={(event) => setForm({ ...form, addressLine1: event.target.value })} maxLength={100} />
+          <input
+            value={form.addressLine1}
+            onChange={(event) => setForm({ ...form, addressLine1: event.target.value })}
+            maxLength={100}
+          />
         </FormField>
         <FormField label="Address Line 2">
-          <input value={form.addressLine2} onChange={(event) => setForm({ ...form, addressLine2: event.target.value })} maxLength={100} />
+          <input
+            value={form.addressLine2}
+            onChange={(event) => setForm({ ...form, addressLine2: event.target.value })}
+            maxLength={100}
+          />
         </FormField>
         <FormField label="Postcode">
-          <input value={form.postcode} onChange={(event) => setForm({ ...form, postcode: event.target.value })} maxLength={20} />
+          <input
+            value={form.postcode}
+            onChange={(event) => setForm({ ...form, postcode: event.target.value })}
+            maxLength={20}
+          />
         </FormField>
         <FormField label="City">
-          <input value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} maxLength={100} />
+          <input
+            value={form.city}
+            onChange={(event) => setForm({ ...form, city: event.target.value })}
+            maxLength={100}
+          />
         </FormField>
         <FormField label="County">
-          <input value={form.county} onChange={(event) => setForm({ ...form, county: event.target.value })} maxLength={100} />
+          <input
+            value={form.county}
+            onChange={(event) => setForm({ ...form, county: event.target.value })}
+            maxLength={100}
+          />
         </FormField>
         <div className="time-grid daily-hours-grid">
           {form.operatingHours.map((hours) => (
@@ -1146,7 +1407,11 @@ function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: Ope
         </div>
         {status && <Notice tone="success" message={status} />}
         {error && <Notice tone="error" message={error} />}
-        <SubmitButton icon={<Save size={17} aria-hidden="true" />} isSubmitting={isSubmitting} idleLabel={isEdit ? 'Update Site' : 'Create Site'} />
+        <SubmitButton
+          icon={<Save size={17} aria-hidden="true" />}
+          isSubmitting={isSubmitting}
+          idleLabel={isEdit ? 'Update Site' : 'Create Site'}
+        />
       </form>
     </section>
   );
@@ -1154,26 +1419,33 @@ function SiteFormPanel({ siteId, locationPath, onNavigate, onRequestError }: Ope
 // Function summary: Renders the SiteAssignmentsPanel React component and wires its local UI behavior.
 function SiteAssignmentsPanel({
   siteId,
-  onRequestError
+  onRequestError,
 }: Readonly<{ siteId: string; onRequestError: (error: unknown) => void }>) {
   const [assignments, setAssignments] = useState<SiteAssignmentResponse | null>(null);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const loadAssignments = useCallback(async () => {
-    try {
-      const response = await getSiteAssignments(siteId);
-      setAssignments(response.item ?? null);
-      setError(null);
-    } catch (err) {
-      setError((err as Error).message);
-      onRequestError(err);
-    }
-  }, [onRequestError, siteId]);
-
   useEffect(() => {
-    loadAssignments().catch(onRequestError);
-  }, [loadAssignments, onRequestError]);
+    let isCurrent = true;
+    getSiteAssignments(siteId)
+      .then((response) => {
+        if (!isCurrent) {
+          return;
+        }
+        setAssignments(response.item ?? null);
+        setError(null);
+      })
+      .catch((err: Error) => {
+        if (!isCurrent) {
+          return;
+        }
+        setError(err.message);
+        onRequestError(err);
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [onRequestError, siteId]);
   async function runMutation(action: () => Promise<{ item?: SiteAssignmentResponse | null }>) {
     setIsBusy(true);
     setError(null);
@@ -1188,28 +1460,39 @@ function SiteAssignmentsPanel({
       setIsBusy(false);
     }
   }
-  const assignedColumns = useMemo<DataGridColumn<SiteUserAssignmentItem>[]>(() => [
-    {
-      key: 'email',
-      header: 'User',
-      render: (user) => (
-        <span className="cell-with-icon">
-          <UserRound size={16} aria-hidden="true" />
-          {user.email}
-        </span>
-      )
-    },
-    { key: 'name', header: 'Name', render: (user) => user.name || 'None' },
-    { key: 'companyRole', header: 'Role', render: (user) => user.companyRole || 'None' },
-    { key: 'siteContact', header: 'Contact', render: (user) => user.siteContact ? <span className="status-chip">Contact</span> : 'No' }
-  ], []);
+  const assignedColumns = useMemo<DataGridColumn<SiteUserAssignmentItem>[]>(
+    () => [
+      {
+        key: 'email',
+        header: 'User',
+        render: (user) => (
+          <span className="cell-with-icon">
+            <UserRound size={16} aria-hidden="true" />
+            {user.email}
+          </span>
+        ),
+      },
+      { key: 'name', header: 'Name', render: (user) => user.name || 'None' },
+      { key: 'companyRole', header: 'Role', render: (user) => user.companyRole || 'None' },
+      {
+        key: 'siteContact',
+        header: 'Contact',
+        render: (user) => (user.siteContact ? <span className="status-chip">Contact</span> : 'No'),
+      },
+    ],
+    [],
+  );
   return (
     <NestedSection title="Site Users" icon={<UserRound size={18} aria-hidden="true" />}>
       {error && <Notice tone="error" message={error} />}
       {assignments && (
         <>
           <div className="assignment-toolbar">
-            <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} disabled={isBusy}>
+            <select
+              value={selectedUserId}
+              onChange={(event) => setSelectedUserId(event.target.value)}
+              disabled={isBusy}
+            >
               <option value="">Select a user</option>
               {assignments.availableUsers.map((user) => (
                 <option value={user.id} key={user.id}>
@@ -1241,20 +1524,20 @@ function SiteAssignmentsPanel({
                 label: 'Set site contact',
                 icon: <Star size={16} aria-hidden="true" />,
                 onClick: (user) => runMutation(() => setSiteContactUser({ siteId, userId: user.id })),
-                disabled: (user) => isBusy || user.siteContact
+                disabled: (user) => isBusy || user.siteContact,
               },
               {
                 label: 'Unset site contact',
                 icon: <X size={16} aria-hidden="true" />,
                 onClick: (user) => runMutation(() => removeSiteContactUser({ siteId, userId: user.id })),
-                disabled: (user) => isBusy || !user.siteContact
+                disabled: (user) => isBusy || !user.siteContact,
               },
               {
                 label: 'Remove user from site',
                 icon: <Trash2 size={16} aria-hidden="true" />,
                 onClick: (user) => runMutation(() => removeUserFromSite({ siteId, userId: user.id })),
-                disabled: () => isBusy
-              }
+                disabled: () => isBusy,
+              },
             ]}
           />
         </>
@@ -1268,43 +1551,36 @@ function NotificationSettingsPanel({
   canManage,
   currentUserId,
   onUpdated,
-  onRequestError
+  onRequestError,
 }: NotificationSettingsPanelProps) {
   const visibleSettings = canManage
     ? settings.settings
     : settings.settings.filter((setting) => setting.userId.toLowerCase() === (currentUserId ?? '').toLowerCase());
-  const [drafts, setDrafts] = useState<Record<string, SiteNotificationSettingMutationRequest>>({});
+  const [draftOverrides, setDraftOverrides] = useState<NotificationDraftOverrides>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    const nextDrafts: Record<string, SiteNotificationSettingMutationRequest> = {};
-    settings.settings.forEach((setting) => {
-      nextDrafts[setting.siteUserId] = {
-        email: setting.email,
-        sms: setting.sms,
-        startTime: setting.startTime ?? '',
-        endTime: setting.endTime ?? ''
-      };
-    });
-    setDrafts(nextDrafts);
-  }, [settings]);
   async function handleSave(setting: SiteNotificationSettingItem) {
     setSavingId(setting.siteUserId);
     setError(null);
     try {
-      const draft = drafts[setting.siteUserId] ?? { email: setting.email, sms: setting.sms, startTime: '', endTime: '' };
+      const draft = notificationSettingDraft(setting, draftOverrides);
       const response = await updateSiteNotificationSetting(settings.siteId, setting.siteUserId, {
         email: draft.email,
         sms: draft.sms,
         startTime: draft.startTime || null,
-        endTime: draft.endTime || null
+        endTime: draft.endTime || null,
       });
       const updatedItem = response.item;
       if (updatedItem) {
         onUpdated({
           ...settings,
-          settings: settings.settings.map((item) => item.siteUserId === updatedItem.siteUserId ? updatedItem : item)
+          settings: settings.settings.map((item) => (item.siteUserId === updatedItem.siteUserId ? updatedItem : item)),
         });
+        setDraftOverrides((current) =>
+          notificationDraftMatches(current[setting.siteUserId], draft)
+            ? withoutNotificationDraft(current, setting.siteUserId)
+            : current,
+        );
       }
     } catch (err) {
       setError((err as Error).message);
@@ -1314,28 +1590,25 @@ function NotificationSettingsPanel({
     }
   }
   // Function summary: Updates draft data for the current workflow.
-  function updateDraft(siteUserId: string, patch: Partial<SiteNotificationSettingMutationRequest>) {
-    setDrafts((current) => ({
+  function updateDraft(setting: SiteNotificationSettingItem, patch: Partial<SiteNotificationSettingMutationRequest>) {
+    setDraftOverrides((current) => ({
       ...current,
-      [siteUserId]: {
-        ...(current[siteUserId] ?? { email: false, sms: false, startTime: '', endTime: '' }),
-        ...patch
-      }
+      [setting.siteUserId]: {
+        ...notificationSettingDraft(setting, current),
+        ...patch,
+      },
     }));
   }
   return (
     <NestedSection title="Notification Settings" icon={<Settings size={18} aria-hidden="true" />}>
       {error && <Notice tone="error" message={error} />}
-      {visibleSettings.length === 0 && <Notice tone="info" message="No notification settings are available for this site." />}
+      {visibleSettings.length === 0 && (
+        <Notice tone="info" message="No notification settings are available for this site." />
+      )}
       {visibleSettings.length > 0 && (
         <div className="settings-list">
           {visibleSettings.map((setting) => {
-            const draft = drafts[setting.siteUserId] ?? {
-              email: setting.email,
-              sms: setting.sms,
-              startTime: setting.startTime ?? '',
-              endTime: setting.endTime ?? ''
-            };
+            const draft = notificationSettingDraft(setting, draftOverrides);
             return (
               <div className="setting-row" key={setting.siteUserId}>
                 <div>
@@ -1343,26 +1616,39 @@ function NotificationSettingsPanel({
                   <span>{setting.siteContact ? 'Site contact' : setting.userEmail}</span>
                 </div>
                 <label className="checkbox-row">
-                  <input checked={draft.email} onChange={(event) => updateDraft(setting.siteUserId, { email: event.target.checked })} type="checkbox" />
+                  <input
+                    checked={draft.email}
+                    onChange={(event) => updateDraft(setting, { email: event.target.checked })}
+                    type="checkbox"
+                  />
                   <span>Email</span>
                 </label>
                 <label className="checkbox-row">
-                  <input checked={draft.sms} onChange={(event) => updateDraft(setting.siteUserId, { sms: event.target.checked })} type="checkbox" />
+                  <input
+                    checked={draft.sms}
+                    onChange={(event) => updateDraft(setting, { sms: event.target.checked })}
+                    type="checkbox"
+                  />
                   <span>SMS</span>
                 </label>
                 <input
                   aria-label={`${setting.userEmail} notification start time`}
                   value={draft.startTime ?? ''}
-                  onChange={(event) => updateDraft(setting.siteUserId, { startTime: event.target.value })}
+                  onChange={(event) => updateDraft(setting, { startTime: event.target.value })}
                   type="time"
                 />
                 <input
                   aria-label={`${setting.userEmail} notification end time`}
                   value={draft.endTime ?? ''}
-                  onChange={(event) => updateDraft(setting.siteUserId, { endTime: event.target.value })}
+                  onChange={(event) => updateDraft(setting, { endTime: event.target.value })}
                   type="time"
                 />
-                <button className="secondary-button" type="button" onClick={() => handleSave(setting)} disabled={savingId === setting.siteUserId}>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => handleSave(setting)}
+                  disabled={savingId === setting.siteUserId}
+                >
                   <Save size={17} aria-hidden="true" />
                   <span>{savingId === setting.siteUserId ? 'Saving' : 'Save'}</span>
                 </button>
@@ -1372,6 +1658,18 @@ function NotificationSettingsPanel({
         </div>
       )}
     </NestedSection>
+  );
+}
+
+function notificationDraftMatches(
+  current: SiteNotificationSettingMutationRequest | undefined,
+  submitted: SiteNotificationSettingMutationRequest,
+) {
+  return (
+    current?.email === submitted.email &&
+    current.sms === submitted.sms &&
+    current.startTime === submitted.startTime &&
+    current.endTime === submitted.endTime
   );
 }
 // Function summary: Renders the NestedSection React component and wires its local UI behavior.
@@ -1467,7 +1765,13 @@ function buildContractsUrl(options: { searchText: string; page: number; sort: st
   return query ? `/contracts?${query}` : '/contracts';
 }
 // Function summary: Builds sites url data for callers.
-function buildSitesUrl(options: { searchText: string; includeArchived: boolean; page: number; sort: string; sortDir: SortDirection }) {
+function buildSitesUrl(options: {
+  searchText: string;
+  includeArchived: boolean;
+  page: number;
+  sort: string;
+  sortDir: SortDirection;
+}) {
   const params = new URLSearchParams();
   if (options.searchText) {
     params.set('q', options.searchText);
@@ -1499,13 +1803,17 @@ function siteMonitorMarkers(site: SiteDetailResponse): MapMonitorMarker[] {
       longitude: monitor.lng as number,
       typeOfMonitor: monitor.typeOfMonitor,
       offline: monitor.offLine,
-      alert: site.openNotifications.some((notification) => notification.monitorId === monitor.id && notification.alertType === 'Alert'),
-      caution: site.openNotifications.some((notification) => notification.monitorId === monitor.id && notification.alertType === 'Caution'),
+      alert: site.openNotifications.some(
+        (notification) => notification.monitorId === monitor.id && notification.alertType === 'Alert',
+      ),
+      caution: site.openNotifications.some(
+        (notification) => notification.monitorId === monitor.id && notification.alertType === 'Caution',
+      ),
       siteName: site.siteName,
       fleetNumber: monitor.fleetNumber,
       serialId: monitor.serialId ?? '',
       lastDataTime: monitor.lastDataTime,
-      what3words: monitor.what3words ?? ''
+      what3words: monitor.what3words ?? '',
     }));
 }
 
@@ -1553,7 +1861,7 @@ function normalizeOperatingHours(
     satEndTime?: string | null;
     sunStartTime?: string | null;
     sunEndTime?: string | null;
-  } | null
+  } | null,
 ) {
   const byDay = new Map((operatingHours ?? []).map((hours) => [hours.dayOfWeek, hours]));
   return siteOperatingDays.map((day) => {
@@ -1563,7 +1871,7 @@ function normalizeOperatingHours(
         ...day,
         ...existing,
         startTime: existing.startTime ?? '',
-        endTime: existing.endTime ?? ''
+        endTime: existing.endTime ?? '',
       };
     }
     return legacyOperatingHours(day, legacy);
@@ -1571,14 +1879,17 @@ function normalizeOperatingHours(
 }
 
 // Function summary: Converts the older weekday/Saturday/Sunday fields into one per-day operating-hours row.
-function legacyOperatingHours(day: SiteOperatingHours, legacy?: {
-  startTime?: string | null;
-  endTime?: string | null;
-  satStartTime?: string | null;
-  satEndTime?: string | null;
-  sunStartTime?: string | null;
-  sunEndTime?: string | null;
-} | null) {
+function legacyOperatingHours(
+  day: SiteOperatingHours,
+  legacy?: {
+    startTime?: string | null;
+    endTime?: string | null;
+    satStartTime?: string | null;
+    satEndTime?: string | null;
+    sunStartTime?: string | null;
+    sunEndTime?: string | null;
+  } | null,
+) {
   if (!legacy) {
     return { ...day };
   }

@@ -187,7 +187,7 @@ async function requestJson<T>(path: string, init: RequestInit, options: ApiReque
     if (isAbortError(error)) {
       throw error;
     }
-    throw new Error(apiUnavailableMessage);
+    throw new Error(apiUnavailableMessage, { cause: error });
   }
   throwIfAborted(options.signal);
   if (!response.ok) {

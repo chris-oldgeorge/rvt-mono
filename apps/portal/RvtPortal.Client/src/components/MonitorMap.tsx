@@ -20,12 +20,10 @@ export function MonitorMap({ markers, label = 'Leaflet monitor map' }: MonitorMa
   const mapNode = useRef<HTMLDivElement | null>(null);
   const markerSignature = leafletMarkerSignature(markers);
   const leafletMarkers = useRef(markers);
-  const leafletSignature = useRef(markerSignature);
 
-  if (leafletSignature.current !== markerSignature) {
-    leafletSignature.current = markerSignature;
+  useEffect(() => {
     leafletMarkers.current = markers;
-  }
+  }, [markerSignature, markers]);
 
   useEffect(() => {
     const currentMarkers = leafletMarkers.current;
@@ -47,7 +45,7 @@ export function MonitorMap({ markers, label = 'Leaflet monitor map' }: MonitorMa
         map.setView(averageLatLng(currentMarkers), mapZoomLevel(currentMarkers.length));
         leaflet
           .tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
+            attribution: '&copy; OpenStreetMap contributors',
           })
           .addTo(map);
         const bounds = leaflet.latLngBounds(latLngs);
@@ -58,8 +56,8 @@ export function MonitorMap({ markers, label = 'Leaflet monitor map' }: MonitorMa
                 className: `leaflet-dashboard-pin ${markerStatusClass(marker)}`,
                 html: '<span></span>',
                 iconSize: [24, 24],
-                iconAnchor: [12, 12]
-              })
+                iconAnchor: [12, 12],
+              }),
             })
             .bindTooltip(markerLabel(marker))
             .addTo(map);
@@ -93,7 +91,11 @@ export function MonitorMap({ markers, label = 'Leaflet monitor map' }: MonitorMa
       <div className="leaflet-map" ref={mapNode} aria-label={label} />
       <div className="map-pin-layer" aria-label="Monitor marker overview">
         {markers.map((marker) => (
-          <span className={`map-pin ${markerStatusClass(marker)}`} style={markerPosition(marker, markers)} key={marker.deploymentId}>
+          <span
+            className={`map-pin ${markerStatusClass(marker)}`}
+            style={markerPosition(marker, markers)}
+            key={marker.deploymentId}
+          >
             <MapPin size={20} aria-hidden="true" />
             <span className="sr-only">{markerLabel(marker)}</span>
           </span>
@@ -106,18 +108,20 @@ export function MonitorMap({ markers, label = 'Leaflet monitor map' }: MonitorMa
 
 // Function summary: Builds a semantic map-marker key so Leaflet is not recreated for unchanged marker content.
 function leafletMarkerSignature(markers: ReadonlyArray<MapMonitorMarker>) {
-  return JSON.stringify(markers.map((marker) => [
-    marker.monitorId,
-    marker.deploymentId,
-    marker.latitude,
-    marker.longitude,
-    marker.typeOfMonitor,
-    marker.offline,
-    marker.alert,
-    marker.caution,
-    marker.fleetNumber,
-    marker.serialId
-  ]));
+  return JSON.stringify(
+    markers.map((marker) => [
+      marker.monitorId,
+      marker.deploymentId,
+      marker.latitude,
+      marker.longitude,
+      marker.typeOfMonitor,
+      marker.offline,
+      marker.alert,
+      marker.caution,
+      marker.fleetNumber,
+      marker.serialId,
+    ]),
+  );
 }
 
 // Function summary: Renders a compact list of monitor map markers.
@@ -176,10 +180,13 @@ function markerStatusClass(marker: MapMonitorMarker) {
 
 // Function summary: Handles the average lat lng workflow for this module.
 function averageLatLng(markers: ReadonlyArray<MapMonitorMarker>): [number, number] {
-  const total = markers.reduce((current, marker) => ({
-    lat: current.lat + marker.latitude,
-    lng: current.lng + marker.longitude
-  }), { lat: 0, lng: 0 });
+  const total = markers.reduce(
+    (current, marker) => ({
+      lat: current.lat + marker.latitude,
+      lng: current.lng + marker.longitude,
+    }),
+    { lat: 0, lng: 0 },
+  );
   return [total.lat / markers.length, total.lng / markers.length];
 }
 
@@ -193,7 +200,7 @@ function markerPosition(marker: MapMonitorMarker, markers: ReadonlyArray<MapMoni
   const maxLng = Math.max(...longitudes);
   return {
     left: `${rangePosition(marker.longitude, minLng, maxLng)}%`,
-    top: `${100 - rangePosition(marker.latitude, minLat, maxLat)}%`
+    top: `${100 - rangePosition(marker.latitude, minLat, maxLat)}%`,
   };
 }
 

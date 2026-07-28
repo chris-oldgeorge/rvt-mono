@@ -900,6 +900,32 @@ assert_status 0
 [[ ! -e "$hostile_lock" ]] ||
   fail "stale lock was not reclaimed with hostile PATH"
 
+# A live sentinel with an unavailable fixed probe fails closed and retains its lock.
+create_repo unavailable-process-probe-baseline-lock-owner
+unavailable_probe_lock="$last_repo/baseline.json.update.lock"
+mkdir "$unavailable_probe_lock"
+write_json "$unavailable_probe_lock/owner.json" \
+  "{\"version\":2,\"pid\":$$,\"sentinelPid\":$$,\"token\":\"unobservable-token\",\"createdAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+node -e '
+  const fs = require("fs");
+  const file = process.argv[1];
+  const source = fs.readFileSync(file, "utf8");
+  const updated = source.replace(
+    /const psCommand = process\.platform === '\''darwin'\'' \? '\''\/bin\/ps'\'' : '\''\/usr\/bin\/ps'\'';/,
+    "const psCommand = \"/nonexistent/rvt-process-probe\";"
+  );
+  if (updated === source) process.exit(1);
+  fs.writeFileSync(file, updated);
+' "$last_repo/scripts/engineering-standards/verify.mjs" ||
+  fail "could not install unavailable process-probe fixture"
+run_verify --all --update-baseline
+assert_status 2
+assert_output "observe baseline-update lock sentinel"
+[[ -d "$unavailable_probe_lock" ]] ||
+  fail "unavailable fixed process probe reclaimed a live lock"
+rm "$unavailable_probe_lock/owner.json"
+rmdir "$unavailable_probe_lock"
+
 # Once a successor reclaims a dead sentinel, a stopped predecessor cannot
 # resume and mutate with its stale token.
 create_repo baseline-lock-successor-safety

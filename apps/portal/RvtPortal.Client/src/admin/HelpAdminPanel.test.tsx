@@ -180,6 +180,36 @@ describe('HelpAdminPanel', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Unpublish Dust FAQ' })).toHaveFocus());
   });
 
+  it('keeps newer filter results when an older mutation refresh resolves last', async () => {
+    let resolveMutationRefresh!: (value: HelpAdminOverviewResponse) => void;
+    let resolveDraftFilter!: (value: HelpAdminOverviewResponse) => void;
+    api.queryAdminHelp
+      .mockResolvedValueOnce(overview([existingArticle]))
+      .mockImplementationOnce(
+        () => new Promise((resolve) => {
+          resolveMutationRefresh = resolve;
+        }),
+      )
+      .mockImplementationOnce(
+        () => new Promise((resolve) => {
+          resolveDraftFilter = resolve;
+        }),
+      );
+    renderHelpAdmin();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Publish Dust FAQ' }));
+    await waitFor(() => expect(api.queryAdminHelp).toHaveBeenCalledTimes(2));
+    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'Draft' } });
+    await waitFor(() => expect(api.queryAdminHelp).toHaveBeenCalledTimes(3));
+
+    await act(async () => resolveDraftFilter(overview([secondArticle])));
+    expect(await screen.findByRole('button', { name: 'Publish Noise FAQ' })).toBeInTheDocument();
+    await act(async () => resolveMutationRefresh(overview([existingArticle])));
+
+    expect(screen.getByRole('button', { name: 'Publish Noise FAQ' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Publish Dust FAQ' })).not.toBeInTheDocument();
+  });
+
   it('focuses the next publication action when the changed article leaves the status filter', async () => {
     api.queryAdminHelp
       .mockResolvedValueOnce(overview([existingArticle, secondArticle]))

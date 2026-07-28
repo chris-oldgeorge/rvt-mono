@@ -23,7 +23,7 @@
 // - 2026-06-25 pending Covered vibration alert-level peak-only display without averaging period.
 // - 2026-07-08 pending Waited for routed panels to settle in navigation tests to remove React act warnings.
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, AppErrorBoundary } from './App';
 
@@ -328,6 +328,45 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Acme Environmental')).toBeInTheDocument());
     expect(fetchedUrls().some((url) => url.pathname === '/api/companies' && url.searchParams.get('searchText') === 'Acme Environmental')).toBe(true);
+  });
+
+  it('keeps the latest company suggestions when an older lookup resolves last', async () => {
+    let resolveAcme!: (response: Response) => void;
+    let resolveRvt!: (response: Response) => void;
+    globalThis.history.replaceState(null, '', '/companies');
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) => {
+        if (url.pathname === '/api/lookups/companies' && url.searchParams.get('query') === 'acme') {
+          return new Promise((resolve) => {
+            resolveAcme = resolve;
+          });
+        }
+
+        if (url.pathname === '/api/lookups/companies' && url.searchParams.get('query') === 'rvt') {
+          return new Promise((resolve) => {
+            resolveRvt = resolve;
+          });
+        }
+
+        return undefined;
+      },
+    });
+
+    render(<App />);
+
+    const search = await screen.findByPlaceholderText(/search companies/i);
+    fireEvent.change(search, { target: { value: 'acme' } });
+    await waitFor(() => expect(resolveAcme).toBeTypeOf('function'));
+    fireEvent.change(search, { target: { value: 'rvt' } });
+    await waitFor(() => expect(resolveRvt).toBeTypeOf('function'));
+
+    await act(async () => resolveRvt(jsonResponse({ kind: 'companies', query: 'rvt', take: 8, results: ['RVT Group'] })));
+    expect(await screen.findByRole('button', { name: 'RVT Group' })).toBeInTheDocument();
+    await act(async () => resolveAcme(jsonResponse({ kind: 'companies', query: 'acme', take: 8, results: ['Acme Environmental'] })));
+
+    expect(screen.getByRole('button', { name: 'RVT Group' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Acme Environmental' })).not.toBeInTheDocument();
   });
 
   it('returns admin edit forms to the filtered list that opened them', async () => {

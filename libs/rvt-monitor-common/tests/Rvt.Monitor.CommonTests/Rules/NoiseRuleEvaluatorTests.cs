@@ -51,9 +51,11 @@ public sealed class NoiseRuleEvaluatorTests
     {
         public bool AlertWasPublished { get; private set; }
 
-        public void PublishDataInserted(DateTime timestamp, string serialId, int? customerId = null)
-        {
-        }
+        public Task PublishDataInsertedAsync(
+            DateTime timestamp,
+            string serialId,
+            int? customerId = null,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public void PublishAlert(DateTime timestamp, string serialId, string message, int? customerId = null)
         {

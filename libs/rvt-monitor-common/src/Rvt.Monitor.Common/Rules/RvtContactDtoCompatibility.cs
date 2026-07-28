@@ -108,16 +108,6 @@ public class RvtContactDto
             SendStartTime,
             SendEndTime);
 
-    public static RvtContactDto FromNotificationDto(Rvt.Monitor.Common.Notifications.RvtContactDto contact) =>
-        new(
-            FromNotificationContactMethod(contact.ContactMethod),
-            contact.EmailAddress,
-            contact.PhoneNumber,
-            contact.Email,
-            contact.SMS,
-            contact.SendStartTime,
-            contact.SendEndTime);
-
     private static Rvt.Monitor.Common.Notifications.ContactMethod ToNotificationContactMethod(ContactMethod contactMethod) =>
         contactMethod switch
         {
@@ -125,15 +115,6 @@ public class RvtContactDto
             ContactMethod.SMS => Rvt.Monitor.Common.Notifications.ContactMethod.SMS,
             ContactMethod.SMSAndEmail => Rvt.Monitor.Common.Notifications.ContactMethod.SMSAndEmail,
             _ => Rvt.Monitor.Common.Notifications.ContactMethod.None
-        };
-
-    private static ContactMethod FromNotificationContactMethod(Rvt.Monitor.Common.Notifications.ContactMethod contactMethod) =>
-        contactMethod switch
-        {
-            Rvt.Monitor.Common.Notifications.ContactMethod.Email => ContactMethod.Email,
-            Rvt.Monitor.Common.Notifications.ContactMethod.SMS => ContactMethod.SMS,
-            Rvt.Monitor.Common.Notifications.ContactMethod.SMSAndEmail => ContactMethod.SMSAndEmail,
-            _ => ContactMethod.None
         };
 
     public override string ToString()

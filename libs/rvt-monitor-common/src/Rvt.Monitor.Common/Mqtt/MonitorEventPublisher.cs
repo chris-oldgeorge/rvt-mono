@@ -9,19 +9,13 @@ namespace Rvt.Monitor.Common.Mqtt;
 // Summary: Publishes shared monitor lifecycle events (data inserted, alert raised) to the RVT MQTT topics.
 public interface IMonitorEventPublisher
 {
-    void PublishDataInserted(DateTime timestamp, string serialId, int? customerId = null);
-
     void PublishAlert(DateTime timestamp, string serialId, string message, int? customerId = null);
 
     Task PublishDataInsertedAsync(
         DateTime timestamp,
         string serialId,
         int? customerId = null,
-        CancellationToken cancellationToken = default)
-    {
-        PublishDataInserted(timestamp, serialId, customerId);
-        return Task.CompletedTask;
-    }
+        CancellationToken cancellationToken = default);
 
     Task PublishAlertAsync(
         DateTime timestamp,
@@ -59,12 +53,6 @@ public class MonitorEventPublisher : IMonitorEventPublisher
     /// evaluator. Callers that can await should use the asynchronous members;
     /// every asynchronous import path already does.
     /// </summary>
-    public void PublishDataInserted(DateTime timestamp, string serialId, int? customerId = null)
-    {
-        PublishDataInsertedAsync(timestamp, serialId, customerId).GetAwaiter().GetResult();
-    }
-
-    /// <inheritdoc cref="PublishDataInserted" />
     public void PublishAlert(DateTime timestamp, string serialId, string message, int? customerId = null)
     {
         PublishAlertAsync(timestamp, serialId, message, customerId).GetAwaiter().GetResult();

@@ -203,6 +203,7 @@ public sealed class RepositoryLayoutTests
 
         StringAssert.Contains(exception.Message, redirectedOutput);
         StringAssert.Contains(exception.Message, sourceFile);
+        StringAssert.Contains(exception.Message, "RVT_MONOREPO_ROOT");
     }
 
     [TestMethod]

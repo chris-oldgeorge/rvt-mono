@@ -22,17 +22,17 @@ public static class RepositoryLayout
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceFilePath);
 
-        var sourceDirectory = Path.GetDirectoryName(sourceFilePath) ??
+        string sourceDirectory = Path.GetDirectoryName(sourceFilePath) ??
             throw new ArgumentException(
                 "The source file path must include a directory.",
                 nameof(sourceFilePath));
-        var startDirectories = new[] { outputDirectory, sourceDirectory }
+        IEnumerable<string> startDirectories = new[] { outputDirectory, sourceDirectory }
             .Select(Path.GetFullPath)
             .Distinct(StringComparer.Ordinal);
 
-        foreach (var startDirectory in startDirectories)
+        foreach (string startDirectory in startDirectories)
         {
-            var directory = new DirectoryInfo(startDirectory);
+            DirectoryInfo? directory = new(startDirectory);
             while (directory is not null)
             {
                 if (IsRepositoryRoot(directory.FullName))
@@ -51,7 +51,7 @@ public static class RepositoryLayout
 
     private static bool IsRepositoryRoot(string path)
     {
-        var gitPath = Path.Combine(path, ".git");
+        string gitPath = Path.Combine(path, ".git");
         return File.Exists(Path.Combine(path, "Rvt.Mono.slnx")) &&
             (Directory.Exists(gitPath) || File.Exists(gitPath));
     }

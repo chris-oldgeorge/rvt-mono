@@ -167,6 +167,7 @@ run_verify() {
     RVT_FAKE_EXPECT_CONTENT="${RVT_FAKE_EXPECT_CONTENT:-}" \
     RVT_FAKE_LOG="$last_repo/tool.log" \
     RVT_FAKE_DOTNET_REPORT="${RVT_FAKE_DOTNET_REPORT:-}" \
+    RVT_FAKE_DOTNET_CANONICAL_REPORT="${RVT_FAKE_DOTNET_CANONICAL_REPORT:-0}" \
     RVT_FAKE_DOTNET_STATUS="${RVT_FAKE_DOTNET_STATUS:-0}" \
     RVT_FAKE_DOTNET_FAIL_PHASE="${RVT_FAKE_DOTNET_FAIL_PHASE:-}" \
     RVT_FAKE_DOTNET_SKIP_REPORT="${RVT_FAKE_DOTNET_SKIP_REPORT:-0}" \
@@ -174,6 +175,7 @@ run_verify() {
     RVT_FAKE_PRETTIER_OUTPUT="${RVT_FAKE_PRETTIER_OUTPUT:-}" \
     RVT_FAKE_ESLINT_STATUS="${RVT_FAKE_ESLINT_STATUS:-0}" \
     RVT_FAKE_ESLINT_REPORT="${RVT_FAKE_ESLINT_REPORT:-}" \
+    RVT_FAKE_ESLINT_CANONICAL_REPORT="${RVT_FAKE_ESLINT_CANONICAL_REPORT:-0}" \
       scripts/verify-engineering-standards.sh "$@" 2>&1
   )"
   last_status=$?
@@ -190,10 +192,10 @@ run_verify_default_commands() {
     RVT_FAKE_EXPECT_CONTENT="${RVT_FAKE_EXPECT_CONTENT:-}" \
     RVT_FAKE_REQUIRE_ASSET="${RVT_FAKE_REQUIRE_ASSET:-}" \
     RVT_FAKE_LOG="$last_repo/tool.log" \
-    RVT_FAKE_DOTNET_REPORT="" RVT_FAKE_DOTNET_STATUS=0 \
+    RVT_FAKE_DOTNET_REPORT="" RVT_FAKE_DOTNET_CANONICAL_REPORT=0 RVT_FAKE_DOTNET_STATUS=0 \
     RVT_FAKE_DOTNET_FAIL_PHASE="" RVT_FAKE_DOTNET_SKIP_REPORT=0 \
     RVT_FAKE_PRETTIER_STATUS=0 RVT_FAKE_PRETTIER_OUTPUT="" \
-    RVT_FAKE_ESLINT_STATUS=0 RVT_FAKE_ESLINT_REPORT="" \
+    RVT_FAKE_ESLINT_STATUS=0 RVT_FAKE_ESLINT_REPORT="" RVT_FAKE_ESLINT_CANONICAL_REPORT=0 \
       scripts/verify-engineering-standards.sh "$@" 2>&1
   )"
   last_status=$?
@@ -290,6 +292,12 @@ done
 
 if [[ "$RVT_FAKE_DOTNET_SKIP_REPORT" != 1 &&
       -n "$report" &&
+      "$RVT_FAKE_DOTNET_CANONICAL_REPORT" == 1 &&
+      ( -z "$RVT_FAKE_DOTNET_FAIL_PHASE" || "$phase" == "$RVT_FAKE_DOTNET_FAIL_PHASE" ) ]]; then
+  printf '[{"FilePath":"%s/src/Clock.cs","FileChanges":[{"LineNumber":5,"DiagnosticId":"IDE0055","FormatDescription":"canonical diagnostic"}]}]\n' \
+    "$(pwd -P)" > "$report"
+elif [[ "$RVT_FAKE_DOTNET_SKIP_REPORT" != 1 &&
+      -n "$report" &&
       -n "$RVT_FAKE_DOTNET_REPORT" &&
       ( -z "$RVT_FAKE_DOTNET_FAIL_PHASE" || "$phase" == "$RVT_FAKE_DOTNET_FAIL_PHASE" ) ]]; then
   cp "$RVT_FAKE_DOTNET_REPORT" "$report"
@@ -342,6 +350,9 @@ done
 printf '\n' >> "$RVT_FAKE_LOG"
 if [[ -n "$RVT_FAKE_ESLINT_REPORT" ]]; then
   cat "$RVT_FAKE_ESLINT_REPORT"
+elif [[ "$RVT_FAKE_ESLINT_CANONICAL_REPORT" == 1 ]]; then
+  printf '[{"filePath":"%s/src/app.ts","messages":[{"ruleId":"@typescript-eslint/no-unused-vars","severity":2,"message":"canonical diagnostic","line":2}]}]\n' \
+    "$(pwd -P)"
 elif [[ "$has_ignored_schema" -eq 1 && "$suppress_ignored_warning" -eq 0 ]]; then
   printf '[{"filePath":"%s/src/api/schema.d.ts","messages":[{"ruleId":null,"fatal":false,"severity":1,"message":"File ignored because of a matching ignore pattern. Use \\"--no-ignore\\" to disable file ignore settings or use \\"--no-warn-ignored\\" to suppress this warning.","nodeType":null}]}]\n' "$PWD"
 elif [[ "$has_ordinary_warning" -eq 1 && "$quiet" -eq 0 ]]; then
@@ -1329,6 +1340,38 @@ RVT_FAKE_EXPECT_CONTENT="HeadHour" RVT_FAKE_REQUIRE_ASSET="src/obj/restore.senti
   run_verify_default_commands --base "$base_revision" --head "$head_revision"
 assert_status 0
 assert_log_contains "dotnet"
+assert_log_contains "prettier cwd="
+assert_log_contains "eslint cwd="
+
+# macOS exposes temporary directories through both lexical (/var) and physical
+# (/private/var) paths. Materialized revisions must use the physical root so
+# tool reports remain contained for both .NET and Portal diagnostics.
+create_repo exact-range-canonical-dotnet-report
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+sed -i.bak 's/public int Hour/public int HeadHour/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Clock.cs
+git -C "$last_repo" commit -q -m "requested C# head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+RVT_FAKE_DOTNET_CANONICAL_REPORT=1 \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 1
+assert_output "changed surface dotnet-format-style"
+assert_log_contains "dotnet"
+
+create_repo exact-range-canonical-portal-report
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf 'export const headOnly = true;\n' >> "$last_repo/apps/portal/RvtPortal.Client/src/app.ts"
+git -C "$last_repo" add apps/portal/RvtPortal.Client/src/app.ts
+git -C "$last_repo" commit -q -m "requested Portal head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+git -C "$last_repo" checkout -q --detach "$base_revision"
+RVT_FAKE_ESLINT_CANONICAL_REPORT=1 RVT_FAKE_ESLINT_STATUS=1 \
+  run_verify --base "$base_revision" --head "$head_revision"
+assert_status 1
+assert_output "changed surface eslint"
 assert_log_contains "prettier cwd="
 assert_log_contains "eslint cwd="
 

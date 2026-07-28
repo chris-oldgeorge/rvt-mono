@@ -408,9 +408,22 @@ function materializeRevision(repoRoot, revision) {
     rmSync(temporaryRoot, { recursive: true, force: true });
     throw new InvocationError(`Git could not materialize requested head: ${result.stderr.trim()}`);
   }
+  let root;
+  try {
+    root = realpathSync(checkoutRoot);
+  } catch (error) {
+    const removal = gitResult(repoRoot, ['worktree', 'remove', '--force', checkoutRoot]);
+    rmSync(temporaryRoot, { recursive: true, force: true });
+    const cleanupDetail = removal.status === 0
+      ? ''
+      : `; Git could not remove requested-head worktree: ${removal.stderr.trim()}`;
+    throw new InvocationError(
+      `Git materialized requested head at an unreadable worktree: ${error.message}${cleanupDetail}`
+    );
+  }
   let cleaned = false;
   return {
-    root: checkoutRoot,
+    root,
     cleanup() {
       if (cleaned) return;
       cleaned = true;

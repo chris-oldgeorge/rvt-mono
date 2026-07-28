@@ -16,6 +16,10 @@ Required settings:
 - `Quartz__ScheduledReportsCron`
 - `Quartz__TimeZone`
 
+`http://+:8080` is internal-container traffic only. Production TLS must
+terminate at managed ingress or a reverse proxy; direct public exposure of port
+8080 is prohibited.
+
 `ConnectionStrings__ReportingDatabase` is the required deployment source for
 database credentials. Set it through the target environment or secret store;
 the committed application default intentionally contains only the host, port,

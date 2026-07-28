@@ -42,6 +42,34 @@ Publish artifact checks:
 - A non-API route returns the SPA shell.
 - An unknown `/api/*` route returns `application/problem+json`.
 
+## Help Asset URL Release Audit
+
+1. Publish and deploy the `RvtPortal.Spa` and `RVT.ReleaseAudit` artifacts from
+   one revision.
+2. Apply EF migrations and `RVT.SchemaDeploy`.
+3. Supply a least-privilege read-only connection through
+   `RVT_RELEASE_AUDIT_CONNECTION`.
+4. Run `help-asset-urls` with the environment, deployed revision, and receipt
+   path:
+
+   ```bash
+   RVT_RELEASE_AUDIT_CONNECTION='<secret connection string>' \
+   dotnet apps/portal/artifacts/release-audit/RVT.ReleaseAudit.dll \
+     help-asset-urls \
+     --environment production \
+     --revision '<deployed git sha>' \
+     --receipt 'artifacts/release/help-asset-urls-production.json'
+   ```
+
+5. Require exit `0` and a complete zero-finding receipt for every target
+   database before enabling Help Admin.
+6. Treat exit `10`, `2`, `3`, or a missing receipt as blocked.
+7. Retain receipts in the release evidence store, never in source control.
+
+The command's connection-string placeholder is documentation only. Operators
+must not put a connection in shell history, command arguments, logs, or
+receipts.
+
 ## Role Journey Sign-Off
 
 Run these journeys in staging against the published `RvtPortal.Spa` artifact.
@@ -121,6 +149,7 @@ Clean-repo expectations:
 | API tests | Full `RvtPortal.Spa.Tests` suite passes. | CI and Phase 12 notes. |
 | Client tests | Lint, Vite build, Vitest, and Playwright pass. | CI/local verification. |
 | Publish | `dotnet publish` produces SPA host artifact with `wwwroot/index.html`. | CI/local publish folder. |
+| Help asset URLs | `RVT.ReleaseAudit help-asset-urls` exits `0` with a complete zero-finding receipt for every target database. | Release evidence store; never source control. |
 | Security | NuGet and npm audits show no unresolved vulnerable packages. | Phase 11/12 verification. |
 | Parity | `PARITY_MATRIX.md` preserves the historical MVC action and view classification evidence. | Release docs and readiness test. |
 | Rollback | Last MVC artifact/config snapshot is identified. | Release owner sign-off. |

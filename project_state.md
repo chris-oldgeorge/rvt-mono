@@ -1,5 +1,120 @@
 # Project State
 
+## R2 Help asset URL release audit implemented; operator receipt pending — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- This top checkpoint is the current authority for the Help asset URL release
+  audit. It supersedes the provisional Task 7 checkpoint and every lower R2
+  implementation/next-step statement while retaining the lower sections as
+  historical evidence.
+- Current branch: `codex/help-asset-url-release-audit`. The implementation
+  sequence after approved base `129419a` is:
+  `325074a` (implementation plan), `9dfafef` (transaction test seam),
+  `e4dd080` (shared URL policy), `3c102ba` (behavioral policy tests),
+  `a38e4f8` (mutation-policy delegation), `f574299` (audit behavior-test
+  refinement), `369052e` (URL-limit behavior cleanup), `88c018e` (audit core),
+  `d29f0ec` (read-only audit runner), `e5aac08` (receipt-path hardening),
+  `9f307b2` (namespaced entry-point clarification), `76fde37` (transaction
+  proof), `a61d580` (solution registration and SQL retirement), `c3534a7`
+  (artifact publishing and operator documentation), `d989f66` (Task 7 stale
+  SQL-guidance correction), and `8f69d82` (solution-membership ratchet
+  correction).
+- `apps/portal/RvtPortal.Application/Help/HelpAssetUrlPolicy.cs` is the sole
+  BCL-only URL authority.
+  `apps/portal/RvtPortal.Application/Help/HelpMutationValidator.cs` delegates
+  mutation validation to it. The shared corpus is
+  `apps/portal/RvtPortal.Application.Tests/Help/HelpAssetUrlPolicyCases.cs`;
+  pure policy coverage is in
+  `apps/portal/RvtPortal.Application.Tests/Help/HelpAssetUrlPolicyTests.cs`,
+  and mutation/audit parity, receipt secrecy, exit behavior, classification,
+  and opt-in transaction coverage are in
+  `apps/portal/RvtPortal.Spa.Tests/HelpAssetUrlAuditTests.cs` and
+  `apps/portal/RvtPortal.Spa.Tests/HelpApplicationServiceTests.cs`.
+- The isolated audit adapter is
+  `apps/portal/RVT.ReleaseAudit/RVT.ReleaseAudit.csproj`, with its entry point,
+  option parser, reader/classifier, and receipt writer in `Program.cs`,
+  `ReleaseAuditOptions.cs`, and `HelpAssetUrlAudit.cs`. It reads the fixed
+  `public.help_asset` relation in a repeatable-read, read-only transaction,
+  classifies every row through the application policy, rolls the transaction
+  back, and writes a deterministic receipt containing IDs and stable violation
+  codes but no URLs or credentials.
+- `RVT.ReleaseAudit` is registered in both `Rvt.Mono.slnx` and
+  `apps/portal/RvtPortal.Spa.sln`.
+  `apps/portal/scripts/verify-backend.sh` publishes and asserts
+  `artifacts/release-audit/RVT.ReleaseAudit.dll` alongside
+  `artifacts/backend/RvtPortal.Spa.dll`. These local artifact directories are
+  generated verification output, not tracked release evidence. Audit receipts
+  belong in the release evidence store outside source control.
+- Operator and maintenance contracts are recorded in
+  `apps/portal/README.md`,
+  `docs/release/portal/CUTOVER_RUNBOOK.md`,
+  `docs/development/portal/development-guidelines.md`,
+  `docs/release/portal/FUNCTIONALITY_READINESS_MATRIX.md`, and
+  `docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md`.
+  The required operator sequence is: deploy the Portal and audit artifacts
+  from one revision; apply EF migrations and `RVT.SchemaDeploy`; provide a
+  least-privilege read-only connection through the environment; run
+  `help-asset-urls`; and retain the receipt outside the repository.
+- Variable definitions contain no values:
+  - `RVT_RELEASE_AUDIT_CONNECTION` is the only runtime source for the targeted
+    release database connection;
+  - `RVT_TEST_POSTGRES_CONNECTION` enables only the opt-in disposable
+    PostgreSQL transaction test, which uses `pg_temp.help_asset` and otherwise
+    skips.
+- Stable policy violation kinds are `required`, `too_long`, `not_canonical`,
+  `unsafe_character`, `unsupported_relative_path`,
+  `absolute_https_required`, `host_required`, `user_info_forbidden`, and
+  `malformed_uri`. Stable process outcomes are exit `0` for a complete
+  zero-finding audit, `10` for a complete audit with findings, `2` for invalid
+  input or a missing runtime connection, and `3` for database/read,
+  cancellation, or receipt-write failure. Exit `10`, `2`, `3`, a missing
+  receipt, or any finding blocks Help Admin enablement.
+- The obsolete
+  `apps/portal/docs/release/validate-help-asset-urls.sql` is deleted. Active
+  Portal/release documentation no longer invokes it. Its remaining text
+  references are confined to superseded implementation plans and historical
+  checkpoints; the executable audit is the live production-query authority.
+- Fresh final verification used
+  `/private/tmp/rvt-dotnet-sdk-10.0.302/dotnet`, ran serially with both database
+  variables unset, and produced:
+  - solution restore: all projects up-to-date in `0.59s`, 0 warnings and
+    0 errors;
+  - Release solution build: success in `10.54s`, 0 warnings and 0 errors;
+  - Application tests: 75 passed, 0 skipped, 0 failed;
+  - SPA tests: 544 passed, 11 opt-in database tests skipped, 0 failed;
+  - combined tests: 619 passed, 11 skipped, 0 failed, 630 total;
+  - `tests/verify-mono-solution.test.sh`,
+    `tests/verify-rvt-common-source-boundary.test.sh`, and
+    `scripts/verify-engineering-standards.sh --working-tree`: passed, with the
+    standards ratchet reporting baseline decreases and no increase; and
+  - `git diff --check`: passed.
+- Verification limitation: the approved Task 8 plan named the nonexistent
+  `tests/verify-rvt-mono-solution.test.sh`. Repository inventory and history
+  confirmed the tracked aggregate ratchet is
+  `tests/verify-mono-solution.test.sh`; the owner authorized that exact
+  substitution. VSTest and the engineering-standards disposable-worktree
+  check required minimum sandbox escalation for local socket/worktree access;
+  the commands and scope were otherwise unchanged.
+- The no-secret audit reviewed all 50 matches. They are explicit CI,
+  local-test/local-development sentinel values or documentation placeholders;
+  no release credential is committed. The retired-SQL audit reviewed all nine
+  matches in the pre-checkpoint tree and the new checkpoint reference (ten
+  final-tree matches); they are historical/superseded records, not an active
+  script or operator instruction.
+- No production or release database or credential was used. Final verification
+  made no database connection. The earlier transaction proof used only a
+  disposable local PostgreSQL container and a connection-scoped
+  `pg_temp.help_asset` table.
+- Help Admin remains `CONDITIONAL` and R2 remains unchecked. Tool
+  implementation and local test evidence cannot make it `READY`; every target
+  release database still requires one complete zero-finding receipt produced
+  from the deployed revision.
+- R4 Portal blob client/service unification remains approved future pending
+  work and is not part of this implementation.
+- Next step: an operator must run the deployed audit against each target
+  release database and preserve each zero-finding receipt. Do not start R3 or
+  blob unification as the next action.
+
 ## R2 implementation plan authored; execution not started — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

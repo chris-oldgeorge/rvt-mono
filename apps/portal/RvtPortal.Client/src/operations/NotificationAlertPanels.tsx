@@ -8,19 +8,7 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
-import {
-  Bell,
-  Check,
-  ChevronLeft,
-  Edit3,
-  Eye,
-  Gauge,
-  Plus,
-  RefreshCcw,
-  Save,
-  Search,
-  Trash2
-} from 'lucide-react';
+import { Bell, Check, ChevronLeft, Edit3, Eye, Gauge, Plus, RefreshCcw, Save, Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
@@ -35,7 +23,7 @@ import {
   queryAlertLevels,
   queryNotifications,
   updateAlertLevel,
-  updateVibrationAlertLevels
+  updateVibrationAlertLevels,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
@@ -51,7 +39,7 @@ import type {
   QueryAlertLevelsRequest,
   QueryAlertLevelsResponse,
   QueryNotificationsRequest,
-  SortDirection
+  SortDirection,
 } from '../dtos';
 
 const pageSize = 10;
@@ -70,30 +58,36 @@ type AlertLevelsPanelProps = Readonly<{
   canManage?: boolean;
 }>;
 
-type AlertLevelRoute =
-  | { kind: 'list' }
-  | { kind: 'new' }
-  | { kind: 'edit'; levelId: string }
-  | { kind: 'vibration' };
+type AlertLevelRoute = { kind: 'list' } | { kind: 'new' } | { kind: 'edit'; levelId: string } | { kind: 'vibration' };
 
 // Function summary: Applies grid sort handler to the current configuration.
 function useGridSortHandler(
   setSortKey: (key: string) => void,
   setSortDir: (direction: SortDirection) => void,
-  setPage: (page: number) => void
+  setPage: (page: number) => void,
 ) {
-  return useCallback((key: string, direction: GridSortDirection) => {
-    setSortKey(key);
-    setSortDir(direction);
-    setPage(1);
-  }, [setPage, setSortDir, setSortKey]);
+  return useCallback(
+    (key: string, direction: GridSortDirection) => {
+      setSortKey(key);
+      setSortDir(direction);
+      setPage(1);
+    },
+    [setPage, setSortDir, setSortKey],
+  );
 }
 
 // Function summary: Renders the NotificationsPanel React component and wires its local UI behavior.
 export function NotificationsPanel({ locationPath, onNavigate, onRequestError }: OperationsPanelProps) {
   const route = parseNotificationRoute(locationPath);
   if (route.notificationId) {
-    return <NotificationDetailPanel notificationId={route.notificationId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <NotificationDetailPanel
+        notificationId={route.notificationId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
 
   return <NotificationListPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
@@ -102,7 +96,9 @@ export function NotificationsPanel({ locationPath, onNavigate, onRequestError }:
 // Function summary: Renders the NotificationListPanel React component and wires its local UI behavior.
 function NotificationListPanel({ locationPath, onNavigate, onRequestError }: OperationsPanelProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
-  const [state, setState] = useState<NotificationListState>(() => normalizeNotificationState(initialParams.get('state')));
+  const [state, setState] = useState<NotificationListState>(() =>
+    normalizeNotificationState(initialParams.get('state')),
+  );
   const [notifications, setNotifications] = useState<NotificationListItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [total, setTotal] = useState(0);
@@ -110,7 +106,9 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
   const [searchText, setSearchText] = useState(initialParams.get('q') ?? '');
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'notificationTime');
-  const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir'), 'Descending'));
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    normalizeSortDirection(initialParams.get('sortDir'), 'Descending'),
+  );
   const [closeNote, setCloseNote] = useState('');
   const [canClose, setCanClose] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -133,48 +131,81 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
             type="checkbox"
             onChange={(event) => toggleSelected(notification.id, event.target.checked)}
           />
-        )
+        ),
       },
-      { key: 'notificationTime', header: 'Time', sortable: true, render: (notification) => formatDateTime(notification.notificationTime) },
-      { key: 'fleetNumber', header: 'Fleet', sortable: true, render: (notification) => notification.fleetNumber || 'Unassigned' },
-      { key: 'siteName', header: 'Site', sortable: true, render: (notification) => notification.siteName || 'Not deployed' },
+      {
+        key: 'notificationTime',
+        header: 'Time',
+        sortable: true,
+        render: (notification) => formatDateTime(notification.notificationTime),
+      },
+      {
+        key: 'fleetNumber',
+        header: 'Fleet',
+        sortable: true,
+        render: (notification) => notification.fleetNumber || 'Unassigned',
+      },
+      {
+        key: 'siteName',
+        header: 'Site',
+        sortable: true,
+        render: (notification) => notification.siteName || 'Not deployed',
+      },
       { key: 'typeOfMonitor', header: 'Type', sortable: true, render: (notification) => notification.typeOfMonitor },
-      { key: 'limitName', header: 'Limit', sortable: true, render: (notification) => notification.limitName || notification.alertField },
-      { key: 'level', header: 'Level', sortable: true, align: 'end', render: (notification) => formatNumber(notification.level) },
+      {
+        key: 'limitName',
+        header: 'Limit',
+        sortable: true,
+        render: (notification) => notification.limitName || notification.alertField,
+      },
+      {
+        key: 'level',
+        header: 'Level',
+        sortable: true,
+        align: 'end',
+        render: (notification) => formatNumber(notification.level),
+      },
       {
         key: 'alertStatus',
         header: 'State',
         sortable: true,
-        render: (notification) => <NotificationStatusChip notification={notification} />
-      }
+        render: (notification) => <NotificationStatusChip notification={notification} />,
+      },
     ];
 
     if (showClosedNoteColumn) {
       nextColumns.push({
         key: 'closedNote',
         header: 'Closed note',
-        render: (notification) => notification.closedNote?.trim() ?? ''
+        render: (notification) => notification.closedNote?.trim() ?? '',
       });
     }
 
     return nextColumns;
   }, [selectedIds, showClosedNoteColumn]);
 
-  const query = useMemo<QueryNotificationsRequest>(() => ({
-    searchText,
-    page,
-    pageSize,
-    sort: sortKey,
-    sortDir,
-    state
-  }), [page, searchText, sortDir, sortKey, state]);
+  const query = useMemo<QueryNotificationsRequest>(
+    () => ({
+      searchText,
+      page,
+      pageSize,
+      sort: sortKey,
+      sortDir,
+      state,
+    }),
+    [page, searchText, sortDir, sortKey, state],
+  );
   const requestKey = JSON.stringify(query);
   const isLoading = completedRequestKey !== requestKey;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
 
   useEffect(() => {
     const controller = new AbortController();
-    globalThis.history.replaceState(null, '', buildNotificationsUrl({ state, searchText, page, sort: sortKey, sortDir }));
+    globalThis.history.replaceState(
+      null,
+      '',
+      buildNotificationsUrl({ state, searchText, page, sort: sortKey, sortDir }),
+    );
     queryNotifications(query, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) {
@@ -271,7 +302,11 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
       </div>
       <label className="search-box">
         <Search size={18} aria-hidden="true" />
-        <input value={searchText} onChange={(event) => handleSearch(event.target.value)} placeholder="Search notifications" />
+        <input
+          value={searchText}
+          onChange={(event) => handleSearch(event.target.value)}
+          placeholder="Search notifications"
+        />
       </label>
       {canClose && selectedIds.size > 0 && (
         <div className="batch-toolbar" aria-label="Batch notification close">
@@ -307,8 +342,8 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
           {
             label: 'View notification',
             icon: <Eye size={16} aria-hidden="true" />,
-            onClick: (notification) => onNavigate(withReturnTo(`/notifications/${notification.id}`, returnPath))
-          }
+            onClick: (notification) => onNavigate(withReturnTo(`/notifications/${notification.id}`, returnPath)),
+          },
         ]}
       />
     </section>
@@ -320,7 +355,7 @@ function NotificationDetailPanel({
   notificationId,
   locationPath,
   onNavigate,
-  onRequestError
+  onRequestError,
 }: OperationsPanelProps & Readonly<{ notificationId: string }>) {
   const [notification, setNotification] = useState<NotificationDetailResponse | null>(null);
   const [closeNote, setCloseNote] = useState('');
@@ -373,7 +408,11 @@ function NotificationDetailPanel({
             <span>Back</span>
           </button>
           {notification?.monitorId && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/monitors/${notification.monitorId}/alert-levels`, detailPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/monitors/${notification.monitorId}/alert-levels`, detailPath))}
+            >
               <Gauge size={17} aria-hidden="true" />
               <span>Alert Levels</span>
             </button>
@@ -394,13 +433,21 @@ function NotificationDetailPanel({
             <DetailItem label="Parameter" value={notification.alertField} />
             <DetailItem label="Level" value={formatNumber(notification.level)} />
             <DetailItem label="Limit" value={formatNumber(notification.limitOn)} />
-            <DetailItem label="Status" value={notification.closedTime ? 'Closed' : notification.alertStatus || 'Open'} />
+            <DetailItem
+              label="Status"
+              value={notification.closedTime ? 'Closed' : notification.alertStatus || 'Open'}
+            />
             <DetailItem label="Raised" value={formatDateTime(notification.notificationTime)} />
             <DetailItem label="Closed" value={formatDateTime(notification.closedTime) || 'Open'} />
-            {hasText(notification.closedNote) && <DetailItem label="Closed Note" value={notification.closedNote?.trim() ?? ''} />}
+            {hasText(notification.closedNote) && (
+              <DetailItem label="Closed Note" value={notification.closedNote?.trim() ?? ''} />
+            )}
             <DetailItem label="Location" value={notification.location || 'Not recorded'} />
             <DetailItem label="What3words" value={notification.what3words || 'Not recorded'} />
-            <DetailItem label="Graph Window" value={`${formatDateTime(notification.graphFromUtc)} to ${formatDateTime(notification.graphToUtc)}`} />
+            <DetailItem
+              label="Graph Window"
+              value={`${formatDateTime(notification.graphFromUtc)} to ${formatDateTime(notification.graphToUtc)}`}
+            />
           </div>
           {notification.canClose && !notification.closedTime && (
             <form className="batch-toolbar" onSubmit={handleClose} aria-label="Close notification">
@@ -452,8 +499,8 @@ function NotificationDetailPanel({
                 {
                   label: 'View notification',
                   icon: <Eye size={16} aria-hidden="true" />,
-                  onClick: (related) => onNavigate(withReturnTo(`/notifications/${related.id}`, detailPath))
-                }
+                  onClick: (related) => onNavigate(withReturnTo(`/notifications/${related.id}`, detailPath)),
+                },
               ]}
             />
           </section>
@@ -464,16 +511,44 @@ function NotificationDetailPanel({
 }
 
 // Function summary: Renders the AlertLevelsPanel React component and wires its local UI behavior.
-export function AlertLevelsPanel({ monitorId, locationPath, onNavigate, onRequestError, canManage = false }: AlertLevelsPanelProps) {
+export function AlertLevelsPanel({
+  monitorId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+  canManage = false,
+}: AlertLevelsPanelProps) {
   const route = parseAlertLevelRoute(locationPath);
   if (route.kind === 'new' && canManage) {
-    return <AlertLevelForm monitorId={monitorId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <AlertLevelForm
+        monitorId={monitorId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (route.kind === 'edit' && canManage) {
-    return <AlertLevelForm levelId={route.levelId} monitorId={monitorId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <AlertLevelForm
+        levelId={route.levelId}
+        monitorId={monitorId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (route.kind === 'vibration' && canManage) {
-    return <VibrationAlertLevelForm monitorId={monitorId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <VibrationAlertLevelForm
+        monitorId={monitorId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   return (
     <AlertLevelsListPanel
@@ -487,7 +562,13 @@ export function AlertLevelsPanel({ monitorId, locationPath, onNavigate, onReques
 }
 
 // Function summary: Renders the AlertLevelsListPanel React component and wires its local UI behavior.
-function AlertLevelsListPanel({ monitorId, locationPath, onNavigate, onRequestError, canManage }: AlertLevelsPanelProps) {
+function AlertLevelsListPanel({
+  monitorId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+  canManage,
+}: AlertLevelsPanelProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [response, setResponse] = useState<QueryAlertLevelsResponse | null>(null);
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
@@ -500,13 +581,16 @@ function AlertLevelsListPanel({ monitorId, locationPath, onNavigate, onRequestEr
   const backPath = returnToOr(locationPath, `/monitors/${monitorId}`);
   const returnPath = currentRoutePath(locationPath);
 
-  const query = useMemo<QueryAlertLevelsRequest>(() => ({
-    monitorId,
-    page,
-    pageSize,
-    sort: sortKey,
-    sortDir
-  }), [monitorId, page, sortDir, sortKey]);
+  const query = useMemo<QueryAlertLevelsRequest>(
+    () => ({
+      monitorId,
+      page,
+      pageSize,
+      sort: sortKey,
+      sortDir,
+    }),
+    [monitorId, page, sortDir, sortKey],
+  );
   const requestKey = JSON.stringify(query);
   const isLoading = completedRequestKey !== requestKey;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
@@ -564,13 +648,21 @@ function AlertLevelsListPanel({ monitorId, locationPath, onNavigate, onRequestEr
             <span>Back</span>
           </button>
           {manageAllowed && response?.typeOfMonitor === 'Vibration' && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/monitors/${monitorId}/alert-levels/vibration`, returnPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/monitors/${monitorId}/alert-levels/vibration`, returnPath))}
+            >
               <Edit3 size={17} aria-hidden="true" />
               <span>Vibration</span>
             </button>
           )}
           {manageAllowed && response?.typeOfMonitor !== 'Vibration' && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/monitors/${monitorId}/alert-levels/new`, returnPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/monitors/${monitorId}/alert-levels/new`, returnPath))}
+            >
               <Plus size={17} aria-hidden="true" />
               <span>Add Level</span>
             </button>
@@ -597,20 +689,23 @@ function AlertLevelsListPanel({ monitorId, locationPath, onNavigate, onRequestEr
         sortDirection={sortDir}
         onPageChange={setPage}
         onSortChange={handleSortChange}
-        rowActions={manageAllowed && response?.typeOfMonitor !== 'Vibration'
-          ? [
-              {
-                label: 'Edit alert level',
-                icon: <Edit3 size={16} aria-hidden="true" />,
-                onClick: (level) => onNavigate(withReturnTo(`/monitors/${monitorId}/alert-levels/${level.id}/edit`, returnPath))
-              },
-              {
-                label: 'Delete alert level',
-                icon: <Trash2 size={16} aria-hidden="true" />,
-                onClick: handleDelete
-              }
-            ]
-          : []}
+        rowActions={
+          manageAllowed && response?.typeOfMonitor !== 'Vibration'
+            ? [
+                {
+                  label: 'Edit alert level',
+                  icon: <Edit3 size={16} aria-hidden="true" />,
+                  onClick: (level) =>
+                    onNavigate(withReturnTo(`/monitors/${monitorId}/alert-levels/${level.id}/edit`, returnPath)),
+                },
+                {
+                  label: 'Delete alert level',
+                  icon: <Trash2 size={16} aria-hidden="true" />,
+                  onClick: handleDelete,
+                },
+              ]
+            : []
+        }
       />
     </section>
   );
@@ -622,7 +717,7 @@ function AlertLevelForm({
   levelId,
   locationPath,
   onNavigate,
-  onRequestError
+  onRequestError,
 }: OperationsPanelProps & Readonly<{ monitorId: string; levelId?: string }>) {
   const [options, setOptions] = useState<AlertLevelOptionsResponse | null>(null);
   const [form, setForm] = useState<AlertLevelMutationRequest>(() => emptyAlertLevelForm(monitorId));
@@ -638,7 +733,7 @@ function AlertLevelForm({
           ...current,
           alertField: current.alertField || nextOptions.alertFields[0]?.value || '',
           alertType: current.alertType || nextOptions.alertTypes[0]?.value || 'Alert',
-          averagingPeriod: current.averagingPeriod || Number(nextOptions.averagingPeriods[0]?.value || 0)
+          averagingPeriod: current.averagingPeriod || Number(nextOptions.averagingPeriods[0]?.value || 0),
         }));
       })
       .catch((err: Error) => {
@@ -668,7 +763,7 @@ function AlertLevelForm({
           saturdays: level.saturdays,
           sundays: level.sundays,
           startTime: level.startTime ?? '',
-          endTime: level.endTime ?? ''
+          endTime: level.endTime ?? '',
         });
       })
       .catch((err: Error) => {
@@ -713,55 +808,96 @@ function AlertLevelForm({
         <FormField label="Parameter">
           <select value={form.alertField} onChange={(event) => setForm({ ...form, alertField: event.target.value })}>
             {options?.alertFields.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </FormField>
         <FormField label="Alert Type">
           <select value={form.alertType} onChange={(event) => setForm({ ...form, alertType: event.target.value })}>
             {options?.alertTypes.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </FormField>
         <FormField label="Limit On">
-          <input value={form.limitOn || ''} inputMode="decimal" onChange={(event) => setForm({ ...form, limitOn: numberValue(event.target.value) })} />
+          <input
+            value={form.limitOn || ''}
+            inputMode="decimal"
+            onChange={(event) => setForm({ ...form, limitOn: numberValue(event.target.value) })}
+          />
         </FormField>
         <FormField label="Limit Off">
-          <input value={form.limitOff || ''} inputMode="decimal" onChange={(event) => setForm({ ...form, limitOff: numberValue(event.target.value) })} />
+          <input
+            value={form.limitOff || ''}
+            inputMode="decimal"
+            onChange={(event) => setForm({ ...form, limitOff: numberValue(event.target.value) })}
+          />
         </FormField>
         <FormField label="Averaging Period">
-          <select value={form.averagingPeriod} onChange={(event) => setForm({ ...form, averagingPeriod: Number(event.target.value) })}>
+          <select
+            value={form.averagingPeriod}
+            onChange={(event) => setForm({ ...form, averagingPeriod: Number(event.target.value) })}
+          >
             {options?.averagingPeriods.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </FormField>
         <div className="checkbox-cluster" aria-label="Active days">
           <label className="checkbox-row">
-            <input checked={form.weekdays} type="checkbox" onChange={(event) => setForm({ ...form, weekdays: event.target.checked })} />
+            <input
+              checked={form.weekdays}
+              type="checkbox"
+              onChange={(event) => setForm({ ...form, weekdays: event.target.checked })}
+            />
             <span>Weekdays</span>
           </label>
           <label className="checkbox-row">
-            <input checked={form.saturdays} type="checkbox" onChange={(event) => setForm({ ...form, saturdays: event.target.checked })} />
+            <input
+              checked={form.saturdays}
+              type="checkbox"
+              onChange={(event) => setForm({ ...form, saturdays: event.target.checked })}
+            />
             <span>Saturday</span>
           </label>
           <label className="checkbox-row">
-            <input checked={form.sundays} type="checkbox" onChange={(event) => setForm({ ...form, sundays: event.target.checked })} />
+            <input
+              checked={form.sundays}
+              type="checkbox"
+              onChange={(event) => setForm({ ...form, sundays: event.target.checked })}
+            />
             <span>Sunday</span>
           </label>
         </div>
         {options?.typeOfMonitor === 'Noise' && form.averagingPeriod !== 0 && (
           <div className="time-grid">
             <FormField label="Start Time">
-              <input value={form.startTime ?? ''} type="time" onChange={(event) => setForm({ ...form, startTime: event.target.value })} />
+              <input
+                value={form.startTime ?? ''}
+                type="time"
+                onChange={(event) => setForm({ ...form, startTime: event.target.value })}
+              />
             </FormField>
             <FormField label="End Time">
-              <input value={form.endTime ?? ''} type="time" onChange={(event) => setForm({ ...form, endTime: event.target.value })} />
+              <input
+                value={form.endTime ?? ''}
+                type="time"
+                onChange={(event) => setForm({ ...form, endTime: event.target.value })}
+              />
             </FormField>
           </div>
         )}
-        <SubmitButton icon={<Save size={17} aria-hidden="true" />} isSubmitting={isSubmitting} idleLabel="Save Alert Level" />
+        <SubmitButton
+          icon={<Save size={17} aria-hidden="true" />}
+          isSubmitting={isSubmitting}
+          idleLabel="Save Alert Level"
+        />
       </form>
     </section>
   );
@@ -772,7 +908,7 @@ function VibrationAlertLevelForm({
   monitorId,
   locationPath,
   onNavigate,
-  onRequestError
+  onRequestError,
 }: OperationsPanelProps & Readonly<{ monitorId: string }>) {
   const [alertLevel, setAlertLevel] = useState('');
   const [cautionLevel, setCautionLevel] = useState('');
@@ -806,7 +942,7 @@ function VibrationAlertLevelForm({
     try {
       const response = await updateVibrationAlertLevels(monitorId, {
         alertLevel: numberValue(alertLevel),
-        cautionLevel: numberValue(cautionLevel)
+        cautionLevel: numberValue(cautionLevel),
       });
       setNotice(response.externalSyncAttempted ? 'Vibration levels saved and synced.' : 'Vibration levels saved.');
       onNavigate(backPath);
@@ -839,7 +975,11 @@ function VibrationAlertLevelForm({
         <FormField label="Caution Level">
           <input value={cautionLevel} inputMode="decimal" onChange={(event) => setCautionLevel(event.target.value)} />
         </FormField>
-        <SubmitButton icon={<Save size={17} aria-hidden="true" />} isSubmitting={isSubmitting} idleLabel="Save Vibration Levels" />
+        <SubmitButton
+          icon={<Save size={17} aria-hidden="true" />}
+          isSubmitting={isSubmitting}
+          idleLabel="Save Vibration Levels"
+        />
       </form>
     </section>
   );
@@ -848,7 +988,7 @@ function VibrationAlertLevelForm({
 const notificationTabs: Array<{ state: NotificationListState; label: string }> = [
   { state: 'open', label: 'Open Alerts' },
   { state: 'cautions', label: 'Cautions' },
-  { state: 'all', label: 'All' }
+  { state: 'all', label: 'All' },
 ];
 
 const alertLevelColumns: DataGridColumn<AlertLevelItem>[] = [
@@ -856,9 +996,18 @@ const alertLevelColumns: DataGridColumn<AlertLevelItem>[] = [
   { key: 'alertType', header: 'Type', sortable: true, render: (level) => level.alertType },
   { key: 'limitOn', header: 'On', sortable: true, align: 'end', render: (level) => formatNumber(level.limitOn) },
   { key: 'limitOff', header: 'Off', sortable: true, align: 'end', render: (level) => formatNumber(level.limitOff) },
-  { key: 'averagingPeriod', header: 'Average', sortable: true, render: (level) => level.averagingPeriodLabel || String(level.averagingPeriod) },
+  {
+    key: 'averagingPeriod',
+    header: 'Average',
+    sortable: true,
+    render: (level) => level.averagingPeriodLabel || String(level.averagingPeriod),
+  },
   { key: 'days', header: 'Days', render: (level) => formatDays(level) },
-  { key: 'time', header: 'Time', render: (level) => level.startTime && level.endTime ? `${level.startTime}-${level.endTime}` : 'All day' }
+  {
+    key: 'time',
+    header: 'Time',
+    render: (level) => (level.startTime && level.endTime ? `${level.startTime}-${level.endTime}` : 'All day'),
+  },
 ];
 
 function alertLevelColumnsForMonitorType(typeOfMonitor?: string | null): DataGridColumn<AlertLevelItem>[] {
@@ -874,12 +1023,20 @@ const relatedNotificationColumns: DataGridColumn<NotificationListItem>[] = [
   { key: 'alertType', header: 'Type', render: (notification) => notification.alertType },
   { key: 'limitName', header: 'Limit', render: (notification) => notification.limitName || notification.alertField },
   { key: 'level', header: 'Level', align: 'end', render: (notification) => formatNumber(notification.level) },
-  { key: 'alertStatus', header: 'State', render: (notification) => <NotificationStatusChip notification={notification} /> }
+  {
+    key: 'alertStatus',
+    header: 'State',
+    render: (notification) => <NotificationStatusChip notification={notification} />,
+  },
 ];
 
 // Function summary: Renders the NotificationStatusChip React component and wires its local UI behavior.
 function NotificationStatusChip({ notification }: Readonly<{ notification: NotificationListItem }>) {
-  return <span className={`status-chip ${notificationStatusClassName(notification)}`}>{notificationStatusLabel(notification)}</span>;
+  return (
+    <span className={`status-chip ${notificationStatusClassName(notification)}`}>
+      {notificationStatusLabel(notification)}
+    </span>
+  );
 }
 
 // Function summary: Handles the notification status label workflow for this module.
@@ -943,7 +1100,7 @@ function buildNotificationsUrl({
   searchText,
   page,
   sort,
-  sortDir
+  sortDir,
 }: {
   state: NotificationListState;
   searchText: string;
@@ -959,7 +1116,10 @@ function buildNotificationsUrl({
 }
 
 // Function summary: Builds alert levels url data for callers.
-function buildAlertLevelsUrl(monitorId: string, { page, sort, sortDir }: Readonly<{ page: number; sort: string; sortDir: SortDirection }>) {
+function buildAlertLevelsUrl(
+  monitorId: string,
+  { page, sort, sortDir }: Readonly<{ page: number; sort: string; sortDir: SortDirection }>,
+) {
   const params = new URLSearchParams({ page: String(page), sort, sortDir });
   return `/monitors/${monitorId}/alert-levels?${params.toString()}`;
 }
@@ -993,7 +1153,7 @@ function emptyAlertLevelForm(monitorId: string): AlertLevelMutationRequest {
     saturdays: false,
     sundays: false,
     startTime: '',
-    endTime: ''
+    endTime: '',
   };
 }
 
@@ -1010,7 +1170,7 @@ function formatDateTime(value?: string | null) {
   }
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
-    timeStyle: 'short'
+    timeStyle: 'short',
   }).format(new Date(value));
 }
 
@@ -1029,7 +1189,7 @@ function formatDays(level: AlertLevelItem) {
   const days = [
     level.weekdays ? 'Weekdays' : null,
     level.saturdays ? 'Sat' : null,
-    level.sundays ? 'Sun' : null
+    level.sundays ? 'Sun' : null,
   ].filter(Boolean);
   return days.length > 0 ? days.join(', ') : 'Site hours';
 }

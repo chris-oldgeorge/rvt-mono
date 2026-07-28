@@ -5,16 +5,7 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
-import {
-  BarChart3,
-  Download,
-  FileDown,
-  ListFilter,
-  RefreshCcw,
-  Route,
-  Search,
-  Table2
-} from 'lucide-react';
+import { BarChart3, Download, FileDown, ListFilter, RefreshCcw, Route, Search, Table2 } from 'lucide-react';
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -24,7 +15,7 @@ import {
   PointElement,
   Tooltip,
   type ChartData,
-  type ChartOptions
+  type ChartOptions,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -38,7 +29,7 @@ import {
   isAbortError,
   queryMonitorDataGrid,
   queryMonitorTraces,
-  type DownloadedFile
+  type DownloadedFile,
 } from '../api/client';
 import { Notice } from '../components/FormControls';
 import type {
@@ -51,7 +42,7 @@ import type {
   OptionItem,
   SortDirection,
   TraceDetailResponse,
-  TraceListResponse
+  TraceListResponse,
 } from '../dtos';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
@@ -99,30 +90,36 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const requestKey = useMemo(() => JSON.stringify({
-    deploymentId,
-    mode,
-    filterOption,
-    fromDate,
-    toDate,
-    page,
-    sort,
-    sortDir
-  }), [deploymentId, filterOption, fromDate, mode, page, sort, sortDir, toDate]);
+  const requestKey = useMemo(
+    () =>
+      JSON.stringify({
+        deploymentId,
+        mode,
+        filterOption,
+        fromDate,
+        toDate,
+        page,
+        sort,
+        sortDir,
+      }),
+    [deploymentId, filterOption, fromDate, mode, page, sort, sortDir, toDate],
+  );
   const activeResult = dataViewResult?.requestKey === requestKey ? dataViewResult : null;
   const grid = activeResult?.grid ?? null;
   const graph = activeResult?.graph ?? null;
   const traces = activeResult?.traces ?? null;
-  const traceDetail = mode === 'traces' && traceDetailResult?.traceId === selectedTraceId
-    ? traceDetailResult.item
-    : null;
+  const traceDetail =
+    mode === 'traces' && traceDetailResult?.traceId === selectedTraceId ? traceDetailResult.item : null;
   const requestError = activeResult?.error ?? null;
   const isLoading = Boolean(deploymentId) && dataViewResult?.requestKey !== requestKey;
 
-  const handleError = useCallback((err: unknown) => {
-    setError(err instanceof Error ? err.message : 'Unexpected data view error.');
-    onRequestError(err);
-  }, [onRequestError]);
+  const handleError = useCallback(
+    (err: unknown) => {
+      setError(err instanceof Error ? err.message : 'Unexpected data view error.');
+      onRequestError(err);
+    },
+    [onRequestError],
+  );
 
   const setFilterOptionFromResponse = useCallback((value: string) => {
     if (!value) {
@@ -156,7 +153,11 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
       return;
     }
 
-    globalThis.history.replaceState(null, '', buildDataUrl({ deploymentId, mode, filterOption, fromDate, toDate, page, sort, sortDir }));
+    globalThis.history.replaceState(
+      null,
+      '',
+      buildDataUrl({ deploymentId, mode, filterOption, fromDate, toDate, page, sort, sortDir }),
+    );
     const controller = new AbortController();
     const request = buildGridRequest({ filterOption, fromDate, toDate, page, sort, sortDir });
     if (mode === 'grid') {
@@ -211,7 +212,19 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
         }
       });
     return () => controller.abort();
-  }, [deploymentId, filterOption, fromDate, mode, onRequestError, page, requestKey, setFilterOptionFromResponse, sort, sortDir, toDate]);
+  }, [
+    deploymentId,
+    filterOption,
+    fromDate,
+    mode,
+    onRequestError,
+    page,
+    requestKey,
+    setFilterOptionFromResponse,
+    sort,
+    sortDir,
+    toDate,
+  ]);
 
   useEffect(() => {
     if (mode !== 'traces' || !deploymentId || !selectedTraceId) {
@@ -271,7 +284,10 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
     setIsDownloading(true);
     setNotice(null);
     try {
-      const file = await downloadMonitorDataCsv(deploymentId, buildGridRequest({ filterOption, fromDate, toDate, page, sort, sortDir }));
+      const file = await downloadMonitorDataCsv(
+        deploymentId,
+        buildGridRequest({ filterOption, fromDate, toDate, page, sort, sortDir }),
+      );
       triggerDownload(file);
       setNotice(`Downloaded ${file.fileName}`);
     } catch (err) {
@@ -316,7 +332,9 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
             <select value={deploymentId} onChange={(event) => handleDeployment(event.target.value)}>
               <option value="">Select deployment</option>
               {(summary?.calendarDeployments ?? []).map((deployment) => (
-                <option value={deployment.value} key={deployment.value}>{deployment.label}</option>
+                <option value={deployment.value} key={deployment.value}>
+                  {deployment.label}
+                </option>
               ))}
             </select>
           </label>
@@ -399,7 +417,7 @@ function DataGridView({
   isDownloading,
   onDownload,
   onPage,
-  onSort
+  onSort,
 }: Readonly<{
   grid: MonitorDataGridResponse;
   isDownloading: boolean;
@@ -412,9 +430,16 @@ function DataGridView({
       <div className="subsection-heading split">
         <div>
           <h3>{grid.monitorName}</h3>
-          <span>{formatDateTime(grid.fromDate)} to {formatDateTime(grid.toDate)}</span>
+          <span>
+            {formatDateTime(grid.fromDate)} to {formatDateTime(grid.toDate)}
+          </span>
         </div>
-        <button className="secondary-button" type="button" onClick={onDownload} disabled={grid.total === 0 || isDownloading}>
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={onDownload}
+          disabled={grid.total === 0 || isDownloading}
+        >
           <Download size={17} aria-hidden="true" />
           <span>{isDownloading ? 'Downloading' : 'Download CSV'}</span>
         </button>
@@ -451,7 +476,10 @@ function DataGridView({
 }
 
 // Function summary: Renders the DataRow React component and wires its local UI behavior.
-function DataRow({ row, columns }: Readonly<{ row: MonitorDataRow; columns: ReadonlyArray<{ key: string; label: string }> }>) {
+function DataRow({
+  row,
+  columns,
+}: Readonly<{ row: MonitorDataRow; columns: ReadonlyArray<{ key: string; label: string }> }>) {
   return (
     <tr>
       {columns.map((column) => (
@@ -470,12 +498,18 @@ function GraphView({ graph }: Readonly<{ graph: MonitorGraphResponse }>) {
       <div className="subsection-heading split">
         <div>
           <h3>{graph.graphName}</h3>
-          <span>{graph.xAxisLabel} / {graph.yAxisLabel}</span>
+          <span>
+            {graph.xAxisLabel} / {graph.yAxisLabel}
+          </span>
         </div>
         <BarChart3 size={20} aria-hidden="true" />
       </div>
       <div className="chart-shell">
-        {graph.datasets.length > 0 ? <Line data={chartData} options={chartOptions} /> : <p className="muted-text">No graph data for this range.</p>}
+        {graph.datasets.length > 0 ? (
+          <Line data={chartData} options={chartOptions} />
+        ) : (
+          <p className="muted-text">No graph data for this range.</p>
+        )}
       </div>
       {graph.thresholds.length > 0 && (
         <div className="threshold-list">
@@ -497,7 +531,7 @@ function TraceView({
   selectedTraceId,
   isDownloading,
   onSelect,
-  onDownload
+  onDownload,
 }: Readonly<{
   traces: TraceListResponse;
   detail: TraceDetailResponse | null;
@@ -527,7 +561,9 @@ function TraceView({
         <div className="subsection-heading split">
           <div>
             <h3>{detail?.monitorName ?? traces.monitorName}</h3>
-            <span>{detail ? `${formatDateTime(detail.fromDate)} to ${formatDateTime(detail.toDate)}` : 'Select a trace'}</span>
+            <span>
+              {detail ? `${formatDateTime(detail.fromDate)} to ${formatDateTime(detail.toDate)}` : 'Select a trace'}
+            </span>
           </div>
           <button className="secondary-button" type="button" onClick={onDownload} disabled={!detail || isDownloading}>
             <FileDown size={17} aria-hidden="true" />
@@ -564,16 +600,26 @@ function TraceView({
 }
 
 // Function summary: Renders the Pagination React component and wires its local UI behavior.
-function Pagination({ page, totalPages, onPage }: Readonly<{ page: number; totalPages: number; onPage: (page: number) => void }>) {
+function Pagination({
+  page,
+  totalPages,
+  onPage,
+}: Readonly<{ page: number; totalPages: number; onPage: (page: number) => void }>) {
   if (totalPages <= 1) {
     return null;
   }
 
   return (
     <div className="pagination-row">
-      <button className="secondary-button" type="button" disabled={page <= 1} onClick={() => onPage(page - 1)}>Previous</button>
-      <span>Page {page} of {totalPages}</span>
-      <button className="secondary-button" type="button" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>Next</button>
+      <button className="secondary-button" type="button" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        Previous
+      </button>
+      <span>
+        Page {page} of {totalPages}
+      </span>
+      <button className="secondary-button" type="button" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
+        Next
+      </button>
     </div>
   );
 }
@@ -607,7 +653,7 @@ function buildGridRequest({
   toDate,
   page,
   sort,
-  sortDir
+  sortDir,
 }: {
   filterOption: string;
   fromDate: string;
@@ -623,7 +669,7 @@ function buildGridRequest({
     page,
     pageSize,
     sort,
-    sortDir
+    sortDir,
   };
 }
 
@@ -632,7 +678,7 @@ function graphRequest(request: MonitorDataGridRequest) {
   return {
     filterOption: request.filterOption,
     fromDate: request.fromDate,
-    toDate: request.toDate
+    toDate: request.toDate,
   };
 }
 
@@ -640,7 +686,7 @@ function graphRequest(request: MonitorDataGridRequest) {
 function traceRequest(request: MonitorDataGridRequest) {
   return {
     fromDate: request.fromDate,
-    toDate: request.toDate
+    toDate: request.toDate,
   };
 }
 
@@ -653,7 +699,7 @@ function buildDataUrl({
   toDate,
   page,
   sort,
-  sortDir
+  sortDir,
 }: {
   deploymentId: string;
   mode: PanelMode;
@@ -698,8 +744,8 @@ function buildChartData(datasets: ReadonlyArray<MonitorGraphDataset>): ChartData
       borderColor: chartColor(index),
       backgroundColor: chartColor(index),
       tension: 0.2,
-      pointRadius: 2
-    }))
+      pointRadius: 2,
+    })),
   };
 }
 
@@ -710,23 +756,23 @@ function buildChartOptions(graph: MonitorGraphResponse): ChartOptions<'line'> {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'bottom'
-      }
+        position: 'bottom',
+      },
     },
     scales: {
       x: {
         title: {
           display: true,
-          text: graph.xAxisLabel
-        }
+          text: graph.xAxisLabel,
+        },
       },
       y: {
         title: {
           display: true,
-          text: graph.yAxisLabel
-        }
-      }
-    }
+          text: graph.yAxisLabel,
+        },
+      },
+    },
   };
 }
 
@@ -859,7 +905,9 @@ export function formatDateTime(value?: string | null, timeZone?: string) {
     return '';
   }
 
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(new Date(value));
+  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(
+    new Date(value),
+  );
 }
 
 // Function summary: Handles the format duration workflow for this module.

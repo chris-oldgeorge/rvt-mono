@@ -20,9 +20,11 @@ type HelpPanelProps = Readonly<{
 // Function summary: Renders the HelpPanel React component and wires its local UI behavior.
 export function HelpPanel({ locationPath, onNavigate, onRequestError }: HelpPanelProps) {
   const slug = useMemo(() => parseHelpSlug(locationPath), [locationPath]);
-  return slug
-    ? <HelpArticlePanel slug={slug} onNavigate={onNavigate} onRequestError={onRequestError} />
-    : <HelpOverviewPanel onNavigate={onNavigate} onRequestError={onRequestError} />;
+  return slug ? (
+    <HelpArticlePanel slug={slug} onNavigate={onNavigate} onRequestError={onRequestError} />
+  ) : (
+    <HelpOverviewPanel onNavigate={onNavigate} onRequestError={onRequestError} />
+  );
 }
 
 // Function summary: Renders the Help CMS overview and search experience.
@@ -79,10 +81,13 @@ function HelpOverviewPanel({ onNavigate, onRequestError }: Omit<HelpPanelProps, 
                   <span className="status-chip neutral">{article.contentType}</span>
                   <strong>{article.title}</strong>
                   {article.summary && <p>{article.summary}</p>}
-                  <a href={`/help/${article.slug}`} onClick={(event) => {
-                    event.preventDefault();
-                    onNavigate(`/help/${article.slug}`);
-                  }}>
+                  <a
+                    href={`/help/${article.slug}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onNavigate(`/help/${article.slug}`);
+                    }}
+                  >
                     Open article
                   </a>
                 </article>
@@ -97,7 +102,11 @@ function HelpOverviewPanel({ onNavigate, onRequestError }: Omit<HelpPanelProps, 
 }
 
 // Function summary: Renders a Help CMS article and linked assets.
-function HelpArticlePanel({ slug, onNavigate, onRequestError }: Omit<HelpPanelProps, 'locationPath'> & Readonly<{ slug: string }>) {
+function HelpArticlePanel({
+  slug,
+  onNavigate,
+  onRequestError,
+}: Omit<HelpPanelProps, 'locationPath'> & Readonly<{ slug: string }>) {
   const [article, setArticle] = useState<HelpArticleResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [completedSlug, setCompletedSlug] = useState<string | null>(null);
@@ -131,7 +140,9 @@ function HelpArticlePanel({ slug, onNavigate, onRequestError }: Omit<HelpPanelPr
           <p>{article?.sectionTitle ?? 'Help'}</p>
           <h2>{article?.title ?? 'Loading article'}</h2>
         </div>
-        <button className="secondary-button" type="button" onClick={() => onNavigate('/help')}>Back</button>
+        <button className="secondary-button" type="button" onClick={() => onNavigate('/help')}>
+          Back
+        </button>
       </div>
       {error && <Notice tone="error" message={error} />}
       {isLoading && <p className="muted-text">Loading article...</p>}
@@ -149,8 +160,17 @@ function HelpArticlePanel({ slug, onNavigate, onRequestError }: Omit<HelpPanelPr
                 }
                 const isExternal = !asset.url.startsWith('/');
                 return (
-                  <a href={href} key={asset.id} target={isExternal ? '_blank' : undefined} rel={isExternal ? 'noreferrer' : undefined}>
-                    {asset.assetType.toLowerCase() === 'video' ? <Video size={17} aria-hidden="true" /> : <FileText size={17} aria-hidden="true" />}
+                  <a
+                    href={href}
+                    key={asset.id}
+                    target={isExternal ? '_blank' : undefined}
+                    rel={isExternal ? 'noreferrer' : undefined}
+                  >
+                    {asset.assetType.toLowerCase() === 'video' ? (
+                      <Video size={17} aria-hidden="true" />
+                    ) : (
+                      <FileText size={17} aria-hidden="true" />
+                    )}
                     <span>{asset.title}</span>
                   </a>
                 );

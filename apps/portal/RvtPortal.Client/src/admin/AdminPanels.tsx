@@ -20,7 +20,7 @@ import {
   Search,
   Trash2,
   Unlock,
-  UsersRound
+  UsersRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -41,7 +41,7 @@ import {
   searchLookup,
   sendUserResetPasswordLink,
   updateCompany,
-  updateUser
+  updateUser,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
@@ -56,7 +56,7 @@ import type {
   SortDirection,
   UserDetailResponse,
   UserListItem,
-  UserMutationRequest
+  UserMutationRequest,
 } from '../dtos';
 
 const companyPageSize = 10;
@@ -69,9 +69,10 @@ type AdminPanelCallbacks = Readonly<{
   onRequestError: (error: unknown) => void;
 }>;
 
-type AdminPanelProps = AdminPanelCallbacks & Readonly<{
-  locationPath: string;
-}>;
+type AdminPanelProps = AdminPanelCallbacks &
+  Readonly<{
+    locationPath: string;
+  }>;
 
 // Function summary: Renders the CompaniesPanel React component and wires its local UI behavior.
 export function CompaniesPanel({ locationPath, onNavigate, onRequestError }: AdminPanelProps) {
@@ -80,10 +81,24 @@ export function CompaniesPanel({ locationPath, onNavigate, onRequestError }: Adm
     return <CompanyFormPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
   }
   if (mode.kind === 'edit') {
-    return <CompanyFormPanel companyId={mode.companyId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <CompanyFormPanel
+        companyId={mode.companyId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (mode.kind === 'detail') {
-    return <CompanyDetailPanel companyId={mode.companyId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <CompanyDetailPanel
+        companyId={mode.companyId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   return <CompanyListPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
 }
@@ -95,10 +110,24 @@ export function UsersPanel({ locationPath, onNavigate, onRequestError }: AdminPa
     return <UserFormPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
   }
   if (mode.kind === 'edit') {
-    return <UserFormPanel userId={mode.userId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <UserFormPanel
+        userId={mode.userId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (mode.kind === 'detail') {
-    return <UserDetailPanel userId={mode.userId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <UserDetailPanel
+        userId={mode.userId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   return <UserListPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
 }
@@ -113,40 +142,47 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'companyName');
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
-  const [suggestionResult, setSuggestionResult] = useState<{ query: string; results: string[] }>({ query: '', results: [] });
+  const [suggestionResult, setSuggestionResult] = useState<{ query: string; results: string[] }>({
+    query: '',
+    results: [],
+  });
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const columns = useMemo<DataGridColumn<CompanyListItem>[]>(() => [
-    {
-      key: 'companyName',
-      header: 'Company',
-      sortable: true,
-      render: (company) => (
-        <span className="cell-with-icon">
-          <Building2 size={16} aria-hidden="true" />
-          {company.companyName}
-        </span>
-      )
-    },
-    { key: 'userCount', header: 'Users', sortable: true, align: 'end', render: (company) => company.userCount },
-    { key: 'sites', header: 'Sites', sortable: true, render: (company) => company.sites || 'None' },
-    { key: 'contracts', header: 'Contracts', sortable: true, render: (company) => company.contracts || 'None' }
-  ], []);
+  const columns = useMemo<DataGridColumn<CompanyListItem>[]>(
+    () => [
+      {
+        key: 'companyName',
+        header: 'Company',
+        sortable: true,
+        render: (company) => (
+          <span className="cell-with-icon">
+            <Building2 size={16} aria-hidden="true" />
+            {company.companyName}
+          </span>
+        ),
+      },
+      { key: 'userCount', header: 'Users', sortable: true, align: 'end', render: (company) => company.userCount },
+      { key: 'sites', header: 'Sites', sortable: true, render: (company) => company.sites || 'None' },
+      { key: 'contracts', header: 'Contracts', sortable: true, render: (company) => company.contracts || 'None' },
+    ],
+    [],
+  );
 
-  const query = useMemo<QueryCompaniesRequest>(() => ({
-    searchText,
-    page,
-    pageSize: companyPageSize,
-    sort: sortKey,
-    sortDir
-  }), [page, searchText, sortDir, sortKey]);
+  const query = useMemo<QueryCompaniesRequest>(
+    () => ({
+      searchText,
+      page,
+      pageSize: companyPageSize,
+      sort: sortKey,
+      sortDir,
+    }),
+    [page, searchText, sortDir, sortKey],
+  );
   const requestKey = JSON.stringify(query);
   const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
   const isLoading = completedRequestKey !== requestKey;
-  const suggestions = searchText.length >= 2 && suggestionResult.query === searchText
-    ? suggestionResult.results
-    : [];
+  const suggestions = searchText.length >= 2 && suggestionResult.query === searchText ? suggestionResult.results : [];
   const returnPath = currentRoutePath(locationPath);
 
   useEffect(() => {
@@ -218,14 +254,22 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
           <p>Administration</p>
           <h2>Companies</h2>
         </div>
-        <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo('/companies/new', returnPath))}>
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={() => onNavigate(withReturnTo('/companies/new', returnPath))}
+        >
           <Plus size={17} aria-hidden="true" />
           <span>Create Company</span>
         </button>
       </div>
       <label className="search-box">
         <Search size={18} aria-hidden="true" />
-        <input value={searchText} onChange={(event) => handleSearch(event.target.value)} placeholder="Search companies" />
+        <input
+          value={searchText}
+          onChange={(event) => handleSearch(event.target.value)}
+          placeholder="Search companies"
+        />
       </label>
       {suggestions.length > 0 && (
         <div className="suggestions" aria-label="Company search suggestions">
@@ -256,23 +300,29 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
           {
             label: 'View company',
             icon: <Eye size={16} aria-hidden="true" />,
-            onClick: (company) => onNavigate(withReturnTo(`/companies/${company.id}`, returnPath))
+            onClick: (company) => onNavigate(withReturnTo(`/companies/${company.id}`, returnPath)),
           },
           {
             label: 'Edit company',
             icon: <Edit3 size={16} aria-hidden="true" />,
-            onClick: (company) => onNavigate(withReturnTo(`/companies/${company.id}/edit`, returnPath))
+            onClick: (company) => onNavigate(withReturnTo(`/companies/${company.id}/edit`, returnPath)),
           },
           {
             label: 'Company users',
             icon: <UsersRound size={16} aria-hidden="true" />,
-            onClick: (company) => onNavigate(withReturnTo(`/users?companyId=${encodeURIComponent(company.id)}&companyName=${encodeURIComponent(company.companyName)}`, returnPath))
+            onClick: (company) =>
+              onNavigate(
+                withReturnTo(
+                  `/users?companyId=${encodeURIComponent(company.id)}&companyName=${encodeURIComponent(company.companyName)}`,
+                  returnPath,
+                ),
+              ),
           },
           {
             label: 'Delete company',
             icon: <Trash2 size={16} aria-hidden="true" />,
-            onClick: (company) => setNotice(`Open ${company.companyName} to delete with confirmation.`)
-          }
+            onClick: (company) => setNotice(`Open ${company.companyName} to delete with confirmation.`),
+          },
         ]}
       />
     </section>
@@ -280,7 +330,12 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
 }
 
 // Function summary: Renders the CompanyDetailPanel React component and wires its local UI behavior.
-function CompanyDetailPanel({ companyId, locationPath, onNavigate, onRequestError }: AdminPanelProps & Readonly<{ companyId: string }>) {
+function CompanyDetailPanel({
+  companyId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+}: AdminPanelProps & Readonly<{ companyId: string }>) {
   const [company, setCompany] = useState<CompanyDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -322,7 +377,12 @@ function CompanyDetailPanel({ companyId, locationPath, onNavigate, onRequestErro
           <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>
             Back
           </button>
-          <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/companies/${companyId}/edit`, detailPath))} disabled={!company}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => onNavigate(withReturnTo(`/companies/${companyId}/edit`, detailPath))}
+            disabled={!company}
+          >
             <Edit3 size={17} aria-hidden="true" />
             <span>Edit</span>
           </button>
@@ -345,7 +405,18 @@ function CompanyDetailPanel({ companyId, locationPath, onNavigate, onRequestErro
             <ReadOnlyRow label="Sites" value={company.sites || 'None'} />
             <ReadOnlyRow label="Contracts" value={company.contracts || 'None'} />
           </div>
-          <button className="secondary-button inline" type="button" onClick={() => onNavigate(withReturnTo(`/users?companyId=${company.id}&companyName=${encodeURIComponent(company.companyName)}`, detailPath))}>
+          <button
+            className="secondary-button inline"
+            type="button"
+            onClick={() =>
+              onNavigate(
+                withReturnTo(
+                  `/users?companyId=${company.id}&companyName=${encodeURIComponent(company.companyName)}`,
+                  detailPath,
+                ),
+              )
+            }
+          >
             <UsersRound size={17} aria-hidden="true" />
             <span>Manage users</span>
           </button>
@@ -365,7 +436,12 @@ function CompanyDetailPanel({ companyId, locationPath, onNavigate, onRequestErro
 }
 
 // Function summary: Renders the CompanyFormPanel React component and wires its local UI behavior.
-function CompanyFormPanel({ companyId, locationPath, onNavigate, onRequestError }: AdminPanelProps & Readonly<{ companyId?: string }>) {
+function CompanyFormPanel({
+  companyId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+}: AdminPanelProps & Readonly<{ companyId?: string }>) {
   const isEdit = Boolean(companyId);
   const [companyName, setCompanyName] = useState('');
   const [status, setStatus] = useState<string | null>(null);
@@ -391,9 +467,8 @@ function CompanyFormPanel({ companyId, locationPath, onNavigate, onRequestError 
     setError(null);
     setStatus(null);
     try {
-      const response = isEdit && companyId
-        ? await updateCompany(companyId, { companyName })
-        : await createCompany({ companyName });
+      const response =
+        isEdit && companyId ? await updateCompany(companyId, { companyName }) : await createCompany({ companyName });
       const saved = response.item;
       setStatus(isEdit ? 'Company updated.' : 'Company created.');
       if (saved?.id) {
@@ -424,7 +499,11 @@ function CompanyFormPanel({ companyId, locationPath, onNavigate, onRequestError 
         </FormField>
         {status && <Notice tone="success" message={status} />}
         {error && <Notice tone="error" message={error} />}
-        <SubmitButton icon={<Save size={17} aria-hidden="true" />} isSubmitting={isSubmitting} idleLabel={isEdit ? 'Update Company' : 'Create Company'} />
+        <SubmitButton
+          icon={<Save size={17} aria-hidden="true" />}
+          isSubmitting={isSubmitting}
+          idleLabel={isEdit ? 'Update Company' : 'Create Company'}
+        />
       </form>
     </section>
   );
@@ -442,40 +521,57 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'email');
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
-  const [suggestionResult, setSuggestionResult] = useState<{ query: string; results: string[] }>({ query: '', results: [] });
+  const [suggestionResult, setSuggestionResult] = useState<{ query: string; results: string[] }>({
+    query: '',
+    results: [],
+  });
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const columns = useMemo<DataGridColumn<UserListItem>[]>(() => [
-    { key: 'name', header: 'Name', sortable: true, render: (user) => user.name || 'None' },
-    { key: 'companyName', header: 'Company', sortable: true, render: (user) => user.companyName || 'None' },
-    { key: 'email', header: 'Email', sortable: true, render: (user) => user.email },
-    { key: 'phoneNumber', header: 'Mobile', sortable: true, render: (user) => user.phoneNumber || 'None' },
-    { key: 'role', header: 'Role', sortable: true, render: (user) => user.role },
-    { key: 'siteCount', header: 'Sites', sortable: true, align: 'end', render: (user) => user.role === companyUserRole ? user.siteCount : '' },
-    { key: 'status', header: 'Status', sortable: true, render: (user) => userStatusLabel(user) }
-  ], []);
+  const columns = useMemo<DataGridColumn<UserListItem>[]>(
+    () => [
+      { key: 'name', header: 'Name', sortable: true, render: (user) => user.name || 'None' },
+      { key: 'companyName', header: 'Company', sortable: true, render: (user) => user.companyName || 'None' },
+      { key: 'email', header: 'Email', sortable: true, render: (user) => user.email },
+      { key: 'phoneNumber', header: 'Mobile', sortable: true, render: (user) => user.phoneNumber || 'None' },
+      { key: 'role', header: 'Role', sortable: true, render: (user) => user.role },
+      {
+        key: 'siteCount',
+        header: 'Sites',
+        sortable: true,
+        align: 'end',
+        render: (user) => (user.role === companyUserRole ? user.siteCount : ''),
+      },
+      { key: 'status', header: 'Status', sortable: true, render: (user) => userStatusLabel(user) },
+    ],
+    [],
+  );
 
-  const query = useMemo<QueryUsersRequest>(() => ({
-    companyId,
-    searchText,
-    page,
-    pageSize: userPageSize,
-    sort: sortKey,
-    sortDir
-  }), [companyId, page, searchText, sortDir, sortKey]);
+  const query = useMemo<QueryUsersRequest>(
+    () => ({
+      companyId,
+      searchText,
+      page,
+      pageSize: userPageSize,
+      sort: sortKey,
+      sortDir,
+    }),
+    [companyId, page, searchText, sortDir, sortKey],
+  );
   const requestKey = JSON.stringify(query);
   const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
   const isLoading = completedRequestKey !== requestKey;
-  const suggestions = searchText.length >= 2 && suggestionResult.query === searchText
-    ? suggestionResult.results
-    : [];
+  const suggestions = searchText.length >= 2 && suggestionResult.query === searchText ? suggestionResult.results : [];
   const returnPath = currentRoutePath(locationPath);
   const companiesBackPath = returnToOr(locationPath, '/companies');
 
   useEffect(() => {
     const controller = new AbortController();
-    globalThis.history.replaceState(null, '', buildUsersUrl({ companyId, companyName, searchText, page, sort: sortKey, sortDir }));
+    globalThis.history.replaceState(
+      null,
+      '',
+      buildUsersUrl({ companyId, companyName, searchText, page, sort: sortKey, sortDir }),
+    );
     queryUsers(query, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) {
@@ -569,7 +665,20 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
               Companies
             </button>
           )}
-          <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(companyId ? `/users/new?companyId=${companyId}&companyName=${encodeURIComponent(companyName ?? '')}` : '/users/new', returnPath))}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() =>
+              onNavigate(
+                withReturnTo(
+                  companyId
+                    ? `/users/new?companyId=${companyId}&companyName=${encodeURIComponent(companyName ?? '')}`
+                    : '/users/new',
+                  returnPath,
+                ),
+              )
+            }
+          >
             <Plus size={17} aria-hidden="true" />
             <span>Create User</span>
           </button>
@@ -577,12 +686,26 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
       </div>
       <label className="search-box">
         <Search size={18} aria-hidden="true" />
-        <input value={searchText} onChange={(event) => { setSearchText(event.target.value); setPage(1); }} placeholder="Search users" />
+        <input
+          value={searchText}
+          onChange={(event) => {
+            setSearchText(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Search users"
+        />
       </label>
       {suggestions.length > 0 && (
         <div className="suggestions" aria-label="User search suggestions">
           {suggestions.map((item) => (
-            <button type="button" key={item} onClick={() => { setSearchText(item); setPage(1); }}>
+            <button
+              type="button"
+              key={item}
+              onClick={() => {
+                setSearchText(item);
+                setPage(1);
+              }}
+            >
               {item}
             </button>
           ))}
@@ -603,15 +726,53 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
         sortKey={sortKey}
         sortDirection={sortDir}
         onPageChange={setPage}
-        onSortChange={(key, direction) => { setSortKey(key); setSortDir(direction); setPage(1); }}
+        onSortChange={(key, direction) => {
+          setSortKey(key);
+          setSortDir(direction);
+          setPage(1);
+        }}
         rowActions={[
-          { label: 'View user', icon: <Eye size={16} aria-hidden="true" />, onClick: (user) => onNavigate(withReturnTo(`/users/${user.id}`, returnPath)) },
-          { label: 'Edit user', icon: <Edit3 size={16} aria-hidden="true" />, disabled: (user) => !user.canEdit, onClick: (user) => onNavigate(withReturnTo(`/users/${user.id}/edit`, returnPath)) },
-          { label: 'Resend confirmation', icon: <Mail size={16} aria-hidden="true" />, disabled: (user) => !user.canSendConfirmation, onClick: (user) => void handleAction(user, 'resend') },
-          { label: 'Send password reset', icon: <KeyRound size={16} aria-hidden="true" />, disabled: (user) => !user.canSendPasswordReset, onClick: (user) => void handleAction(user, 'reset') },
-          { label: 'Disable user', icon: <Lock size={16} aria-hidden="true" />, disabled: (user) => !user.canDisable, onClick: (user) => void handleAction(user, 'disable') },
-          { label: 'Enable user', icon: <Unlock size={16} aria-hidden="true" />, disabled: (user) => !user.canEnable, onClick: (user) => void handleAction(user, 'enable') },
-          { label: 'Delete user', icon: <Trash2 size={16} aria-hidden="true" />, disabled: (user) => !user.canDelete, onClick: (user) => void handleAction(user, 'delete') }
+          {
+            label: 'View user',
+            icon: <Eye size={16} aria-hidden="true" />,
+            onClick: (user) => onNavigate(withReturnTo(`/users/${user.id}`, returnPath)),
+          },
+          {
+            label: 'Edit user',
+            icon: <Edit3 size={16} aria-hidden="true" />,
+            disabled: (user) => !user.canEdit,
+            onClick: (user) => onNavigate(withReturnTo(`/users/${user.id}/edit`, returnPath)),
+          },
+          {
+            label: 'Resend confirmation',
+            icon: <Mail size={16} aria-hidden="true" />,
+            disabled: (user) => !user.canSendConfirmation,
+            onClick: (user) => void handleAction(user, 'resend'),
+          },
+          {
+            label: 'Send password reset',
+            icon: <KeyRound size={16} aria-hidden="true" />,
+            disabled: (user) => !user.canSendPasswordReset,
+            onClick: (user) => void handleAction(user, 'reset'),
+          },
+          {
+            label: 'Disable user',
+            icon: <Lock size={16} aria-hidden="true" />,
+            disabled: (user) => !user.canDisable,
+            onClick: (user) => void handleAction(user, 'disable'),
+          },
+          {
+            label: 'Enable user',
+            icon: <Unlock size={16} aria-hidden="true" />,
+            disabled: (user) => !user.canEnable,
+            onClick: (user) => void handleAction(user, 'enable'),
+          },
+          {
+            label: 'Delete user',
+            icon: <Trash2 size={16} aria-hidden="true" />,
+            disabled: (user) => !user.canDelete,
+            onClick: (user) => void handleAction(user, 'delete'),
+          },
         ]}
       />
     </section>
@@ -619,7 +780,12 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
 }
 
 // Function summary: Renders the UserDetailPanel React component and wires its local UI behavior.
-function UserDetailPanel({ userId, locationPath, onNavigate, onRequestError }: AdminPanelProps & Readonly<{ userId: string }>) {
+function UserDetailPanel({
+  userId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+}: AdminPanelProps & Readonly<{ userId: string }>) {
   const [user, setUser] = useState<UserDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const backPath = returnToOr(locationPath, '/users');
@@ -645,7 +811,12 @@ function UserDetailPanel({ userId, locationPath, onNavigate, onRequestError }: A
           <button className="secondary-button" type="button" onClick={() => onNavigate(backPath)}>
             Back
           </button>
-          <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/users/${userId}/edit`, detailPath))} disabled={!user?.canEdit}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => onNavigate(withReturnTo(`/users/${userId}/edit`, detailPath))}
+            disabled={!user?.canEdit}
+          >
             <Edit3 size={17} aria-hidden="true" />
             <span>Edit</span>
           </button>
@@ -669,12 +840,19 @@ function UserDetailPanel({ userId, locationPath, onNavigate, onRequestError }: A
 }
 
 // Function summary: Renders the UserFormPanel React component and wires its local UI behavior.
-function UserFormPanel({ userId, locationPath, onNavigate, onRequestError }: AdminPanelProps & Readonly<{ userId?: string }>) {
+function UserFormPanel({
+  userId,
+  locationPath,
+  onNavigate,
+  onRequestError,
+}: AdminPanelProps & Readonly<{ userId?: string }>) {
   const params = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const presetCompanyId = params.get('companyId') ?? '';
   const presetCompanyName = params.get('companyName') ?? '';
   const isEdit = Boolean(userId);
-  const fallbackBackPath = presetCompanyId ? `/users?companyId=${presetCompanyId}&companyName=${encodeURIComponent(presetCompanyName)}` : '/users';
+  const fallbackBackPath = presetCompanyId
+    ? `/users?companyId=${presetCompanyId}&companyName=${encodeURIComponent(presetCompanyName)}`
+    : '/users';
   const backPath = returnToOr(locationPath, fallbackBackPath);
   const [availableRoles, setAvailableRoles] = useState<OptionItem[]>([]);
   const [companies, setCompanies] = useState<OptionItem[]>([]);
@@ -684,7 +862,7 @@ function UserFormPanel({ userId, locationPath, onNavigate, onRequestError }: Adm
     mobilePhone: '',
     role: presetCompanyId ? companyUserRole : '',
     companyId: presetCompanyId,
-    companyRole: ''
+    companyRole: '',
   });
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -697,18 +875,18 @@ function UserFormPanel({ userId, locationPath, onNavigate, onRequestError }: Adm
     });
     const detailRequest = userId
       ? getUser(userId).then((response) => {
-        const item = response.item;
-        if (item) {
-          setForm({
-            email: item.email,
-            name: item.name ?? '',
-            mobilePhone: item.phoneNumber ?? '',
-            role: item.role,
-            companyId: item.companyId ?? '',
-            companyRole: item.companyRole ?? ''
-          });
-        }
-      })
+          const item = response.item;
+          if (item) {
+            setForm({
+              email: item.email,
+              name: item.name ?? '',
+              mobilePhone: item.phoneNumber ?? '',
+              role: item.role,
+              companyId: item.companyId ?? '',
+              companyRole: item.companyRole ?? '',
+            });
+          }
+        })
       : Promise.resolve();
     Promise.all([optionsRequest, detailRequest]).catch((err: Error) => {
       setError(err.message);
@@ -725,7 +903,7 @@ function UserFormPanel({ userId, locationPath, onNavigate, onRequestError }: Adm
       const payload = {
         ...form,
         companyId: roleRequiresCompany(form.role) ? form.companyId || null : null,
-        companyRole: form.role === companyUserRole ? form.companyRole : null
+        companyRole: form.role === companyUserRole ? form.companyRole : null,
       };
       const response = isEdit && userId ? await updateUser(userId, payload) : await createUser(payload);
       const saved = response.item;
@@ -757,39 +935,65 @@ function UserFormPanel({ userId, locationPath, onNavigate, onRequestError }: Adm
           <input value={form.name ?? ''} onChange={(event) => setForm({ ...form, name: event.target.value })} />
         </FormField>
         <FormField label="Email">
-          <input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} type="email" />
+          <input
+            value={form.email}
+            onChange={(event) => setForm({ ...form, email: event.target.value })}
+            type="email"
+          />
         </FormField>
         <FormField label="Mobile Phone Nr">
-          <input value={form.mobilePhone ?? ''} onChange={(event) => setForm({ ...form, mobilePhone: event.target.value })} />
+          <input
+            value={form.mobilePhone ?? ''}
+            onChange={(event) => setForm({ ...form, mobilePhone: event.target.value })}
+          />
         </FormField>
         <FormField label="Role">
-          <select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })} disabled={Boolean(presetCompanyId)}>
+          <select
+            value={form.role}
+            onChange={(event) => setForm({ ...form, role: event.target.value })}
+            disabled={Boolean(presetCompanyId)}
+          >
             <option value="">Select a Role</option>
             {availableRoles.map((role) => (
-              <option value={role.value} key={role.value}>{role.label}</option>
+              <option value={role.value} key={role.value}>
+                {role.label}
+              </option>
             ))}
           </select>
         </FormField>
         {roleRequiresCompany(form.role) && (
           <>
             <FormField label="Company">
-              <select value={form.companyId ?? ''} onChange={(event) => setForm({ ...form, companyId: event.target.value })} disabled={Boolean(presetCompanyId)}>
+              <select
+                value={form.companyId ?? ''}
+                onChange={(event) => setForm({ ...form, companyId: event.target.value })}
+                disabled={Boolean(presetCompanyId)}
+              >
                 <option value="">Select a Company</option>
                 {companies.map((company) => (
-                  <option value={company.value} key={company.value}>{company.label}</option>
+                  <option value={company.value} key={company.value}>
+                    {company.label}
+                  </option>
                 ))}
               </select>
             </FormField>
             {form.role === companyUserRole && (
               <FormField label="Company Job Title">
-                <input value={form.companyRole ?? ''} onChange={(event) => setForm({ ...form, companyRole: event.target.value })} />
+                <input
+                  value={form.companyRole ?? ''}
+                  onChange={(event) => setForm({ ...form, companyRole: event.target.value })}
+                />
               </FormField>
             )}
           </>
         )}
         {status && <Notice tone="success" message={status} />}
         {error && <Notice tone="error" message={error} />}
-        <SubmitButton icon={<Save size={17} aria-hidden="true" />} isSubmitting={isSubmitting} idleLabel={isEdit ? 'Update User' : 'Create User'} />
+        <SubmitButton
+          icon={<Save size={17} aria-hidden="true" />}
+          isSubmitting={isSubmitting}
+          idleLabel={isEdit ? 'Update User' : 'Create User'}
+        />
       </form>
     </section>
   );
@@ -864,7 +1068,10 @@ function roleRequiresCompany(role?: string | null) {
 }
 
 // Function summary: Applies r status label to the current configuration.
-function userStatusLabel(user: Pick<UserListItem | UserDetailResponse, 'isDisabled' | 'emailConfirmed'>, pendingLabel = 'Pending') {
+function userStatusLabel(
+  user: Pick<UserListItem | UserDetailResponse, 'isDisabled' | 'emailConfirmed'>,
+  pendingLabel = 'Pending',
+) {
   if (user.isDisabled) {
     return 'Disabled';
   }

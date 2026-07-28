@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SiteNotificationSettingItem } from '../dtos';
-import {
-  notificationSettingDraft,
-  withoutNotificationDraft,
-} from './notificationDrafts';
+import { notificationSettingDraft, withoutNotificationDraft } from './notificationDrafts';
 
 const setting = {
   siteUserId: 'site-user-1',
@@ -22,9 +19,7 @@ describe('notification draft ownership', () => {
       endTime: '17:00',
     };
 
-    expect(
-      notificationSettingDraft(setting, { [setting.siteUserId]: override }),
-    ).toEqual(override);
+    expect(notificationSettingDraft(setting, { [setting.siteUserId]: override })).toEqual(override);
     expect(notificationSettingDraft(setting, {})).toEqual({
       email: true,
       sms: false,

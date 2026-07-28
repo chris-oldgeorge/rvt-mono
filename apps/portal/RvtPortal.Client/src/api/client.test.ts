@@ -40,9 +40,12 @@ describe('API client infrastructure', () => {
 
   it('preserves the transport error when reporting an unavailable API', async () => {
     const transportError = new TypeError('connection refused');
-    vi.stubGlobal('fetch', vi.fn(async () => {
-      throw transportError;
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw transportError;
+      }),
+    );
 
     await expect(getHealth()).rejects.toMatchObject({
       message:

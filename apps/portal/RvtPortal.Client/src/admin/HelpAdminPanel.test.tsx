@@ -186,14 +186,16 @@ describe('HelpAdminPanel', () => {
     api.queryAdminHelp
       .mockResolvedValueOnce(overview([existingArticle]))
       .mockImplementationOnce(
-        () => new Promise((resolve) => {
-          resolveMutationRefresh = resolve;
-        }),
+        () =>
+          new Promise((resolve) => {
+            resolveMutationRefresh = resolve;
+          }),
       )
       .mockImplementationOnce(
-        () => new Promise((resolve) => {
-          resolveDraftFilter = resolve;
-        }),
+        () =>
+          new Promise((resolve) => {
+            resolveDraftFilter = resolve;
+          }),
       );
     renderHelpAdmin();
 

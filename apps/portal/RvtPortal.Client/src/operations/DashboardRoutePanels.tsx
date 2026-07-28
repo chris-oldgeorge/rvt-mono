@@ -4,13 +4,7 @@
 
 import { AlertTriangle, CalendarDays, ChevronLeft, MapPin, RefreshCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  getCalendarDay,
-  getCalendarMonth,
-  getDashboardSummary,
-  isAbortError,
-  queryMapMarkers
-} from '../api/client';
+import { getCalendarDay, getCalendarMonth, getDashboardSummary, isAbortError, queryMapMarkers } from '../api/client';
 import { Notice } from '../components/FormControls';
 import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
 import type {
@@ -20,7 +14,7 @@ import type {
   DashboardNotificationItem,
   DashboardSummaryResponse,
   MapMarkersResponse,
-  OptionItem
+  OptionItem,
 } from '../dtos';
 
 type DashboardRoutePanelProps = Readonly<{
@@ -63,7 +57,7 @@ export function MapPanel({ locationPath, onRequestError }: DashboardRoutePanelPr
     globalThis.history.replaceState(null, '', `/maps${mapQuery(siteId)}`);
     Promise.all([
       getDashboardSummary({ signal: controller.signal }),
-      queryMapMarkers(mapMarkersRequest(siteId), { signal: controller.signal })
+      queryMapMarkers(mapMarkersRequest(siteId), { signal: controller.signal }),
     ])
       .then(([nextSummary, nextMarkers]) => {
         if (!controller.signal.aborted) {
@@ -94,7 +88,9 @@ export function MapPanel({ locationPath, onRequestError }: DashboardRoutePanelPr
         <select value={siteId} onChange={(event) => setSiteId(event.target.value)}>
           <option value="">All visible sites</option>
           {(summary?.sites ?? []).map((site) => (
-            <option value={site.value} key={site.value}>{site.label}</option>
+            <option value={site.value} key={site.value}>
+              {site.label}
+            </option>
           ))}
         </select>
       </label>
@@ -122,9 +118,8 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
   const activeMonthResult = monthResult?.requestKey === monthRequestKey ? monthResult : null;
   const monthData = activeMonthResult?.data ?? null;
   const monthError = activeMonthResult?.error ?? null;
-  const dayOwnerKey = monthData && selectedDate
-    ? `${monthData.deploymentId}:${monthData.monitorId}:${selectedDate}`
-    : null;
+  const dayOwnerKey =
+    monthData && selectedDate ? `${monthData.deploymentId}:${monthData.monitorId}:${selectedDate}` : null;
   const dayData = dayOwnerKey && dayResult?.ownerKey === dayOwnerKey ? dayResult.data : null;
   const isLoading = Boolean(deploymentId) && monthResult?.requestKey !== monthRequestKey;
 
@@ -218,7 +213,9 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
             <select value={deploymentId} onChange={(event) => setDeploymentId(event.target.value)}>
               <option value="">Select deployment</option>
               {deployments.map((deployment) => (
-                <option value={deployment.value} key={deployment.value}>{deployment.label}</option>
+                <option value={deployment.value} key={deployment.value}>
+                  {deployment.label}
+                </option>
               ))}
             </select>
           </label>
@@ -238,19 +235,18 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
           <>
             <div className="calendar-heading">
               <strong>{monthName(monthData.year, monthData.month)}</strong>
-              <span>{monthData.fleetNumber || monthData.serialId} / {monthData.typeOfMonitor}</span>
+              <span>
+                {monthData.fleetNumber || monthData.serialId} / {monthData.typeOfMonitor}
+              </span>
             </div>
             <div className="calendar-grid" role="grid" aria-label="Monitor month calendar">
               {weekdayLabels.map((label) => (
-                <div className="calendar-weekday" key={label}>{label}</div>
+                <div className="calendar-weekday" key={label}>
+                  {label}
+                </div>
               ))}
               {monthData.days.map((day) => (
-                <CalendarDayButton
-                  day={day}
-                  selectedDate={selectedDate}
-                  key={day.date}
-                  onSelect={setSelectedDate}
-                />
+                <CalendarDayButton day={day} selectedDate={selectedDate} key={day.date} onSelect={setSelectedDate} />
               ))}
             </div>
           </>
@@ -264,7 +260,11 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
           </div>
           <AlertTriangle size={22} aria-hidden="true" />
         </div>
-        {dayData ? <CalendarDayDetail day={dayData} /> : <p className="muted-text">Select a deployment and day to view readings.</p>}
+        {dayData ? (
+          <CalendarDayDetail day={dayData} />
+        ) : (
+          <p className="muted-text">Select a deployment and day to view readings.</p>
+        )}
       </section>
     </section>
   );
@@ -285,7 +285,9 @@ function CalendarDayDetail({ day }: Readonly<{ day: CalendarDayResponse }>) {
         {day.values.map((value) => (
           <div className="readonly-row" key={value.label}>
             <span>{value.label}</span>
-            <strong>{formatNumber(value.value)} {day.unit}</strong>
+            <strong>
+              {formatNumber(value.value)} {day.unit}
+            </strong>
           </div>
         ))}
       </section>
@@ -294,8 +296,12 @@ function CalendarDayDetail({ day }: Readonly<{ day: CalendarDayResponse }>) {
         {day.alertLevels.length === 0 && <p className="muted-text">No alert levels are configured for this monitor.</p>}
         {day.alertLevels.map((level) => (
           <div className="readonly-row" key={level.id}>
-            <span>{level.alertField} / {level.alertType}</span>
-            <strong>{formatNumber(level.limitOn)} on, {formatNumber(level.limitOff)} off</strong>
+            <span>
+              {level.alertField} / {level.alertType}
+            </span>
+            <strong>
+              {formatNumber(level.limitOn)} on, {formatNumber(level.limitOff)} off
+            </strong>
           </div>
         ))}
       </section>
@@ -311,7 +317,7 @@ function CalendarDayDetail({ day }: Readonly<{ day: CalendarDayResponse }>) {
 function CalendarDayButton({
   day,
   selectedDate,
-  onSelect
+  onSelect,
 }: Readonly<{
   day: CalendarMonthDayItem;
   selectedDate: string | null;
@@ -321,11 +327,7 @@ function CalendarDayButton({
   const dayNumber = date.getDate();
   const isSelected = selectedDate === day.date;
   return (
-    <button
-      className={calendarDayClassName(day, isSelected)}
-      type="button"
-      onClick={() => onSelect(day.date)}
-    >
+    <button className={calendarDayClassName(day, isSelected)} type="button" onClick={() => onSelect(day.date)}>
       <span>{dayNumber}</span>
       <strong>{day.status}</strong>
       {day.notificationCount > 0 && <em>{day.notificationCount}</em>}
@@ -345,7 +347,9 @@ function NotificationList({ notifications }: Readonly<{ notifications: ReadonlyA
         <div className="notification-card" key={notification.id}>
           <span className={`status-chip ${notificationTone(notification)}`}>{notification.alertType}</span>
           <strong>{notification.fleetNumber || notification.serialId}</strong>
-          <span>{notification.alertField} / {formatNumber(notification.level)}</span>
+          <span>
+            {notification.alertField} / {formatNumber(notification.level)}
+          </span>
           <time>{formatDateTime(notification.notificationTime)}</time>
         </div>
       ))}
@@ -439,7 +443,7 @@ function initialCalendarDate(params: URLSearchParams) {
   const now = new Date();
   return {
     year: parsePositiveInt(params.get('year'), now.getFullYear()),
-    month: parsePositiveInt(params.get('month'), now.getMonth() + 1)
+    month: parsePositiveInt(params.get('month'), now.getMonth() + 1),
   };
 }
 

@@ -98,31 +98,28 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
   const isLoading = refreshingRequestKey === requestKey || completedRequestKey !== requestKey;
 
   // Function summary: Loads Help CMS admin article data.
-  const loadArticles = useCallback(
-    async () => {
-      setRefreshingRequestKey(requestKey);
-      try {
-        const response = await queryAdminHelp(query);
-        if (currentRequestKeyRef.current !== requestKey) {
-          return null;
-        }
-        setOverview(response);
-        setError(null);
-        setCompletedRequestKey(requestKey);
-        return response;
-      } catch (err) {
-        if (!isAbortError(err) && currentRequestKeyRef.current === requestKey) {
-          setError((err as Error).message);
-          onRequestError(err);
-          setCompletedRequestKey(requestKey);
-        }
+  const loadArticles = useCallback(async () => {
+    setRefreshingRequestKey(requestKey);
+    try {
+      const response = await queryAdminHelp(query);
+      if (currentRequestKeyRef.current !== requestKey) {
         return null;
-      } finally {
-        setRefreshingRequestKey((current) => (current === requestKey ? null : current));
       }
-    },
-    [onRequestError, query, requestKey],
-  );
+      setOverview(response);
+      setError(null);
+      setCompletedRequestKey(requestKey);
+      return response;
+    } catch (err) {
+      if (!isAbortError(err) && currentRequestKeyRef.current === requestKey) {
+        setError((err as Error).message);
+        onRequestError(err);
+        setCompletedRequestKey(requestKey);
+      }
+      return null;
+    } finally {
+      setRefreshingRequestKey((current) => (current === requestKey ? null : current));
+    }
+  }, [onRequestError, query, requestKey]);
 
   useEffect(() => {
     const controller = new AbortController();

@@ -21,7 +21,7 @@ describe('FormControls', () => {
         <FormField label="Email" error="Use a valid email">
           <input aria-label="Email" />
         </FormField>
-      </>
+      </>,
     );
 
     expect(screen.getByText('Saved')).toBeInTheDocument();
@@ -35,9 +35,12 @@ describe('FormControls', () => {
   it('prevents double-submit while a form action is pending', async () => {
     const user = userEvent.setup();
     let resolveSubmit: () => void = () => undefined;
-    const submit = vi.fn(() => new Promise<void>((resolve) => {
-      resolveSubmit = resolve;
-    }));
+    const submit = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSubmit = resolve;
+        }),
+    );
 
     render(<SubmitHarness onSubmit={submit} />);
 
@@ -64,7 +67,7 @@ describe('FormControls', () => {
         confirmLabel="Delete"
         onCancel={onCancel}
         onConfirm={onConfirm}
-      />
+      />,
     );
 
     await user.click(screen.getByRole('button', { name: /delete/i }));

@@ -74,7 +74,13 @@ type SubmitButtonProps = Readonly<{
 }>;
 
 // Function summary: Renders the SubmitButton React component and wires its local UI behavior.
-export function SubmitButton({ icon, isSubmitting, disabled, idleLabel, submittingLabel = 'Saving' }: SubmitButtonProps) {
+export function SubmitButton({
+  icon,
+  isSubmitting,
+  disabled,
+  idleLabel,
+  submittingLabel = 'Saving',
+}: SubmitButtonProps) {
   return (
     <button className="secondary-button" disabled={disabled || isSubmitting} type="submit">
       {icon}
@@ -103,7 +109,7 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   isBusy = false,
   onCancel,
-  onConfirm
+  onConfirm,
 }: ConfirmDialogProps) {
   if (!open) {
     return null;

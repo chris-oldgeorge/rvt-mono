@@ -9,25 +9,9 @@
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 // - 2026-06-09 pending Reused shared monitor map component for embedded detail parity.
 
-import {
-  Activity,
-  Bell,
-  CalendarDays,
-  Edit3,
-  Eye,
-  Gauge,
-  MapPin,
-  RefreshCcw,
-  Search,
-  ShieldAlert
-} from 'lucide-react';
+import { Activity, Bell, CalendarDays, Edit3, Eye, Gauge, MapPin, RefreshCcw, Search, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  getDashboardSummary,
-  isAbortError,
-  queryBreachesAlerts,
-  querySites
-} from '../api/client';
+import { getDashboardSummary, isAbortError, queryBreachesAlerts, querySites } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
 import { Notice } from '../components/FormControls';
@@ -40,13 +24,13 @@ import type {
   DashboardSummaryResponse,
   QuerySitesRequest,
   SiteListItem,
-  SortDirection
+  SortDirection,
 } from '../dtos';
 
 const roleNames = {
   masterAdmin: 'RVTMasterAdmin',
   installer: 'RVTInstaller',
-  companyUser: 'CompanyUser'
+  companyUser: 'CompanyUser',
 } as const;
 
 type DashboardPanelProps = Readonly<{
@@ -181,27 +165,33 @@ export function DashboardPanel({ auth, onNavigate, onRequestError }: DashboardPa
 // Function summary: Renders the legacy dashboard Site Search widget for admin and company users.
 function DashboardSiteSearch({
   onNavigate,
-  onRequestError
+  onRequestError,
 }: Readonly<{ onNavigate: (path: string) => void; onRequestError: (error: unknown) => void }>) {
   const [siteSearchResult, setSiteSearchResult] = useState<SiteSearchResult | null>(null);
   const [searchText, setSearchText] = useState('');
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState('siteName');
   const [sortDir, setSortDir] = useState<SortDirection>('Ascending');
-  const columns = useMemo<DataGridColumn<SiteListItem>[]>(() => [
-    { key: 'contracts', header: 'Contracts', sortable: true, render: (site) => site.contracts || 'None' },
-    { key: 'siteName', header: 'Site Name', sortable: true, render: (site) => site.siteName || 'None' },
-    { key: 'siteAddress', header: 'Address', sortable: true, render: (site) => site.siteAddress || 'None' },
-    { key: 'companyName', header: 'Company Name', sortable: true, render: (site) => site.companyName || 'None' }
-  ], []);
-  const query = useMemo<QuerySitesRequest>(() => ({
-    searchText,
-    includeArchived: false,
-    page,
-    pageSize: siteSearchPageSize,
-    sort: sortKey,
-    sortDir
-  }), [page, searchText, sortDir, sortKey]);
+  const columns = useMemo<DataGridColumn<SiteListItem>[]>(
+    () => [
+      { key: 'contracts', header: 'Contracts', sortable: true, render: (site) => site.contracts || 'None' },
+      { key: 'siteName', header: 'Site Name', sortable: true, render: (site) => site.siteName || 'None' },
+      { key: 'siteAddress', header: 'Address', sortable: true, render: (site) => site.siteAddress || 'None' },
+      { key: 'companyName', header: 'Company Name', sortable: true, render: (site) => site.companyName || 'None' },
+    ],
+    [],
+  );
+  const query = useMemo<QuerySitesRequest>(
+    () => ({
+      searchText,
+      includeArchived: false,
+      page,
+      pageSize: siteSearchPageSize,
+      sort: sortKey,
+      sortDir,
+    }),
+    [page, searchText, sortDir, sortKey],
+  );
   const requestKey = useMemo(() => JSON.stringify(query), [query]);
   const activeResult = siteSearchResult?.requestKey === requestKey ? siteSearchResult : null;
   const sites = activeResult?.sites ?? [];
@@ -225,7 +215,7 @@ function DashboardSiteSearch({
             sites: response.results,
             total: response.total,
             totalPages: response.totalPages,
-            error: null
+            error: null,
           });
         }
       })
@@ -251,7 +241,14 @@ function DashboardSiteSearch({
       <div className="toolbar-row site-search-form">
         <label className="search-box">
           <Search size={18} aria-hidden="true" />
-          <input value={searchText} onChange={(event) => { setSearchText(event.target.value); setPage(1); }} placeholder="Search sites" />
+          <input
+            value={searchText}
+            onChange={(event) => {
+              setSearchText(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search sites"
+          />
         </label>
       </div>
       <DataGrid
@@ -273,14 +270,14 @@ function DashboardSiteSearch({
           {
             label: 'View site',
             icon: <Eye size={16} aria-hidden="true" />,
-            onClick: (site) => onNavigate(`/sites/${site.id}`)
+            onClick: (site) => onNavigate(`/sites/${site.id}`),
           },
           {
             label: 'Edit site',
             icon: <Edit3 size={16} aria-hidden="true" />,
             onClick: (site) => onNavigate(`/sites/${site.id}/edit`),
-            disabled: (site) => site.archived
-          }
+            disabled: (site) => site.archived,
+          },
         ]}
       />
     </section>
@@ -299,7 +296,10 @@ function BreachesAlertsWidget({ onRequestError }: Readonly<{ onRequestError: (er
 
   useEffect(() => {
     const controller = new AbortController();
-    queryBreachesAlerts({ date, page: 1, pageSize: 8, sort: 'notificationTime', sortDir: 'Descending' }, { signal: controller.signal })
+    queryBreachesAlerts(
+      { date, page: 1, pageSize: 8, sort: 'notificationTime', sortDir: 'Descending' },
+      { signal: controller.signal },
+    )
       .then((nextResponse) => {
         if (controller.signal.aborted) {
           return;
@@ -344,7 +344,10 @@ function BreachesAlertsWidget({ onRequestError }: Readonly<{ onRequestError: (er
           </thead>
           <tbody>
             {(response?.results ?? []).map((item) => (
-              <BreachesAlertsRow item={item} key={item.notificationId ?? `${item.monitorId}-${item.notificationTime}`} />
+              <BreachesAlertsRow
+                item={item}
+                key={item.notificationId ?? `${item.monitorId}-${item.notificationTime}`}
+              />
             ))}
             {response?.results.length === 0 && (
               <tr>
@@ -370,7 +373,9 @@ function NotificationList({ notifications }: Readonly<{ notifications: ReadonlyA
         <div className="notification-card" key={notification.id}>
           <span className={`status-chip ${notificationTone(notification)}`}>{notification.alertType}</span>
           <strong>{notification.fleetNumber || notification.serialId}</strong>
-          <span>{notification.alertField} / {formatNumber(notification.level)}</span>
+          <span>
+            {notification.alertField} / {formatNumber(notification.level)}
+          </span>
           <time>{formatDateTime(notification.notificationTime)}</time>
         </div>
       ))}

@@ -55,21 +55,23 @@ function mapResponse(label: string) {
     siteId: label.toLowerCase().replace(' ', '-'),
     siteName: label,
     isScopedToCurrentUser: false,
-    markers: [{
-      monitorId: `${label}-monitor`,
-      deploymentId: `${label}-deployment`,
-      latitude: 51.5,
-      longitude: -0.1,
-      typeOfMonitor: 'Dust',
-      offline: false,
-      alert: false,
-      caution: false,
-      siteName: label,
-      fleetNumber: label,
-      serialId: `${label}-serial`,
-      lastDataTime: '2026-05-24T10:00:00Z',
-      what3words: null,
-    }],
+    markers: [
+      {
+        monitorId: `${label}-monitor`,
+        deploymentId: `${label}-deployment`,
+        latitude: 51.5,
+        longitude: -0.1,
+        typeOfMonitor: 'Dust',
+        offline: false,
+        alert: false,
+        caution: false,
+        siteName: label,
+        fleetNumber: label,
+        serialId: `${label}-serial`,
+        lastDataTime: '2026-05-24T10:00:00Z',
+        what3words: null,
+      },
+    ],
   };
 }
 
@@ -106,14 +108,16 @@ function calendarDay(monitorId: string, fleetNumber: string) {
 
 function siteResponse(name: string) {
   return {
-    results: [{
-      id: name.toLowerCase(),
-      siteName: name,
-      siteAddress: '1 Test Street',
-      companyName: 'RVT',
-      contracts: 'None',
-      archived: false,
-    }],
+    results: [
+      {
+        id: name.toLowerCase(),
+        siteName: name,
+        siteAddress: '1 Test Street',
+        companyName: 'RVT',
+        contracts: 'None',
+        archived: false,
+      },
+    ],
     total: 1,
     page: 1,
     pageSize: 50,
@@ -190,7 +194,9 @@ describe('Portal dashboard request ownership', () => {
     api.getCalendarMonth.mockReturnValueOnce(deploymentAMonth.promise).mockReturnValueOnce(deploymentBMonth.promise);
     api.getCalendarDay.mockReturnValueOnce(deploymentADay.promise).mockReturnValueOnce(deploymentBDay.promise);
 
-    render(<CalendarPanel locationPath="/calendar?deploymentId=deployment-a&year=2026&month=5" onRequestError={vi.fn()} />);
+    render(
+      <CalendarPanel locationPath="/calendar?deploymentId=deployment-a&year=2026&month=5" onRequestError={vi.fn()} />,
+    );
     await act(async () => deploymentAMonth.resolve(calendarMonth('deployment-a', 'monitor-a')));
     await act(async () => deploymentADay.resolve(calendarDay('monitor-a', 'Deployment A')));
     expect(await screen.findByText('Deployment A / Dust')).toBeInTheDocument();
@@ -207,7 +213,10 @@ describe('Portal dashboard request ownership', () => {
     const initialMarkers = deferred<ReturnType<typeof mapResponse>>();
     const siteAMarkers = deferred<ReturnType<typeof mapResponse>>();
     const siteBMarkers = deferred<ReturnType<typeof mapResponse>>();
-    api.queryMapMarkers.mockReturnValueOnce(initialMarkers.promise).mockReturnValueOnce(siteAMarkers.promise).mockReturnValueOnce(siteBMarkers.promise);
+    api.queryMapMarkers
+      .mockReturnValueOnce(initialMarkers.promise)
+      .mockReturnValueOnce(siteAMarkers.promise)
+      .mockReturnValueOnce(siteBMarkers.promise);
 
     render(<MapPanel locationPath="/maps" onRequestError={vi.fn()} />);
     await act(async () => initialMarkers.resolve(mapResponse('All Sites')));
@@ -227,9 +236,21 @@ describe('Portal dashboard request ownership', () => {
     const initialSearch = deferred<ReturnType<typeof siteResponse>>();
     const alphaSearch = deferred<ReturnType<typeof siteResponse>>();
     const betaSearch = deferred<ReturnType<typeof siteResponse>>();
-    api.querySites.mockReturnValueOnce(initialSearch.promise).mockReturnValueOnce(alphaSearch.promise).mockReturnValueOnce(betaSearch.promise);
+    api.querySites
+      .mockReturnValueOnce(initialSearch.promise)
+      .mockReturnValueOnce(alphaSearch.promise)
+      .mockReturnValueOnce(betaSearch.promise);
 
-    render(<DashboardPanel auth={{ isAuthenticated: true, user: { id: 'admin', email: 'admin@rvt.test', name: 'Admin', roles: ['RVTAdmin'] } }} onNavigate={vi.fn()} onRequestError={vi.fn()} />);
+    render(
+      <DashboardPanel
+        auth={{
+          isAuthenticated: true,
+          user: { id: 'admin', email: 'admin@rvt.test', name: 'Admin', roles: ['RVTAdmin'] },
+        }}
+        onNavigate={vi.fn()}
+        onRequestError={vi.fn()}
+      />,
+    );
     await act(async () => initialSearch.resolve(siteResponse('Initial Site')));
     const search = await screen.findByPlaceholderText('Search sites');
     fireEvent.change(search, { target: { value: 'alpha' } });

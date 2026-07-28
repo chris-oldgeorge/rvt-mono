@@ -164,10 +164,19 @@ def assert_database_lifecycle(steps)
   assert(!cleanup_run.match?(/\bdocker\b/i), "database cleanup must not invoke Docker")
 
   begin_index = steps.index(named_step.call("Begin SonarQube analysis"))
-  build_index = steps.index(named_step.call("Restore and build monorepo"))
+  restore_index = steps.index(named_step.call("Restore monorepo"))
+  standards_index = steps.index(named_step.call("Verify engineering standards"))
+  build_index = steps.index(named_step.call("Build monorepo (Release)"))
   deploy_index = steps.index(named_step.call("Deploy Portal database"))
   coverage_index = steps.index(named_step.call("Collect .NET coverage"))
-  assert(begin_index < build_index && build_index < deploy_index && deploy_index < coverage_index, "database deployment must occur after scanner begin and build, before .NET coverage")
+  assert(
+    begin_index < restore_index &&
+      restore_index < standards_index &&
+      standards_index < build_index &&
+      build_index < deploy_index &&
+      deploy_index < coverage_index,
+    "database deployment must occur after scanner begin, restore, standards verification, and build, before .NET coverage"
+  )
 end
 
 assert_database_lifecycle(steps)
@@ -193,9 +202,42 @@ begin_analysis = scalar(begin_step.fetch("run"), "Begin SonarQube analysis run c
   "/d:sonar.qualitygate.timeout=600"
 ].each { |required| assert(begin_analysis.include?(required), "scanner begin must contain #{required}") }
 
-build = run.call("Restore and build monorepo")
-assert(build.include?("dotnet restore Rvt.Mono.slnx --disable-parallel"), "workflow must restore the monorepo solution")
-assert(build.include?("dotnet build Rvt.Mono.slnx --configuration Release --no-restore --no-incremental --nologo -m:1"), "workflow must build the monorepo serially")
+node_setup_index = steps.index do |step|
+  step.key?("uses") &&
+    scalar(step.fetch("uses"), "action reference").start_with?("actions/setup-node@")
+end
+portal_install_index = steps.index(step_named.call("Install Portal client dependencies"))
+assert(portal_install_index == node_setup_index + 1, "Portal dependencies must be installed immediately after Node setup")
+
+portal_install = step_named.call("Install Portal client dependencies")
+assert(
+  scalar(portal_install.fetch("working-directory"), "Portal install working directory") ==
+    "apps/portal/RvtPortal.Client",
+  "unexpected Portal install working directory"
+)
+portal_install_run = scalar(portal_install.fetch("run"), "Portal install run command")
+assert(portal_install_run.lines.map(&:strip).reject(&:empty?) == ["npm ci"], "Portal install must run exactly one npm ci")
+
+restore = run.call("Restore monorepo")
+assert(
+  restore.lines.map(&:strip).reject(&:empty?) ==
+    ["dotnet restore Rvt.Mono.slnx --disable-parallel"],
+  "workflow must restore the monorepo solution exactly once"
+)
+
+standards = run.call("Verify engineering standards")
+assert(
+  standards.lines.map(&:strip).reject(&:empty?) ==
+    ["scripts/verify-engineering-standards.sh --base auto --head HEAD"],
+  "workflow must run the changed-scope engineering standards gate exactly once"
+)
+
+build = run.call("Build monorepo (Release)")
+assert(
+  build.lines.map(&:strip).reject(&:empty?) ==
+    ["dotnet build Rvt.Mono.slnx --configuration Release --no-restore --no-incremental --nologo -m:1"],
+  "workflow must build the monorepo serially in Release exactly once"
+)
 
 coverage = run.call("Collect .NET coverage")
 assert(coverage.include?("dotnet test Rvt.Mono.slnx --configuration Release --no-build --no-restore --nologo -m:1"), "workflow must test the monorepo serially")
@@ -206,9 +248,18 @@ portal_coverage = step_named.call("Collect Portal client coverage")
 assert(portal_coverage, "missing Collect Portal client coverage step")
 assert(scalar(portal_coverage.fetch("working-directory"), "Portal coverage working directory") == "apps/portal/RvtPortal.Client", "unexpected Portal coverage working directory")
 portal_coverage_run = scalar(portal_coverage.fetch("run"), "Portal coverage run command")
-assert(portal_coverage_run.include?("npm ci"), "Portal coverage must install locked dependencies")
+assert(!portal_coverage_run.lines.any? { |line| line.strip == "npm ci" }, "Portal coverage must not reinstall dependencies")
 assert(portal_coverage_run.include?("npm run test:coverage"), "Portal coverage must run tests")
 assert(portal_coverage_run.include?("test -s coverage/lcov.info"), "Portal coverage must require nonempty LCOV")
+
+npm_ci_count = steps.sum do |step|
+  next 0 unless step.key?("run")
+
+  scalar(step.fetch("run"), "workflow step run command")
+    .lines
+    .count { |line| line.strip == "npm ci" }
+end
+assert(npm_ci_count == 1, "workflow must run npm ci exactly once")
 
 end_step = step_named.call("End SonarQube analysis")
 assert(end_step, "missing End SonarQube analysis step")

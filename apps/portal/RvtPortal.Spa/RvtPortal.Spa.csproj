@@ -48,12 +48,12 @@
     </Exec>
     <Error Condition="'$(ErrorCode)' != '0'" Text="Node.js is required to build and run the RVT Portal SPA client. Install Node.js, then restart Visual Studio." />
     <Message Importance="high" Text="Restoring SPA dependencies with npm ci..." />
-    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci --ignore-scripts &amp;&amp; popd&quot;" />
+    <Exec Command="npm ci --ignore-scripts" WorkingDirectory="$(SpaRoot)" />
   </Target>
 
   <Target Name="PublishClientApp" BeforeTargets="ComputeFilesToPublish">
-    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci --ignore-scripts &amp;&amp; popd&quot;" />
-    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm run build &amp;&amp; popd&quot;" />
+    <Exec Command="npm ci --ignore-scripts" WorkingDirectory="$(SpaRoot)" />
+    <Exec Command="npm run build" WorkingDirectory="$(SpaRoot)" />
     <ItemGroup>
       <ClientDist Include="$(SpaRoot)dist\**" />
       <ResolvedFileToPublish Include="@(ClientDist->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">

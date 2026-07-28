@@ -42,6 +42,19 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Set up Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: apps/portal/RvtPortal.Client/package-lock.json
+
+      # RvtPortal.Spa's Debug build restores the SPA client when node_modules is
+      # absent, so the .NET job needs the same prerequisite a developer machine has.
+      - name: Install Portal client dependencies
+        working-directory: apps/portal/RvtPortal.Client
+        run: npm ci --ignore-scripts
+
       - name: Restore monorepo
         run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel
 
@@ -101,6 +114,11 @@ jobs:
           node-version: 24.x
           cache: npm
           cache-dependency-path: apps/portal/RvtPortal.Client/package-lock.json
+
+      # verify-documentation-layout.sh drives ripgrep, which is not preinstalled
+      # on the GitHub-hosted image.
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
 
       - name: Verify PostgreSQL-only boundary
         run: scripts/verify-postgresql-only.sh .

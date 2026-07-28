@@ -34,6 +34,7 @@
 
 using MediatR;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Rvt.Communication.Abstractions;
 using Rvt.Communication.SendGridMail;
 using RVT.BusinessLogic;
@@ -103,13 +104,16 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(15);
         });
         services.AddOptions<PortalEmailOptions>().BindConfiguration("EmailConfiguration");
-        services.AddSendGridMail(new SendGridMailOptions
+        var emailEnabled = configuration.GetValue("RVT:EMAIL_ENABLED", true);
+        var sendGridMailOptions = new SendGridMailOptions
         {
-            Enabled = true,
+            Enabled = emailEnabled,
             ApiKey = configuration["EmailConfiguration:SENDGRID_API_KEY"] ?? string.Empty,
             FromEmail = configuration["EmailConfiguration:Sending_Email_Address"] ?? string.Empty,
             FromName = "RVT Cloud"
-        });
+        };
+        services.AddSingleton<IOptions<SendGridMailOptions>>(Options.Create(sendGridMailOptions));
+        services.AddSendGridMail(sendGridMailOptions);
         services.AddScoped<IEmailDelivery, RvtCommonEmailDelivery>();
         services.AddScoped<IAccountMessenger, AccountMessenger>();
         services.AddScoped<IApiResultMapper, ApiResultMapper>();

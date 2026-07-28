@@ -1,5 +1,29 @@
 # Project State
 
+## Legacy Azure Pipelines removed — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Removed all eight imported Azure Pipeline definitions: paired main and
+  pull-request YAML files from the AirQ, MyATM, Omnidots, and Svantek monitor
+  module roots.
+- Removed the six matching Visual Studio solution-item entries from
+  `airqmonitor.sln`, `myatmmonitor.sln`, and `omnidotsmonitor.sln`.
+  `svantekmonitor.sln` contained no pipeline-file reference.
+- Repository-wide search now finds no Azure Pipeline filename or Azure
+  Pipelines/Azure DevOps reference outside this historical state record.
+- The three changed module solutions parse successfully and each still lists
+  its production and test project. The monorepo solution and layout guards
+  pass, the working-tree engineering-standards ratchet exits successfully,
+  and `git diff --check` passes.
+- CodeGraph synchronized the deletions. The refreshed index contains 1,130
+  files, 20,234 nodes, and 48,999 edges, with the indexed YAML count reduced
+  from 23 to 15.
+- The GitHub Engineering standards and on-demand SonarQube workflows remain
+  unchanged. Any Azure DevOps pipeline registered externally to a deleted YAML
+  path must also be deleted or repointed in Azure DevOps.
+- The pre-existing uncommitted local edit to
+  `apps/portal/RvtPortal.Spa/Properties/launchSettings.json` remains untouched.
+
 ## Authoritative checkpoint: PR #5 merged into main — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

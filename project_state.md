@@ -1,5 +1,46 @@
 # Project State
 
+## Authoritative checkpoint: Sonar security remediation merged — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- GitHub PR #9, `Remediate Sonar security findings`, merged into `main` as
+  `0234e459069c111499516e3287024aa58a77c37c`. PR #10, `Run standards before
+  Sonar scanner initialization`, then merged as
+  `6fb1019b9b4d667b13f7429fe39d610c918a5490`. Both remote feature branches
+  were deleted.
+- SonarCloud project `aileron-forward_rvt-mono`, branch `main`, now reports
+  zero active vulnerabilities and zero security hotspots with status
+  `TO_REVIEW`. The security rating is A, and security-hotspot review is 100%.
+  The seven context-dependent dispositions in the next checkpoint remain the
+  authoritative rationale for six false positives and one accepted
+  container-network HTTP boundary.
+- GitHub Actions Sonar run `30370391674` analyzed exact SCM revision
+  `6fb1019b9b4d667b13f7429fe39d610c918a5490`. Restore, standards verification,
+  Release build, database deployment, .NET coverage, all 78 Portal client
+  tests with coverage, analysis upload, and database cleanup passed. The run
+  is available at
+  `https://github.com/chris-oldgeorge/rvt-mono/actions/runs/30370391674`.
+- The overall quality gate remains `ERROR` for non-security new-code debt:
+  reliability rating D from three JavaScript findings and coverage 9.8%
+  (102 covered of 1,626 lines to cover; 1,524 uncovered) against an 80%
+  threshold. Security rating, maintainability rating, duplicated-line density,
+  and hotspot review all pass.
+- The reliability follow-up branch is
+  `codex/sonar-reliability-followup`. It adds explicit JavaScript property
+  types to `scripts/engineering-standards/verify.mjs` so Sonar does not infer
+  mutable parser fields as permanently undefined, and it gives
+  `scripts/engineering-standards/model.mjs` an explicit code-point comparator
+  for deterministic diagnostic-key ordering. The model suite passes 26/26,
+  both files pass `node --check`, and the full verifier scenario suite passes.
+- The coverage result is repository-wide new-code-period debt, not part of the
+  security remediation. Its largest uncovered files are the engineering
+  standards verifier/model and the existing Portal Help feature. No quality
+  gate, new-code period, or coverage exclusion was weakened or changed.
+- Sonar dependency analysis was not authorized or run; the analysis log
+  explicitly records `Dependency analysis skipped`. No runtime variable,
+  secret, application configuration, or file-layout contract changed in the
+  reliability follow-up.
+
 ## Authoritative checkpoint: Sonar security dispositions recorded — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

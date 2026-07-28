@@ -143,11 +143,13 @@ public class TestOmnidotsCancellation
     {
         // The port exists so the import chain stays asynchronous end to end;
         // every member must be awaitable.
-        string[] nonAsync = typeof(IOmnidotsVendorGateway)
-            .GetMethods()
-            .Where(method => !typeof(Task).IsAssignableFrom(method.ReturnType))
-            .Select(method => method.Name)
-            .ToArray();
+        string[] nonAsync =
+        [
+            .. typeof(IOmnidotsVendorGateway)
+                .GetMethods()
+                .Where(method => !typeof(Task).IsAssignableFrom(method.ReturnType))
+                .Select(method => method.Name),
+        ];
 
         Assert.IsEmpty(nonAsync, "Every vendor port member must return a Task.");
     }

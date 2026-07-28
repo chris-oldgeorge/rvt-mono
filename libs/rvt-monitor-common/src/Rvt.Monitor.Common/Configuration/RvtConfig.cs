@@ -103,7 +103,7 @@ public sealed class RvtConfig
     /// </remarks>
     private static string NormalizeMonitorKind(string? monitorKind, string baseDirectory, string entryAssemblyName)
     {
-        string?[] candidates = new[] { monitorKind, entryAssemblyName, baseDirectory };
+        string?[] candidates = [monitorKind, entryAssemblyName, baseDirectory];
         foreach (string? candidate in candidates)
         {
             if (string.IsNullOrWhiteSpace(candidate))

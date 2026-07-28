@@ -27,11 +27,11 @@ namespace Omnidots.Api.Http
         public async Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken = default)
         {
             using var content = new MultipartFormDataContent();
-            KeyValuePair<string, string>[] values = new[]
-            {
+            KeyValuePair<string, string>[] values =
+            [
                 new KeyValuePair<string, string>("username", userId),
                 new KeyValuePair<string, string>("password", userAuth)
-            };
+            ];
 
             foreach (KeyValuePair<string, string> keyValuePair in values)
             {

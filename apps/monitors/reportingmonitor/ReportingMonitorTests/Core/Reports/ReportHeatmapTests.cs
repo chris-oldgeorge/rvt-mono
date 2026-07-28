@@ -77,9 +77,11 @@ public sealed class ReportHeatmapTests
     private static ReportAlertHeatmap CreateHeatmap(int dayCount)
     {
         var start = new DateOnly(2026, 3, 1);
-        ReportAlertHeatmapCell[] cells = Enumerable.Range(0, dayCount)
-            .Select(offset => new ReportAlertHeatmapCell(start.AddDays(offset), 12, 1, 0, 80m))
-            .ToArray();
+        ReportAlertHeatmapCell[] cells =
+        [
+            .. Enumerable.Range(0, dayCount)
+                .Select(offset => new ReportAlertHeatmapCell(start.AddDays(offset), 12, 1, 0, 80m)),
+        ];
         return new ReportAlertHeatmap(MonitorType.Noise, cells);
     }
 

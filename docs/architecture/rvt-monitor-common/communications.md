@@ -48,12 +48,11 @@ There are two independent reporting paths:
    delivery, test-recipient behavior, cancellation, and result semantics.
    `ReportingMonitor` owns the same explicit SendGrid/Microsoft Graph selection
    as the other monitor hosts and also composes the workflow and TransmitSMS.
-2. `services/reporting/src/Rvt.Reporting.Messaging` no longer references or
-   constructs the SendGrid SDK. Its `ReportMessageSender` sends one
-   provider-neutral attachment through `IEmailDeliveryPort`. The
-   `Rvt.Reporting.Service` host explicitly registers SendGrid from the existing
-   `RVT:EMAIL_*` and `RVT:SENDGRID_API_KEY` settings. Disabled email remains a
-   successful no-op, including for an already-cancelled supplied token.
+2. The former standalone `services/reporting` copy of this messaging adapter
+   was removed on 2026-07-28 when reporting consolidated into
+   `apps/monitors/reportingmonitor`; item 1 above is now the only reporting
+   messaging path. Disabled email remains a successful no-op, including for an
+   already-cancelled supplied token.
 
 The Portal remains a third, deliberately SendGrid-only composition root. Its
 `RvtCommonEmailDelivery` adapter remains the boundary between the Portal

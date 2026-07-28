@@ -40,10 +40,10 @@ public sealed class MonitorDeliveryDispatcher
     public async Task DispatchDueAsync(CancellationToken cancellationToken = default)
     {
         var failures = new List<Exception>();
-        for (var index = 0; index < options.BatchSize; index++)
+        for (int index = 0; index < options.BatchSize; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var message = await queries.ClaimNextDueAsync(
+            MonitorDeliveryMessage? message = await queries.ClaimNextDueAsync(
                 options.Producer,
                 DateTime.UtcNow,
                 options.LeaseDuration,
@@ -93,7 +93,7 @@ public sealed class MonitorDeliveryDispatcher
                 continue;
             }
 
-            var completed = await commands.CompleteAsync(
+            bool completed = await commands.CompleteAsync(
                 message.Id,
                 message.LeaseId,
                 DateTime.UtcNow,
@@ -138,8 +138,8 @@ public sealed class MonitorDeliveryDispatcher
                     .ConfigureAwait(false);
                 return null;
             case MonitorDeliveryKind.MqttAlert:
-                var prefix = message.Producer == MonitorDeliveryProducers.MyAtm ? "Dust" : "Noise";
-                var text = $"{prefix} {payload.AlertType} {payload.Field} level={payload.Level}";
+                string prefix = message.Producer == MonitorDeliveryProducers.MyAtm ? "Dust" : "Noise";
+                string text = $"{prefix} {payload.AlertType} {payload.Field} level={payload.Level}";
                 await PublishMqttAsync(options.AlertTopic, payload, text, cancellationToken)
                     .ConfigureAwait(false);
                 return null;
@@ -174,7 +174,7 @@ public sealed class MonitorDeliveryDispatcher
         string text,
         CancellationToken cancellationToken)
     {
-        var mqttMessage = payload.CustomerId.HasValue
+        RvtMqttMessage mqttMessage = payload.CustomerId.HasValue
             ? new RvtMqttMessage(payload.Timestamp, payload.CustomerId.Value, payload.SerialId, text)
             : new RvtMqttMessage(payload.Timestamp, payload.SerialId, text);
         await mqttClient.PublishAsync(
@@ -191,11 +191,11 @@ public sealed class MonitorDeliveryDispatcher
         List<Exception> failures,
         CancellationToken cancellationToken)
     {
-        var error = DeliveryError(exception);
+        string error = DeliveryError(exception);
         bool outcomeRecorded;
         if (terminal)
         {
-            var audit = payload is null
+            MonitorDeliveryAudit? audit = payload is null
                 ? null
                 : CreateAudit(message, payload, error, DateTime.UtcNow);
             outcomeRecorded = await commands.DeadLetterAsync(
@@ -300,22 +300,16 @@ public sealed class MonitorDeliveryDispatcher
         exception is DeliveryException { FailureKind: not DeliveryFailureKind.Transient } ||
         attemptCount >= options.MaxAttempts;
 
-    private TimeSpan RetryDelay(int attemptCount, Exception exception)
-    {
-        var exponent = Math.Max(0, attemptCount - 1);
-        var ticks = options.InitialRetryDelay.Ticks * Math.Pow(2, exponent);
-        var exponential = TimeSpan.FromTicks((long)Math.Min(ticks, options.RetryCap.Ticks));
-        var retryAfter = exception is DeliveryException { RetryAfter: { } requested }
-            ? requested
-            : TimeSpan.Zero;
-        return TimeSpan.FromTicks(Math.Min(
-            Math.Max(exponential.Ticks, retryAfter.Ticks),
-            options.RetryCap.Ticks));
-    }
+    private TimeSpan RetryDelay(int attemptCount, Exception exception) =>
+        DeliveryRetrySchedule.NextDelay(
+            attemptCount,
+            options.InitialRetryDelay,
+            options.RetryCap,
+            exception);
 
     private static string DeliveryError(Exception exception)
     {
-        var error = exception is DeliveryException
+        string error = exception is DeliveryException
             ? exception.Message
             : $"Delivery failed ({exception.GetType().Name}).";
         return error.Length <= MaximumErrorLength ? error : error[..MaximumErrorLength];

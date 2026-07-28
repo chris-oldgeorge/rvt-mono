@@ -6,7 +6,6 @@ module_roots=(
   "apps/monitors"
   "apps/portal"
   "libs/rvt-monitor-common"
-  "services/reporting"
 )
 solution_file="${MONO_SOLUTION_FILE:-$root_dir/Rvt.Mono.slnx}"
 
@@ -41,10 +40,7 @@ expected_folders="$(printf '%s\n' \
   '/Apps/Portal/Tests/' \
   '/Libraries/' \
   '/Libraries/RVT Monitor Common/' \
-  '/Libraries/RVT Monitor Common/Tests/' \
-  '/Services/' \
-  '/Services/Reporting/' \
-  '/Services/Reporting/Tests/' | LC_ALL=C sort)"
+  '/Libraries/RVT Monitor Common/Tests/' | LC_ALL=C sort)"
 listed_folders="$(awk '
   /<Folder Name="/ {
     folder = $0
@@ -65,7 +61,6 @@ while IFS= read -r project_path; do
     apps/monitors/*) logical_folder='/Apps/Monitors/' ;;
     apps/portal/*) logical_folder='/Apps/Portal/' ;;
     libs/rvt-monitor-common/*) logical_folder='/Libraries/RVT Monitor Common/' ;;
-    services/reporting/*) logical_folder='/Services/Reporting/' ;;
   esac
 
   if grep -Eq '<IsTestProject>true</IsTestProject>|Include="Microsoft\.NET\.Test\.Sdk"' "$root_dir/$project_path"; then

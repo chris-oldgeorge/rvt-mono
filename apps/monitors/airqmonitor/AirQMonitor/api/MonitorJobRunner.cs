@@ -8,33 +8,33 @@ internal static class MonitorJobRunner
 {
     public static string? GetJobName(string[] args)
     {
-        var cliJob = args.SkipWhile(arg => arg != "--job").Skip(1).FirstOrDefault();
+        string? cliJob = args.SkipWhile(arg => arg != "--job").Skip(1).FirstOrDefault();
         return string.IsNullOrWhiteSpace(cliJob)
             ? Environment.GetEnvironmentVariable("RVT__MONITOR_JOB")
             : cliJob;
     }
 
-    public static async Task<int> RunAsync(string jobName, AirQService service)
+    public static async Task<int> RunAsync(string jobName, AirQService service, CancellationToken cancellationToken = default)
     {
         switch (jobName.Trim())
         {
             case "StoreMonitors":
-                service.StoreMonitors();
+                await service.StoreMonitorsAsync(cancellationToken);
                 return 0;
             case "CheckForOfflineMonitors":
-                service.CheckForOfflineMonitors();
+                await service.CheckForOfflineMonitorsAsync(cancellationToken);
                 return 0;
             case "StoreNoiseLevels":
-                service.StoreNoiseLevels();
+                await service.StoreNoiseLevelsAsync(cancellationToken);
                 return 0;
             case "StoreAllNoiseLevelsForYesterday":
-                service.StoreAllNoiseLevelsForYesterday();
+                await service.StoreAllNoiseLevelsForYesterdayAsync(cancellationToken);
                 return 0;
             case "NotifySiteAverages":
-                service.NotifySiteAverages();
+                await service.NotifySiteAveragesAsync(cancellationToken);
                 return 0;
             case "ClearOlderErrorMessages":
-                service.ClearOlderErrorMessages();
+                await service.ClearOlderErrorMessagesAsync(cancellationToken);
                 return 0;
             default:
                 await Console.Error.WriteLineAsync($"Unknown AirQ monitor job '{jobName}'.");

@@ -8,7 +8,6 @@ using MyAtm.Api.Http;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
 using Rvt.Communication;
-using Rvt.Communication.Abstractions;
 using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
 using Rvt.Communication.TransmitSms;
@@ -77,7 +76,11 @@ public static class MyAtmMonitorServices
         services.AddSingleton<IMonitorDeliveryOutboxQueries>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton(provider => provider.GetRequiredService<MyAtmMonitorOptions>()
             .ToDeliveryOptions(RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC));
-        services.AddSingleton<IMqttClient, RvtMqttClient>();
+        // Broker settings are supplied explicitly rather than read from
+        // static configuration inside the client.
+        services.AddSingleton(_ => MqttOptions.FromRvtConfig());
+        services.AddSingleton<IMqttClient>(provider =>
+            new RvtMqttClient(provider.GetRequiredService<MqttOptions>()));
         services.AddRvtCommunication();
         AddEmailProvider(services, configuration);
         services.AddTransmitSms(configuration);
@@ -153,7 +156,7 @@ public static class MyAtmMonitorServices
             }
             catch (Exception e)
             {
-                var dbClient = provider.GetRequiredService<IDBClient>();
+                IDBClient dbClient = provider.GetRequiredService<IDBClient>();
                 dbClient.HandleException("failed to start monitor application", e);
                 throw; // Need this to kill the instance.
             }
@@ -164,7 +167,7 @@ public static class MyAtmMonitorServices
 
     private static void AddEmailProvider(IServiceCollection services, IConfiguration configuration)
     {
-        var configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
+        string configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
             ?? configuration["RVT__EMAIL_PROVIDER"]
             ?? "SendGrid";
 

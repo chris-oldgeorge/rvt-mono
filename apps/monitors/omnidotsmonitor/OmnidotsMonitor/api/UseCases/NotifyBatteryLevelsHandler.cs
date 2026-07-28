@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
@@ -31,15 +30,16 @@ namespace Omnidots.Api.UseCases
             this.ruleProcessor = ruleProcessor;
         }
 
-        public void Run()
+        public Task RunAsync(CancellationToken cancellationToken = default)
         {
-            var monitors = monitorReader.ReadMonitors();
+            cancellationToken.ThrowIfCancellationRequested();
+            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
 
-            foreach (var monitor in monitors)
+            foreach (VibrationMonitorDto monitor in monitors)
             {
                 if (monitor.Sensor != null)
                 {
-                    var batteryLevel = monitor.Sensor!.BatteryCharge;
+                    int batteryLevel = monitor.Sensor!.BatteryCharge;
                     RvtLogger.Logger.LogDebug("NotifyBatteryLevels Battery level={Value1} for serialId={Value2} status={Value3}", batteryLevel, monitor.SerialId!, monitor.BatteryStatus!);
 
                     if (batteryLevel < 0) // -1 means there is no valid value for battery level so ignore
@@ -88,12 +88,14 @@ namespace Omnidots.Api.UseCases
                 }
 
             }
+
+            return Task.CompletedTask;
         }
 
         private void ProcessBatteryAlert(int batteryLevel, VibrationMonitorDto monitor, int alertLevel, AlertType alertType)
         {
             monitorCommands.SetMonitorBatteryStatus(monitor.Id, (byte)(alertType == AlertType.BatteryAlert ? 1 : 2));  //1 for alert and 2 for Caution
-            var createdTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow);
+            DateTime createdTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow);
 
             var notification = new NotificationDto(id: Guid.NewGuid(),
                 notificationTime: createdTime,

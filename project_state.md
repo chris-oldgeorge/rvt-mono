@@ -1,5 +1,226 @@
 # Project State
 
+## Authoritative checkpoint: Rvt.Monitor.Common hub cleanup — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Branch `fix/critical-consolidate-reporting-duplication`; the review's
+  remaining `Rvt.Monitor.Common` items are addressed.
+- **One retry backoff.** `DeliveryRetrySchedule` replaces the two copies the
+  alert dispatcher and the monitor delivery dispatcher each carried — one in
+  ticks, one in whole seconds — which is the drift the review flagged. A test
+  asserts both configurations produce identical delays across ten attempts, and
+  a large attempt count now saturates at the cap instead of overflowing the
+  tick arithmetic.
+- **MQTT settings are injected.** `MqttOptions` is supplied by each composition
+  root; `RvtMqttClient` no longer reads static configuration at the point of
+  use. `MqttOptions.FromRvtConfig()` is the deliberate bridge that preserves
+  the existing environment contract, and is the only remaining `RvtConfig`
+  reference in the MQTT stack.
+- **`RvtMqttClient` is disposable.** It held an MQTTnet client and a
+  `SemaphoreSlim` and disposed neither. This was found by the new tests, not by
+  the review.
+- **`RvtLogger` can no longer take a process down.** Reading it before a host
+  configured it used to throw — so a diagnostic statement could itself become
+  the failure — and the message named MyAtm regardless of caller. It degrades
+  to `NullLogger` now, exposes `IsConfigured`, and validates its arguments. It
+  is still a service locator: migrating the 157 call sites to injected
+  `ILogger` is separate, unstarted work.
+- `MonitorEventPublisher` threads a `CancellationToken` and the four
+  asynchronous import call sites await it. The blocking wrappers remain only
+  for the legacy synchronous `NoiseRuleEvaluator` path and are documented as
+  such.
+- Note for future test work: this suite runs with
+  `Parallelize(Scope = ExecutionScope.MethodLevel)`, so tests touching
+  process-wide state must be `[DoNotParallelize]` and must avoid asserting on
+  global transitions another suite could race. `RvtLoggerTests` follows that.
+- Verification: 2324 passed, 0 failed, 0 warnings; all five repository guards
+  and the 24 standards-policy tests green.
+
+## Authoritative checkpoint: storage port and shared-rule coupling — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Branch `fix/critical-consolidate-reporting-duplication` also carries the two
+  high-priority library findings from
+  `docs/reviews/2026-07-28-full-codebase-review.md`.
+- **Storage port contract is uniform.** All three adapters now report
+  operational failures as `ObjectStorageException` with a
+  `StorageFailureKind`: S3 additionally classifies `AmazonServiceException`
+  and reports `AmazonClientException` as `Unavailable`; Azure translates
+  `AuthenticationFailedException` as `AccessDenied`; Local previously
+  translated nothing and now maps filesystem faults to `Unavailable`, denied
+  access to `AccessDenied`, and rejected reparse-point paths to
+  `InvalidRequest`. Argument validation and caller cancellation stay outside
+  the contract by design and are pinned by tests.
+- `GetObjectUri` moved onto `IObjectStorageClient`. It removed the last reason
+  for a port consumer to name adapter types: ReportingMonitor's storage
+  composition had three near-identical branches resolving concrete adapters and
+  now resolves the port once through `IObjectStorageClientFactory`.
+- Three Local tests had asserted the raw `IOException` produced by the missing
+  translation; they now assert the port contract and that the original cause is
+  preserved as `InnerException`.
+- **Shared rules no longer branch on which executable is running.**
+  `MonitorRulePolicy` states the monitor-specific behaviour explicitly, and
+  `AlertActivityTimeDto.IsActive` and `RvtNotificationDto.GetMessage` take it
+  as a value instead of reading `RvtConfig.IsMyAtmMonitor` /
+  `IsOmnidotsMonitor` / `IsNoiseMonitor`. Both default to the running monitor's
+  policy so callers are unaffected, and both can now be evaluated for a chosen
+  monitor without global state.
+- Nine dead `RvtConfig` statics were deleted, including the `SENDGRID_API_KEY`,
+  `SMS_API_KEY` and `SMS_API_SECRET` secret surface. All had zero consumers;
+  the identically named environment variables remain in use by the adapter
+  options binders, which is the supported path.
+- `RVT__MONITOR_KIND` is now declared for all four vendor monitors in
+  `apps/monitors/docker-compose.yml`. It was previously set nowhere, so the
+  entry-assembly and base-directory sniffing was load-bearing. The fallbacks
+  are retained for hosts that predate the variable and are documented as a
+  legacy last resort.
+- Verification: 2295 passed, 0 failed, 0 warnings, all five repository guards
+  green.
+
+## Authoritative checkpoint: critical review findings in progress — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Branch `fix/critical-consolidate-reporting-duplication` continues to carry
+  the critical remediation from
+  `docs/reviews/2026-07-28-full-codebase-review.md`.
+- An integration database is now available for the previously unrunnable
+  PostgreSQL tests. Export
+  `RVT__POSTGRES_INTEGRATION_CONNECTION="Host=localhost;Port=55432;Database=rvt_integration;Username=postgres;Password=postgres"`
+  and start it with:
+  `docker run -d --name rvt-integration-db -e POSTGRES_DB=rvt_integration -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 55432:5432 timescale/timescaledb:2.28.3-pg17`.
+  With it configured the whole solution is green: **2256 passed, 0 failed, 0
+  warnings**. Without it, 188 PostgreSQL tests fail by design rather than
+  silently passing.
+- Completed on this branch since the consolidation:
+  - Microsoft Graph token failures now classify transport faults as
+    `Transient`. Previously an Entra ID outage dead-lettered every in-flight
+    alert because the wrapped cause was not a `RequestFailedException`.
+  - A contact enabled for a channel it has no address for is reported through
+    `CommsException` instead of escaping as `ArgumentException`, so the
+    failure is audited against that contact and the remaining contacts of the
+    notification still run.
+  - The report alert heatmap sizes its SVG viewBox to the day count. The fixed
+    640x190 box clipped every row past the eighth day, silently truncating
+    monthly and 31-day one-time reports. Report text also formats invariantly
+    now, so thresholds no longer render as "42,5" under a comma-decimal
+    container locale.
+  - AirQ and Omnidots vendor HTTP clients apply an explicit 30 second timeout.
+    Both previously relied on the 100 second framework default, so an
+    unresponsive endpoint stalled the import on every request.
+- Each fix landed with the regression coverage that was missing where the bug
+  survived: 28 new tests across Graph token classification, missing-destination
+  delivery, heatmap geometry, invariant formatting, and the HTTP timeouts.
+- **AirQ is now fully asynchronous and cancellable.** `.Result` no longer
+  appears anywhere in `AirQMonitor`, and the Quartz/one-shot token reaches the
+  vendor request. The chain is
+  `AirQMonitorJobDispatcher` → `MonitorJobRunner` → `AirQService` →
+  `AirQApi` → handlers → `IAirQVendorGateway` → `IHttpClient`.
+  - A driven port `AirQ.Api.Ports.IAirQVendorGateway` was introduced. The
+    import use cases previously depended on the concrete `AirQHttpGateway`
+    adapter; they now depend only on the port, and
+    `TestAirQCancellation.UseCasesDependOnThePortNotTheHttpAdapter` guards
+    that boundary by reflection.
+  - `HttpGetLatestSamples` used a `ref DateTime` watermark, which cannot cross
+    an `async` boundary. The port returns `LatestSamplesResult(Samples,
+    LatestDateTime)` instead of mutating an argument.
+  - Cancellation is distinguished from failure throughout: every handler
+    rethrows `OperationCanceledException` before its `catch (Exception)`
+    error-recording path, so a container stop is never written as a vendor
+    import failure or counted against a monitor's error count.
+  - `POST /store-noise-levels-for-date` now awaits the import with
+    `HttpContext.RequestAborted`, so a disconnecting caller cancels the work.
+  - Four exception assertions in `TestAirQApiException` had encoded the
+    sync-over-async artifact: `.Result` wrapped failures in an
+    `AggregateException`, so they asserted
+    `InnerException is AggregateException`. With `await` the original
+    exception propagates, and the assertions now pin that.
+- **Omnidots is now fully asynchronous and cancellable too**, following the
+  same shape. Its 8 `.Result` call sites are gone, `IHttpClient.PostAsync` is
+  cancellable, and the job token reaches the vendor request for all jobs.
+  - `Omnidots.Api.Ports.IOmnidotsVendorGateway` is the driven port; the six
+    import use cases bind to it instead of the concrete `OmnidotsHttpGateway`,
+    and the composition root is now the only place naming the adapter.
+  - The two pre-existing async methods used `Task.WaitAsync(token)`, which
+    abandons the wait while the vendor request keeps running. The token now
+    flows into the request itself, so cancelling actually cancels.
+  - `ConfigureMeasuringPointHandler` checks cancellation before starting the
+    vendor call. Its test previously asserted `TaskCanceledException`, which
+    was an artifact of the abandoning `WaitAsync`; it now asserts
+    `OperationCanceledException`, the real contract.
+  - `RunFleet` became `RunFleetAsync` and checks cancellation per monitor, so a
+    stop takes effect between monitors rather than after the whole fleet.
+- **No blocking calls remain in any monitor import core.** Verified across all
+  five monitors. MyAtm's remaining `GetAwaiter().GetResult()` uses are dead
+  legacy sync wrappers in `MyAtmApi` with no callers — its job path is fully
+  async — plus a correct `SemaphoreSlim.WaitAsync` and a property named
+  `Result`. Removing those dead wrappers is minor, unstarted cleanup.
+- Also still open and intentionally untouched: the Omnidots
+  `RVT__OMNIDOTS_USE_TOKEN` request-path token seam. It defaults to enabled, so
+  changing it could alter how production authenticates against the vendor;
+  that needs a product decision before any behavior change.
+
+## Authoritative checkpoint: reporting duplication consolidated — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Branch `fix/critical-consolidate-reporting-duplication` addresses the first
+  critical finding of
+  `docs/reviews/2026-07-28-full-codebase-review.md`.
+- The reporting stack existed twice. `apps/monitors/reportingmonitor` is now
+  the single authoritative implementation and the stale `services/reporting`
+  clone was deleted (50 tracked files). The `services/` module root no longer
+  exists.
+- The monitor copy was verified to be the functional superset before deletion:
+  it serves the same `/internal/reports/*` contract the portal calls, carries
+  the later corrections the clone never received (fail-closed constant-time
+  internal API-key auth, per-rule error isolation, transactional report
+  persistence, delivery-failure capture, narrow ports), owns an identical
+  database prerequisite script, and its test suite adds Architecture, Storage,
+  Messaging, EntityFramework, and endpoint coverage the deleted suite lacked.
+- No `.csproj` referenced `services/reporting`; the deletion required no
+  production code change in any other module.
+- Updated to match: `Rvt.Mono.slnx` (8 projects and the `/Services/*` folders
+  removed), `scripts/verify-mono-layout.sh`, `scripts/verify-mono-solution.sh`,
+  `scripts/verify-rvt-common-source-boundary.sh`,
+  `scripts/verify-documentation-layout.sh`, `eng/standards/module-policy.json`,
+  `eng/standards/baseline.json` (47 stale entries removed, deletions only),
+  three test harnesses, and `CommunicationsBoundaryTests.cs`.
+- Operator-facing documentation was corrected, not merely repointed: the
+  retired service used `ConnectionStrings__ReportingDatabase` and `Quartz__*`
+  keys, whereas ReportingMonitor uses `ConnectionStrings__DefaultConnection`,
+  `MonitorApi__Enabled`, and `MonitorScheduler__*`. Health endpoints are
+  `/liveness` and `/readiness`, not `/health/live` and `/health/ready`.
+- The `services/reporting` row in `docs/imports/source-manifest.md` is retained
+  and marked retired: it records import provenance and its pinned revision is
+  asserted by the layout guard.
+- Verification: aggregate build succeeded with zero warnings and zero errors;
+  all five repository guards, all seven repository shell test suites, and the
+  24 standards-policy tests passed. The full `dotnet test` run matches the
+  `main` baseline assembly-for-assembly, so this change introduced no new
+  failures. The 188 remaining failures are pre-existing and environmental
+  (they require `RVT__POSTGRES_INTEGRATION_CONNECTION`); this was confirmed by
+  running the same suite against unmodified `main` in a temporary worktree.
+- The pre-existing `RVTlogo.svg` executable-bit difference on the surviving
+  reportingmonitor asset remains unstaged and untouched.
+- Remaining critical findings from the review are not yet addressed: AirQ and
+  Omnidots blocking `.Result` import cores, AirQ/Svantek single-attempt alert
+  delivery, Graph transient-failure misclassification, and the PDF heatmap
+  clipping beyond eight days.
+
+## Authoritative checkpoint: merged branch cleanup — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- `origin` now contains only `main` at merge commit `0730041b`; all eight
+  verified-merged remote feature branches were deleted.
+- Seven verified-merged local branches were deleted. The clean owned worktree
+  `.worktrees/r1-architecture-guards` was removed and pruned first.
+- Local branch `codex/help-admin-application-boundary` remains because it is
+  attached to the clean but externally managed worktree
+  `/private/tmp/rvt-mono-help-admin`. Its remote branch is deleted.
+- Active unmerged local work remains on `codex/portal-lint-modernization`,
+  `codex/sonar-security-remediation`, and
+  `codex/visual-studio-solution-reconcile`; none was changed or deleted.
+- The two pre-existing SVG executable-bit differences in the primary checkout
+  remain unstaged and untouched. No variable definition changed.
 ## Authoritative checkpoint: RVT.Utilities retired — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

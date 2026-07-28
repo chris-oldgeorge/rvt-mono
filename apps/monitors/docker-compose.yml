@@ -23,6 +23,7 @@ services:
       <<: *communications-environment
       ASPNETCORE_URLS: http://+:8080
       Infrastructure: local
+      RVT__MONITOR_KIND: airq
       MonitorApi__Enabled: "true"
       MonitorScheduler__Enabled: "false"
   myatmmonitor-api:
@@ -34,6 +35,7 @@ services:
       <<: *communications-environment
       ASPNETCORE_URLS: http://+:8080
       Infrastructure: local
+      RVT__MONITOR_KIND: myatm
       MonitorApi__Enabled: "true"
       MonitorScheduler__Enabled: "false"
     ports:
@@ -48,6 +50,7 @@ services:
       <<: *communications-environment
       ASPNETCORE_URLS: http://+:8080
       Infrastructure: local
+      RVT__MONITOR_KIND: omnidots
       MonitorApi__Enabled: "true"
       MonitorScheduler__Enabled: "false"
       RVT__OMNIDOTS_MONITORING_ALERT_TO: ${RVT__OMNIDOTS_MONITORING_ALERT_TO:-}
@@ -63,6 +66,7 @@ services:
       <<: *communications-environment
       ASPNETCORE_URLS: http://+:8080
       Infrastructure: local
+      RVT__MONITOR_KIND: svantek
       MonitorApi__Enabled: "true"
       MonitorScheduler__Enabled: "false"
     volumes:

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Omnidots.Api.Db;
 using Omnidots.Api.Db.EntityFramework;
 using Omnidots.Api.Http;
+using Omnidots.Api.Ports;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Rvt.Communication;
@@ -48,7 +49,7 @@ public static class OmnidotsMonitorServices
             .BindConfiguration(OmnidotsMonitoringOptions.SectionName)
             .Configure<IConfiguration>((options, configuration) =>
             {
-                var alertRecipient = configuration["RVT:OMNIDOTS_MONITORING_ALERT_TO"] ??
+                string? alertRecipient = configuration["RVT:OMNIDOTS_MONITORING_ALERT_TO"] ??
                     configuration["RVT__OMNIDOTS_MONITORING_ALERT_TO"];
                 if (!string.IsNullOrWhiteSpace(alertRecipient))
                 {
@@ -75,7 +76,11 @@ public static class OmnidotsMonitorServices
         services.AddSingleton<IConfigureOptions<RateLimiterOptions>, OmnidotsRateLimiterOptionsSetup>();
         services.AddSingleton<IOmnidotsMonitoringNotifier, EmailOmnidotsMonitoringNotifier>();
         services.TryAddSingleton<TimeProvider>(_ => TimeProvider.System);
-        services.AddSingleton<IMqttClient, RvtMqttClient>();
+        // Broker settings are supplied explicitly rather than read from
+        // static configuration inside the client.
+        services.AddSingleton(_ => MqttOptions.FromRvtConfig());
+        services.AddSingleton<IMqttClient>(provider =>
+            new RvtMqttClient(provider.GetRequiredService<MqttOptions>()));
         services.AddRvtCommunication();
         AddEmailProvider(services, configuration);
         services.AddTransmitSms(configuration);
@@ -95,7 +100,9 @@ public static class OmnidotsMonitorServices
                 options.PortalBaseUrl = RvtConfig.PORTAL_BASE_URL;
             }
         });
-        services.AddSingleton(provider => new OmnidotsHttpGateway(
+        // The composition root is the only place that knows which adapter
+        // implements the vendor port; consumers bind to the port alone.
+        services.AddSingleton<IOmnidotsVendorGateway>(provider => new OmnidotsHttpGateway(
             provider.GetRequiredService<IHttpClient>(),
             RvtConfig.USER_ID,
             RvtConfig.USER_AUTH));
@@ -125,7 +132,7 @@ public static class OmnidotsMonitorServices
             }
             catch (Exception e)
             {
-                var dbClient = provider.GetRequiredService<IDBClient>();
+                IDBClient dbClient = provider.GetRequiredService<IDBClient>();
                 dbClient.HandleException("failed to start monitor application", e);
                 throw; // Need this to kill the instance.
             }
@@ -135,7 +142,7 @@ public static class OmnidotsMonitorServices
 
     private static void AddEmailProvider(IServiceCollection services, IConfiguration configuration)
     {
-        var configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
+        string configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
             ?? configuration["RVT__EMAIL_PROVIDER"]
             ?? "SendGrid";
 

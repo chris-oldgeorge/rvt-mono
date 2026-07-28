@@ -1,6 +1,5 @@
 using AirQ.Api.UseCases;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
 
 namespace AirQ.Api
 {
@@ -17,46 +16,46 @@ namespace AirQ.Api
             this.airQApi = airQApi;
         }
 
-        public void StoreMonitors()
+        public Task StoreMonitorsAsync(CancellationToken cancellationToken = default)
         {
             // limit on get monitors is 24 times a day, get at 2 minutes past the hour.
-            airQApi.StoreMonitors(RvtConfig.USER_ID, RvtConfig.USER_AUTH);
+            return airQApi.StoreMonitorsAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, cancellationToken);
         }
 
-        public void CheckForOfflineMonitors()
+        public Task CheckForOfflineMonitorsAsync(CancellationToken cancellationToken = default)
         {
-            airQApi.CheckForOfflineMonitors();
+            return airQApi.CheckForOfflineMonitorsAsync(cancellationToken);
         }
 
-        public void StoreNoiseLevels()
+        public Task StoreNoiseLevelsAsync(CancellationToken cancellationToken = default)
         {
             // data is updated every 15 mins at 0, 15, 30 and 45 mins past the hour
             // timer trigger is 5 minutes after this in case of delay
-            airQApi.StoreNoiseLevels(RvtConfig.USER_ID, RvtConfig.USER_AUTH);
+            return airQApi.StoreNoiseLevelsAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, cancellationToken);
         }
 
-        public void StoreNoiseLevelsForDate(string date)
+        public Task StoreNoiseLevelsForDateAsync(string date, CancellationToken cancellationToken = default)
         {
-            airQApi.StoreNoiseLevelsForDate(RvtConfig.USER_ID, RvtConfig.USER_AUTH, date);
+            return airQApi.StoreNoiseLevelsForDateAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, date, cancellationToken);
         }
 
-        public void StoreAllNoiseLevelsForYesterday()
+        public Task StoreAllNoiseLevelsForYesterdayAsync(CancellationToken cancellationToken = default)
         {
             // runs every day at 3 am
-            airQApi.StoreAllNoiseLevelsForYesterday(RvtConfig.USER_ID, RvtConfig.USER_AUTH);
+            return airQApi.StoreAllNoiseLevelsForYesterdayAsync(RvtConfig.USER_ID, RvtConfig.USER_AUTH, cancellationToken);
         }
 
-        public void NotifySiteAverages()
+        public Task NotifySiteAveragesAsync(CancellationToken cancellationToken = default)
         {
 
             // fixme - problem with running at 00:05 means that users wont be notified
             // maybe split and run the collection at 00:05 and the notify at 09:00 next day
-            airQApi.NotifySiteAverages(DateTime.Today.AddDays(-1));
+            return airQApi.NotifySiteAveragesAsync(DateTime.Today.AddDays(-1), cancellationToken);
         }
 
-        public void ClearOlderErrorMessages()
+        public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default)
         {
-            airQApi.ClearOlderErrorMessages();
+            return airQApi.ClearOlderErrorMessagesAsync(cancellationToken);
         }
 
     }

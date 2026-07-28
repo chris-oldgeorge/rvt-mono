@@ -49,15 +49,22 @@ namespace Rvt.Monitor.Common.Notifications
         {
         }
 
+        /// <summary>
+        /// The monitor-specific notification wording. Defaults to the running
+        /// monitor's policy, and can be set explicitly so the message can be
+        /// rendered for a chosen monitor without global state.
+        /// </summary>
+        public MonitorRulePolicy Policy { get; init; } = RvtConfig.RulePolicy;
+
         public string GetMessage()
         {
-            var notificationUrl = "";
+            string notificationUrl = "";
             if (AlertType == AlertType.Alert || AlertType == AlertType.Caution)
             {
                 notificationUrl = $"{RvtConfig.PORTAL_BASE_URL}Notification/View/{Id}";
             }
 
-            if (RvtConfig.IsOmnidotsMonitor)
+            if (Policy.NotificationStyle == MonitorNotificationStyle.Vibration)
             {
                 return string.Format(@"Alert NotificationTime={0} AlertField={1} Level={2} LimitOn={3} AlertType={4}
                                    AveragingPeriod={5} ClosedDate={6} ClosedByUser={7}
@@ -66,7 +73,7 @@ namespace Rvt.Monitor.Common.Notifications
                     AveragingPeriod, DateTimeUtil.UtcToLocal(ClosedTime), ClosedByUser, notificationUrl);
             }
 
-            var prefix = RvtConfig.IsNoiseMonitor
+            string prefix = Policy.NotificationStyle == MonitorNotificationStyle.Noise
                 ? AveragingPeriod == 0 ? "Noise site average" : "Noise notification"
                 : "Alert";
 

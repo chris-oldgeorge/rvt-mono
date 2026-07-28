@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
-using Omnidots.Api.Http;
+using Omnidots.Api.Ports;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
@@ -18,16 +18,16 @@ public class ConfigureMeasuringPointHandler
     private const double MaximumTuningValue = 1_000_000;
     private const string InvalidRequestMessage = "Invalid measuring point configuration request.";
 
-    private readonly OmnidotsHttpGateway gateway;
+    private readonly IOmnidotsVendorGateway _gateway;
     private readonly IOmnidotsMonitorQueries monitorQueries;
     private readonly OmnidotsApiSecurityOptions securityOptions;
 
     public ConfigureMeasuringPointHandler(
-        OmnidotsHttpGateway gateway,
+        IOmnidotsVendorGateway gateway,
         IOmnidotsMonitorQueries monitorQueries,
         OmnidotsApiSecurityOptions securityOptions)
     {
-        this.gateway = gateway;
+        _gateway = gateway;
         this.monitorQueries = monitorQueries;
         this.securityOptions = securityOptions;
     }
@@ -38,28 +38,29 @@ public class ConfigureMeasuringPointHandler
     {
         OmnidotsApiSecurityGuard.EnsureConfigurationReady(securityOptions);
 
-        using var document = ParseDocument(body);
-        var suppliedSecret = ExtractSecret(document.RootElement);
+        using JsonDocument document = ParseDocument(body);
+        string? suppliedSecret = ExtractSecret(document.RootElement);
         if (suppliedSecret is null ||
             !OmnidotsFixedTimeSecretComparer.Matches(suppliedSecret, securityOptions.ConfigSecret))
         {
             throw new OmnidotsConfigurationAuthenticationException();
         }
 
-        var request = DeserializeRequest(body);
-        var serialId = ValidateRequest(request);
-        var vendorRequest = CreateConfigRequest(serialId, request);
-        var vendorBody = JsonSerializer.Serialize(vendorRequest);
+        ConfigureMeasuringPointRequest request = DeserializeRequest(body);
+        string serialId = ValidateRequest(request);
+        ConfigRequest vendorRequest = CreateConfigRequest(serialId, request);
+        string vendorBody = JsonSerializer.Serialize(vendorRequest);
 
         try
         {
-            var authentication = await gateway.AuthenticateAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            TokenResponse authentication = await _gateway.AuthenticateAsync(cancellationToken);
             if (!authentication.Ok || string.IsNullOrWhiteSpace(authentication.Token))
             {
                 throw new OmnidotsVendorConfigurationException();
             }
 
-            var response = await gateway.ConfigureMeasuringPointAsync(
+            OmnidotsResponse response = await _gateway.ConfigureMeasuringPointAsync(
                 authentication.Token,
                 serialId,
                 vendorBody,
@@ -85,7 +86,7 @@ public class ConfigureMeasuringPointHandler
     private static string? ExtractSecret(JsonElement root)
     {
         if (root.ValueKind != JsonValueKind.Object ||
-            !root.TryGetProperty("secret", out var secretElement) ||
+            !root.TryGetProperty("secret", out JsonElement secretElement) ||
             secretElement.ValueKind != JsonValueKind.String)
         {
             return null;
@@ -133,9 +134,9 @@ public class ConfigureMeasuringPointHandler
         ValidateTuningValue(request.LevelAlert);
         ValidateTuningValue(request.LevelCaution);
 
-        var flatLevel = request.FlatLevel ?? 10.0;
-        var levelAlert = request.LevelAlert ?? 10.0;
-        var levelCaution = request.LevelCaution ?? 7.0;
+        double flatLevel = request.FlatLevel ?? 10.0;
+        double levelAlert = request.LevelAlert ?? 10.0;
+        double levelCaution = request.LevelCaution ?? 7.0;
         if (levelAlert * flatLevel > int.MaxValue || levelCaution * flatLevel > int.MaxValue)
         {
             throw InvalidRequest();
@@ -158,15 +159,15 @@ public class ConfigureMeasuringPointHandler
     private ConfigRequest CreateConfigRequest(string serialId, ConfigureMeasuringPointRequest request)
     {
         RvtLogger.Logger.LogInformation("CreateConfigRequest for serialId={SerialId}", serialId);
-        var monitor = monitorQueries.ReadMonitor(serialId);
-        var siteTimes = monitorQueries.ReadSiteTimes(monitor.Id);
+        VibrationMonitorDto monitor = monitorQueries.ReadMonitor(serialId);
+        SiteTimes siteTimes = monitorQueries.ReadSiteTimes(monitor.Id);
 
-        var traceSaveLevel = request.TraceSaveLevel ?? 10.0;
-        var tracePreTrigger = request.TracePreTrigger ?? 3.0;
-        var tracePostTrigger = request.TracePostTrigger ?? 3.0;
-        var flatLevel = request.FlatLevel ?? 10.0;
-        var levelAlert = request.LevelAlert ?? 10.0;
-        var levelCaution = request.LevelCaution ?? 7.0;
+        double traceSaveLevel = request.TraceSaveLevel ?? 10.0;
+        double tracePreTrigger = request.TracePreTrigger ?? 3.0;
+        double tracePostTrigger = request.TracePostTrigger ?? 3.0;
+        double flatLevel = request.FlatLevel ?? 10.0;
+        double levelAlert = request.LevelAlert ?? 10.0;
+        double levelCaution = request.LevelCaution ?? 7.0;
 
         return new ConfigRequest
         {

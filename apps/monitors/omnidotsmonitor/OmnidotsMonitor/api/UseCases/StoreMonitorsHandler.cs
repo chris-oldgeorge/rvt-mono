@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
-using Omnidots.Api.Http;
+using Omnidots.Api.Ports;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
+using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace Omnidots.Api.UseCases
@@ -12,28 +12,28 @@ namespace Omnidots.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiMonitors).
     public class StoreMonitorsHandler
     {
-        private readonly OmnidotsHttpGateway gateway;
+        private readonly IOmnidotsVendorGateway _gateway;
         private readonly IOmnidotsMonitorCommands monitorCommands;
         private readonly IOmnidotsOperationalCommands operationalCommands;
         private readonly bool testLocal;
 
         public StoreMonitorsHandler(
-            OmnidotsHttpGateway gateway,
+            IOmnidotsVendorGateway gateway,
             IOmnidotsMonitorCommands monitorCommands,
             IOmnidotsOperationalCommands operationalCommands,
             bool testLocal)
         {
-            this.gateway = gateway;
+            _gateway = gateway;
             this.monitorCommands = monitorCommands;
             this.operationalCommands = operationalCommands;
             this.testLocal = testLocal;
         }
 
-        public void Run()
+        public async Task RunAsync(CancellationToken cancellationToken = default)
         {
-            var measuringPointsResponse = gateway.ListMeasuringPoints();
+            MeasuringPointsResponse measuringPointsResponse = await _gateway.ListMeasuringPointsAsync(cancellationToken);
             var monitors = new List<VibrationMonitorDto>();
-            foreach (var mp in measuringPointsResponse.MeasuringPoints!)
+            foreach (MeasuringPoint mp in measuringPointsResponse.MeasuringPoints!)
             {
                 try
                 {

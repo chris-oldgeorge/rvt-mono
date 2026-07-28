@@ -97,7 +97,6 @@ retained_paths=(
   "apps/portal/README.md"
   "apps/portal/AGENTS.md"
   "libs/rvt-monitor-common/README.md"
-  "services/reporting/README.md"
 )
 
 documentation_index="docs/index.md"

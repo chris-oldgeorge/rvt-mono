@@ -1,5 +1,7 @@
 using AirQ.Api.Db;
+using AirQMonitor.model.dto;
 using Rvt.Monitor.Common.Notifications;
+using Rvt.Monitor.Common.Rules;
 
 namespace AirQ.Api.UseCases
 {
@@ -28,13 +30,14 @@ namespace AirQ.Api.UseCases
             this.ruleProcessor = ruleProcessor;
         }
 
-        public void Run(DateTime date)
+        public Task RunAsync(DateTime date, CancellationToken cancellationToken = default)
         {
-            var monitors = monitorQueries.ReadSiteMonitorsWithSiteHours(date);
-            foreach (var monitor in monitors)
+            cancellationToken.ThrowIfCancellationRequested();
+            List<SiteMonitorsWithSiteHoursDto> monitors = monitorQueries.ReadSiteMonitorsWithSiteHours(date);
+            foreach (SiteMonitorsWithSiteHoursDto monitor in monitors)
             {
 
-                var level = ruleQueries.GetAverageNoiseLevel(serialNumber: monitor.SerialId,
+                double level = ruleQueries.GetAverageNoiseLevel(serialNumber: monitor.SerialId,
                                               columnName: "LAeq", // Assuming that is enough for now.
                                               start: date + monitor.StartTime!.Value,
                                               end: date + monitor.EndTime!.Value);
@@ -44,12 +47,12 @@ namespace AirQ.Api.UseCases
                                            field: "lAeq",
                                            level: level,
                                            timestamp: date);
-                var allRules = ruleQueries.ReadRules(monitor.SerialId);
+                List<RvtAlertRuleDto> allRules = ruleQueries.ReadRules(monitor.SerialId);
                 if (allRules != null && allRules.Count > 0)
                 {
                     var rules = allRules.Where(x => x.AveragingPeriod == 0 && x.Field == "LAeq").OrderBy(x => x.AlertType).ToList();
                     AlertType previousAlert = AlertType.Ignore;
-                    foreach (var rule in rules)
+                    foreach (RvtAlertRuleDto? rule in rules)
                     {
                         if (rule.LimitOn <= level && !rule.IsActive && !rule.IsDeleted)
                         {
@@ -57,7 +60,7 @@ namespace AirQ.Api.UseCases
                             if (rule.AlertType == AlertType.Alert || (previousAlert != AlertType.Alert && rule.AlertType == AlertType.Caution)) //Not to send cautions if we have sent alerts but if there are two alert rules lets go for it
                             {
                                 //New breach generate notification
-                                var contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid siteId);
+                                List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid siteId);
                                 ruleProcessor.ProcessAlertForContactsV2(fleetNr: monitor.FleetNr,
                                 serialId: monitor.SerialId,
                                 alertTime: date + monitor.EndTime!.Value,
@@ -86,6 +89,8 @@ namespace AirQ.Api.UseCases
                     }
                 }
             }
+
+            return Task.CompletedTask;
         }
     }
 }

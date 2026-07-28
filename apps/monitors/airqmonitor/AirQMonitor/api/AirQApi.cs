@@ -1,9 +1,9 @@
 using AirQ.Api.Db;
 using AirQ.Api.Http;
+using AirQ.Api.Ports;
 using AirQ.Api.UseCases;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
 namespace AirQ.Api
@@ -36,7 +36,7 @@ namespace AirQ.Api
             bool testLocal,
             string? testLocalSerialId)
         {
-            var gateway = new AirQHttpGateway(httpClient);
+            IAirQVendorGateway gateway = new AirQHttpGateway(httpClient);
             var testLocalFilter = AirQTestLocalMonitorFilter.Create(testLocal, testLocalSerialId);
             var monitorReader = new AirQMonitorReader(dbClient, testLocalFilter);
             var eventPublisher = new MonitorEventPublisher(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
@@ -51,18 +51,25 @@ namespace AirQ.Api
             clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
         }
 
-        public void StoreMonitors(string userId, string userAuth) => storeMonitors.Run(userId, userAuth);
+        public Task StoreMonitorsAsync(string userId, string userAuth, CancellationToken cancellationToken = default) =>
+            storeMonitors.RunAsync(userId, userAuth, cancellationToken);
 
-        public void CheckForOfflineMonitors() => checkForOfflineMonitors.Run();
+        public Task CheckForOfflineMonitorsAsync(CancellationToken cancellationToken = default) =>
+            checkForOfflineMonitors.RunAsync(cancellationToken);
 
-        public void StoreNoiseLevels(string userId, string userAuth) => storeNoiseLevels.Run(userId, userAuth);
+        public Task StoreNoiseLevelsAsync(string userId, string userAuth, CancellationToken cancellationToken = default) =>
+            storeNoiseLevels.RunAsync(userId, userAuth, cancellationToken);
 
-        public void StoreNoiseLevelsForDate(string userId, string userAuth, string dateStr) => storeNoiseLevelsForDate.Run(userId, userAuth, dateStr);
+        public Task StoreNoiseLevelsForDateAsync(string userId, string userAuth, string dateStr, CancellationToken cancellationToken = default) =>
+            storeNoiseLevelsForDate.RunAsync(userId, userAuth, dateStr, cancellationToken);
 
-        public void StoreAllNoiseLevelsForYesterday(string userId, string userAuth) => storeAllNoiseLevelsForYesterday.Run(userId, userAuth);
+        public Task StoreAllNoiseLevelsForYesterdayAsync(string userId, string userAuth, CancellationToken cancellationToken = default) =>
+            storeAllNoiseLevelsForYesterday.RunAsync(userId, userAuth, cancellationToken);
 
-        public void NotifySiteAverages(DateTime date) => notifySiteAverages.Run(date);
+        public Task NotifySiteAveragesAsync(DateTime date, CancellationToken cancellationToken = default) =>
+            notifySiteAverages.RunAsync(date, cancellationToken);
 
-        public void ClearOlderErrorMessages() => clearOlderErrorMessages.Run();
+        public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default) =>
+            clearOlderErrorMessages.RunAsync(cancellationToken);
     }
 }

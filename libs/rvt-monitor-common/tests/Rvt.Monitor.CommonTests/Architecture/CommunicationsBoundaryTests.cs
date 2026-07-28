@@ -20,18 +20,18 @@ public sealed class CommunicationsBoundaryTests
     [TestMethod]
     public void CommonContainsNoLegacyTransportOrProviderPackage()
     {
-        var root = FindRepositoryRoot();
-        foreach (var relativePath in LegacyTransportFiles)
+        string root = FindRepositoryRoot();
+        foreach (string relativePath in LegacyTransportFiles)
         {
             Assert.IsFalse(File.Exists(Path.Combine(root, relativePath)));
         }
 
-        var commonProject = File.ReadAllText(Path.Combine(
+        string commonProject = File.ReadAllText(Path.Combine(
             root,
             "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj"));
         Assert.DoesNotContain("PackageReference Include=\"SendGrid\"", commonProject);
 
-        var commonSource = ReadProductionSource(root, "libs/rvt-monitor-common/src/Rvt.Monitor.Common");
+        IReadOnlyList<(string RelativePath, string Text)> commonSource = ReadProductionSource(root, "libs/rvt-monitor-common/src/Rvt.Monitor.Common");
         Assert.IsFalse(commonSource.Any(file => file.Text.Contains(
             "Email" + "Sender.",
             StringComparison.Ordinal)));
@@ -75,7 +75,7 @@ public sealed class CommunicationsBoundaryTests
     [TestMethod]
     public void ProviderNeutralProjectsContainNoVendorDependencies()
     {
-        var root = FindRepositoryRoot();
+        string root = FindRepositoryRoot();
         string[] neutralProjects =
         [
             "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions",
@@ -95,13 +95,12 @@ public sealed class CommunicationsBoundaryTests
             "TransmitSmsDeliveryAdapter"
         ];
 
-        var offenders = neutralProjects
+        string[] offenders = [.. neutralProjects
             .SelectMany(project => ReadProductionSource(root, project))
             .Where(file => vendorMarkers.Any(marker =>
                 file.Text.Contains(marker, StringComparison.Ordinal)))
             .Select(file => file.RelativePath)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(Array.Empty<string>(), offenders);
     }
@@ -109,21 +108,20 @@ public sealed class CommunicationsBoundaryTests
     [TestMethod]
     public void RemovedInfrastructureProjectIsAbsentFromActiveSourceAndSolutions()
     {
-        var root = FindRepositoryRoot();
-        var removedIdentity = string.Concat("Rvt.Monitor.Common.", "Infrastructure");
-        var removedProject = Path.Combine(
+        string root = FindRepositoryRoot();
+        string removedIdentity = string.Concat("Rvt.Monitor.Common.", "Infrastructure");
+        string removedProject = Path.Combine(
             root,
             "libs/rvt-monitor-common/src",
             removedIdentity);
 
         Assert.IsFalse(Directory.Exists(removedProject));
 
-        var activeReferences = new[]
+        string[] activeReferences = [.. new[]
             {
                 "libs/rvt-monitor-common/src",
                 "apps/monitors",
-                "apps/portal",
-                "services/reporting"
+                "apps/portal"
             }
             .SelectMany(relative => ReadProductionSource(root, relative))
             .Where(file => file.Text.Contains(removedIdentity, StringComparison.Ordinal))
@@ -135,8 +133,7 @@ public sealed class CommunicationsBoundaryTests
             }
             .Where(relative => File.ReadAllText(Path.Combine(root, relative))
                 .Contains(removedIdentity, StringComparison.Ordinal)))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(Array.Empty<string>(), activeReferences);
     }
@@ -144,13 +141,12 @@ public sealed class CommunicationsBoundaryTests
     [TestMethod]
     public void ObsoleteSynchronousMessageCallsAreLimitedToExplicitCompatibilityAllowlist()
     {
-        var root = FindRepositoryRoot();
-        var callers = ReadProductionSource(root, "libs/rvt-monitor-common/src/Rvt.Monitor.Common")
+        string root = FindRepositoryRoot();
+        string[] callers = [.. ReadProductionSource(root, "libs/rvt-monitor-common/src/Rvt.Monitor.Common")
             .Where(file => file.Text.Contains(".Sendmessage(", StringComparison.Ordinal) ||
                 file.Text.Contains(".SendMessage(", StringComparison.Ordinal))
             .Select(file => file.RelativePath)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(
             SynchronousCompatibilityCallers.Order(StringComparer.Ordinal).ToArray(),
@@ -161,7 +157,7 @@ public sealed class CommunicationsBoundaryTests
         string root,
         string? relativeDirectory = null)
     {
-        var directory = relativeDirectory is null ? root : Path.Combine(root, relativeDirectory);
+        string directory = relativeDirectory is null ? root : Path.Combine(root, relativeDirectory);
         return Directory
             .EnumerateFiles(directory, "*.*", SearchOption.AllDirectories)
             .Where(path => path.EndsWith(".cs", StringComparison.Ordinal) ||
@@ -176,10 +172,8 @@ public sealed class CommunicationsBoundaryTests
 
     private static void AssertProviderOwnership(string expectedProject, params string[] markers)
     {
-        var root = FindRepositoryRoot();
-        var providerReferences = ReadProductionSource(root, "libs/rvt-monitor-common/src")
-            .Where(file => markers.Any(marker => file.Text.Contains(marker, StringComparison.Ordinal)))
-            .ToArray();
+        string root = FindRepositoryRoot();
+        (string RelativePath, string Text)[] providerReferences = [.. ReadProductionSource(root, "libs/rvt-monitor-common/src").Where(file => markers.Any(marker => file.Text.Contains(marker, StringComparison.Ordinal)))];
 
         Assert.IsNotEmpty(providerReferences);
         Assert.IsTrue(
@@ -190,7 +184,7 @@ public sealed class CommunicationsBoundaryTests
 
     private static bool IsGenerated(string path)
     {
-        var normalized = Normalize(path);
+        string normalized = Normalize(path);
         return normalized.Contains("/bin/", StringComparison.Ordinal) ||
             normalized.Contains("/obj/", StringComparison.Ordinal) ||
             normalized.Contains("/.git/", StringComparison.Ordinal);
@@ -203,7 +197,7 @@ public sealed class CommunicationsBoundaryTests
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var gitPath = Path.Combine(directory.FullName, ".git");
+            string gitPath = Path.Combine(directory.FullName, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
                 return directory.FullName;

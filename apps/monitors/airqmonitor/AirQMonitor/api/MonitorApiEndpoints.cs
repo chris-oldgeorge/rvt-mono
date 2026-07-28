@@ -20,8 +20,8 @@ public static class MonitorApiEndpoints
 
     public static IEndpointRouteBuilder MapAirQMonitorApi(this IEndpointRouteBuilder endpoints)
     {
-        var configuration = endpoints.ServiceProvider.GetRequiredService<IConfiguration>();
-        var apiKey = configuration["RVT:MONITOR_API_KEY"]
+        IConfiguration configuration = endpoints.ServiceProvider.GetRequiredService<IConfiguration>();
+        string? apiKey = configuration["RVT:MONITOR_API_KEY"]
             ?? configuration["RVT__MONITOR_API_KEY"];
         var apiKeyValidator = AirQApiKeyValidator.Create(apiKey);
 
@@ -30,7 +30,7 @@ public static class MonitorApiEndpoints
         endpoints.MapPost("/store-noise-levels-for-date",
             async context =>
             {
-                var result = await StoreNoiseLevelsForDateAsync(context, apiKeyValidator);
+                IResult result = await StoreNoiseLevelsForDateAsync(context, apiKeyValidator);
                 await result.ExecuteAsync(context);
             });
 
@@ -59,20 +59,20 @@ public static class MonitorApiEndpoints
             return Results.BadRequest();
         }
 
-        if (!TryGetCanonicalDate(request?.Date, out var canonicalDate))
+        if (!TryGetCanonicalDate(request?.Date, out string? canonicalDate))
         {
             return Results.BadRequest();
         }
 
-        var importer = context.RequestServices.GetRequiredService<IAirQDateImporter>();
-        importer.StoreNoiseLevelsForDate(canonicalDate);
+        IAirQDateImporter importer = context.RequestServices.GetRequiredService<IAirQDateImporter>();
+        await importer.StoreNoiseLevelsForDateAsync(canonicalDate, context.RequestAborted);
         return Results.Ok();
     }
 
     private static bool TryGetCanonicalDate(string? value, out string canonicalDate)
     {
         canonicalDate = string.Empty;
-        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly date))
         {
             return false;
         }

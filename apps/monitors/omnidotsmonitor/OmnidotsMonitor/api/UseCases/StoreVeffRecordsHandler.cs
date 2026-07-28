@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
-using Omnidots.Api.Http;
+using Omnidots.Api.Ports;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
+using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -13,7 +13,7 @@ namespace Omnidots.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiVibrationLevels).
     public class StoreVeffRecordsHandler
     {
-        private readonly OmnidotsHttpGateway gateway;
+        private readonly IOmnidotsVendorGateway _gateway;
         private readonly OmnidotsMonitorReader monitorReader;
         private readonly IOmnidotsMonitorCommands monitorCommands;
         private readonly IOmnidotsImportCursorQueries cursorQueries;
@@ -22,7 +22,7 @@ namespace Omnidots.Api.UseCases
         private readonly IMonitorEventPublisher eventPublisher;
 
         public StoreVeffRecordsHandler(
-            OmnidotsHttpGateway gateway,
+            IOmnidotsVendorGateway gateway,
             OmnidotsMonitorReader monitorReader,
             IOmnidotsMonitorCommands monitorCommands,
             IOmnidotsImportCursorQueries cursorQueries,
@@ -30,7 +30,7 @@ namespace Omnidots.Api.UseCases
             IOmnidotsOperationalCommands operationalCommands,
             IMonitorEventPublisher eventPublisher)
         {
-            this.gateway = gateway;
+            _gateway = gateway;
             this.monitorReader = monitorReader;
             this.monitorCommands = monitorCommands;
             this.cursorQueries = cursorQueries;
@@ -39,13 +39,13 @@ namespace Omnidots.Api.UseCases
             this.eventPublisher = eventPublisher;
         }
 
-        public void Run(TimeSpan lookback)
+        public async Task RunAsync(TimeSpan lookback, CancellationToken cancellationToken = default)
         {
-            var token = gateway.Authenticate().Token!;
-            var monitors = monitorReader.ReadMonitors();
-            var utcNow = DateTime.UtcNow;
+            string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
+            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
+            DateTime utcNow = DateTime.UtcNow;
             var failures = new List<OmnidotsMonitorFailure>();
-            foreach (var monitor in monitors)
+            foreach (VibrationMonitorDto monitor in monitors)
             {
 
                 if ("OmniDots guest".Equals(monitor.CustomerDisplayName))
@@ -55,8 +55,8 @@ namespace Omnidots.Api.UseCases
                 }
                 try
                 {
-                    var startTime = ResolveStart(monitor.SerialId, utcNow, lookback);
-                    var records = gateway.GetVeffRecords(token, startTime, utcNow, monitor.SerialId);
+                    DateTime startTime = ResolveStart(monitor.SerialId, utcNow, lookback);
+                    VeffRecords records = await _gateway.GetVeffRecordsAsync(token, startTime, utcNow, monitor.SerialId, cancellationToken);
                     var dtos = records!.Samples!
                         .Select(sample => new VeffRecordDto(sample))
                         .OrderBy(dto => dto.SampleTime)
@@ -64,15 +64,15 @@ namespace Omnidots.Api.UseCases
 
                     if (dtos.Count > 0)
                     {
-                        var newestSampleAt = dtos[^1].SampleTime;
-                        var ps = DateTime.Now;
+                        DateTime newestSampleAt = dtos[^1].SampleTime;
+                        DateTime ps = DateTime.Now;
                         importCommands.ImportVeffRecords(monitor.SerialId, dtos, newestSampleAt);
-                        var ts = DateTime.Now - ps;
+                        TimeSpan ts = DateTime.Now - ps;
                         RvtLogger.Logger.LogInformation("InsertVeffRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
                              monitor.SerialId, dtos.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / dtos.Count));
 
                         monitorCommands.SetMonitorOffline(monitor.Id, false);
-                        eventPublisher.PublishDataInserted(newestSampleAt, monitor.SerialId);
+                        await eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
                     }
                     else
                     {
@@ -81,7 +81,7 @@ namespace Omnidots.Api.UseCases
                 }
                 catch (Exception e)
                 {
-                    var msg = string.Format("StoreVeffRecords serialId={0}", monitor.SerialId);
+                    string msg = string.Format("StoreVeffRecords serialId={0}", monitor.SerialId);
                     RvtLogger.Logger.LogError(e, "StoreVeffRecords failed for serialId={Value1}", monitor.SerialId);
                     failures.Add(OmnidotsMonitorFailure.Record(
                         monitor.SerialId,
@@ -98,10 +98,10 @@ namespace Omnidots.Api.UseCases
 
         private DateTime ResolveStart(string serialId, DateTime utcNow, TimeSpan lookback)
         {
-            var cursor = cursorQueries.ReadImportCursor(
+            DateTime? cursor = cursorQueries.ReadImportCursor(
                 serialId,
                 OmnidotsMeasurementSeries.Veff);
-            var latestMeasurement = cursor ?? cursorQueries.ReadLatestMeasurementTime(
+            DateTime? latestMeasurement = cursor ?? cursorQueries.ReadLatestMeasurementTime(
                 serialId,
                 OmnidotsMeasurementSeries.Veff);
             return latestMeasurement.HasValue

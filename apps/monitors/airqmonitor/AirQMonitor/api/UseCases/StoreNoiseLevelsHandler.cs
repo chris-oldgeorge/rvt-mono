@@ -1,10 +1,11 @@
 using AirQ.Api.Db;
-using AirQ.Api.Http;
+using AirQ.Api.Ports;
 using AirQ.Model.Dto;
+using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
+using Rvt.Monitor.Common.Rules;
 
 namespace AirQ.Api.UseCases
 {
@@ -13,7 +14,7 @@ namespace AirQ.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitorsNoiseLevels).
     public class StoreNoiseLevelsHandler
     {
-        private readonly AirQHttpGateway gateway;
+        private readonly IAirQVendorGateway _gateway;
         private readonly AirQMonitorReader monitorReader;
         private readonly IAirQRuleQueries ruleQueries;
         private readonly IAirQMonitorCommands monitorCommands;
@@ -23,7 +24,7 @@ namespace AirQ.Api.UseCases
         private readonly AirQRuleProcessor ruleProcessor;
 
         public StoreNoiseLevelsHandler(
-            AirQHttpGateway gateway,
+            IAirQVendorGateway gateway,
             AirQMonitorReader monitorReader,
             IAirQRuleQueries ruleQueries,
             IAirQMonitorCommands monitorCommands,
@@ -32,7 +33,7 @@ namespace AirQ.Api.UseCases
             IMonitorEventPublisher eventPublisher,
             AirQRuleProcessor ruleProcessor)
         {
-            this.gateway = gateway;
+            _gateway = gateway;
             this.monitorReader = monitorReader;
             this.ruleQueries = ruleQueries;
             this.monitorCommands = monitorCommands;
@@ -42,13 +43,13 @@ namespace AirQ.Api.UseCases
             this.ruleProcessor = ruleProcessor;
         }
 
-        public void Run(string userId, string userAuth)
+        public async Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
         {
             try
             {
-                var monitors = monitorReader.ReadMonitors();
+                List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
                 var failures = new List<Exception>();
-                foreach (var monitor in monitors)
+                foreach (NoiseMonitorDto monitor in monitors)
                 {
 
                     if (!monitor.MonitorStatus.IsMonitorActive())
@@ -59,14 +60,17 @@ namespace AirQ.Api.UseCases
 
                     DateTime lastDataTime = monitor.LastDataTime == null ? DateTime.Now.AddYears(-1) : (DateTime)monitor.LastDataTime!;
 
+                    cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
                         DateTime preLastDate = lastDataTime; //Saving this as it get changed below and neede to calculate the time period.
 
-                        var samples = gateway.HttpGetLatestSamples(userId, userAuth, monitor.SerialId, ref lastDataTime);
+                        LatestSamplesResult latest = await _gateway.GetLatestSamplesAsync(userId, userAuth, monitor.SerialId, lastDataTime, cancellationToken);
+                        List<SampleResponse> samples = latest.Samples;
+                        lastDataTime = latest.LatestDateTime;
                         RvtLogger.Logger.LogInformation("GetLatestSamples SerialId={Value1} number of samples={Value2} lastDataTime={Value3}", monitor.SerialId, samples.Count, lastDataTime);
                         var dtos = new List<NoiseDto>();
-                        foreach (var sample in samples)
+                        foreach (SampleResponse sample in samples)
                         {
                             dtos.Add(new NoiseDto(sample));
                         }
@@ -75,13 +79,13 @@ namespace AirQ.Api.UseCases
                         {
                             measurementCommands.InsertNoiseDtos(monitor.SerialId, dtos);
                             //process 8 hour averages.
-                            var start = preLastDate;
-                            var end = dtos.Last().SampleTime;
+                            DateTime start = preLastDate;
+                            DateTime end = dtos.Last().SampleTime;
                             int starthour = (start.Hour / 8) * 8;
                             start = new DateTime(start.Year, start.Month, start.Day, starthour, 0, 0);//This should now be 00:00, 08:00 or 16:00, start time for an averge
                             if (start == dtos.First().SampleTime)//special case! in case you get a sample time of exactly 00:00:00 then that should be the end time for the period
                                 start = start.AddHours(-8);
-                            var endperiod = start.AddHours(8); //end time for the averaging period.
+                            DateTime endperiod = start.AddHours(8); //end time for the averaging period.
                             while (endperiod <= end) // end of a period exist within the samples.
                             {
                                 RvtLogger.Logger.LogInformation("Create average SerialId={Value1} number of endperiod={Value2}", monitor.SerialId, endperiod);
@@ -93,12 +97,16 @@ namespace AirQ.Api.UseCases
                             monitorCommands.WriteLatestTimestamp(monitor.SerialId, lastDataTime);
                             if (monitor.Offline)
                                 monitorCommands.SetMonitorOffline(monitor.Id, false);
-                            eventPublisher.PublishDataInserted((DateTime)lastDataTime!, monitor.SerialId);
+                            await eventPublisher.PublishDataInsertedAsync((DateTime)lastDataTime!, monitor.SerialId, cancellationToken: cancellationToken);
 
-                            var rules = ruleQueries.ReadRules(monitor.SerialId);
+                            List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId);
                             ruleProcessor.ProcessRulesV2(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos);
                         }
 
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception e)
                     {
@@ -115,6 +123,10 @@ namespace AirQ.Api.UseCases
                 }
             }
             catch (AggregateException)
+            {
+                throw;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }

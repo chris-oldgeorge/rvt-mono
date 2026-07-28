@@ -20,8 +20,6 @@ using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using static Omnidots.Api.OmnidotsApi;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Notifications.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Notifications.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace OmnidotsAdapterTests
@@ -33,7 +31,7 @@ namespace OmnidotsAdapterTests
     {
         public TestOmnidotsApi()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -41,22 +39,22 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestAuthenticate_Success()
+        public async Task TestAuthenticate_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageClient);
 
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
-                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)))).
+                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.AuthenticateTask());
 
-            var response = testObj.Authenticate();
+            TokenResponse response = await testObj.AuthenticateAsync();
             AssertTokenResponse(response);
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
-                It.IsAny<HttpContent>()), Times.Exactly(1));
+                It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.VerifyNoOtherCalls();
@@ -65,28 +63,28 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestStoreMonitors_Success()
+        public async Task TestStoreMonitors_Success()
         {
 
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                     out Mock<IDBClient> dbClient,
                                                     out Mock<IMqttClient> mqttClient,
                                                     out Mock<IMessageService> messageClient);
-            var token = "sometesttoken123";
+            string token = "sometesttoken123";
 
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
-                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)))).
+                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
             Returns(OmnidotsFixture.AuthenticateTask(token));
 
-            var measuringPointsUrl = string.Format("/api/v1/list_measuring_points?token={0}", token);
-            httpClient.Setup(c => c.GetAsync(measuringPointsUrl)).
+            string measuringPointsUrl = string.Format("/api/v1/list_measuring_points?token={0}", token);
+            httpClient.Setup(c => c.GetAsync(measuringPointsUrl, It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.MeasuringPointsJson()));
 
-            testObj.StoreMonitors();
+            await testObj.StoreMonitorsAsync();
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
-             It.IsAny<HttpContent>()), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync(measuringPointsUrl), Times.Exactly(1));
+             It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(measuringPointsUrl, It.IsAny<CancellationToken>()), Times.Exactly(1));
 
             httpClient.VerifyNoOtherCalls();
 
@@ -99,31 +97,31 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestStoreMonitors_TestLocal_WritesOnlyDemoVibrationMonitor()
+        public async Task TestStoreMonitors_TestLocal_WritesOnlyDemoVibrationMonitor()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                     out Mock<IDBClient> dbClient,
                                                     out Mock<IMqttClient> mqttClient,
                                                     out Mock<IMessageService> messageClient,
                                                     testLocal: true);
-            var token = "sometesttoken123";
+            string token = "sometesttoken123";
 
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
-                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)))).
+                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
             Returns(OmnidotsFixture.AuthenticateTask(token));
 
-            var measuringPointsUrl = string.Format("/api/v1/list_measuring_points?token={0}", token);
-            httpClient.Setup(c => c.GetAsync(measuringPointsUrl)).
+            string measuringPointsUrl = string.Format("/api/v1/list_measuring_points?token={0}", token);
+            httpClient.Setup(c => c.GetAsync(measuringPointsUrl, It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(TestLocalMeasuringPointsJson()));
 
-            testObj.StoreMonitors();
+            await testObj.StoreMonitorsAsync();
 
             dbClient.Verify(c => c.WriteMonitorList(It.Is<List<VibrationMonitorDto>>(
                 monitors => monitors.Count == 1 && monitors[0].SerialId == "14768")), Times.Exactly(1));
             dbClient.VerifyNoOtherCalls();
 
-            httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync(measuringPointsUrl), Times.Exactly(1));
+            httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(measuringPointsUrl, It.IsAny<CancellationToken>()), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.VerifyNoOtherCalls();
@@ -215,17 +213,17 @@ namespace OmnidotsAdapterTests
 
 
         [TestMethod]
-        public void TestCheckForOfflineMonitors_MonitorsOfflineFor23Hours_Success()
+        public async Task TestCheckForOfflineMonitors_MonitorsOfflineFor23Hours_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
 
-            var rules = OmnidotsFixture.OfflineRules();
+            List<RvtAlertRuleDto> rules = OmnidotsFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).
                 Returns(new List<VibrationMonitorDto>());
 
-            testObj.CheckForOfflineMonitors();
+            await testObj.CheckForOfflineMonitorsAsync();
 
             httpClient.VerifyNoOtherCalls();
 
@@ -241,16 +239,16 @@ namespace OmnidotsAdapterTests
         [DataRow(24 * 60, 0)]
         [DataRow((24 * 60) + 1, 60)]
         [TestMethod]
-        public void TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
+        public async Task TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
 
-            var rules = OmnidotsFixture.OfflineRules();
+            List<RvtAlertRuleDto> rules = OmnidotsFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
             //dbClient.Setup(c => c.ReadNotifications(It.IsAny<Guid>(), It.IsAny<DateTime>())).
             //    Returns(new List<NotificationDto>());
-            var monitors = OmnidotsFixture.MonitorsList(
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(
                 2,
                 DateTime.UtcNow.AddMinutes(-minutesOffline),
                 timeZone: "Europe/London");
@@ -259,10 +257,10 @@ namespace OmnidotsAdapterTests
                 Returns(monitors);
             dbClient.Setup(c => c.ReadSiteTimes(It.IsAny<Guid>())).Returns(OmnidotsFixture.AlwaysOpenSiteTimes());
 
-            var contacts = OmnidotsFixture.AlertContacts();
+            List<RvtContactDto> contacts = OmnidotsFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(It.IsAny<Guid>())).Returns(contacts);
 
-            testObj.CheckForOfflineMonitors();
+            await testObj.CheckForOfflineMonitorsAsync();
 
             httpClient.VerifyNoOtherCalls();
 
@@ -272,7 +270,7 @@ namespace OmnidotsAdapterTests
             dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", "Sent ok"),
                 Times.Exactly(monitors.Count));
 
-            foreach (var m in monitors)
+            foreach (VibrationMonitorDto m in monitors)
             {
                 dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
                    n => n.MonitorId == m.Id &&
@@ -302,20 +300,20 @@ namespace OmnidotsAdapterTests
         [DataRow(null)]
         [DataRow("Invalid/secret-timezone")]
         [TestMethod]
-        public void TestCheckForOfflineMonitors_InvalidTimeZone_RecordsFailureAndContinues(
+        public async Task TestCheckForOfflineMonitors_InvalidTimeZone_RecordsFailureAndContinues(
             string? invalidTimeZone)
         {
-            var testObj = TestUtil.CreateApiAndMocks(
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
                 out Mock<IMessageService> messageClient);
-            var rules = OmnidotsFixture.OfflineRules();
-            var invalidMonitor = OmnidotsFixture.MonitorsList(
+            List<RvtAlertRuleDto> rules = OmnidotsFixture.OfflineRules();
+            VibrationMonitorDto invalidMonitor = OmnidotsFixture.MonitorsList(
                 1,
                 DateTime.UtcNow.AddHours(-25),
                 timeZone: invalidTimeZone)[0];
-            var validMonitor = OmnidotsFixture.MonitorsList(
+            VibrationMonitorDto validMonitor = OmnidotsFixture.MonitorsList(
                 1,
                 DateTime.UtcNow.AddHours(-25),
                 serialIdIn: 1,
@@ -329,8 +327,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.ReadAlertContacts(validMonitor.Id))
                 .Returns(OmnidotsFixture.AlertContacts());
 
-            var exception = Assert.ThrowsExactly<OmnidotsImportException>(
-                testObj.CheckForOfflineMonitors);
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.CheckForOfflineMonitorsAsync());
 
             Assert.AreEqual("CheckForOfflineMonitors", exception.Operation);
             Assert.HasCount(1, exception.Failures);
@@ -359,19 +356,19 @@ namespace OmnidotsAdapterTests
         [DataRow("2026-03-29T00:00:00Z")]
         [DataRow("2025-10-26T00:00:00Z")]
         [TestMethod]
-        public void TestCheckForOfflineMonitors_InvalidOrAmbiguousScheduleBoundary_RecordsAndContinues(
+        public async Task TestCheckForOfflineMonitors_InvalidOrAmbiguousScheduleBoundary_RecordsAndContinues(
             string lastDataTimeUtc)
         {
-            var testObj = TestUtil.CreateApiAndMocks(
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
                 out Mock<IMessageService> messageClient);
-            var invalidMonitor = OmnidotsFixture.MonitorsList(
+            VibrationMonitorDto invalidMonitor = OmnidotsFixture.MonitorsList(
                 1,
                 DateTimeOffset.Parse(lastDataTimeUtc).UtcDateTime,
                 timeZone: "Europe/London")[0];
-            var validMonitor = OmnidotsFixture.MonitorsList(
+            VibrationMonitorDto validMonitor = OmnidotsFixture.MonitorsList(
                 1,
                 DateTime.UtcNow.AddHours(-25),
                 serialIdIn: 1,
@@ -396,8 +393,7 @@ namespace OmnidotsAdapterTests
                     It.IsAny<Exception>()))
                 .Throws(recordingException);
 
-            var exception = Assert.ThrowsExactly<OmnidotsImportException>(
-                testObj.CheckForOfflineMonitors);
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.CheckForOfflineMonitorsAsync());
 
             Assert.AreEqual("CheckForOfflineMonitors", exception.Operation);
             Assert.HasCount(1, exception.Failures);
@@ -424,44 +420,44 @@ namespace OmnidotsAdapterTests
 
 
         [TestMethod]
-        public void TestStorePeakRecords_Success()
+        public async Task TestStorePeakRecords_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
-            var token = "hghjadg";
+            string token = "hghjadg";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
-                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)))).
+                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                     Returns(OmnidotsFixture.AuthenticateTask(token));
 
-            var peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
-            httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)))).
+            string peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
+            httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.PeakRecordsJson()));
 
-            var monitors = OmnidotsFixture.MonitorsList(2);
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns(new List<RvtAlertRuleDto>());
 
-            testObj.StorePeakRecords(10);
+            await testObj.StorePeakRecordsAsync();
 
-            httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()),
+            httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
             httpClient.Verify(c =>
-                c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl))), Times.Exactly(2));
+                c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>()), Times.Exactly(2));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             var expectedLatest = DateTime.Parse("2023-11-14T11:24:59");
-            var importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
+            Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportPeakRecords("1",
                 It.Is<DataTable>(t => t.Rows.Count == 2),
                 It.Is<DateTime>(dt => TestUtil.VerifyDateTime(expectedLatest, dt))), Times.Once);
             importCommands.Verify(c => c.ImportPeakRecords("2",
                 It.Is<DataTable>(t => t.Rows.Count == 2),
                 It.Is<DateTime>(dt => TestUtil.VerifyDateTime(expectedLatest, dt))), Times.Once);
-            var cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
+            Mock<IOmnidotsImportCursorQueries> cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
             cursorQueries.Verify(
                 c => c.ReadImportCursor(It.IsAny<string>(), OmnidotsMeasurementSeries.Peak), Times.Exactly(2));
             cursorQueries.Verify(
@@ -476,9 +472,9 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestStorePeakRecords_UsesPeakCursorOverlapAndAtomicImport()
+        public async Task TestStorePeakRecords_UsesPeakCursorOverlapAndAtomicImport()
         {
-            var testObj = TestUtil.CreateApiAndMocks(
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
@@ -486,20 +482,20 @@ namespace OmnidotsAdapterTests
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
             var cursor = new DateTime(2026, 7, 11, 8, 30, 0, DateTimeKind.Utc);
-            var monitors = OmnidotsFixture.MonitorsList(1);
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(1);
             string? requestedUrl = null;
 
-            httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+            httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask("peak-token"));
             httpClient.Setup(c => c.GetAsync(It.Is<string>(url =>
-                    url.StartsWith("/api/v1/get_peak_records", StringComparison.Ordinal))))
-                .Callback<string>(url => requestedUrl = url)
+                    url.StartsWith("/api/v1/get_peak_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
+                .Callback<string, CancellationToken>((url, _) => requestedUrl = url)
                 .Returns(OmnidotsFixture.StringTask(OmnidotsFixture.PeakRecordsJson()));
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
             cursorQueries.Setup(c => c.ReadImportCursor("1", OmnidotsMeasurementSeries.Peak))
                 .Returns(cursor);
 
-            testObj.StorePeakRecords(10);
+            await testObj.StorePeakRecordsAsync();
 
             Assert.IsNotNull(requestedUrl);
             Assert.AreEqual(DateTimeUtil.GetMillis(cursor.AddMinutes(-5)), RequestTime(requestedUrl, "start_time"));
@@ -520,33 +516,33 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestStoreVeffRecords_NoCursorOrStoredMeasurementUsesUtcLookbackAndSkipsEmptyImport()
+        public async Task TestStoreVeffRecords_NoCursorOrStoredMeasurementUsesUtcLookbackAndSkipsEmptyImport()
         {
-            var testObj = TestUtil.CreateApiAndMocks(
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
                 out Mock<IMessageService> messageClient,
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
-            var monitor = OmnidotsFixture.MonitorsList(1).Single();
+            VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
             string? requestedUrl = null;
-            var before = DateTime.UtcNow;
+            DateTime before = DateTime.UtcNow;
 
-            httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+            httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask("veff-token"));
             httpClient.Setup(c => c.GetAsync(It.Is<string>(url =>
-                    url.StartsWith("/api/v1/get_veff_records", StringComparison.Ordinal))))
-                .Callback<string>(url => requestedUrl = url)
+                    url.StartsWith("/api/v1/get_veff_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
+                .Callback<string, CancellationToken>((url, _) => requestedUrl = url)
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns([monitor]);
 
-            testObj.StoreVeffRecords(TimeSpan.FromHours(2));
-            var after = DateTime.UtcNow;
+            await testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2));
+            DateTime after = DateTime.UtcNow;
 
             Assert.IsNotNull(requestedUrl);
-            var start = DateTimeUtil.JAN1_1970.AddMilliseconds(RequestTime(requestedUrl, "start_time"));
-            var end = DateTimeUtil.JAN1_1970.AddMilliseconds(RequestTime(requestedUrl, "end_time"));
+            DateTime start = DateTimeUtil.JAN1_1970.AddMilliseconds(RequestTime(requestedUrl, "start_time"));
+            DateTime end = DateTimeUtil.JAN1_1970.AddMilliseconds(RequestTime(requestedUrl, "end_time"));
             Assert.IsTrue(start >= before.AddHours(-2).AddMinutes(-5).AddSeconds(-1));
             Assert.IsTrue(start <= after.AddHours(-2).AddMinutes(-5));
             Assert.IsTrue(end >= before.AddSeconds(-1) && end <= after);
@@ -561,9 +557,9 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestStoreVdvRecords_UsesStoredMeasurementFallbackAndOrdersAtomicBatch()
+        public async Task TestStoreVdvRecords_UsesStoredMeasurementFallbackAndOrdersAtomicBatch()
         {
-            var testObj = TestUtil.CreateApiAndMocks(
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
@@ -571,20 +567,20 @@ namespace OmnidotsAdapterTests
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
             var storedMeasurement = new DateTime(2026, 7, 9, 4, 15, 0, DateTimeKind.Utc);
-            var monitor = OmnidotsFixture.MonitorsList(1).Single();
+            VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
             string? requestedUrl = null;
 
-            httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+            httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask("vdv-token"));
             httpClient.Setup(c => c.GetAsync(It.Is<string>(url =>
-                    url.StartsWith("/api/v1/get_vdv_records", StringComparison.Ordinal))))
-                .Callback<string>(url => requestedUrl = url)
+                    url.StartsWith("/api/v1/get_vdv_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
+                .Callback<string, CancellationToken>((url, _) => requestedUrl = url)
                 .Returns(OmnidotsFixture.StringTask(OmnidotsFixture.VdvRecordsJson()));
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns([monitor]);
             cursorQueries.Setup(c => c.ReadLatestMeasurementTime("1", OmnidotsMeasurementSeries.Vdv))
                 .Returns(storedMeasurement);
 
-            testObj.StoreVdvRecords(TimeSpan.FromHours(2));
+            await testObj.StoreVdvRecordsAsync(TimeSpan.FromHours(2));
 
             Assert.IsNotNull(requestedUrl);
             Assert.AreEqual(DateTimeUtil.GetMillis(storedMeasurement.AddMinutes(-5)), RequestTime(requestedUrl, "start_time"));
@@ -605,30 +601,29 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestStoreVeffRecords_WhenAtomicImportFailsContinuesLaterMonitorThenFaults()
+        public async Task TestStoreVeffRecords_WhenAtomicImportFailsContinuesLaterMonitorThenFaults()
         {
-            var testObj = TestUtil.CreateApiAndMocks(
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
                 out Mock<IMessageService> messageClient,
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
-            var monitors = OmnidotsFixture.MonitorsList(2);
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
             var importFailure = new InvalidOperationException("atomic import failed");
 
-            httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+            httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask("veff-token"));
             httpClient.Setup(c => c.GetAsync(It.Is<string>(url =>
-                    url.StartsWith("/api/v1/get_veff_records", StringComparison.Ordinal))))
+                    url.StartsWith("/api/v1/get_veff_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.StringTask(OmnidotsFixture.VeffRecordsJson()));
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
             importCommands.Setup(c => c.ImportVeffRecords(
                     "1", It.IsAny<IReadOnlyCollection<VeffRecordDto>>(), It.IsAny<DateTime>()))
                 .Throws(importFailure);
 
-            var exception = Assert.ThrowsExactly<OmnidotsImportException>(
-                () => testObj.StoreVeffRecords(TimeSpan.FromHours(2)));
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2)));
 
             Assert.AreEqual("StoreVeffRecords", exception.Operation);
             Assert.AreEqual("1", exception.Failures.Single().SerialId);
@@ -644,48 +639,48 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestStorePeakRecordsLastDataTime_Success()
+        public async Task TestStorePeakRecordsLastDataTime_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
-            var token = "hghjadg";
+            string token = "hghjadg";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
-                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)))).
+                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                     Returns(OmnidotsFixture.AuthenticateTask(token));
 
-            var peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
+            string peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
 
-            var latestTime = DateTime.UtcNow;
-            var monitors = OmnidotsFixture.MonitorsList(2);
+            DateTime latestTime = DateTime.UtcNow;
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
             // mark first monitor as having recent data, second has not reported for delay period
             monitors[0].LastDataTime = latestTime;
             monitors[1].LastDataTime = latestTime.AddHours(-13);
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
 
             // mock sample data to have latestTime in Timestamp
-            var json = OmnidotsFixture.PeakRecordsJson();
-            var peakRecords = JsonSerializer.Deserialize<PeakRecords>(json!);
+            string json = OmnidotsFixture.PeakRecordsJson();
+            PeakRecords? peakRecords = JsonSerializer.Deserialize<PeakRecords>(json!);
             peakRecords!.Samples![peakRecords.Samples.Count - 1].Timestamp = DateTimeUtil.GetMillis(latestTime);
-            var modJson = JsonSerializer.Serialize(peakRecords);
-            httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)))).
+            string modJson = JsonSerializer.Serialize(peakRecords);
+            httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(modJson));
 
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns(new List<RvtAlertRuleDto>());
 
-            testObj.StorePeakRecordsLastDataTime();
+            await testObj.StorePeakRecordsLastDataTimeAsync();
 
-            httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()),
+            httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
             httpClient.Verify(c =>
-                c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl))), Times.Exactly(2));
+                c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>()), Times.Exactly(2));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
 
-            var importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
+            Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportPeakRecords(
                 monitors[0].SerialId,
                 It.Is<DataTable>(t => t.Rows.Count == 2),
@@ -694,7 +689,7 @@ namespace OmnidotsAdapterTests
                 monitors[1].SerialId,
                 It.Is<DataTable>(t => t.Rows.Count == 2),
                 It.Is<DateTime>(dt => TestUtil.VerifyDateTime(latestTime, dt))), Times.Once);
-            var cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
+            Mock<IOmnidotsImportCursorQueries> cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
             cursorQueries.Verify(c => c.ReadImportCursor(
                 It.IsAny<string>(), OmnidotsMeasurementSeries.Peak), Times.Exactly(2));
             cursorQueries.Verify(c => c.ReadLatestMeasurementTime(
@@ -709,47 +704,47 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestStoreVdvRecords_Success()
+        public async Task TestStoreVdvRecords_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
-            var token = "hghjadg";
+            string token = "hghjadg";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
-                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)))).
+                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                     Returns(OmnidotsFixture.AuthenticateTask(token));
 
-            var vdvRecordsUrl = string.Format("/api/v1/get_vdv_records?token={0}", token);
-            httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(vdvRecordsUrl)))).
+            string vdvRecordsUrl = string.Format("/api/v1/get_vdv_records?token={0}", token);
+            httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(vdvRecordsUrl)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.VdvRecordsJson()));
 
-            var monitors = OmnidotsFixture.MonitorsList(2);
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns(new List<RvtAlertRuleDto>());
 
-            testObj.StoreVdvRecords(TimeSpan.FromMinutes(10));
+            await testObj.StoreVdvRecordsAsync(TimeSpan.FromMinutes(10));
 
-            httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()),
+            httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
             httpClient.Verify(c =>
-                c.GetAsync(It.Is<string>(s => s.StartsWith(vdvRecordsUrl))), Times.Exactly(2));
+                c.GetAsync(It.Is<string>(s => s.StartsWith(vdvRecordsUrl)), It.IsAny<CancellationToken>()), Times.Exactly(2));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             var expectedLatest = DateTime.Parse("2023-8-17T14:26:59");
-            var importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
+            Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportVdvRecords("1", It.IsAny<IReadOnlyCollection<VdvRecordDto>>(),
                 It.Is<DateTime>(dt => TestUtil.VerifyDateTime(expectedLatest, dt))), Times.Once);
             importCommands.Verify(c => c.ImportVdvRecords("2", It.IsAny<IReadOnlyCollection<VdvRecordDto>>(),
                 It.Is<DateTime>(dt => TestUtil.VerifyDateTime(expectedLatest, dt))), Times.Once);
-            var cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
+            Mock<IOmnidotsImportCursorQueries> cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
             cursorQueries.Verify(c => c.ReadImportCursor(It.IsAny<string>(), OmnidotsMeasurementSeries.Vdv), Times.Exactly(2));
             cursorQueries.Verify(c => c.ReadLatestMeasurementTime(It.IsAny<string>(), OmnidotsMeasurementSeries.Vdv), Times.Exactly(2));
 
 
-            foreach (var m in monitors)
+            foreach (VibrationMonitorDto m in monitors)
             {
                 dbClient.Verify(c => c.SetMonitorOffline(m.Id, false), Times.Exactly(1));
             }
@@ -763,47 +758,47 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestStoreVeffRecords_Success()
+        public async Task TestStoreVeffRecords_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                    out Mock<IDBClient> dbClient,
                                                    out Mock<IMqttClient> mqttClient,
                                                     out Mock<IMessageService> messageClient);
-            var token = "hghjadg";
+            string token = "hghjadg";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
-                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)))).
+                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                     Returns(OmnidotsFixture.AuthenticateTask(token));
 
-            var veffRecordsUrl = string.Format("/api/v1/get_veff_records?token={0}", token);
-            httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(veffRecordsUrl)))).
+            string veffRecordsUrl = string.Format("/api/v1/get_veff_records?token={0}", token);
+            httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(veffRecordsUrl)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.VeffRecordsJson()));
 
-            var monitors = OmnidotsFixture.MonitorsList(2);
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns(new List<RvtAlertRuleDto>());
 
-            testObj.StoreVeffRecords(TimeSpan.FromMinutes(10));
+            await testObj.StoreVeffRecordsAsync(TimeSpan.FromMinutes(10));
 
-            httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()),
+            httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
             httpClient.Verify(c =>
-                c.GetAsync(It.Is<string>(s => s.StartsWith(veffRecordsUrl))), Times.Exactly(2));
+                c.GetAsync(It.Is<string>(s => s.StartsWith(veffRecordsUrl)), It.IsAny<CancellationToken>()), Times.Exactly(2));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             var expectedLatest = DateTime.Parse("2023-11-14T11:19:59");
-            var importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
+            Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportVeffRecords("1", It.IsAny<IReadOnlyCollection<VeffRecordDto>>(),
                 It.Is<DateTime>(dt => TestUtil.VerifyDateTime(expectedLatest, dt))), Times.Once);
             importCommands.Verify(c => c.ImportVeffRecords("2", It.IsAny<IReadOnlyCollection<VeffRecordDto>>(),
                 It.Is<DateTime>(dt => TestUtil.VerifyDateTime(expectedLatest, dt))), Times.Once);
-            var cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
+            Mock<IOmnidotsImportCursorQueries> cursorQueries = dbClient.As<IOmnidotsImportCursorQueries>();
             cursorQueries.Verify(c => c.ReadImportCursor(It.IsAny<string>(), OmnidotsMeasurementSeries.Veff), Times.Exactly(2));
             cursorQueries.Verify(c => c.ReadLatestMeasurementTime(It.IsAny<string>(), OmnidotsMeasurementSeries.Veff), Times.Exactly(2));
 
 
-            foreach (var m in monitors)
+            foreach (VibrationMonitorDto m in monitors)
             {
                 dbClient.Verify(c => c.SetMonitorOffline(m.Id, false), Times.Exactly(1));
             }
@@ -816,9 +811,9 @@ namespace OmnidotsAdapterTests
 
 
         [TestMethod]
-        public void StoreTraces_NonLegacySerial_IsImportedWhenEligible()
+        public async Task StoreTraces_NonLegacySerial_IsImportedWhenEligible()
         {
-            var testObj = TestUtil.CreateApiAndMocks(
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
@@ -830,27 +825,27 @@ namespace OmnidotsAdapterTests
                 });
             dbClient.Setup(client => client.ReadMonitorList(It.IsAny<DateTime?>()))
                 .Returns(OmnidotsFixture.MonitorsList(1));
-            httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>()))
+            httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask("trace-token"));
             httpClient.Setup(client => client.GetAsync(It.Is<string>(url =>
                     url.StartsWith("/api/v1/get_traces_list", StringComparison.Ordinal) &&
-                    url.Contains("measuring_point_id=1", StringComparison.Ordinal))))
+                    url.Contains("measuring_point_id=1", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"traces\":[]}"));
 
-            testObj.StoreTraces(DateTime.UtcNow.AddMinutes(-5));
+            await testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5));
 
             httpClient.Verify(client => client.GetAsync(It.Is<string>(url =>
                 url.StartsWith("/api/v1/get_traces_list", StringComparison.Ordinal) &&
-                url.Contains("measuring_point_id=1", StringComparison.Ordinal))), Times.Once);
+                url.Contains("measuring_point_id=1", StringComparison.Ordinal)), It.IsAny<CancellationToken>()), Times.Once);
             dbClient.Verify(client => client.WriteTraces(It.IsAny<string>(), It.IsAny<IReadOnlyList<TraceData>>()), Times.Never);
             mqttClient.VerifyNoOtherCalls();
             messageClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
-        public void StoreTraces_DisabledCollection_MakesNoVendorCalls()
+        public async Task StoreTraces_DisabledCollection_MakesNoVendorCalls()
         {
-            var testObj = TestUtil.CreateApiAndMocks(
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
@@ -863,7 +858,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(client => client.ReadMonitorList(It.IsAny<DateTime?>()))
                 .Returns(OmnidotsFixture.MonitorsList(1));
 
-            testObj.StoreTraces(DateTime.UtcNow.AddMinutes(-5));
+            await testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5));
 
             httpClient.VerifyNoOtherCalls();
             mqttClient.VerifyNoOtherCalls();
@@ -879,25 +874,25 @@ namespace OmnidotsAdapterTests
         [DataRow(98, BatteryAlertType.BatteryCaution, BatteryAlertType.Off, AlertType.Ignore, false)]
         [DataRow(99, BatteryAlertType.Off, BatteryAlertType.Off, AlertType.Ignore, false)]
         [TestMethod]
-        public void TestNotifyBatteryLevels_Success(int batteryLevel, BatteryAlertType initialBatteryStatus, BatteryAlertType expectedBatteryStatus,
+        public async Task TestNotifyBatteryLevels_Success(int batteryLevel, BatteryAlertType initialBatteryStatus, BatteryAlertType expectedBatteryStatus,
                                                AlertType expectedAlertType, bool expectNotification)
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
                                                  out Mock<IMessageService> messageClient);
 
-            var monitors = OmnidotsFixture.MonitorsList(numMonitors: 1,
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(numMonitors: 1,
                                                         lastDataTime: null,
                                                         alwaysMakeSensor: true,
                                                         serialIdIn: 23422,
                                                         batteryLevel: batteryLevel,
                                                         batteryStatus: initialBatteryStatus);
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
-            var contacts = OmnidotsFixture.AlertContacts();
+            List<RvtContactDto> contacts = OmnidotsFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id)).
                 Returns(contacts);
-            testObj.NotifyBatteryLevels();
+            await testObj.NotifyBatteryLevelsAsync();
             httpClient.VerifyNoOtherCalls();
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             if (expectNotification)
@@ -912,7 +907,7 @@ namespace OmnidotsAdapterTests
                 dbClient.Verify(c => c.SetMonitorBatteryStatus(monitors[0].Id, (byte)expectedBatteryStatus),
                     Times.Exactly(1));
                 //commsClient.Verify(c => c.SendMessage(ContactMethod.Email, expectedAlertType, contacts[0].EmailAddress, null, It.IsAny<string>()),
-                var expectedMessage = expectedAlertType == AlertType.BatteryAlert
+                LegacyMessageKind expectedMessage = expectedAlertType == AlertType.BatteryAlert
                     ? LegacyMessageKind.Battery_Alert
                     : LegacyMessageKind.Battery_Caution;
 
@@ -975,7 +970,7 @@ namespace OmnidotsAdapterTests
         //    Assert.AreEqual(987654321, res.Traces[0].EndTime);
 
         //    httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
-        //     It.IsAny<HttpContent>()), Times.Exactly(1));
+        //     It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         //    httpClient.VerifyNoOtherCalls();
 
         //    dbClient.VerifyNoOtherCalls();
@@ -1016,7 +1011,7 @@ namespace OmnidotsAdapterTests
         //    Assert.AreEqual(4, res.Traces[1].Z!.Count);
 
         //    httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
-        //     It.IsAny<HttpContent>()), Times.Exactly(1));
+        //     It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         //    httpClient.VerifyNoOtherCalls();
 
         //    dbClient.VerifyNoOtherCalls();
@@ -1038,7 +1033,7 @@ namespace OmnidotsAdapterTests
 
         private static long RequestTime(string url, string name)
         {
-            var value = url.Split('?', 2)[1]
+            string value = url.Split('?', 2)[1]
                 .Split('&', StringSplitOptions.RemoveEmptyEntries)
                 .Select(part => part.Split('=', 2))
                 .Single(part => part[0] == name)[1];

@@ -1,9 +1,9 @@
 using System.Text;
 using System.Text.Json;
+using AirQ.Api.Ports;
 using AirQ.Common;
 using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace AirQ.Api.Http
@@ -11,7 +11,7 @@ namespace AirQ.Api.Http
     // Summary: Vendor HTTP gateway for the AirQ API - request building, calls, and response parsing.
     // Major updates:
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApi, AirQApiMonitors, AirQApiMonitorsNoiseLevels).
-    public class AirQHttpGateway
+    public class AirQHttpGateway : IAirQVendorGateway
     {
         private readonly IHttpClient httpClient;
 
@@ -20,12 +20,19 @@ namespace AirQ.Api.Http
             this.httpClient = httpClient;
         }
 
-        public List<InstrumentResponse> GetMonitors(string userId, string userAuth)
+        public async Task<List<InstrumentResponse>> GetMonitorsAsync(
+            string userId,
+            string userAuth,
+            CancellationToken cancellationToken = default)
         {
             string response;
             try
             {
-                response = DoGetInstrumentList(userId, userAuth).Result;
+                response = await DoGetInstrumentList(userId, userAuth, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -35,37 +42,61 @@ namespace AirQ.Api.Http
             return ParseResponse<List<InstrumentResponse>>(response);
         }
 
-        public List<MetaDataResponse> GetMetaData(string userId, string userAuth, string serialId)
+        public async Task<List<MetaDataResponse>> GetMetaDataAsync(
+            string userId,
+            string userAuth,
+            string serialId,
+            CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogInformation("AirQAdapter GetMetadata userId={Value1}", SensitiveLogRedactor.Redact(userId));
-            var response = DoGetMetaData(userId, userAuth, serialId).Result;
+            string response = await DoGetMetaData(userId, userAuth, serialId, cancellationToken);
             return ParseResponse<List<MetaDataResponse>>(response);
         }
 
-        public List<SampleResponse> HttpGetLatestSamples(string userId, string userAuth, string serialId, ref DateTime latestDateTime)
+        public async Task<LatestSamplesResult> GetLatestSamplesAsync(
+            string userId,
+            string userAuth,
+            string serialId,
+            DateTime latestDateTime,
+            CancellationToken cancellationToken = default)
         {
             string response;
             try
             {
-                response = DoGetLatestData(userId, userAuth, serialId).Result;
+                response = await DoGetLatestData(userId, userAuth, serialId, cancellationToken);
                 RvtLogger.Logger.LogDebug("GetLatestSamples response={Value1}", SensitiveLogRedactor.RedactJson(response));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
                 throw AdapterException.Of("GetLatestSamples", e);
             }
-            var samples = ParseResponse<List<SampleResponse>>(response);
-            return TruncateByLatestMills(samples, ref latestDateTime);
+
+            List<SampleResponse> samples = ParseResponse<List<SampleResponse>>(response);
+            DateTime watermark = latestDateTime;
+            List<SampleResponse> truncated = TruncateByLatestMills(samples, ref watermark);
+            return new LatestSamplesResult(truncated, watermark);
         }
 
-        public List<SampleResponse> GetSamplesForDate(string userId, string userAuth,
-                            string serialId, string date)
+        public async Task<List<SampleResponse>> GetSamplesForDateAsync(
+            string userId,
+            string userAuth,
+            string serialId,
+            string date,
+            CancellationToken cancellationToken = default)
         {
             string response;
             try
             {
                 RvtLogger.Logger.LogDebug("GetSamplesForDate for SerialId={Value1}", serialId);
-                response = DoGetDataForDate(userId, userAuth, serialId, date).Result;
+                response = await DoGetDataForDate(userId, userAuth, serialId, date, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -76,36 +107,36 @@ namespace AirQ.Api.Http
 
         #region ApiCalls
 
-        private async Task<string> DoGetInstrumentList(string userId, string token)
+        private async Task<string> DoGetInstrumentList(string userId, string token, CancellationToken cancellationToken)
         {
-            var path = BuildQueryPath("/instrumentList", ("userID", userId), ("token", token));
-            return await httpClient.GetAsync(path);
+            string path = BuildQueryPath("/instrumentList", ("userID", userId), ("token", token));
+            return await httpClient.GetAsync(path, cancellationToken);
         }
 
-        private async Task<string> DoGetMetaData(string userId, string token, string serialId)
+        private async Task<string> DoGetMetaData(string userId, string token, string serialId, CancellationToken cancellationToken)
         {
-            var path = BuildQueryPath("/latestMetaData", ("userID", userId), ("token", token), ("instrumentID", serialId));
+            string path = BuildQueryPath("/latestMetaData", ("userID", userId), ("token", token), ("instrumentID", serialId));
             RvtLogger.Logger.LogInformation("Path={Path}", SensitiveLogRedactor.RedactUrl(path));
-            return await httpClient.GetAsync(path);
+            return await httpClient.GetAsync(path, cancellationToken);
         }
 
         private async Task<string> DoGetDataForDate(string userId, string token,
-                                                    string instrumentId, string date)
+                                                    string instrumentId, string date, CancellationToken cancellationToken)
         {
-            var path = BuildQueryPath(
+            string path = BuildQueryPath(
                 "/dataForDate",
                 ("userID", userId),
                 ("date", date),
                 ("token", token),
                 ("instrumentID", instrumentId));
-            return await httpClient.GetAsync(path);
+            return await httpClient.GetAsync(path, cancellationToken);
         }
 
         private async Task<string> DoGetLatestData(string userId, string token,
-                                                    string instrumentId)
+                                                    string instrumentId, CancellationToken cancellationToken)
         {
-            var path = BuildQueryPath("/latestData", ("userID", userId), ("token", token), ("instrumentID", instrumentId));
-            return await httpClient.GetAsync(path);
+            string path = BuildQueryPath("/latestData", ("userID", userId), ("token", token), ("instrumentID", instrumentId));
+            return await httpClient.GetAsync(path, cancellationToken);
         }
 
         #endregion // ApiCalls
@@ -128,7 +159,7 @@ namespace AirQ.Api.Http
             catch (JsonException e)
             {
                 // could be an error response
-                var errors = ParseErrorResponse(json);
+                List<ErrorResponse>? errors = ParseErrorResponse(json);
                 if (errors != null && errors.Count > 0)
                 {
                     if (errors.Count == 1 && errors[0].Response != null && errors[0].Response!.Contains("No data available!", StringComparison.OrdinalIgnoreCase))
@@ -136,7 +167,7 @@ namespace AirQ.Api.Http
                         return new T(); // Return empty dataset
                     }
                     var sb = new StringBuilder(errors[0].Response!);
-                    for (var i = 1; i < errors.Count; i++)
+                    for (int i = 1; i < errors.Count; i++)
                     {
                         sb.Append(' ');
                         sb.Append(errors[i].Response);
@@ -167,9 +198,9 @@ namespace AirQ.Api.Http
         private static List<SampleResponse> TruncateByLatestMills(List<SampleResponse> samples, ref DateTime latestDateTime)
         {
             var removeList = new List<SampleResponse>();
-            foreach (var sample in samples)
+            foreach (SampleResponse sample in samples)
             {
-                var utcDateTime = DateTimeUtil.ToUtc((DateTime)sample.Utc!);
+                DateTime utcDateTime = DateTimeUtil.ToUtc((DateTime)sample.Utc!);
 
                 if (utcDateTime > DateTime.UtcNow)
                 {
@@ -185,7 +216,7 @@ namespace AirQ.Api.Http
                     removeList.Add(sample);
                 }
             }
-            foreach (var sample in removeList)
+            foreach (SampleResponse sample in removeList)
             {
                 samples.Remove(sample);
             }

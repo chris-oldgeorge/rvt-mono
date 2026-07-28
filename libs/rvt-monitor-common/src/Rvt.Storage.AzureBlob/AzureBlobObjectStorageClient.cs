@@ -50,7 +50,7 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         ArgumentNullException.ThrowIfNull(request.Key);
         ArgumentNullException.ThrowIfNull(request.Content);
 
-        var blobClient = GetBlobClient(request.Key);
+        BlobClient blobClient = GetBlobClient(request.Key);
         try
         {
             await containerClient.CreateIfNotExistsAsync(
@@ -78,6 +78,10 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         {
             throw TranslateFailure(exception, request.Key);
         }
+        catch (AuthenticationFailedException exception)
+        {
+            throw TranslateAuthenticationFailure(exception, request.Key);
+        }
     }
 
     public async Task<StorageReadResult?> OpenReadAsync(
@@ -88,7 +92,7 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
 
         try
         {
-            var response = await GetBlobClient(key).DownloadStreamingAsync(
+            Response<BlobDownloadStreamingResult> response = await GetBlobClient(key).DownloadStreamingAsync(
                 new BlobDownloadOptions(),
                 cancellationToken);
             return new StorageReadResult(
@@ -113,6 +117,10 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         {
             throw TranslateFailure(exception, key);
         }
+        catch (AuthenticationFailedException exception)
+        {
+            throw TranslateAuthenticationFailure(exception, key);
+        }
     }
 
     public async Task<bool> DeleteIfExistsAsync(
@@ -123,7 +131,7 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
 
         try
         {
-            var response = await GetBlobClient(key).DeleteIfExistsAsync(
+            Response<bool> response = await GetBlobClient(key).DeleteIfExistsAsync(
                 cancellationToken: cancellationToken);
             return response.Value;
         }
@@ -138,6 +146,10 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         catch (RequestFailedException exception)
         {
             throw TranslateFailure(exception, key);
+        }
+        catch (AuthenticationFailedException exception)
+        {
+            throw TranslateAuthenticationFailure(exception, key);
         }
     }
 
@@ -156,7 +168,7 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
 
         if (!string.IsNullOrWhiteSpace(options.ServiceUri))
         {
-            if (!Uri.TryCreate(options.ServiceUri, UriKind.Absolute, out var serviceUri))
+            if (!Uri.TryCreate(options.ServiceUri, UriKind.Absolute, out Uri? serviceUri))
             {
                 throw new InvalidOperationException(
                     "RVT__BLOB_SERVICE_URI must be an absolute URI.");
@@ -176,7 +188,7 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
 
     private BlobClient GetBlobClient(StorageObjectKey key)
     {
-        var providerKey = string.IsNullOrEmpty(prefix)
+        string providerKey = string.IsNullOrEmpty(prefix)
             ? key.Value
             : $"{prefix}/{key.Value}";
         return containerClient.GetBlobClient(providerKey);
@@ -187,6 +199,21 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         StorageObjectKey key) =>
         new(
             ClassifyFailure(exception.Status),
+            resourceName,
+            key,
+            exception);
+
+    /// <summary>
+    /// Credential resolution failures arrive as
+    /// <see cref="AuthenticationFailedException"/>, which is not a
+    /// <see cref="RequestFailedException"/> and therefore previously crossed
+    /// the port untranslated.
+    /// </summary>
+    private ObjectStorageException TranslateAuthenticationFailure(
+        AuthenticationFailedException exception,
+        StorageObjectKey key) =>
+        new(
+            StorageFailureKind.AccessDenied,
             resourceName,
             key,
             exception);

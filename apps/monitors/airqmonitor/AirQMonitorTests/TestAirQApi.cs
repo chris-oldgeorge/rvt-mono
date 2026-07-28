@@ -1,16 +1,14 @@
+using AirQ.Api;
 using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests
@@ -21,7 +19,7 @@ namespace AirQMonitorTests
 
         public TestAirQApi()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -29,30 +27,30 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreMonitors_Success()
+        public async Task TestStoreMonitors_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
 
-            httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar")).
+            httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar", It.IsAny<CancellationToken>())).
                     Returns(Task<string>.Factory.StartNew(() => AirQFixture.InstrumentsResponseJson()));
 
 
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestMetaData\\?userID=foo&token=bar&instrumentID=*"))).
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestMetaData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                     Returns(Task<string>.Factory.StartNew(() => AirQFixture.MetaDataResponseJson()));
 
-            testObj.StoreMonitors("foo", "bar");
+            await testObj.StoreMonitorsAsync("foo", "bar");
 
-            httpClient.Verify(c => c.GetAsync("/instrumentList?userID=foo&token=bar"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device1"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device2"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device3"), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/instrumentList?userID=foo&token=bar", It.IsAny<CancellationToken>()), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device1", It.IsAny<CancellationToken>()), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device2", It.IsAny<CancellationToken>()), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device3", It.IsAny<CancellationToken>()), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
-            var expected = AirQFixture.MonitorDtos(DateTime.UtcNow, NoiseMonitorStatus.ACTIVE);
+            List<NoiseMonitorDto> expected = AirQFixture.MonitorDtos(DateTime.UtcNow, NoiseMonitorStatus.ACTIVE);
             dbClient.Verify(c => c.WriteMonitorList(
                             It.Is<List<NoiseMonitorDto>>(
                                 l => TestUtil.AreEqual(expected, l))), Times.Exactly(1));
@@ -63,31 +61,31 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreMonitors_EmptyMetadataStillWritesEveryMonitor()
+        public async Task TestStoreMonitors_EmptyMetadataStillWritesEveryMonitor()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar"))
+            httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(AirQFixture.InstrumentsResponseJson());
-            httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device1"))
+            httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device1", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(AirQFixture.MetaDataResponseJson());
-            httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device2"))
+            httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device2", It.IsAny<CancellationToken>()))
                 .ReturnsAsync("[]");
-            httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device3"))
+            httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device3", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(AirQFixture.MetaDataResponseJson());
 
-            testObj.StoreMonitors("foo", "bar");
+            await testObj.StoreMonitorsAsync("foo", "bar");
 
             dbClient.Verify(client => client.WriteMonitorList(It.Is<List<NoiseMonitorDto>>(monitors =>
                 monitors.Count == 3 &&
                 monitors.Single(monitor => monitor.SerialId == "Device2").MonitorStatus.BatteryVoltage == null)), Times.Once);
-            httpClient.Verify(client => client.GetAsync("/instrumentList?userID=foo&token=bar"), Times.Once);
-            httpClient.Verify(client => client.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device1"), Times.Once);
-            httpClient.Verify(client => client.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device2"), Times.Once);
-            httpClient.Verify(client => client.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device3"), Times.Once);
+            httpClient.Verify(client => client.GetAsync("/instrumentList?userID=foo&token=bar", It.IsAny<CancellationToken>()), Times.Once);
+            httpClient.Verify(client => client.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device1", It.IsAny<CancellationToken>()), Times.Once);
+            httpClient.Verify(client => client.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device2", It.IsAny<CancellationToken>()), Times.Once);
+            httpClient.Verify(client => client.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device3", It.IsAny<CancellationToken>()), Times.Once);
             httpClient.VerifyNoOtherCalls();
             dbClient.VerifyNoOtherCalls();
             mqttClient.VerifyNoOtherCalls();
@@ -95,17 +93,17 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestCheckForOfflineMonitors_MonitorsOfflineFor23Hours_Success()
+        public async Task TestCheckForOfflineMonitors_MonitorsOfflineFor23Hours_Success()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            var rules = AirQFixture.OfflineRules();
+            List<RvtAlertRuleDto> rules = AirQFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).
                 Returns(new List<NoiseMonitorDto>());
 
-            testObj.CheckForOfflineMonitors();
+            await testObj.CheckForOfflineMonitorsAsync();
 
             httpClient.VerifyNoOtherCalls();
 
@@ -124,22 +122,22 @@ namespace AirQMonitorTests
         [DataRow(24 * 60, 0)]
         [DataRow((24 * 60) + 1, 60)]
         [TestMethod]
-        public void TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
+        public async Task TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            var rules = AirQFixture.OfflineRules();
+            List<RvtAlertRuleDto> rules = AirQFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
 
-            var monitors = AirQFixture.MonitorDtos(DateTime.UtcNow.AddMinutes(-minutesOffline), NoiseMonitorStatus.ACTIVE);
+            List<NoiseMonitorDto> monitors = AirQFixture.MonitorDtos(DateTime.UtcNow.AddMinutes(-minutesOffline), NoiseMonitorStatus.ACTIVE);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).
                 Returns(monitors);
 
-            var contacts = AirQFixture.AlertContacts();
+            List<RvtContactDto> contacts = AirQFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(It.IsAny<Guid>(), out It.Ref<Guid>.IsAny)).Returns(contacts);
 
-            testObj.CheckForOfflineMonitors();
+            await testObj.CheckForOfflineMonitorsAsync();
 
             httpClient.VerifyNoOtherCalls();
 
@@ -149,7 +147,7 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", "Sent ok"),
                 Times.Exactly(monitors.Count));
 
-            foreach (var m in monitors)
+            foreach (NoiseMonitorDto m in monitors)
             {
                 dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
                     n => n.MonitorId == m.Id &&

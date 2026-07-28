@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Rvt.Monitor.Common.Alerts.Persistence;
 using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts.Persistence;
+using Rvt.Monitor.Common.Delivery;
 
 namespace Rvt.Monitor.Common.Alerts;
 
@@ -36,11 +37,11 @@ public sealed class DurableAlertDispatcher
     public async Task DispatchAsync(CancellationToken cancellationToken = default)
     {
         var deadLetteredIds = new List<Guid>();
-        for (var index = 0; index < options.BatchSize; index++)
+        for (int index = 0; index < options.BatchSize; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var claimTime = timeProvider.GetUtcNow().UtcDateTime;
-            var message = await store.ClaimNextDueAsync(
+            DateTime claimTime = timeProvider.GetUtcNow().UtcDateTime;
+            ClaimedAlertDelivery? message = await store.ClaimNextDueAsync(
                 claimTime,
                 TimeSpan.FromSeconds(options.LeaseSeconds),
                 cancellationToken);
@@ -51,7 +52,7 @@ public sealed class DurableAlertDispatcher
 
             try
             {
-                if (!adapters.TryGetValue(message.Kind, out var adapter))
+                if (!adapters.TryGetValue(message.Kind, out IAlertDeliveryAdapter? adapter))
                 {
                     throw new InvalidOperationException("No alert delivery adapter is registered for the message kind.");
                 }
@@ -62,9 +63,9 @@ public sealed class DurableAlertDispatcher
                 using var deliveryCancellation = CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
                     timeoutCancellation.Token);
-                var audit = await adapter.DeliverAsync(message, deliveryCancellation.Token);
-                var outcomeTime = timeProvider.GetUtcNow().UtcDateTime;
-                var completed = await store.CompleteAsync(
+                AlertDeliveryAudit? audit = await adapter.DeliverAsync(message, deliveryCancellation.Token);
+                DateTime outcomeTime = timeProvider.GetUtcNow().UtcDateTime;
+                bool completed = await store.CompleteAsync(
                     message.Id,
                     message.LeaseId,
                     outcomeTime,
@@ -81,15 +82,15 @@ public sealed class DurableAlertDispatcher
             }
             catch (Exception exception)
             {
-                var deadLetter = IsTerminal(exception, message.AttemptCount, options);
-                var safeError = exception is DeliveryException
+                bool deadLetter = IsTerminal(exception, message.AttemptCount, options);
+                string safeError = exception is DeliveryException
                     ? exception.Message
                     : $"Alert delivery failed ({exception.GetType().Name}).";
-                var outcomeTime = timeProvider.GetUtcNow().UtcDateTime;
-                var nextAttemptAt = deadLetter
+                DateTime outcomeTime = timeProvider.GetUtcNow().UtcDateTime;
+                DateTime nextAttemptAt = deadLetter
                     ? outcomeTime
                     : outcomeTime.Add(RetryDelay(message.AttemptCount, exception, options));
-                var retried = await store.RetryAsync(
+                bool retried = await store.RetryAsync(
                     message.Id,
                     message.LeaseId,
                     nextAttemptAt,
@@ -113,7 +114,7 @@ public sealed class DurableAlertDispatcher
 
         if (deadLetteredIds.Count > 0)
         {
-            var failures = deadLetteredIds
+            IEnumerable<InvalidOperationException> failures = deadLetteredIds
                 .Select(id => new InvalidOperationException($"Alert delivery {id} was dead-lettered."));
             throw new AggregateException("One or more alert deliveries were dead-lettered.", failures);
         }
@@ -129,19 +130,12 @@ public sealed class DurableAlertDispatcher
     private static TimeSpan RetryDelay(
         int attemptCount,
         Exception exception,
-        DurableAlertOptions options)
-    {
-        var exponent = Math.Max(0, attemptCount - 1);
-        var exponentialSeconds = Math.Min(
-            options.InitialRetrySeconds * Math.Pow(2, exponent),
-            options.MaxRetrySeconds);
-        var retryAfterSeconds = exception is DeliveryException { RetryAfter: { } retryAfter }
-            ? retryAfter.TotalSeconds
-            : 0;
-        return TimeSpan.FromSeconds(Math.Min(
-            Math.Max(exponentialSeconds, retryAfterSeconds),
-            options.MaxRetrySeconds));
-    }
+        DurableAlertOptions options) =>
+        DeliveryRetrySchedule.NextDelay(
+            attemptCount,
+            TimeSpan.FromSeconds(options.InitialRetrySeconds),
+            TimeSpan.FromSeconds(options.MaxRetrySeconds),
+            exception);
 
     private static AlertDeliveryAudit? CreateFailureAudit(
         ClaimedAlertDelivery message,

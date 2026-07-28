@@ -79,11 +79,12 @@ ReportingMonitor-specific URI resolver intentionally remains outside that
 generic port so persisted links keep their established absolute schemes:
 Local `file:`, Azure HTTPS, and S3 `s3:`.
 
-The independent adapter at
+The formerly independent adapter at
 `services/reporting/src/Rvt.Reporting.Storage/AzureBlob/AzureBlobReportStorage.cs`
-has not migrated to `Rvt.Storage.AzureBlob`; that decision is future pending.
-Portal storage unification is also future pending and does not change
-ReportingMonitor's `reporting-reports` boundary.
+was removed on 2026-07-28 when reporting consolidated into this module;
+ReportingMonitor's own `MonitorBlobReportStorage` over `Rvt.Storage` is now the
+only report-storage path. Portal storage unification remains future pending and
+does not change ReportingMonitor's `reporting-reports` boundary.
 
 Each report recipient has an independent persisted delivery outcome. Provider-returned failures and non-cancellation provider exceptions are saved in `report_delivery.error_message`, bounded to 1,024 characters, and do not prevent later recipients from being attempted. Scheduled generation similarly isolates failures by rule; explicit cancellation still stops processing.
 

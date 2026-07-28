@@ -7,7 +7,6 @@ required_paths=(
   "apps/monitors"
   "apps/portal"
   "libs/rvt-monitor-common"
-  "services/reporting"
   "docs/imports/source-manifest.md"
   "Rvt.Mono.slnx"
 )
@@ -19,7 +18,7 @@ for required_path in "${required_paths[@]}"; do
   fi
 done
 
-nested_git_dirs="$(cd "$root_dir" && find apps libs services -type d -name .git)"
+nested_git_dirs="$(cd "$root_dir" && find apps libs -type d -name .git)"
 if [[ -n "$nested_git_dirs" ]]; then
   echo "Nested .git metadata is not allowed:" >&2
   echo "$nested_git_dirs" >&2

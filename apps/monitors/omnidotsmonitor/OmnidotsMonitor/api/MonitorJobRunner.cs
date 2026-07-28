@@ -11,7 +11,7 @@ internal static class MonitorJobRunner
 {
     public static string? GetJobName(string[] args)
     {
-        var cliJob = args.SkipWhile(arg => arg != "--job").Skip(1).FirstOrDefault();
+        string? cliJob = args.SkipWhile(arg => arg != "--job").Skip(1).FirstOrDefault();
         return string.IsNullOrWhiteSpace(cliJob)
             ? Environment.GetEnvironmentVariable("RVT__MONITOR_JOB")
             : cliJob;
@@ -25,29 +25,29 @@ internal static class MonitorJobRunner
         switch (jobName.Trim())
         {
             case "StoreMonitors":
-                services.GetRequiredService<OmnidotsService>().StoreMonitors();
+                await services.GetRequiredService<OmnidotsService>().StoreMonitorsAsync(cancellationToken);
                 return 0;
             case "CheckForOfflineMonitors":
-                services.GetRequiredService<OmnidotsService>().CheckForOfflineMonitors();
+                await services.GetRequiredService<OmnidotsService>().CheckForOfflineMonitorsAsync(cancellationToken);
                 return 0;
             case "StorePeakRecordsLastDataTime":
-                services.GetRequiredService<OmnidotsService>().StorePeakRecordsLastDataTime();
+                await services.GetRequiredService<OmnidotsService>().StorePeakRecordsLastDataTimeAsync(cancellationToken);
                 return 0;
             case "StoreVeffRecords":
-                services.GetRequiredService<OmnidotsService>().StoreVeffRecords(TimeSpan.FromHours(2));
+                await services.GetRequiredService<OmnidotsService>().StoreVeffRecordsAsync(TimeSpan.FromHours(2), cancellationToken);
                 return 0;
             case "StoreVdvRecords":
-                services.GetRequiredService<OmnidotsService>().StoreVdvRecords(TimeSpan.FromHours(2));
+                await services.GetRequiredService<OmnidotsService>().StoreVdvRecordsAsync(TimeSpan.FromHours(2), cancellationToken);
                 return 0;
             case "StoreTraces":
                 // Matches the old TimerInfo.ScheduleStatus.Last: the schedule window starts five minutes back.
-                services.GetRequiredService<OmnidotsService>().StoreTraces(DateTime.UtcNow.AddMinutes(-5));
+                await services.GetRequiredService<OmnidotsService>().StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5), cancellationToken);
                 return 0;
             case "NotifyBatteryLevels":
-                services.GetRequiredService<OmnidotsService>().NotifyBatteryLevels();
+                await services.GetRequiredService<OmnidotsService>().NotifyBatteryLevelsAsync(cancellationToken);
                 return 0;
             case "ClearOlderErrorMessages":
-                services.GetRequiredService<OmnidotsService>().ClearOlderErrorMessages();
+                await services.GetRequiredService<OmnidotsService>().ClearOlderErrorMessagesAsync(cancellationToken);
                 return 0;
             case "Monitoring":
                 await services.GetRequiredService<OmnidotsService>()

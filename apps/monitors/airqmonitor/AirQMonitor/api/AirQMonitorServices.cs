@@ -26,7 +26,11 @@ public static class AirQMonitorServices
     {
         services.AddSingleton<IHttpClient>(_ => new HttpWebClient<AirQService>(RvtConfig.BASE_URL));
         services.AddSingleton<IDBClient>(_ => new DBClient(RvtConfig.DB_CONNECTION_STRING));
-        services.AddSingleton<IMqttClient, RvtMqttClient>();
+        // Broker settings are supplied explicitly rather than read from
+        // static configuration inside the client.
+        services.AddSingleton(_ => MqttOptions.FromRvtConfig());
+        services.AddSingleton<IMqttClient>(provider =>
+            new RvtMqttClient(provider.GetRequiredService<MqttOptions>()));
         services.AddRvtCommunication();
         AddEmailProvider(services, configuration);
         services.AddTransmitSms(configuration);
@@ -46,7 +50,7 @@ public static class AirQMonitorServices
             }
             catch (Exception e)
             {
-                var dbClient = provider.GetRequiredService<IDBClient>();
+                IDBClient dbClient = provider.GetRequiredService<IDBClient>();
                 dbClient.HandleException("failed to start monitor application", e);
                 throw; // Need this to kill the instance.
             }
@@ -57,7 +61,7 @@ public static class AirQMonitorServices
 
     private static void AddEmailProvider(IServiceCollection services, IConfiguration configuration)
     {
-        var configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
+        string configuredProvider = configuration["RVT:EMAIL_PROVIDER"]
             ?? configuration["RVT__EMAIL_PROVIDER"]
             ?? "SendGrid";
 

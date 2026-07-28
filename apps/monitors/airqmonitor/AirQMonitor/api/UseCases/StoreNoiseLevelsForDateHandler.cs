@@ -1,8 +1,8 @@
 using AirQ.Api.Db;
-using AirQ.Api.Http;
+using AirQ.Api.Ports;
 using AirQ.Model.Dto;
+using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace AirQ.Api.UseCases
@@ -12,30 +12,30 @@ namespace AirQ.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitorsNoiseLevels).
     public class StoreNoiseLevelsForDateHandler
     {
-        private readonly AirQHttpGateway gateway;
+        private readonly IAirQVendorGateway _gateway;
         private readonly AirQMonitorReader monitorReader;
         private readonly IAirQMeasurementCommands measurementCommands;
         private readonly IAirQOperationalCommands operationalCommands;
 
         public StoreNoiseLevelsForDateHandler(
-            AirQHttpGateway gateway,
+            IAirQVendorGateway gateway,
             AirQMonitorReader monitorReader,
             IAirQMeasurementCommands measurementCommands,
             IAirQOperationalCommands operationalCommands)
         {
-            this.gateway = gateway;
+            _gateway = gateway;
             this.monitorReader = monitorReader;
             this.measurementCommands = measurementCommands;
             this.operationalCommands = operationalCommands;
         }
 
-        public void Run(string userId, string userAuth, string dateStr)
+        public async Task RunAsync(string userId, string userAuth, string dateStr, CancellationToken cancellationToken = default)
         {
             try
             {
-                var monitors = monitorReader.ReadMonitors();
+                List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
                 var failures = new List<Exception>();
-                foreach (var monitor in monitors)
+                foreach (NoiseMonitorDto monitor in monitors)
                 {
                     if (!monitor.MonitorStatus.IsMonitorActive())
                     {
@@ -44,19 +44,24 @@ namespace AirQ.Api.UseCases
 
                         continue;
                     }
-                    var serialId = monitor!.SerialId;
+                    string serialId = monitor!.SerialId;
 
+                    cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
-                        var samples = gateway.GetSamplesForDate(userId, userAuth, serialId, dateStr);
+                        List<SampleResponse> samples = await _gateway.GetSamplesForDateAsync(userId, userAuth, serialId, dateStr, cancellationToken);
 
                         var dtos = new List<NoiseDto>();
-                        foreach (var sample in samples)
+                        foreach (SampleResponse sample in samples)
                         {
                             dtos.Add(new NoiseDto(sample));
                         }
                         measurementCommands.InsertNoiseDtos(serialId, dtos);
 
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception e)
                     {
@@ -71,6 +76,10 @@ namespace AirQ.Api.UseCases
                 }
             }
             catch (AggregateException)
+            {
+                throw;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }

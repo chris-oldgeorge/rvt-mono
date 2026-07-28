@@ -1,4 +1,5 @@
 using Amazon;
+using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 
@@ -85,6 +86,14 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         {
             throw TranslateFailure(exception, request.Key);
         }
+        catch (AmazonServiceException exception)
+        {
+            throw TranslateServiceFailure(exception, request.Key);
+        }
+        catch (AmazonClientException exception)
+        {
+            throw TranslateClientFailure(exception, request.Key);
+        }
     }
 
     public async Task<StorageReadResult?> OpenReadAsync(
@@ -95,7 +104,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
 
         try
         {
-            var response = await client.GetObjectAsync(
+            GetObjectResponse response = await client.GetObjectAsync(
                 new GetObjectRequest
                 {
                     BucketName = bucket,
@@ -124,6 +133,14 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         {
             throw TranslateFailure(exception, key);
         }
+        catch (AmazonServiceException exception)
+        {
+            throw TranslateServiceFailure(exception, key);
+        }
+        catch (AmazonClientException exception)
+        {
+            throw TranslateClientFailure(exception, key);
+        }
     }
 
     public async Task<bool> DeleteIfExistsAsync(
@@ -132,7 +149,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
     {
         ArgumentNullException.ThrowIfNull(key);
 
-        var providerKey = GetProviderKey(key);
+        string providerKey = GetProviderKey(key);
         try
         {
             await client.GetObjectMetadataAsync(
@@ -167,12 +184,20 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         {
             throw TranslateFailure(exception, key);
         }
+        catch (AmazonServiceException exception)
+        {
+            throw TranslateServiceFailure(exception, key);
+        }
+        catch (AmazonClientException exception)
+        {
+            throw TranslateClientFailure(exception, key);
+        }
     }
 
     public Uri GetObjectUri(StorageObjectKey key)
     {
         ArgumentNullException.ThrowIfNull(key);
-        var escapedProviderKey = string.Join(
+        string escapedProviderKey = string.Join(
             '/',
             GetProviderKey(key).Split('/').Select(Uri.EscapeDataString));
         return new Uri($"s3://{bucket}/{escapedProviderKey}");
@@ -188,7 +213,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         var config = new AmazonS3Config { ForcePathStyle = options.ForcePathStyle };
         if (!string.IsNullOrWhiteSpace(options.ServiceUrl))
         {
-            if (!Uri.TryCreate(options.ServiceUrl, UriKind.Absolute, out var serviceUri))
+            if (!Uri.TryCreate(options.ServiceUrl, UriKind.Absolute, out Uri? serviceUri))
             {
                 throw new InvalidOperationException(
                     "RVT__S3_SERVICE_URL must be an absolute URI.");
@@ -228,6 +253,33 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
             key,
             exception);
 
+    /// <summary>
+    /// Covers the SDK failures that never reached a service response —
+    /// missing credentials, DNS and endpoint faults — which are transport
+    /// problems rather than a classified service rejection.
+    /// </summary>
+    private ObjectStorageException TranslateClientFailure(
+        AmazonClientException exception,
+        StorageObjectKey key) =>
+        new(
+            StorageFailureKind.Unavailable,
+            resourceName,
+            key,
+            exception);
+
+    /// <summary>
+    /// Non-S3 service rejections (for example STS credential resolution)
+    /// still carry a status code, so they classify like any other response.
+    /// </summary>
+    private ObjectStorageException TranslateServiceFailure(
+        AmazonServiceException exception,
+        StorageObjectKey key) =>
+        new(
+            ClassifyFailure(exception.StatusCode),
+            resourceName,
+            key,
+            exception);
+
     private ObjectStorageException TranslateCancellation(
         OperationCanceledException exception,
         StorageObjectKey key) =>
@@ -247,7 +299,7 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
     private static StorageFailureKind ClassifyFailure(
         System.Net.HttpStatusCode statusCode)
     {
-        var status = (int)statusCode;
+        int status = (int)statusCode;
         return status switch
         {
             403 => StorageFailureKind.AccessDenied,

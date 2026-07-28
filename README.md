@@ -1,11 +1,15 @@
 # RVT Mono-Repository
 
-This repository contains four imported RVT modules:
+This repository contains three RVT modules:
 
 - `apps/monitors`
 - `apps/portal`
 - `libs/rvt-monitor-common`
-- `services/reporting`
+
+The reporting workload lives in `apps/monitors/reportingmonitor`. The former
+standalone `services/reporting` copy was a duplicate of that code and was
+removed; see the
+[reporting consolidation record](docs/modules/reporting/migration-notes.md).
 
 Start with the [documentation index](docs/index.md) for architecture,
 development, operations, release, database, module, and historical guidance.

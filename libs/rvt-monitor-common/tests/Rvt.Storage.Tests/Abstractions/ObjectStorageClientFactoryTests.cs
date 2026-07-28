@@ -23,11 +23,11 @@ public sealed class ObjectStorageClientFactoryTests
     [TestMethod]
     public void Constructor_RejectsDuplicateResourceNames()
     {
-        var registrations = new[]
-        {
+        ObjectStorageClientRegistration[] registrations =
+        [
             new ObjectStorageClientRegistration("reports", new FakeObjectStorageClient()),
             new ObjectStorageClientRegistration("reports", new FakeObjectStorageClient()),
-        };
+        ];
 
         Assert.ThrowsExactly<ArgumentException>(() => new ObjectStorageClientFactory(registrations));
     }
@@ -41,7 +41,7 @@ public sealed class ObjectStorageClientFactoryTests
             new("archive-secrets", new FakeObjectStorageClient()),
         ]);
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(
             () => factory.GetRequiredClient("missing"));
 
         Assert.AreEqual("Object storage resource 'missing' is not registered.", exception.Message);
@@ -51,6 +51,8 @@ public sealed class ObjectStorageClientFactoryTests
 
     private sealed class FakeObjectStorageClient : IObjectStorageClient
     {
+        public Uri GetObjectUri(StorageObjectKey key) => throw new NotSupportedException();
+
         public Task<StorageWriteResult> WriteAsync(
             StorageWriteRequest request,
             CancellationToken cancellationToken = default)

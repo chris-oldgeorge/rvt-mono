@@ -95,9 +95,11 @@ ReportingMonitor persists absolute provider-specific links without changing
 their formats: Local `file:`, Azure HTTPS, and S3 `s3:`. URI resolution stays
 outside the generic object-storage contract.
 
-Portal blob-client/service migration and the independent
-`services/reporting` Azure storage adapter remain future pending and are not
-container rollout prerequisites for this monitor split.
+Portal blob-client/service migration remains future pending and is not a
+container rollout prerequisite for this monitor split. The formerly independent
+`services/reporting` Azure storage adapter no longer exists; that copy was
+removed when reporting consolidated into
+`apps/monitors/reportingmonitor`.
 
 Svantek uses the Local object-storage provider by default in the Compose setup. The named `svantek-audiofiles` volume is mounted at `/data/rvt/blobs` and persists sound recordings across container recreation. Remove the volume explicitly when the stored recordings should be deleted.
 

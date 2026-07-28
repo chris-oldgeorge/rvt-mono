@@ -1,11 +1,11 @@
 using Omnidots.Api.Db;
 using Omnidots.Api.Http;
+using Omnidots.Api.Ports;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Omnidots.Model.Json;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
 namespace Omnidots.Api
@@ -25,7 +25,7 @@ namespace Omnidots.Api
             BatteryCaution = 2
         }
 
-        private readonly OmnidotsHttpGateway gateway;
+        private readonly IOmnidotsVendorGateway _gateway;
         private readonly StoreMonitorsHandler storeMonitors;
         private readonly CheckForOfflineMonitorsHandler checkForOfflineMonitors;
         private readonly StorePeakRecordsHandler storePeakRecords;
@@ -93,11 +93,11 @@ namespace Omnidots.Api
             OmnidotsTraceCollectionOptions traceCollectionOptions,
             TimeProvider timeProvider)
         {
-            gateway = new OmnidotsHttpGateway(httpClient, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
+            _gateway = new OmnidotsHttpGateway(httpClient, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             var monitorReader = new OmnidotsMonitorReader(dbClient, testLocal);
             var eventPublisher = new MonitorEventPublisher(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
             var ruleProcessor = new OmnidotsRuleProcessor(dbClient, dbClient, messageService, RvtConfig.PORTAL_BASE_URL);
-            storeMonitors = new StoreMonitorsHandler(gateway, dbClient, dbClient, testLocal);
+            storeMonitors = new StoreMonitorsHandler(_gateway, dbClient, dbClient, testLocal);
             checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(
                 dbClient,
                 monitorReader,
@@ -106,7 +106,7 @@ namespace Omnidots.Api
                 dbClient,
                 ruleProcessor);
             storePeakRecords = new StorePeakRecordsHandler(
-                gateway,
+                _gateway,
                 monitorReader,
                 dbClient,
                 cursorQueries,
@@ -114,7 +114,7 @@ namespace Omnidots.Api
                 dbClient,
                 eventPublisher);
             storeVeffRecords = new StoreVeffRecordsHandler(
-                gateway,
+                _gateway,
                 monitorReader,
                 dbClient,
                 cursorQueries,
@@ -122,7 +122,7 @@ namespace Omnidots.Api
                 dbClient,
                 eventPublisher);
             storeVdvRecords = new StoreVdvRecordsHandler(
-                gateway,
+                _gateway,
                 monitorReader,
                 dbClient,
                 cursorQueries,
@@ -130,7 +130,7 @@ namespace Omnidots.Api
                 dbClient,
                 eventPublisher);
             storeTraces = new StoreTracesHandler(
-                gateway,
+                _gateway,
                 monitorReader,
                 dbClient,
                 dbClient,
@@ -146,27 +146,38 @@ namespace Omnidots.Api
                 timeProvider);
         }
 
-        public TokenResponse Authenticate() => gateway.Authenticate();
+        public Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken = default) =>
+            _gateway.AuthenticateAsync(cancellationToken);
 
-        public void StoreMonitors() => storeMonitors.Run();
+        public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
+            storeMonitors.RunAsync(cancellationToken);
 
-        public void CheckForOfflineMonitors() => checkForOfflineMonitors.Run();
+        public Task CheckForOfflineMonitorsAsync(CancellationToken cancellationToken = default) =>
+            checkForOfflineMonitors.RunAsync(cancellationToken);
 
-        public void StorePeakRecordsLastDataTime() => storePeakRecords.Run();
+        public Task StorePeakRecordsLastDataTimeAsync(CancellationToken cancellationToken = default) =>
+            storePeakRecords.RunAsync(cancellationToken);
 
-        public void StorePeakRecordsLastDataTimeNew() => storePeakRecords.Run();
+        public Task StorePeakRecordsLastDataTimeNewAsync(CancellationToken cancellationToken = default) =>
+            storePeakRecords.RunAsync(cancellationToken);
 
-        public void StorePeakRecords(int minutesSinceLastExecuted) => storePeakRecords.Run();
+        public Task StorePeakRecordsAsync(CancellationToken cancellationToken = default) =>
+            storePeakRecords.RunAsync(cancellationToken);
 
-        public void StoreVeffRecords(TimeSpan lookback) => storeVeffRecords.Run(lookback);
+        public Task StoreVeffRecordsAsync(TimeSpan lookback, CancellationToken cancellationToken = default) =>
+            storeVeffRecords.RunAsync(lookback, cancellationToken);
 
-        public void StoreVdvRecords(TimeSpan lookback) => storeVdvRecords.Run(lookback);
+        public Task StoreVdvRecordsAsync(TimeSpan lookback, CancellationToken cancellationToken = default) =>
+            storeVdvRecords.RunAsync(lookback, cancellationToken);
 
-        public void StoreTraces(DateTime last) => storeTraces.Run(last);
+        public Task StoreTracesAsync(DateTime last, CancellationToken cancellationToken = default) =>
+            storeTraces.RunAsync(last, cancellationToken);
 
-        public void NotifyBatteryLevels() => notifyBatteryLevels.Run();
+        public Task NotifyBatteryLevelsAsync(CancellationToken cancellationToken = default) =>
+            notifyBatteryLevels.RunAsync(cancellationToken);
 
-        public void ClearOlderErrorMessages() => clearOlderErrorMessages.Run();
+        public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default) =>
+            clearOlderErrorMessages.RunAsync(cancellationToken);
 
         internal Task MonitoringAsync(CancellationToken cancellationToken = default) =>
             monitoring.RunAsync(cancellationToken);

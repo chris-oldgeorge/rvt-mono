@@ -38,6 +38,6 @@ internal sealed class AirQMonitorJobDispatcher : IMonitorJobDispatcher
                 "AirQMonitorJobDispatcher was created without an AirQService and cannot run jobs.");
         }
 
-        return MonitorJobRunner.RunAsync(jobName, service);
+        return MonitorJobRunner.RunAsync(jobName, service, cancellationToken);
     }
 }

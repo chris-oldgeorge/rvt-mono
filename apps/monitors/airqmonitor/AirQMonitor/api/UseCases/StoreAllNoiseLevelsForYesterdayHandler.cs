@@ -14,10 +14,10 @@ namespace AirQ.Api.UseCases
             this.storeNoiseLevelsForDate = storeNoiseLevelsForDate;
         }
 
-        public void Run(string userId, string userAuth)
+        public Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
         {
-            var dateStr = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            storeNoiseLevelsForDate.Run(userId, userAuth, dateStr);
+            string dateStr = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return storeNoiseLevelsForDate.RunAsync(userId, userAuth, dateStr, cancellationToken);
         }
     }
 }

@@ -36,8 +36,6 @@ for file in \
   apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/OmnidotsMonitorTests.csproj \
   apps/monitors/svantekmonitor/SvantekMonitorTests/SvantekMonitorTests.csproj \
   apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj \
-  services/reporting/src/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
-  services/reporting/src/Rvt.Reporting.Service/Rvt.Reporting.Service.csproj \
   libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj \
   libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj \
   libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj \

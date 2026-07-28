@@ -22,7 +22,7 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
                 key,
                 new MemoryStream([1, 2, 3], writable: false)));
 
-        var result = await fixture.Client.OpenReadAsync(key);
+        StorageReadResult? result = await fixture.Client.OpenReadAsync(key);
         Assert.IsNotNull(result);
         await result.DisposeAsync();
 
@@ -72,6 +72,9 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
         private BlobClient CreateBlobClient(string providerKey)
         {
             var blob = new Mock<BlobClient>(MockBehavior.Strict);
+            blob
+                .SetupGet(client => client.Uri)
+                .Returns(new Uri($"https://account.blob.core.windows.net/container/{providerKey}"));
             blob
                 .Setup(client => client.UploadAsync(
                     It.IsAny<Stream>(),
@@ -124,17 +127,17 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!objects.TryGetValue(providerKey, out var storedObject))
+            if (!objects.TryGetValue(providerKey, out StoredObject? storedObject))
             {
                 return Task.FromException<Response<BlobDownloadStreamingResult>>(
                     new RequestFailedException(404, "Object is missing."));
             }
 
             var content = new MemoryStream(storedObject.Content, writable: false);
-            var details = BlobsModelFactory.BlobDownloadDetails(
+            BlobDownloadDetails details = BlobsModelFactory.BlobDownloadDetails(
                 contentLength: storedObject.Content.Length,
                 contentType: storedObject.ContentType);
-            var result = BlobsModelFactory.BlobDownloadStreamingResult(content, details);
+            BlobDownloadStreamingResult result = BlobsModelFactory.BlobDownloadStreamingResult(content, details);
             var rawResponse = new Mock<Response>(MockBehavior.Strict);
             rawResponse
                 .Setup(response => response.Dispose())
@@ -147,7 +150,7 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var deleted = objects.Remove(providerKey);
+            bool deleted = objects.Remove(providerKey);
             return Task.FromResult(
                 Response.FromValue(deleted, new Mock<Response>(MockBehavior.Strict).Object));
         }

@@ -87,11 +87,6 @@ const expectedModulePolicy = {
       path: 'libs/rvt-monitor-common',
       testFramework: 'MSTest',
       packageVersionPolicy: 'module-central-locked'
-    },
-    {
-      path: 'services/reporting',
-      testFramework: 'xUnit',
-      packageVersionPolicy: 'project-inline-legacy'
     }
   ]
 };
@@ -637,8 +632,7 @@ function withTemporaryRepository(files, action) {
 const governedRootMarkerFiles = {
   'apps/monitors/.keep': '',
   'apps/portal/.keep': '',
-  'libs/rvt-monitor-common/.keep': '',
-  'services/reporting/.keep': ''
+  'libs/rvt-monitor-common/.keep': ''
 };
 
 function createSymbolicLinkOrSkip(testContext, target, linkPath, type) {
@@ -1117,13 +1111,13 @@ test('module-central reevaluates root central metadata after a same-root rewrite
 });
 
 test('governed project discovery rejects an absent module root', () => {
-  const markersWithoutReporting = { ...governedRootMarkerFiles };
-  delete markersWithoutReporting['services/reporting/.keep'];
+  const markersWithoutCommon = { ...governedRootMarkerFiles };
+  delete markersWithoutCommon['libs/rvt-monitor-common/.keep'];
 
-  withTemporaryRepository(markersWithoutReporting, (root) => {
+  withTemporaryRepository(markersWithoutCommon, (root) => {
     assert.throws(
       () => discoverGovernedProjectPaths(root),
-      /governed module root must be an existing directory: services\/reporting/
+      /governed module root must be an existing directory: libs\/rvt-monitor-common/
     );
   });
 });

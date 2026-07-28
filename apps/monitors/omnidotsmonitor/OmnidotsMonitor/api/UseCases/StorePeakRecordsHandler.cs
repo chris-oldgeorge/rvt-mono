@@ -1,9 +1,9 @@
 using System.Data;
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
-using Omnidots.Api.Http;
+using Omnidots.Api.Ports;
 using Omnidots.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
+using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -14,7 +14,7 @@ namespace Omnidots.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiVibrationLevels).
     public class StorePeakRecordsHandler
     {
-        private readonly OmnidotsHttpGateway gateway;
+        private readonly IOmnidotsVendorGateway _gateway;
         private readonly OmnidotsMonitorReader monitorReader;
         private readonly IOmnidotsMonitorQueries monitorQueries;
         private readonly IOmnidotsImportCursorQueries cursorQueries;
@@ -23,7 +23,7 @@ namespace Omnidots.Api.UseCases
         private readonly IMonitorEventPublisher eventPublisher;
 
         public StorePeakRecordsHandler(
-            OmnidotsHttpGateway gateway,
+            IOmnidotsVendorGateway gateway,
             OmnidotsMonitorReader monitorReader,
             IOmnidotsMonitorQueries monitorQueries,
             IOmnidotsImportCursorQueries cursorQueries,
@@ -31,7 +31,7 @@ namespace Omnidots.Api.UseCases
             IOmnidotsOperationalCommands operationalCommands,
             IMonitorEventPublisher eventPublisher)
         {
-            this.gateway = gateway;
+            _gateway = gateway;
             this.monitorReader = monitorReader;
             this.monitorQueries = monitorQueries;
             this.cursorQueries = cursorQueries;
@@ -40,22 +40,23 @@ namespace Omnidots.Api.UseCases
             this.eventPublisher = eventPublisher;
         }
 
-        public void Run()
+        public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogInformation("StorePeakRecords called");
-            var monitors = monitorReader.ReadMonitors();
-            var token = gateway.Authenticate().Token!;
-            var utcNow = DateTime.UtcNow;
-            RunFleet(monitors, monitor =>
+            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
+            string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
+            DateTime utcNow = DateTime.UtcNow;
+            await RunFleetAsync(monitors, async monitor =>
             {
-                var startTime = ResolvePeakStart(monitor);
-                StorePeakRecords(monitor: monitor, startTime: startTime, endTime: utcNow, token: token);
-            });
+                DateTime startTime = ResolvePeakStart(monitor);
+                await StorePeakRecordsAsync(monitor: monitor, startTime: startTime, endTime: utcNow, token: token,
+                    cancellationToken: cancellationToken);
+            }, RecordFailure, cancellationToken);
         }
 
         private DateTime ResolvePeakStart(VibrationMonitorDto monitor)
         {
-            var cursor = cursorQueries.ReadImportCursor(
+            DateTime? cursor = cursorQueries.ReadImportCursor(
                 monitor.SerialId,
                 OmnidotsMeasurementSeries.Peak);
             if (cursor.HasValue)
@@ -63,7 +64,7 @@ namespace Omnidots.Api.UseCases
                 return cursor.Value.AddMinutes(-5);
             }
 
-            var latestMeasurement = cursorQueries.ReadLatestMeasurementTime(
+            DateTime? latestMeasurement = cursorQueries.ReadLatestMeasurementTime(
                 monitor.SerialId,
                 OmnidotsMeasurementSeries.Peak);
             if (latestMeasurement.HasValue)
@@ -71,25 +72,34 @@ namespace Omnidots.Api.UseCases
                 return latestMeasurement.Value.AddMinutes(-5);
             }
 
-            var deployDate = monitor.DeployDate ?? monitorQueries.ReadDeployStartDate(monitor.Id);
-            var fallback = monitor.LastDataTime.HasValue && monitor.LastDataTime.Value > deployDate
+            DateTime deployDate = monitor.DeployDate ?? monitorQueries.ReadDeployStartDate(monitor.Id);
+            DateTime fallback = monitor.LastDataTime.HasValue && monitor.LastDataTime.Value > deployDate
                 ? monitor.LastDataTime.Value
                 : deployDate;
             return fallback.AddMinutes(-5);
         }
 
-        private void RunFleet(IEnumerable<VibrationMonitorDto> monitors, Action<VibrationMonitorDto> import)
+        private static async Task RunFleetAsync(
+            IEnumerable<VibrationMonitorDto> monitors,
+            Func<VibrationMonitorDto, Task> import,
+            Action<string, Exception, List<OmnidotsMonitorFailure>> recordFailure,
+            CancellationToken cancellationToken)
         {
             var failures = new List<OmnidotsMonitorFailure>();
-            foreach (var monitor in monitors)
+            foreach (VibrationMonitorDto monitor in monitors)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    import(monitor);
+                    await import(monitor);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception e)
                 {
-                    RecordFailure(monitor.SerialId, e, failures);
+                    recordFailure(monitor.SerialId, e, failures);
                 }
             }
 
@@ -99,7 +109,7 @@ namespace Omnidots.Api.UseCases
             }
         }
 
-        private int StorePeakRecords(VibrationMonitorDto monitor, DateTime startTime, DateTime? endTime, string token)
+        private async Task<int> StorePeakRecordsAsync(VibrationMonitorDto monitor, DateTime startTime, DateTime? endTime, string token, CancellationToken cancellationToken)
         {
             RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} startTime={Value2} endTime={Value3}",
                 monitor.SerialId, startTime, endTime);
@@ -110,8 +120,8 @@ namespace Omnidots.Api.UseCases
                 return -1;
             }
 
-            var records = gateway.GetPeakRecords(token: token, startTime: startTime, endTime: endTime,
-                                                 measuringPointId: monitor.SerialId);
+            PeakRecords records = await _gateway.GetPeakRecordsAsync(token: token, startTime: startTime, endTime: endTime,
+                                                 measuringPointId: monitor.SerialId, cancellationToken: cancellationToken);
 
             DataTable table = new DataTable();
             table.TableName = "Results";
@@ -137,9 +147,9 @@ namespace Omnidots.Api.UseCases
             dc = table.Columns.Add("ZVtopOverflow", typeof(double));
             dc.AllowDBNull = true;
 
-            foreach (var sample in records!.Samples!.OrderBy(sample => sample.Timestamp))
+            foreach (PeakSample? sample in records!.Samples!.OrderBy(sample => sample.Timestamp))
             {
-                var row = table.NewRow();
+                DataRow row = table.NewRow();
                 row["SerialId"] = monitor.SerialId;
                 var offset = DateTimeOffset.FromUnixTimeMilliseconds((long)sample.Timestamp);
                 row["SampleTime"] = offset.DateTime;
@@ -166,16 +176,16 @@ namespace Omnidots.Api.UseCases
 
             if (table.Rows.Count > 0)
             {
-                var newestSampleAt = table.Rows
+                DateTime newestSampleAt = table.Rows
                     .Cast<DataRow>()
                     .Max(row => (DateTime)row["SampleTime"]);
-                var ps = DateTime.Now;
+                DateTime ps = DateTime.Now;
                 importCommands.ImportPeakRecords(monitor.SerialId, table, newestSampleAt);
-                var ts = DateTime.Now - ps;
+                TimeSpan ts = DateTime.Now - ps;
                 RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
                      monitor.SerialId, table.Rows.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / table.Rows.Count));
                 monitor.LastDataTime = newestSampleAt;
-                eventPublisher.PublishDataInserted(newestSampleAt, monitor.SerialId);
+                await eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
             }
             else
             {
@@ -184,9 +194,9 @@ namespace Omnidots.Api.UseCases
             return table.Rows.Count;
         }
 
-        private void RecordFailure(string serialId, Exception exception, ICollection<OmnidotsMonitorFailure> failures)
+        private void RecordFailure(string serialId, Exception exception, List<OmnidotsMonitorFailure> failures)
         {
-            var msg = string.Format("StorePeakRecords serialId={0}", serialId);
+            string msg = string.Format("StorePeakRecords serialId={0}", serialId);
             RvtLogger.Logger.LogError(exception, "StorePeakRecords failed for serialId={Value1}", serialId);
             failures.Add(OmnidotsMonitorFailure.Record(
                 serialId,

@@ -96,7 +96,6 @@ reject_internal_package_references() {
       "${repo_root}/apps/monitors" \
       "${repo_root}/apps/portal" \
       "${repo_root}/libs/rvt-monitor-common" \
-      "${repo_root}/services/reporting" \
       \( -path '*/bin' -o -path '*/obj' \) -prune -o \
       -name '*.csproj' -print0)
   done
@@ -170,15 +169,6 @@ require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${comm
 require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${sendgrid_mail_project}"
 reject_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${removed_infrastructure_project}"
 
-require_project_reference \
-  services/reporting/src/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
-  "${communication_abstractions_project}"
-reject_package_reference \
-  services/reporting/src/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj \
-  SendGrid
-require_project_reference \
-  services/reporting/src/Rvt.Reporting.Service/Rvt.Reporting.Service.csproj \
-  "${sendgrid_mail_project}"
 reject_internal_package_references
 
 for project in \

@@ -55,17 +55,4 @@
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Monitor.CommonTests/Rvt.Monitor.CommonTests.csproj" />
     <Project Path="libs/rvt-monitor-common/tests/Rvt.Storage.Tests/Rvt.Storage.Tests.csproj" />
   </Folder>
-  <Folder Name="/Services/" />
-  <Folder Name="/Services/Reporting/">
-    <Project Path="services/reporting/src/Rvt.Reporting.Core/Rvt.Reporting.Core.csproj" />
-    <Project Path="services/reporting/src/Rvt.Reporting.Data/Rvt.Reporting.Data.csproj" />
-    <Project Path="services/reporting/src/Rvt.Reporting.Messaging/Rvt.Reporting.Messaging.csproj" />
-    <Project Path="services/reporting/src/Rvt.Reporting.Pdf/Rvt.Reporting.Pdf.csproj" />
-    <Project Path="services/reporting/src/Rvt.Reporting.Service/Rvt.Reporting.Service.csproj" />
-    <Project Path="services/reporting/src/Rvt.Reporting.Storage/Rvt.Reporting.Storage.csproj" />
-  </Folder>
-  <Folder Name="/Services/Reporting/Tests/">
-    <Project Path="services/reporting/tests/Rvt.Reporting.Core.Tests/Rvt.Reporting.Core.Tests.csproj" />
-    <Project Path="services/reporting/tests/Rvt.Reporting.Service.Tests/Rvt.Reporting.Service.Tests.csproj" />
-  </Folder>
 </Solution>

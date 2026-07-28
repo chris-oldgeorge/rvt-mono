@@ -35,10 +35,21 @@ public sealed class MessageService(INotificationDeliveryService notificationDeli
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contact);
-        var channel = ToChannel(messsageType);
-        var destination = channel == NotificationChannel.Email
+        NotificationChannel channel = ToChannel(messsageType);
+        string? destination = channel == NotificationChannel.Email
             ? contact.EmailAddress
             : contact.PhoneNumber;
+
+        // A contact opted into a channel it has no address for is a data
+        // condition, not a programming error. Report it through the same
+        // CommsException contract callers already handle so the failure is
+        // audited against this contact and the remaining contacts still run.
+        if (string.IsNullOrWhiteSpace(destination))
+        {
+            throw CommsException.Of(
+                string.Empty,
+                $"Contact has no {(channel == NotificationChannel.Email ? "email address" : "phone number")} for {channel} delivery.");
+        }
 
         try
         {
@@ -46,14 +57,14 @@ public sealed class MessageService(INotificationDeliveryService notificationDeli
                 new NotificationDeliveryRequest(
                     ToMessageKind(message),
                     channel,
-                    destination ?? string.Empty,
+                    destination,
                     MonitorName,
                     url),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (DeliveryException exception)
         {
-            throw CommsException.Of(destination ?? string.Empty, exception.Message);
+            throw CommsException.Of(destination, exception.Message);
         }
     }
 

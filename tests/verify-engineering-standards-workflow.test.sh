@@ -36,8 +36,22 @@ def sequence(node, context)
   node.children
 end
 
+def assert_exact_keys(value, expected, context)
+  actual = value.keys.sort
+  required = expected.sort
+  assert(
+    actual == required,
+    "#{context} keys must be exactly #{required.join(', ')}; got #{actual.join(', ')}"
+  )
+end
+
 def verify_workflow(source)
   root = mapping(Psych.parse(source).root, "workflow root")
+  assert_exact_keys(
+    root,
+    %w[concurrency jobs name on permissions],
+    "workflow root"
+  )
 
   assert(
     root.fetch("on").is_a?(Psych::Nodes::Scalar) &&
@@ -69,6 +83,11 @@ def verify_workflow(source)
     "workflow must define one blocking engineering-standards job"
   )
   job = mapping(jobs.fetch("engineering-standards"), "engineering-standards job")
+  assert_exact_keys(
+    job,
+    %w[name runs-on steps timeout-minutes],
+    "engineering-standards job"
+  )
   assert(
     scalar(job.fetch("name"), "job name") == "Engineering standards",
     "job must expose the stable Engineering standards check name"
@@ -81,17 +100,23 @@ def verify_workflow(source)
     scalar(job.fetch("timeout-minutes"), "timeout") == "30",
     "engineering standards timeout must be 30 minutes"
   )
-  %w[continue-on-error container env if permissions services].each do |key|
-    assert(!job.key?(key), "engineering-standards job must not define #{key}")
-  end
-
   steps = sequence(job.fetch("steps"), "steps").map { |node| mapping(node, "step") }
   assert(steps.length == 9, "workflow must define exactly the nine required setup and gate steps")
   steps.each do |step|
     name = step.key?("name") ? scalar(step.fetch("name"), "step name") : "unnamed step"
-    assert(!step.key?("env"), "#{name} must not define environment overrides")
-    assert(!step.key?("if"), "#{name} must be unconditional")
-    assert(!step.key?("continue-on-error"), "#{name} must block on failure")
+    if step.key?("uses")
+      assert_exact_keys(step, %w[name uses with], name)
+    elsif step.key?("run")
+      expected =
+        if name == "Install Portal client dependencies"
+          %w[name run working-directory]
+        else
+          %w[name run]
+        end
+      assert_exact_keys(step, expected, name)
+    else
+      assert(false, "#{name} must be an action or run step")
+    end
   end
 
   uses_steps = steps.select { |step| step.key?("uses") }
@@ -219,6 +244,14 @@ verify_workflow(source)
 
 mutations = {
   "manual trigger" => ["on: pull_request", "on: workflow_dispatch"],
+  "root defaults shell" => [
+    "on: pull_request\n\n",
+    "on: pull_request\n\ndefaults:\n  run:\n    shell: bash\n\n"
+  ],
+  "root environment" => [
+    "permissions:\n  contents: read\n\n",
+    "permissions:\n  contents: read\n\nenv:\n  GITHUB_ACTIONS: false\n\n"
+  ],
   "write permission" => ["  contents: read", "  contents: write"],
   "shallow checkout" => ["          fetch-depth: 0", "          fetch-depth: 1"],
   "unpinned checkout" => [
@@ -230,6 +263,10 @@ mutations = {
     "    timeout-minutes: 30\n",
     "    timeout-minutes: 30\n    permissions:\n      contents: write\n"
   ],
+  "job defaults shell" => [
+    "    timeout-minutes: 30\n",
+    "    timeout-minutes: 30\n    defaults:\n      run:\n        shell: bash\n"
+  ],
   "unlocked restore" => [" --locked-mode --disable-parallel", " --disable-parallel"],
   "nonblocking setup" => [
     "      - name: Set up Node.js 24\n",
@@ -238,6 +275,11 @@ mutations = {
   "nonblocking changed-range gate" => [
     "      - name: Verify changed-range engineering standards\n",
     "      - name: Verify changed-range engineering standards\n        continue-on-error: true\n"
+  ],
+  "changed-range shell override" => [
+    "      - name: Verify changed-range engineering standards\n",
+    "      - name: Verify changed-range engineering standards\n" \
+      "        shell: env GITHUB_ACTIONS=false RVT_STANDARDS_DOTNET_COMMAND=unsafe bash {0}\n"
   ],
   "conditional model gate" => [
     "      - name: Verify standards model and module policy\n",
@@ -304,6 +346,7 @@ mutations["workflow contract after changed-range gate"] = [
   ]
 end
 
+accepted_mutations = []
 mutations.each do |label, (needle, replacement)|
   mutated = source.sub(needle, replacement)
   raise "#{label} mutation did not change workflow" if mutated == source
@@ -313,8 +356,9 @@ mutations.each do |label, (needle, replacement)|
   rescue VerificationFailure, KeyError, Psych::SyntaxError
     next
   end
-  raise "#{label} mutation was accepted"
+  accepted_mutations << label
 end
+raise "mutations were accepted: #{accepted_mutations.join(', ')}" unless accepted_mutations.empty?
 
 puts "verify-engineering-standards-workflow: PASS"
 RUBY

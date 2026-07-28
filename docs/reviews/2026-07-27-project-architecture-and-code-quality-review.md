@@ -66,13 +66,14 @@ Assets remain URL metadata only. Persisted rows must pass the HTTPS or
 `/help-assets/` policy. The read-only
 `apps/portal/docs/release/validate-help-asset-urls.sql` query is a useful coarse
 preflight, but it is not equivalent to the application's .NET URI validation:
-it accepts `https://:443/guide.pdf` and rejects the valid
-`https://docs.rvt.test?download=1`. Help Admin therefore remains conditional
-pending one shared BCL-only `HelpAssetUrlPolicy`, a read-only .NET
-release-audit adapter that reuses it, and zero-finding receipts from that audit
-for every release database. Each receipt must identify the
-environment/database, UTC execution time, application revision, and returned
-finding count; a missing receipt or any finding blocks release.
+it accepts `https://:443/guide.pdf`, while its case-sensitive scheme match
+rejects `HTTPS://docs.rvt.test/guide.pdf`, which the application accepts
+case-insensitively. Help Admin therefore remains conditional pending one shared
+BCL-only `HelpAssetUrlPolicy`, a read-only .NET release-audit adapter that
+reuses it, and zero-finding receipts from that audit for every release
+database. Each receipt must identify the environment/database, UTC execution
+time, application revision, and returned finding count; a missing receipt or
+any finding blocks release.
 Stable persisted asset IDs and client-only row keys are covered by focused
 regressions, and the browser journey covers create, publish, preview, edit,
 delete, and Company User denial. Rollback may disable the admin route/endpoints

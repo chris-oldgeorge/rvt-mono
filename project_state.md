@@ -1,5 +1,27 @@
 # Project State
 
+## Authoritative checkpoint: Visual Studio SPA proxy repaired — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- The Visual Studio SPA proxy launch command now invokes Vite directly with
+  `node.exe node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort`.
+  This keeps the generated `spa.proxy.json` valid and avoids `npm` lifecycle
+  scripts falling back to `C:\Windows` when Visual Studio opens the repository
+  through `\\Mac\Home\Developer\rvt-mono`.
+- `SpaProxyConfigurationTests` freezes both the JSON-integrity requirement and
+  the UNC-compatible launch command.
+- On Windows 11 ARM64, a fresh `npm ci` completed with zero vulnerabilities,
+  `dotnet clean` succeeded, and the Debug SPA project rebuild completed with
+  zero warnings and zero errors. The regenerated proxy JSON parsed
+  successfully and direct Node/Vite execution from the UNC working directory
+  reported Vite 6.4.3 on Node 24.18.0.
+- The two focused proxy regression tests passed on Windows. The prior macOS
+  dependency tree and the incomplete Windows install were preserved under the
+  ignored `apps/portal/artifacts/spa-proxy-repair` directory for recovery.
+- Delivery is tracked in GitHub PR #8. Its follow-up CI repair restores
+  executable bits only on shell entrypoints that commit `8fab1bd` changed to
+  non-executable; the two SVG assets remain correctly non-executable.
+
 ## Authoritative checkpoint: PR #6 merged into main — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

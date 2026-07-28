@@ -114,7 +114,7 @@ does not exist for most Portal use cases.
 ports under `RvtPortal.Spa/Adapters`. Keep `RvtPortal.Spa` as the host,
 composition root, transport layer, and adapter container during the migration.
 
-### 4. `RVT.Utilities` is a retirement candidate
+### 4. `RVT.Utilities` was retired
 
 Production source analysis found no consumers of `AzureBlobService`. The class:
 
@@ -128,16 +128,20 @@ Production source analysis found no consumers of `AzureBlobService`. The class:
 - duplicates responsibilities now represented by the shared object-storage
   ports and adapters.
 
-**Recommendation:** Confirm there are no reflection or external binary
-consumers, migrate any remaining behavior to `IObjectStorageClientFactory`, then
-remove the project and its references.
+**Resolution (2026-07-28):** Repository-wide source and project-graph analysis
+found no production, reflection, or test consumer that required the
+implementation. The project, both project references, both solution entries,
+its dedicated test coupling, and deleted-file standards metadata were removed.
+External binaries outside this repository remain outside the scope of that
+evidence.
 
 ### 5. `RVT.BusinessLogic` contains stale dependency declarations
 
-The project references Azure Blobs, configuration binding, HTTP, logging, and
-`RVT.Utilities`, but production source does not use those dependencies. Its
-Options use is currently satisfied through a transitive dependency instead of a
-direct declaration.
+The project references Azure Blobs, configuration binding, HTTP, and logging,
+but production source does not use those dependencies. Its Options use is
+currently satisfied through a transitive dependency instead of a direct
+declaration. The stale `RVT.Utilities` project reference was removed on
+2026-07-28.
 
 **Recommendation:** Remove unused packages and project references under build
 and test protection. Add the actual direct dependency if the affected time
@@ -249,7 +253,7 @@ exceed 1,000 lines, and `App.tsx` is approximately 1,500 lines.
 | `RVT.Entities` | Transitional | Delete dead file and reduce serialization coupling |
 | `RVT.DataAccess` | Good adapter | Preserve persistence and commit ownership |
 | `RVT.BusinessLogic` | Weak dependency hygiene | Remove stale dependencies and migrate slices |
-| `RVT.Utilities` | Retirement candidate | Replace and remove |
+| `RVT.Utilities` | Retired | Removed on 2026-07-28 |
 | `RvtPortal.Application` | Strong but incomplete | Expand by vertical use-case slices |
 | `RvtPortal.Spa` | Transitional host/application mix | Reduce toward host, API, composition, and adapters |
 | `RVT.SchemaDeploy` | Appropriate infrastructure tool | Keep isolated |
@@ -266,7 +270,6 @@ exceed 1,000 lines, and `App.tsx` is approximately 1,500 lines.
 High-confidence removal candidates:
 
 - `apps/portal/RVT.Entities/CreateDB.cs`, which is entirely commented out;
-- `RVT.Utilities/AzureBlobService` and unused project references;
 - unused package references in `RVT.BusinessLogic`; and
 - the unreferenced nested `MessageService.MessageContent` DTO.
 
@@ -306,9 +309,9 @@ build/test guarded.
       every release database before marking R2 complete.
 - [ ] **R3 — Select the authoritative reporting lineage.** Inventory unique
       behavior, migrate it, and merge/remove or rename duplicate projects.
-- [ ] **R4 — Retire dead Portal infrastructure.** Complete shared storage
-      adoption, remove `RVT.Utilities`, and clean `RVT.BusinessLogic`
-      dependencies.
+- [ ] **R4 — Retire dead Portal infrastructure.** `RVT.Utilities` was removed
+      on 2026-07-28; complete the remaining `RVT.BusinessLogic` dependency
+      cleanup.
 - [ ] **R5 — Continue Portal vertical extraction.** Move use cases into
       `RvtPortal.Application` with inward-owned ports.
 - [ ] **R6 — Finish monitor narrow-port migration.** Prioritize AirQ and

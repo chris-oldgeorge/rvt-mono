@@ -29,7 +29,7 @@ import {
   ShieldCheck,
   UserRound,
   UsersRound,
-  type LucideIcon
+  type LucideIcon,
 } from 'lucide-react';
 import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import type { ErrorInfo, FormEvent, ReactNode } from 'react';
@@ -46,7 +46,7 @@ import {
   logout,
   resetPassword,
   setInitialPassword,
-  updateProfile
+  updateProfile,
 } from './api/client';
 import { CompaniesPanel, UsersPanel } from './admin/AdminPanels';
 import { HelpAdminPanel } from './admin/HelpAdminPanel';
@@ -55,25 +55,29 @@ import { NotificationsPanel } from './operations/NotificationAlertPanels';
 import { DashboardPanel } from './operations/DashboardPanels';
 import { HelpPanel } from './operations/HelpPanel';
 import { FormField, Notice, SubmitButton } from './components/FormControls';
-import type {
-  AuthStateResponse,
-  AuthUser,
-  ConfirmEmailResponse,
-  GetHealthResponse,
-  ProfileResponse
-} from './dtos';
+import type { AuthStateResponse, AuthUser, ConfirmEmailResponse, GetHealthResponse, ProfileResponse } from './dtos';
 
-const LazyMapPanel = lazy(() => import('./operations/DashboardRoutePanels').then((module) => ({ default: module.MapPanel })));
-const LazyCalendarPanel = lazy(() => import('./operations/DashboardRoutePanels').then((module) => ({ default: module.CalendarPanel })));
-const LazyDataViewsPanel = lazy(() => import('./operations/DataViewPanels').then((module) => ({ default: module.DataViewsPanel })));
-const LazyMonitorsPanel = lazy(() => import('./operations/MonitorPanels').then((module) => ({ default: module.MonitorsPanel })));
-const LazyReportsPanel = lazy(() => import('./operations/ReportPanels').then((module) => ({ default: module.ReportsPanel })));
+const LazyMapPanel = lazy(() =>
+  import('./operations/DashboardRoutePanels').then((module) => ({ default: module.MapPanel })),
+);
+const LazyCalendarPanel = lazy(() =>
+  import('./operations/DashboardRoutePanels').then((module) => ({ default: module.CalendarPanel })),
+);
+const LazyDataViewsPanel = lazy(() =>
+  import('./operations/DataViewPanels').then((module) => ({ default: module.DataViewsPanel })),
+);
+const LazyMonitorsPanel = lazy(() =>
+  import('./operations/MonitorPanels').then((module) => ({ default: module.MonitorsPanel })),
+);
+const LazyReportsPanel = lazy(() =>
+  import('./operations/ReportPanels').then((module) => ({ default: module.ReportsPanel })),
+);
 
 const roleNames = {
   masterAdmin: 'RVTMasterAdmin',
   admin: 'RVTAdmin',
   installer: 'RVTInstaller',
-  companyUser: 'CompanyUser'
+  companyUser: 'CompanyUser',
 } as const;
 
 const adminRoles = [roleNames.masterAdmin, roleNames.admin];
@@ -117,7 +121,7 @@ const navigationItems: NavigationItem[] = [
     icon: MapIcon,
     state: 'Migrated',
     group: 'secondary',
-    roles: [...adminRoles, roleNames.companyUser]
+    roles: [...adminRoles, roleNames.companyUser],
   },
   {
     name: 'Calendar',
@@ -126,7 +130,7 @@ const navigationItems: NavigationItem[] = [
     icon: CalendarDays,
     state: 'Migrated',
     group: 'secondary',
-    roles: [...adminRoles, roleNames.companyUser]
+    roles: [...adminRoles, roleNames.companyUser],
   },
   {
     name: 'Data',
@@ -135,7 +139,7 @@ const navigationItems: NavigationItem[] = [
     icon: BarChart3,
     state: 'Migrated',
     group: 'secondary',
-    roles: [...adminRoles, roleNames.companyUser]
+    roles: [...adminRoles, roleNames.companyUser],
   },
   {
     name: 'Sites',
@@ -144,7 +148,7 @@ const navigationItems: NavigationItem[] = [
     icon: MapPinned,
     state: 'Migrated',
     group: 'primary',
-    roles: [...adminRoles, roleNames.companyUser]
+    roles: [...adminRoles, roleNames.companyUser],
   },
   {
     name: 'Contracts',
@@ -153,7 +157,7 @@ const navigationItems: NavigationItem[] = [
     icon: FileText,
     state: 'Admin only',
     group: 'admin',
-    roles: adminRoles
+    roles: adminRoles,
   },
   {
     name: 'Monitors',
@@ -162,7 +166,7 @@ const navigationItems: NavigationItem[] = [
     icon: Gauge,
     state: 'Migrated',
     group: 'primary',
-    roles: [...adminRoles, roleNames.companyUser, roleNames.installer]
+    roles: [...adminRoles, roleNames.companyUser, roleNames.installer],
   },
   {
     name: 'Notifications',
@@ -171,7 +175,7 @@ const navigationItems: NavigationItem[] = [
     icon: Bell,
     state: 'Migrated',
     group: 'secondary',
-    roles: [...adminRoles, roleNames.companyUser]
+    roles: [...adminRoles, roleNames.companyUser],
   },
   {
     name: 'Reports',
@@ -180,7 +184,7 @@ const navigationItems: NavigationItem[] = [
     icon: FileText,
     state: 'Migrated',
     group: 'admin',
-    roles: adminRoles
+    roles: adminRoles,
   },
   {
     name: 'Help/FAQ',
@@ -189,7 +193,7 @@ const navigationItems: NavigationItem[] = [
     icon: HelpCircle,
     state: 'Admin only',
     group: 'admin',
-    roles: adminRoles
+    roles: adminRoles,
   },
   {
     name: 'Help',
@@ -198,7 +202,7 @@ const navigationItems: NavigationItem[] = [
     icon: HelpCircle,
     state: 'Migrated',
     group: 'secondary',
-    roles: [...adminRoles, roleNames.companyUser]
+    roles: [...adminRoles, roleNames.companyUser],
   },
   {
     name: 'Companies',
@@ -207,7 +211,7 @@ const navigationItems: NavigationItem[] = [
     icon: Building2,
     state: 'Admin only',
     group: 'admin',
-    roles: adminRoles
+    roles: adminRoles,
   },
   {
     name: 'Users',
@@ -216,9 +220,9 @@ const navigationItems: NavigationItem[] = [
     icon: UsersRound,
     state: 'Admin only',
     group: 'admin',
-    roles: adminRoles
+    roles: adminRoles,
   },
-  { name: 'Account', path: '/profile', route: 'profile', icon: UserRound, state: 'Self service', group: 'account' }
+  { name: 'Account', path: '/profile', route: 'profile', icon: UserRound, state: 'Self service', group: 'account' },
 ];
 
 const exactRoutes: Readonly<Record<string, AppRoute>> = {
@@ -229,7 +233,7 @@ const exactRoutes: Readonly<Record<string, AppRoute>> = {
   '/privacy': 'privacy',
   '/login': 'login',
   '/profile': 'profile',
-  '/access-denied': 'access-denied'
+  '/access-denied': 'access-denied',
 };
 const prefixRoutes: ReadonlyArray<readonly [string, ProtectedRoute]> = [
   ['/admin/help', 'admin-help'],
@@ -243,7 +247,7 @@ const prefixRoutes: ReadonlyArray<readonly [string, ProtectedRoute]> = [
   ['/reports', 'reports'],
   ['/help', 'help'],
   ['/companies', 'companies'],
-  ['/users', 'users']
+  ['/users', 'users'],
 ];
 
 // Function summary: Retrieves route from location data for callers.
@@ -366,7 +370,13 @@ export function App() {
 
   return (
     <AppErrorBoundary>
-      <PortalShell auth={auth} locationPath={locationPath} route={protectedRoute} onAuthChanged={setAuth} onNavigate={navigate} />
+      <PortalShell
+        auth={auth}
+        locationPath={locationPath}
+        route={protectedRoute}
+        onAuthChanged={setAuth}
+        onNavigate={navigate}
+      />
     </AppErrorBoundary>
   );
 }
@@ -443,9 +453,10 @@ type PublicPageProps = Readonly<{
   onNavigate: (path: string) => void;
 }>;
 
-type PrivacyPageProps = PublicPageProps & Readonly<{
-  isAuthenticated: boolean;
-}>;
+type PrivacyPageProps = PublicPageProps &
+  Readonly<{
+    isAuthenticated: boolean;
+  }>;
 
 // Function summary: Renders the PrivacyPage React component and wires its local UI behavior.
 function PrivacyPage({ isAuthenticated, onNavigate }: PrivacyPageProps) {
@@ -460,9 +471,9 @@ function PrivacyPage({ isAuthenticated, onNavigate }: PrivacyPageProps) {
           </div>
         </div>
         <p>
-          Your privacy is important to RVT Group, and this privacy policy describes how we collect, use,
-          disclose, transfer, and store your information. We will take all reasonable steps to ensure that
-          your data is treated securely and in accordance with this privacy policy.
+          Your privacy is important to RVT Group, and this privacy policy describes how we collect, use, disclose,
+          transfer, and store your information. We will take all reasonable steps to ensure that your data is treated
+          securely and in accordance with this privacy policy.
         </p>
         <p>RVT Group complies with its obligations under the General Data Protection Regulation by:</p>
         <ul>
@@ -474,39 +485,43 @@ function PrivacyPage({ isAuthenticated, onNavigate }: PrivacyPageProps) {
         </ul>
         <h2>The reason we collect and process information</h2>
         <p>
-          We process personal information to enable us to promote our goods and services, to maintain our
-          accounts and records, and to support and manage our staff. If you are a customer (or potential
-          customer), information about you helps us to:
-        </p>
-        <ul>
-          <li>provide you with information, products or services that you request from us or which we feel may interest you, and</li>
-          <li>carry out our obligations arising from any contracts entered into between you and us.</li>
-        </ul>
-        <h2>The data we collect</h2>
-        <p>
-          We process information relevant to the above reasons/purposes. This may include:
+          We process personal information to enable us to promote our goods and services, to maintain our accounts and
+          records, and to support and manage our staff. If you are a customer (or potential customer), information about
+          you helps us to:
         </p>
         <ul>
           <li>
-            personal details such as name, work email address, mobile phone number, landline phone number,
-            job title (but not information categorised as sensitive under data protection laws and regulations)
+            provide you with information, products or services that you request from us or which we feel may interest
+            you, and
           </li>
-          <li>employment details such as such as name, work email address, mobile phone number, landline phone number, job title</li>
+          <li>carry out our obligations arising from any contracts entered into between you and us.</li>
+        </ul>
+        <h2>The data we collect</h2>
+        <p>We process information relevant to the above reasons/purposes. This may include:</p>
+        <ul>
+          <li>
+            personal details such as name, work email address, mobile phone number, landline phone number, job title
+            (but not information categorised as sensitive under data protection laws and regulations)
+          </li>
+          <li>
+            employment details such as such as name, work email address, mobile phone number, landline phone number, job
+            title
+          </li>
           <li>goods or services provided (by us to you, or by you to us)</li>
         </ul>
         <p>
-          We may collect certain information or data about you in the course of business, such as when you
-          visit our website, contact us directly, or engage with our email bulletins (e.g. tracking whether
-          you open these emails and what links you may click on). Such data could include your name, address,
-          telephone number, email address and social media identifiers.
+          We may collect certain information or data about you in the course of business, such as when you visit our
+          website, contact us directly, or engage with our email bulletins (e.g. tracking whether you open these emails
+          and what links you may click on). Such data could include your name, address, telephone number, email address
+          and social media identifiers.
         </p>
         <p>
-          If you telephone us, your call will not be recorded, but may be monitored by RVT personnel for the
-          purposes of training to ensure that the highest possible quality of service is provided.
+          If you telephone us, your call will not be recorded, but may be monitored by RVT personnel for the purposes of
+          training to ensure that the highest possible quality of service is provided.
         </p>
         <p>
-          Your information can be viewed by authorised people within RVT Group and relevant trustworthy
-          external agencies supporting normal business operation, and may be used to:
+          Your information can be viewed by authorised people within RVT Group and relevant trustworthy external
+          agencies supporting normal business operation, and may be used to:
         </p>
         <ul>
           <li>improve our website by monitoring how you use it</li>
@@ -515,21 +530,27 @@ function PrivacyPage({ isAuthenticated, onNavigate }: PrivacyPageProps) {
           <li>respond to any feedback you send us</li>
         </ul>
         <p>
-          RVT Group is dedicated to protecting people's health on and near construction and demolition sites
-          against hazards such as dust, fumes and noise with temporary-environment control. Our lawful basis
-          for collecting and processing your information is that it is of legitimate interest:
+          RVT Group is dedicated to protecting people's health on and near construction and demolition sites against
+          hazards such as dust, fumes and noise with temporary-environment control. Our lawful basis for collecting and
+          processing your information is that it is of legitimate interest:
         </p>
         <ol>
-          <li>to provide you with information that could help to protect the health of people affected by site activity,</li>
-          <li>to provide you with information that will help to protect the environment at large from dust, fumes and noise, and</li>
+          <li>
+            to provide you with information that could help to protect the health of people affected by site activity,
+          </li>
+          <li>
+            to provide you with information that will help to protect the environment at large from dust, fumes and
+            noise, and
+          </li>
           <li>to help us to grow our business.</li>
         </ol>
-        <p>The above interests were identified as a result of a legitimate interests assessment that we have conducted.</p>
+        <p>
+          The above interests were identified as a result of a legitimate interests assessment that we have conducted.
+        </p>
         <h2>Requests for additional information</h2>
         <p>
-          Sometimes we will require you to provide further personal information. This may be if you are hiring
-          equipment from us. Whenever we do this, we will tell you why we are collecting this information and
-          how we will use it.
+          Sometimes we will require you to provide further personal information. This may be if you are hiring equipment
+          from us. Whenever we do this, we will tell you why we are collecting this information and how we will use it.
         </p>
         <h2>IP addresses</h2>
         <p>
@@ -538,123 +559,145 @@ function PrivacyPage({ isAuthenticated, onNavigate }: PrivacyPageProps) {
         </p>
         <h2>How we use this information</h2>
         <p>
-          We do not sell customer's personal data to third parties and will only use your personal information
-          to provide you with details of our own products, or services which we believe will be of interest
-          to you. RVT Group use email addresses to personalise and improve digital marketing campaigns.
+          We do not sell customer's personal data to third parties and will only use your personal information to
+          provide you with details of our own products, or services which we believe will be of interest to you. RVT
+          Group use email addresses to personalise and improve digital marketing campaigns.
         </p>
         <h2>Where your information is stored</h2>
         <p>
-          We store your information on secure servers within the UK (and so within the European Economic Area
-          or EEA). The email platform we use, Mailchimp, is based outside the EEA and their servers hold your
-          information in the United States. MailChimp participates in, and has certified its compliance with,
-          the EU-U.S. Privacy Shield Framework.
+          We store your information on secure servers within the UK (and so within the European Economic Area or EEA).
+          The email platform we use, Mailchimp, is based outside the EEA and their servers hold your information in the
+          United States. MailChimp participates in, and has certified its compliance with, the EU-U.S. Privacy Shield
+          Framework.
         </p>
         <h2>Keeping your information secure</h2>
         <p>
-          We have procedures and security features in place to keep your information secure once we receive it.
-          For example:
+          We have procedures and security features in place to keep your information secure once we receive it. For
+          example:
         </p>
         <ul>
-          <li>All log in users to our server are password protected and passwords have to be changed by default every 90 days.</li>
+          <li>
+            All log in users to our server are password protected and passwords have to be changed by default every 90
+            days.
+          </li>
           <li>All employees and anyone accessing data have to sign a confidentiality agreement.</li>
           <li>Employee records can only be accessed by directors and approved senior personnel within the company</li>
           <li>Users have varying degrees of access depending on their position within the company</li>
           <li>Only directors and approved senior personnel can access the memory stick port on the computers</li>
         </ul>
         <p>
-          Our company website uses HyperText Transfer Protocol Secure (HTPPS) coding on all its pages to help
-          keep your information safe from hackers and, like most websites, uses cookies to enhance visitor
-          experience (by, for example, enabling pages to load faster) and provide information about the
-          aggregated statistics on how our website is used. The cookies we use do not obtain data that
-          identifies individuals.
+          Our company website uses HyperText Transfer Protocol Secure (HTPPS) coding on all its pages to help keep your
+          information safe from hackers and, like most websites, uses cookies to enhance visitor experience (by, for
+          example, enabling pages to load faster) and provide information about the aggregated statistics on how our
+          website is used. The cookies we use do not obtain data that identifies individuals.
         </p>
         <h2>Disclosing your information</h2>
         <p>
-          We may pass on your personal information if we have a legal obligation to do so, or if we have to
-          enforce or apply our terms of use and other agreements. This may include disclosing your information
-          to other companies and organisations in connection with fraud protection and credit risk reduction.
-          We may also share your information with relevant external third parties for the following reasons:
+          We may pass on your personal information if we have a legal obligation to do so, or if we have to enforce or
+          apply our terms of use and other agreements. This may include disclosing your information to other companies
+          and organisations in connection with fraud protection and credit risk reduction. We may also share your
+          information with relevant external third parties for the following reasons:
         </p>
         <ul>
-          <li>Marketing Agencies: To ensure our database is kept current and up to date, if additional resource is required.</li>
-          <li>Marketing Platforms and Apps: To ensure that we are able to communicate seamlessly with you across multiple channels.</li>
-          <li>Consultancy: To ensure the long-term sustainability of RVT Group by continually providing a relevant, high quality service offering.</li>
+          <li>
+            Marketing Agencies: To ensure our database is kept current and up to date, if additional resource is
+            required.
+          </li>
+          <li>
+            Marketing Platforms and Apps: To ensure that we are able to communicate seamlessly with you across multiple
+            channels.
+          </li>
+          <li>
+            Consultancy: To ensure the long-term sustainability of RVT Group by continually providing a relevant, high
+            quality service offering.
+          </li>
           <li>Logistics Agencies: To ensure our equipment is delivered on time.</li>
         </ul>
         <p>They will not pass on your information to other parties.</p>
         <h2>Third parties</h2>
-        <p>We do not allow the information we hold about you to be used for advertising purposes or contact from third parties.</p>
+        <p>
+          We do not allow the information we hold about you to be used for advertising purposes or contact from third
+          parties.
+        </p>
         <h2>Cookies</h2>
         <p>
-          By using our website you signify your agreement to our use of cookies. Our website uses cookies to
-          store information on your computer. Some cookies on our site are essential, and the site won't work
-          as expected without them. These cookies are set when you interact with the site by doing something
-          that goes beyond clicking on simple links.
+          By using our website you signify your agreement to our use of cookies. Our website uses cookies to store
+          information on your computer. Some cookies on our site are essential, and the site won't work as expected
+          without them. These cookies are set when you interact with the site by doing something that goes beyond
+          clicking on simple links.
         </p>
         <p>
-          We also use some non-essential 'performance' cookies, such as Google Analytics and Add This sharing
-          feature, to anonymously track visitors or enhance your experience of the site. If you wish to
-          restrict or block web browser cookies which are set on your device then you can do this through your
-          browser settings. Click on the Help function within your browser to find out more.
+          We also use some non-essential 'performance' cookies, such as Google Analytics and Add This sharing feature,
+          to anonymously track visitors or enhance your experience of the site. If you wish to restrict or block web
+          browser cookies which are set on your device then you can do this through your browser settings. Click on the
+          Help function within your browser to find out more.
         </p>
         <p>Performance cookies:</p>
         <ul>
           <li>These cookies are used to measure the performance of websites and see how websites are used.</li>
           <li>We use 'Performance' cookies to improve how the website works and measure our marketing activity.</li>
           <li>
-            Information that is collected using these cookies is aggregated and anonymous and we are not able
-            to identify individual users with these cookies.
+            Information that is collected using these cookies is aggregated and anonymous and we are not able to
+            identify individual users with these cookies.
           </li>
         </ul>
         <p>On www.rvtgroup.co.uk we may use 'Performance' cookies to:</p>
         <ul>
           <li>Provide us with aggregated statistics on how our website is used.</li>
           <li>
-            Provide feedback to partners that one of our visitors also visited their website. This lets our
-            partners improve their websites. We don't allow our partners to reuse this information for further
-            advertising.
+            Provide feedback to partners that one of our visitors also visited their website. This lets our partners
+            improve their websites. We don't allow our partners to reuse this information for further advertising.
           </li>
-          <li>Help us improve the website by measuring any errors that occur and also to improve the performance of the site.</li>
+          <li>
+            Help us improve the website by measuring any errors that occur and also to improve the performance of the
+            site.
+          </li>
           <li>Test different designs of pages on our website.</li>
         </ul>
-        <p>Cookies we have defined as 'Performance' cookies will NOT be used to remember any preferences you have set beyond the current visit.</p>
+        <p>
+          Cookies we have defined as 'Performance' cookies will NOT be used to remember any preferences you have set
+          beyond the current visit.
+        </p>
         <h2>Changes to our privacy and cookies policy</h2>
         <p>
-          We may make changes and update our privacy and cookies policy from time to time and in accordance
-          with updated legislation. Any such changes will be shown here as part of our privacy and cookies
-          policy and will apply from the date that they are published. We are unable to contact you directly
-          to inform you of these changes, other than in response to a specific request made to us as referred
-          to above.
+          We may make changes and update our privacy and cookies policy from time to time and in accordance with updated
+          legislation. Any such changes will be shown here as part of our privacy and cookies policy and will apply from
+          the date that they are published. We are unable to contact you directly to inform you of these changes, other
+          than in response to a specific request made to us as referred to above.
         </p>
         <h2>Your rights</h2>
         <p>
-          You can find out what information we hold about you and ask us not to use any of the information we
-          collect. If you wish to exercise this right, please send your request to our Marketing Department
-          in writing by email to <a href="mailto:dataprotection@rvtgroup.co.uk">dataprotection@rvtgroup.co.uk</a>
+          You can find out what information we hold about you and ask us not to use any of the information we collect.
+          If you wish to exercise this right, please send your request to our Marketing Department in writing by email
+          to <a href="mailto:dataprotection@rvtgroup.co.uk">dataprotection@rvtgroup.co.uk</a>
         </p>
         <p>or by post to:</p>
         <p>
-          RVT Group<br />
-          Prospect House,<br />
-          Riverside Way,<br />
-          Dartford,<br />
-          Kent,<br />
+          RVT Group
+          <br />
+          Prospect House,
+          <br />
+          Riverside Way,
+          <br />
+          Dartford,
+          <br />
+          Kent,
+          <br />
           DA1 5BS
         </p>
         <p>
-          If you wish to unsubscribe from our email bulletins you can also do this by clicking on the
-          unsubscribe link each one contains.
+          If you wish to unsubscribe from our email bulletins you can also do this by clicking on the unsubscribe link
+          each one contains.
         </p>
         <h2>About Us</h2>
         <p>
-          RVT Group is a limited company, registered company number 07907482, and registered office address
-          Prospect House Riverside Industrial Estate, Riverside Way, Dartford, Kent, DA1 5BS.
+          RVT Group is a limited company, registered company number 07907482, and registered office address Prospect
+          House Riverside Industrial Estate, Riverside Way, Dartford, Kent, DA1 5BS.
         </p>
         <p>
-          Please note that if you click on, or follow, any links from our site to external websites, our
-          privacy policy will no longer apply. Please check the privacy policies of any such external site
-          before submitting any personal data, as we cannot accept any responsibility or liability in relation
-          to them.
+          Please note that if you click on, or follow, any links from our site to external websites, our privacy policy
+          will no longer apply. Please check the privacy policies of any such external site before submitting any
+          personal data, as we cannot accept any responsibility or liability in relation to them.
         </p>
         <button className="secondary-button" type="button" onClick={() => onNavigate(isAuthenticated ? '/' : '/login')}>
           <ChevronLeft size={17} aria-hidden="true" />
@@ -682,10 +725,11 @@ function PublicNotFoundPage({ onNavigate }: PublicPageProps) {
   );
 }
 
-type LoginPageProps = PublicPageProps & Readonly<{
-  authError: string | null;
-  onAuthenticated: (auth: AuthStateResponse) => void;
-}>;
+type LoginPageProps = PublicPageProps &
+  Readonly<{
+    authError: string | null;
+    onAuthenticated: (auth: AuthStateResponse) => void;
+  }>;
 
 // Function summary: Renders the LoginPage React component and wires its local UI behavior.
 function LoginPage({ authError, onAuthenticated, onNavigate }: LoginPageProps) {
@@ -744,7 +788,9 @@ function LoginPage({ authError, onAuthenticated, onNavigate }: LoginPageProps) {
               <button
                 className="legacy-text-link"
                 type="button"
-                onClick={() => onNavigate(email ? `/forgot-password?email=${encodeURIComponent(email)}` : '/forgot-password')}
+                onClick={() =>
+                  onNavigate(email ? `/forgot-password?email=${encodeURIComponent(email)}` : '/forgot-password')
+                }
               >
                 Reset your password?
               </button>
@@ -879,31 +925,30 @@ function ResetPasswordPage({ onNavigate }: PublicPageProps) {
   );
 }
 
-type ConfirmEmailPageProps = PublicPageProps & Readonly<{
-  onAuthenticated: (auth: AuthStateResponse) => void;
-}>;
+type ConfirmEmailPageProps = PublicPageProps &
+  Readonly<{
+    onAuthenticated: (auth: AuthStateResponse) => void;
+  }>;
 
 // Function summary: Renders the ConfirmEmailPage React component and wires its local UI behavior.
 function ConfirmEmailPage({ onAuthenticated, onNavigate }: ConfirmEmailPageProps) {
+  const params = new URLSearchParams(globalThis.location.search);
+  const userId = params.get('userId') ?? '';
+  const code = params.get('code') ?? '';
+  const parameterError = !userId || !code ? 'A user and confirmation code must be supplied.' : null;
+  const confirmationCode = code;
   const [confirmation, setConfirmation] = useState<ConfirmEmailResponse | null>(null);
-  const [confirmationCode, setConfirmationCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('Confirming email');
-  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState(parameterError ? '' : 'Confirming email');
+  const [error, setError] = useState<string | null>(parameterError);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(globalThis.location.search);
-    const userId = params.get('userId') ?? '';
-    const code = params.get('code') ?? '';
-    if (!userId || !code) {
-      setError('A user and confirmation code must be supplied.');
-      setMessage('');
+    if (parameterError) {
       return;
     }
-    setConfirmationCode(code);
-    confirmEmail(userId, code)
+    confirmEmail(userId, confirmationCode)
       .then((response) => {
         setConfirmation(response);
         setMessage('Email confirmed');
@@ -912,7 +957,7 @@ function ConfirmEmailPage({ onAuthenticated, onNavigate }: ConfirmEmailPageProps
         setError(err.message);
         setMessage('');
       });
-  }, []);
+  }, [confirmationCode, parameterError, userId]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -926,7 +971,7 @@ function ConfirmEmailPage({ onAuthenticated, onNavigate }: ConfirmEmailPageProps
         userId: confirmation.userId,
         code: confirmationCode,
         newPassword: password,
-        confirmPassword
+        confirmPassword,
       });
       onAuthenticated(nextAuth);
       onNavigate('/');
@@ -981,12 +1026,7 @@ type PasswordFieldsProps = Readonly<{
 }>;
 
 // Function summary: Renders the PasswordFields React component and wires its local UI behavior.
-function PasswordFields({
-  password,
-  confirmPassword,
-  onPasswordChange,
-  onConfirmPasswordChange
-}: PasswordFieldsProps) {
+function PasswordFields({ password, confirmPassword, onPasswordChange, onConfirmPasswordChange }: PasswordFieldsProps) {
   return (
     <>
       <label className="form-field">
@@ -1023,7 +1063,10 @@ type PortalShellProps = Readonly<{
 function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: PortalShellProps) {
   const [health, setHealth] = useState<GetHealthResponse | null>(null);
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
-  const [shellError, setShellError] = useState<string | null>(null);
+  const [shellError, setShellError] = useState<{
+    route: ProtectedRoute;
+    message: string;
+  } | null>(null);
   const [adminExpanded, setAdminExpanded] = useState(true);
   const user = auth.user ?? null;
   const visibleItems = useMemo(() => visibleNavigation(user), [user]);
@@ -1033,37 +1076,46 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
   const accountItems = useMemo(() => navigationGroup(visibleItems, 'account'), [visibleItems]);
   const contentRoute = canAccessRoute(route, user) ? route : 'access-denied';
   const isAdminRouteActive = adminItems.some((item) => item.route === contentRoute);
+  const visibleShellError = shellError?.route === route ? shellError.message : null;
 
-  const handleAccessRequestError = useCallback((error: unknown) => {
-    if (isUnauthorized(error)) {
-      onAuthChanged({ isAuthenticated: false, user: null });
-      onNavigate('/login');
-      return true;
-    }
-    if (isForbidden(error)) {
-      setShellError('You do not have permission to use that part of the portal.');
-      if (route !== 'access-denied') {
-        onNavigate('/access-denied');
+  const handleAccessRequestError = useCallback(
+    (error: unknown) => {
+      if (isUnauthorized(error)) {
+        onAuthChanged({ isAuthenticated: false, user: null });
+        onNavigate('/login');
+        return true;
       }
-      return true;
-    }
-    return false;
-  }, [onAuthChanged, onNavigate, route]);
+      if (isForbidden(error)) {
+        setShellError({
+          route,
+          message: 'You do not have permission to use that part of the portal.',
+        });
+        if (route !== 'access-denied') {
+          onNavigate('/access-denied');
+        }
+        return true;
+      }
+      return false;
+    },
+    [onAuthChanged, onNavigate, route],
+  );
 
-  const handleRequestError = useCallback((error: unknown) => {
-    handleAccessRequestError(error);
-  }, [handleAccessRequestError]);
+  const handleRequestError = useCallback(
+    (error: unknown) => {
+      handleAccessRequestError(error);
+    },
+    [handleAccessRequestError],
+  );
 
-  const handleShellRequestError = useCallback((error: unknown) => {
-    if (handleAccessRequestError(error)) {
-      return;
-    }
-    setShellError((error as Error).message);
-  }, [handleAccessRequestError]);
-
-  useEffect(() => {
-    setShellError(null);
-  }, [route]);
+  const handleShellRequestError = useCallback(
+    (error: unknown) => {
+      if (handleAccessRequestError(error)) {
+        return;
+      }
+      setShellError({ route, message: (error as Error).message });
+    },
+    [handleAccessRequestError, route],
+  );
 
   useEffect(() => {
     getHealth().then(setHealth).catch(handleShellRequestError);
@@ -1151,7 +1203,7 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
             <span>{getUserRoles(user).join(', ') || 'No role'}</span>
           </div>
         </section>
-        {shellError && <Notice tone="error" message={shellError} />}
+        {visibleShellError && <Notice tone="error" message={visibleShellError} />}
         {contentRoute === 'dashboard' && (
           <DashboardPanel auth={auth} onNavigate={onNavigate} onRequestError={handleRequestError} />
         )}
@@ -1195,33 +1247,18 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
           </Suspense>
         )}
         {contentRoute === 'notifications' && (
-          <NotificationsPanel
-            locationPath={locationPath}
-            onNavigate={onNavigate}
-            onRequestError={handleRequestError}
-          />
+          <NotificationsPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={handleRequestError} />
         )}
         {contentRoute === 'reports' && (
           <Suspense fallback={<RouteLoadingPanel label="Loading reports" />}>
-            <LazyReportsPanel
-              locationPath={locationPath}
-              onNavigate={onNavigate}
-              onRequestError={handleRequestError}
-            />
+            <LazyReportsPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={handleRequestError} />
           </Suspense>
         )}
         {contentRoute === 'admin-help' && (
-          <HelpAdminPanel
-            onNavigate={onNavigate}
-            onRequestError={handleRequestError}
-          />
+          <HelpAdminPanel onNavigate={onNavigate} onRequestError={handleRequestError} />
         )}
         {contentRoute === 'help' && (
-          <HelpPanel
-            locationPath={locationPath}
-            onNavigate={onNavigate}
-            onRequestError={handleRequestError}
-          />
+          <HelpPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={handleRequestError} />
         )}
         {contentRoute === 'companies' && (
           <CompaniesPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={handleRequestError} />
@@ -1233,9 +1270,7 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
         {contentRoute === 'access-denied' && (
           <AccessDeniedPanel onNavigateHome={() => onNavigate(routePath('dashboard'))} />
         )}
-        {contentRoute === 'not-found' && (
-          <NotFoundPanel onNavigateHome={() => onNavigate(routePath('dashboard'))} />
-        )}
+        {contentRoute === 'not-found' && <NotFoundPanel onNavigateHome={() => onNavigate(routePath('dashboard'))} />}
       </section>
     </main>
   );
@@ -1332,9 +1367,25 @@ type AccountPanelProps = Readonly<{
 
 // Function summary: Renders the AccountPanel React component and wires its local UI behavior.
 function AccountPanel({ profile, onProfileChanged }: AccountPanelProps) {
+  const [profileStatus, setProfileStatus] = useState<string | null>(null);
+  const profileFormKey = profile
+    ? [profile.id, profile.email, profile.name, profile.mobilePhone, profile.companyRole].join('|')
+    : 'profile-loading';
+
+  function handleProfileChanged(updated: ProfileResponse) {
+    onProfileChanged(updated);
+    setProfileStatus('Your details have been updated.');
+  }
+
   return (
     <section className="account-grid" aria-label="Account management">
-      <ProfileForm profile={profile} onProfileChanged={onProfileChanged} />
+      <ProfileForm
+        key={profileFormKey}
+        profile={profile}
+        status={profileStatus}
+        onProfileChanged={handleProfileChanged}
+        onProfileFeedbackDismiss={() => setProfileStatus(null)}
+      />
       <PasswordForm />
     </section>
   );
@@ -1386,38 +1437,28 @@ function NotFoundPanel({ onNavigateHome }: NotFoundPanelProps) {
 
 type ProfileFormProps = Readonly<{
   profile: ProfileResponse | null;
+  status: string | null;
   onProfileChanged: (profile: ProfileResponse) => void;
+  onProfileFeedbackDismiss: () => void;
 }>;
 
 // Function summary: Renders the ProfileForm React component and wires its local UI behavior.
-function ProfileForm({ profile, onProfileChanged }: ProfileFormProps) {
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [mobilePhone, setMobilePhone] = useState('');
-  const [companyRole, setCompanyRole] = useState('');
-  const [status, setStatus] = useState<string | null>(null);
+function ProfileForm({ profile, status, onProfileChanged, onProfileFeedbackDismiss }: ProfileFormProps) {
+  const [email, setEmail] = useState(profile?.email ?? '');
+  const [name, setName] = useState(profile?.name ?? '');
+  const [mobilePhone, setMobilePhone] = useState(profile?.mobilePhone ?? '');
+  const [companyRole, setCompanyRole] = useState(profile?.companyRole ?? '');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!profile) {
-      return;
-    }
-    setEmail(profile.email);
-    setName(profile.name ?? '');
-    setMobilePhone(profile.mobilePhone ?? '');
-    setCompanyRole(profile.companyRole ?? '');
-  }, [profile]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
-    setStatus(null);
+    onProfileFeedbackDismiss();
     setError(null);
     try {
       const updated = await updateProfile({ email, name, mobilePhone, companyRole });
       onProfileChanged(updated);
-      setStatus('Your details have been updated.');
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -1521,7 +1562,11 @@ function PasswordForm() {
         />
         {status && <Notice tone="success" message={status} />}
         {error && <Notice tone="error" message={error} />}
-        <SubmitButton icon={<Save size={17} aria-hidden="true" />} isSubmitting={isSubmitting} idleLabel="Change password" />
+        <SubmitButton
+          icon={<Save size={17} aria-hidden="true" />}
+          isSubmitting={isSubmitting}
+          idleLabel="Change password"
+        />
       </form>
     </section>
   );

@@ -40,7 +40,6 @@
     <ProjectReference Include="..\RVT.BusinessLogic\RVT.BusinessLogic.csproj" />
     <ProjectReference Include="..\RVT.DataAccess\RVT.DataAccess.csproj" />
     <ProjectReference Include="..\RVT.Entities\RVT.Entities.csproj" />
-    <ProjectReference Include="..\RVT.Utilities\RVT.Utilities.csproj" />
   </ItemGroup>
 
   <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">
@@ -49,11 +48,11 @@
     </Exec>
     <Error Condition="'$(ErrorCode)' != '0'" Text="Node.js is required to build and run the RVT Portal SPA client. Install Node.js, then restart Visual Studio." />
     <Message Importance="high" Text="Restoring SPA dependencies with npm ci..." />
-    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci &amp;&amp; popd&quot;" />
+    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci --ignore-scripts &amp;&amp; popd&quot;" />
   </Target>
 
   <Target Name="PublishClientApp" BeforeTargets="ComputeFilesToPublish">
-    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci &amp;&amp; popd&quot;" />
+    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci --ignore-scripts &amp;&amp; popd&quot;" />
     <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm run build &amp;&amp; popd&quot;" />
     <ItemGroup>
       <ClientDist Include="$(SpaRoot)dist\**" />

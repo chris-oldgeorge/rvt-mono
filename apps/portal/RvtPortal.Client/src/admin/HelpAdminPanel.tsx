@@ -47,6 +47,16 @@ type PendingFocus =
   | { kind: 'add-asset' }
   | { kind: 'new-article' };
 
+type HelpAdminQuery = Readonly<{
+  searchText: string;
+  status: string;
+  contentType: string;
+}>;
+
+type HelpAdminExecution = Readonly<{
+  query: HelpAdminQuery;
+}>;
+
 const emptyArticleForm: HelpArticleForm = {
   sectionTitle: 'General',
   sectionSlug: 'general',
@@ -63,7 +73,10 @@ const emptyArticleForm: HelpArticleForm = {
 
 // Function summary: Renders the HelpAdminPanel React component and wires Help CMS management behavior.
 export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelProps) {
-  const [overview, setOverview] = useState<HelpAdminOverviewResponse | null>(null);
+  const [overviewResult, setOverviewResult] = useState<{
+    execution: HelpAdminExecution;
+    overview: HelpAdminOverviewResponse;
+  } | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<HelpArticleResponse | null>(null);
   const [form, setForm] = useState<HelpArticleForm>(emptyArticleForm);
   const [searchText, setSearchText] = useState('');
@@ -71,7 +84,8 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
   const [contentType, setContentType] = useState('All');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedExecution, setCompletedExecution] = useState<HelpAdminExecution | null>(null);
+  const [refreshExecution, setRefreshExecution] = useState<HelpAdminExecution | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<HelpArticleResponse | null>(null);
   const [pendingFocus, setPendingFocus] = useState<PendingFocus | null>(null);
@@ -80,47 +94,70 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
   const assetTitleRefs = useRef(new Map<string, HTMLInputElement>());
   const addAssetButtonRef = useRef<HTMLButtonElement>(null);
   const newArticleButtonRef = useRef<HTMLButtonElement>(null);
+  const currentExecutionRef = useRef<HelpAdminExecution | null>(null);
 
+  const query = useMemo<HelpAdminQuery>(() => ({ searchText, status, contentType }), [contentType, searchText, status]);
+  const queryExecution = useMemo<HelpAdminExecution>(() => ({ query }), [query]);
+  const activeExecution = refreshExecution?.query === query ? refreshExecution : queryExecution;
+  const retainedOverview = overviewResult?.overview ?? null;
+  const overview = overviewResult?.execution === activeExecution ? overviewResult.overview : null;
+  const isLoading = completedExecution !== activeExecution;
   const contentTypes = useMemo(() => {
     const values = new Set(['FAQ', 'Article', 'Document', 'Video', 'Definition']);
-    overview?.articles.forEach((article) => values.add(article.contentType));
+    retainedOverview?.articles.forEach((article) => values.add(article.contentType));
     return [
       'All',
       ...Array.from(values)
         .filter(Boolean)
         .sort((left, right) => left.localeCompare(right)),
     ];
-  }, [overview]);
-
+  }, [retainedOverview]);
   // Function summary: Loads Help CMS admin article data.
-  const loadArticles = useCallback(
-    async (signal?: AbortSignal) => {
-      setIsLoading(true);
-      try {
-        const response = await queryAdminHelp({ searchText, status, contentType }, { signal });
-        setOverview(response);
-        setError(null);
-        return response;
-      } catch (err) {
-        if (!isAbortError(err)) {
-          setError((err as Error).message);
-          onRequestError(err);
-        }
+  const loadArticles = useCallback(async () => {
+    const execution: HelpAdminExecution = { query };
+    currentExecutionRef.current = execution;
+    setRefreshExecution(execution);
+    try {
+      const response = await queryAdminHelp(query);
+      if (currentExecutionRef.current !== execution) {
         return null;
-      } finally {
-        if (!signal?.aborted) {
-          setIsLoading(false);
-        }
       }
-    },
-    [contentType, onRequestError, searchText, status],
-  );
+      setOverviewResult({ execution, overview: response });
+      setError(null);
+      setCompletedExecution(execution);
+      return response;
+    } catch (err) {
+      if (!isAbortError(err) && currentExecutionRef.current === execution) {
+        setError((err as Error).message);
+        onRequestError(err);
+        setCompletedExecution(execution);
+      }
+      return null;
+    }
+  }, [onRequestError, query]);
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadArticles(controller.signal);
+    currentExecutionRef.current = queryExecution;
+    queryAdminHelp(query, { signal: controller.signal })
+      .then((response) => {
+        if (controller.signal.aborted || currentExecutionRef.current !== queryExecution) {
+          return;
+        }
+        setOverviewResult({ execution: queryExecution, overview: response });
+        setError(null);
+        setCompletedExecution(queryExecution);
+      })
+      .catch((err: Error) => {
+        if (controller.signal.aborted || isAbortError(err) || currentExecutionRef.current !== queryExecution) {
+          return;
+        }
+        setError(err.message);
+        onRequestError(err);
+        setCompletedExecution(queryExecution);
+      });
     return () => controller.abort();
-  }, [loadArticles]);
+  }, [onRequestError, query, queryExecution]);
 
   useEffect(() => {
     if (!pendingFocus) {
@@ -321,10 +358,10 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
           </label>
         </div>
         {notice && <Notice tone="success" message={notice} />}
-        {error && <Notice tone="error" message={error} />}
+        {!isLoading && error && <Notice tone="error" message={error} />}
         {isLoading && <p className="muted-text">Loading help articles...</p>}
-        <div className="admin-help-list">
-          {overview?.articles.map((article) => (
+        <div className="admin-help-list" hidden={isLoading || !overview}>
+          {retainedOverview?.articles.map((article) => (
             <article
               className={selectedArticle?.id === article.id ? 'help-admin-card selected' : 'help-admin-card'}
               key={article.id}
@@ -397,7 +434,9 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
               </div>
             </article>
           ))}
-          {overview?.articles.length === 0 && <p className="muted-text">No help articles match the current filters.</p>}
+          {retainedOverview?.articles.length === 0 && (
+            <p className="muted-text">No help articles match the current filters.</p>
+          )}
         </div>
       </section>
 

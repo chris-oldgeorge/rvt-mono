@@ -76,8 +76,6 @@ RvtDemo/bin/
 ShardUi/bin/
 RVT.BusinessLogic/bin/
 RVT.BusinessLogic/obj/
-RVT.Utilities/obj/
-RVT.Utilities/bin/
 
 # .NET build outputs
 bin/

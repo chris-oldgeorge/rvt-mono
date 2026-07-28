@@ -12,6 +12,8 @@ RUN apt-get update \
 RUN useradd --create-home --uid 1001 --shell /bin/bash runner
 WORKDIR /opt/actions-runner-dist
 RUN curl -fsSLo actions-runner.tar.gz \
+      --proto '=https' \
+      --proto-redir '=https' \
       "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-arm64-${RUNNER_VERSION}.tar.gz" \
     && echo "${RUNNER_SHA256}  actions-runner.tar.gz" | sha256sum -c - \
     && tar -xzf actions-runner.tar.gz \

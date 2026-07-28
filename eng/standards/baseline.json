@@ -203,12 +203,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE0001",
-      "path": "apps/portal/RVT.Utilities/AzureBlobService.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0001",
       "path": "apps/portal/RvtPortal.Spa.Tests/CqrsArchitectureTests.cs",
       "count": 16
     },
@@ -3965,12 +3959,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE0010",
-      "path": "apps/portal/RVT.Utilities/AzureBlobService.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0010",
       "path": "apps/portal/RvtPortal.Spa/Application/Monitors/MonitorData.cs",
       "count": 3
     },
@@ -4747,12 +4735,6 @@
       "ruleId": "IDE0090",
       "path": "apps/portal/RVT.DataAccess/TimeSeriesProjections.cs",
       "count": 3
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0090",
-      "path": "apps/portal/RVT.Utilities/AzureBlobService.cs",
-      "count": 1
     },
     {
       "tool": "dotnet-format-style",
@@ -7589,12 +7571,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE0161",
-      "path": "apps/portal/RVT.Utilities/AzureBlobService.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0161",
       "path": "apps/portal/RvtPortal.Spa/Adapters/Archive/SiteArchiveService.cs",
       "count": 1
     },
@@ -9881,12 +9857,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
-      "path": "apps/portal/RVT.Utilities/AzureBlobService.cs",
-      "count": 6
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
       "path": "apps/portal/RvtPortal.Application.Tests/Sites/SiteAuthorizationPolicyTests.cs",
       "count": 1
     },
@@ -10967,12 +10937,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE2002",
-      "path": "apps/portal/RVT.Utilities/AzureBlobService.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE2002",
       "path": "apps/portal/RvtPortal.Spa.Tests/ComplexMathTests.cs",
       "count": 1
     },
@@ -10998,12 +10962,6 @@
       "tool": "dotnet-format-style",
       "ruleId": "IDE2002",
       "path": "apps/portal/RvtPortal.Spa/Application/Monitors/MonitorData.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE2003",
-      "path": "apps/portal/RVT.Utilities/AzureBlobService.cs",
       "count": 1
     },
     {
@@ -11262,12 +11220,6 @@
       "tool": "dotnet-format-style",
       "ruleId": "IMPORTS",
       "path": "apps/portal/RVT.Entities/NotificationsSent.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IMPORTS",
-      "path": "apps/portal/RVT.Utilities/AzureBlobService.cs",
       "count": 1
     },
     {
@@ -11718,12 +11670,6 @@
       "tool": "dotnet-format-whitespace",
       "ruleId": "CHARSET",
       "path": "apps/portal/RVT.Entities/SiteUsers.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-whitespace",
-      "ruleId": "CHARSET",
-      "path": "apps/portal/RVT.Utilities/AzureBlobService.cs",
       "count": 1
     },
     {

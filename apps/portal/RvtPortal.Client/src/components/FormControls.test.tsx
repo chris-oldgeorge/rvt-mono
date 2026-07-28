@@ -15,14 +15,19 @@ describe('FormControls', () => {
     render(
       <>
         <Notice tone="success" message="Saved" />
+        <Notice tone="error" message="Failed" />
+        <Notice tone="info" message="Review" />
         <ErrorSummary errors={['Email is required']} />
         <FormField label="Email" error="Use a valid email">
           <input aria-label="Email" />
         </FormField>
-      </>
+      </>,
     );
 
     expect(screen.getByText('Saved')).toBeInTheDocument();
+    expect(screen.getByText('Saved').closest('output')).not.toHaveAttribute('role');
+    expect(screen.getByText('Failed').closest('output')).toHaveAttribute('role', 'alert');
+    expect(screen.getByText('Review').closest('output')).not.toHaveAttribute('role');
     expect(screen.getByText('Email is required')).toBeInTheDocument();
     expect(screen.getByText('Use a valid email')).toBeInTheDocument();
   });
@@ -30,9 +35,12 @@ describe('FormControls', () => {
   it('prevents double-submit while a form action is pending', async () => {
     const user = userEvent.setup();
     let resolveSubmit: () => void = () => undefined;
-    const submit = vi.fn(() => new Promise<void>((resolve) => {
-      resolveSubmit = resolve;
-    }));
+    const submit = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSubmit = resolve;
+        }),
+    );
 
     render(<SubmitHarness onSubmit={submit} />);
 
@@ -59,7 +67,7 @@ describe('FormControls', () => {
         confirmLabel="Delete"
         onCancel={onCancel}
         onConfirm={onConfirm}
-      />
+      />,
     );
 
     await user.click(screen.getByRole('button', { name: /delete/i }));

@@ -22,9 +22,9 @@ import {
   Trash2,
   UserPlus,
   UserRound,
-  UsersRound
+  UsersRound,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   addReportRuleUser,
@@ -40,7 +40,7 @@ import {
   queryReports,
   removeReportRuleUser,
   requestReportRuleGeneration,
-  updateReportRule
+  updateReportRule,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
@@ -58,10 +58,11 @@ import type {
   ReportRuleOptionsResponse,
   ReportUserAssignmentResponse,
   SortDirection,
-  UserListItem
+  UserListItem,
 } from '../dtos';
 
 const pageSize = 10;
+type ListExecution<TQuery> = Readonly<{ query: TQuery }>;
 const dailyFrequency = 1;
 const weeklyFrequency = 2;
 const monthlyFrequency = 3;
@@ -98,13 +99,16 @@ type UserGridState = Readonly<{
 function useGridSortHandler(
   setSortKey: (key: string) => void,
   setSortDir: (direction: SortDirection) => void,
-  setPage: (page: number) => void
+  setPage: (page: number) => void,
 ) {
-  return useCallback((key: string, direction: GridSortDirection) => {
-    setSortKey(key);
-    setSortDir(direction);
-    setPage(1);
-  }, [setPage, setSortDir, setSortKey]);
+  return useCallback(
+    (key: string, direction: GridSortDirection) => {
+      setSortKey(key);
+      setSortDir(direction);
+      setPage(1);
+    },
+    [setPage, setSortDir, setSortKey],
+  );
 }
 
 // Function summary: Renders the ReportsPanel React component and wires its local UI behavior.
@@ -114,13 +118,35 @@ export function ReportsPanel({ locationPath, onNavigate, onRequestError }: Repor
     return <ReportRulesListPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
   }
   if (route.kind === 'new-rule') {
-    return <ReportRuleForm locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <ReportRuleForm
+        key="new-rule"
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (route.kind === 'edit-rule') {
-    return <ReportRuleForm ruleId={route.ruleId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <ReportRuleForm
+        key={route.ruleId}
+        ruleId={route.ruleId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
   if (route.kind === 'rule-users') {
-    return <ReportRuleUsersPanel ruleId={route.ruleId} locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
+    return (
+      <ReportRuleUsersPanel
+        ruleId={route.ruleId}
+        locationPath={locationPath}
+        onNavigate={onNavigate}
+        onRequestError={onRequestError}
+      />
+    );
   }
 
   return <ReportsListPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
@@ -135,54 +161,68 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
   const [searchText, setSearchText] = useState(initialParams.get('q') ?? '');
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'reportDate');
-  const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir'), 'Descending'));
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    normalizeSortDirection(initialParams.get('sortDir'), 'Descending'),
+  );
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryCompaniesRequest> | null>(null);
 
-  const query = useMemo<QueryCompaniesRequest>(() => ({
-    searchText,
-    page,
-    pageSize,
-    sort: sortKey,
-    sortDir
-  }), [page, searchText, sortDir, sortKey]);
+  const query = useMemo<QueryCompaniesRequest>(
+    () => ({
+      searchText,
+      page,
+      pageSize,
+      sort: sortKey,
+      sortDir,
+    }),
+    [page, searchText, sortDir, sortKey],
+  );
+  const execution = useMemo<ListExecution<QueryCompaniesRequest>>(() => ({ query }), [query]);
+  const isLoading = completedExecution !== execution;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
   const returnPath = currentRoutePath(locationPath);
 
-  const columns = useMemo<DataGridColumn<ReportListItem>[]>(() => [
-    { key: 'reportName', header: 'Report', sortable: true, render: (report) => report.reportName || 'Scheduled Report' },
-    { key: 'reportDate', header: 'Generated', sortable: true, render: (report) => formatDateTime(report.reportDate) },
-    { key: 'period', header: 'Period', render: (report) => formatPeriod(report.reportFrom, report.reportTo) },
-    { key: 'frequency', header: 'Frequency', sortable: true, render: (report) => report.frequencyLabel },
-    { key: 'siteName', header: 'Site', sortable: true, render: (report) => report.siteName },
-    { key: 'contracts', header: 'Contracts', sortable: true, render: (report) => report.contracts || 'None' }
-  ], []);
+  const columns = useMemo<DataGridColumn<ReportListItem>[]>(
+    () => [
+      {
+        key: 'reportName',
+        header: 'Report',
+        sortable: true,
+        render: (report) => report.reportName || 'Scheduled Report',
+      },
+      { key: 'reportDate', header: 'Generated', sortable: true, render: (report) => formatDateTime(report.reportDate) },
+      { key: 'period', header: 'Period', render: (report) => formatPeriod(report.reportFrom, report.reportTo) },
+      { key: 'frequency', header: 'Frequency', sortable: true, render: (report) => report.frequencyLabel },
+      { key: 'siteName', header: 'Site', sortable: true, render: (report) => report.siteName },
+      { key: 'contracts', header: 'Contracts', sortable: true, render: (report) => report.contracts || 'None' },
+    ],
+    [],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildReportsUrl({ searchText, page, sort: sortKey, sortDir }));
-    setIsLoading(true);
-    queryReports(query, { signal: controller.signal })
+    queryReports(execution.query, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setReports(response.results);
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
+        setCompletedExecution(execution);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (controller.signal.aborted || isAbortError(err)) {
           return;
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedExecution(execution);
       });
     return () => controller.abort();
-  }, [onRequestError, page, query, searchText, sortDir, sortKey]);
+  }, [execution, onRequestError, page, searchText, sortDir, sortKey]);
 
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
@@ -198,11 +238,19 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
           <h2>Generated Reports</h2>
         </div>
         <div className="button-row">
-          <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo('/reports/rules', returnPath))}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => onNavigate(withReturnTo('/reports/rules', returnPath))}
+          >
             <ListChecks size={17} aria-hidden="true" />
             <span>Report Rules</span>
           </button>
-          <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo('/reports/rules/new', returnPath))}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => onNavigate(withReturnTo('/reports/rules/new', returnPath))}
+          >
             <Plus size={17} aria-hidden="true" />
             <span>Add Rule</span>
           </button>
@@ -232,14 +280,14 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
             label: 'Open report',
             icon: <Download size={16} aria-hidden="true" />,
             onClick: openReport,
-            disabled: (report) => !safeReportLink(report.reportLink)
+            disabled: (report) => !safeReportLink(report.reportLink),
           },
           {
             label: 'Edit report rule',
             icon: <Edit3 size={16} aria-hidden="true" />,
             onClick: (report) => onNavigate(withReturnTo(`/reports/rules/${report.reportRuleId}`, returnPath)),
-            disabled: (report) => !report.reportRuleId
-          }
+            disabled: (report) => !report.reportRuleId,
+          },
         ]}
       />
     </section>
@@ -258,51 +306,107 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryReportRulesRequest> | null>(null);
+  const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryReportRulesRequest> | null>(null);
+  const activeRequestController = useRef<AbortController | null>(null);
+  const requestGeneration = useRef(0);
 
-  const query = useMemo<QueryReportRulesRequest>(() => ({
-    searchText,
-    page,
-    pageSize,
-    sort: sortKey,
-    sortDir
-  }), [page, searchText, sortDir, sortKey]);
+  const query = useMemo<QueryReportRulesRequest>(
+    () => ({
+      searchText,
+      page,
+      pageSize,
+      sort: sortKey,
+      sortDir,
+    }),
+    [page, searchText, sortDir, sortKey],
+  );
+  const effectExecution = useMemo<ListExecution<QueryReportRulesRequest>>(() => ({ query }), [query]);
+  const currentExecution = refreshExecution?.query === query ? refreshExecution : effectExecution;
+  const isLoading = completedExecution !== currentExecution;
 
-  const columns = useMemo<DataGridColumn<ReportRuleListItem>[]>(() => [
-    { key: 'reportName', header: 'Rule', sortable: true, render: (rule) => rule.reportName || 'Scheduled Report' },
-    { key: 'siteName', header: 'Site', sortable: true, render: (rule) => rule.siteName },
-    { key: 'frequency', header: 'Frequency', sortable: true, render: (rule) => rule.frequencyLabel },
-    { key: 'schedule', header: 'Schedule', render: formatRuleSchedule },
-    { key: 'lastGenerated', header: 'Last Generated', sortable: true, render: (rule) => formatDateTime(rule.lastGenerated) || 'Never' }
-  ], []);
+  const claimRequest = useCallback(() => {
+    activeRequestController.current?.abort();
+    const controller = new AbortController();
+    const generation = requestGeneration.current + 1;
+    requestGeneration.current = generation;
+    activeRequestController.current = controller;
+    return { controller, generation };
+  }, []);
 
-  const loadRules = useCallback(async (signal?: AbortSignal) => {
-    setIsLoading(true);
+  const ownsRequest = useCallback(
+    (controller: AbortController, generation: number) =>
+      activeRequestController.current === controller &&
+      requestGeneration.current === generation &&
+      !controller.signal.aborted,
+    [],
+  );
+
+  const columns = useMemo<DataGridColumn<ReportRuleListItem>[]>(
+    () => [
+      { key: 'reportName', header: 'Rule', sortable: true, render: (rule) => rule.reportName || 'Scheduled Report' },
+      { key: 'siteName', header: 'Site', sortable: true, render: (rule) => rule.siteName },
+      { key: 'frequency', header: 'Frequency', sortable: true, render: (rule) => rule.frequencyLabel },
+      { key: 'schedule', header: 'Schedule', render: formatRuleSchedule },
+      {
+        key: 'lastGenerated',
+        header: 'Last Generated',
+        sortable: true,
+        render: (rule) => formatDateTime(rule.lastGenerated) || 'Never',
+      },
+    ],
+    [],
+  );
+
+  const refreshRules = useCallback(async () => {
+    const execution: ListExecution<QueryReportRulesRequest> = { query };
+    const { controller, generation } = claimRequest();
+    setRefreshExecution(execution);
+    setCompletedExecution(null);
     try {
-      const response = await queryReportRules(query, { signal });
+      const response = await queryReportRules(execution.query, { signal: controller.signal });
+      if (!ownsRequest(controller, generation)) {
+        return;
+      }
       setRules(response.results);
       setTotal(response.total);
       setTotalPages(response.totalPages);
       setError(null);
+      setCompletedExecution(execution);
     } catch (err) {
-      if (isAbortError(err)) {
+      if (!ownsRequest(controller, generation) || isAbortError(err)) {
         return;
       }
       setError((err as Error).message);
       onRequestError(err);
-    } finally {
-      if (!signal?.aborted) {
-        setIsLoading(false);
-      }
+      setCompletedExecution(execution);
     }
-  }, [onRequestError, query]);
+  }, [claimRequest, onRequestError, ownsRequest, query]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    const { controller, generation } = claimRequest();
     globalThis.history.replaceState(null, '', buildRulesUrl({ searchText, page, sort: sortKey, sortDir }));
-    loadRules(controller.signal).catch(onRequestError);
+    queryReportRules(effectExecution.query, { signal: controller.signal })
+      .then((response) => {
+        if (!ownsRequest(controller, generation)) {
+          return;
+        }
+        setRules(response.results);
+        setTotal(response.total);
+        setTotalPages(response.totalPages);
+        setError(null);
+        setCompletedExecution(effectExecution);
+      })
+      .catch((err: Error) => {
+        if (!ownsRequest(controller, generation) || isAbortError(err)) {
+          return;
+        }
+        setError(err.message);
+        onRequestError(err);
+        setCompletedExecution(effectExecution);
+      });
     return () => controller.abort();
-  }, [loadRules, onRequestError, page, searchText, sortDir, sortKey]);
+  }, [claimRequest, effectExecution, onRequestError, ownsRequest, page, searchText, sortDir, sortKey]);
 
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
@@ -318,12 +422,16 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
     if (!globalThis.confirm(`Delete ${rule.reportName || rule.frequencyLabel} report rule?`)) {
       return;
     }
+    const deleteGeneration = requestGeneration.current;
     setNotice(null);
     setError(null);
     try {
       await deleteReportRule(rule.id);
       setNotice('Report rule has been deleted.');
-      await loadRules();
+      if (requestGeneration.current !== deleteGeneration) {
+        return;
+      }
+      await refreshRules();
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);
@@ -342,7 +450,11 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
             <ChevronLeft size={17} aria-hidden="true" />
             <span>Reports</span>
           </button>
-          <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo('/reports/rules/new', returnPath))}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => onNavigate(withReturnTo('/reports/rules/new', returnPath))}
+          >
             <Plus size={17} aria-hidden="true" />
             <span>Add Rule</span>
           </button>
@@ -372,18 +484,18 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
           {
             label: 'Edit report rule',
             icon: <Edit3 size={16} aria-hidden="true" />,
-            onClick: (rule) => onNavigate(withReturnTo(`/reports/rules/${rule.id}`, returnPath))
+            onClick: (rule) => onNavigate(withReturnTo(`/reports/rules/${rule.id}`, returnPath)),
           },
           {
             label: 'Manage report users',
             icon: <UsersRound size={16} aria-hidden="true" />,
-            onClick: (rule) => onNavigate(withReturnTo(`/reports/rules/${rule.id}/users`, returnPath))
+            onClick: (rule) => onNavigate(withReturnTo(`/reports/rules/${rule.id}/users`, returnPath)),
           },
           {
             label: 'Delete report rule',
             icon: <Trash2 size={16} aria-hidden="true" />,
-            onClick: handleDelete
-          }
+            onClick: handleDelete,
+          },
         ]}
       />
     </section>
@@ -395,7 +507,7 @@ function ReportRuleForm({
   ruleId,
   locationPath,
   onNavigate,
-  onRequestError
+  onRequestError,
 }: ReportsPanelProps & Readonly<{ ruleId?: string }>) {
   const [options, setOptions] = useState<ReportRuleOptionsResponse | null>(null);
   const [form, setForm] = useState<ReportRuleMutationRequest>(emptyRuleForm());
@@ -412,7 +524,6 @@ function ReportRuleForm({
   const backPath = returnToOr(locationPath, '/reports/rules');
 
   useEffect(() => {
-    setNotice(null);
     if (ruleId) {
       getReportRule(ruleId)
         .then((response) => {
@@ -424,14 +535,14 @@ function ReportRuleForm({
             sites: rule.sites,
             frequencies: rule.frequencies,
             daysOfWeek: rule.daysOfWeek,
-            alertRuleGuidelines: rule.alertRuleGuidelines
+            alertRuleGuidelines: rule.alertRuleGuidelines,
           });
           setForm({
             siteId: rule.siteId,
             frequency: rule.frequency,
             dayOfWeek: rule.dayOfWeek ?? monday,
             dayOfMonth: rule.dayOfMonth ?? 1,
-            reportName: rule.reportName ?? ''
+            reportName: rule.reportName ?? '',
           });
           setError(null);
         })
@@ -447,7 +558,7 @@ function ReportRuleForm({
         setOptions(nextOptions);
         setForm((current) => ({
           ...current,
-          siteId: current.siteId || nextOptions.sites[0]?.value || ''
+          siteId: current.siteId || nextOptions.sites[0]?.value || '',
         }));
         setError(null);
       })
@@ -509,8 +620,8 @@ function ReportRuleForm({
     setForm((current) => ({
       ...current,
       frequency,
-      dayOfWeek: requiresDayOfWeek(frequency) ? current.dayOfWeek ?? monday : null,
-      dayOfMonth: requiresDayOfMonth(frequency) ? current.dayOfMonth ?? 1 : null
+      dayOfWeek: requiresDayOfWeek(frequency) ? (current.dayOfWeek ?? monday) : null,
+      dayOfMonth: requiresDayOfMonth(frequency) ? (current.dayOfMonth ?? 1) : null,
     }));
   }
 
@@ -533,7 +644,11 @@ function ReportRuleForm({
             </button>
           )}
           {ruleId && (
-            <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/reports/rules/${ruleId}/users`, backPath))}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => onNavigate(withReturnTo(`/reports/rules/${ruleId}/users`, backPath))}
+            >
               <UsersRound size={17} aria-hidden="true" />
               <span>Users</span>
             </button>
@@ -552,25 +667,38 @@ function ReportRuleForm({
         <FormField label="Site" error={selectedSiteError}>
           <select value={form.siteId} onChange={(event) => setForm({ ...form, siteId: event.target.value })}>
             {options?.sites.map((site) => (
-              <option key={site.value} value={site.value} disabled={site.disabled === true}>{site.label}</option>
+              <option key={site.value} value={site.value} disabled={site.disabled === true}>
+                {site.label}
+              </option>
             ))}
           </select>
         </FormField>
         <FormField label="Report Name">
-          <input value={form.reportName ?? ''} maxLength={128} onChange={(event) => setForm({ ...form, reportName: event.target.value })} />
+          <input
+            value={form.reportName ?? ''}
+            maxLength={128}
+            onChange={(event) => setForm({ ...form, reportName: event.target.value })}
+          />
         </FormField>
         <FormField label="Frequency">
           <select value={form.frequency} onChange={(event) => handleFrequencyChange(event.target.value)}>
             {options?.frequencies.map((frequency) => (
-              <option key={frequency.value} value={frequency.value}>{frequency.label}</option>
+              <option key={frequency.value} value={frequency.value}>
+                {frequency.label}
+              </option>
             ))}
           </select>
         </FormField>
         {requiresDayOfWeek(form.frequency) && (
           <FormField label="Day of Week">
-            <select value={form.dayOfWeek ?? monday} onChange={(event) => setForm({ ...form, dayOfWeek: Number(event.target.value) })}>
+            <select
+              value={form.dayOfWeek ?? monday}
+              onChange={(event) => setForm({ ...form, dayOfWeek: Number(event.target.value) })}
+            >
               {options?.daysOfWeek.map((day) => (
-                <option key={day.value} value={day.value}>{day.label}</option>
+                <option key={day.value} value={day.value}>
+                  {day.label}
+                </option>
               ))}
             </select>
           </FormField>
@@ -603,7 +731,7 @@ function ReportRuleUsersPanel({
   ruleId,
   locationPath,
   onNavigate,
-  onRequestError
+  onRequestError,
 }: ReportsPanelProps & Readonly<{ ruleId: string }>) {
   const [context, setContext] = useState<ReportRuleAssignmentContext | null>(null);
   const [available, setAvailable] = useState<UserGridState>(emptyUserGrid());
@@ -618,66 +746,91 @@ function ReportRuleUsersPanel({
   const [assignedSortDir, setAssignedSortDir] = useState<SortDirection>('Ascending');
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const usersRequestGeneration = useRef(0);
 
-  const availableQuery = useMemo<QueryCompaniesRequest>(() => ({
-    searchText: availableSearch,
-    page: availablePage,
-    pageSize,
-    sort: availableSortKey,
-    sortDir: availableSortDir
-  }), [availablePage, availableSearch, availableSortDir, availableSortKey]);
-  const assignedQuery = useMemo<QueryCompaniesRequest>(() => ({
-    searchText: assignedSearch,
-    page: assignedPage,
-    pageSize,
-    sort: assignedSortKey,
-    sortDir: assignedSortDir
-  }), [assignedPage, assignedSearch, assignedSortDir, assignedSortKey]);
+  const availableQuery = useMemo<QueryCompaniesRequest>(
+    () => ({
+      searchText: availableSearch,
+      page: availablePage,
+      pageSize,
+      sort: availableSortKey,
+      sortDir: availableSortDir,
+    }),
+    [availablePage, availableSearch, availableSortDir, availableSortKey],
+  );
+  const assignedQuery = useMemo<QueryCompaniesRequest>(
+    () => ({
+      searchText: assignedSearch,
+      page: assignedPage,
+      pageSize,
+      sort: assignedSortKey,
+      sortDir: assignedSortDir,
+    }),
+    [assignedPage, assignedSearch, assignedSortDir, assignedSortKey],
+  );
 
-  const columns = useMemo<DataGridColumn<UserListItem>[]>(() => [
-    {
-      key: 'email',
-      header: 'User',
-      sortable: true,
-      render: (user) => (
-        <span className="cell-with-icon">
-          <UserRound size={16} aria-hidden="true" />
-          {user.email}
-        </span>
-      )
-    },
-    { key: 'name', header: 'Name', sortable: true, render: (user) => user.name || 'None' },
-    { key: 'role', header: 'Role', sortable: true, render: (user) => user.role },
-    { key: 'companyName', header: 'Company', sortable: true, render: (user) => user.companyName || 'RVT Group' }
-  ], []);
+  const columns = useMemo<DataGridColumn<UserListItem>[]>(
+    () => [
+      {
+        key: 'email',
+        header: 'User',
+        sortable: true,
+        render: (user) => (
+          <span className="cell-with-icon">
+            <UserRound size={16} aria-hidden="true" />
+            {user.email}
+          </span>
+        ),
+      },
+      { key: 'name', header: 'Name', sortable: true, render: (user) => user.name || 'None' },
+      { key: 'role', header: 'Role', sortable: true, render: (user) => user.role },
+      { key: 'companyName', header: 'Company', sortable: true, render: (user) => user.companyName || 'RVT Group' },
+    ],
+    [],
+  );
   const handleAvailableSortChange = useGridSortHandler(setAvailableSortKey, setAvailableSortDir, setAvailablePage);
   const handleAssignedSortChange = useGridSortHandler(setAssignedSortKey, setAssignedSortDir, setAssignedPage);
   const backPath = returnToOr(locationPath, '/reports/rules');
 
-  const loadUsers = useCallback(async (signal?: AbortSignal) => {
+  const refreshUsersAfterMutation = useCallback(async () => {
+    const generation = ++usersRequestGeneration.current;
     setAvailable((current) => ({ ...current, isLoading: true, error: null }));
     setAssigned((current) => ({ ...current, isLoading: true, error: null }));
     try {
       const [availableResponse, assignedResponse] = await Promise.all([
-        queryReportRuleAvailableUsers(ruleId, availableQuery, { signal }),
-        queryReportRuleAssignedUsers(ruleId, assignedQuery, { signal })
+        queryReportRuleAvailableUsers(ruleId, availableQuery),
+        queryReportRuleAssignedUsers(ruleId, assignedQuery),
       ]);
-      setContext((current) => contextFromPagedUsers(assignedResponse) ?? contextFromPagedUsers(availableResponse) ?? current);
+      if (generation !== usersRequestGeneration.current) {
+        return;
+      }
+      setContext(
+        (current) => contextFromPagedUsers(assignedResponse) ?? contextFromPagedUsers(availableResponse) ?? current,
+      );
       setAvailable(userGridFromResponse(availableResponse));
       setAssigned(userGridFromResponse(assignedResponse));
       setError(null);
     } catch (err) {
+      if (generation !== usersRequestGeneration.current) {
+        return;
+      }
       if (isAbortError(err)) {
         return;
       }
       try {
         const response = await getReportRuleUsers(ruleId);
+        if (generation !== usersRequestGeneration.current) {
+          return;
+        }
         const item = response.item ?? null;
         setContext(item ? contextFromAssignments(item) : null);
         setAvailable(item ? userGridFromUsers(item.availableUsers, availableQuery) : emptyUserGrid());
         setAssigned(item ? userGridFromUsers(item.assignedUsers, assignedQuery) : emptyUserGrid());
         setError(null);
       } catch (fallbackErr) {
+        if (generation !== usersRequestGeneration.current) {
+          return;
+        }
         const message = (fallbackErr as Error).message || (err as Error).message;
         setAvailable((current) => ({ ...current, error: message, isLoading: false }));
         setAssigned((current) => ({ ...current, error: message, isLoading: false }));
@@ -689,9 +842,58 @@ function ReportRuleUsersPanel({
 
   useEffect(() => {
     const controller = new AbortController();
-    loadUsers(controller.signal).catch(onRequestError);
+    const generation = ++usersRequestGeneration.current;
+    const availableRequest = queryReportRuleAvailableUsers(ruleId, availableQuery, { signal: controller.signal });
+    const assignedRequest = queryReportRuleAssignedUsers(ruleId, assignedQuery, { signal: controller.signal });
+
+    Promise.resolve().then(() => {
+      if (controller.signal.aborted || generation !== usersRequestGeneration.current) {
+        return;
+      }
+      setAvailable((current) => ({ ...current, isLoading: true, error: null }));
+      setAssigned((current) => ({ ...current, isLoading: true, error: null }));
+    });
+
+    Promise.all([availableRequest, assignedRequest])
+      .then(([availableResponse, assignedResponse]) => {
+        if (controller.signal.aborted || generation !== usersRequestGeneration.current) {
+          return;
+        }
+        setContext(
+          (current) => contextFromPagedUsers(assignedResponse) ?? contextFromPagedUsers(availableResponse) ?? current,
+        );
+        setAvailable(userGridFromResponse(availableResponse));
+        setAssigned(userGridFromResponse(assignedResponse));
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (isAbortError(err) || controller.signal.aborted || generation !== usersRequestGeneration.current) {
+          return;
+        }
+        getReportRuleUsers(ruleId)
+          .then((response) => {
+            if (controller.signal.aborted || generation !== usersRequestGeneration.current) {
+              return;
+            }
+            const item = response.item ?? null;
+            setContext(item ? contextFromAssignments(item) : null);
+            setAvailable(item ? userGridFromUsers(item.availableUsers, availableQuery) : emptyUserGrid());
+            setAssigned(item ? userGridFromUsers(item.assignedUsers, assignedQuery) : emptyUserGrid());
+            setError(null);
+          })
+          .catch((fallbackErr: unknown) => {
+            if (controller.signal.aborted || generation !== usersRequestGeneration.current) {
+              return;
+            }
+            const message = (fallbackErr as Error).message || (err as Error).message;
+            setAvailable((current) => ({ ...current, error: message, isLoading: false }));
+            setAssigned((current) => ({ ...current, error: message, isLoading: false }));
+            setError(message);
+            onRequestError(fallbackErr);
+          });
+      });
     return () => controller.abort();
-  }, [loadUsers, onRequestError]);
+  }, [assignedQuery, availableQuery, onRequestError, ruleId]);
 
   async function runMutation(action: () => Promise<{ item?: ReportUserAssignmentResponse | null }>) {
     setIsBusy(true);
@@ -701,7 +903,7 @@ function ReportRuleUsersPanel({
       if (response.item) {
         setContext(contextFromAssignments(response.item));
       }
-      await loadUsers();
+      await refreshUsersAfterMutation();
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);
@@ -732,7 +934,11 @@ function ReportRuleUsersPanel({
             <ChevronLeft size={17} aria-hidden="true" />
             <span>Rules</span>
           </button>
-          <button className="secondary-button" type="button" onClick={() => onNavigate(withReturnTo(`/reports/rules/${ruleId}`, backPath))}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => onNavigate(withReturnTo(`/reports/rules/${ruleId}`, backPath))}
+          >
             <Edit3 size={17} aria-hidden="true" />
             <span>Edit Rule</span>
           </button>
@@ -779,8 +985,8 @@ function ReportRuleUsersPanel({
               label: 'Add report user',
               icon: <UserPlus size={16} aria-hidden="true" />,
               onClick: (user) => runMutation(() => addReportRuleUser(ruleId, { userId: user.id })),
-              disabled: () => isBusy
-            }
+              disabled: () => isBusy,
+            },
           ]}
         />
       </section>
@@ -817,8 +1023,8 @@ function ReportRuleUsersPanel({
               label: 'Remove report user',
               icon: <Trash2 size={16} aria-hidden="true" />,
               onClick: (user) => runMutation(() => removeReportRuleUser(ruleId, user.id)),
-              disabled: () => isBusy
-            }
+              disabled: () => isBusy,
+            },
           ]}
         />
       </section>
@@ -858,7 +1064,7 @@ function emptyUserGrid(): UserGridState {
     total: 0,
     totalPages: 0,
     error: null,
-    isLoading: false
+    isLoading: false,
   };
 }
 
@@ -869,7 +1075,7 @@ function userGridFromResponse(response: QueryReportRuleUsersResponse): UserGridS
     total: response.total,
     totalPages: response.totalPages,
     error: null,
-    isLoading: false
+    isLoading: false,
   };
 }
 
@@ -888,14 +1094,15 @@ function userGridFromUsers(users: UserListItem[], query: QueryCompaniesRequest):
     total: sorted.length,
     totalPages,
     error: null,
-    isLoading: false
+    isLoading: false,
   };
 }
 
 // Function summary: Evaluates whether a user matches report-recipient grid search text.
 function userMatchesSearch(user: UserListItem, searchText: string) {
-  return [user.email, user.name, user.role, user.companyName]
-    .some((value) => value?.toLowerCase().includes(searchText));
+  return [user.email, user.name, user.role, user.companyName].some((value) =>
+    value?.toLowerCase().includes(searchText),
+  );
 }
 
 // Function summary: Sorts report-recipient users for legacy assignment endpoint fallback data.
@@ -929,7 +1136,7 @@ function contextFromAssignments(assignments: ReportUserAssignmentResponse): Repo
     siteId: assignments.siteId,
     siteName: assignments.siteName,
     companyId: assignments.companyId,
-    companyName: assignments.companyName
+    companyName: assignments.companyName,
   };
 }
 
@@ -944,7 +1151,7 @@ function contextFromPagedUsers(response: QueryReportRuleUsersResponse): ReportRu
     siteId: response.siteId,
     siteName: response.siteName,
     companyId: response.companyId,
-    companyName: response.companyName
+    companyName: response.companyName,
   };
 }
 
@@ -1013,7 +1220,12 @@ function parseReportsRoute(locationPath: string): ReportsRoute {
 }
 
 // Function summary: Builds reports url data for callers.
-function buildReportsUrl({ searchText, page, sort, sortDir }: Readonly<{ searchText: string; page: number; sort: string; sortDir: SortDirection }>) {
+function buildReportsUrl({
+  searchText,
+  page,
+  sort,
+  sortDir,
+}: Readonly<{ searchText: string; page: number; sort: string; sortDir: SortDirection }>) {
   const params = new URLSearchParams({ page: String(page), sort, sortDir });
   if (searchText.trim()) {
     params.set('q', searchText.trim());
@@ -1022,7 +1234,12 @@ function buildReportsUrl({ searchText, page, sort, sortDir }: Readonly<{ searchT
 }
 
 // Function summary: Builds rules url data for callers.
-function buildRulesUrl({ searchText, page, sort, sortDir }: Readonly<{ searchText: string; page: number; sort: string; sortDir: SortDirection }>) {
+function buildRulesUrl({
+  searchText,
+  page,
+  sort,
+  sortDir,
+}: Readonly<{ searchText: string; page: number; sort: string; sortDir: SortDirection }>) {
   const params = new URLSearchParams({ page: String(page), sort, sortDir });
   if (searchText.trim()) {
     params.set('q', searchText.trim());
@@ -1048,7 +1265,7 @@ function emptyRuleForm(): ReportRuleMutationRequest {
     frequency: weeklyFrequency,
     dayOfWeek: monday,
     dayOfMonth: null,
-    reportName: ''
+    reportName: '',
   };
 }
 
@@ -1057,9 +1274,9 @@ function normalizeRuleForm(form: ReportRuleMutationRequest): ReportRuleMutationR
   return {
     siteId: form.siteId,
     frequency: form.frequency,
-    dayOfWeek: requiresDayOfWeek(form.frequency) ? form.dayOfWeek ?? monday : null,
-    dayOfMonth: requiresDayOfMonth(form.frequency) ? form.dayOfMonth ?? 1 : null,
-    reportName: form.reportName?.trim() || null
+    dayOfWeek: requiresDayOfWeek(form.frequency) ? (form.dayOfWeek ?? monday) : null,
+    dayOfMonth: requiresDayOfMonth(form.frequency) ? (form.dayOfMonth ?? 1) : null,
+    reportName: form.reportName?.trim() || null,
   };
 }
 
@@ -1121,7 +1338,7 @@ function formatDateTime(value?: string | null) {
   }
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
-    timeStyle: 'short'
+    timeStyle: 'short',
   }).format(new Date(value));
 }
 
@@ -1132,5 +1349,5 @@ const dayOptions: ReadonlyArray<{ value: number; label: string }> = [
   { value: 3, label: 'Wednesday' },
   { value: 4, label: 'Thursday' },
   { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' }
+  { value: 6, label: 'Saturday' },
 ];

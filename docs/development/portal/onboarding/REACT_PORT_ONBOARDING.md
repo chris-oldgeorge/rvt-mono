@@ -33,7 +33,6 @@ flowchart LR
 | `RVT.BusinessLogic` | Domain services and application workflow logic. |
 | `RVT.DataAccess` | EF contexts, repositories, persistence integration. |
 | `RVT.Entities` | Shared entity, DTO, and model definitions. |
-| `RVT.Utilities` | Email, blob, logging, and other utility services. |
 | `docs/release` | Cutover, parity, and readiness evidence. |
 ## 5. Local Setup
 Install:

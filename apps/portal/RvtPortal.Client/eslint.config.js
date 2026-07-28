@@ -36,17 +36,7 @@ export default tseslint.config(
       'react-refresh': reactRefresh,
     },
     rules: {
-      // Preserve the established Hooks 5 lint contract. Hooks 7 expanded its
-      // recommended preset to React Compiler rules, which is a separate
-      // application-refactoring scope rather than a dependency remediation.
-      'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
-      // ESLint 10 added these rules to @eslint/js recommended. Keep this
-      // security upgrade behavior-neutral; enable them in a dedicated lint
-      // modernization with its own source changes.
-      'no-unassigned-vars': 'off',
-      'no-useless-assignment': 'off',
-      'preserve-caught-error': 'off',
+      ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/naming-convention': [

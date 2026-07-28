@@ -31,6 +31,14 @@ Required settings:
 deployment: the endpoint filter is fail-closed and rejects all requests when the
 configured key is blank.
 
+`http://+:8080` is internal-container traffic only. Production TLS must
+terminate at managed ingress or a reverse proxy; direct public exposure of port
+8080 is prohibited.
+
+`ConnectionStrings__DefaultConnection` is the required deployment source for
+database credentials. Set it through the target environment or secret store;
+the committed application default is empty and carries no credentials.
+
 Customer logo fetch uses an internal SPA endpoint. The deployed reporting
 value for `RVT__SPA_REPORT_CONTENT_API_KEY` must exactly match the deployed SPA
 backend value for `ReportContent:InternalApiKey`. Store the shared value in the

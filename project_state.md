@@ -221,6 +221,217 @@
   `codex/visual-studio-solution-reconcile`; none was changed or deleted.
 - The two pre-existing SVG executable-bit differences in the primary checkout
   remain unstaged and untouched. No variable definition changed.
+## Authoritative checkpoint: RVT.Utilities retired — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- `apps/portal/RVT.Utilities` was confirmed production-dead and retired.
+  `AzureBlobService.cs` and `RVT.Utilities.csproj` are deleted. The remaining
+  active Portal production projects are `RVT.BusinessLogic`, `RVT.DataAccess`,
+  `RVT.Entities`, `RVT.ReleaseAudit`, `RVT.SchemaDeploy`,
+  `RvtPortal.Application`, and `RvtPortal.Spa`.
+- The direct project references were removed from `RVT.BusinessLogic` and
+  `RvtPortal.Spa`. The project and its legacy GUID configuration were removed
+  from both `Rvt.Mono.slnx` and `apps/portal/RvtPortal.Spa.sln`; the mono
+  solution now contains exactly the 50 `.csproj` files discovered under its
+  governed module roots.
+- The utility-specific assembly probe was removed from
+  `RvtPortal.Spa.Tests/CqrsArchitectureTests.cs`. The remaining
+  `BusinessLogicAssembly_DoesNotReferenceSendGrid` test preserves the
+  independent business-layer boundary without referencing a retired assembly.
+- Stale project-specific `.gitignore` entries, all nine deleted-file
+  engineering-baseline records, and current README, onboarding, testing,
+  cutover, and architecture-review references were cleaned. Historical plans,
+  reports, and source comments remain historical records.
+- Verification passed: the exact solution verifier first failed at 51 listed
+  versus 50 discovered projects after deletion, then passed after graph
+  cleanup; forced serial restore passed; the full Release mono solution built
+  with 0 warnings and 0 errors; Portal backend tests passed 548, skipped 11,
+  and failed 0; mono layout and solution verifiers passed; all 24 engineering
+  standards policy tests passed; engineering-configuration mutation tests
+  passed; the working-tree standards verifier passed; JSON validation and
+  `git diff --check` passed.
+- A full `dotnet test Rvt.Mono.slnx` run was also attempted. It exits 1 in
+  monitor integration fixtures because `RVT__POSTGRES_INTEGRATION_CONNECTION`
+  is not set in this credential-free shell; those fixtures fail during class
+  initialization before exercising the retired-project change. No credential
+  was added or requested to bypass that environment requirement.
+- No environment-variable or runtime configuration definition changed.
+  Configuration keys formerly read only by the deleted service are no longer
+  consumed through `RVT.Utilities`; no replacement compatibility shim was
+  added.
+- The repository-wide secret scan completed before file inspection. Two
+  Omnidots test-data findings were explicitly identified by the user as false
+  positives and excluded from content inspection. Later Sonar CLI scan attempts
+  hit a macOS keychain-backend error; no flagged file was read.
+
+## Authoritative checkpoint: Portal lint modernization ready for review — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Current review branch: `codex/portal-lint-modernization`. Design:
+  `docs/superpowers/specs/2026-07-28-portal-lint-modernization-design.md`.
+  Implementation plan:
+  `docs/superpowers/plans/2026-07-28-portal-lint-modernization.md`.
+  The branch was integrated with finalized `origin/main` Sonar remediation by
+  normal merge commit `3f2dabe0a12e984c88f98a3cbb8d857a8e7e4d07`; there were
+  no conflicts. The prior stale, uncommitted Sonar planning state is preserved
+  (not applied and not dropped) as
+  `stash@{1}: pre-lint-integration-stale-sonar-project-state`. The unrelated
+  RVT.Utilities retirement-audit checkpoint is separately preserved as
+  `stash@{0}: pre-lint-finalization-rvt-utilities-audit`.
+- The disposable full-profile baseline contained 38 findings: 36 lint errors
+  and the two established `react-refresh/only-export-components` warnings.
+  The Portal configuration now enables all of `js.configs.recommended`,
+  `typescript-eslint` `configs.recommended`, and
+  `reactHooks.configs.recommended.rules`; it retains the established React
+  Refresh warning configuration plus the existing TypeScript unused-variable
+  and naming-convention project rules.
+- Final Portal verification on Node 24 passed: ESLint exits 0 with no errors
+  and exactly the two established Fast Refresh warnings in
+  `src/operations/DataViewPanels.tsx` (902:17 and 911:17); Vitest reports
+  13 files and 135 tests passed; `tsc -b && vite build` passed; and `npm audit`
+  reports zero vulnerabilities.
+- Final whole-branch review remediation added per-execution request ownership,
+  cross-deployment trace ownership, persistent request controls, and guards
+  that suppress generic failure handling after an abort. The independently
+  approved remediation commits are `c78768c`, `8bc7a77`, `0d94275`,
+  `f7b71b7`, and `904f532`; their slice reviews found no remaining
+  Important or Critical issue.
+- Final D1/D2 remediation added notification/alert mutation-refresh ownership
+  (`332a9d1`), Help Admin failed-filter and result ownership (`e6b54cc`), and
+  hidden-result actionability enforcement with browser proof (`098d628`).
+  The focused Help Admin Playwright specification passes 2/2, proving hidden
+  stale results cannot be acted on. D1, D2, and D2 round-two slice reviews
+  approved the final behavior.
+- Repository verification passed on the integrated branch: `scripts/verify-engineering-standards.sh --base origin/main --head HEAD` exits 0,
+  `tests/verify-engineering-standards-workflow.test.sh` passes,
+  `tests/verify-manual-sonarqube-workflow.test.sh` passes, and
+  `git diff --check` is clean. The verifier's informational baseline-decrease
+  lines do not represent a policy violation.
+- This scope added no lint suppression, exception, severity downgrade,
+  dependency change, backend change, database change, API contract change, or
+  Help Admin/R2 release-status change. Help Admin/R2 remains conditional on
+  its separate operator release-database audit.
+- Publication status: implementation, D1/D2 slice review, and repeated
+  whole-branch review are complete. Next step: push this dedicated review
+  branch and open the prepared draft pull request.
+
+## Authoritative checkpoint: Sonar reliability follow-up merged — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- GitHub PR #11, `Resolve remaining Sonar reliability findings`, merged into
+  `main` as `415fe890a01ee6120edc06690c78abf8a0482712`. Its exact-head
+  Engineering Standards run `30372441816` passed, and the remote feature
+  branch was deleted.
+- On-demand SonarQube run `30372738728` analyzed exact SCM revision
+  `415fe890a01ee6120edc06690c78abf8a0482712`. Setup, dependency installation,
+  integration-database preparation, restore, engineering standards, scanner
+  initialization, Release build, database deployment, .NET coverage, all 78
+  Portal client tests with coverage, report upload, and database cleanup
+  passed. The scanner exited 1 only because the published quality gate is red.
+- The three JavaScript new-code reliability findings from the preceding
+  checkpoint are resolved. New-code reliability, security, and
+  maintainability ratings are all A; duplicated-line density is 0.0%; security
+  hotspot review is 100%; active vulnerabilities are 0; and security hotspots
+  with status `TO_REVIEW` are 0.
+- The quality gate now fails one condition only: new-code coverage is 9.8%
+  against the 80% threshold (102 covered of 1,626 lines to cover; 1,524
+  uncovered). No gate, threshold, new-code period, or coverage exclusion was
+  weakened. Remediating this repository-wide coverage debt is a separate,
+  non-security scope.
+- Four active legacy bugs remain outside the new-code gate: one namespace
+  organization finding, one always-true condition, and two cancellation-token
+  findings. They do not affect the A new-code reliability rating and were not
+  expanded into this security-remediation scope.
+- Sonar dependency analysis remains outside the authorized scope and was not
+  run; the final scanner log again records `Dependency analysis skipped`.
+  No runtime variable, secret, application configuration, or file-layout
+  contract changed in this final checkpoint.
+
+## Authoritative checkpoint: Sonar security remediation merged — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- GitHub PR #9, `Remediate Sonar security findings`, merged into `main` as
+  `0234e459069c111499516e3287024aa58a77c37c`. PR #10, `Run standards before
+  Sonar scanner initialization`, then merged as
+  `6fb1019b9b4d667b13f7429fe39d610c918a5490`. Both remote feature branches
+  were deleted.
+- SonarCloud project `aileron-forward_rvt-mono`, branch `main`, now reports
+  zero active vulnerabilities and zero security hotspots with status
+  `TO_REVIEW`. The security rating is A, and security-hotspot review is 100%.
+  The seven context-dependent dispositions in the next checkpoint remain the
+  authoritative rationale for six false positives and one accepted
+  container-network HTTP boundary.
+- GitHub Actions Sonar run `30370391674` analyzed exact SCM revision
+  `6fb1019b9b4d667b13f7429fe39d610c918a5490`. Restore, standards verification,
+  Release build, database deployment, .NET coverage, all 78 Portal client
+  tests with coverage, analysis upload, and database cleanup passed. The run
+  is available at
+  `https://github.com/chris-oldgeorge/rvt-mono/actions/runs/30370391674`.
+- The overall quality gate remains `ERROR` for non-security new-code debt:
+  reliability rating D from three JavaScript findings and coverage 9.8%
+  (102 covered of 1,626 lines to cover; 1,524 uncovered) against an 80%
+  threshold. Security rating, maintainability rating, duplicated-line density,
+  and hotspot review all pass.
+- The reliability follow-up branch is
+  `codex/sonar-reliability-followup`. It adds explicit JavaScript property
+  types to `scripts/engineering-standards/verify.mjs` so Sonar does not infer
+  mutable parser fields as permanently undefined, and it gives
+  `scripts/engineering-standards/model.mjs` an explicit code-point comparator
+  for deterministic diagnostic-key ordering. The model suite passes 26/26,
+  both files pass `node --check`, and the full verifier scenario suite passes.
+- The coverage result is repository-wide new-code-period debt, not part of the
+  security remediation. Its largest uncovered files are the engineering
+  standards verifier/model and the existing Portal Help feature. No quality
+  gate, new-code period, or coverage exclusion was weakened or changed.
+- Sonar dependency analysis was not authorized or run; the analysis log
+  explicitly records `Dependency analysis skipped`. No runtime variable,
+  secret, application configuration, or file-layout contract changed in the
+  reliability follow-up.
+
+## Authoritative checkpoint: Sonar security dispositions recorded — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- SonarCloud project `aileron-forward_rvt-mono`, branch `main`, has seven
+  context-dependent findings dispositioned through the authenticated Sonar API:
+  - `AZ-ojKl9UqA9vndbQR-a`, `AZ-ojKl9UqA9vndbQR-b`, and
+    `AZ-ojKl9UqA9vndbQR-c` are `FALSE_POSITIVE`: each is the normative SVG
+    namespace identifier in a disposable verifier fixture, not clear-text
+    network traffic.
+  - `AZ-iGxXCIPvQyd8fB6yf` and `AZ-iGxXCIPvQyd8fB6yg` are `FALSE_POSITIVE`:
+    `forgot-password` and `reset-password` are public route names, not
+    credentials.
+  - `AZ-iGxM5IPvQyd8fB6vz` is `FALSE_POSITIVE`: only validated, canonicalized,
+    provider-delimited PostgreSQL identifiers are rendered; all values remain
+    parameters and regression coverage rejects injected routine and parameter
+    names.
+  - `AZ-iGyHeIPvQyd8fB7H3` is `ACCEPTED` (Sonar API resolution `WONTFIX`):
+    clear-text HTTP is restricted to the container network and production TLS
+    terminates at managed ingress or a reverse proxy; direct public port 8080
+    exposure is prohibited.
+- Commit `bb87547` documents the reporting listener boundary before the final
+  acceptance transition. The local verifier scenarios, Portal client tests
+  (78 tests), and focused stored-routine tests (7 tests) passed.
+- The post-transition unresolved vulnerability query returns 10 findings. They
+  are exactly the code/configuration findings fixed in Tasks 2–6 and remain
+  open only until the next analysis is published; no additional unresolved
+  context-dependent finding remains.
+
+## Authoritative checkpoint: Sonar main branch aligned with Git — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- SonarCloud project `aileron-forward_rvt-mono` had one long-lived main branch
+  named `master` (`isMain: true`) at analyzed commit
+  `000f6c58d114927e800977ca6db0c0cb9f889f38`.
+- The SonarCloud main-branch setting was renamed from `master` to `main`.
+  Verification confirms `main` is now the sole `LONG` branch with
+  `isMain: true`, retaining the same analysis commit and branch identity.
+- No Git branch, ref, workflow, or repository file was renamed; this was a
+  SonarCloud administrative setting change only. The SonarQube workflow
+  continues to analyze project key `aileron-forward_rvt-mono`.
+- Post-rename validation ran `sonar list issues -p aileron-forward_rvt-mono
+  --branch main --format json --page-size 500` successfully. It returned the
+  current inventory (`total: 5345`, page 1 of 500), proving that `main`
+  resolves the analyzed project inventory rather than a branch mismatch.
 
 ## Authoritative checkpoint: Visual Studio SPA proxy repaired — 2026-07-28
 

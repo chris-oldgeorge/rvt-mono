@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Reflection;
+using System.Text.RegularExpressions;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace Rvt.Monitor.CommonTests.Diagnostics;
@@ -51,5 +54,50 @@ public sealed class SensitiveLogRedactorTests
         var redacted = SensitiveLogRedactor.RedactJson("Too many requests!");
 
         Assert.AreEqual("Too many requests!", redacted);
+    }
+
+    [TestMethod]
+    public void SensitiveAssignmentPattern_UsesAFiniteMatchTimeout()
+    {
+        FieldInfo? patternField = typeof(SensitiveLogRedactor).GetField(
+            "SensitiveAssignmentPattern",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.IsNotNull(patternField);
+        var pattern = patternField.GetValue(null) as Regex;
+
+        Assert.IsNotNull(pattern);
+        Assert.AreEqual(TimeSpan.FromMilliseconds(100), pattern.MatchTimeout);
+    }
+
+    [TestMethod]
+    public void RedactSensitiveAssignments_FallsBackToRedactingTheWholePayloadWhenRegexTimesOut()
+    {
+        MethodInfo? method = typeof(SensitiveLogRedactor).GetMethod(
+            "RedactSensitiveAssignments",
+            BindingFlags.NonPublic | BindingFlags.Static,
+            binder: null,
+            types: [typeof(string), typeof(Regex)],
+            modifiers: null);
+        Regex timeoutPattern = new("(a+)+$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(1));
+        string payload = new string('a', 20_000) + "!";
+
+        Assert.IsNotNull(method);
+        string? redacted = method.Invoke(null, [payload, timeoutPattern]) as string;
+
+        Assert.AreEqual(SensitiveLogRedactor.Redact(payload), redacted);
+    }
+
+    [TestMethod]
+    public void RedactJson_CompletesPromptlyAndDoesNotExposeLargeMalformedSensitiveAssignments()
+    {
+        string payload = "token=" + new string('a', 250_000) + new string(',', 10_000);
+        var started = Stopwatch.StartNew();
+
+        string redacted = SensitiveLogRedactor.RedactJson(payload);
+
+        started.Stop();
+        Assert.IsTrue(started.Elapsed < TimeSpan.FromSeconds(2));
+        Assert.IsFalse(redacted.Contains(payload[6..], StringComparison.Ordinal));
     }
 }

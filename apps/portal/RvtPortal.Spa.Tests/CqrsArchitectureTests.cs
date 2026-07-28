@@ -474,14 +474,10 @@ public class CqrsArchitectureTests
     }
 
     [Fact]
-    // Function summary: Verifies the email vendor SDK stays in the host adapters; the business and utility layers must not reference SendGrid.
-    public void BusinessAndUtilityAssemblies_DoNotReferenceSendGrid()
+    // Function summary: Verifies the email vendor SDK stays in the host adapters; the business layer must not reference SendGrid.
+    public void BusinessLogicAssembly_DoesNotReferenceSendGrid()
     {
-        var offenders = new[]
-        {
-            typeof(IRvtDateTimeProvider).Assembly,           // RVT.BusinessLogic
-            typeof(RVT.Utilities.AzureBlobService).Assembly  // RVT.Utilities
-        }
+        var offenders = new[] { typeof(IRvtDateTimeProvider).Assembly }
         .Where(assembly => assembly.GetReferencedAssemblies()
             .Any(reference => reference.Name?.Contains("SendGrid", StringComparison.OrdinalIgnoreCase) == true))
         .Select(assembly => assembly.GetName().Name)

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 pushd RvtPortal.Client >/dev/null
-npm ci
+npm ci --ignore-scripts
 npm run lint
 npm run test:run
 npm run build

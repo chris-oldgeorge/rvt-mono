@@ -11,7 +11,7 @@ Architecture boundaries:
 
 - API host: `RvtPortal.Spa` exposes `/api/*`, auth, health, SPA fallback, and the publish target that copies the client build into `wwwroot`.
 - SPA client: `RvtPortal.Client` is the React/Vite application served by the API host in production and by Vite during local development.
-- Shared class libraries: `RVT.BusinessLogic`, `RVT.DataAccess`, `RVT.Entities`, and `RVT.Utilities` retain the migrated domain services, repositories, EF models, DTO/entity types, email/blob helpers, and shared utility code.
+- Shared class libraries: `RVT.BusinessLogic`, `RVT.DataAccess`, and `RVT.Entities` retain the migrated domain services, repositories, EF models, and DTO/entity types.
 - Data access: `ApplicationDbContext`, `RVTDbContext`, and `RVTSearchContext` use the configured `ConnectionStrings:DefaultConnection`; no local credentials are committed.
 - Tests: `RvtPortal.Spa.Tests` covers API/host behavior, while client lint, build, Vitest, and Playwright gates run from `RvtPortal.Client`.
 - Release boundary: deploy `RvtPortal.Spa` as the single cutover artifact; retired MVC/demo projects and migration-control tooling stay outside this repository.
@@ -24,7 +24,6 @@ Architecture boundaries:
 - `RVT.BusinessLogic` - Domain services and application workflow logic.
 - `RVT.DataAccess` - Data access layer and persistence integration.
 - `RVT.Entities` - Shared entity and model definitions.
-- `RVT.Utilities` - Shared utility code used across the portal solution.
 - [`../../docs/release/portal/PARITY_MATRIX.md`](../../docs/release/portal/PARITY_MATRIX.md) - MVC action/view migration ledger used as release evidence.
 - [`../../docs/release/portal/CUTOVER_RUNBOOK.md`](../../docs/release/portal/CUTOVER_RUNBOOK.md) - Deployment, smoke, rollback, and go/no-go checklist for the SPA cutover.
 - [`../../docs/development/portal/onboarding/REACT_PORT_ONBOARDING.md`](../../docs/development/portal/onboarding/REACT_PORT_ONBOARDING.md) - Short onboarding guide for developers joining the React port.

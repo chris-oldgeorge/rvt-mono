@@ -294,7 +294,7 @@ def assert_engineering_standards_gate(steps)
   )
 
   canonical_commands = [
-    [install_step, ["npm ci"], "Portal dependency installation"],
+    [install_step, ["npm ci --ignore-scripts"], "Portal dependency installation"],
     [
       restore_step,
       ["dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel"],

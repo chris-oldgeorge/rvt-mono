@@ -4,7 +4,7 @@ FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432
 WORKDIR /workspace/RvtPortal.Client
 
 COPY RvtPortal.Client/package.json RvtPortal.Client/package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY RvtPortal.Client/ ./
 RUN npm run build

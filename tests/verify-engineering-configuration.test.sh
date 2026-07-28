@@ -117,6 +117,14 @@ assert_root_probe_diagnostic_absent() {
 require_file "$root_dir/.editorconfig"
 require_file "$root_dir/Directory.Build.props"
 
+portal_frontend_verifier="$root_dir/apps/portal/scripts/verify-frontend.sh"
+portal_client_dockerfile="$root_dir/apps/portal/RvtPortal.Client/Dockerfile"
+
+grep -Fqx 'npm ci --ignore-scripts' "$portal_frontend_verifier" || fail "Portal frontend verifier must disable npm lifecycle scripts"
+! grep -Fqx 'npm ci' "$portal_frontend_verifier" || fail "Portal frontend verifier must not contain a bare npm ci install"
+grep -Fqx 'RUN npm ci --ignore-scripts' "$portal_client_dockerfile" || fail "Portal client Dockerfile must disable npm lifecycle scripts"
+! grep -Fqx 'RUN npm ci' "$portal_client_dockerfile" || fail "Portal client Dockerfile must not contain a bare npm ci install"
+
 declare -a representative_projects=(
   "apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj|latest|true"
   "apps/portal/RVT.Entities/RVT.Entities.csproj|latest-recommended|false"

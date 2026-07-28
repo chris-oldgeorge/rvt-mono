@@ -299,7 +299,7 @@ def verify_workflow(path)
   )
 
   canonical_commands = [
-    [install_step, ["npm ci"], "Portal dependency installation"],
+    [install_step, ["npm ci --ignore-scripts"], "Portal dependency installation"],
     [
       restore_step,
       ["dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel"],
@@ -411,7 +411,7 @@ source = File.read(path, encoding: "utf-8")
 needle, replacement = case mutation_key
 when "npm-options"
   needle = "          npm run test:coverage\n"
-  [needle, "          npm ci --ignore-scripts\n#{needle}"]
+  [needle, "          npm ci --ignore-scripts --audit=false\n#{needle}"]
 when "npm-inline-comment"
   needle = "          npm run test:coverage\n"
   [needle, "          npm ci # duplicate\n#{needle}"]

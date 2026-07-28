@@ -445,11 +445,11 @@ def assert_sonar_analysis_order(steps)
   build_index = named_step_index(steps, "Build monorepo (Release)")
 
   assert(
-    install_tools_index < restore_index &&
+    install_tools_index < begin_index &&
       restore_index < standards_index &&
       standards_index < begin_index &&
       begin_index < build_index,
-    "analysis tools, restore, and standards verification must precede scanner begin; scanner begin must precede the Release build"
+    "analysis tools must precede scanner begin; restore and standards verification must precede scanner begin; scanner begin must precede the Release build"
   )
 end
 
@@ -534,6 +534,13 @@ rescue RuntimeError
 else
   raise "verifier-after-begin mutation was accepted"
 end
+
+restore_before_tools_steps = steps.dup
+install_tools_index = named_step_index(restore_before_tools_steps, "Install analysis tools")
+restore_index = named_step_index(restore_before_tools_steps, "Restore monorepo")
+install_tools_step = restore_before_tools_steps.delete_at(install_tools_index)
+restore_before_tools_steps.insert(restore_index, install_tools_step)
+assert_sonar_analysis_order(restore_before_tools_steps)
 
 puts "verify-manual-sonarqube-workflow: PASS"
 RUBY

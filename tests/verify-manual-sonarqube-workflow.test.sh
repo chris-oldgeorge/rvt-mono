@@ -140,8 +140,9 @@ end
 
 def shell_command_words(command)
   # Deliberately conservative: quoted/subshell command text is tokenized too,
-  # so ambiguous embedded invocations fail closed instead of evading the guard.
-  command.tr(%q{"'()}, "    ").split
+  # and shell control/redirection punctuation forms token boundaries, so
+  # ambiguous embedded or fused invocations fail closed.
+  command.tr(%q{"'()<>|&}, "        ").split
 end
 
 def executable_basename(word)

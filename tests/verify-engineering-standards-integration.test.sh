@@ -69,8 +69,9 @@ end
 
 def shell_command_words(command)
   # Deliberately conservative: quoted/subshell command text is tokenized too,
-  # so ambiguous embedded invocations fail closed instead of evading the guard.
-  command.tr(%q{"'()}, "    ").split
+  # and shell control/redirection punctuation forms token boundaries, so
+  # ambiguous embedded or fused invocations fail closed.
+  command.tr(%q{"'()<>|&}, "        ").split
 end
 
 def executable_basename(word)
@@ -469,6 +470,21 @@ when "npm-windows-loglevel-value-option"
 when "npm-windows-omit-value-option"
   needle = "          npm run test:coverage\n"
   [needle, "          npm.cmd --omit dev ci\n#{needle}"]
+when "npm-redirection-suffix"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm ci>/dev/null\n#{needle}"]
+when "npm-redirection-after-executable"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm>/dev/null ci\n#{needle}"]
+when "npm-pipe"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm ci|tee /dev/null\n#{needle}"]
+when "npm-background"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm ci& wait\n#{needle}"]
+when "npm-redirected-chain"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm ci>/dev/null && npm ci>/dev/null\n#{needle}"]
 when "standards-continue-on-error"
   needle = "      - name: Verify engineering standards\n"
   [needle, "#{needle}        continue-on-error: true\n"]
@@ -603,6 +619,46 @@ when "pre-standards-root-restore"
     "\n" \
     "#{needle}"
   [needle, replacement]
+when "pre-standards-redirected-restore"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature redirected restore\n" \
+    "        run: dotnet restore>/dev/null\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-redirection-after-dotnet"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature redirected dotnet build\n" \
+    "        run: dotnet>/dev/null build\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-piped-test"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature piped test\n" \
+    "        run: dotnet test|tee /dev/null\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-background-restore"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature background restore\n" \
+    "        run: dotnet restore& wait\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-redirected-chain"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature redirected build and test\n" \
+    "        run: dotnet build>/dev/null && dotnet test>/dev/null\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
 else
   abort "unknown workflow mutation: #{mutation_key}"
 end
@@ -693,6 +749,47 @@ RUBY
   fi
 }
 
+assert_full_line_command_comments_ignored() {
+  local mutation_root="${temp_root}/full-line-command-comments"
+  local mutated_workflow="${mutation_root}/.github/workflows/sonarqube.yml"
+
+  mkdir -p "${mutation_root}/scripts" "${mutation_root}/.github/workflows" \
+    "${mutation_root}/tests"
+  cp "${build_copy}" "${mutation_root}/scripts/build-mono.sh"
+  cp "${workflow_copy}" "${mutated_workflow}"
+  cp "${repo_root}/tests/verify-manual-sonarqube-workflow.test.sh" \
+    "${mutation_root}/tests/verify-manual-sonarqube-workflow.test.sh"
+
+  ruby - "${mutated_workflow}" <<'RUBY'
+path = ARGV.fetch(0)
+source = File.read(path, encoding: "utf-8")
+needle = "          npm run test:coverage\n"
+replacement =
+  "          # npm ci>/dev/null\n" \
+  "          # dotnet build>/dev/null\n" \
+  "#{needle}"
+mutated = source.sub(needle, replacement)
+abort "full-line comment mutation did not change #{path}" if mutated == source
+File.write(path, mutated, mode: "w", encoding: "utf-8")
+RUBY
+
+  if ruby "${checker}" "${mutation_root}/scripts/build-mono.sh" \
+    "${mutated_workflow}" >/dev/null 2>&1; then
+    printf 'Integration checker ignored full-line command comments.\n'
+  else
+    printf 'FAIL: integration checker treated full-line comments as commands.\n' >&2
+    mutation_failures=$((mutation_failures + 1))
+  fi
+
+  if bash "${mutation_root}/tests/verify-manual-sonarqube-workflow.test.sh" \
+    >/dev/null 2>&1; then
+    printf 'Manual Sonar guard ignored full-line command comments.\n'
+  else
+    printf 'FAIL: manual Sonar guard treated full-line comments as commands.\n' >&2
+    mutation_failures=$((mutation_failures + 1))
+  fi
+}
+
 assert_workflow_mutation_rejected "npm-options" "npm ci with options"
 assert_workflow_mutation_rejected "npm-inline-comment" "npm ci with an inline comment"
 assert_workflow_mutation_rejected "npm-continuation" "continued npm ci"
@@ -730,6 +827,16 @@ assert_workflow_mutation_rejected \
 assert_workflow_mutation_rejected \
   "npm-windows-omit-value-option" \
   "npm.cmd ci after --omit value"
+assert_workflow_mutation_rejected \
+  "npm-redirection-suffix" "npm ci with fused output redirection"
+assert_workflow_mutation_rejected \
+  "npm-redirection-after-executable" "npm with fused output redirection before ci"
+assert_workflow_mutation_rejected \
+  "npm-pipe" "npm ci with a fused pipe"
+assert_workflow_mutation_rejected \
+  "npm-background" "npm ci with a fused background operator"
+assert_workflow_mutation_rejected \
+  "npm-redirected-chain" "duplicate redirected npm ci commands"
 assert_workflow_mutation_rejected \
   "standards-continue-on-error" "non-blocking standards step"
 assert_workflow_mutation_rejected \
@@ -828,6 +935,22 @@ assert_build_mutation_rejected \
 assert_workflow_mutation_rejected \
   "pre-standards-root-restore" \
   "repository-root restore before standards verification"
+assert_workflow_mutation_rejected \
+  "pre-standards-redirected-restore" \
+  "redirected restore before standards verification"
+assert_workflow_mutation_rejected \
+  "pre-standards-redirection-after-dotnet" \
+  "dotnet with fused redirection before build"
+assert_workflow_mutation_rejected \
+  "pre-standards-piped-test" \
+  "piped test before standards verification"
+assert_workflow_mutation_rejected \
+  "pre-standards-background-restore" \
+  "background restore before standards verification"
+assert_workflow_mutation_rejected \
+  "pre-standards-redirected-chain" \
+  "redirected build and test before standards verification"
+assert_full_line_command_comments_ignored
 
 if ((mutation_failures > 0)); then
   printf 'FAIL: %d guard mutation acceptance(s) detected.\n' \

@@ -1,3 +1,5 @@
+using Rvt.Monitor.IntegrationTesting;
+
 namespace MyAtmMonitorTests.Architecture;
 
 [TestClass]
@@ -12,7 +14,7 @@ public sealed class ConsumerMessagingBoundaryTests
     [TestMethod]
     public void ObsoleteSynchronousMessageCallsAreLimitedToConsumerCompatibilityAllowlist()
     {
-        var root = RepositoryRoot();
+        string root = RepositoryLayout.Root;
         var callers = new[]
             {
                 "apps/monitors/myatmmonitor/MyAtmMonitor",
@@ -50,23 +52,6 @@ public sealed class ConsumerMessagingBoundaryTests
             segment.Equals("obj", StringComparison.OrdinalIgnoreCase) ||
             segment.EndsWith("Test", StringComparison.OrdinalIgnoreCase) ||
             segment.EndsWith("Tests", StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var gitPath = Path.Combine(directory.FullName, ".git");
-            if (Directory.Exists(gitPath) || File.Exists(gitPath))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not find repository root from test output directory.");
     }
 
     private sealed record SourceFile(string RelativePath, string Text);

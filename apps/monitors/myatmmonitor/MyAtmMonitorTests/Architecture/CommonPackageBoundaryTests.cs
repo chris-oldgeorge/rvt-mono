@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Xml.Linq;
+using Rvt.Monitor.IntegrationTesting;
 
 namespace MyAtmMonitorTests.Architecture;
 
@@ -118,7 +119,7 @@ public sealed class CommonPackageBoundaryTests
     [TestMethod]
     public void MonitorCentralPackageManagement_DoesNotBindRvtPackages()
     {
-        var props = XDocument.Load(Path.Combine(MonoRepositoryRoot(), "apps/monitors/Directory.Packages.props"));
+        var props = XDocument.Load(Path.Combine(RepositoryLayout.Root, "apps/monitors/Directory.Packages.props"));
         var rvtBindings = props.Descendants()
             .Where(element => element.Name.LocalName == "PackageVersion")
             .Select(element => (string?)element.Attribute("Include"))
@@ -133,7 +134,7 @@ public sealed class CommonPackageBoundaryTests
     public void InternalRvtProjects_AreSourceOnly()
     {
         var violations = RvtSourceProjects
-            .Select(path => (Path: path, Project: XDocument.Load(Path.Combine(MonoRepositoryRoot(), path))))
+            .Select(path => (Path: path, Project: XDocument.Load(Path.Combine(RepositoryLayout.Root, path))))
             .Where(item => !item.Project.Descendants()
                 .Any(element => element.Name.LocalName == "IsPackable" &&
                     string.Equals(element.Value.Trim(), "false", StringComparison.OrdinalIgnoreCase)))
@@ -147,7 +148,7 @@ public sealed class CommonPackageBoundaryTests
     [TestMethod]
     public void NuGetConfiguration_UsesOnlyNuGetOrgWithoutInternalFeedsOrCredentials()
     {
-        var root = MonoRepositoryRoot();
+        string root = RepositoryLayout.Root;
         foreach (var relative in new[]
                  {
                      "apps/monitors/NuGet.config",
@@ -171,7 +172,7 @@ public sealed class CommonPackageBoundaryTests
         var violations = ExpectedSourceReferences.Keys
             .Where(path => Path.GetFileNameWithoutExtension(path).EndsWith("Tests", StringComparison.Ordinal))
             .Where(path => !HasSingleUnconditionalTestProjectDeclaration(
-                XDocument.Load(Path.Combine(MonoRepositoryRoot(), path))))
+                XDocument.Load(Path.Combine(RepositoryLayout.Root, path))))
             .Order(StringComparer.Ordinal)
             .ToArray();
 
@@ -202,7 +203,7 @@ public sealed class CommonPackageBoundaryTests
     public void MigrationDocumentation_UsesCheckedInMonorepoPostgreSqlMigrationPaths()
     {
         var readme = File.ReadAllText(
-            Path.Combine(MonoRepositoryRoot(), "docs/modules/monitors/myatmmonitor/README.md"));
+            Path.Combine(RepositoryLayout.Root, "docs/modules/monitors/myatmmonitor/README.md"));
 
         Assert.DoesNotContain("gh run download", readme);
         Assert.Contains("libs/rvt-monitor-common/database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql", readme);
@@ -217,7 +218,7 @@ public sealed class CommonPackageBoundaryTests
         string relativeProjectPath,
         IReadOnlyCollection<string> expectedReferences)
     {
-        var root = MonoRepositoryRoot();
+        string root = RepositoryLayout.Root;
         var projectPath = Path.Combine(root, relativeProjectPath);
         var project = XDocument.Load(projectPath);
         var actualReferences = project.Descendants()
@@ -239,7 +240,7 @@ public sealed class CommonPackageBoundaryTests
 
     private static IEnumerable<string> FindActiveRvtPackageReferences()
     {
-        var root = MonoRepositoryRoot();
+        string root = RepositoryLayout.Root;
         foreach (var scope in new[] { "apps/monitors", "apps/portal" })
         {
             foreach (var projectPath in Directory.EnumerateFiles(
@@ -262,7 +263,7 @@ public sealed class CommonPackageBoundaryTests
 
     private static IEnumerable<string> ValidateSourceConsumerLock(string relativeLockPath)
     {
-        var lockPath = Path.Combine(MonoRepositoryRoot(), relativeLockPath);
+        string lockPath = Path.Combine(RepositoryLayout.Root, relativeLockPath);
         if (!File.Exists(lockPath))
         {
             yield return $"{relativeLockPath}: expected active-consumer lock file is missing.";
@@ -321,23 +322,5 @@ public sealed class CommonPackageBoundaryTests
     }
 
     private static string Relative(string path) =>
-        Path.GetRelativePath(MonoRepositoryRoot(), path).Replace('\\', '/');
-
-    private static string MonoRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if ((Directory.Exists(Path.Combine(directory.FullName, ".git")) ||
-                 File.Exists(Path.Combine(directory.FullName, ".git"))) &&
-                File.Exists(Path.Combine(directory.FullName, "Rvt.Mono.slnx")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not find the mono-repository root from test output directory.");
-    }
+        Path.GetRelativePath(RepositoryLayout.Root, path).Replace('\\', '/');
 }

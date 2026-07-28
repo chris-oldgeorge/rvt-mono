@@ -1,3 +1,5 @@
+using Rvt.Monitor.IntegrationTesting;
+
 namespace SvantekMonitorTests.Architecture;
 
 [TestClass]
@@ -6,9 +8,14 @@ public sealed class SvantekDependencyBoundaryTests
     [TestMethod]
     public void ApiPartials_DoNotCallConcreteDatabaseClientFieldDirectly()
     {
-        var repositoryRoot = FindRepositoryRoot();
+        string repositoryRoot = RepositoryLayout.Root;
         var apiFiles = Directory.GetFiles(
-            Path.Combine(repositoryRoot, "apps", "monitors", "svantekmonitor", "SvantekMonitor", "api"),
+            RepositoryLayout.GetPath(
+                "apps",
+                "monitors",
+                "svantekmonitor",
+                "SvantekMonitor",
+                "api"),
             "SvantekApi*.cs",
             SearchOption.TopDirectoryOnly);
 
@@ -27,21 +34,4 @@ public sealed class SvantekDependencyBoundaryTests
         CollectionAssert.AreEqual(Array.Empty<string>(), directCalls);
     }
 
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var gitPath = Path.Combine(directory.FullName, ".git");
-            if (Directory.Exists(gitPath) || File.Exists(gitPath))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        Assert.Fail("Could not find repository root from test output directory.");
-        return string.Empty;
-    }
 }

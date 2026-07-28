@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Rvt.Monitor.IntegrationTesting;
 
 namespace SvantekMonitorTests.EntityFramework;
 
@@ -8,8 +9,7 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     [TestMethod]
     public void IntegrationFixture_UsesCanonicalGeneratedSchemaObjects()
     {
-        var fixturePath = Path.Combine(
-            FindRepoRoot(),
+        string fixturePath = RepositoryLayout.GetPath(
             "apps",
             "monitors",
             "svantekmonitor",
@@ -57,8 +57,7 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     [TestMethod]
     public void IntegrationFixture_ResetCoversCanonicalTablesAndSeedsOfflineRule()
     {
-        var testDataPath = Path.Combine(
-            FindRepoRoot(),
+        string testDataPath = RepositoryLayout.GetPath(
             "apps",
             "monitors",
             "svantekmonitor",
@@ -92,8 +91,7 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     [TestMethod]
     public void StatusTelemetryPatch_IncludesMissingPostgreSqlColumns()
     {
-        var patchPath = Path.Combine(
-            FindRepoRoot(),
+        string patchPath = RepositoryLayout.GetPath(
             "apps",
             "monitors",
             "svantekmonitor",
@@ -119,8 +117,7 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
     [TestMethod]
     public void DemoMonitorResetPatch_IncludesTargetNoiseMonitor()
     {
-        var patchPath = Path.Combine(
-            FindRepoRoot(),
+        string patchPath = RepositoryLayout.GetPath(
             "apps",
             "monitors",
             "svantekmonitor",
@@ -140,20 +137,4 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
         Assert.Contains("2026-03-15 20:00:00", sql);
     }
 
-    private static string FindRepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (Directory.Exists(Path.Combine(directory.FullName, ".git")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        Assert.Fail("Could not locate repository root from test output directory.");
-        return string.Empty;
-    }
 }

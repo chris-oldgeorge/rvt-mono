@@ -1,5 +1,27 @@
 # Project State
 
+## Authoritative checkpoint: engineering-standards deletion-only hunk repair — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Current branch: `codex/help-asset-url-release-audit`, based on the existing
+  Help audit and Portal email-toggle delivery scope. This checkpoint
+  supersedes lower current-state and next-step statements while retaining them
+  as historical evidence.
+- The GitHub Engineering standards check exposed a verifier defect: a retained
+  source file whose range change only deleted lines was rejected for lacking a
+  new-side range. `scripts/engineering-standards/verify.mjs` now records
+  zero-length new-side hunks as deletion-only paths, so those valid changes
+  can be verified while metadata-only changes and empty added source files
+  remain rejected.
+- `tests/verify-engineering-standards.test.sh` contains the committed-range
+  regression: it deletes a member from `src/Clock.cs`, verifies the range, and
+  asserts successful analysis. The full suite passed after the repair, and
+  `git diff --check` passed.
+- No application variable definitions, secrets, runtime configuration, or
+  deployment behavior changed in this repair. The Portal email setting remains
+  `RVT:EMAIL_ENABLED`, supplied by environment variable
+  `RVT__Email_ENABLED`, defaulting to `true`.
+
 ## Authoritative checkpoint: Help audit and Portal email-toggle scopes — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

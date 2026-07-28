@@ -1,6 +1,7 @@
-// File summary: Verifies Help asset URL release-audit classification and secret-safe deterministic receipts.
+// File summary: Verifies Help asset URL release-audit classification, CLI orchestration, and secret-safe deterministic receipts.
 // Major updates:
 // - 2026-07-28 Added release-audit classifier and receipt contract coverage.
+// - 2026-07-28 Added fail-closed option, orchestration, and atomic receipt-writing coverage.
 
 using System.Text.Json;
 using RVT.ReleaseAudit;
@@ -10,6 +11,10 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class HelpAssetUrlAuditTests
 {
+    private const string Usage =
+        "Usage: RVT.ReleaseAudit help-asset-urls --environment <label> --revision <git-sha> --receipt <path>"
+        + "\nSet RVT_RELEASE_AUDIT_CONNECTION in the process environment.\n";
+
     private static readonly DateTimeOffset ExecutedAtUtc =
         new(2026, 7, 28, 12, 34, 56, TimeSpan.Zero);
 
@@ -24,6 +29,308 @@ public sealed class HelpAssetUrlAuditTests
             }
 
             return cases;
+        }
+    }
+
+    public static TheoryData<string[]> InvalidArgumentCases =>
+        new()
+        {
+            Array.Empty<string>(),
+            new[] { "unknown", "--environment", "production", "--revision", "abcdef0", "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "help-asset-urls", "--environment", "production", "--revision", "abcdef0", "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "--revision", "abcdef0", "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "--environment", "production", "--revision", "abcdef0", "--unknown", "receipt.json" },
+            new[] { "help-asset-urls", "--environment", "production", "--environment", "staging", "--revision", "abcdef0", "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "--environment", "--revision", "abcdef0", "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "--environment", " ", "--revision", "abcdef0", "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "--environment", "production/eu", "--revision", "abcdef0", "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "--environment", new string('a', 65), "--revision", "abcdef0", "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "--environment", "production", "--revision", "abcdef", "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "--environment", "production", "--revision", "abcdefg", "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "--environment", "production", "--revision", new string('a', 65), "--receipt", "receipt.json" },
+            new[] { "help-asset-urls", "--environment", "production", "--revision", "abcdef0", "--receipt", " " },
+            new[] { "help-asset-urls", "--environment", "production", "--revision", "abcdef0", "--receipt", "\0receipt.json" }
+        };
+
+    [Fact]
+    public void Parse_AcceptsEachRequiredFlagOnceAndResolvesReceiptPath()
+    {
+        var options = ReleaseAuditOptions.Parse(
+        [
+            "help-asset-urls",
+            "--receipt", "artifacts/help-audit.json",
+            "--revision", "a1B2c3D",
+            "--environment", "production.eu-1"
+        ]);
+
+        Assert.NotNull(options);
+        Assert.Equal("production.eu-1", options.Environment);
+        Assert.Equal("a1B2c3D", options.Revision);
+        Assert.Equal(Path.GetFullPath("artifacts/help-audit.json"), options.ReceiptPath);
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidArgumentCases))]
+    public void Parse_RejectsMissingUnknownDuplicateOrMalformedInput(string[] args)
+    {
+        Assert.Null(ReleaseAuditOptions.Parse(args));
+    }
+
+    [Fact]
+    public void Parse_RejectsReceiptPathThatResolvesToDirectory()
+    {
+        Assert.Null(ReleaseAuditOptions.Parse(
+        [
+            "help-asset-urls",
+            "--environment", "production",
+            "--revision", "abcdef0",
+            "--receipt", Path.GetTempPath()
+        ]));
+    }
+
+    [Fact]
+    public void Parse_RejectsFlagTokenUsedAsMissingValue()
+    {
+        Assert.Null(ReleaseAuditOptions.Parse(
+        [
+            "help-asset-urls",
+            "--receipt", "--environment",
+            "--revision", "abcdef0",
+            "--environment", "production"
+        ]));
+    }
+
+    [Fact]
+    public async Task RunAsync_InvalidInputReturnsUsageWithoutReadingEnvironmentOrEchoingArguments()
+    {
+        const string secretMarker = "secret-marker-invalid-input";
+        var result = await RunProgramAsync(
+            args:
+            [
+                "help-asset-urls",
+                "--environment", secretMarker,
+                "--revision", "not-a-git-sha",
+                "--receipt", "receipt.json"
+            ],
+            getEnvironmentVariable: _ => throw new InvalidOperationException("environment must not be read"));
+
+        Assert.Equal(ReleaseAuditProgram.InvalidInput, result.ExitCode);
+        Assert.Empty(result.StandardOutput);
+        Assert.Equal(Usage, NormalizeNewLines(result.StandardError));
+        Assert.DoesNotContain(secretMarker, result.StandardOutput + result.StandardError, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_MissingConnectionReturnsUsageAndReadsEnvironmentOnce()
+    {
+        var lookupCount = 0;
+        var result = await RunProgramAsync(
+            getEnvironmentVariable: variableName =>
+            {
+                lookupCount++;
+                Assert.Equal("RVT_RELEASE_AUDIT_CONNECTION", variableName);
+                return null;
+            });
+
+        Assert.Equal(ReleaseAuditProgram.InvalidInput, result.ExitCode);
+        Assert.Equal(1, lookupCount);
+        Assert.Empty(result.StandardOutput);
+        Assert.Equal(Usage, NormalizeNewLines(result.StandardError));
+    }
+
+    [Fact]
+    public async Task RunAsync_CompleteAuditWithoutFindingsWritesReceiptAndReturnsPassed()
+    {
+        const string rawUrl = "https://private.rvt.test/guide.pdf?token=raw-input";
+        string? receiptPath = null;
+        string? receiptJson = null;
+        var row = new HelpAssetUrlAuditRow(
+            Guid.Parse("10000000-0000-0000-0000-000000000001"),
+            Guid.Parse("20000000-0000-0000-0000-000000000001"),
+            rawUrl);
+        var result = await RunProgramAsync(
+            readRows: (_, _) => Task.FromResult(
+                new HelpAssetUrlAuditReadResult("rvt_portal", [row])),
+            writeReceipt: (path, json, _) =>
+            {
+                receiptPath = path;
+                receiptJson = json;
+                return Task.CompletedTask;
+            });
+
+        Assert.Equal(ReleaseAuditProgram.Passed, result.ExitCode);
+        Assert.Equal(Path.GetFullPath("receipt.json"), receiptPath);
+        Assert.NotNull(receiptJson);
+        Assert.DoesNotContain(rawUrl, receiptJson, StringComparison.Ordinal);
+        using var document = JsonDocument.Parse(receiptJson);
+        var receipt = document.RootElement;
+        Assert.Equal("production", receipt.GetProperty("environment").GetString());
+        Assert.Equal("rvt_portal", receipt.GetProperty("database").GetString());
+        Assert.Equal("2026-07-28T12:34:56+00:00", receipt.GetProperty("executedAtUtc").GetString());
+        Assert.Equal("abcdef0", receipt.GetProperty("revision").GetString());
+        Assert.Equal("test-version", receipt.GetProperty("auditVersion").GetString());
+        Assert.Equal("pass", receipt.GetProperty("outcome").GetString());
+        Assert.Empty(result.StandardOutput);
+        Assert.Empty(result.StandardError);
+    }
+
+    [Fact]
+    public async Task RunAsync_CompleteAuditWithFindingsWritesUrlFreeReceiptAndReturnsViolationsFound()
+    {
+        const string rawRejectedUrl = "http://private.rvt.test/guide.pdf?credential=raw-input";
+        string? receiptJson = null;
+        var row = new HelpAssetUrlAuditRow(
+            Guid.Parse("10000000-0000-0000-0000-000000000001"),
+            Guid.Parse("20000000-0000-0000-0000-000000000001"),
+            rawRejectedUrl);
+        var result = await RunProgramAsync(
+            readRows: (_, _) => Task.FromResult(
+                new HelpAssetUrlAuditReadResult("rvt_portal", [row])),
+            writeReceipt: (_, json, _) =>
+            {
+                receiptJson = json;
+                return Task.CompletedTask;
+            });
+
+        Assert.Equal(ReleaseAuditProgram.ViolationsFound, result.ExitCode);
+        Assert.NotNull(receiptJson);
+        Assert.Contains("\"violationCode\": \"absolute_https_required\"", receiptJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(rawRejectedUrl, receiptJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(rawRejectedUrl, result.StandardOutput + result.StandardError, StringComparison.Ordinal);
+        Assert.Empty(result.StandardOutput);
+        Assert.Empty(result.StandardError);
+    }
+
+    [Fact]
+    public async Task RunAsync_DatabaseExceptionReturnsAuditFailureWithoutLeakingExceptionText()
+    {
+        const string secretMarker = "Password=secret-marker-database";
+        const string rawRejectedUrl = "http://private.rvt.test/rejected.pdf";
+        var expectedConnection =
+            $"Host=database.test;Database=rvt;{secretMarker}";
+        var result = await RunProgramAsync(
+            getEnvironmentVariable: _ => expectedConnection,
+            readRows: (connectionString, _) =>
+            {
+                if (!string.Equals(
+                    expectedConnection,
+                    connectionString,
+                    StringComparison.Ordinal))
+                {
+                    return Task.FromResult(
+                        new HelpAssetUrlAuditReadResult(
+                            "unexpected",
+                            Array.Empty<HelpAssetUrlAuditRow>()));
+                }
+
+                throw new InvalidOperationException(
+                    $"database exception contained {connectionString} and {rawRejectedUrl}");
+            });
+
+        Assert.Equal(ReleaseAuditProgram.AuditFailure, result.ExitCode);
+        Assert.Empty(result.StandardOutput);
+        Assert.Equal(
+            "FAILED: Help asset URL audit did not complete.\n",
+            NormalizeNewLines(result.StandardError));
+        Assert.DoesNotContain(secretMarker, result.StandardOutput + result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain(rawRejectedUrl, result.StandardOutput + result.StandardError, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_CancellationReturnsAuditFailure()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var result = await RunProgramAsync(
+            readRows: (_, cancellationToken) => Task.FromCanceled<HelpAssetUrlAuditReadResult>(
+                cancellationToken),
+            cancellationToken: cancellation.Token);
+
+        Assert.Equal(ReleaseAuditProgram.AuditFailure, result.ExitCode);
+        Assert.Empty(result.StandardOutput);
+        Assert.Equal(
+            "FAILED: Help asset URL audit did not complete.\n",
+            NormalizeNewLines(result.StandardError));
+    }
+
+    [Fact]
+    public async Task RunAsync_ReceiptWriterExceptionReturnsAuditFailureWithoutLeakingExceptionText()
+    {
+        const string secretMarker = "secret-marker-receipt";
+        const string rawRejectedUrl = "http://private.rvt.test/rejected.pdf";
+        var result = await RunProgramAsync(
+            writeReceipt: (_, _, _) => throw new IOException(
+                $"receipt exception contained {secretMarker} and {rawRejectedUrl}"));
+
+        Assert.Equal(ReleaseAuditProgram.AuditFailure, result.ExitCode);
+        Assert.Empty(result.StandardOutput);
+        Assert.Equal(
+            "FAILED: Help asset URL audit did not complete.\n",
+            NormalizeNewLines(result.StandardError));
+        Assert.DoesNotContain(secretMarker, result.StandardOutput + result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain(rawRejectedUrl, result.StandardOutput + result.StandardError, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_ReceiptDirectoryCreationFailureReturnsAuditFailureAndDoesNotPublishReceipt()
+    {
+        var testDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"rvt-release-audit-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(testDirectory);
+        var blockingFile = Path.Combine(testDirectory, "not-a-directory");
+        await File.WriteAllTextAsync(blockingFile, "block");
+        var receiptPath = Path.Combine(blockingFile, "receipt.json");
+
+        try
+        {
+            var result = await RunProgramAsync(
+                args: ValidArguments(receiptPath),
+                writeReceipt: HelpAssetUrlAudit.WriteReceiptAsync);
+
+            Assert.Equal(ReleaseAuditProgram.AuditFailure, result.ExitCode);
+            Assert.False(File.Exists(receiptPath));
+            Assert.Empty(result.StandardOutput);
+            Assert.Equal(
+                "FAILED: Help asset URL audit did not complete.\n",
+                NormalizeNewLines(result.StandardError));
+        }
+        finally
+        {
+            Directory.Delete(testDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WriteReceiptAsync_WritesUtf8WithoutBomAndAtomicallyReplacesExistingReceipt()
+    {
+        var testDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"rvt-release-audit-{Guid.NewGuid():N}");
+        var receiptPath = Path.Combine(testDirectory, "nested", "receipt.json");
+
+        try
+        {
+            await HelpAssetUrlAudit.WriteReceiptAsync(
+                receiptPath,
+                "{\"outcome\":\"old\"}\n",
+                CancellationToken.None);
+            await HelpAssetUrlAudit.WriteReceiptAsync(
+                receiptPath,
+                "{\"outcome\":\"pass\"}\n",
+                CancellationToken.None);
+
+            var bytes = await File.ReadAllBytesAsync(receiptPath);
+            Assert.False(bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }));
+            Assert.Equal("{\"outcome\":\"pass\"}\n", System.Text.Encoding.UTF8.GetString(bytes));
+            Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(receiptPath)!, "*.tmp"));
+        }
+        finally
+        {
+            if (Directory.Exists(testDirectory))
+            {
+                Directory.Delete(testDirectory, recursive: true);
+            }
         }
     }
 
@@ -162,4 +469,47 @@ public sealed class HelpAssetUrlAuditTests
             executedAtUtc: ExecutedAtUtc,
             revision: "abc123",
             auditVersion: "1");
+
+    private static string[] ValidArguments(string receiptPath = "receipt.json") =>
+    [
+        "help-asset-urls",
+        "--environment", "production",
+        "--revision", "abcdef0",
+        "--receipt", receiptPath
+    ];
+
+    private static async Task<ProgramRunResult> RunProgramAsync(
+        IReadOnlyList<string>? args = null,
+        Func<string, string?>? getEnvironmentVariable = null,
+        Func<string, CancellationToken, Task<HelpAssetUrlAuditReadResult>>? readRows = null,
+        Func<string, string, CancellationToken, Task>? writeReceipt = null,
+        CancellationToken cancellationToken = default)
+    {
+        var standardOutput = new StringWriter();
+        var standardError = new StringWriter();
+        var exitCode = await ReleaseAuditProgram.RunAsync(
+            args ?? ValidArguments(),
+            getEnvironmentVariable ?? (_ => "Host=database.test;Database=rvt;Password=not-real"),
+            () => ExecutedAtUtc,
+            () => "test-version",
+            readRows ?? ((_, _) => Task.FromResult(
+                new HelpAssetUrlAuditReadResult("rvt_portal", Array.Empty<HelpAssetUrlAuditRow>()))),
+            writeReceipt ?? ((_, _, _) => Task.CompletedTask),
+            standardOutput,
+            standardError,
+            cancellationToken);
+
+        return new ProgramRunResult(
+            exitCode,
+            standardOutput.ToString(),
+            standardError.ToString());
+    }
+
+    private static string NormalizeNewLines(string value) =>
+        value.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+    private sealed record ProgramRunResult(
+        int ExitCode,
+        string StandardOutput,
+        string StandardError);
 }

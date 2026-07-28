@@ -19,8 +19,10 @@
 - The primary `main` worktree was fast-forwarded to the merge while preserving
   its unrelated, unstaged
   `apps/portal/RvtPortal.Spa/Properties/launchSettings.json` change that sets
-  `RVT__EMAIL_ENABLED` to `false`. That developer-only setting was not staged
-  or committed.
+  `RVT__EMAIL_ENABLED` to `false`, plus an unrelated, unstaged
+  `apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj` edit that uses explicit
+  Windows `cmd.exe`/`pushd` SPA commands. Neither local developer change was
+  staged or committed.
 - Remaining pending work is deliberately separate: adopt the additional
   ESLint 10 and React Hooks 7 recommended rules in a lint-modernization scope,
   and complete the documented Help Admin/R2 operator release-database audit

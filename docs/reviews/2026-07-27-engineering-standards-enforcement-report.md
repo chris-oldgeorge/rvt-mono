@@ -6,8 +6,8 @@
 
 **Implementation head before this report:** `2286532`
 
-**Disposition:** R9 enforcement implemented; classified non-R9 aggregate
-failures remain open
+**Disposition:** R9 enforcement implemented; final Ready remains pending
+independent re-review of the final-audit remediations
 
 ## Outcome
 
@@ -36,8 +36,36 @@ suppressed, and no production database credential was used.
 | Changed-surface verifier | `988c0e9`, `6bc3b26`, `f5f1472`, `8d50a96`, `20c3bde`, `5c850cc`, `30acaca` |
 | Frontend formatting and naming | `e8759f6`, `d0d659c` |
 | Baseline and module policy | `604912d`, `71a84a0`, `20d89b0`, `331c181`, `d3ab241`, `76eecc4` |
-| Local and CI integration | `bfa78d0`, `dd3910d`, `299d971`, `c03ba2e`, `2286532` |
-| Documentation evidence | `docs: record engineering standards enforcement` (this commit) |
+| Local and CI integration | `bfa78d0`, `dd3910d`, `299d971`, `c03ba2e`, `2286532`, `ea6fd74` |
+| Final-audit hardening | `33e8c60`, `ed8f123` |
+| Documentation evidence | `a098090`; this tracked final-audit evidence update |
+
+## Final-audit remediation status
+
+The final audit found gaps after the original implementation report. The
+following remediations are committed, but the branch is not declared final
+Ready until an independent reviewer accepts the combined result:
+
+- **Finding 5 — exception applicability:** the model could validate a
+  symbol-scoped exception even though ratchet comparison applied only exact
+  path exceptions. Commit `ed8f123` removes the unused symbol-validation path
+  and fails closed on every symbol scope. R9 now documents exact
+  repository-relative paths as its only active exception mechanism.
+- **Finding 7 — enforcement evidence completeness:** commit `ed8f123` makes
+  the root README and documentation index links to the normative standard,
+  enforcement guide, and report executable requirements. The same commit adds
+  the tracked full-logical-unit review record below. A disposable repository
+  fixture proves that removing any of the six links or moving the normative
+  target fails the guard.
+- **Minor documentation finding — stale execution plan:** every genuinely
+  completed Task 1–7 step is now checked in the implementation plan.
+- **Minor documentation finding — incomplete rule catalog:** the design rule
+  table now includes the `RES` prefix for resource, stream, and storage
+  ownership.
+
+The audit also produced separate policy-materialization and pull-request CI
+findings. They are remediated by `33e8c60` and `ea6fd74` respectively and are
+part of the required combined re-review.
 
 ## Baseline
 
@@ -64,11 +92,11 @@ refuse increases, and concurrent updates revalidate against the live file.
 | --- | --- | --- | --- |
 | One authoritative standard | `docs/development/engineering-standards.md`; root `README.md`; `docs/index.md` | documentation layout guards | `tests/verify-documentation-layout.test.sh` |
 | Ratcheted changed-scope enforcement | `scripts/engineering-standards/verify.mjs`; baseline model | new-file, changed-line, increase, decrease, and exact-range scenarios | `tests/verify-engineering-standards.test.sh` |
-| Logical-unit compliance | GOV-001 review contract plus changed-range enforcement | stable-count diagnostic on a changed line fails; complete new file fails | model suite and verifier scenario suite |
+| Logical-unit compliance | GOV-001 review contract, the tracked record below, and changed-range enforcement | complete logical-unit review plus stable-count changed-line and complete-new-file rejection | this report; model suite; verifier scenario suite |
 | Root plus stricter module policy | `.editorconfig`; `Directory.Build.props`; four module imports | hierarchy mutation tests and evaluated project inventory | `tests/verify-engineering-configuration.test.sh`; policy suite |
 | Ratchet-to-Strict promotion | evaluated `RvtEngineeringStandardsMode` properties | Ratchet/Strict evaluation guard and documented zero-baseline gate | `--all`; strict build command in the enforcement guide |
 | Stable rule/evidence model | `scripts/engineering-standards/model.mjs` | deterministic keys, ordering, realistic parser fixtures, non-mutation | `node --test tests/engineering-standards-model.test.mjs` |
-| Owned, expiring exceptions | `eng/standards/exceptions.json`; exact validator | expiry, ordering, exact path/symbol, wildcard, and scope RED cases | model and policy suites |
+| Owned, expiring exceptions | `eng/standards/exceptions.json`; exact-path validation | expiry, ordering, exact-path, wildcard, and unsupported-symbol RED cases | model and policy suites |
 | .NET formatting/analyzers | three real `dotnet format` phases | changed C# scenarios and temporary real whitespace mutation | verifier suite; temporary `--working-tree` proof |
 | TypeScript lint/format | pinned Prettier 3.9.6; ESLint naming policy | changed-file cases and real naming baseline increase | Portal lint; temporary `--working-tree` proof |
 | No package/test-policy drift | `eng/standards/module-policy.json` | evaluated MSBuild framework, central-policy, lock, symlink, and solution census mutations | `node --test tests/verify-engineering-standards-policy.test.mjs` |
@@ -76,6 +104,26 @@ refuse increases, and concurrent updates revalidate against the live file.
 | CI enforcement | `.github/workflows/sonarqube.yml` | blocking/unconditional order, wrappers, options, punctuation, duplicate install, and removed-gate mutations | integration and manual Sonar workflow guards |
 | Guards can fail | verifier, hierarchy, source, workflow, and architecture mutation harnesses | nested root, increase, removed gate, C#, TS, shell punctuation, and forbidden reference mutations | complete root shell guard matrix |
 | No regression | root configuration and baseline remain unchanged by proof | standards matrix 50/50; 12/12 root guards; compiler/frontend pass; zero ratchet increase | commands below |
+
+## Tracked full-logical-unit review evidence
+
+Changed-range automation is a supplement to review, not a claim that a line is
+the whole GOV-001 compliance unit. The R9 reviews examined the complete units
+listed below. This table is the tracked review record; ignored worker reports
+and diff packages are supporting detail, not the sole evidence.
+
+| Complete logical unit reviewed | Scope reviewed | Result |
+| --- | --- | --- |
+| Shared configuration hierarchy | Root EditorConfig/MSBuild policy and every module import or stricter override as one inheritance unit | Accepted after evaluated-property, real EditorConfig, nested-root, and removed-import mutations |
+| Diagnostic and exception model | Complete path normalization, report parsing, baseline validation, exception validation, keying, counting, and ratchet-comparison functions | Accepted after focused review rounds; final audit found the symbol applicability mismatch, now fail-closed in `ed8f123` |
+| Changed-surface verifier | Complete invocation/mode parsing, revision materialization, changed-range resolution, tool execution, diagnostic normalization, exception application, and baseline-update transaction | Accepted after repeated independent review and load-bearing scenario mutations |
+| Frontend enforcement policy | Complete Prettier/ESLint configuration, package scripts, lockfile effect, generated-source exclusion, and naming rule | Accepted after lint, formatter, test, production-build, and real naming mutation evidence |
+| Baseline and module policy | Complete baseline lifecycle, exception register, project/package/test-framework census, and evaluated module policy | Accepted after deterministic, no-op, decrease-only, concurrency, symlink, lock, and solution-census mutations |
+| Local and CI gates | Complete local phase order and complete workflow dependency-install, restore, verifier, build, coverage, and failure-propagation units | Accepted after wrapper, option, targetless-command, punctuation, removal, duplication, and reordering mutations; pull-request trigger hardening is in `ea6fd74` |
+| Documentation authority and evidence | Root README, documentation index, normative standard, operator guide, design, plan, and enforcement report as one navigable authority unit | Remediated in `ed8f123`; all six required entry-point links and target existence are now load-bearing |
+
+This record does not declare the final audit passed. Independent re-review of
+the combined final-audit commits remains the next gate.
 
 ## Verification evidence
 

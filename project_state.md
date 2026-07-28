@@ -3629,6 +3629,56 @@ TimescaleDB extensions where the schema requires them.
 
 Next-session instruction: Read project_state.md to get up to speed
 
+## Repository engineering standards final-audit remediation - 2026-07-28
+
+- Active branch: `codex/repository-engineering-standards`.
+- Final Ready is pending independent re-review. The current remediation set is
+  `33e8c60` (materialized-policy trust), `ea6fd74` (pull-request CI
+  enforcement), and `ed8f123` (exception and documentation hardening). Do not
+  claim the branch final Ready until the combined review passes.
+- Final-audit finding 5 is remediated in `ed8f123`: `validateExceptions`
+  rejects every symbol-scoped exception because R9 has no registered validator
+  that both proves and applies symbol scope. Exact repository-relative path is
+  the active exception mechanism. The unused `validateExactSymbol` and
+  `validateRuleSpecificValidator` helpers were removed.
+- Final-audit finding 7 is remediated in `ed8f123`: the documentation layout
+  guard requires both `README.md` and `docs/index.md` to link the normative
+  standard, enforcement guide, and enforcement report, and it verifies that
+  each required target exists. The tracked enforcement report now records the
+  complete GOV-001 logical units reviewed across R9.
+- The two minor documentation findings are remediated in `ed8f123`: all
+  genuinely completed Task 1–7 plan steps are checked, and the design rule
+  catalog includes the missing `RES` prefix.
+- Strict TDD evidence for symbol scope: the model suite first failed 1 of 26
+  tests because a symbol record was still accepted/validator-gated; after the
+  fail-closed narrowing it passed 26 of 26.
+- Strict TDD and load-bearing documentation evidence: the initial guard
+  accepted removal of the root standard link. The completed disposable
+  86-entry fixture rejects removal of each of the six authority links and
+  rejects moving the normative standard target. The real repository layout
+  also passes.
+- Files in `ed8f123`: `README.md`,
+  `docs/development/engineering-standards-enforcement.md`,
+  `docs/superpowers/plans/2026-07-27-repository-engineering-standards-enforcement.md`,
+  `docs/superpowers/specs/2026-07-27-repository-engineering-standards-design.md`,
+  `scripts/engineering-standards/model.mjs`,
+  `scripts/verify-documentation-layout.sh`,
+  `tests/engineering-standards-model.test.mjs`, and
+  `tests/verify-documentation-layout.test.sh`.
+- New documentation-guard variables are `entry_point_paths`,
+  `entry_point_targets`, `entry_point_path`, `entry_point_target`, and
+  `resolved_entry_point_target`. The mutation-fixture variables are
+  `fixture_root`, `relative_path`, `needle`, `replacement`, `target`, and
+  `original`. Model scope variables remain `hasPath` and `hasSymbol`.
+- Fresh focused verification before `ed8f123`: shell syntax passed; model tests
+  passed 26/26; the documentation regression and real layout guard passed; all
+  six removal mutations and the moved-target mutation were rejected; and
+  `git diff --check` passed.
+- Next step: request independent review of the combined final-audit commits,
+  then run the final branch verification before declaring Ready.
+
+Next-session instruction: Read project_state.md to get up to speed
+
 ## Help Admin application-boundary design - 2026-07-28
 
 - Branch: `codex/help-admin-application-boundary`.

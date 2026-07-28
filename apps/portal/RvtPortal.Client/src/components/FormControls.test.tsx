@@ -15,6 +15,8 @@ describe('FormControls', () => {
     render(
       <>
         <Notice tone="success" message="Saved" />
+        <Notice tone="error" message="Failed" />
+        <Notice tone="info" message="Review" />
         <ErrorSummary errors={['Email is required']} />
         <FormField label="Email" error="Use a valid email">
           <input aria-label="Email" />
@@ -23,6 +25,9 @@ describe('FormControls', () => {
     );
 
     expect(screen.getByText('Saved')).toBeInTheDocument();
+    expect(screen.getByText('Saved').closest('output')).not.toHaveAttribute('role');
+    expect(screen.getByText('Failed').closest('output')).toHaveAttribute('role', 'alert');
+    expect(screen.getByText('Review').closest('output')).not.toHaveAttribute('role');
     expect(screen.getByText('Email is required')).toBeInTheDocument();
     expect(screen.getByText('Use a valid email')).toBeInTheDocument();
   });

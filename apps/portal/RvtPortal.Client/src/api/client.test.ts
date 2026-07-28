@@ -38,6 +38,19 @@ describe('API client infrastructure', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('preserves the transport error when reporting an unavailable API', async () => {
+    const transportError = new TypeError('connection refused');
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw transportError;
+    }));
+
+    await expect(getHealth()).rejects.toMatchObject({
+      message:
+        'Unable to reach the RVT Portal API. Start RvtPortal.Spa on http://localhost:5178, or set VITE_RVT_PORTAL_API_URL to the API origin.',
+      cause: transportError,
+    });
+  });
+
   it('downloads files without navigating away from the SPA', async () => {
     vi.stubGlobal(
       'fetch',

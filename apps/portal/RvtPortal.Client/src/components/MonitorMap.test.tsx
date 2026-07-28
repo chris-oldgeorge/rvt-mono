@@ -73,6 +73,21 @@ describe('MonitorMap', () => {
     expect(leafletMocks.mapRemove).not.toHaveBeenCalled();
   });
 
+  it('rebuilds Leaflet with the latest committed marker content', async () => {
+    const { rerender } = render(<MonitorMap markers={[markerFixture()]} />);
+    await waitFor(() => expect(leafletMocks.mapSetView).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <MonitorMap
+        markers={[{ ...markerFixture(), latitude: 40.7128, longitude: -74.006 }]}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(leafletMocks.mapSetView).toHaveBeenLastCalledWith([40.7128, -74.006], 13),
+    );
+  });
+
   it('invalidates the Leaflet size after creation so tiles fill the container', async () => {
     render(<MonitorMap markers={[markerFixture()]} />);
 

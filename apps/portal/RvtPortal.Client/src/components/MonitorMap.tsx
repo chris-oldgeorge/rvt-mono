@@ -20,12 +20,10 @@ export function MonitorMap({ markers, label = 'Leaflet monitor map' }: MonitorMa
   const mapNode = useRef<HTMLDivElement | null>(null);
   const markerSignature = leafletMarkerSignature(markers);
   const leafletMarkers = useRef(markers);
-  const leafletSignature = useRef(markerSignature);
 
-  if (leafletSignature.current !== markerSignature) {
-    leafletSignature.current = markerSignature;
+  useEffect(() => {
     leafletMarkers.current = markers;
-  }
+  }, [markerSignature, markers]);
 
   useEffect(() => {
     const currentMarkers = leafletMarkers.current;

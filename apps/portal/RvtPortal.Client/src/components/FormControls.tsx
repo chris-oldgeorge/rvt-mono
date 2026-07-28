@@ -3,7 +3,7 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
-import { AlertCircle, CheckCircle2, HelpCircle, type LucideIcon } from 'lucide-react';
+import { AlertCircle, CheckCircle2, HelpCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 type NoticeTone = 'success' | 'error' | 'info';
@@ -15,10 +15,9 @@ type NoticeProps = Readonly<{
 
 // Function summary: Renders the Notice React component and wires its local UI behavior.
 export function Notice({ tone, message }: NoticeProps) {
-  const Icon = noticeIcon(tone);
   return (
     <output className={`notice ${tone}`} role={tone === 'error' ? 'alert' : undefined}>
-      <Icon size={18} aria-hidden="true" />
+      <NoticeIcon tone={tone} />
       <span>{message}</span>
     </output>
   );
@@ -128,13 +127,13 @@ export function ConfirmDialog({
   );
 }
 
-// Function summary: Handles the notice icon workflow for this module.
-function noticeIcon(tone: NoticeTone): LucideIcon {
+// Function summary: Renders the icon for the supplied notice tone.
+function NoticeIcon({ tone }: Readonly<{ tone: NoticeTone }>) {
   if (tone === 'success') {
-    return CheckCircle2;
+    return <CheckCircle2 size={18} aria-hidden="true" />;
   }
   if (tone === 'error') {
-    return AlertCircle;
+    return <AlertCircle size={18} aria-hidden="true" />;
   }
-  return HelpCircle;
+  return <HelpCircle size={18} aria-hidden="true" />;
 }

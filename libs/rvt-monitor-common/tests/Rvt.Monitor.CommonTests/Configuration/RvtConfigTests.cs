@@ -9,7 +9,7 @@ public sealed class RvtConfigTests
     [TestMethod]
     public void RuntimeDefaultsResolver_UsesTheExplicitMonitorKind()
     {
-        var resolver = new MonitorRuntimeDefaultsResolver("SvantekMonitor");
+        MonitorRuntimeDefaultsResolver resolver = new("SvantekMonitor");
 
         Assert.AreEqual("svantek", resolver.Defaults.Kind);
         Assert.AreEqual("https://svannet.com/api/v2.3/", resolver.Defaults.BaseUrl);
@@ -27,7 +27,7 @@ public sealed class RvtConfigTests
         string insertTopic,
         string alertTopic)
     {
-        var defaults = RvtConfig.ResolveMonitorDefaults(monitorKind, baseDirectory: "", entryAssemblyName: "");
+        MonitorRuntimeDefaults defaults = RvtConfig.ResolveMonitorDefaults(monitorKind, baseDirectory: "", entryAssemblyName: "");
 
         Assert.AreEqual(serviceName, defaults.ServiceName);
         Assert.AreEqual(baseUrl, defaults.BaseUrl);
@@ -42,7 +42,7 @@ public sealed class RvtConfigTests
     [DataRow("/tmp/rvt/svantekmonitor/SvantekMonitor/bin/Debug/net10.0", "SvantekMonitor noise monitor data collector running ")]
     public void ResolveMonitorDefaultsCanInferMonitorKindFromBaseDirectory(string baseDirectory, string serviceName)
     {
-        var defaults = RvtConfig.ResolveMonitorDefaults(monitorKind: "", baseDirectory, entryAssemblyName: "");
+        MonitorRuntimeDefaults defaults = RvtConfig.ResolveMonitorDefaults(monitorKind: "", baseDirectory, entryAssemblyName: "");
 
         Assert.AreEqual(serviceName, defaults.ServiceName);
     }
@@ -50,7 +50,7 @@ public sealed class RvtConfigTests
     [TestMethod]
     public void ResolveCredentialSettingsPrefersOmnidotsNamesWhenRunningAsOmnidots()
     {
-        var values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["RVT__AIRQ_USER_ID"] = "airq-user",
             ["RVT__AIRQ_USER_AUTH"] = "airq-auth",
@@ -60,7 +60,7 @@ public sealed class RvtConfigTests
             ["RVT__OMNIDOTS_TOKEN"] = "omnidots-token"
         };
 
-        var credentials = RvtConfig.ResolveCredentialSettings("Omnidots", values.GetValueOrDefault);
+        MonitorCredentialSettings credentials = RvtConfig.ResolveCredentialSettings("Omnidots", values.GetValueOrDefault);
 
         Assert.AreEqual("omnidots-user", credentials.UserId);
         Assert.AreEqual("omnidots-auth", credentials.UserAuth);
@@ -70,7 +70,7 @@ public sealed class RvtConfigTests
     [TestMethod]
     public void ResolveCredentialSettingsPreservesAirQAndMyAtmNamesForTheirMonitorKinds()
     {
-        var values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["RVT__AIRQ_USER_ID"] = "airq-user",
             ["RVT__AIRQ_USER_AUTH"] = "airq-auth",
@@ -80,8 +80,8 @@ public sealed class RvtConfigTests
             ["RVT__OMNIDOTS_TOKEN"] = "omnidots-token"
         };
 
-        var airqCredentials = RvtConfig.ResolveCredentialSettings("AirQ", values.GetValueOrDefault);
-        var myAtmCredentials = RvtConfig.ResolveCredentialSettings("MyAtm", values.GetValueOrDefault);
+        MonitorCredentialSettings airqCredentials = RvtConfig.ResolveCredentialSettings("AirQ", values.GetValueOrDefault);
+        MonitorCredentialSettings myAtmCredentials = RvtConfig.ResolveCredentialSettings("MyAtm", values.GetValueOrDefault);
 
         Assert.AreEqual("airq-user", airqCredentials.UserId);
         Assert.AreEqual("airq-auth", airqCredentials.UserAuth);
@@ -94,7 +94,7 @@ public sealed class RvtConfigTests
     [TestMethod]
     public void ResolveCredentialSettingsFailsClosedWhenMonitorKindIsUnknown()
     {
-        var values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["RVT__AIRQ_USER_ID"] = "airq-user",
             ["RVT__AIRQ_USER_AUTH"] = "airq-auth",
@@ -104,7 +104,7 @@ public sealed class RvtConfigTests
             ["RVT__OMNIDOTS_TOKEN"] = "omnidots-token"
         };
 
-        var credentials = RvtConfig.ResolveCredentialSettings("unknown", values.GetValueOrDefault);
+        MonitorCredentialSettings credentials = RvtConfig.ResolveCredentialSettings("unknown", values.GetValueOrDefault);
 
         Assert.AreEqual(string.Empty, credentials.UserId);
         Assert.AreEqual(string.Empty, credentials.UserAuth);

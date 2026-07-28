@@ -15,7 +15,7 @@ public sealed class MonitorHostTests
         TestMarkerService? observedMarker = null;
         MonitorExecutionModeContext? observedExecutionMode = null;
 
-        var exitCode = await MonitorHost.RunAsync<TestDispatcher>(
+        int exitCode = await MonitorHost.RunAsync<TestDispatcher>(
             ["--job", "StoreMonitors", "--hostBuilder:reloadConfigOnChange=false"],
             "TestMonitor",
             _ => "StoreMonitors",
@@ -38,13 +38,13 @@ public sealed class MonitorHostTests
     [TestMethod]
     public async Task RunAsync_ReturnsOneAndWritesExceptionMessageWhenJobRunnerThrows()
     {
-        using var error = new StringWriter();
-        var originalError = Console.Error;
+        using StringWriter error = new();
+        TextWriter originalError = Console.Error;
         Console.SetError(error);
 
         try
         {
-            var exitCode = await MonitorHost.RunAsync<TestDispatcher>(
+            int exitCode = await MonitorHost.RunAsync<TestDispatcher>(
                 ["--job", "StoreMonitors", "--hostBuilder:reloadConfigOnChange=false"],
                 "TestMonitor",
                 _ => "StoreMonitors",
@@ -63,13 +63,13 @@ public sealed class MonitorHostTests
     [TestMethod]
     public async Task RunAsync_ReturnsTwoAndWritesErrorWhenNoExecutionModeIsConfigured()
     {
-        using var error = new StringWriter();
-        var originalError = Console.Error;
+        using StringWriter error = new();
+        TextWriter originalError = Console.Error;
         Console.SetError(error);
 
         try
         {
-            var exitCode = await MonitorHost.RunAsync<TestDispatcher>(
+            int exitCode = await MonitorHost.RunAsync<TestDispatcher>(
                 ["--hostBuilder:reloadConfigOnChange=false"],
                 "TestMonitor",
                 _ => null,

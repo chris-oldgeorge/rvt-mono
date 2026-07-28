@@ -35,16 +35,16 @@ namespace AirQ.Api
         {
             if (allrules != null && allrules.Count > 0)
             {
-                var ruleEvaluator = CreateNoiseRuleEvaluator();
+                NoiseRuleEvaluator ruleEvaluator = CreateNoiseRuleEvaluator();
                 if (dtos != null && allrules.Any(x => x.AveragingPeriod == 900)) //15 min same as the data process from DTOs
                 {
-                    var rules = allrules.Where(x => x.AveragingPeriod == 900).OrderBy(x => x.AlertType).ToList();
-                    foreach (var sound in dtos)
+                    List<RvtAlertRuleDto> rules = [.. allrules.Where(x => x.AveragingPeriod == 900).OrderBy(x => x.AlertType)];
+                    foreach (NoiseDto sound in dtos)
                     {
                         //ensure alerts are first.
                         //Below to keep track of previous alerts for filed type. Somewhat overengineered, a boolean would have been  enough?
                         AlertType previousAlert = AlertType.Ignore;
-                        foreach (var rule in rules)
+                        foreach (RvtAlertRuleDto? rule in rules)
                         {
                             double level = (double)0;
                             switch (rule.Field.ToLower()) //There must be a slicker way to do this?
@@ -94,13 +94,13 @@ namespace AirQ.Api
                 TimeSpan timeDifference = end - start;
                 if (allrules.Where(x => x.AveragingPeriod == 3600).Count() > 0 && (start.Hour != end.Hour || timeDifference.TotalHours > 1))   //to do on the hour so has there been hour value change. The second test is for if the processing has been delayed 24 hours..
                 {
-                    var rules = allrules.Where(x => x.AveragingPeriod == 3600).OrderBy(x => x.AlertType).ToList();
+                    List<RvtAlertRuleDto> rules = [.. allrules.Where(x => x.AveragingPeriod == 3600).OrderBy(x => x.AlertType)];
                     DateTime Starthour = (new DateTime(start.Year, start.Month, start.Day, start.Hour, 0, 0));
                     while (Starthour < end) // once for hour change in the period
                     {
                         AlertType previousAlert = AlertType.Ignore;
-                        var serialId = monitorDto.SerialId!;
-                        foreach (var rule in rules)
+                        string serialId = monitorDto.SerialId!;
+                        foreach (RvtAlertRuleDto? rule in rules)
                         {
                             double level = ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Starthour, Starthour.AddHours(1));
                             previousAlert = ruleEvaluator.Evaluate(
@@ -117,13 +117,13 @@ namespace AirQ.Api
 
                 if (allrules.Where(x => x.AveragingPeriod == 86400).Count() > 0 && (start.Day != end.Day || timeDifference.TotalDays > 1))   //to do on the day change so has there been day value change. The second test is for if the processing has been delayed mopre than a month..
                 {
-                    var rules = allrules.Where(x => x.AveragingPeriod == 86400).OrderBy(x => x.AlertType).ToList();
+                    List<RvtAlertRuleDto> rules = [.. allrules.Where(x => x.AveragingPeriod == 86400).OrderBy(x => x.AlertType)];
                     DateTime Startday = (new DateTime(start.Year, start.Month, start.Day, 0, 0, 0));
                     while (Startday < end) // once for every day change in the period
                     {
                         AlertType previousAlert = AlertType.Ignore;
-                        var serialId = monitorDto.SerialId!;
-                        foreach (var rule in rules)
+                        string serialId = monitorDto.SerialId!;
+                        foreach (RvtAlertRuleDto? rule in rules)
                         {
                             double level = ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Startday, Startday.AddDays(1));
                             previousAlert = ruleEvaluator.Evaluate(
@@ -180,7 +180,7 @@ namespace AirQ.Api
                              List<RvtContactDto> contacts
             )
         {
-            var dispatcher = new RuleAlertNotificationDispatcher(
+            RuleAlertNotificationDispatcher dispatcher = new(
                 messageService,
                 operationalCommands.WriteNotification,
                 operationalCommands.WriteNotificationAudit);

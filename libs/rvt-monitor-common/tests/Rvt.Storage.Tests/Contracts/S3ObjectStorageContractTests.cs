@@ -16,14 +16,14 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
     [TestMethod]
     public async Task OpenReadAsync_DisposesProviderResponseLease()
     {
-        await using var fixture = new S3Fixture();
-        var key = StorageObjectKey.Parse("lease/sample.bin");
+        await using S3Fixture fixture = new();
+        StorageObjectKey key = StorageObjectKey.Parse("lease/sample.bin");
         await fixture.Client.WriteAsync(
             new StorageWriteRequest(
                 key,
                 new MemoryStream([1, 2, 3], writable: false)));
 
-        var result = await fixture.Client.OpenReadAsync(key);
+        StorageReadResult? result = await fixture.Client.OpenReadAsync(key);
         Assert.IsNotNull(result);
         await result.DisposeAsync();
 
@@ -96,7 +96,7 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var buffer = new MemoryStream();
+            using MemoryStream buffer = new();
             await request.InputStream.CopyToAsync(buffer, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             objects[GetObjectIdentity(request.BucketName, request.Key)] =
@@ -111,13 +111,13 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
             cancellationToken.ThrowIfCancellationRequested();
             if (!objects.TryGetValue(
                     GetObjectIdentity(request.BucketName, request.Key),
-                    out var storedObject))
+                    out StoredObject? storedObject))
             {
                 return Task.FromException<GetObjectResponse>(CreateMissingException());
             }
 
             lastResponseStream = new DisposeCountingStream(storedObject.Content);
-            var response = new GetObjectResponse
+            GetObjectResponse response = new()
             {
                 ResponseStream = lastResponseStream,
             };

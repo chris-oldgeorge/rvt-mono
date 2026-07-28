@@ -9,7 +9,7 @@ public sealed class AlertOutboxClaimSqlTests
     [TestMethod]
     public void Statement_ClaimsAndUpdatesOnePostgreSqlCandidateAtomically()
     {
-        var sql = AlertOutboxClaimSql.Statement;
+        string sql = AlertOutboxClaimSql.Statement;
 
         StringAssert.Contains(sql, "WITH candidate AS", StringComparison.OrdinalIgnoreCase);
         StringAssert.Contains(sql, "FOR UPDATE SKIP LOCKED", StringComparison.OrdinalIgnoreCase);
@@ -31,7 +31,7 @@ public sealed class AlertOutboxClaimSqlTests
     [TestMethod]
     public void Statement_ContainsNoAlternateProviderSyntax()
     {
-        var sql = AlertOutboxClaimSql.Statement;
+        string sql = AlertOutboxClaimSql.Statement;
 
         Assert.DoesNotContain("dbo.", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TOP (", sql, StringComparison.OrdinalIgnoreCase);

@@ -30,8 +30,8 @@ public sealed class PortalSchemaReadinessHealthCheck : IHealthCheck
     {
         try
         {
-            var domainMismatches = await RvtSchemaValidator.ValidateAsync(domainContext, cancellationToken);
-            var searchMismatches = await RvtSchemaValidator.ValidateAsync(searchContext, cancellationToken);
+            IReadOnlyList<SchemaMismatch> domainMismatches = await RvtSchemaValidator.ValidateAsync(domainContext, cancellationToken);
+            IReadOnlyList<SchemaMismatch> searchMismatches = await RvtSchemaValidator.ValidateAsync(searchContext, cancellationToken);
             if (domainMismatches.Count == 0 && searchMismatches.Count == 0)
             {
                 return HealthCheckResult.Healthy();

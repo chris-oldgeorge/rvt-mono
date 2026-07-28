@@ -11,7 +11,7 @@ public sealed class AlertDeliveryIdentityTests
     [TestMethod]
     public void Create_MatchesGoldenSha256Vector()
     {
-        var key = AlertDeliveryIdentity.Create(
+        string key = AlertDeliveryIdentity.Create(
             OccurrenceId,
             "Email",
             "ops@example.test");
@@ -24,10 +24,10 @@ public sealed class AlertDeliveryIdentityTests
     [TestMethod]
     public void Create_IsDeterministicAndSeparatesKindAndDestination()
     {
-        var first = AlertDeliveryIdentity.Create(OccurrenceId, "MqttAlert", "alert");
-        var replay = AlertDeliveryIdentity.Create(OccurrenceId, "MqttAlert", "alert");
-        var otherKind = AlertDeliveryIdentity.Create(OccurrenceId, "Email", "alert");
-        var otherDestination = AlertDeliveryIdentity.Create(OccurrenceId, "MqttAlert", "other");
+        string first = AlertDeliveryIdentity.Create(OccurrenceId, "MqttAlert", "alert");
+        string replay = AlertDeliveryIdentity.Create(OccurrenceId, "MqttAlert", "alert");
+        string otherKind = AlertDeliveryIdentity.Create(OccurrenceId, "Email", "alert");
+        string otherDestination = AlertDeliveryIdentity.Create(OccurrenceId, "MqttAlert", "other");
 
         Assert.AreEqual(first, replay);
         Assert.AreEqual(64, first.Length);

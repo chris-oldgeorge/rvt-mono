@@ -1,4 +1,4 @@
-﻿// File summary: Defines reusable query, filter, ordering, and result models for searchable grids.
+// File summary: Defines reusable query, filter, ordering, and result models for searchable grids.
 // Major updates:
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
@@ -46,17 +46,17 @@ public static class QueryOrderingExtensions
         }
 
         IOrderedQueryable<T>? ordered = null;
-        foreach (var orderBy in orderByProperties.Where(o => !string.IsNullOrWhiteSpace(o.OrderByColumn)))
+        foreach (OrderByProperty? orderBy in orderByProperties.Where(o => !string.IsNullOrWhiteSpace(o.OrderByColumn)))
         {
             // An unrecognized sort field used to be dropped, so callers silently got unordered results.
-            var property = QueryPropertyResolver.Resolve(typeof(T), orderBy.OrderByColumn!)
+            PropertyInfo property = QueryPropertyResolver.Resolve(typeof(T), orderBy.OrderByColumn!)
                 ?? throw QueryValidationException.UnknownProperty(typeof(T), orderBy.OrderByColumn, "sort");
 
-            var parameter = Expression.Parameter(typeof(T), "x");
-            var propertyExpression = Expression.Property(parameter, property);
-            var keySelector = Expression.Lambda(propertyExpression, parameter);
-            var descending = orderBy.OrderByDirection == OrderByDirectionEnum.Descending;
-            var methodName = (ordered, descending) switch
+            ParameterExpression parameter = Expression.Parameter(typeof(T), "x");
+            MemberExpression propertyExpression = Expression.Property(parameter, property);
+            LambdaExpression keySelector = Expression.Lambda(propertyExpression, parameter);
+            bool descending = orderBy.OrderByDirection == OrderByDirectionEnum.Descending;
+            string methodName = (ordered, descending) switch
             {
                 (null, true) => nameof(Queryable.OrderByDescending),
                 (null, false) => nameof(Queryable.OrderBy),

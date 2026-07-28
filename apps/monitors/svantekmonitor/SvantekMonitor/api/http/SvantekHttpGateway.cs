@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Svantek.Model.Http;
 
@@ -42,7 +41,11 @@ namespace Svantek.Api.Http
                 throw AdapterException.Of("GetProjects", e);
             }
             ProjectsResponse apiResponse = ParseResponse<ProjectsResponse>(response);
-            if (apiResponse.status != "ok") throw new Exception("GetProjects ProjectsResponse status " + apiResponse.status);
+            if (apiResponse.status != "ok")
+            {
+                throw new Exception("GetProjects ProjectsResponse status " + apiResponse.status);
+            }
+
             return apiResponse.projects;
         }
 
@@ -93,7 +96,11 @@ namespace Svantek.Api.Http
                 throw AdapterException.Of("GetStations", e);
             }
             StationsResponse apiResponse = ParseResponse<StationsResponse>(response);
-            if (apiResponse.status != "ok") throw new Exception("StationsResponse status " + apiResponse.status);
+            if (apiResponse.status != "ok")
+            {
+                throw new Exception("StationsResponse status " + apiResponse.status);
+            }
+
             return apiResponse.stations;
         }
 
@@ -121,7 +128,11 @@ namespace Svantek.Api.Http
             }
 
             MultiDataResponse apiResponse = ParseResponse<MultiDataResponse>(response);
-            if (apiResponse.status != "ok") throw new Exception(string.Format("MultiDataResponse status {0} project {1}", apiResponse.status, projectId));
+            if (apiResponse.status != "ok")
+            {
+                throw new Exception(string.Format("MultiDataResponse status {0} project {1}", apiResponse.status, projectId));
+            }
+
             return apiResponse.data;
         }
 
@@ -134,9 +145,9 @@ namespace Svantek.Api.Http
             string fileName,
             CancellationToken cancellationToken = default)
         {
-            using var content = new MultipartFormDataContent();
-            var values = new[]
-            {
+            using MultipartFormDataContent content = new();
+            KeyValuePair<string, string>[] values =
+            [
                 new KeyValuePair<string, string>("key", apiKey),
                 new KeyValuePair<string, string>("project", project.ToString()),
                 new KeyValuePair<string, string>("point", point.ToString()),
@@ -144,9 +155,9 @@ namespace Svantek.Api.Http
                 new KeyValuePair<string, string>("day_code", daycode),
                 new KeyValuePair<string, string>("station_serial", serialId),
                 new KeyValuePair<string, string>("filename", fileName)
-            };
+            ];
 
-            foreach (var keyValuePair in values)
+            foreach (KeyValuePair<string, string> keyValuePair in values)
             {
                 content.Add(new StringContent(keyValuePair.Value),
                     String.Format("\"{0}\"", keyValuePair.Key));
@@ -178,10 +189,10 @@ namespace Svantek.Api.Http
             string? filename = null,
             CancellationToken cancellationToken = default)
         {
-            List<KeyValuePair<string, string>> values = new List<KeyValuePair<string, string>>
-            {
+            List<KeyValuePair<string, string>> values =
+            [
                 new KeyValuePair<string, string>("key", apiKey)
-            };
+            ];
 
             if (projectId != null)
             {
@@ -200,7 +211,7 @@ namespace Svantek.Api.Http
                 values.Add(new KeyValuePair<string, string>("filename", filename));
             }
 
-            using var content = GetApiContent(values);
+            using MultipartFormDataContent content = GetApiContent(values);
             return await httpClient.PostAsync(
                 API_URL_PROJECTS_GET_DATA,
                 content,
@@ -211,17 +222,17 @@ namespace Svantek.Api.Http
             string? stationId = null,
             CancellationToken cancellationToken = default)
         {
-            List<KeyValuePair<string, string>> values = new List<KeyValuePair<string, string>>
-            {
+            List<KeyValuePair<string, string>> values =
+            [
                 new KeyValuePair<string, string>("key", apiKey)
-            };
+            ];
 
             if (stationId != null)
             {
                 values.Add(new KeyValuePair<string, string>("station", stationId));
             }
 
-            using var content = GetApiContent(values);
+            using MultipartFormDataContent content = GetApiContent(values);
             return await httpClient.PostAsync(
                 API_URL_STATIONS_GET_LIST,
                 content,
@@ -233,15 +244,15 @@ namespace Svantek.Api.Http
             IList<MultiDataArgument> arguments,
             CancellationToken cancellationToken = default)
         {
-            List<KeyValuePair<string, string>> values = new List<KeyValuePair<string, string>>
-            {
+            List<KeyValuePair<string, string>> values =
+            [
                 new KeyValuePair<string, string>("key", apiKey),
                 new KeyValuePair<string, string>("project", projectId),
                 new KeyValuePair<string, string>("results", "[\"leq-S-S-0-0-N\",\"max-S-S-0-0-N\",\"l90-S-S-0-0-N\",\"l10-S-S-0-0-N\",\"leq-S-S-0-1-N\",\"max-S-S-0-1-N\",\"l90-S-S-0-1-N\",\"l10-S-S-0-1-N\"]"),// LAeq, LCeq, L10 , L90
                 new KeyValuePair<string, string>("data", JsonSerializer.Serialize(arguments)),
-            };
+            ];
 
-            using var content = GetApiContent(values);
+            using MultipartFormDataContent content = GetApiContent(values);
             return await httpClient.PostAsync(
                 API_URL_PROJECTS_GET_RESULT_DATA_MULTI,
                 content,
@@ -252,9 +263,9 @@ namespace Svantek.Api.Http
 
         private static MultipartFormDataContent GetApiContent(List<KeyValuePair<string, string>> values)
         {
-            var content = new MultipartFormDataContent();
+            MultipartFormDataContent content = [];
 
-            foreach (var keyValuePair in values)
+            foreach (KeyValuePair<string, string> keyValuePair in values)
             {
                 content.Add(new StringContent(keyValuePair.Value), $"\"{keyValuePair.Key}\"");
             }
@@ -271,11 +282,11 @@ namespace Svantek.Api.Http
             catch (JsonException e)
             {
                 // could be an error response
-                var errors = ParseErrorResponse(json);
+                List<ErrorResponse>? errors = ParseErrorResponse(json);
                 if (errors != null && errors.Count > 0)
                 {
-                    var sb = new StringBuilder(errors[0].Response!);
-                    for (var i = 1; i < errors.Count; i++)
+                    StringBuilder sb = new(errors[0].Response!);
+                    for (int i = 1; i < errors.Count; i++)
                     {
                         sb.Append(' ');
                         sb.Append(errors[i].Response);

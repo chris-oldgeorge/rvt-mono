@@ -33,19 +33,17 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
         AssertContainsNone(
             source,
             "non-alert command ports",
-            new[]
-            {
+            [
                 "IDBClient",
                 "IMyAtmMonitorCommands",
                 "IMyAtmMeasurementCommands",
                 "IMyAtmAccessoryCommands",
                 "IMyAtmDustImportCommands"
-            });
+            ]);
         AssertContainsNone(
             source,
             "non-alert command methods",
-            new[]
-            {
+            [
                 "WriteMonitorList(",
                 "WriteLatestTimestamp(",
                 "WriteFleetNr(",
@@ -59,9 +57,9 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
                 "WriteNotificationAudit(",
                 "UpdateAlertRule(",
                 "ClearErrorMessages("
-            });
-        AssertContainsNone(source, "direct delivery and legacy rule processing", new[]
-        {
+            ]);
+        AssertContainsNone(source, "direct delivery and legacy rule processing",
+        [
             "IMessageService",
             "IMqttClient",
             "IMonitorEventPublisher",
@@ -76,7 +74,7 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
             "DeadLetterAsync(",
             "SendMessage",
             "PublishAsync("
-        });
+        ]);
     }
 
     [TestMethod]
@@ -113,7 +111,7 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
             "api",
             "MyAtmService.cs"));
 
-        AssertContainsNone(source, "compatibility facades", new[] { "MyAtmApi", "IDBClient" });
+        AssertContainsNone(source, "compatibility facades", ["MyAtmApi", "IDBClient"]);
         StringAssert.Contains(source, "StoreMonitorsHandler");
         StringAssert.Contains(source, "CheckForOfflineMonitorsHandler");
         StringAssert.Contains(source, "StoreDustLevelsHandler");
@@ -123,17 +121,14 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
     }
 
     private static string[] InvokedMethods(string source, string receiver) =>
-        Regex.Matches(source, $@"\b{Regex.Escape(receiver)}\.(?<method>[A-Za-z0-9_]+)\s*\(")
+        [.. Regex.Matches(source, $@"\b{Regex.Escape(receiver)}\.(?<method>[A-Za-z0-9_]+)\s*\(")
             .Select(match => match.Groups["method"].Value)
             .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
     private static void AssertContainsNone(string source, string boundary, IEnumerable<string> forbiddenReferences)
     {
-        var violations = forbiddenReferences
-            .Where(reference => source.Contains(reference, StringComparison.Ordinal))
-            .ToArray();
+        string[] violations = [.. forbiddenReferences.Where(reference => source.Contains(reference, StringComparison.Ordinal))];
         CollectionAssert.AreEqual(
             Array.Empty<string>(),
             violations,

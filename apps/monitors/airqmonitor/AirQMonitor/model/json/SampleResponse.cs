@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace AirQ.Model.Http
@@ -53,7 +52,7 @@ namespace AirQ.Model.Http
         // Summary: Returns the requested metric value as a culture-independent double.
         public double GetFieldValue(string name)
         {
-            foreach (var data in Data!)
+            foreach (SampleData data in Data!)
             {
                 if (name.Equals(data.Name))
                 {

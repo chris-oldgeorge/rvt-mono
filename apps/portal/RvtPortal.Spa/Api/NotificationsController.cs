@@ -11,7 +11,6 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RVT.BusinessLogic.Application;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Application.Notifications;
@@ -42,13 +41,13 @@ public class NotificationsController : ControllerBase
     // Function summary: Queries role-scoped notifications through the notification application service.
     public async Task<ActionResult<QueryNotificationsResponse>> Query([FromQuery] QueryNotificationsRequest request)
     {
-        var requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "notificationTime" : request.Sort.Trim();
+        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "notificationTime" : request.Sort.Trim();
         if (!NotificationApplicationService.SortFields.ContainsKey(requestedSort))
         {
             return InvalidSort(requestedSort, NotificationApplicationService.SortFields.Keys);
         }
 
-        var query = new NotificationQuery(
+        NotificationQuery query = new(
             request.SearchText,
             request.GetNormalizedPage(),
             request.GetNormalizedPageSize(),
@@ -59,7 +58,7 @@ public class NotificationsController : ControllerBase
             request.AlertType,
             request.OpenAlerts,
             request.SiteId);
-        var result = await notifications.QueryAsync(await CreateUserContextAsync(), query, HttpContext.RequestAborted);
+        NotificationQueryResult result = await notifications.QueryAsync(await CreateUserContextAsync(), query, HttpContext.RequestAborted);
         return NotificationApiMapper.ToQueryResponse(result);
     }
 
@@ -69,7 +68,7 @@ public class NotificationsController : ControllerBase
     // Function summary: Retrieves a role-scoped notification detail through the notification application service.
     public async Task<ActionResult<EntityResponse<NotificationDetailResponse>>> Get(Guid id)
     {
-        var detail = await notifications.GetAsync(await CreateUserContextAsync(), id, HttpContext.RequestAborted);
+        NotificationDetailModel? detail = await notifications.GetAsync(await CreateUserContextAsync(), id, HttpContext.RequestAborted);
         if (detail == null)
         {
             return NotificationNotFound(id);
@@ -88,8 +87,8 @@ public class NotificationsController : ControllerBase
     // Function summary: Closes a notification through the application service and maps the refreshed detail.
     public async Task<ActionResult<EntityResponse<NotificationDetailResponse>>> Close(Guid id, NotificationCloseRequest request)
     {
-        var user = await CreateUserContextAsync();
-        var result = await notifications.CloseAsync(user, id, request.Note, HttpContext.RequestAborted);
+        PortalUserContext user = await CreateUserContextAsync();
+        NotificationCloseWorkflowResult result = await notifications.CloseAsync(user, id, request.Note, HttpContext.RequestAborted);
         if (result.NotFound || (result.Detail == null && result.Errors.Count == 0))
         {
             return NotificationNotFound(id);
@@ -113,7 +112,7 @@ public class NotificationsController : ControllerBase
     // Function summary: Dispatches transactional batch close after validating the transport request shape.
     public async Task<ActionResult<NotificationBatchCloseResponse>> BatchClose(NotificationBatchCloseRequest request)
     {
-        var ids = request.NotificationIds.Distinct().ToList();
+        List<Guid> ids = [.. request.NotificationIds.Distinct()];
         if (ids.Count == 0)
         {
             ModelState.AddModelError(nameof(NotificationBatchCloseRequest.NotificationIds), "Select at least one notification to close.");
@@ -127,7 +126,7 @@ public class NotificationsController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var user = await CreateUserContextAsync();
+        PortalUserContext user = await CreateUserContextAsync();
         return await notifications.BatchCloseAsync(user, ids, request.Note, HttpContext.RequestAborted);
     }
 
@@ -140,9 +139,9 @@ public class NotificationsController : ControllerBase
     // Function summary: Copies command validation errors into MVC model state.
     private void AddModelErrors(IReadOnlyDictionary<string, string[]> errors)
     {
-        foreach (var error in errors)
+        foreach (KeyValuePair<string, string[]> error in errors)
         {
-            foreach (var message in error.Value)
+            foreach (string message in error.Value)
             {
                 ModelState.AddModelError(error.Key, message);
             }

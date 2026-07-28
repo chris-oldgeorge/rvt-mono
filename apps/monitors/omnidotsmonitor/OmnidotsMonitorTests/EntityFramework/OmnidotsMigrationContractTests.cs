@@ -22,11 +22,10 @@ public sealed class OmnidotsMigrationContractTests
     [TestMethod]
     public void MigrationAssets_ContainOnlyTheSupportedPostgreSqlScripts()
     {
-        var migrationFiles = Directory
+        string?[] migrationFiles = [.. Directory
             .GetFiles(Path.Combine(MonitorProjectDirectory(), "postgres"), "*.sql", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileName)
-            .OrderBy(file => file, StringComparer.Ordinal)
-            .ToArray();
+            .OrderBy(file => file, StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(SupportedMigrations, migrationFiles);
         Assert.IsFalse(
@@ -37,7 +36,7 @@ public sealed class OmnidotsMigrationContractTests
     [TestMethod]
     public void PostgreSqlForward_IsTransactionalAndCreatesTheRequiredSchemaInOrder()
     {
-        var script = NormalizeSql(RemoveComments(ReadScript("postgres", ForwardScript)));
+        string script = NormalizeSql(RemoveComments(ReadScript("postgres", ForwardScript)));
 
         Assert.IsTrue(script.StartsWith("BEGIN;", StringComparison.Ordinal));
         Assert.IsTrue(script.EndsWith("COMMIT;", StringComparison.Ordinal));
@@ -58,8 +57,8 @@ public sealed class OmnidotsMigrationContractTests
     [TestMethod]
     public void PostgreSqlRollback_IsTransactionalAndWarnsBeforeDiscardingOrder()
     {
-        var rawScript = ReadScript("postgres", RollbackScript);
-        var script = NormalizeSql(RemoveComments(rawScript));
+        string rawScript = ReadScript("postgres", RollbackScript);
+        string script = NormalizeSql(RemoveComments(rawScript));
 
         Assert.IsTrue(script.StartsWith("BEGIN;", StringComparison.Ordinal));
         Assert.IsTrue(script.EndsWith("COMMIT;", StringComparison.Ordinal));
@@ -110,13 +109,13 @@ public sealed class OmnidotsMigrationContractTests
                 ('11111111-1111-1111-1111-111111111111', 4, 5, 6);
             """;
 
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-        await using var database = await PostgreSqlIntegrationDatabase.CreateAsync(
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
+        await using PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(
             legacySchema,
             "SELECT 1;",
             timeout.Token);
 
-        var forward = ReadScript("postgres", ForwardScript);
+        string forward = ReadScript("postgres", ForwardScript);
         await ExecutePostgreSqlAsync(database, forward, timeout.Token);
         await ExecutePostgreSqlAsync(database, forward, timeout.Token);
 
@@ -130,7 +129,7 @@ public sealed class OmnidotsMigrationContractTests
             "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'omnidots_import_cursor' AND column_default IS NOT NULL;",
             timeout.Token));
 
-        var rollback = ReadScript("postgres", RollbackScript);
+        string rollback = ReadScript("postgres", RollbackScript);
         await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
         await AssertLegacyRowsPreservedAsync(database, timeout.Token);
         await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
@@ -152,13 +151,13 @@ public sealed class OmnidotsMigrationContractTests
 
     private static string ReadScript(string provider, string fileName)
     {
-        var path = Path.Combine(AppContext.BaseDirectory, provider, fileName);
+        string path = Path.Combine(AppContext.BaseDirectory, provider, fileName);
         return File.ReadAllText(path);
     }
 
     private static string RemoveComments(string script)
     {
-        var withoutBlockComments = Regex.Replace(
+        string withoutBlockComments = Regex.Replace(
             script,
             @"/\*.*?\*/",
             string.Empty,
@@ -172,15 +171,15 @@ public sealed class OmnidotsMigrationContractTests
 
     private static string NormalizeSql(string script)
     {
-        var normalized = Regex.Replace(script, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
+        string normalized = Regex.Replace(script, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
         normalized = Regex.Replace(normalized, @"\(\s+", "(", RegexOptions.CultureInvariant);
         return Regex.Replace(normalized, @"\s+\)", ")", RegexOptions.CultureInvariant);
     }
 
     private static void AssertCursorHasNoDefault(string script, string startMarker, string endMarker)
     {
-        var start = script.IndexOf(startMarker, StringComparison.Ordinal);
-        var end = script.IndexOf(endMarker, start + startMarker.Length, StringComparison.Ordinal);
+        int start = script.IndexOf(startMarker, StringComparison.Ordinal);
+        int end = script.IndexOf(endMarker, start + startMarker.Length, StringComparison.Ordinal);
         Assert.IsGreaterThanOrEqualTo(0, start);
         Assert.IsGreaterThan(start, end);
         Assert.IsFalse(script[start..end].Contains("DEFAULT", StringComparison.Ordinal));
@@ -188,10 +187,10 @@ public sealed class OmnidotsMigrationContractTests
 
     private static void AssertAppearsInOrder(string script, params string[] statements)
     {
-        var lastIndex = -1;
-        foreach (var statement in statements)
+        int lastIndex = -1;
+        foreach (string statement in statements)
         {
-            var index = script.IndexOf(statement, StringComparison.Ordinal);
+            int index = script.IndexOf(statement, StringComparison.Ordinal);
             Assert.IsGreaterThan(lastIndex, index, $"Expected '{statement}' after the preceding migration operation.");
             lastIndex = index;
         }
@@ -202,9 +201,9 @@ public sealed class OmnidotsMigrationContractTests
         string script,
         CancellationToken cancellationToken)
     {
-        await using var connection = database.OpenConnection();
+        await using NpgsqlConnection connection = database.OpenConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new NpgsqlCommand(script, connection) { CommandTimeout = 30 };
+        await using NpgsqlCommand command = new(script, connection) { CommandTimeout = 30 };
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -213,10 +212,10 @@ public sealed class OmnidotsMigrationContractTests
         string sql,
         CancellationToken cancellationToken)
     {
-        await using var connection = database.OpenConnection();
+        await using NpgsqlConnection connection = database.OpenConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new NpgsqlCommand(sql, connection) { CommandTimeout = 30 };
-        var result = await command.ExecuteScalarAsync(cancellationToken);
+        await using NpgsqlCommand command = new(sql, connection) { CommandTimeout = 30 };
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
         Assert.IsNotNull(result);
         return (T)Convert.ChangeType(result, typeof(T), CultureInfo.InvariantCulture);
     }
@@ -237,10 +236,10 @@ public sealed class OmnidotsMigrationContractTests
 
     private static string MonitorProjectDirectory()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var gitPath = Path.Combine(directory.FullName, ".git");
+            string gitPath = Path.Combine(directory.FullName, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
                 return Path.Combine(

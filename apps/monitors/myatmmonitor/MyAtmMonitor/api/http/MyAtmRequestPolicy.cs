@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using MyAtm.Model.Config;
 
 namespace MyAtm.Api.Http;
@@ -43,8 +44,8 @@ public sealed class MyAtmRequestPolicy
         await gate.WaitAsync(cancellationToken);
         try
         {
-            var now = timeProvider.GetUtcNow();
-            var delay = nextRequestAt - now;
+            DateTimeOffset now = timeProvider.GetUtcNow();
+            TimeSpan delay = nextRequestAt - now;
             if (delay > TimeSpan.Zero)
             {
                 await delayAsync(delay, cancellationToken);
@@ -60,7 +61,7 @@ public sealed class MyAtmRequestPolicy
 
     public TimeSpan GetRetryDelay(HttpResponseMessage response, int retryNumber)
     {
-        var retryAfter = response.Headers.RetryAfter;
+        RetryConditionHeaderValue? retryAfter = response.Headers.RetryAfter;
         if (retryAfter?.Delta is { } delta && delta > TimeSpan.Zero)
         {
             return Cap(delta);
@@ -68,15 +69,15 @@ public sealed class MyAtmRequestPolicy
 
         if (retryAfter?.Date is { } date)
         {
-            var delay = date - timeProvider.GetUtcNow();
+            TimeSpan delay = date - timeProvider.GetUtcNow();
             if (delay > TimeSpan.Zero)
             {
                 return Cap(delay);
             }
         }
 
-        var cappedSeconds = Math.Min(fallbackRetryCap.TotalSeconds, Math.Pow(2, retryNumber));
-        var jitterMilliseconds = Random.Shared.Next(0, 250);
+        double cappedSeconds = Math.Min(fallbackRetryCap.TotalSeconds, Math.Pow(2, retryNumber));
+        int jitterMilliseconds = Random.Shared.Next(0, 250);
         return Cap(TimeSpan.FromSeconds(cappedSeconds) + TimeSpan.FromMilliseconds(jitterMilliseconds));
     }
 

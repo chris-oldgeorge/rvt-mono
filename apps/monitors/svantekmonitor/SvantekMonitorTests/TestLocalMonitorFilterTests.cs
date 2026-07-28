@@ -2,11 +2,6 @@
 using Svantek.Api;
 using Svantek.Model.Dto;
 using SvantekMonitor.model.dto;
-
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace SvantekMonitorTests;
 
 [TestClass]
@@ -15,13 +10,13 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyReadMonitorFilter_WhenDisabled_ReturnsAllMonitors()
     {
-        var monitors = new List<NoiseMonitorReadDto>
-        {
+        List<NoiseMonitorReadDto> monitors =
+        [
             ReadMonitor("E125V", "157206"),
             ReadMonitor("Other", "999999")
-        };
+        ];
 
-        var filtered = SvantekTestLocalMonitorFilter.Apply(monitors, enabled: false);
+        List<NoiseMonitorReadDto> filtered = SvantekTestLocalMonitorFilter.Apply(monitors, enabled: false);
 
         CollectionAssert.AreEqual(monitors, filtered);
     }
@@ -29,17 +24,17 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyReadMonitorFilter_WhenEnabled_ReturnsOnlyDemoNoiseMonitor()
     {
-        var target = ReadMonitor("E125V", "157206");
-        var sameSerialWrongFleet = ReadMonitor("Other", "157206");
-        var sameFleetWrongSerial = ReadMonitor("E125V", "999999");
-        var monitors = new List<NoiseMonitorReadDto>
-        {
+        NoiseMonitorReadDto target = ReadMonitor("E125V", "157206");
+        NoiseMonitorReadDto sameSerialWrongFleet = ReadMonitor("Other", "157206");
+        NoiseMonitorReadDto sameFleetWrongSerial = ReadMonitor("E125V", "999999");
+        List<NoiseMonitorReadDto> monitors =
+        [
             sameSerialWrongFleet,
             target,
             sameFleetWrongSerial
-        };
+        ];
 
-        var filtered = SvantekTestLocalMonitorFilter.Apply(monitors, enabled: true);
+        List<NoiseMonitorReadDto> filtered = SvantekTestLocalMonitorFilter.Apply(monitors, enabled: true);
 
         CollectionAssert.AreEqual(new[] { target }, filtered);
     }
@@ -47,11 +42,11 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyCatalogMonitorFilter_WhenEnabled_ReturnsOnlyDemoSerial()
     {
-        var target = CatalogMonitor("157206");
-        var other = CatalogMonitor("999999");
-        var monitors = new List<NoiseMonitorDto> { other, target };
+        NoiseMonitorDto target = CatalogMonitor("157206");
+        NoiseMonitorDto other = CatalogMonitor("999999");
+        List<NoiseMonitorDto> monitors = [other, target];
 
-        var filtered = SvantekTestLocalMonitorFilter.Apply(monitors, enabled: true);
+        List<NoiseMonitorDto> filtered = SvantekTestLocalMonitorFilter.Apply(monitors, enabled: true);
 
         CollectionAssert.AreEqual(new[] { target }, filtered);
     }

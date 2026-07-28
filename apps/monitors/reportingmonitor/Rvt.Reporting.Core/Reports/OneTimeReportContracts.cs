@@ -28,7 +28,7 @@ public sealed class OneTimeReportValidator
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var errors = new List<ValidationError>();
+        List<ValidationError> errors = [];
 
         if (request.SiteId == Guid.Empty)
         {
@@ -55,7 +55,7 @@ public sealed class OneTimeReportValidator
             errors.Add(new ValidationError(nameof(request.RecipientEmails), "At least one recipient is required."));
         }
 
-        foreach (var email in request.RecipientEmails)
+        foreach (string email in request.RecipientEmails)
         {
             if (!EmailValidator.IsValid(email))
             {

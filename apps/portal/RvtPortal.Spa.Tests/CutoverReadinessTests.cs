@@ -31,12 +31,12 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies post-load scripts use canonical names for Timescale tables and setup hooks.
     public void PostLoadScripts_UseCanonicalNames()
     {
-        var root = FindRepositoryRoot();
-        var postLoadDirectory = Path.Combine(root, "database", "postgres", "post-load");
-        var postLoadSql = string.Join(
+        string root = FindRepositoryRoot();
+        string postLoadDirectory = Path.Combine(root, "database", "postgres", "post-load");
+        string postLoadSql = string.Join(
             Environment.NewLine,
             Directory.GetFiles(postLoadDirectory, "*.sql").Select(File.ReadAllText));
-        var retiredNames = new[]
+        string[] retiredNames = new[]
         {
             "AirQNoiseLevels",
             "SvantekNoiseLevels",
@@ -48,7 +48,7 @@ public partial class CutoverReadinessTests
             "Timestamtp"
         };
 
-        foreach (var retiredName in retiredNames)
+        foreach (string? retiredName in retiredNames)
         {
             Assert.DoesNotContain(retiredName, postLoadSql, StringComparison.Ordinal);
         }
@@ -62,10 +62,10 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies the migrator deploys canonical PostgreSQL views instead of a placeholder hook.
     public void PostLoadScripts_DeployCanonicalViews()
     {
-        var root = FindRepositoryRoot();
-        var postLoadSql = File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql"));
-        var viewCount = postLoadSql.Split("CREATE OR REPLACE VIEW public.", StringSplitOptions.None).Length - 1;
-        var requiredViews = new[]
+        string root = FindRepositoryRoot();
+        string postLoadSql = File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql"));
+        int viewCount = postLoadSql.Split("CREATE OR REPLACE VIEW public.", StringSplitOptions.None).Length - 1;
+        string[] requiredViews = new[]
         {
             "admin_dashboard_data",
             "monitor_search",
@@ -81,7 +81,7 @@ public partial class CutoverReadinessTests
         Assert.Equal(38, viewCount);
         Assert.DoesNotContain("deployment hook executed", postLoadSql, StringComparison.OrdinalIgnoreCase);
 
-        foreach (var viewName in requiredViews)
+        foreach (string? viewName in requiredViews)
         {
             Assert.Contains($"CREATE OR REPLACE VIEW public.{viewName}", postLoadSql, StringComparison.Ordinal);
         }
@@ -91,9 +91,9 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies canonical PostgreSQL view SQL has no active retired database dialect dialect leftovers.
     public void PostLoadViews_AvoidRetiredDialect()
     {
-        var root = FindRepositoryRoot();
-        var postLoadSql = StripSqlComments(File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql")));
-        var retiredDialectTokens = new[]
+        string root = FindRepositoryRoot();
+        string postLoadSql = StripSqlComments(File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql")));
+        string[] retiredDialectTokens = new[]
         {
             "[dbo]",
             "dbo.",
@@ -107,7 +107,7 @@ public partial class CutoverReadinessTests
             " AS bit"
         };
 
-        foreach (var token in retiredDialectTokens)
+        foreach (string? token in retiredDialectTokens)
         {
             Assert.DoesNotContain(token, postLoadSql, StringComparison.OrdinalIgnoreCase);
         }
@@ -121,15 +121,15 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies each canonical PostgreSQL view statement terminates before the next view deployment block.
     public void PostLoadViews_TerminateBeforeNextDrop()
     {
-        var root = FindRepositoryRoot();
-        var postLoadSql = StripSqlComments(File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql")));
-        var viewBlocks = postLoadSql.Split("CREATE OR REPLACE VIEW public.", StringSplitOptions.None).Skip(1);
+        string root = FindRepositoryRoot();
+        string postLoadSql = StripSqlComments(File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql")));
+        IEnumerable<string> viewBlocks = postLoadSql.Split("CREATE OR REPLACE VIEW public.", StringSplitOptions.None).Skip(1);
 
-        foreach (var viewBlock in viewBlocks)
+        foreach (string? viewBlock in viewBlocks)
         {
-            var viewName = viewBlock.Split(new[] { " AS", "\r\n", "\n" }, StringSplitOptions.None)[0].Trim();
-            var nextDropIndex = viewBlock.IndexOf("DROP VIEW IF EXISTS public.", StringComparison.Ordinal);
-            var terminatorIndex = viewBlock.IndexOf(';');
+            string viewName = viewBlock.Split(new[] { " AS", "\r\n", "\n" }, StringSplitOptions.None)[0].Trim();
+            int nextDropIndex = viewBlock.IndexOf("DROP VIEW IF EXISTS public.", StringComparison.Ordinal);
+            int terminatorIndex = viewBlock.IndexOf(';');
 
             if (nextDropIndex >= 0)
             {
@@ -150,8 +150,8 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies PostgreSQL views preserve ASP.NET Identity physical names while using canonical app names.
     public void PostLoadViews_PreserveIdentityNames()
     {
-        var root = FindRepositoryRoot();
-        var postLoadSql = File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql"));
+        string root = FindRepositoryRoot();
+        string postLoadSql = File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql"));
 
         Assert.Contains("public.\"AspNetUsers\"", postLoadSql, StringComparison.Ordinal);
         Assert.Contains("public.\"AspNetUserRoles\"", postLoadSql, StringComparison.Ordinal);
@@ -166,8 +166,8 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies PostgreSQL views cast ASP.NET Identity string ids before joining canonical UUID user columns.
     public void PostLoadViews_CastIdentityIdsForCanonicalUserJoins()
     {
-        var root = FindRepositoryRoot();
-        var postLoadSql = StripSqlComments(File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql")));
+        string root = FindRepositoryRoot();
+        string postLoadSql = StripSqlComments(File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql")));
 
         Assert.DoesNotContain("U.\"Id\"=SU.user_id", postLoadSql, StringComparison.Ordinal);
         Assert.DoesNotContain("U.\"Id\"=SU2.user_id", postLoadSql, StringComparison.Ordinal);
@@ -187,12 +187,12 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies exported retired database dialect routines have canonical PostgreSQL post-load definitions.
     public void PostLoadScripts_DeployCanonicalRoutines()
     {
-        var root = FindRepositoryRoot();
-        var routineScriptPath = Path.Combine(root, "database", "postgres", "post-load", "04_routines.sql");
+        string root = FindRepositoryRoot();
+        string routineScriptPath = Path.Combine(root, "database", "postgres", "post-load", "04_routines.sql");
         Assert.True(File.Exists(routineScriptPath), $"Missing PostgreSQL routine post-load script: {routineScriptPath}");
 
-        var routineSql = StripSqlComments(File.ReadAllText(routineScriptPath));
-        var expectedRoutines = new[]
+        string routineSql = StripSqlComments(File.ReadAllText(routineScriptPath));
+        string[] expectedRoutines = new[]
         {
             "error_insert",
             "monitor_status_for_month",
@@ -200,7 +200,7 @@ public partial class CutoverReadinessTests
             "peak_record_breach_and_alerts",
             "user_actions_history_insert"
         };
-        var retiredDialectTokens = new[]
+        string[] retiredDialectTokens = new[]
         {
             "[dbo]",
             "dbo.",
@@ -211,19 +211,19 @@ public partial class CutoverReadinessTests
             "DATEDIFF("
         };
 
-        foreach (var routineName in expectedRoutines)
+        foreach (string? routineName in expectedRoutines)
         {
             Assert.Contains($"public.{routineName}", routineSql, StringComparison.Ordinal);
         }
 
-        var legacyRoutineNames = new[]
+        string[] legacyRoutineNames = new[]
         {
             "\"MonitorStatusForMonth\"",
             "\"MonitorStatusTimeCheck\"",
             "\"PeakRecordBreachAndAlerts\""
         };
 
-        foreach (var legacyRoutineName in legacyRoutineNames)
+        foreach (string? legacyRoutineName in legacyRoutineNames)
         {
             Assert.Contains($"DROP FUNCTION IF EXISTS public.{legacyRoutineName}", routineSql, StringComparison.Ordinal);
         }
@@ -235,7 +235,7 @@ public partial class CutoverReadinessTests
         Assert.Contains("notification_id uuid", routineSql, StringComparison.Ordinal);
         Assert.DoesNotContain("RETURNS TABLE(\"", routineSql, StringComparison.Ordinal);
 
-        foreach (var token in retiredDialectTokens)
+        foreach (string? token in retiredDialectTokens)
         {
             Assert.DoesNotContain(token, routineSql, StringComparison.OrdinalIgnoreCase);
         }
@@ -249,12 +249,12 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies post-load scripts rename Timescale-created indexes into the canonical ix_ style.
     public void PostLoadScripts_RenameTimescaleIndexes()
     {
-        var root = FindRepositoryRoot();
-        var indexScriptPath = Path.Combine(root, "database", "postgres", "post-load", "05_index_naming_cleanup.sql");
+        string root = FindRepositoryRoot();
+        string indexScriptPath = Path.Combine(root, "database", "postgres", "post-load", "05_index_naming_cleanup.sql");
         Assert.True(File.Exists(indexScriptPath), $"Missing PostgreSQL index cleanup post-load script: {indexScriptPath}");
 
-        var indexSql = StripSqlComments(File.ReadAllText(indexScriptPath));
-        var expectedIndexPairs = new Dictionary<string, string>(StringComparer.Ordinal)
+        string indexSql = StripSqlComments(File.ReadAllText(indexScriptPath));
+        Dictionary<string, string> expectedIndexPairs = new(StringComparer.Ordinal)
         {
             ["heater_reading_sample_time_idx"] = "ix_heater_reading_sample_time",
             ["my_atm_accessory_info_sample_time_idx"] = "ix_my_atm_accessory_info_sample_time",
@@ -262,7 +262,7 @@ public partial class CutoverReadinessTests
             ["omnidots_veff_level_sample_time_idx"] = "ix_omnidots_veff_level_sample_time"
         };
 
-        foreach (var pair in expectedIndexPairs)
+        foreach (KeyValuePair<string, string> pair in expectedIndexPairs)
         {
             Assert.Contains($"to_regclass('public.{pair.Key}')", indexSql, StringComparison.Ordinal);
             Assert.Contains($"RENAME TO {pair.Value}", indexSql, StringComparison.Ordinal);
@@ -273,8 +273,8 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies application code does not start depending on the temporary legacy compatibility schema.
     public void ApplicationCode_DoesNotReferenceLegacyCompatibilitySchema()
     {
-        var root = FindRepositoryRoot();
-        var scannedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        string root = FindRepositoryRoot();
+        HashSet<string> scannedExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".cs",
             ".ts",
@@ -282,7 +282,7 @@ public partial class CutoverReadinessTests
             ".sql",
             ".json"
         };
-        var excludedSegments = new[]
+        string[] excludedSegments = new[]
         {
             $"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}",
             $"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
@@ -293,16 +293,15 @@ public partial class CutoverReadinessTests
             $"{Path.DirectorySeparatorChar}TestResults{Path.DirectorySeparatorChar}",
             $"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}"
         };
-        var hits = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+        string[] hits = [.. Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
             .Where(path => scannedExtensions.Contains(Path.GetExtension(path)))
             .Where(path => !excludedSegments.Any(segment => path.Contains(segment, StringComparison.OrdinalIgnoreCase)))
             .SelectMany(path =>
             {
-                var content = File.ReadAllText(path);
+                string content = File.ReadAllText(path);
                 return LegacySchemaPattern().Matches(content)
                     .Select(match => $"{Path.GetRelativePath(root, path)} contains {match.Value}");
-            })
-            .ToArray();
+            })];
 
         Assert.Empty(hits);
     }
@@ -311,9 +310,9 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies new application-owned migrations use canonical physical names outside ASP.NET Identity.
     public void ApplicationMigrations_DoNotIntroduceLegacyApplicationOwnedNames()
     {
-        var root = FindRepositoryRoot();
-        var migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
-        var allowedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        string root = FindRepositoryRoot();
+        string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
+        HashSet<string> allowedFiles = new(StringComparer.OrdinalIgnoreCase)
         {
             "RVTDbContextModelSnapshot.cs"
         };
@@ -323,7 +322,7 @@ public partial class CutoverReadinessTests
         // enforces - no retired physical names in migration DDL - applies to the migration body only.
         static bool IsGeneratedModelSnapshot(string path) =>
             Path.GetFileName(path).EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase);
-        var retiredTokens = new[]
+        string[] retiredTokens = new[]
         {
             "MonitorsList",
             "\"Archived\"",
@@ -356,18 +355,17 @@ public partial class CutoverReadinessTests
             "FK_HelpAssets_HelpArticles_HelpArticleId"
         };
 
-        var hits = Directory.EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
+        string[] hits = [.. Directory.EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
             .Where(path => !allowedFiles.Contains(Path.GetFileName(path)))
             .Where(path => !IsGeneratedModelSnapshot(path))
             .Where(path => string.CompareOrdinal(Path.GetFileName(path), "20260608") >= 0)
             .SelectMany(path =>
             {
-                var source = File.ReadAllText(path);
+                string source = File.ReadAllText(path);
                 return retiredTokens
                     .Where(token => source.Contains(token, StringComparison.Ordinal))
                     .Select(token => $"{Path.GetRelativePath(root, path)} contains {token}");
-            })
-            .ToArray();
+            })];
 
         Assert.Empty(hits);
     }
@@ -376,18 +374,17 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies the active EF baseline and model snapshot no longer describe the retired legacy schema.
     public void EfBaselineAndSnapshot_DoNotReferenceRetiredPhysicalNames()
     {
-        var root = FindRepositoryRoot();
-        var migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
+        string root = FindRepositoryRoot();
+        string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
         // Resolved rather than hard-coded: the migration chain was squashed onto a generated baseline, and
         // naming the old files here would silently stop inspecting anything.
-        var inspectedFiles = Directory
+        string[] inspectedFiles = [.. Directory
             .EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
             .Where(path => !Path.GetFileName(path).StartsWith("._", StringComparison.Ordinal))
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
+            .OrderBy(path => path, StringComparer.Ordinal)];
 
         Assert.NotEmpty(inspectedFiles);
-        var retiredTokens = new[]
+        string[] retiredTokens = new[]
         {
             "name: \"RvtAlertRules\"",
             "name: \"Companies\"",
@@ -425,15 +422,14 @@ public partial class CutoverReadinessTests
             "b.ToTable(\"SiteUsers\""
         };
 
-        var hits = inspectedFiles
+        string[] hits = [.. inspectedFiles
             .SelectMany(path =>
             {
-                var source = File.ReadAllText(path);
+                string source = File.ReadAllText(path);
                 return retiredTokens
                     .Where(token => source.Contains(token, StringComparison.Ordinal))
                     .Select(token => $"{Path.GetRelativePath(root, path)} contains {token}");
-            })
-            .ToArray();
+            })];
 
         Assert.Empty(hits);
     }
@@ -442,41 +438,39 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies migrations added after the canonical baseline do not drop objects the baseline owns.
     public void PostCanonicalBaselineMigrations_DoNotDropBaselineObjects()
     {
-        var root = FindRepositoryRoot();
-        var migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
+        string root = FindRepositoryRoot();
+        string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
 
-        var migrations = Directory.EnumerateFiles(migrationDirectory, "*_*.cs", SearchOption.TopDirectoryOnly)
+        string[] migrations = [.. Directory.EnumerateFiles(migrationDirectory, "*_*.cs", SearchOption.TopDirectoryOnly)
             .Where(path => !Path.GetFileName(path).EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase))
             // macOS AppleDouble sidecars ("._Name.cs") match the glob and sort ahead of the real files.
             .Where(path => !Path.GetFileName(path).StartsWith("._", StringComparison.Ordinal))
-            .OrderBy(path => Path.GetFileName(path), StringComparer.Ordinal)
-            .ToArray();
+            .OrderBy(path => Path.GetFileName(path), StringComparer.Ordinal)];
 
         // The chain is squashed onto a generated baseline, so the baseline is the earliest migration and it
         // legitimately creates everything. The rule applies to whatever comes after it.
         Assert.NotEmpty(migrations);
-        var baseline = migrations[0];
+        string baseline = migrations[0];
         Assert.EndsWith("_CanonicalBaseline.cs", baseline, StringComparison.Ordinal);
 
         // The baseline itself is exempt: its Down() necessarily drops everything its Up() creates.
-        var afterBaseline = migrations.Skip(1).ToArray();
+        string[] afterBaseline = [.. migrations.Skip(1)];
 
-        var destructiveTokens = new[]
+        string[] destructiveTokens = new[]
         {
             "DropTable(",
             "DropColumn(",
             "DROP COLUMN",
             "DROP TABLE"
         };
-        var hits = afterBaseline
+        string[] hits = [.. afterBaseline
             .SelectMany(path =>
             {
-                var source = File.ReadAllText(path);
+                string source = File.ReadAllText(path);
                 return destructiveTokens
                     .Where(token => source.Contains(token, StringComparison.OrdinalIgnoreCase))
                     .Select(token => $"{Path.GetRelativePath(root, path)} contains {token}");
-            })
-            .ToArray();
+            })];
 
         Assert.Empty(hits);
     }
@@ -485,19 +479,16 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies canonical-era EF migrations create or alter only canonical application-owned physical identifiers.
     public void CanonicalEraEfMigrations_UseCanonicalPhysicalIdentifiers()
     {
-        var root = FindRepositoryRoot();
-        var migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
-        var migrationFiles = Directory.EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
+        string root = FindRepositoryRoot();
+        string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
+        string[] migrationFiles = [.. Directory.EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
             .Where(path => !Path.GetFileName(path).EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase))
             .Where(path => !Path.GetFileName(path).Equals("RVTDbContextModelSnapshot.cs", StringComparison.OrdinalIgnoreCase))
-            .Where(path => string.CompareOrdinal(Path.GetFileName(path), "20260608") >= 0)
-            .ToArray();
+            .Where(path => string.CompareOrdinal(Path.GetFileName(path), "20260608") >= 0)];
 
         Assert.NotEmpty(migrationFiles);
 
-        var violations = migrationFiles
-            .SelectMany(path => FindCanonicalMigrationIdentifierViolations(root, path))
-            .ToArray();
+        string[] violations = [.. migrationFiles.SelectMany(path => FindCanonicalMigrationIdentifierViolations(root, path))];
 
         Assert.Empty(violations);
     }
@@ -505,11 +496,11 @@ public partial class CutoverReadinessTests
     // Function summary: Parses canonical-era EF migration source for database object names that would be created or altered.
     private static IEnumerable<string> FindCanonicalMigrationIdentifierViolations(string root, string path)
     {
-        var source = File.ReadAllText(path);
-        var relativePath = Path.GetRelativePath(root, path);
-        var violations = new List<string>();
+        string source = File.ReadAllText(path);
+        string relativePath = Path.GetRelativePath(root, path);
+        List<string> violations = new();
 
-        foreach (var identifier in ExtractRegexMatches(source, @"\b(?:table|principalTable):\s*""([^""]+)"""))
+        foreach (string identifier in ExtractRegexMatches(source, @"\b(?:table|principalTable):\s*""([^""]+)"""))
         {
             if (!DatabaseNamingRules.IsCanonicalRelationName(identifier))
             {
@@ -517,7 +508,7 @@ public partial class CutoverReadinessTests
             }
         }
 
-        foreach (var identifier in ExtractRegexMatches(source, @"\b(?:name|column|principalColumn):\s*""([^""]+)"""))
+        foreach (string identifier in ExtractRegexMatches(source, @"\b(?:name|column|principalColumn):\s*""([^""]+)"""))
         {
             if (!DatabaseNamingRules.IsCanonicalColumnName(identifier))
             {
@@ -525,7 +516,7 @@ public partial class CutoverReadinessTests
             }
         }
 
-        foreach (var identifier in ExtractRegexMatches(source, @"\[(?<identifier>[A-Za-z_][A-Za-z0-9_]*)\]", "identifier")
+        foreach (string? identifier in ExtractRegexMatches(source, @"\[(?<identifier>[A-Za-z_][A-Za-z0-9_]*)\]", "identifier")
             .Concat(ExtractRegexMatches(source, @"\bpublic\.(?<identifier>[A-Za-z_][A-Za-z0-9_]*)\b", "identifier"))
             .Concat(ExtractRegexMatches(source, @"\bCONSTRAINT\s+(?<identifier>[A-Za-z_][A-Za-z0-9_]*)\b", "identifier"))
             .Concat(ExtractRegexMatches(source, @"\bINDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?(?<identifier>[A-Za-z_][A-Za-z0-9_]*)\b", "identifier")))
@@ -542,7 +533,7 @@ public partial class CutoverReadinessTests
     // Function summary: Extracts regex capture values for migration identifier validation.
     private static IEnumerable<string> ExtractRegexMatches(string source, string pattern, string groupName = "1")
     {
-        return System.Text.RegularExpressions.Regex.Matches(source, pattern)
+        return Regex.Matches(source, pattern)
             .Select(match => match.Groups[groupName].Value)
             .Where(value => !string.IsNullOrWhiteSpace(value));
     }
@@ -550,7 +541,7 @@ public partial class CutoverReadinessTests
     // Function summary: Handles the find repository root workflow for this module.
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "RvtPortal.Spa.sln")))

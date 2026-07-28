@@ -14,7 +14,7 @@ public sealed class OmnidotsAlertMigrationContractTests
     [TestMethod]
     public void PostgreSqlForward_IsTransactionalIdempotentAndDefinesDurableAlertConstraints()
     {
-        var script = NormalizeSql(RemoveComments(ReadScript("postgres", ForwardScript)));
+        string script = NormalizeSql(RemoveComments(ReadScript("postgres", ForwardScript)));
 
         Assert.IsTrue(script.StartsWith("BEGIN;", StringComparison.Ordinal));
         Assert.IsTrue(script.EndsWith("COMMIT;", StringComparison.Ordinal));
@@ -38,8 +38,8 @@ public sealed class OmnidotsAlertMigrationContractTests
     [TestMethod]
     public void PostgreSqlRollback_IsTransactionalIdempotentAndDropsDependentsFirst()
     {
-        var rawScript = ReadScript("postgres", RollbackScript);
-        var script = NormalizeSql(RemoveComments(rawScript));
+        string rawScript = ReadScript("postgres", RollbackScript);
+        string script = NormalizeSql(RemoveComments(rawScript));
 
         Assert.IsTrue(script.StartsWith("BEGIN;", StringComparison.Ordinal));
         Assert.IsTrue(script.EndsWith("COMMIT;", StringComparison.Ordinal));
@@ -64,10 +64,10 @@ public sealed class OmnidotsAlertMigrationContractTests
             );
             """;
 
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-        await using var database = await PostgreSqlIntegrationDatabase.CreateAsync(prerequisiteSchema, "SELECT 1;", timeout.Token);
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
+        await using PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(prerequisiteSchema, "SELECT 1;", timeout.Token);
 
-        var forward = ReadScript("postgres", ForwardScript);
+        string forward = ReadScript("postgres", ForwardScript);
         await ExecutePostgreSqlAsync(database, forward, timeout.Token);
         await ExecutePostgreSqlAsync(database, forward, timeout.Token);
 
@@ -76,7 +76,7 @@ public sealed class OmnidotsAlertMigrationContractTests
         Assert.AreEqual(1L, await QueryScalarAsync<long>(database, "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'alert_delivery_outbox' AND indexname = 'uq_alert_delivery_outbox_delivery_key';", timeout.Token));
         Assert.AreEqual(1L, await QueryScalarAsync<long>(database, "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'alert_delivery_outbox' AND indexname = 'ix_alert_delivery_outbox_due';", timeout.Token));
 
-        var rollback = ReadScript("postgres", RollbackScript);
+        string rollback = ReadScript("postgres", RollbackScript);
         await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
         await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
         Assert.AreEqual(0L, await QueryScalarAsync<long>(database, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name IN ('alert_occurrence', 'alert_delivery_outbox');", timeout.Token));
@@ -90,23 +90,23 @@ public sealed class OmnidotsAlertMigrationContractTests
 
     private static string RemoveComments(string script)
     {
-        var withoutBlockComments = Regex.Replace(script, @"/\*.*?\*/", string.Empty, RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        string withoutBlockComments = Regex.Replace(script, @"/\*.*?\*/", string.Empty, RegexOptions.Singleline | RegexOptions.CultureInvariant);
         return Regex.Replace(withoutBlockComments, @"--[^\r\n]*", string.Empty, RegexOptions.CultureInvariant);
     }
 
     private static string NormalizeSql(string script)
     {
-        var normalized = Regex.Replace(script, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
+        string normalized = Regex.Replace(script, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
         normalized = Regex.Replace(normalized, @"\(\s+", "(", RegexOptions.CultureInvariant);
         return Regex.Replace(normalized, @"\s+\)", ")", RegexOptions.CultureInvariant);
     }
 
     private static void AssertAppearsInOrder(string script, params string[] statements)
     {
-        var lastIndex = -1;
-        foreach (var statement in statements)
+        int lastIndex = -1;
+        foreach (string statement in statements)
         {
-            var index = script.IndexOf(statement, StringComparison.Ordinal);
+            int index = script.IndexOf(statement, StringComparison.Ordinal);
             Assert.IsGreaterThan(lastIndex, index, $"Expected '{statement}' after the preceding migration operation.");
             lastIndex = index;
         }
@@ -114,18 +114,18 @@ public sealed class OmnidotsAlertMigrationContractTests
 
     private static async Task ExecutePostgreSqlAsync(PostgreSqlIntegrationDatabase database, string script, CancellationToken cancellationToken)
     {
-        await using var connection = database.OpenConnection();
+        await using NpgsqlConnection connection = database.OpenConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new NpgsqlCommand(script, connection) { CommandTimeout = 30 };
+        await using NpgsqlCommand command = new(script, connection) { CommandTimeout = 30 };
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task<T> QueryScalarAsync<T>(PostgreSqlIntegrationDatabase database, string sql, CancellationToken cancellationToken)
     {
-        await using var connection = database.OpenConnection();
+        await using NpgsqlConnection connection = database.OpenConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new NpgsqlCommand(sql, connection) { CommandTimeout = 30 };
-        var result = await command.ExecuteScalarAsync(cancellationToken);
+        await using NpgsqlCommand command = new(sql, connection) { CommandTimeout = 30 };
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
         Assert.IsNotNull(result);
         return (T)Convert.ChangeType(result, typeof(T), CultureInfo.InvariantCulture);
     }

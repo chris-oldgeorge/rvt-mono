@@ -9,10 +9,10 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Contracts_UseCanonicalProducerAndEnumValues()
     {
-        var myAtmField = typeof(MonitorDeliveryProducers).GetField(
+        FieldInfo? myAtmField = typeof(MonitorDeliveryProducers).GetField(
             nameof(MonitorDeliveryProducers.MyAtm),
             BindingFlags.Public | BindingFlags.Static);
-        var svantekField = typeof(MonitorDeliveryProducers).GetField(
+        FieldInfo? svantekField = typeof(MonitorDeliveryProducers).GetField(
             nameof(MonitorDeliveryProducers.Svantek),
             BindingFlags.Public | BindingFlags.Static);
 
@@ -44,7 +44,7 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Defaults_PreserveSharedDeliveryPolicy()
     {
-        var options = new MonitorDeliveryOptions();
+        MonitorDeliveryOptions options = new();
 
         Assert.AreEqual(string.Empty, options.Producer);
         Assert.AreEqual(string.Empty, options.InsertTopic);
@@ -62,8 +62,8 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Contracts_PreserveRequestAndAuditValues()
     {
-        var createdAt = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
-        var request = new MonitorDeliveryRequest(
+        DateTime createdAt = new(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
+        MonitorDeliveryRequest request = new(
             Guid.NewGuid(),
             MonitorDeliveryProducers.Svantek,
             DeliveryFixture.NotificationId,
@@ -74,7 +74,7 @@ public sealed class MonitorDeliveryOptionsTests
             1,
             "{}",
             createdAt);
-        var audit = new MonitorDeliveryAudit(
+        MonitorDeliveryAudit audit = new(
             DeliveryFixture.NotificationId,
             "alerts@example.test",
             "Sent",
@@ -96,7 +96,7 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Validate_RejectsUnknownProducer()
     {
-        var options = ValidOptions() with { Producer = "MyATM" };
+        MonitorDeliveryOptions options = ValidOptions() with { Producer = "MyATM" };
 
         Assert.ThrowsExactly<InvalidOperationException>(options.Validate);
     }
@@ -104,7 +104,7 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Validate_RejectsNonPositiveBatchSize()
     {
-        var options = ValidOptions() with { BatchSize = 0 };
+        MonitorDeliveryOptions options = ValidOptions() with { BatchSize = 0 };
 
         Assert.ThrowsExactly<InvalidOperationException>(options.Validate);
     }
@@ -134,7 +134,7 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Validate_RejectsRetryCapShorterThanInitialDelay()
     {
-        var options = ValidOptions() with
+        MonitorDeliveryOptions options = ValidOptions() with
         {
             InitialRetryDelay = TimeSpan.FromMinutes(2),
             RetryCap = TimeSpan.FromMinutes(1)
@@ -146,7 +146,7 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Validate_RejectsLeaseNotLongerThanDeliveryTimeout()
     {
-        var options = ValidOptions() with
+        MonitorDeliveryOptions options = ValidOptions() with
         {
             DeliveryTimeout = TimeSpan.FromSeconds(30),
             LeaseDuration = TimeSpan.FromSeconds(30)
@@ -158,7 +158,7 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Validate_RejectsNonPositiveMaxAttempts()
     {
-        var options = ValidOptions() with { MaxAttempts = 0 };
+        MonitorDeliveryOptions options = ValidOptions() with { MaxAttempts = 0 };
 
         Assert.ThrowsExactly<InvalidOperationException>(options.Validate);
     }
@@ -169,7 +169,7 @@ public sealed class MonitorDeliveryOptionsTests
     [DataRow("not a url")]
     public void Validate_RejectsPortalUrlThatIsNotAbsoluteHttpOrHttps(string portalBaseUrl)
     {
-        var options = ValidOptions() with { PortalBaseUrl = portalBaseUrl };
+        MonitorDeliveryOptions options = ValidOptions() with { PortalBaseUrl = portalBaseUrl };
 
         Assert.ThrowsExactly<InvalidOperationException>(options.Validate);
     }

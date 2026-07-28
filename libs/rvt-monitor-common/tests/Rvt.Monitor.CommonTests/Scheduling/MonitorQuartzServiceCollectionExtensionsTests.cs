@@ -11,7 +11,7 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
     [TestMethod]
     public void AddMonitorQuartzScheduler_DoesNotRegisterHostedSchedulerWhenDisabled()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddMonitorQuartzScheduler<TestDispatcher>(CreateConfiguration(enabled: false), "TestMonitor");
 
@@ -21,10 +21,10 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
     [TestMethod]
     public void AddMonitorQuartzScheduler_ThrowsForUnsupportedConfiguredJob()
     {
-        var services = new ServiceCollection();
-        var configuration = CreateConfiguration(enabled: true, jobName: "MissingJob");
+        ServiceCollection services = new();
+        IConfiguration configuration = CreateConfiguration(enabled: true, jobName: "MissingJob");
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             services.AddMonitorQuartzScheduler<TestDispatcher>(configuration, "TestMonitor"));
 
         Assert.Contains("MissingJob", exception.Message);
@@ -33,7 +33,7 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
     [TestMethod]
     public void AddMonitorQuartzScheduler_RegistersHostedSchedulerWhenEnabled()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddMonitorQuartzScheduler<TestDispatcher>(CreateConfiguration(enabled: true), "TestMonitor");
 
@@ -44,7 +44,7 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
     [TestMethod]
     public void AddMonitorQuartzScheduler_DoesNotRegisterHostedSchedulerWhenInfrastructureIsAzure()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddMonitorQuartzScheduler<TestDispatcher>(
             CreateConfiguration(enabled: true, infrastructure: "azure"),

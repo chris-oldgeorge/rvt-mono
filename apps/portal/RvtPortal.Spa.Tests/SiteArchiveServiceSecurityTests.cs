@@ -1,4 +1,4 @@
-﻿// File summary: Covers canonical PostgreSQL SQL and parameterization behavior for site archive exports.
+// File summary: Covers canonical PostgreSQL SQL and parameterization behavior for site archive exports.
 // Major updates:
 // - 2026-07-25 pending Replaced provider-dialect coverage with canonical PostgreSQL archive and site-write guards.
 // - 2026-07-25 pending Added stable URL canonicalization and effective-port cleanup coverage.
@@ -6,17 +6,17 @@
 // - 2026-07-05 pending Replaced source-text archive SQL checks with reflection-backed behavior tests.
 // - 2026-06-08 pending Added archive export SQL injection regression coverage.
 
-using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
+using RVT.DataAccess.Context;
 using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Adapters.Archive;
 using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Adapters.Storage;
-using RVT.DataAccess.Context;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -25,10 +25,10 @@ public sealed class SiteArchiveServiceSecurityTests
     [Fact]
     public async Task SiteArchiveAdapter_MapsExportFailureWithoutSwallowingCancellation()
     {
-        var failureAdapter = new SiteArchiveAdapter(
+        SiteArchiveAdapter failureAdapter = new(
             new ThrowingSiteArchiveService(new IOException("upload failed")));
 
-        var failure = await failureAdapter.ExportAsync(
+        SiteArchiveExportResult failure = await failureAdapter.ExportAsync(
             Guid.NewGuid(),
             CancellationToken.None);
 
@@ -38,7 +38,7 @@ public sealed class SiteArchiveServiceSecurityTests
             "The site archive could not be created, so the site was not archived. Please try again.",
             failure.ErrorMessage);
 
-        var cancellationAdapter = new SiteArchiveAdapter(
+        SiteArchiveAdapter cancellationAdapter = new(
             new ThrowingSiteArchiveService(new OperationCanceledException()));
         await Assert.ThrowsAsync<OperationCanceledException>(
             () => cancellationAdapter.ExportAsync(
@@ -49,10 +49,10 @@ public sealed class SiteArchiveServiceSecurityTests
     [Fact]
     public async Task DeleteSupersededAsync_MatchingStableUrlDoesNotCallBlobStorage()
     {
-        var siteId = Guid.NewGuid();
-        var service = CreateArchiveService(
+        Guid siteId = Guid.NewGuid();
+        SiteArchiveService service = CreateArchiveService(
             BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(250));
 
         await service.DeleteSupersededAsync(
             siteId,
@@ -63,10 +63,10 @@ public sealed class SiteArchiveServiceSecurityTests
     [Fact]
     public async Task DeleteSupersededAsync_PercentEncodedMatchingStableUrlDoesNotCallBlobStorage()
     {
-        var siteId = Guid.NewGuid();
-        var service = CreateArchiveService(
+        Guid siteId = Guid.NewGuid();
+        SiteArchiveService service = CreateArchiveService(
             BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(250));
 
         await service.DeleteSupersededAsync(
             siteId,
@@ -77,10 +77,10 @@ public sealed class SiteArchiveServiceSecurityTests
     [Fact]
     public async Task DeleteSupersededAsync_QueryEquivalentMatchingStableUrlDoesNotCallBlobStorage()
     {
-        var siteId = Guid.NewGuid();
-        var service = CreateArchiveService(
+        Guid siteId = Guid.NewGuid();
+        SiteArchiveService service = CreateArchiveService(
             BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(250));
 
         await service.DeleteSupersededAsync(
             siteId,
@@ -92,27 +92,27 @@ public sealed class SiteArchiveServiceSecurityTests
     [Fact]
     public async Task DeleteSupersededAsync_SameAccountAndContainerWithWrongEffectivePortFailsClosedWithoutDeleting()
     {
-        using var server = new LoopbackBlobServer();
-        var siteId = Guid.NewGuid();
-        var service = CreateArchiveService(
+        using LoopbackBlobServer server = new();
+        Guid siteId = Guid.NewGuid();
+        SiteArchiveService service = CreateArchiveService(
             BlobConnectionString($"{server.Endpoint}/archiveaccount"));
-        var candidateUri = new Uri(
+        Uri candidateUri = new(
             $"{server.Endpoint}/archiveaccount/site-archives/{siteId:N}/site-archive.zip");
-        var wrongPort = candidateUri.Port == 65535
+        int wrongPort = candidateUri.Port == 65535
             ? candidateUri.Port - 1
             : candidateUri.Port + 1;
-        var durableArchiveUrl = new UriBuilder(candidateUri)
+        string durableArchiveUrl = new UriBuilder(candidateUri)
         {
             Port = wrongPort
         }.Uri.AbsoluteUri;
 
-        var exception = await Record.ExceptionAsync(
+        Exception exception = await Record.ExceptionAsync(
             () => service.DeleteSupersededAsync(
                 siteId,
                 durableArchiveUrl,
                 CancellationToken.None));
-        var noRequestWindow = Task.Delay(TimeSpan.FromMilliseconds(250));
-        var completedTask = await Task.WhenAny(server.Request, noRequestWindow);
+        Task noRequestWindow = Task.Delay(TimeSpan.FromMilliseconds(250));
+        Task completedTask = await Task.WhenAny(server.Request, noRequestWindow);
 
         Assert.Multiple(
             () => Assert.IsType<InvalidOperationException>(exception),
@@ -126,10 +126,10 @@ public sealed class SiteArchiveServiceSecurityTests
     public async Task SiteArchiveAdapter_MapsUnverifiableDurableUrlToCleanupFailure(
         string durableArchiveUrl)
     {
-        var adapter = new SiteArchiveAdapter(
+        SiteArchiveAdapter adapter = new(
             CreateArchiveService(BlobConnectionString()));
 
-        var result = await adapter.CleanupSupersededAsync(
+        SiteArchiveCleanupResult result = await adapter.CleanupSupersededAsync(
             Guid.NewGuid(),
             durableArchiveUrl,
             CancellationToken.None);
@@ -144,7 +144,7 @@ public sealed class SiteArchiveServiceSecurityTests
     public async Task DeleteSupersededAsync_WrongAccountOrContainerFailsClosed(
         string durableArchiveUrl)
     {
-        var service = CreateArchiveService(BlobConnectionString());
+        SiteArchiveService service = CreateArchiveService(BlobConnectionString());
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.DeleteSupersededAsync(
@@ -156,18 +156,18 @@ public sealed class SiteArchiveServiceSecurityTests
     [Fact]
     public async Task DeleteSupersededAsync_LegacyUrlDeletesOnlyDerivedStableCandidateWithSnapshots()
     {
-        using var server = new LoopbackBlobServer();
-        var siteId = Guid.NewGuid();
-        var service = CreateArchiveService(
+        using LoopbackBlobServer server = new();
+        Guid siteId = Guid.NewGuid();
+        SiteArchiveService service = CreateArchiveService(
             BlobConnectionString($"{server.Endpoint}/archiveaccount"));
-        var durableArchiveUrl =
+        string durableArchiveUrl =
             $"{server.Endpoint}/archiveaccount/site-archives/legacy/archive.zip";
 
         await service.DeleteSupersededAsync(
             siteId,
             durableArchiveUrl,
             CancellationToken.None);
-        var request = await server.Request;
+        BlobRequest request = await server.Request;
 
         Assert.Multiple(
             () => Assert.Equal(
@@ -185,7 +185,7 @@ public sealed class SiteArchiveServiceSecurityTests
     // Function summary: Verifies the archive orchestrator delegates SQL, temp-workspace, and streamed CSV concerns to dedicated components.
     public void SiteArchiveService_DoesNotOwnSqlTranslationFixedWorkspaceOrCsvMaterialization()
     {
-        var source = File.ReadAllText(Path.Combine(
+        string source = File.ReadAllText(Path.Combine(
             AppContext.BaseDirectory,
             "..",
             "..",
@@ -209,10 +209,10 @@ public sealed class SiteArchiveServiceSecurityTests
     // Function summary: Verifies archive queries receive an Npgsql parameter instead of an interpolated site id.
     public void SiteArchiveService_CreatesNpgsqlSiteIdParameter()
     {
-        var siteId = Guid.NewGuid();
-        var service = new SiteArchiveQueryExecutor(NoOpDomainContext());
+        Guid siteId = Guid.NewGuid();
+        SiteArchiveQueryExecutor service = new(NoOpDomainContext());
 
-        var parameter = service.CreateSiteIdParameter(siteId);
+        NpgsqlParameter parameter = service.CreateSiteIdParameter(siteId);
 
         Assert.Equal("@SiteId", parameter.ParameterName);
         Assert.Equal(siteId, parameter.Value);
@@ -223,10 +223,10 @@ public sealed class SiteArchiveServiceSecurityTests
     // Function summary: Verifies the archive catalog supplies one canonical public-schema PostgreSQL SQL definition.
     public void SiteArchiveQueryCatalog_ProvidesCanonicalPostgresArchiveSql()
     {
-        var catalog = new SiteArchiveQueryCatalog();
+        SiteArchiveQueryCatalog catalog = new();
 
-        var sql = FirstExportSql(catalog);
-        var allSql = AllExportSql(catalog);
+        string sql = FirstExportSql(catalog);
+        string allSql = AllExportSql(catalog);
 
         Assert.Contains("\"public\".\"deployment\"", sql, StringComparison.Ordinal);
         Assert.Contains("s.id = @SiteId", sql, StringComparison.Ordinal);
@@ -241,7 +241,7 @@ public sealed class SiteArchiveServiceSecurityTests
     // Function summary: Verifies both atomic site writes use PostgreSQL ON CONFLICT.
     public void EfSiteWriteAdapter_UsesPostgreSqlOnConflict()
     {
-        var source = File.ReadAllText(Path.Combine(
+        string source = File.ReadAllText(Path.Combine(
             AppContext.BaseDirectory,
             "..",
             "..",
@@ -269,7 +269,7 @@ public sealed class SiteArchiveServiceSecurityTests
 
     private static SiteArchiveService CreateArchiveService(string blobConnectionString)
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["BlobStorage:blobConnectionString"] = blobConnectionString,
@@ -288,7 +288,7 @@ public sealed class SiteArchiveServiceSecurityTests
     private static string BlobConnectionString(
         string? blobEndpoint = null)
     {
-        var endpoint = blobEndpoint is null
+        string endpoint = blobEndpoint is null
             ? string.Empty
             : $";BlobEndpoint={blobEndpoint}";
         return "DefaultEndpointsProtocol=https"
@@ -332,7 +332,7 @@ public sealed class SiteArchiveServiceSecurityTests
         public LoopbackBlobServer()
         {
             listener.Start();
-            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             Endpoint = $"http://127.0.0.1:{port}";
             Request = ReceiveAsync();
         }
@@ -348,16 +348,16 @@ public sealed class SiteArchiveServiceSecurityTests
 
         private async Task<BlobRequest> ReceiveAsync()
         {
-            using var client = await listener.AcceptTcpClientAsync();
-            await using var stream = client.GetStream();
-            using var reader = new StreamReader(
+            using TcpClient client = await listener.AcceptTcpClientAsync();
+            await using NetworkStream stream = client.GetStream();
+            using StreamReader reader = new(
                 stream,
                 Encoding.ASCII,
                 detectEncodingFromByteOrderMarks: false,
                 leaveOpen: true);
-            var requestLine = await reader.ReadLineAsync()
+            string requestLine = await reader.ReadLineAsync()
                 ?? throw new InvalidOperationException("Blob request line was missing.");
-            var parts = requestLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = requestLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             string? deleteSnapshots = null;
             while (await reader.ReadLineAsync() is { Length: > 0 } header)
             {
@@ -370,7 +370,7 @@ public sealed class SiteArchiveServiceSecurityTests
                 }
             }
 
-            var response = Encoding.ASCII.GetBytes(
+            byte[] response = Encoding.ASCII.GetBytes(
                 "HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
             await stream.WriteAsync(response);
             return new BlobRequest(parts[0], new Uri($"http://localhost{parts[1]}").AbsolutePath, deleteSnapshots);

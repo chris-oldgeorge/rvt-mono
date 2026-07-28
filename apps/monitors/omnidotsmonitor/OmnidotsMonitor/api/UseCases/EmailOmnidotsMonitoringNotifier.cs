@@ -12,7 +12,7 @@ public sealed class EmailOmnidotsMonitoringNotifier(IEmailDeliveryPort emailDeli
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var body = $"No data for any monitor detected at {utcNow.ToString("O", CultureInfo.InvariantCulture)}";
+        string body = $"No data for any monitor detected at {utcNow.ToString("O", CultureInfo.InvariantCulture)}";
         return emailDelivery.SendAsync(
             new EmailDeliveryRequest(
             recipient,

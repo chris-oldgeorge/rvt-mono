@@ -9,7 +9,7 @@ public sealed class MicrosoftGraphMailOptionsTests
     [TestMethod]
     public void FromConfiguration_UsesColonKeysForAllMicrosoftGraphSettings()
     {
-        var options = Load(
+        MicrosoftGraphMailOptions options = Load(
             ("RVT:EMAIL_ENABLED", "false"),
             ("RVT:MICROSOFT_TENANT_ID", "tenant-id"),
             ("RVT:MICROSOFT_CLIENT_ID", "client-id"),
@@ -26,7 +26,7 @@ public sealed class MicrosoftGraphMailOptionsTests
     [TestMethod]
     public void FromConfiguration_FallsBackToLiteralDoubleUnderscoreKeys()
     {
-        var options = Load(
+        MicrosoftGraphMailOptions options = Load(
             ("RVT__EMAIL_ENABLED", "false"),
             ("RVT__MICROSOFT_TENANT_ID", "tenant-id"),
             ("RVT__MICROSOFT_CLIENT_ID", "client-id"),
@@ -43,7 +43,7 @@ public sealed class MicrosoftGraphMailOptionsTests
     [TestMethod]
     public void FromConfiguration_PrefersColonKeysOverLiteralDoubleUnderscoreKeys()
     {
-        var options = Load(
+        MicrosoftGraphMailOptions options = Load(
             ("RVT:EMAIL_ENABLED", "true"),
             ("RVT__EMAIL_ENABLED", "false"),
             ("RVT:MICROSOFT_TENANT_ID", "colon-tenant"),
@@ -65,7 +65,7 @@ public sealed class MicrosoftGraphMailOptionsTests
     [TestMethod]
     public void Validate_EnabledEmailReportsAllFourRequiredKeys()
     {
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             new MicrosoftGraphMailOptions().Validate());
 
         Assert.Contains("RVT__MICROSOFT_TENANT_ID", exception.Message);
@@ -77,7 +77,7 @@ public sealed class MicrosoftGraphMailOptionsTests
     [TestMethod]
     public void Validate_DoesNotExposeConfiguredClientSecret()
     {
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             new MicrosoftGraphMailOptions { ClientSecret = "super-secret" }.Validate());
 
         Assert.DoesNotContain("super-secret", exception.Message);
@@ -86,7 +86,7 @@ public sealed class MicrosoftGraphMailOptionsTests
     [TestMethod]
     public void Validate_EnabledEmailReportsMissingClientSecretWithoutValue()
     {
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             new MicrosoftGraphMailOptions
             {
                 TenantId = "tenant-id",

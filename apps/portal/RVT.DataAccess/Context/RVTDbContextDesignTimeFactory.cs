@@ -16,7 +16,7 @@ public sealed class RVTDbContextDesignTimeFactory : IDesignTimeDbContextFactory<
     // Function summary: Creates the domain context for EF tooling without relying on runtime appsettings files.
     public RVTDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<RVTDbContext>();
+        DbContextOptionsBuilder<RVTDbContext> optionsBuilder = new();
         optionsBuilder.UseRvtDatabaseProvider(RvtDesignTimeDatabaseOptions.FromEnvironment());
 
         return new RVTDbContext(optionsBuilder.Options);

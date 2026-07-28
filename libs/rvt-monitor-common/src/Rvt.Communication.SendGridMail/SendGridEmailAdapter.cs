@@ -37,7 +37,7 @@ public sealed class SendGridEmailAdapter : IEmailDeliveryPort
                 "Configuration");
         }
 
-        var message = new SendGridMessage
+        SendGridMessage message = new()
         {
             From = new EmailAddress(options.FromEmail, options.FromName),
             Subject = request.Subject
@@ -45,10 +45,10 @@ public sealed class SendGridEmailAdapter : IEmailDeliveryPort
         message.AddTo(new EmailAddress(request.Recipient));
         message.AddContent(MimeType.Text, request.PlainTextBody);
         message.AddContent(MimeType.Html, request.HtmlBody);
-        foreach (var attachment in request.Attachments)
+        foreach (EmailAttachment attachment in request.Attachments)
         {
-            using var stream = attachment.OpenRead();
-            using var buffer = new MemoryStream();
+            using Stream stream = attachment.OpenRead();
+            using MemoryStream buffer = new();
             await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
             message.AddAttachment(
                 attachment.FileName,

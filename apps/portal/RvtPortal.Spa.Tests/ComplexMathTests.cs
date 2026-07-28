@@ -4,9 +4,9 @@
 // - 2026-06-26 pending Covered the Complex ISerializable recommended pattern.
 // - 2026-06-10 pending Covered near-zero complex-number comparisons for Sonar floating-point equality remediation.
 
-using AForge.Math;
 using System.Reflection;
 using System.Runtime.Serialization;
+using AForge.Math;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -16,7 +16,7 @@ public sealed class ComplexMathTests
     // Function summary: Verifies scalar division treats near-zero floating-point denominators as zero.
     public void Divide_ByNearZeroScalar_ThrowsDivideByZero()
     {
-        var value = new Complex(1, 1);
+        Complex value = new(1, 1);
 
         Assert.Throws<DivideByZeroException>(() => Complex.Divide(value, double.Epsilon));
     }
@@ -25,8 +25,8 @@ public sealed class ComplexMathTests
     // Function summary: Verifies complex division treats near-zero complex denominators as zero.
     public void Divide_ByNearZeroComplex_ThrowsDivideByZero()
     {
-        var value = new Complex(1, 1);
-        var divisor = new Complex(double.Epsilon, double.Epsilon);
+        Complex value = new(1, 1);
+        Complex divisor = new(double.Epsilon, double.Epsilon);
 
         Assert.Throws<DivideByZeroException>(() => Complex.Divide(value, divisor));
     }
@@ -35,10 +35,10 @@ public sealed class ComplexMathTests
     // Function summary: Verifies real-axis complex functions tolerate floating-point noise around zero.
     public void RealAxisFunctions_TreatNearZeroImaginaryPartAsZero()
     {
-        var value = new Complex(4, double.Epsilon);
+        Complex value = new(4, double.Epsilon);
 
-        var squareRoot = Complex.Sqrt(value);
-        var sine = Complex.Sin(value);
+        Complex squareRoot = Complex.Sqrt(value);
+        Complex sine = Complex.Sin(value);
 
         Assert.InRange(Math.Abs(squareRoot.Im), 0, 1e-12);
         Assert.InRange(Math.Abs(sine.Im), 0, 1e-12);
@@ -48,7 +48,7 @@ public sealed class ComplexMathTests
     // Function summary: Verifies Complex follows the recommended ISerializable type shape.
     public void ComplexSerializationPattern_UsesSerializableAttributeAndPrivateConstructor()
     {
-        var constructor = typeof(Complex).GetConstructor(
+        ConstructorInfo? constructor = typeof(Complex).GetConstructor(
             BindingFlags.Instance | BindingFlags.NonPublic,
             binder: null,
             types: new[] { typeof(SerializationInfo), typeof(StreamingContext) },

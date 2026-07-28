@@ -188,7 +188,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
             out Mock<IOmnidotsMonitorQueries>? monitorQueries,
             out ConfigRequestCapture? capture,
             siteTimes);
-        var request = new Dictionary<string, object?>
+        Dictionary<string, object?> request = new()
         {
             ["secret"] = ConfigSecret,
             ["serialid"] = SerialId,
@@ -294,10 +294,10 @@ public sealed class ConfigureMeasuringPointHandlerTests
     {
         ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         SetupMonitor(monitorQueries);
-        var pendingResponse = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<string> pendingResponse = new(TaskCreationOptions.RunContinuationsAsynchronously);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Returns(pendingResponse.Task);
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         // The token now reaches the vendor call itself; an already-cancelled
@@ -337,7 +337,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     {
         httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
         monitorQueries = new Mock<IOmnidotsMonitorQueries>(MockBehavior.Strict);
-        var gateway = new OmnidotsHttpGateway(httpClient.Object, "vendor-user", "vendor-password");
+        OmnidotsHttpGateway gateway = new(httpClient.Object, "vendor-user", "vendor-password");
         return new ConfigureMeasuringPointHandler(gateway, monitorQueries.Object, options ?? ValidOptions());
     }
 
@@ -357,14 +357,14 @@ public sealed class ConfigureMeasuringPointHandlerTests
         string? startTime,
         string? endTime)
     {
-        var siteTimes = new SiteTimes();
+        SiteTimes siteTimes = new();
         if (startTime is null || endTime is null)
         {
             return siteTimes;
         }
 
-        var start = TimeSpan.Parse(startTime);
-        var end = TimeSpan.Parse(endTime);
+        TimeSpan start = TimeSpan.Parse(startTime);
+        TimeSpan end = TimeSpan.Parse(endTime);
         if (weekdays)
         {
             siteTimes.WeekdayStart = start;

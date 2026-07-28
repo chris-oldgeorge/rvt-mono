@@ -7,7 +7,6 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
@@ -90,7 +89,7 @@ public sealed record DataWorkflowFailure(
     // Function summary: Creates an unsupported sort failure.
     public static DataWorkflowFailure InvalidSort(string requestedSort, IEnumerable<string> allowedFields)
     {
-        return new DataWorkflowFailure(DataWorkflowFailureKind.InvalidSort, RequestedSort: requestedSort, AllowedFields: allowedFields.ToArray());
+        return new DataWorkflowFailure(DataWorkflowFailureKind.InvalidSort, RequestedSort: requestedSort, AllowedFields: [.. allowedFields]);
     }
 
     // Function summary: Creates a failure for request timestamps that are not explicit UTC instants.
@@ -98,7 +97,7 @@ public sealed record DataWorkflowFailure(
     {
         return new DataWorkflowFailure(
             DataWorkflowFailureKind.InvalidTimestamp,
-            InvalidFields: invalidFields.ToArray());
+            InvalidFields: [.. invalidFields]);
     }
 
     // Function summary: Creates a trace visibility failure.
@@ -234,25 +233,25 @@ public sealed class DataApplicationService : IDataApplicationService
             return DataWorkflowResult<MonitorDataGridResponse>.Failed(timestampFailure);
         }
 
-        var deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
+        Deployment? deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
         if (deployment?.Monitor is null)
         {
             return DataWorkflowResult<MonitorDataGridResponse>.Failed(DataWorkflowFailure.DeploymentNotFound(deploymentId));
         }
 
-        var requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? SampleTimeKey : request.Sort.Trim();
-        if (!SortFields.TryGetValue(requestedSort, out var serviceSort))
+        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? SampleTimeKey : request.Sort.Trim();
+        if (!SortFields.TryGetValue(requestedSort, out string? serviceSort))
         {
             return DataWorkflowResult<MonitorDataGridResponse>.Failed(DataWorkflowFailure.InvalidSort(requestedSort, SortFields.Keys));
         }
 
-        var page = request.GetNormalizedPage();
-        var pageSize = request.GetNormalizedPageSize();
-        var sortDir = request.GetNormalizedSortDir();
-        var fromDate = request.FromDate;
-        var toDate = request.ToDate;
-        var clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
-        var monitorData = clampedWindow is null
+        int page = request.GetNormalizedPage();
+        int pageSize = request.GetNormalizedPageSize();
+        string sortDir = request.GetNormalizedSortDir();
+        DateTime? fromDate = request.FromDate;
+        DateTime? toDate = request.ToDate;
+        (DateTime From, DateTime To)? clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
+        MonitorData monitorData = clampedWindow is null
             ? BuildEmptyMonitorData(deployment, fromDate, toDate, request.FilterOption)
             : await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
                 DeploymentId: deploymentId,
@@ -281,16 +280,16 @@ public sealed class DataApplicationService : IDataApplicationService
             return DataDownloadWorkflowResult.Failed(timestampFailure);
         }
 
-        var deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
+        Deployment? deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
         if (deployment?.Monitor is null)
         {
             return DataDownloadWorkflowResult.Failed(DataWorkflowFailure.DeploymentNotFound(deploymentId));
         }
 
-        var fromDate = request.FromDate;
-        var toDate = request.ToDate;
-        var clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
-        var monitorData = clampedWindow is null
+        DateTime? fromDate = request.FromDate;
+        DateTime? toDate = request.ToDate;
+        (DateTime From, DateTime To)? clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
+        MonitorData monitorData = clampedWindow is null
             ? BuildEmptyMonitorData(deployment, fromDate, toDate, request.FilterOption)
             : await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
                 DeploymentId: deploymentId,
@@ -301,14 +300,14 @@ public sealed class DataApplicationService : IDataApplicationService
                 GraphData: false,
                 Sort: SampleTimeSort,
                 SortDir: OrderByDirectionEnum.Ascending));
-        var response = BuildGridResponse(deployment, monitorData, SampleTimeKey, SortDirections.Ascending, 1, Math.Max(RowCount(monitorData), 1));
+        MonitorDataGridResponse response = BuildGridResponse(deployment, monitorData, SampleTimeKey, SortDirections.Ascending, 1, Math.Max(RowCount(monitorData), 1));
         if (response.Total == 0)
         {
             return DataDownloadWorkflowResult.Failed(DataWorkflowFailure.NoDataToDownload());
         }
 
-        var csv = BuildDataCsv(response);
-        var fileName = $"{response.MonitorName} ({FilterLabel(response.FilterOption)}).csv";
+        string csv = BuildDataCsv(response);
+        string fileName = $"{response.MonitorName} ({FilterLabel(response.FilterOption)}).csv";
 
         // A CSV body cannot carry a flag, so the controller surfaces this as a response header. An export that
         // stopped at the row bound must not look like a complete one.
@@ -327,16 +326,16 @@ public sealed class DataApplicationService : IDataApplicationService
             return DataWorkflowResult<MonitorGraphResponse>.Failed(timestampFailure);
         }
 
-        var deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
+        Deployment? deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
         if (deployment?.Monitor is null)
         {
             return DataWorkflowResult<MonitorGraphResponse>.Failed(DataWorkflowFailure.DeploymentNotFound(deploymentId));
         }
 
-        var fromDate = request.FromDate;
-        var toDate = request.ToDate;
-        var clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
-        var monitorData = clampedWindow is null
+        DateTime? fromDate = request.FromDate;
+        DateTime? toDate = request.ToDate;
+        (DateTime From, DateTime To)? clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
+        MonitorData monitorData = clampedWindow is null
             ? BuildEmptyMonitorData(deployment, fromDate, toDate, request.FilterOption)
             : await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
                 DeploymentId: deploymentId,
@@ -361,7 +360,7 @@ public sealed class DataApplicationService : IDataApplicationService
             return DataWorkflowResult<TraceListResponse>.Failed(timestampFailure);
         }
 
-        var deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
+        Deployment? deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
         if (deployment?.Monitor is null)
         {
             return DataWorkflowResult<TraceListResponse>.Failed(DataWorkflowFailure.DeploymentNotFound(deploymentId));
@@ -378,8 +377,8 @@ public sealed class DataApplicationService : IDataApplicationService
             });
         }
 
-        var clampedWindow = ClampRequestToOwnershipWindow(deployment, request.FromDate, request.ToDate);
-        var traceIndexes = clampedWindow is null
+        (DateTime From, DateTime To)? clampedWindow = ClampRequestToOwnershipWindow(deployment, request.FromDate, request.ToDate);
+        IReadOnlyList<OmnidotsTracesIndex> traceIndexes = clampedWindow is null
             ? []
             : await dataSource.GetTraceIndexesAsync(deployment.Monitor.SerialId, clampedWindow.Value.From, clampedWindow.Value.To);
         return DataWorkflowResult<TraceListResponse>.Success(new TraceListResponse
@@ -388,7 +387,7 @@ public sealed class DataApplicationService : IDataApplicationService
             MonitorId = deployment.MonitorId,
             MonitorName = MonitorData.GetMonitorName(deployment.Monitor, traces: true),
             MonitorType = TypeName(deployment.Monitor.TypeOfMonitor),
-            Traces = traceIndexes
+            Traces = [.. traceIndexes
                 .OrderByDescending(trace => trace.StartTime)
                 .Select(trace => new TraceSummaryItem
                 {
@@ -396,8 +395,7 @@ public sealed class DataApplicationService : IDataApplicationService
                     StartTime = SearchTimestampPolicy.FromDatabase(trace.StartTime)!.Value,
                     EndTime = SearchTimestampPolicy.FromDatabase(trace.EndTime)!.Value,
                     DurationSeconds = Math.Max(0, (int)(trace.EndTime - trace.StartTime).TotalSeconds)
-                })
-                .ToList()
+                })]
         });
     }
 
@@ -408,25 +406,25 @@ public sealed class DataApplicationService : IDataApplicationService
         DataViewActor actor,
         CancellationToken cancellationToken)
     {
-        var deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
+        Deployment? deployment = await FindVisibleDeploymentAsync(deploymentId, actor, cancellationToken);
         if (deployment?.Monitor is null)
         {
             return DataWorkflowResult<TraceDetailResponse>.Failed(DataWorkflowFailure.DeploymentNotFound(deploymentId));
         }
 
-        var traceIndex = await dataSource.GetTraceIndexAsync(traceId);
+        OmnidotsTracesIndex? traceIndex = await dataSource.GetTraceIndexAsync(traceId);
         if (traceIndex is null || !string.Equals(traceIndex.SerialId, deployment.Monitor.SerialId, StringComparison.OrdinalIgnoreCase))
         {
             return DataWorkflowResult<TraceDetailResponse>.Failed(DataWorkflowFailure.TraceNotFound(traceId));
         }
 
-        var ownershipWindow = MonitorOwnershipWindowResolver.ForDeployment(deployment);
+        MonitorOwnershipWindow ownershipWindow = MonitorOwnershipWindowResolver.ForDeployment(deployment);
         if (!ownershipWindow.Contains(traceIndex.StartTime))
         {
             return DataWorkflowResult<TraceDetailResponse>.Failed(DataWorkflowFailure.TraceNotFound(traceId));
         }
 
-        var monitorData = await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
+        MonitorData monitorData = await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
             DeploymentId: deploymentId,
             TraceId: traceId,
             FilterOption: null,
@@ -444,19 +442,19 @@ public sealed class DataApplicationService : IDataApplicationService
         DataViewActor actor,
         CancellationToken cancellationToken)
     {
-        var detail = await GetTraceDetailAsync(deploymentId, traceId, actor, cancellationToken);
+        DataWorkflowResult<TraceDetailResponse> detail = await GetTraceDetailAsync(deploymentId, traceId, actor, cancellationToken);
         if (detail.Failure is not null)
         {
             return DataDownloadWorkflowResult.Failed(detail.Failure);
         }
 
-        var response = detail.Value!;
+        TraceDetailResponse response = detail.Value!;
         if (response.Samples.Count == 0)
         {
             return DataDownloadWorkflowResult.Failed(DataWorkflowFailure.NoTraceDataToDownload());
         }
 
-        var csv = BuildTraceCsv(response);
+        string csv = BuildTraceCsv(response);
         return DataDownloadWorkflowResult.Success(csv, CsvContentType, $"{response.MonitorName} ({response.TraceId}).csv");
     }
 
@@ -466,7 +464,7 @@ public sealed class DataApplicationService : IDataApplicationService
         DataViewActor actor,
         CancellationToken cancellationToken)
     {
-        var deployment = await domainContext.Deployments
+        Deployment? deployment = await domainContext.Deployments
             .AsNoTracking()
             .Include(item => item.Monitor)
             .Include(item => item.Contract)
@@ -482,14 +480,14 @@ public sealed class DataApplicationService : IDataApplicationService
             return deployment;
         }
 
-        var siteId = deployment.Contract?.SiteiD;
+        Guid? siteId = deployment.Contract?.SiteiD;
         if (!actor.IsCompanyUser || siteId is null || actor.UserId is null)
         {
             return null;
         }
 
-        var now = DateTime.UtcNow;
-        var canRead = await domainContext.SiteUsers
+        DateTime now = DateTime.UtcNow;
+        bool canRead = await domainContext.SiteUsers
             .AsNoTracking()
             .AnyAsync(siteUser =>
                 siteUser.UserId == actor.UserId &&
@@ -508,9 +506,9 @@ public sealed class DataApplicationService : IDataApplicationService
         int page,
         int pageSize)
     {
-        var columns = DataColumns(deployment.Monitor.TypeOfMonitor);
-        var rows = DataRows(monitorData);
-        var total = RowCount(monitorData);
+        List<MonitorDataColumn> columns = DataColumns(deployment.Monitor.TypeOfMonitor);
+        List<MonitorDataRow> rows = DataRows(monitorData);
+        int total = RowCount(monitorData);
         return new MonitorDataGridResponse
         {
             DeploymentId = deployment.Id,
@@ -547,7 +545,7 @@ public sealed class DataApplicationService : IDataApplicationService
         Guid? traceId,
         CancellationToken cancellationToken)
     {
-        var response = new MonitorGraphResponse
+        MonitorGraphResponse response = new()
         {
             DeploymentId = deployment.Id,
             MonitorId = deployment.MonitorId,
@@ -599,7 +597,7 @@ public sealed class DataApplicationService : IDataApplicationService
     // Function summary: Builds trace detail response data for callers.
     private static TraceDetailResponse BuildTraceDetailResponse(Deployment deployment, Guid traceId, MonitorData monitorData)
     {
-        var samples = monitorData.VibrationTraces?.Value ?? [];
+        List<OmnidotsTrace> samples = monitorData.VibrationTraces?.Value ?? [];
         return new TraceDetailResponse
         {
             DeploymentId = deployment.Id,
@@ -608,32 +606,30 @@ public sealed class DataApplicationService : IDataApplicationService
             MonitorName = MonitorData.GetMonitorName(deployment.Monitor, traces: true),
             FromDate = SearchTimestampPolicy.FromDatabase(monitorData.FromDate)!.Value,
             ToDate = SearchTimestampPolicy.FromDatabase(monitorData.ToDate)!.Value,
-            Samples = samples
-                .Select((sample, index) => new TraceSampleItem { Index = index, X = sample.X, Y = sample.Y, Z = sample.Z })
-                .ToList()
+            Samples = [.. samples.Select((sample, index) => new TraceSampleItem { Index = index, X = sample.X, Y = sample.Y, Z = sample.Z })]
         };
     }
 
     // Function summary: Clamps requested monitor-bound data ranges to the effective deployment/contract ownership window.
     private static (DateTime From, DateTime To)? ClampRequestToOwnershipWindow(Deployment deployment, DateTime? fromDate, DateTime? toDate)
     {
-        var ownershipWindow = MonitorOwnershipWindowResolver.ForDeployment(deployment);
-        var requestedFrom = fromDate ?? ownershipWindow.Start;
-        var requestedTo = toDate ?? ownershipWindow.End ?? DateTime.UtcNow.AddDays(1);
+        MonitorOwnershipWindow ownershipWindow = MonitorOwnershipWindowResolver.ForDeployment(deployment);
+        DateTime requestedFrom = fromDate ?? ownershipWindow.Start;
+        DateTime requestedTo = toDate ?? ownershipWindow.End ?? DateTime.UtcNow.AddDays(1);
         if (requestedTo <= requestedFrom || !ownershipWindow.Intersects(requestedFrom, requestedTo))
         {
             return null;
         }
 
-        var clamped = ownershipWindow.Clamp(requestedFrom, requestedTo);
+        (DateTime From, DateTime To) clamped = ownershipWindow.Clamp(requestedFrom, requestedTo);
         return clamped.To > clamped.From ? clamped : null;
     }
 
     // Function summary: Builds an empty monitor data response for requests outside the ownership window.
     private static MonitorData BuildEmptyMonitorData(Deployment deployment, DateTime? fromDate, DateTime? toDate, string? filterOption)
     {
-        var ownershipWindow = MonitorOwnershipWindowResolver.ForDeployment(deployment);
-        var fallbackTo = ownershipWindow.End ?? DateTime.UtcNow.AddDays(1);
+        MonitorOwnershipWindow ownershipWindow = MonitorOwnershipWindowResolver.ForDeployment(deployment);
+        DateTime fallbackTo = ownershipWindow.End ?? DateTime.UtcNow.AddDays(1);
         return new MonitorData
         {
             Monitor = deployment.Monitor,
@@ -649,7 +645,7 @@ public sealed class DataApplicationService : IDataApplicationService
     // Function summary: Returns data-grid columns for the monitor type.
     private static List<MonitorDataColumn> DataColumns(MonitorTypeEnum type)
     {
-        var columns = new List<MonitorDataColumn> { new() { Key = SampleTimeKey, Label = "Date" } };
+        List<MonitorDataColumn> columns = new() { new() { Key = SampleTimeKey, Label = "Date" } };
         if (type == MonitorTypeEnum.Dust)
         {
             columns.AddRange([
@@ -689,7 +685,7 @@ public sealed class DataApplicationService : IDataApplicationService
     {
         if (data.DustLevels is not null)
         {
-            return data.DustLevels.Value.Select(row => new MonitorDataRow
+            return [.. data.DustLevels.Value.Select(row => new MonitorDataRow
             {
                 SampleTime = SearchTimestampPolicy.FromDatabase(row.SampleTime),
                 Values = new Dictionary<string, double?>
@@ -699,12 +695,12 @@ public sealed class DataApplicationService : IDataApplicationService
                     [Pm10Key] = row.Pm10,
                     [PmTotalKey] = row.PmTotal
                 }
-            }).ToList();
+            })];
         }
 
         if (data.NoiseLevels is not null)
         {
-            return data.NoiseLevels.Value.Select(row => new MonitorDataRow
+            return [.. data.NoiseLevels.Value.Select(row => new MonitorDataRow
             {
                 SampleTime = SearchTimestampPolicy.FromDatabase(row.SampleTime),
                 Values = new Dictionary<string, double?>
@@ -718,12 +714,12 @@ public sealed class DataApplicationService : IDataApplicationService
                     [Lc90Key] = row.Lc90,
                     [Lc10Key] = row.Lc10
                 }
-            }).ToList();
+            })];
         }
 
         if (data.VibrationLevels is not null)
         {
-            return data.VibrationLevels.Value.Select(row => new MonitorDataRow
+            return [.. data.VibrationLevels.Value.Select(row => new MonitorDataRow
             {
                 SampleTime = SearchTimestampPolicy.FromDatabase(row.SampleTime),
                 Values = new Dictionary<string, double?>
@@ -732,7 +728,7 @@ public sealed class DataApplicationService : IDataApplicationService
                     [YvtopKey] = row.Yvtop,
                     [ZvtopKey] = row.Zvtop
                 }
-            }).ToList();
+            })];
         }
 
         return [];
@@ -787,12 +783,12 @@ public sealed class DataApplicationService : IDataApplicationService
         IReadOnlyList<MonitorDataRow> rows,
         IReadOnlyList<(string Key, string Label)> fields)
     {
-        return fields.Select(field => new MonitorGraphDataset
+        return [.. fields.Select(field => new MonitorGraphDataset
         {
             Key = field.Key,
             Label = field.Label,
-            Points = rows.Select(row => new MonitorGraphPoint { Time = row.SampleTime, Y = row.Values.GetValueOrDefault(field.Key) }).ToList()
-        }).ToList();
+            Points = [.. rows.Select(row => new MonitorGraphPoint { Time = row.SampleTime, Y = row.Values.GetValueOrDefault(field.Key) })]
+        })];
     }
 
     // Function summary: Builds frequency graph datasets for vibration monitors.
@@ -804,19 +800,19 @@ public sealed class DataApplicationService : IDataApplicationService
             {
                 Key = XvtopKey,
                 Label = XvtopLabel,
-                Points = magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.XVtop }).ToList()
+                Points = [.. magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.XVtop })]
             },
             new MonitorGraphDataset
             {
                 Key = YvtopKey,
                 Label = YvtopLabel,
-                Points = magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.YVtop }).ToList()
+                Points = [.. magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.YVtop })]
             },
             new MonitorGraphDataset
             {
                 Key = ZvtopKey,
                 Label = ZvtopLabel,
-                Points = magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.ZVtop }).ToList()
+                Points = [.. magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.ZVtop })]
             }
         ];
     }
@@ -830,19 +826,19 @@ public sealed class DataApplicationService : IDataApplicationService
             {
                 Key = "x",
                 Label = "X",
-                Points = traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.X }).ToList()
+                Points = [.. traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.X })]
             },
             new MonitorGraphDataset
             {
                 Key = "y",
                 Label = "Y",
-                Points = traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.Y }).ToList()
+                Points = [.. traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.Y })]
             },
             new MonitorGraphDataset
             {
                 Key = "z",
                 Label = "Z",
-                Points = traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.Z }).ToList()
+                Points = [.. traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.Z })]
             }
         ];
     }
@@ -850,11 +846,11 @@ public sealed class DataApplicationService : IDataApplicationService
     // Function summary: Builds monitor grid CSV content.
     private static string BuildDataCsv(MonitorDataGridResponse response)
     {
-        var builder = new StringBuilder();
+        StringBuilder builder = new();
         builder.AppendLine(string.Join(",", response.Columns.Select(column => CsvCell(CsvHeaderLabel(column.Key, column.Label)))));
-        foreach (var row in response.Rows)
+        foreach (MonitorDataRow row in response.Rows)
         {
-            var cells = new List<string> { CsvCell(FormatCsvDate(row.SampleTime, response.FilterOption)) };
+            List<string> cells = new() { CsvCell(FormatCsvDate(row.SampleTime, response.FilterOption)) };
             cells.AddRange(response.Columns.Skip(1).Select(column => CsvCell(FormatNumber(row.Values.GetValueOrDefault(column.Key), response.MonitorType))));
             builder.AppendLine(string.Join(",", cells));
         }
@@ -865,9 +861,9 @@ public sealed class DataApplicationService : IDataApplicationService
     // Function summary: Builds vibration trace CSV content.
     private static string BuildTraceCsv(TraceDetailResponse response)
     {
-        var builder = new StringBuilder();
+        StringBuilder builder = new();
         builder.AppendLine("Index,X,Y,Z");
-        foreach (var sample in response.Samples)
+        foreach (TraceSampleItem sample in response.Samples)
         {
             builder.Append(sample.Index.ToString(CultureInfo.InvariantCulture));
             builder.Append(',');
@@ -935,7 +931,7 @@ public sealed class DataApplicationService : IDataApplicationService
             return "";
         }
 
-        var format = filterOption == SiteOption || filterOption == DailyOption ? "dd/MM/yyyy" : "dd/MM/yyyy HH:mm:ss";
+        string format = filterOption is SiteOption or DailyOption ? "dd/MM/yyyy" : "dd/MM/yyyy HH:mm:ss";
         return value.Value.ToString(format, CultureInfo.InvariantCulture);
     }
 
@@ -947,7 +943,7 @@ public sealed class DataApplicationService : IDataApplicationService
             return "";
         }
 
-        var format = monitorType == VibrationMonitorType ? "0.0000" : "0.00";
+        string format = monitorType == VibrationMonitorType ? "0.0000" : "0.00";
         return value.Value.ToString(format, CultureInfo.InvariantCulture);
     }
 
@@ -989,7 +985,7 @@ public sealed class DataApplicationService : IDataApplicationService
             return [];
         }
 
-        return options.Select(option => new OptionItem { Value = option.Key, Label = option.Value }).ToList();
+        return [.. options.Select(option => new OptionItem { Value = option.Key, Label = option.Value })];
     }
 
     // Function summary: Formats an optional duration for API output.
@@ -1007,10 +1003,9 @@ public sealed class DataApplicationService : IDataApplicationService
     // Function summary: Rejects ambiguous server timestamps instead of relabeling their ticks as UTC.
     private static DataWorkflowFailure? ValidateUtcTimestamps(params (string Field, DateTime? Value)[] timestamps)
     {
-        var invalidFields = timestamps
+        string[] invalidFields = [.. timestamps
             .Where(timestamp => timestamp.Value.HasValue && timestamp.Value.Value.Kind != DateTimeKind.Utc)
-            .Select(timestamp => timestamp.Field)
-            .ToArray();
+            .Select(timestamp => timestamp.Field)];
 
         return invalidFields.Length == 0
             ? null

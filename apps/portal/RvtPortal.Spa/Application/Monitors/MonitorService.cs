@@ -1,4 +1,4 @@
-﻿// File summary: Coordinates business-layer operations for monitor service workflows.
+// File summary: Coordinates business-layer operations for monitor service workflows.
 // Major updates:
 // - 2026-07-23 Applied the explicit UTC/plain-timestamp conversion at non-date SampleTime query boundaries.
 // - 2026-07-22 Read vibration traces through the mapped OmnidotsTrace EF entity.
@@ -12,21 +12,13 @@
 // - 2026-06-10 pending Removed stale commented-out search methods for Sonar maintainability.
 
 using System.Globalization;
-using Azure;
 using Microsoft.EntityFrameworkCore;
+using RVT.BusinessLogic;
 using RVT.DataAccess;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
-using RVT.BusinessLogic;
 using RVT.Entities.Ports.Persistence;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.AccessControl;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using RVT.Entities.Querying;
 using Monitor = RVT.Entities.Monitor;
 
@@ -41,8 +33,14 @@ namespace RvtPortal.Spa.Application.Monitors
         Task<IList<Monitor>> ReadAllAsync();
         Task<Monitor?> ReadOneAsync(Guid Id);
 
+
+
+
         //Deployments
         Task<Deployment?> DeploymentReadOneAsync(Guid DeploymentId);
+
+        //AlertLevels
+
 
         //Dust data
         Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels(string SerialId, DateTime FromDate, DateTime ToDate, int AvrgDuration, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
@@ -139,7 +137,7 @@ namespace RvtPortal.Spa.Application.Monitors
                 ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
             }
 
-            List<OrderByProperty> orderBy = new List<OrderByProperty>();
+            List<OrderByProperty> orderBy = new();
             if (!string.IsNullOrEmpty(Sort))
             {
                 orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
@@ -149,7 +147,8 @@ namespace RvtPortal.Spa.Application.Monitors
                 orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
             }
 
-            List<Filter> query = new List<Filter> {
+            List<Filter> query = new()
+            {
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
                 new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
                 new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate },
@@ -157,9 +156,9 @@ namespace RvtPortal.Spa.Application.Monitors
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-            return timeSeries.ReadFilteredAsync<MyAtmDustLevel, MyAtmDustLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.DustLevel, cancellationToken);
+            return timeSeries.ReadFilteredAsync<MyAtmDustLevel, MyAtmDustLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.DustLevel, cancellationToken);
         }
 
         // Function summary: Retrieves my atm dust levels8hour avg data for callers.
@@ -168,7 +167,7 @@ namespace RvtPortal.Spa.Application.Monitors
             FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
             ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
 
-            List<OrderByProperty> orderBy = new List<OrderByProperty>();
+            List<OrderByProperty> orderBy = new();
             if (!string.IsNullOrEmpty(Sort))
             {
                 orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
@@ -178,16 +177,17 @@ namespace RvtPortal.Spa.Application.Monitors
                 orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
             }
 
-            List<Filter> query = new List<Filter> {
+            List<Filter> query = new()
+            {
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
                 new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
                 new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-            return timeSeries.ReadFilteredAsync<MyAtmDustLevel8hourAvg, MyAtmDustLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.DustLevelFromEightHour, cancellationToken);
+            return timeSeries.ReadFilteredAsync<MyAtmDustLevel8hourAvg, MyAtmDustLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.DustLevelFromEightHour, cancellationToken);
         }
 
 
@@ -200,7 +200,7 @@ namespace RvtPortal.Spa.Application.Monitors
             FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
             ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
 
-            List<OrderByProperty> orderBy = new List<OrderByProperty>();
+            List<OrderByProperty> orderBy = new();
             if (!string.IsNullOrEmpty(Sort))
             {
                 orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
@@ -210,16 +210,17 @@ namespace RvtPortal.Spa.Application.Monitors
                 orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
             }
 
-            List<Filter> query = new List<Filter> {
+            List<Filter> query = new()
+            {
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
                 new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
                 new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-            return timeSeries.ReadFilteredAsync<NoiseLevel15minAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.NoiseLevel, cancellationToken);
+            return timeSeries.ReadFilteredAsync<NoiseLevel15minAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevel, cancellationToken);
         }
 
         // Function summary: Retrieves air qnoise levels1hour avg data for callers.
@@ -228,7 +229,7 @@ namespace RvtPortal.Spa.Application.Monitors
             FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
             ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
 
-            List<OrderByProperty> orderBy = new List<OrderByProperty>();
+            List<OrderByProperty> orderBy = new();
             if (!string.IsNullOrEmpty(Sort))
             {
                 orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
@@ -238,16 +239,17 @@ namespace RvtPortal.Spa.Application.Monitors
                 orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
             }
 
-            List<Filter> query = new List<Filter> {
+            List<Filter> query = new()
+            {
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
                 new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
                 new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-            return timeSeries.ReadFilteredAsync<NoiseLevel1hourAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.NoiseLevelFromHour, cancellationToken);
+            return timeSeries.ReadFilteredAsync<NoiseLevel1hourAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromHour, cancellationToken);
         }
 
         // Function summary: Retrieves air qnoise levels1day avg data for callers.
@@ -256,7 +258,7 @@ namespace RvtPortal.Spa.Application.Monitors
             FromDate = FromDate.UtcToLocal(dateTimeProvider).Date;
             ToDate = ToDate.UtcToLocal(dateTimeProvider).Date;
 
-            List<OrderByProperty> orderBy = new List<OrderByProperty>();
+            List<OrderByProperty> orderBy = new();
             if (!string.IsNullOrEmpty(Sort))
             {
                 orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
@@ -266,16 +268,17 @@ namespace RvtPortal.Spa.Application.Monitors
                 orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
             }
 
-            List<Filter> query = new List<Filter> {
+            List<Filter> query = new()
+            {
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
                 new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
                 new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-            return timeSeries.ReadFilteredAsync<NoiseLevel1dayAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.NoiseLevelFromDay, cancellationToken);
+            return timeSeries.ReadFilteredAsync<NoiseLevel1dayAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromDay, cancellationToken);
         }
 
         // Function summary: Retrieves air qnoise levels site avg data for callers.
@@ -284,7 +287,7 @@ namespace RvtPortal.Spa.Application.Monitors
             FromDate = FromDate.UtcToLocal(dateTimeProvider).Date;
             ToDate = ToDate.UtcToLocal(dateTimeProvider).Date;
 
-            List<OrderByProperty> orderBy = new List<OrderByProperty>();
+            List<OrderByProperty> orderBy = new();
             if (!string.IsNullOrEmpty(Sort))
             {
                 orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
@@ -294,16 +297,17 @@ namespace RvtPortal.Spa.Application.Monitors
                 orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
             }
 
-            List<Filter> query = new List<Filter> {
+            List<Filter> query = new()
+            {
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
                 new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
                 new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
             };
 
             int pageSize = PageSize ?? 1000000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
 
-            return timeSeries.ReadFilteredAsync<NoiseLevelSiteAvg, NoiseLevel15minAvg>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.NoiseLevelFromSite, cancellationToken);
+            return timeSeries.ReadFilteredAsync<NoiseLevelSiteAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromSite, cancellationToken);
         }
 
         #endregion
@@ -313,11 +317,11 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Retrieves omnidots peak levels data for callers.
         public Task<SearchQueryResult<OmnidotsPeakLevel>> GetOmnidotsPeakLevels(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
         {
-            var duration = ToDate - FromDate;
+            TimeSpan duration = ToDate - FromDate;
             FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
             ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
 
-            List<OrderByProperty> orderBy = new List<OrderByProperty>();
+            List<OrderByProperty> orderBy = new();
             if (!string.IsNullOrEmpty(Sort))
             {
                 orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
@@ -327,25 +331,35 @@ namespace RvtPortal.Spa.Application.Monitors
                 orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
             }
 
-            List<Filter> query = new List<Filter> {
+            List<Filter> query = new()
+            {
                 new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
                 new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
                 new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
             };
 
             int pageSize = PageSize ?? 30000;
-            var paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+            Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
             if (duration.TotalHours < 1) //Samples every 2 second
-                return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevel, cancellationToken);
+            {
+                return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevel, cancellationToken);
+            }
             else if (duration.TotalHours < 4) //Samples every 2 second
-                return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel1min, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevelFrom1Min, cancellationToken);
+            {
+                return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel1min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom1Min, cancellationToken);
+            }
             else if (duration.TotalDays < 1) //samples every 5min
-                return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel5min, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevelFrom5Min, cancellationToken);
+            {
+                return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel5min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom5Min, cancellationToken);
+            }
             else if (duration.TotalDays < 2) //samples every 15min
-                return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel15min, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevelFrom15Min, cancellationToken);
+            {
+                return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel15min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom15Min, cancellationToken);
+            }
             else //Samples every 20 min
-                return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel20min, OmnidotsPeakLevel>(query, orderBy.ToArray(), pageSize, paging, TimeSeriesProjections.PeakLevelFrom20Min, cancellationToken);
-
+            {
+                return timeSeries.ReadFilteredAsync<OmnidotsPeakLevel20min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom20Min, cancellationToken);
+            }
         }
 
         // Function summary: Retrieves vibration monitor status data for callers.

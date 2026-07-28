@@ -11,9 +11,9 @@ public sealed class OneTimeReportValidatorTests
     [Fact]
     public void Validate_AllowsThirtyOneDayPeriod()
     {
-        var request = ValidRequest() with { ToUtc = ValidRequest().FromUtc.AddDays(31) };
+        OneTimeReportRequest request = ValidRequest() with { ToUtc = ValidRequest().FromUtc.AddDays(31) };
 
-        var errors = OneTimeReportValidator.Validate(request);
+        IReadOnlyList<ValidationError> errors = OneTimeReportValidator.Validate(request);
 
         Assert.Empty(errors);
     }
@@ -21,9 +21,9 @@ public sealed class OneTimeReportValidatorTests
     [Fact]
     public void Validate_RejectsPeriodLongerThanThirtyOneDays()
     {
-        var request = ValidRequest() with { ToUtc = ValidRequest().FromUtc.AddDays(31).AddSeconds(1) };
+        OneTimeReportRequest request = ValidRequest() with { ToUtc = ValidRequest().FromUtc.AddDays(31).AddSeconds(1) };
 
-        var errors = OneTimeReportValidator.Validate(request);
+        IReadOnlyList<ValidationError> errors = OneTimeReportValidator.Validate(request);
 
         Assert.Contains(errors, error => error.Field == nameof(OneTimeReportRequest.ToUtc));
     }
@@ -31,9 +31,9 @@ public sealed class OneTimeReportValidatorTests
     [Fact]
     public void Validate_RejectsStartAfterEnd()
     {
-        var request = ValidRequest() with { FromUtc = ValidRequest().ToUtc };
+        OneTimeReportRequest request = ValidRequest() with { FromUtc = ValidRequest().ToUtc };
 
-        var errors = OneTimeReportValidator.Validate(request);
+        IReadOnlyList<ValidationError> errors = OneTimeReportValidator.Validate(request);
 
         Assert.Contains(errors, error => error.Field == nameof(OneTimeReportRequest.FromUtc));
     }
@@ -41,9 +41,9 @@ public sealed class OneTimeReportValidatorTests
     [Fact]
     public void Validate_RejectsMissingSite()
     {
-        var request = ValidRequest() with { SiteId = Guid.Empty };
+        OneTimeReportRequest request = ValidRequest() with { SiteId = Guid.Empty };
 
-        var errors = OneTimeReportValidator.Validate(request);
+        IReadOnlyList<ValidationError> errors = OneTimeReportValidator.Validate(request);
 
         Assert.Contains(errors, error => error.Field == nameof(OneTimeReportRequest.SiteId));
     }
@@ -51,9 +51,9 @@ public sealed class OneTimeReportValidatorTests
     [Fact]
     public void Validate_RejectsInvalidRecipientEmail()
     {
-        var request = ValidRequest() with { RecipientEmails = ["not an email"] };
+        OneTimeReportRequest request = ValidRequest() with { RecipientEmails = ["not an email"] };
 
-        var errors = OneTimeReportValidator.Validate(request);
+        IReadOnlyList<ValidationError> errors = OneTimeReportValidator.Validate(request);
 
         Assert.Contains(errors, error => error.Field == nameof(OneTimeReportRequest.RecipientEmails));
     }

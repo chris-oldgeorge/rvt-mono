@@ -22,16 +22,16 @@ public sealed class HelpCmsOperationsTests
     // Function summary: Verifies admins can create help content and normal users can browse published content.
     public async Task HelpCms_AllowsAdminPublishingAndUserBrowsing()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser);
 
-        var adminClient = CreateClient(factory);
+        HttpClient adminClient = CreateClient(factory);
         await LoginAsync(adminClient, AdminEmail, Password);
 
         // The submitted article is the fixture: every read-back assertion compares against it, so the
         // published content is proven to round-trip rather than matching re-typed literals.
-        var articleRequest = new HelpArticleMutationRequest
+        HelpArticleMutationRequest articleRequest = new()
         {
             SectionTitle = "Data Readings",
             SectionSlug = "data-readings",
@@ -49,13 +49,13 @@ public sealed class HelpCmsOperationsTests
                 new() { Title = "Readings overview", AssetType = "Video", Url = "https://video.rvt.test/readings", SortOrder = 2 }
             ]
         };
-        var create = await adminClient.PostAsJsonAsync("/api/help/admin/articles", articleRequest);
-        var created = await create.Content.ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
+        HttpResponseMessage create = await adminClient.PostAsJsonAsync("/api/help/admin/articles", articleRequest);
+        EntityResponse<HelpArticleResponse>? created = await create.Content.ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
 
-        var userClient = CreateClient(factory);
+        HttpClient userClient = CreateClient(factory);
         await LoginAsync(userClient, CompanyUserEmail, Password);
-        var overview = await userClient.GetFromJsonAsync<HelpOverviewResponse>("/api/help?searchText=dust");
-        var article = await userClient.GetFromJsonAsync<EntityResponse<HelpArticleResponse>>($"/api/help/articles/{articleRequest.Slug}");
+        HelpOverviewResponse? overview = await userClient.GetFromJsonAsync<HelpOverviewResponse>("/api/help?searchText=dust");
+        EntityResponse<HelpArticleResponse>? article = await userClient.GetFromJsonAsync<EntityResponse<HelpArticleResponse>>($"/api/help/articles/{articleRequest.Slug}");
 
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         Assert.Equal(articleRequest.SectionTitle, created?.Item?.SectionTitle);
@@ -69,14 +69,14 @@ public sealed class HelpCmsOperationsTests
     // Function summary: Verifies admins can manage draft FAQ content before publishing it to users.
     public async Task HelpCms_AllowsAdminDraftEditingAndPublication()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser);
 
-        var adminClient = CreateClient(factory);
+        HttpClient adminClient = CreateClient(factory);
         await LoginAsync(adminClient, AdminEmail, Password);
 
-        var create = await adminClient.PostAsJsonAsync("/api/help/admin/articles", new HelpArticleMutationRequest
+        HttpResponseMessage create = await adminClient.PostAsJsonAsync("/api/help/admin/articles", new HelpArticleMutationRequest
         {
             SectionTitle = "Platform",
             SectionSlug = "platform",
@@ -89,12 +89,12 @@ public sealed class HelpCmsOperationsTests
             SectionSortOrder = 2,
             SortOrder = 4
         });
-        var created = await create.Content.ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
-        var articleId = created!.Item!.Id;
+        EntityResponse<HelpArticleResponse>? created = await create.Content.ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
+        Guid articleId = created!.Item!.Id;
 
-        var adminOverview = await adminClient.GetFromJsonAsync<HelpAdminOverviewResponse>("/api/help/admin?status=Draft");
+        HelpAdminOverviewResponse? adminOverview = await adminClient.GetFromJsonAsync<HelpAdminOverviewResponse>("/api/help/admin?status=Draft");
         // The publish edit is the fixture: its title/slug/assets drive both the read-back and the URL.
-        var publishRequest = new HelpArticleMutationRequest
+        HelpArticleMutationRequest publishRequest = new()
         {
             SectionTitle = "Platform",
             SectionSlug = "platform",
@@ -111,18 +111,18 @@ public sealed class HelpCmsOperationsTests
                 new() { Title = "FAQ source", AssetType = "Link", Url = "https://rvt.test/help-source", SortOrder = 1 }
             ]
         };
-        var update = await adminClient.PutAsJsonAsync($"/api/help/admin/articles/{articleId}", publishRequest);
-        var updated = await update.Content.ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
-        var unpublish = await adminClient.PostAsJsonAsync($"/api/help/admin/articles/{articleId}/publication", new HelpPublishRequest
+        HttpResponseMessage update = await adminClient.PutAsJsonAsync($"/api/help/admin/articles/{articleId}", publishRequest);
+        EntityResponse<HelpArticleResponse>? updated = await update.Content.ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
+        HttpResponseMessage unpublish = await adminClient.PostAsJsonAsync($"/api/help/admin/articles/{articleId}/publication", new HelpPublishRequest
         {
             IsPublished = false
         });
-        var unpublished = await unpublish.Content.ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
+        EntityResponse<HelpArticleResponse>? unpublished = await unpublish.Content.ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
 
-        var userClient = CreateClient(factory);
+        HttpClient userClient = CreateClient(factory);
         await LoginAsync(userClient, CompanyUserEmail, Password);
         // Republished-then-unpublished article is hidden from users again.
-        var publicDraft = await userClient.GetAsync($"/api/help/articles/{publishRequest.Slug}");
+        HttpResponseMessage publicDraft = await userClient.GetAsync($"/api/help/articles/{publishRequest.Slug}");
 
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         Assert.Contains(adminOverview!.Articles, item => item.Id == articleId && !item.IsPublished);
@@ -137,11 +137,11 @@ public sealed class HelpCmsOperationsTests
     [Fact]
     public async Task HelpCms_UsesCanonicalCreateRouteAndPreservesAssetIdentity()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var adminClient = CreateClient(factory);
+        HttpClient adminClient = CreateClient(factory);
         await LoginAsync(adminClient, AdminEmail, Password);
-        var request = ArticleRequest(
+        HelpArticleMutationRequest request = ArticleRequest(
             "stable-asset",
             [
                 new HelpAssetMutationRequest
@@ -153,10 +153,10 @@ public sealed class HelpCmsOperationsTests
                 }
             ]);
 
-        var legacy = await adminClient.PostAsJsonAsync(
+        HttpResponseMessage legacy = await adminClient.PostAsJsonAsync(
             "/api/help/articles",
             request);
-        var unsafeUrl = await adminClient.PostAsJsonAsync(
+        HttpResponseMessage unsafeUrl = await adminClient.PostAsJsonAsync(
             "/api/help/admin/articles",
             ArticleRequest(
                 "unsafe-url",
@@ -169,14 +169,14 @@ public sealed class HelpCmsOperationsTests
                         SortOrder = 0
                     }
                 ]));
-        var create = await adminClient.PostAsJsonAsync(
+        HttpResponseMessage create = await adminClient.PostAsJsonAsync(
             "/api/help/admin/articles",
             request);
-        var created = await create.Content
+        EntityResponse<HelpArticleResponse>? created = await create.Content
             .ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
-        var articleId = created!.Item!.Id;
-        var assetId = Assert.Single(created.Item.Assets).Id;
-        var updateRequest = ArticleRequest(
+        Guid articleId = created!.Item!.Id;
+        Guid assetId = Assert.Single(created.Item.Assets).Id;
+        HelpArticleMutationRequest updateRequest = ArticleRequest(
             "stable-asset",
             [
                 new HelpAssetMutationRequest
@@ -188,12 +188,12 @@ public sealed class HelpCmsOperationsTests
                     SortOrder = 2
                 }
             ]);
-        var update = await adminClient.PutAsJsonAsync(
+        HttpResponseMessage update = await adminClient.PutAsJsonAsync(
             $"/api/help/admin/articles/{articleId}",
             updateRequest);
-        var updated = await update.Content
+        EntityResponse<HelpArticleResponse>? updated = await update.Content
             .ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
-        var foreign = await adminClient.PutAsJsonAsync(
+        HttpResponseMessage foreign = await adminClient.PutAsJsonAsync(
             $"/api/help/admin/articles/{articleId}",
             ArticleRequest(
                 "stable-asset",
@@ -225,27 +225,27 @@ public sealed class HelpCmsOperationsTests
     public async Task HelpCms_AllowsBothAdministratorRolesToUseEveryAdminEndpoint(
         string role)
     {
-        using var factory = new SpaTestApplicationFactory();
-        var email = $"help.{role.ToLowerInvariant()}@rvt.test";
+        using SpaTestApplicationFactory factory = new();
+        string email = $"help.{role.ToLowerInvariant()}@rvt.test";
         await factory.SeedUserAsync(email, Password, role);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, email, Password);
-        var create = await client.PostAsJsonAsync(
+        HttpResponseMessage create = await client.PostAsJsonAsync(
             "/api/help/admin/articles",
             ArticleRequest($"admin-{role.ToLowerInvariant()}"));
-        var created = await create.Content
+        EntityResponse<HelpArticleResponse>? created = await create.Content
             .ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
-        var articleId = created!.Item!.Id;
+        Guid articleId = created!.Item!.Id;
 
-        var query = await client.GetAsync("/api/help/admin");
-        var get = await client.GetAsync($"/api/help/admin/articles/{articleId}");
-        var update = await client.PutAsJsonAsync(
+        HttpResponseMessage query = await client.GetAsync("/api/help/admin");
+        HttpResponseMessage get = await client.GetAsync($"/api/help/admin/articles/{articleId}");
+        HttpResponseMessage update = await client.PutAsJsonAsync(
             $"/api/help/admin/articles/{articleId}",
             ArticleRequest($"admin-{role.ToLowerInvariant()}"));
-        var publication = await client.PostAsJsonAsync(
+        HttpResponseMessage publication = await client.PostAsJsonAsync(
             $"/api/help/admin/articles/{articleId}/publication",
             new HelpPublishRequest { IsPublished = false });
-        var delete = await client.DeleteAsync(
+        HttpResponseMessage delete = await client.DeleteAsync(
             $"/api/help/admin/articles/{articleId}");
 
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
@@ -262,19 +262,19 @@ public sealed class HelpCmsOperationsTests
     public async Task HelpCms_DeniesNonAdministratorsFromEveryAdminEndpoint(
         string role)
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var deniedEmail = $"help.denied.{role.ToLowerInvariant()}@rvt.test";
+        string deniedEmail = $"help.denied.{role.ToLowerInvariant()}@rvt.test";
         await factory.SeedUserAsync(deniedEmail, Password, role);
-        var adminClient = CreateClient(factory);
+        HttpClient adminClient = CreateClient(factory);
         await LoginAsync(adminClient, AdminEmail, Password);
-        var seed = await adminClient.PostAsJsonAsync(
+        HttpResponseMessage seed = await adminClient.PostAsJsonAsync(
             "/api/help/admin/articles",
             ArticleRequest($"denied-{role.ToLowerInvariant()}"));
-        var seeded = await seed.Content
+        EntityResponse<HelpArticleResponse>? seeded = await seed.Content
             .ReadFromJsonAsync<EntityResponse<HelpArticleResponse>>();
-        var articleId = seeded!.Item!.Id;
-        var deniedClient = CreateClient(factory);
+        Guid articleId = seeded!.Item!.Id;
+        HttpClient deniedClient = CreateClient(factory);
         await LoginAsync(deniedClient, deniedEmail, Password);
 
         HttpResponseMessage[] responses =
@@ -301,20 +301,20 @@ public sealed class HelpCmsOperationsTests
     [Fact]
     public async Task HelpCms_AdminNotFoundResultsRemain404()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
-        var missingId = Guid.NewGuid();
+        Guid missingId = Guid.NewGuid();
 
-        var get = await client.GetAsync($"/api/help/admin/articles/{missingId}");
-        var update = await client.PutAsJsonAsync(
+        HttpResponseMessage get = await client.GetAsync($"/api/help/admin/articles/{missingId}");
+        HttpResponseMessage update = await client.PutAsJsonAsync(
             $"/api/help/admin/articles/{missingId}",
             ArticleRequest("missing"));
-        var publication = await client.PostAsJsonAsync(
+        HttpResponseMessage publication = await client.PostAsJsonAsync(
             $"/api/help/admin/articles/{missingId}/publication",
             new HelpPublishRequest { IsPublished = true });
-        var delete = await client.DeleteAsync(
+        HttpResponseMessage delete = await client.DeleteAsync(
             $"/api/help/admin/articles/{missingId}");
 
         Assert.Equal(HttpStatusCode.NotFound, get.StatusCode);

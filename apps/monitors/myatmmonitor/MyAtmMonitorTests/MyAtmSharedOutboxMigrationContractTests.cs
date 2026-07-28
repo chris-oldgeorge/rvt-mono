@@ -24,11 +24,10 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void MigrationDirectory_ContainsOnlyOrderedPostgreSqlAssets()
     {
-        var migrationFiles = Directory
+        string?[] migrationFiles = [.. Directory
             .GetFiles(MigrationDirectory(), "*.sql", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileName)
-            .OrderBy(file => file, StringComparer.Ordinal)
-            .ToArray();
+            .OrderBy(file => file, StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(SupportedMigrations, migrationFiles);
     }
@@ -36,11 +35,10 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void MigrationDirectory_RejectsRetiredProviderFilenames()
     {
-        var retiredProviderFiles = Directory
+        string?[] retiredProviderFiles = [.. Directory
             .GetFiles(MigrationDirectory(), "*.sql", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileName)
-            .Where(file => file!.Contains(".sql" + "server.", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
+            .Where(file => file!.Contains(".sql" + "server.", StringComparison.OrdinalIgnoreCase))];
 
         Assert.HasCount(0, retiredProviderFiles);
     }
@@ -56,7 +54,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
         string firstRerunGuard,
         string secondRerunGuard)
     {
-        var sql = MigrationText(file);
+        string sql = MigrationText(file);
 
         StringAssert.Contains(sql, firstRerunGuard);
         StringAssert.Contains(sql, secondRerunGuard);
@@ -65,8 +63,8 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void HardeningMigrations_AreForwardRollbackPairs()
     {
-        var forward = MigrationText(AddHardening);
-        var rollback = MigrationText(RemoveHardening);
+        string forward = MigrationText(AddHardening);
+        string rollback = MigrationText(RemoveHardening);
 
         StringAssert.Contains(forward, "ADD COLUMN IF NOT EXISTS lease_id uuid NULL");
         StringAssert.Contains(rollback, "DROP COLUMN IF EXISTS lease_id");
@@ -77,7 +75,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void ForwardMigration_MapsTheLegacyLeaseState()
     {
-        var sql = MigrationText(ForwardSharedOutbox);
+        string sql = MigrationText(ForwardSharedOutbox);
 
         StringAssert.Contains(sql, "'Leased' THEN 'InProgress'");
         StringAssert.Contains(sql, "MyAtm");
@@ -88,7 +86,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void ForwardMigration_GuardsPrerequisitesAndLegacyValues()
     {
-        var sql = MigrationText(ForwardSharedOutbox);
+        string sql = MigrationText(ForwardSharedOutbox);
 
         StringAssert.Contains(sql, "to_regclass('monitor_delivery_outbox') IS NULL");
         StringAssert.Contains(sql, "RAISE EXCEPTION");
@@ -99,7 +97,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void ForwardMigration_UsesTheVersionOneMyAtmIdentityAndExistingKeys()
     {
-        var sql = MigrationText(ForwardSharedOutbox);
+        string sql = MigrationText(ForwardSharedOutbox);
 
         StringAssert.Contains(sql, "'MyAtm',");
         StringAssert.Contains(sql, "1,");
@@ -110,7 +108,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void ForwardMigration_PreservesPayloadAndCopiesOnlyExistingNotifications()
     {
-        var sql = MigrationText(ForwardSharedOutbox);
+        string sql = MigrationText(ForwardSharedOutbox);
 
         StringAssert.Contains(sql, "LEFT JOIN my_atm_alert_occurrence");
         StringAssert.Contains(sql, "LEFT JOIN notification");
@@ -122,7 +120,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void ForwardMigration_ProtectsNewerAndTerminalSharedState()
     {
-        var sql = MigrationText(ForwardSharedOutbox);
+        string sql = MigrationText(ForwardSharedOutbox);
 
         StringAssert.Contains(sql, "ON CONFLICT (producer, delivery_key)");
         StringAssert.Contains(sql, "shared.attempt_count < EXCLUDED.attempt_count");
@@ -133,7 +131,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void ForwardMigration_PreservesANewerSharedCompletionAtEqualAttempt()
     {
-        var sql = MigrationText(ForwardSharedOutbox);
+        string sql = MigrationText(ForwardSharedOutbox);
 
         StringAssert.Contains(sql, "shared.attempt_count < EXCLUDED.attempt_count");
         StringAssert.Contains(sql, "shared.status = 'Completed'");
@@ -145,7 +143,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void RollbackMigration_IsFilteredAuthoritativeAndIdempotent()
     {
-        var sql = MigrationText(RollbackSharedOutbox);
+        string sql = MigrationText(RollbackSharedOutbox);
 
         StringAssert.Contains(sql, "producer = 'MyAtm'");
         StringAssert.Contains(sql, "payload_version = 1");
@@ -162,7 +160,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void RollbackMigration_GuardsBothSharedAndLegacyPrerequisites()
     {
-        var sql = MigrationText(RollbackSharedOutbox);
+        string sql = MigrationText(RollbackSharedOutbox);
 
         StringAssert.Contains(sql, "to_regclass('monitor_delivery_outbox') IS NULL");
         StringAssert.Contains(sql, "to_regclass('my_atm_outbox_message') IS NULL");
@@ -171,7 +169,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
 
     private static string MigrationText(string file)
     {
-        var path = Path.Combine(MigrationDirectory(), file);
+        string path = Path.Combine(MigrationDirectory(), file);
         if (!File.Exists(path))
         {
             throw new FileNotFoundException($"Expected migration asset '{path}' to exist.", path);

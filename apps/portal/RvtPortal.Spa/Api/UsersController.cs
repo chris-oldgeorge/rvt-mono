@@ -51,7 +51,7 @@ public class UsersController : ControllerBase
     // Function summary: Queries admin users through the application-layer user list use case.
     public async Task<ActionResult<QueryUsersResponse>> Query([FromQuery] QueryUsersRequest request)
     {
-        var page = PageRequestFactory.Create(
+        PageRequest page = PageRequestFactory.Create(
             request.SearchText,
             request.Page,
             request.PageSize,
@@ -64,7 +64,7 @@ public class UsersController : ControllerBase
             return InvalidUserSort(page.Sort);
         }
 
-        var result = await userLists.QueryAsync(
+        UserListResult result = await userLists.QueryAsync(
             new UserListQuery(request.CompanyId, page, BuildUserListActor()),
             HttpContext.RequestAborted);
         return UserApiMapper.ToQueryResponse(result);
@@ -75,7 +75,7 @@ public class UsersController : ControllerBase
     // Function summary: Returns user form options through the user administration read service.
     public async Task<ActionResult<UserDetailResponse>> Options()
     {
-        var options = await userReads.OptionsAsync(BuildUserListActor(), HttpContext.RequestAborted);
+        UserAdministrationOptionsModel options = await userReads.OptionsAsync(BuildUserListActor(), HttpContext.RequestAborted);
         return UserApiMapper.ToOptionsResponse(options);
     }
 
@@ -85,7 +85,7 @@ public class UsersController : ControllerBase
     // Function summary: Returns one user detail response through the user administration read service.
     public async Task<ActionResult<EntityResponse<UserDetailResponse>>> Get(string id)
     {
-        var detail = await ReadUserDetailAsync(id);
+        UserDetailResponse? detail = await ReadUserDetailAsync(id);
         if (detail is null)
         {
             return UserNotFound(id);
@@ -103,7 +103,7 @@ public class UsersController : ControllerBase
     // Function summary: Creates an admin-managed user through the user account workflow service.
     public async Task<ActionResult<EntityResponse<UserDetailResponse>>> Create(UserMutationRequest request)
     {
-        var result = await userAccounts.CreateAsync(
+        UserAccountWorkflowResult result = await userAccounts.CreateAsync(
             request,
             BuildUserListActor(),
             BuildRequestOrigin(),
@@ -131,7 +131,7 @@ public class UsersController : ControllerBase
     // Function summary: Updates an admin-managed user through the user account workflow service.
     public async Task<ActionResult<EntityResponse<UserDetailResponse>>> Update(string id, UserMutationRequest request)
     {
-        var result = await userAccounts.UpdateAsync(
+        UserAccountWorkflowResult result = await userAccounts.UpdateAsync(
             id,
             request,
             BuildUserListActor(),
@@ -146,7 +146,7 @@ public class UsersController : ControllerBase
     // Function summary: Sends a new account-confirmation link for an admin-managed user.
     public async Task<ActionResult<MessageResponse>> ResendConfirmation(string id)
     {
-        var result = await userAccounts.ResendConfirmationAsync(id, BuildRequestOrigin(), HttpContext.RequestAborted);
+        UserAccountMessageResult result = await userAccounts.ResendConfirmationAsync(id, BuildRequestOrigin(), HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return UserNotFound(id);
@@ -161,7 +161,7 @@ public class UsersController : ControllerBase
     // Function summary: Sends a password-reset link for an admin-managed user.
     public async Task<ActionResult<MessageResponse>> SendResetPasswordLink(string id)
     {
-        var result = await userAccounts.SendResetPasswordLinkAsync(id, BuildRequestOrigin(), HttpContext.RequestAborted);
+        UserAccountMessageResult result = await userAccounts.SendResetPasswordLinkAsync(id, BuildRequestOrigin(), HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return UserNotFound(id);
@@ -177,7 +177,7 @@ public class UsersController : ControllerBase
     // Function summary: Disables an admin-managed user account.
     public async Task<ActionResult<EntityResponse<UserDetailResponse>>> Disable(string id)
     {
-        var result = await userAccounts.DisableAsync(id, BuildUserListActor(), HttpContext.RequestAborted);
+        UserAccountWorkflowResult result = await userAccounts.DisableAsync(id, BuildUserListActor(), HttpContext.RequestAborted);
         return UserDetailResult(result, id);
     }
 
@@ -188,7 +188,7 @@ public class UsersController : ControllerBase
     // Function summary: Enables an admin-managed user account.
     public async Task<ActionResult<EntityResponse<UserDetailResponse>>> Enable(string id)
     {
-        var result = await userAccounts.EnableAsync(id, BuildUserListActor(), HttpContext.RequestAborted);
+        UserAccountWorkflowResult result = await userAccounts.EnableAsync(id, BuildUserListActor(), HttpContext.RequestAborted);
         return UserDetailResult(result, id);
     }
 
@@ -199,7 +199,7 @@ public class UsersController : ControllerBase
     // Function summary: Deletes an admin-managed user account when the actor is permitted.
     public async Task<ActionResult<MutationResponse>> Delete(string id)
     {
-        var result = await userAccounts.DeleteAsync(id, BuildUserListActor(), HttpContext.RequestAborted);
+        UserDeleteWorkflowResult result = await userAccounts.DeleteAsync(id, BuildUserListActor(), HttpContext.RequestAborted);
         if (result.NotFound)
         {
             return UserNotFound(id);
@@ -215,7 +215,7 @@ public class UsersController : ControllerBase
 
         return new MutationResponse
         {
-            Id = Guid.TryParse(id, out var parsedId) ? parsedId : null,
+            Id = Guid.TryParse(id, out Guid parsedId) ? parsedId : null,
             Message = $"User '{result.Email}' has been deleted."
         };
     }
@@ -226,7 +226,7 @@ public class UsersController : ControllerBase
     // Function summary: Returns users currently assigned to a site.
     public async Task<ActionResult<EntityResponse<SiteAssignmentResponse>>> GetSiteAssignments(Guid siteId)
     {
-        var response = await ReadSiteAssignmentsAsync(siteId);
+        SiteAssignmentResponse? response = await ReadSiteAssignmentsAsync(siteId);
         if (response == null)
         {
             return SiteNotFound(siteId);
@@ -241,7 +241,7 @@ public class UsersController : ControllerBase
     // Function summary: Assigns a user to a site through the user account workflow service.
     public async Task<ActionResult<EntityResponse<SiteAssignmentResponse>>> AddToSite(SiteUserMutationRequest request)
     {
-        var result = await userAccounts.AddToSiteAsync(request, BuildUserListActor(), HttpContext.RequestAborted);
+        SiteAssignmentWorkflowResult result = await userAccounts.AddToSiteAsync(request, BuildUserListActor(), HttpContext.RequestAborted);
         return SiteAssignmentResult(result, request.SiteId, request.UserId);
     }
 
@@ -251,7 +251,7 @@ public class UsersController : ControllerBase
     // Function summary: Marks a site-assigned user as a site contact.
     public async Task<ActionResult<EntityResponse<SiteAssignmentResponse>>> SetSiteContact(SiteUserMutationRequest request)
     {
-        var result = await userAccounts.SetSiteContactAsync(request, BuildUserListActor(), HttpContext.RequestAborted);
+        SiteAssignmentWorkflowResult result = await userAccounts.SetSiteContactAsync(request, BuildUserListActor(), HttpContext.RequestAborted);
         return SiteAssignmentResult(result, request.SiteId, request.UserId);
     }
 
@@ -261,7 +261,7 @@ public class UsersController : ControllerBase
     // Function summary: Removes the site-contact flag from a site-assigned user.
     public async Task<ActionResult<EntityResponse<SiteAssignmentResponse>>> RemoveSiteContact(Guid siteId, Guid userId)
     {
-        var result = await userAccounts.RemoveSiteContactAsync(siteId, userId, BuildUserListActor(), HttpContext.RequestAborted);
+        SiteAssignmentWorkflowResult result = await userAccounts.RemoveSiteContactAsync(siteId, userId, BuildUserListActor(), HttpContext.RequestAborted);
         return SiteAssignmentResult(result, siteId, userId);
     }
 
@@ -271,21 +271,21 @@ public class UsersController : ControllerBase
     // Function summary: Removes a user's assignment from a site.
     public async Task<ActionResult<EntityResponse<SiteAssignmentResponse>>> RemoveFromSite(Guid siteId, Guid userId)
     {
-        var result = await userAccounts.RemoveFromSiteAsync(siteId, userId, BuildUserListActor(), HttpContext.RequestAborted);
+        SiteAssignmentWorkflowResult result = await userAccounts.RemoveFromSiteAsync(siteId, userId, BuildUserListActor(), HttpContext.RequestAborted);
         return SiteAssignmentResult(result, siteId, userId);
     }
 
     // Function summary: Reads and maps one user detail through the application read service.
     private async Task<UserDetailResponse?> ReadUserDetailAsync(string id)
     {
-        var model = await userReads.GetDetailAsync(id, BuildUserListActor(), HttpContext.RequestAborted);
+        UserDetailModel? model = await userReads.GetDetailAsync(id, BuildUserListActor(), HttpContext.RequestAborted);
         return model is null ? null : UserApiMapper.ToDetailResponse(model);
     }
 
     // Function summary: Reads and maps one site-assignment response through the application read service.
     private async Task<SiteAssignmentResponse?> ReadSiteAssignmentsAsync(Guid siteId)
     {
-        var model = await userReads.GetSiteAssignmentsAsync(siteId, BuildUserListActor(), HttpContext.RequestAborted);
+        SiteAssignmentModel? model = await userReads.GetSiteAssignmentsAsync(siteId, BuildUserListActor(), HttpContext.RequestAborted);
         return model is null ? null : UserApiMapper.ToSiteAssignmentResponse(model);
     }
 
@@ -343,9 +343,9 @@ public class UsersController : ControllerBase
     // Function summary: Copies workflow validation errors into MVC model state and reports whether any were added.
     private bool AddModelErrorsAndHasAny(IReadOnlyDictionary<string, string[]> errors)
     {
-        foreach (var error in errors)
+        foreach (KeyValuePair<string, string[]> error in errors)
         {
-            foreach (var message in error.Value)
+            foreach (string message in error.Value)
             {
                 ModelState.AddModelError(error.Key, message);
             }
@@ -375,7 +375,7 @@ public class UsersController : ControllerBase
     // Function summary: Builds the existing invalid-sort problem response for unsupported user list sort fields.
     private BadRequestObjectResult InvalidUserSort(string requestedSort)
     {
-        var problem = ApiProblems.Create(
+        ProblemDetails problem = ApiProblems.Create(
             HttpContext,
             StatusCodes.Status400BadRequest,
             "Invalid sort field",

@@ -15,9 +15,9 @@ public sealed class DurableAlertServiceTests
     [DataRow(true)]
     public async Task AcceptAsync_CalculatesIdentityAndReturnsStoreResult(bool isDuplicate)
     {
-        var store = new Mock<IAlertCommitStore>();
+        Mock<IAlertCommitStore> store = new();
         AlertCommitRequest? captured = null;
-        var commitResult = new AlertCommitResult(
+        AlertCommitResult commitResult = new(
             Guid.Parse("11111111-1111-1111-1111-111111111111"),
             Guid.Parse("22222222-2222-8222-8222-222222222222"),
             AlertOccurrenceOutcome.Accepted,
@@ -25,12 +25,12 @@ public sealed class DurableAlertServiceTests
         store.Setup(x => x.CommitAsync(It.IsAny<AlertCommitRequest>(), It.IsAny<CancellationToken>()))
             .Callback<AlertCommitRequest, CancellationToken>((request, _) => captured = request)
             .ReturnsAsync(commitResult);
-        var timeProvider = new Mock<TimeProvider>();
+        Mock<TimeProvider> timeProvider = new();
         timeProvider.Setup(x => x.GetUtcNow()).Returns(new DateTimeOffset(CreatedAt));
-        var service = new DurableAlertService(store.Object, timeProvider.Object);
-        var signal = ValidSignal();
+        DurableAlertService service = new(store.Object, timeProvider.Object);
+        AlertSignal signal = ValidSignal();
 
-        var result = await service.AcceptAsync(signal);
+        AlertIngressResult result = await service.AcceptAsync(signal);
 
         Assert.IsNotNull(captured);
         Assert.AreSame(signal, captured.Signal);
@@ -51,14 +51,14 @@ public sealed class DurableAlertServiceTests
     [TestMethod]
     public async Task AcceptAsync_PassesCallerCancellationTokenToStore()
     {
-        using var cancellationSource = new CancellationTokenSource();
+        using CancellationTokenSource cancellationSource = new();
         CancellationToken captured = default;
-        var store = new Mock<IAlertCommitStore>();
+        Mock<IAlertCommitStore> store = new();
         store.Setup(x => x.CommitAsync(It.IsAny<AlertCommitRequest>(), It.IsAny<CancellationToken>()))
             .Callback<AlertCommitRequest, CancellationToken>((_, cancellationToken) =>
                 captured = cancellationToken)
             .ReturnsAsync(CommitResult());
-        var service = new DurableAlertService(store.Object, TimeProvider.System);
+        DurableAlertService service = new(store.Object, TimeProvider.System);
 
         await service.AcceptAsync(ValidSignal(), cancellationSource.Token);
 
@@ -68,13 +68,13 @@ public sealed class DurableAlertServiceTests
     [TestMethod]
     public async Task AcceptAsync_DoesNotWrapStoreFailure()
     {
-        var expected = new InvalidOperationException("store failure");
-        var store = new Mock<IAlertCommitStore>();
+        InvalidOperationException expected = new("store failure");
+        Mock<IAlertCommitStore> store = new();
         store.Setup(x => x.CommitAsync(It.IsAny<AlertCommitRequest>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(expected);
-        var service = new DurableAlertService(store.Object, TimeProvider.System);
+        DurableAlertService service = new(store.Object, TimeProvider.System);
 
-        var actual = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+        InvalidOperationException actual = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             () => service.AcceptAsync(ValidSignal()));
 
         Assert.AreSame(expected, actual);
@@ -115,7 +115,7 @@ public sealed class DurableAlertServiceTests
     [TestMethod]
     public async Task AcceptAsync_AcceptsTextAtMaximumLengths()
     {
-        var signal = ValidSignal() with
+        AlertSignal signal = ValidSignal() with
         {
             Source = new string('s', 128),
             SourceEventKey = new string('k', 512),
@@ -123,10 +123,10 @@ public sealed class DurableAlertServiceTests
             Field = new string('f', 128),
             Message = new string('m', 1024)
         };
-        var store = new Mock<IAlertCommitStore>();
+        Mock<IAlertCommitStore> store = new();
         store.Setup(x => x.CommitAsync(It.IsAny<AlertCommitRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CommitResult());
-        var service = new DurableAlertService(store.Object, TimeProvider.System);
+        DurableAlertService service = new(store.Object, TimeProvider.System);
 
         await service.AcceptAsync(signal);
 
@@ -138,7 +138,7 @@ public sealed class DurableAlertServiceTests
     [TestMethod]
     public async Task AcceptAsync_AcceptsTextAtMaximumUtf16Lengths()
     {
-        var signal = ValidSignal() with
+        AlertSignal signal = ValidSignal() with
         {
             Source = RepeatSurrogatePair(64),
             SourceEventKey = RepeatSurrogatePair(256),
@@ -146,10 +146,10 @@ public sealed class DurableAlertServiceTests
             Field = RepeatSurrogatePair(64),
             Message = RepeatSurrogatePair(512)
         };
-        var store = new Mock<IAlertCommitStore>();
+        Mock<IAlertCommitStore> store = new();
         store.Setup(x => x.CommitAsync(It.IsAny<AlertCommitRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CommitResult());
-        var service = new DurableAlertService(store.Object, TimeProvider.System);
+        DurableAlertService service = new(store.Object, TimeProvider.System);
 
         await service.AcceptAsync(signal);
 
@@ -178,7 +178,7 @@ public sealed class DurableAlertServiceTests
     [DataRow(DateTimeKind.Unspecified)]
     public async Task AcceptAsync_RejectsNonUtcEventTimeBeforeCallingStore(DateTimeKind kind)
     {
-        var eventTime = DateTime.SpecifyKind(ValidSignal().EventTime, kind);
+        DateTime eventTime = DateTime.SpecifyKind(ValidSignal().EventTime, kind);
 
         await AssertRejectedAsync(
             ValidSignal() with { EventTime = eventTime },
@@ -196,7 +196,7 @@ public sealed class DurableAlertServiceTests
         string propertyName,
         double value)
     {
-        var signal = propertyName == nameof(AlertSignal.Level)
+        AlertSignal signal = propertyName == nameof(AlertSignal.Level)
             ? ValidSignal() with { Level = value }
             : ValidSignal() with { Limit = value };
 
@@ -271,7 +271,7 @@ public sealed class DurableAlertServiceTests
     [TestMethod]
     public void Constructor_RejectsNullDependencies()
     {
-        var store = new Mock<IAlertCommitStore>();
+        Mock<IAlertCommitStore> store = new();
 
         Assert.ThrowsExactly<ArgumentNullException>(
             () => new DurableAlertService(null!, TimeProvider.System));
@@ -281,10 +281,10 @@ public sealed class DurableAlertServiceTests
 
     private static async Task AssertRejectedAsync(AlertSignal signal, Type exceptionType)
     {
-        var store = new Mock<IAlertCommitStore>(MockBehavior.Strict);
-        var service = new DurableAlertService(store.Object, TimeProvider.System);
+        Mock<IAlertCommitStore> store = new(MockBehavior.Strict);
+        DurableAlertService service = new(store.Object, TimeProvider.System);
 
-        var exception = await Assert.ThrowsAsync<ArgumentException>(
+        ArgumentException exception = await Assert.ThrowsAsync<ArgumentException>(
             () => service.AcceptAsync(signal));
 
         Assert.AreEqual(exceptionType, exception.GetType());
@@ -295,10 +295,10 @@ public sealed class DurableAlertServiceTests
 
     private static async Task AssertAcceptedAsync(AlertSignal signal)
     {
-        var store = new Mock<IAlertCommitStore>();
+        Mock<IAlertCommitStore> store = new();
         store.Setup(x => x.CommitAsync(It.IsAny<AlertCommitRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CommitResult());
-        var service = new DurableAlertService(store.Object, TimeProvider.System);
+        DurableAlertService service = new(store.Object, TimeProvider.System);
 
         await service.AcceptAsync(signal);
 

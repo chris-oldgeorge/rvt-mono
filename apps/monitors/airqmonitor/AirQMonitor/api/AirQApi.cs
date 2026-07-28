@@ -37,10 +37,10 @@ namespace AirQ.Api
             string? testLocalSerialId)
         {
             IAirQVendorGateway gateway = new AirQHttpGateway(httpClient);
-            var testLocalFilter = AirQTestLocalMonitorFilter.Create(testLocal, testLocalSerialId);
-            var monitorReader = new AirQMonitorReader(dbClient, testLocalFilter);
-            var eventPublisher = new MonitorEventPublisher(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
-            var ruleProcessor = new AirQRuleProcessor(dbClient, dbClient, messageService, eventPublisher);
+            AirQTestLocalMonitorFilter testLocalFilter = AirQTestLocalMonitorFilter.Create(testLocal, testLocalSerialId);
+            AirQMonitorReader monitorReader = new(dbClient, testLocalFilter);
+            MonitorEventPublisher eventPublisher = new(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
+            AirQRuleProcessor ruleProcessor = new(dbClient, dbClient, messageService, eventPublisher);
 
             storeMonitors = new StoreMonitorsHandler(gateway, dbClient, dbClient, testLocalFilter);
             checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(dbClient, monitorReader, dbClient, ruleProcessor);

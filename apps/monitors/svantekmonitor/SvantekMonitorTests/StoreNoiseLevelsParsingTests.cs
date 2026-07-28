@@ -27,15 +27,15 @@ public sealed class StoreNoiseLevelsParsingTests
     [TestMethod]
     public async Task RunAsync_ParsesSampleTimestampAndLevelsUsingCurrentCulture()
     {
-        var originalCulture = CultureInfo.CurrentCulture;
-        var originalUiCulture = CultureInfo.CurrentUICulture;
+        CultureInfo originalCulture = CultureInfo.CurrentCulture;
+        CultureInfo originalUiCulture = CultureInfo.CurrentUICulture;
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("fr-FR");
-            var utcNow = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            var expectedSampleTime = new DateTime(2025, 12, 31, 23, 59, 0);
-            var monitor = new NoiseMonitorReadDto(
+            DateTime utcNow = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateTime expectedSampleTime = new(2025, 12, 31, 23, 59, 0);
+            NoiseMonitorReadDto monitor = new(
                 Guid.NewGuid(),
                 "fleet-1",
                 "1001",
@@ -48,10 +48,10 @@ public sealed class StoreNoiseLevelsParsingTests
                 false,
                 SvantekApi.BatteryAlertType.Off,
                 100);
-            var monitorQueries = new Mock<ISvantekMonitorQueries>(MockBehavior.Strict);
+            Mock<ISvantekMonitorQueries> monitorQueries = new(MockBehavior.Strict);
             monitorQueries.Setup(queries => queries.ReadMonitorListAsync(null, CancellationToken.None))
                 .ReturnsAsync([monitor]);
-            var http = new Mock<IHttpClient>(MockBehavior.Strict);
+            Mock<IHttpClient> http = new(MockBehavior.Strict);
             http.Setup(client => client.PostAsync(
                     "projects-get-result-data-multi-point.php",
                     It.IsAny<HttpContent>(),
@@ -75,22 +75,22 @@ public sealed class StoreNoiseLevelsParsingTests
                     }
                     """);
             DataTable? writtenTable = null;
-            var measurementCommands = new Mock<ISvantekMeasurementCommands>(MockBehavior.Strict);
+            Mock<ISvantekMeasurementCommands> measurementCommands = new(MockBehavior.Strict);
             measurementCommands.Setup(commands => commands.InsertNoiseRecordsTableAsync(
                     It.IsAny<DataTable>(),
                     CancellationToken.None))
                 .Callback((DataTable table, CancellationToken _) => writtenTable = table)
                 .Returns(Task.CompletedTask);
-            var monitorCommands = new Mock<ISvantekMonitorCommands>(MockBehavior.Strict);
+            Mock<ISvantekMonitorCommands> monitorCommands = new(MockBehavior.Strict);
             monitorCommands.Setup(commands => commands.WriteLatestTimestampAsync(
                     "1001",
                     expectedSampleTime,
                     CancellationToken.None))
                 .Returns(Task.CompletedTask);
-            var ruleQueries = new Mock<ISvantekRuleQueries>(MockBehavior.Strict);
+            Mock<ISvantekRuleQueries> ruleQueries = new(MockBehavior.Strict);
             ruleQueries.Setup(queries => queries.ReadRules("1001")).Returns([]);
-            var operational = new Mock<ISvantekOperationalCommands>(MockBehavior.Strict);
-            var handler = new StoreNoiseLevelsHandler(
+            Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
+            StoreNoiseLevelsHandler handler = new(
                 new SvantekHttpGateway(http.Object, "key"),
                 new SvantekMonitorReader(monitorQueries.Object, testLocal: false),
                 ruleQueries.Object,

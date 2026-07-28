@@ -93,7 +93,7 @@ public static class ServiceCollectionExtensions
         {
             // Preserve the existing configuration keys (ExternalUrls:OmnidotsAdapterUrl / ...Secret) that the
             // former OmnidotsVibrationApiService read directly, now bound once at startup instead of per call.
-            var section = configuration.GetSection("ExternalUrls");
+            IConfigurationSection section = configuration.GetSection("ExternalUrls");
             options.Url = section["OmnidotsAdapterUrl"];
             options.Secret = section["OmnidotsAdapterSecret"];
         });
@@ -102,8 +102,8 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(15);
         });
         services.AddOptions<PortalEmailOptions>().BindConfiguration("EmailConfiguration");
-        var emailEnabled = configuration.GetValue("RVT:EMAIL_ENABLED", true);
-        var sendGridMailOptions = new SendGridMailOptions
+        bool emailEnabled = configuration.GetValue("RVT:EMAIL_ENABLED", true);
+        SendGridMailOptions sendGridMailOptions = new()
         {
             Enabled = emailEnabled,
             ApiKey = configuration["EmailConfiguration:SENDGRID_API_KEY"] ?? string.Empty,

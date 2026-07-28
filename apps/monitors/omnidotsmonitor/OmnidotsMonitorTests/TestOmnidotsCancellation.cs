@@ -33,10 +33,10 @@ public class TestOmnidotsCancellation
     [TestMethod]
     public async Task HttpWebClient_PassesTheCallerTokenToTheVendorGet()
     {
-        var handler = new TokenCapturingHandler();
-        using var inner = new HttpClient(handler);
-        using var cancellation = new CancellationTokenSource();
-        var subject = new HttpWebClient("https://omnidots.example.test/", inner);
+        TokenCapturingHandler handler = new();
+        using HttpClient inner = new(handler);
+        using CancellationTokenSource cancellation = new();
+        HttpWebClient subject = new("https://omnidots.example.test/", inner);
 
         await subject.GetAsync("/api/v1/list_measuring_points", cancellation.Token);
 
@@ -46,10 +46,10 @@ public class TestOmnidotsCancellation
     [TestMethod]
     public async Task HttpWebClient_WhenTheCallerCancels_TheVendorGetIsCancelled()
     {
-        using var inner = new HttpClient(new TokenCapturingHandler());
-        using var cancellation = new CancellationTokenSource();
+        using HttpClient inner = new(new TokenCapturingHandler());
+        using CancellationTokenSource cancellation = new();
         await cancellation.CancelAsync();
-        var subject = new HttpWebClient("https://omnidots.example.test/", inner);
+        HttpWebClient subject = new("https://omnidots.example.test/", inner);
 
         await Assert.ThrowsExactlyAsync<TaskCanceledException>(
             () => subject.GetAsync("/api/v1/list_measuring_points", cancellation.Token));
@@ -58,12 +58,12 @@ public class TestOmnidotsCancellation
     [TestMethod]
     public async Task GatewayPeakRecords_PropagatesTheTokenToTheHttpPort()
     {
-        using var cancellation = new CancellationTokenSource();
-        var httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
+        using CancellationTokenSource cancellation = new();
+        Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         httpClient
             .Setup(client => client.GetAsync(It.IsAny<string>(), cancellation.Token))
             .ReturnsAsync("{\"ok\":true,\"samples\":[]}");
-        var gateway = new OmnidotsHttpGateway(httpClient.Object, "user", "auth");
+        OmnidotsHttpGateway gateway = new(httpClient.Object, "user", "auth");
 
         await gateway.GetPeakRecordsAsync("token", DateTime.UtcNow, null, "serial", cancellation.Token);
 
@@ -73,15 +73,15 @@ public class TestOmnidotsCancellation
     [TestMethod]
     public async Task GatewayAuthenticate_PropagatesTheTokenToTheHttpPort()
     {
-        using var cancellation = new CancellationTokenSource();
-        var httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
+        using CancellationTokenSource cancellation = new();
+        Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         httpClient
             .Setup(client => client.PostAsync(
                 "/api/v1/user/authenticate",
                 It.IsAny<HttpContent>(),
                 cancellation.Token))
             .ReturnsAsync("{\"ok\":true,\"token\":\"vendor-token\"}");
-        var gateway = new OmnidotsHttpGateway(httpClient.Object, "user", "auth");
+        OmnidotsHttpGateway gateway = new(httpClient.Object, "user", "auth");
 
         TokenResponse response = await gateway.AuthenticateAsync(cancellation.Token);
 
@@ -92,8 +92,8 @@ public class TestOmnidotsCancellation
     [TestMethod]
     public async Task GatewayListMeasuringPoints_AuthenticatesAndReadsUnderTheSameToken()
     {
-        using var cancellation = new CancellationTokenSource();
-        var httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
+        using CancellationTokenSource cancellation = new();
+        Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         httpClient
             .Setup(client => client.PostAsync(
                 "/api/v1/user/authenticate",
@@ -105,7 +105,7 @@ public class TestOmnidotsCancellation
                 "/api/v1/list_measuring_points?token=vendor-token",
                 cancellation.Token))
             .ReturnsAsync("{\"ok\":true,\"measuring_points\":[]}");
-        var gateway = new OmnidotsHttpGateway(httpClient.Object, "user", "auth");
+        OmnidotsHttpGateway gateway = new(httpClient.Object, "user", "auth");
 
         await gateway.ListMeasuringPointsAsync(cancellation.Token);
 

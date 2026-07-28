@@ -63,10 +63,10 @@ public sealed class SiteApplicationService : ISiteApplicationService
         SiteQuery request,
         CancellationToken cancellationToken)
     {
-        var scope = SiteAuthorizationPolicy.ReadScope(
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
             user,
             timeProvider.GetUtcNow().UtcDateTime);
-        var result = await reads.QueryAsync(scope, request, cancellationToken);
+        PagedResult<SiteListModel> result = await reads.QueryAsync(scope, request, cancellationToken);
         return UseCaseResult<PagedResult<SiteListModel>>.Success(result);
     }
 
@@ -74,7 +74,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         Guid? companyId,
         CancellationToken cancellationToken)
     {
-        var result = await reads.OptionsAsync(companyId, cancellationToken);
+        SiteOptionsModel result = await reads.OptionsAsync(companyId, cancellationToken);
         return UseCaseResult<SiteOptionsModel>.Success(result);
     }
 
@@ -83,7 +83,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         Guid id,
         CancellationToken cancellationToken)
     {
-        var scope = SiteAuthorizationPolicy.ReadScope(
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
             user,
             timeProvider.GetUtcNow().UtcDateTime);
         if (!await reads.ExistsAsync(id, scope, cancellationToken))
@@ -91,7 +91,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return SiteNotFound<SiteDetailModel>(id);
         }
 
-        var site = await ReadDetailAsync(user, id, cancellationToken);
+        SiteDetailModel? site = await ReadDetailAsync(user, id, cancellationToken);
         if (site == null)
         {
             return SiteNotFound<SiteDetailModel>(id);
@@ -106,7 +106,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         PageRequest page,
         CancellationToken cancellationToken)
     {
-        var scope = SiteAuthorizationPolicy.ReadScope(
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
             user,
             timeProvider.GetUtcNow().UtcDateTime);
         if (!await reads.ExistsAsync(siteId, scope, cancellationToken))
@@ -114,7 +114,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return SiteNotFound<PagedResult<SiteMonitorModel>>(siteId);
         }
 
-        var result = await reads.QueryMonitorsAsync(siteId, page, cancellationToken);
+        PagedResult<SiteMonitorModel> result = await reads.QueryMonitorsAsync(siteId, page, cancellationToken);
         return UseCaseResult<PagedResult<SiteMonitorModel>>.Success(result);
     }
 
@@ -124,7 +124,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         PageRequest page,
         CancellationToken cancellationToken)
     {
-        var scope = SiteAuthorizationPolicy.ReadScope(
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
             user,
             timeProvider.GetUtcNow().UtcDateTime);
         if (!await reads.ExistsAsync(siteId, scope, cancellationToken))
@@ -132,7 +132,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return SiteNotFound<PagedResult<SiteNotificationModel>>(siteId);
         }
 
-        var result = await reads.QueryOpenNotificationsAsync(siteId, page, cancellationToken);
+        PagedResult<SiteNotificationModel> result = await reads.QueryOpenNotificationsAsync(siteId, page, cancellationToken);
         return UseCaseResult<PagedResult<SiteNotificationModel>>.Success(result);
     }
 
@@ -141,7 +141,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         Guid id,
         CancellationToken cancellationToken)
     {
-        var scope = SiteAuthorizationPolicy.ReadScope(
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
             user,
             timeProvider.GetUtcNow().UtcDateTime);
         return await reads.ExistsAsync(id, scope, cancellationToken);
@@ -152,7 +152,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         Guid id,
         CancellationToken cancellationToken)
     {
-        var scope = SiteAuthorizationPolicy.ReadScope(
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
             user,
             timeProvider.GetUtcNow().UtcDateTime);
         return SiteAuthorizationPolicy.CanManage(user)
@@ -164,7 +164,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         Guid siteId,
         CancellationToken cancellationToken)
     {
-        var scope = SiteAuthorizationPolicy.ReadScope(
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
             user,
             timeProvider.GetUtcNow().UtcDateTime);
         if (!await reads.ExistsAsync(siteId, scope, cancellationToken))
@@ -172,13 +172,13 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return SiteNotFound<SiteNotificationSettingsModel>(siteId);
         }
 
-        var data = await reads.GetNotificationSettingsAsync(siteId, cancellationToken);
+        SiteNotificationSettingsData? data = await reads.GetNotificationSettingsAsync(siteId, cancellationToken);
         if (data == null)
         {
             return SiteNotFound<SiteNotificationSettingsModel>(siteId);
         }
 
-        var result = await BuildNotificationSettingsAsync(
+        SiteNotificationSettingsModel result = await BuildNotificationSettingsAsync(
             user,
             data,
             cancellationToken);
@@ -190,7 +190,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         SiteMutation request,
         CancellationToken cancellationToken)
     {
-        var shape = SiteMutationValidator.ValidateShape(request);
+        SiteMutationValidationResult shape = SiteMutationValidator.ValidateShape(request);
         if (!shape.IsValid)
         {
             return UseCaseResult<SiteDetailModel>.Validation([.. shape.Errors]);
@@ -206,11 +206,11 @@ public sealed class SiteApplicationService : ISiteApplicationService
                         return UseCaseResult<SiteDetailModel>.Forbidden();
                     }
 
-                    var data = await reads.GetMutationValidationDataAsync(
+                    SiteMutationValidationData data = await reads.GetMutationValidationDataAsync(
                         request,
                         currentSiteId: null,
                         token);
-                    var validation = SiteMutationValidator.ValidateBusinessRules(
+                    SiteMutationValidationResult validation = SiteMutationValidator.ValidateBusinessRules(
                         shape,
                         data,
                         requireContract: true);
@@ -220,7 +220,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                             [.. validation.Errors]);
                     }
 
-                    var siteId = await writes.CreateAsync(
+                    Guid siteId = await writes.CreateAsync(
                         validation.Value!,
                         timeProvider.GetUtcNow().UtcDateTime,
                         token);
@@ -234,7 +234,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                         throw new ContractClaimFailedException();
                     }
 
-                    var detail = await ReadDetailAsync(user, siteId, token)
+                    SiteDetailModel detail = await ReadDetailAsync(user, siteId, token)
                         ?? throw new InvalidOperationException(
                             $"Site '{siteId}' was not readable after a successful create.");
                     return UseCaseResult<SiteDetailModel>.Success(detail);
@@ -254,7 +254,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         SiteMutation request,
         CancellationToken cancellationToken)
     {
-        var shape = SiteMutationValidator.ValidateShape(request);
+        SiteMutationValidationResult shape = SiteMutationValidator.ValidateShape(request);
 
         return unitOfWork.ExecuteInTransactionAsync(
             async token =>
@@ -264,7 +264,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                     return UseCaseResult<SiteDetailModel>.Forbidden();
                 }
 
-                var scope = SiteAuthorizationPolicy.ReadScope(
+                SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
                     user,
                     timeProvider.GetUtcNow().UtcDateTime);
                 if (!await reads.ExistsAsync(id, scope, token))
@@ -278,11 +278,11 @@ public sealed class SiteApplicationService : ISiteApplicationService
                         [.. shape.Errors]);
                 }
 
-                var data = await reads.GetMutationValidationDataAsync(
+                SiteMutationValidationData data = await reads.GetMutationValidationDataAsync(
                     request,
                     id,
                     token);
-                var validation = SiteMutationValidator.ValidateBusinessRules(
+                SiteMutationValidationResult validation = SiteMutationValidator.ValidateBusinessRules(
                     shape,
                     data,
                     requireContract: false);
@@ -301,7 +301,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                 }
 
                 await unitOfWork.SaveChangesAsync(token);
-                var detail = await ReadDetailAsync(user, id, token)
+                SiteDetailModel detail = await ReadDetailAsync(user, id, token)
                     ?? throw new InvalidOperationException(
                         $"Site '{id}' was not readable after a successful update.");
                 return UseCaseResult<SiteDetailModel>.Success(detail);
@@ -320,16 +320,16 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return UseCaseResult<SiteDetailModel>.Forbidden();
         }
 
-        var state = await reads.GetArchiveStateAsync(id, cancellationToken);
+        SiteArchiveState? state = await reads.GetArchiveStateAsync(id, cancellationToken);
         if (state is null)
         {
             return SiteNotFound<SiteDetailModel>(id);
         }
 
-        var detailCancellationToken = cancellationToken;
+        CancellationToken detailCancellationToken = cancellationToken;
         if (state.Archived && state.ArchiveUrl is not null)
         {
-            var cleanup = await CleanupArchiveAsync(
+            SiteArchiveCleanupResult cleanup = await CleanupArchiveAsync(
                 id,
                 state.ArchiveUrl,
                 cancellationToken);
@@ -341,7 +341,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
 
         if (!state.Archived)
         {
-            var export = await archive.ExportAsync(id, cancellationToken);
+            SiteArchiveExportResult export = await archive.ExportAsync(id, cancellationToken);
             if (!export.Succeeded || string.IsNullOrWhiteSpace(export.ArchiveUrl))
             {
                 return UseCaseResult<SiteDetailModel>.ExternalServiceUnavailable(
@@ -355,7 +355,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                 claim = await unitOfWork.ExecuteInTransactionAsync(
                     async token =>
                     {
-                        var result = await writes.TryClaimArchiveAsync(
+                        SiteArchiveClaimResult result = await writes.TryClaimArchiveAsync(
                             id,
                             createdBy,
                             export.ArchiveUrl,
@@ -394,7 +394,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                         export.ArchiveUrl,
                         StringComparison.Ordinal))
                 {
-                    var cleanup = await CleanupArchiveAsync(
+                    SiteArchiveCleanupResult cleanup = await CleanupArchiveAsync(
                         id,
                         durableState.ArchiveUrl,
                         CancellationToken.None);
@@ -413,7 +413,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                     export.ArchiveUrl,
                     StringComparison.Ordinal))
             {
-                var cleanup = await CleanupArchiveAsync(
+                SiteArchiveCleanupResult cleanup = await CleanupArchiveAsync(
                     id,
                     claim.DurableArchiveUrl,
                     CancellationToken.None);
@@ -424,7 +424,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
             }
         }
 
-        var detail = await ReadDetailAsync(user, id, detailCancellationToken);
+        SiteDetailModel? detail = await ReadDetailAsync(user, id, detailCancellationToken);
         return detail is null
             ? SiteNotFound<SiteDetailModel>(id)
             : UseCaseResult<SiteDetailModel>.Success(detail);
@@ -478,7 +478,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return SiteNotFound<SiteDetailModel>(id);
         }
 
-        var save = await logos.SaveAsync(id, upload, cancellationToken);
+        SiteLogoSaveResult save = await logos.SaveAsync(id, upload, cancellationToken);
         if (save.Outcome == SiteLogoSaveOutcome.Invalid)
         {
             return UseCaseResult<SiteDetailModel>.Validation(
@@ -487,7 +487,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                     save.Message ?? "The customer logo is invalid."));
         }
 
-        var detail = await ReadDetailAsync(user, id, cancellationToken);
+        SiteDetailModel? detail = await ReadDetailAsync(user, id, cancellationToken);
         return detail is null
             ? SiteNotFound<SiteDetailModel>(id)
             : UseCaseResult<SiteDetailModel>.Success(detail);
@@ -504,7 +504,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         }
 
         await logos.DeleteAsync(id, cancellationToken);
-        var detail = await ReadDetailAsync(user, id, cancellationToken);
+        SiteDetailModel? detail = await ReadDetailAsync(user, id, cancellationToken);
         return detail is null
             ? SiteNotFound<SiteDetailModel>(id)
             : UseCaseResult<SiteDetailModel>.Success(detail);
@@ -520,7 +520,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
             return SiteNotFound<SiteLogoFile>(id);
         }
 
-        var logo = await logos.OpenReadAsync(id, cancellationToken);
+        SiteLogoFile? logo = await logos.OpenReadAsync(id, cancellationToken);
         return logo is null
             ? SiteNotFound<SiteLogoFile>(id)
             : UseCaseResult<SiteLogoFile>.Success(logo);
@@ -533,7 +533,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         SiteNotificationSettingMutation request,
         CancellationToken cancellationToken)
     {
-        var timePair = SiteMutationValidator.ValidateTimePair(
+        SiteTimePairValidationResult timePair = SiteMutationValidator.ValidateTimePair(
             request.StartTime,
             request.EndTime,
             nameof(SiteNotificationSettingMutation.StartTime),
@@ -542,7 +542,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         return unitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
-                var scope = SiteAuthorizationPolicy.ReadScope(
+                SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
                     user,
                     timeProvider.GetUtcNow().UtcDateTime);
                 if (!await reads.ExistsAsync(siteId, scope, token))
@@ -550,7 +550,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                     return SiteNotFound<SiteNotificationSettingModel>(siteId);
                 }
 
-                var target = await reads.GetNotificationSettingTargetAsync(
+                SiteNotificationSettingTarget? target = await reads.GetNotificationSettingTargetAsync(
                     siteId,
                     siteUserId,
                     token);
@@ -580,14 +580,14 @@ public sealed class SiteApplicationService : ISiteApplicationService
                     token);
                 await unitOfWork.SaveChangesAsync(token);
 
-                var data = await reads.GetNotificationSettingsAsync(siteId, token)
+                SiteNotificationSettingsData data = await reads.GetNotificationSettingsAsync(siteId, token)
                     ?? throw new InvalidOperationException(
                         $"Site '{siteId}' notification settings were not readable after a successful update.");
-                var settings = await BuildNotificationSettingsAsync(
+                SiteNotificationSettingsModel settings = await BuildNotificationSettingsAsync(
                     user,
                     data,
                     token);
-                var updated = settings.Settings.SingleOrDefault(
+                SiteNotificationSettingModel updated = settings.Settings.SingleOrDefault(
                     item => item.SiteUserId == siteUserId)
                     ?? throw new InvalidOperationException(
                         $"Site user '{siteUserId}' notification settings were not readable after a successful update.");
@@ -601,9 +601,9 @@ public sealed class SiteApplicationService : ISiteApplicationService
         SiteNotificationSettingsData data,
         CancellationToken cancellationToken)
     {
-        var profiles = (await userDirectory.ListUsersAsync(cancellationToken))
+        Dictionary<Guid, PortalUserProfile> profiles = (await userDirectory.ListUsersAsync(cancellationToken))
             .ToDictionary(profile => profile.UserId);
-        var assignments = user.IsCompanyUser && !user.IsAdmin
+        IEnumerable<SiteNotificationAssignment> assignments = user.IsCompanyUser && !user.IsAdmin
             ? data.Assignments.Where(assignment => assignment.UserId == user.UserId)
             : data.Assignments;
 
@@ -611,9 +611,9 @@ public sealed class SiteApplicationService : ISiteApplicationService
         {
             SiteId = data.SiteId,
             SiteName = data.SiteName,
-            Settings = assignments.Select(assignment =>
+            Settings = [.. assignments.Select(assignment =>
             {
-                profiles.TryGetValue(assignment.UserId, out var profile);
+                profiles.TryGetValue(assignment.UserId, out PortalUserProfile? profile);
                 return new SiteNotificationSettingModel(
                     assignment.SiteUserId,
                     assignment.SiteId,
@@ -625,7 +625,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                     assignment.Sms,
                     assignment.StartTime,
                     assignment.EndTime);
-            }).ToList()
+            })]
         };
     }
 
@@ -634,7 +634,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         Guid siteId,
         CancellationToken cancellationToken)
     {
-        var detail = await reads.GetAsync(siteId, cancellationToken);
+        SiteDetailModel? detail = await reads.GetAsync(siteId, cancellationToken);
         if (detail is null)
         {
             return null;

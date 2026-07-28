@@ -1,4 +1,4 @@
-﻿// File summary: Builds monitor inventory read models with database-side filtering, sorting, counting, and paging.
+// File summary: Builds monitor inventory read models with database-side filtering, sorting, counting, and paging.
 // Major updates:
 // - 2026-06-26 pending Scoped monitor list alert/caution flags to active deployment/contract ownership windows.
 // - 2026-06-26 pending Scoped installer monitor inventory reads to the installer's assigned company.
@@ -74,8 +74,8 @@ public sealed class MonitorListReader : IMonitorListReader
     // Function summary: Builds a paged monitor inventory list from database-side filters.
     public async Task<MonitorListPage> QueryAsync(MonitorListQuery query, CancellationToken cancellationToken)
     {
-        var cutoff = DateTime.UtcNow.AddHours(-1);
-        var rows = BuildBaseRows(query.MonitorType);
+        DateTime cutoff = DateTime.UtcNow.AddHours(-1);
+        IQueryable<MonitorListRow> rows = BuildBaseRows(query.MonitorType);
         rows = await ApplyRoleVisibilityAsync(rows, query.State, query.RoleContext, cancellationToken);
         rows = ApplyState(rows, query.State, cutoff);
         rows = ApplyInventorySearch(rows, query.SearchText);
@@ -85,8 +85,8 @@ public sealed class MonitorListReader : IMonitorListReader
     // Function summary: Builds a paged unattached monitor removal candidate list from database-side filters.
     public Task<MonitorListPage> QueryUnattachedAsync(MonitorListQuery query, CancellationToken cancellationToken)
     {
-        var cutoff = DateTime.UtcNow.AddHours(-1);
-        var rows = BuildBaseRows(query.MonitorType)
+        DateTime cutoff = DateTime.UtcNow.AddHours(-1);
+        IQueryable<MonitorListRow> rows = BuildBaseRows(query.MonitorType)
             .Where(row => row.DeploymentId == null && row.SiteId == null);
         rows = ApplyUnattachedSearch(rows, query.SearchText);
         return BuildPageAsync(rows, query, cutoff, cancellationToken);
@@ -99,20 +99,20 @@ public sealed class MonitorListReader : IMonitorListReader
         MonitorListRoleContext roleContext,
         CancellationToken cancellationToken)
     {
-        var cutoff = DateTime.UtcNow.AddHours(-1);
-        var rows = BuildBaseRows(null);
-        var availableRows = await ApplyState(rows, MonitorListStates.NotInUse, cutoff)
+        DateTime cutoff = DateTime.UtcNow.AddHours(-1);
+        IQueryable<MonitorListRow> rows = BuildBaseRows(null);
+        List<MonitorListRow> availableRows = await ApplyState(rows, MonitorListStates.NotInUse, cutoff)
             .OrderBy(row => row.FleetNumber)
             .ToListAsync(cancellationToken);
-        var assignedRows = await rows
+        List<MonitorListRow> assignedRows = await rows
             .Where(row => row.SiteId == siteId && (!contractId.HasValue || row.ContractId == contractId.Value))
             .OrderBy(row => row.FleetNumber)
             .ToListAsync(cancellationToken);
 
         return new MonitorAssignmentLists
         {
-            AvailableMonitors = availableRows.Select(row => ToItem(row, roleContext, cutoff)).ToList(),
-            AssignedMonitors = assignedRows.Select(row => ToItem(row, roleContext, cutoff)).ToList()
+            AvailableMonitors = [.. availableRows.Select(row => ToItem(row, roleContext, cutoff))],
+            AssignedMonitors = [.. assignedRows.Select(row => ToItem(row, roleContext, cutoff))]
         };
     }
 
@@ -187,20 +187,20 @@ public sealed class MonitorListReader : IMonitorListReader
             (row, current) => new MonitorListRow
             {
                 Id = row.Monitor.Id,
-                DeploymentId = current == null ? null : (Guid?)current.Id,
+                DeploymentId = current == null ? null : current.Id,
                 FleetNumber = row.Monitor.FleetNr,
                 SerialId = row.Monitor.SerialId,
                 Manufacturer = row.Monitor.Manufacturer,
                 Model = row.Monitor.Model,
                 FirmwareVersion = row.Monitor.FirmwareVersion,
                 TypeOfMonitor = row.Monitor.TypeOfMonitor,
-                ContractId = current == null ? null : (Guid?)current.ContractId,
+                ContractId = current == null ? null : current.ContractId,
                 ContractNumber = current == null ? null : current.Contract.ContractNumber,
                 SiteId = current == null ? null : current.Contract.SiteiD,
                 SiteName = current == null || current.Contract.Site == null ? null : current.Contract.Site.SiteName,
-                CompanyId = current == null ? null : (Guid?)current.Contract.CompanyId,
+                CompanyId = current == null ? null : current.Contract.CompanyId,
                 CompanyName = current == null ? null : current.Contract.Company.CompanyName,
-                StartDate = current == null ? null : (DateTime?)current.StartDate,
+                StartDate = current == null ? null : current.StartDate,
                 EndDate = current == null ? null : current.EndDate,
                 LastDataTime = row.LastDataTime,
                 HasAlerts = false,
@@ -236,7 +236,7 @@ public sealed class MonitorListReader : IMonitorListReader
             return rows.Where(_ => false);
         }
 
-        var visibleSiteIds = await domainContext.SiteUsers
+        List<Guid> visibleSiteIds = await domainContext.SiteUsers
             .AsNoTracking()
             .Where(ActiveSiteAssignment.ForUser(roleContext.CurrentUserId.Value, DateTime.UtcNow))
             .Select(siteUser => siteUser.SiteId)
@@ -275,13 +275,13 @@ public sealed class MonitorListReader : IMonitorListReader
     [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]
     private static IQueryable<MonitorListRow> ApplyInventorySearch(IQueryable<MonitorListRow> rows, string? searchText)
     {
-        var search = NormalizeSearch(searchText);
+        string? search = NormalizeSearch(searchText);
         if (search == null)
         {
             return rows;
         }
 
-        var matchingTypes = MatchingMonitorTypes(search);
+        MonitorTypeEnum[] matchingTypes = MatchingMonitorTypes(search);
         return rows.Where(row =>
             (row.FleetNumber != null && row.FleetNumber.ToLower().Contains(search)) ||
             row.SerialId.ToLower().Contains(search) ||
@@ -297,13 +297,13 @@ public sealed class MonitorListReader : IMonitorListReader
     [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]
     private static IQueryable<MonitorListRow> ApplyUnattachedSearch(IQueryable<MonitorListRow> rows, string? searchText)
     {
-        var search = NormalizeSearch(searchText);
+        string? search = NormalizeSearch(searchText);
         if (search == null)
         {
             return rows;
         }
 
-        var matchingTypes = MatchingMonitorTypes(search);
+        MonitorTypeEnum[] matchingTypes = MatchingMonitorTypes(search);
         return rows.Where(row =>
             (row.FleetNumber != null && row.FleetNumber.ToLower().Contains(search)) ||
             row.SerialId.ToLower().Contains(search) ||
@@ -319,10 +319,10 @@ public sealed class MonitorListReader : IMonitorListReader
         DateTime offlineCutoff,
         CancellationToken cancellationToken)
     {
-        var total = await rows.CountAsync(cancellationToken);
-        var orderedRows = ApplySort(rows, query.Sort, query.SortDir);
-        var skip = (query.Page - 1) * query.PageSize;
-        var pageRows = await orderedRows
+        int total = await rows.CountAsync(cancellationToken);
+        IOrderedQueryable<MonitorListRow> orderedRows = ApplySort(rows, query.Sort, query.SortDir);
+        int skip = (query.Page - 1) * query.PageSize;
+        List<MonitorListRow> pageRows = await orderedRows
             .Skip(skip)
             .Take(query.PageSize)
             .ToListAsync(cancellationToken);
@@ -330,7 +330,7 @@ public sealed class MonitorListReader : IMonitorListReader
 
         return new MonitorListPage
         {
-            Results = pageRows.Select(row => ToItem(row, query.RoleContext, offlineCutoff)).ToList(),
+            Results = [.. pageRows.Select(row => ToItem(row, query.RoleContext, offlineCutoff))],
             Total = total
         };
     }
@@ -338,36 +338,35 @@ public sealed class MonitorListReader : IMonitorListReader
     // Function summary: Hydrates page-level alert flags using effective deployment/contract ownership windows.
     private async Task HydrateNotificationFlagsAsync(List<MonitorListRow> rows, CancellationToken cancellationToken)
     {
-        var deploymentIds = rows
+        List<Guid> deploymentIds = [.. rows
             .Where(row => row.DeploymentId.HasValue)
-            .Select(row => row.DeploymentId!.Value)
-            .ToList();
+            .Select(row => row.DeploymentId!.Value)];
         if (deploymentIds.Count == 0)
         {
             return;
         }
 
-        var deployments = await domainContext.Deployments
+        List<Deployment> deployments = await domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .Where(deployment => deploymentIds.Contains(deployment.Id))
             .ToListAsync(cancellationToken);
-        var deploymentByMonitor = deployments.ToDictionary(deployment => deployment.MonitorId);
-        var monitorIds = deploymentByMonitor.Keys.ToList();
-        var notifications = await domainContext.Notifications
+        Dictionary<Guid, Deployment> deploymentByMonitor = deployments.ToDictionary(deployment => deployment.MonitorId);
+        List<Guid> monitorIds = [.. deploymentByMonitor.Keys];
+        List<Notification> notifications = await domainContext.Notifications
             .AsNoTracking()
             .Where(notification => monitorIds.Contains(notification.MonitorId) && notification.ClosedTime == null)
             .ToListAsync(cancellationToken);
-        var notificationsByMonitor = notifications
+        Dictionary<Guid, List<Notification>> notificationsByMonitor = notifications
             .Where(notification =>
-                deploymentByMonitor.TryGetValue(notification.MonitorId, out var deployment) &&
+                deploymentByMonitor.TryGetValue(notification.MonitorId, out Deployment? deployment) &&
                 MonitorOwnershipWindowResolver.ForDeployment(deployment).Contains(notification.NotificationTime))
             .GroupBy(notification => notification.MonitorId)
             .ToDictionary(group => group.Key, group => group.ToList());
 
-        foreach (var row in rows)
+        foreach (MonitorListRow row in rows)
         {
-            if (!notificationsByMonitor.TryGetValue(row.Id, out var monitorNotifications))
+            if (!notificationsByMonitor.TryGetValue(row.Id, out List<Notification>? monitorNotifications))
             {
                 continue;
             }
@@ -380,7 +379,7 @@ public sealed class MonitorListReader : IMonitorListReader
     // Function summary: Applies monitor list sorting to the query.
     private static IOrderedQueryable<MonitorListRow> ApplySort(IQueryable<MonitorListRow> rows, string sort, string sortDir)
     {
-        var descending = sortDir == SortDirections.Descending;
+        bool descending = sortDir == SortDirections.Descending;
         return sort.ToLowerInvariant() switch
         {
             "serialid" => descending ? rows.OrderByDescending(row => row.SerialId) : rows.OrderBy(row => row.SerialId),
@@ -395,7 +394,7 @@ public sealed class MonitorListReader : IMonitorListReader
     // Function summary: Converts a database projection into the API monitor list DTO.
     private static MonitorListItem ToItem(MonitorListRow row, MonitorListRoleContext roleContext, DateTime offlineCutoff)
     {
-        var isAssigned = row.DeploymentId.HasValue;
+        bool isAssigned = row.DeploymentId.HasValue;
         return new MonitorListItem
         {
             Id = row.Id,
@@ -434,9 +433,7 @@ public sealed class MonitorListReader : IMonitorListReader
     // Function summary: Finds monitor enum values matching a text search.
     private static MonitorTypeEnum[] MatchingMonitorTypes(string search)
     {
-        return Enum.GetValues<MonitorTypeEnum>()
-            .Where(value => value.ToString().Contains(search, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
+        return [.. Enum.GetValues<MonitorTypeEnum>().Where(value => value.ToString().Contains(search, StringComparison.OrdinalIgnoreCase))];
     }
 
     internal sealed class MonitorListRow

@@ -1,10 +1,11 @@
-﻿// File summary: Defines reusable query, filter, ordering, and result models for searchable grids.
+// File summary: Defines reusable query, filter, ordering, and result models for searchable grids.
 // Major updates:
 // - 2026-06-25 pending Returned concrete string-call expressions for CA1859 analyzer cleanup.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
 using System.Globalization;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace RVT.Entities.Querying;
 
@@ -15,12 +16,12 @@ public static class FilterExpression
         // Function summary: Handles the t workflow for this module.
         public static Expression<Func<T, bool>> GetExpression<T>(IEnumerable<Filter> filters)
         {
-            var parameter = Expression.Parameter(typeof(T), "x");
+            ParameterExpression parameter = Expression.Parameter(typeof(T), "x");
             Expression? body = null;
 
-            foreach (var filter in filters)
+            foreach (Filter filter in filters)
             {
-                var expression = BuildExpression(parameter, filter);
+                Expression expression = BuildExpression(parameter, filter);
                 body = body == null ? expression : Expression.AndAlso(body, expression);
             }
 
@@ -44,9 +45,9 @@ public static class FilterExpression
         private static Expression BuildOrExpression(ParameterExpression parameter, OrFilter filter)
         {
             Expression? body = null;
-            foreach (var childFilter in filter.Filters)
+            foreach (Filter childFilter in filter.Filters)
             {
-                var expression = BuildExpression(parameter, childFilter);
+                Expression expression = BuildExpression(parameter, childFilter);
                 body = body == null ? expression : Expression.OrElse(body, expression);
             }
 
@@ -57,12 +58,12 @@ public static class FilterExpression
         // Function summary: Builds single expression data for callers.
         private static BinaryExpression BuildSingleExpression(ParameterExpression parameter, SingleFilter filter)
         {
-            var property = QueryPropertyResolver.Resolve(parameter.Type, filter.PropertyName)
+            PropertyInfo property = QueryPropertyResolver.Resolve(parameter.Type, filter.PropertyName)
                 ?? throw QueryValidationException.UnknownProperty(parameter.Type, filter.PropertyName, "filter");
 
-            var member = Expression.Property(parameter, property);
-            var targetType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-            var constant = CreateValueExpression(filter.Value, targetType, property.PropertyType);
+            MemberExpression member = Expression.Property(parameter, property);
+            Type targetType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+            Expression constant = CreateValueExpression(filter.Value, targetType, property.PropertyType);
 
             return filter.Operation switch
             {
@@ -84,12 +85,12 @@ public static class FilterExpression
         // Function summary: Builds string call data for callers.
         private static BinaryExpression BuildStringCall(Expression member, string methodName, object? value)
         {
-            var stringMember = member.Type == typeof(string)
+            Expression stringMember = member.Type == typeof(string)
                 ? member
-                : Expression.Call(member, nameof(object.ToString), Type.EmptyTypes);
-            var notNull = Expression.NotEqual(stringMember, Expression.Constant(null, typeof(string)));
-            var method = typeof(string).GetMethod(methodName, [typeof(string)])!;
-            var call = Expression.Call(stringMember, method, Expression.Constant(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty));
+                : Expression.Call(member, nameof(ToString), Type.EmptyTypes);
+            BinaryExpression notNull = Expression.NotEqual(stringMember, Expression.Constant(null, typeof(string)));
+            MethodInfo method = typeof(string).GetMethod(methodName, [typeof(string)])!;
+            MethodCallExpression call = Expression.Call(stringMember, method, Expression.Constant(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty));
             return Expression.AndAlso(notNull, call);
         }
 
@@ -116,7 +117,7 @@ public static class FilterExpression
                 value = Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
             }
 
-            var constant = Expression.Constant(value, targetType);
+            ConstantExpression constant = Expression.Constant(value, targetType);
             return targetType == propertyType ? constant : Expression.Convert(constant, propertyType);
         }
     }

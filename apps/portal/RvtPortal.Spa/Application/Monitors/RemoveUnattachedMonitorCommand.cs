@@ -41,8 +41,8 @@ public sealed class RemoveUnattachedMonitorCommandHandler
         RemoveUnattachedMonitorCommand request,
         CancellationToken cancellationToken)
     {
-        var result = new RemoveUnattachedMonitorResult();
-        var monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(
+        RemoveUnattachedMonitorResult result = new();
+        RVT.Entities.Monitor? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(
             item => item.Id == request.MonitorId && !item.Archived,
             cancellationToken);
         if (monitor == null)
@@ -59,8 +59,8 @@ public sealed class RemoveUnattachedMonitorCommandHandler
             return result;
         }
 
-        var impact = await impactReader.BuildAsync(request.MonitorId, monitor.SerialId, cancellationToken);
-        var monitorName = monitor.FleetNr ?? monitor.SerialId;
+        MonitorRemovalImpactResponse impact = await impactReader.BuildAsync(request.MonitorId, monitor.SerialId, cancellationToken);
+        string monitorName = monitor.FleetNr ?? monitor.SerialId;
         if (impact.HasRelatedData)
         {
             monitor.Archived = true;
@@ -91,7 +91,7 @@ public sealed class RemoveUnattachedMonitorCommandHandler
     // Function summary: Appends a validation error to a command result.
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }

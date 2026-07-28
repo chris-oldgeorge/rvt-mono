@@ -25,11 +25,11 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
         await Fixture.ResetAsync();
         await Fixture.SeedReportRulesAsync(due: true, hidden: true, deleted: true, notDue: true);
 
-        var rules = await Fixture.Client.GetDueReportRulesAsync(
+        IReadOnlyList<ReportRule> rules = await Fixture.Client.GetDueReportRulesAsync(
             new DateTimeOffset(2026, 7, 14, 0, 0, 0, TimeSpan.Zero),
             CancellationToken.None);
 
-        var rule = Assert.Single(rules);
+        ReportRule rule = Assert.Single(rules);
         Assert.Equal(Fixture.DueRuleId, rule.Id);
         Assert.False(rule.IsHiddenSystemRule);
         Assert.Equal(["due@example.test"], rule.RecipientEmails);
@@ -39,13 +39,13 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
     public async Task LoadSiteReportDataAsync_ClampsMonitorDataToEffectiveOwnershipWindow()
     {
         await Fixture.ResetAsync();
-        var siteId = await Fixture.SeedSiteWithTransferredMonitorAsync();
+        Guid siteId = await Fixture.SeedSiteWithTransferredMonitorAsync();
 
-        var site = await Fixture.Client.LoadSiteReportDataAsync(siteId, Fixture.FromUtc, Fixture.ToUtc, CancellationToken.None);
+        SiteReportData site = await Fixture.Client.LoadSiteReportDataAsync(siteId, Fixture.FromUtc, Fixture.ToUtc, CancellationToken.None);
 
-        var monitor = Assert.Single(site.Monitors);
+        MonitorReportData monitor = Assert.Single(site.Monitors);
         Assert.All(monitor.NoiseDailyAverage, point => Assert.InRange(point.MeasuredAt, monitor.EffectiveFrom, monitor.EffectiveTo));
-        var point = Assert.Single(monitor.NoiseDailyAverage);
+        MeasurementPoint point = Assert.Single(monitor.NoiseDailyAverage);
         Assert.Equal(10m, point.Value);
         Assert.Single(monitor.DustHourlyAverage);
         Assert.Single(monitor.DustDailyAverage);
@@ -60,15 +60,15 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
     public async Task LoadSiteReportDataAsync_MatchesVibrationNotificationsBeforeClearingDisplayPeriod()
     {
         await Fixture.ResetAsync();
-        var siteId = await Fixture.SeedSiteWithVibrationRuleAsync();
+        Guid siteId = await Fixture.SeedSiteWithVibrationRuleAsync();
 
-        var site = await Fixture.Client.LoadSiteReportDataAsync(
+        SiteReportData site = await Fixture.Client.LoadSiteReportDataAsync(
             siteId,
             Fixture.FromUtc,
             Fixture.ToUtc,
             CancellationToken.None);
 
-        var rule = Assert.Single(Assert.Single(site.Monitors).AlertRules);
+        AlertRuleData rule = Assert.Single(Assert.Single(site.Monitors).AlertRules);
         Assert.Null(rule.AveragingPeriodSeconds);
         Assert.Equal(1, rule.TriggeredCount);
         Assert.Equal("Vibration reviewed", rule.LatestClosedNote);
@@ -77,7 +77,7 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
     [Fact]
     public void PostgreSqlFixture_DerivesOwnershipFromCanonicalRelationsWithoutMonitorWindows()
     {
-        var createScript = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "testdata/create.postgres.sql"));
+        string createScript = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "testdata/create.postgres.sql"));
 
         Assert.Contains("create table deployment", createScript, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("create table contract", createScript, StringComparison.OrdinalIgnoreCase);
@@ -89,7 +89,7 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
     {
         await Fixture.ResetAsync();
 
-        var rule = await Fixture.Client.GetReportRuleAsync(Guid.NewGuid(), CancellationToken.None);
+        ReportRule? rule = await Fixture.Client.GetReportRuleAsync(Guid.NewGuid(), CancellationToken.None);
 
         Assert.Null(rule);
     }
@@ -99,8 +99,8 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
     {
         await Fixture.ResetAsync();
 
-        await using var first = await Fixture.Client.TryAcquireAsync(Fixture.RuleId, Fixture.DailyPeriod, CancellationToken.None);
-        await using var second = await Fixture.SecondClient.TryAcquireAsync(Fixture.RuleId, Fixture.DailyPeriod, CancellationToken.None);
+        await using RuleGenerationLock? first = await Fixture.Client.TryAcquireAsync(Fixture.RuleId, Fixture.DailyPeriod, CancellationToken.None);
+        await using RuleGenerationLock? second = await Fixture.SecondClient.TryAcquireAsync(Fixture.RuleId, Fixture.DailyPeriod, CancellationToken.None);
 
         Assert.NotNull(first);
         Assert.Null(second);
@@ -110,7 +110,7 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
     public async Task SaveGeneratedReportAsync_RollsBackRuleReportAndRecipientRowsWhenARecipientWriteFails()
     {
         await Fixture.ResetAsync();
-        var request = Fixture.GeneratedReportRequest(withInvalidRecipient: true);
+        GeneratedReportSaveRequest request = Fixture.GeneratedReportRequest(withInvalidRecipient: true);
 
         await Assert.ThrowsAsync<DbUpdateException>(() => Fixture.Client.SaveGeneratedReportAsync(request, CancellationToken.None));
 
@@ -123,9 +123,9 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
     public async Task SaveGeneratedReportAsync_ReusesAndReactivatesDeletedHiddenOneTimeRule()
     {
         await Fixture.ResetAsync();
-        var deletedRuleId = await Fixture.SeedDeletedHiddenOneTimeRuleAsync();
+        Guid deletedRuleId = await Fixture.SeedDeletedHiddenOneTimeRuleAsync();
 
-        var report = await Fixture.Client.SaveGeneratedReportAsync(
+        GeneratedReport report = await Fixture.Client.SaveGeneratedReportAsync(
             Fixture.GeneratedReportRequest(withInvalidRecipient: false),
             CancellationToken.None);
 
@@ -140,7 +140,7 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
         await Fixture.ResetAsync();
         await Fixture.DelayHiddenOneTimeRuleInsertsAsync();
 
-        var reports = await Task.WhenAll(
+        GeneratedReport[] reports = await Task.WhenAll(
             Fixture.Client.SaveGeneratedReportAsync(Fixture.GeneratedReportRequest(withInvalidRecipient: false), CancellationToken.None),
             Fixture.SecondClient.SaveGeneratedReportAsync(Fixture.GeneratedReportRequest(withInvalidRecipient: false), CancellationToken.None));
 
@@ -153,7 +153,7 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
     public async Task SaveGeneratedReportAsync_PersistsDeliveryErrors()
     {
         await Fixture.ResetAsync();
-        var request = Fixture.GeneratedReportRequest(withInvalidRecipient: false) with
+        GeneratedReportSaveRequest request = Fixture.GeneratedReportRequest(withInvalidRecipient: false) with
         {
             Deliveries =
             [
@@ -164,7 +164,7 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
 
         await Fixture.Client.SaveGeneratedReportAsync(request, CancellationToken.None);
 
-        var errors = await Fixture.GetReportSentErrorsAsync();
+        IReadOnlyDictionary<string, string?> errors = await Fixture.GetReportSentErrorsAsync();
         Assert.Null(errors["success@example.test"]);
         Assert.Equal("SendGrid returned 503 ServiceUnavailable", errors["failed@example.test"]);
     }
@@ -185,13 +185,13 @@ public sealed class ReportingMonitorCompositionTests
         string? primaryProvider,
         string? fallbackProvider)
     {
-        using var provider = CreateServiceProvider(
+        using ServiceProvider provider = CreateServiceProvider(
             primaryProvider,
             fallbackProvider,
             "Host=localhost;Database=reporting_composition_tests;Username=reporting");
-        using var scope = provider.CreateScope();
+        using IServiceScope scope = provider.CreateScope();
 
-        var client = scope.ServiceProvider.GetRequiredService<ReportingDbClient>();
+        ReportingDbClient client = scope.ServiceProvider.GetRequiredService<ReportingDbClient>();
 
         Assert.NotNull(client);
     }
@@ -202,17 +202,17 @@ public sealed class ReportingMonitorCompositionTests
     public void Composition_RejectsUnsupportedLegacyProviderBeforeDbClientResolution(
         bool usePrimaryProvider)
     {
-        var rejectedValue = string.Concat("sql", "server");
-        var primaryProvider = usePrimaryProvider ? rejectedValue : " ";
-        var fallbackProvider = usePrimaryProvider ? "postgresql" : rejectedValue;
+        string rejectedValue = string.Concat("sql", "server");
+        string primaryProvider = usePrimaryProvider ? rejectedValue : " ";
+        string fallbackProvider = usePrimaryProvider ? "postgresql" : rejectedValue;
         const string invalidConnectionString = "not a valid connection string";
-        using var provider = CreateServiceProvider(
+        using ServiceProvider provider = CreateServiceProvider(
             primaryProvider,
             fallbackProvider,
             invalidConnectionString);
-        using var scope = provider.CreateScope();
+        using IServiceScope scope = provider.CreateScope();
 
-        var exception = Assert.Throws<InvalidOperationException>(
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
             () => scope.ServiceProvider.GetRequiredService<ReportingDbClient>());
 
         Assert.Equal(SafePostgreSqlOnlyMessage, exception.Message);
@@ -225,7 +225,7 @@ public sealed class ReportingMonitorCompositionTests
         string? fallbackProvider,
         string connectionString)
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = connectionString,
@@ -234,7 +234,7 @@ public sealed class ReportingMonitorCompositionTests
                 ["RVT:EMAIL_ENABLED"] = "false"
             })
             .Build();
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
         services.AddReportingMonitor(configuration);
@@ -265,8 +265,8 @@ public sealed class ReportingDbFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         database = await PostgreSqlIntegrationDatabase.CreateAsync(ReadTestData(CreateScript), ReadTestData(ResetScript));
-        var monitorOptions = new MonitorDbOptions(new Dictionary<string, string>());
-        var options = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(database.ConnectionString);
+        MonitorDbOptions monitorOptions = new(new Dictionary<string, string>());
+        DbContextOptions<ReportingMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(database.ConnectionString);
         context = new ReportingMonitorContext(options, monitorOptions);
         secondContext = new ReportingMonitorContext(options, monitorOptions);
     }
@@ -306,7 +306,7 @@ public sealed class ReportingDbFixture : IAsyncLifetime
 
     public async Task<IReadOnlyDictionary<string, string?>> GetReportSentErrorsAsync()
     {
-        var reportingContext = context ?? throw new InvalidOperationException("Fixture has not been initialized.");
+        ReportingMonitorContext reportingContext = context ?? throw new InvalidOperationException("Fixture has not been initialized.");
         return await reportingContext.ReportSends
             .AsNoTracking()
             .ToDictionaryAsync(row => row.Address, row => row.ErrorMessage);
@@ -314,7 +314,7 @@ public sealed class ReportingDbFixture : IAsyncLifetime
 
     public async Task<int> CountAsync(string tableName)
     {
-        var reportingContext = context ?? throw new InvalidOperationException("Fixture has not been initialized.");
+        ReportingMonitorContext reportingContext = context ?? throw new InvalidOperationException("Fixture has not been initialized.");
         return tableName switch
         {
             "report_rule" => await reportingContext.ReportRules.CountAsync(),
@@ -326,7 +326,7 @@ public sealed class ReportingDbFixture : IAsyncLifetime
 
     public async Task<Guid> SeedDeletedHiddenOneTimeRuleAsync()
     {
-        var ruleId = Guid.Parse("30000000-0000-0000-0000-000000000004");
+        Guid ruleId = Guid.Parse("30000000-0000-0000-0000-000000000004");
         const string sql = """
             insert into report_rule (id, site_id, user_id, frequency, report_name, deleted, is_hidden_system_rule)
             values (@rule_id, @site_id, @user_id, 5, 'Deleted one-time report', true, true);
@@ -344,7 +344,7 @@ public sealed class ReportingDbFixture : IAsyncLifetime
 
     public async Task<bool> IsReportRuleDeletedAsync(Guid ruleId)
     {
-        var reportingContext = context ?? throw new InvalidOperationException("Fixture has not been initialized.");
+        ReportingMonitorContext reportingContext = context ?? throw new InvalidOperationException("Fixture has not been initialized.");
         return await reportingContext.ReportRules
             .Where(row => row.Id == ruleId)
             .Select(row => row.Deleted)
@@ -401,8 +401,8 @@ public sealed class ReportingDbFixture : IAsyncLifetime
 
     public async Task<Guid> SeedSiteWithTransferredMonitorAsync()
     {
-        var siteId = Guid.Parse("20000000-0000-0000-0000-000000000001");
-        var monitorId = Guid.Parse("20000000-0000-0000-0000-000000000002");
+        Guid siteId = Guid.Parse("20000000-0000-0000-0000-000000000001");
+        Guid monitorId = Guid.Parse("20000000-0000-0000-0000-000000000002");
         const string sql = """
             insert into site_search (id, site_name, create_date) values (@site_id, 'Transferred monitor site', @from_utc);
             insert into contract (id, contract_number, on_hire_date, off_hire_date, company_id, site_id)
@@ -449,8 +449,8 @@ public sealed class ReportingDbFixture : IAsyncLifetime
 
     public async Task<Guid> SeedSiteWithVibrationRuleAsync()
     {
-        var siteId = Guid.Parse("21000000-0000-0000-0000-000000000001");
-        var monitorId = Guid.Parse("21000000-0000-0000-0000-000000000002");
+        Guid siteId = Guid.Parse("21000000-0000-0000-0000-000000000001");
+        Guid monitorId = Guid.Parse("21000000-0000-0000-0000-000000000002");
         const string sql = """
             insert into site_search (id, site_name, create_date)
             values (@site_id, 'Vibration alert site', @from_utc);
@@ -485,9 +485,9 @@ public sealed class ReportingDbFixture : IAsyncLifetime
 
     private async Task ExecuteAsync(string sql, Action<NpgsqlCommand> configure)
     {
-        await using var connection = (database ?? throw new InvalidOperationException("Fixture has not been initialized.")).OpenConnection();
+        await using NpgsqlConnection connection = (database ?? throw new InvalidOperationException("Fixture has not been initialized.")).OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         configure(command);
         await command.ExecuteNonQueryAsync();
     }

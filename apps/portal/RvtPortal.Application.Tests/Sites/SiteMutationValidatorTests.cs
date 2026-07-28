@@ -1,3 +1,4 @@
+using RvtPortal.Application.Common;
 using RvtPortal.Application.Sites;
 
 namespace RvtPortal.Application.Tests.Sites;
@@ -12,9 +13,9 @@ public sealed class SiteMutationValidatorTests
         string endField,
         string startField)
     {
-        var request = WithMalformedEndTime(ValidMutation(), endField);
+        SiteMutation request = WithMalformedEndTime(ValidMutation(), endField);
 
-        var result = SiteMutationValidator.ValidateShape(request);
+        SiteMutationValidationResult result = SiteMutationValidator.ValidateShape(request);
 
         Assert.False(result.IsValid);
         Assert.Collection(
@@ -34,15 +35,15 @@ public sealed class SiteMutationValidatorTests
     [Fact]
     public void ValidateShape_ReversedLegacyWeekdayPairReportsOnlyStartTime()
     {
-        var request = ValidMutation() with
+        SiteMutation request = ValidMutation() with
         {
             StartTime = "17:00",
             EndTime = "08:00"
         };
 
-        var result = SiteMutationValidator.ValidateShape(request);
+        SiteMutationValidationResult result = SiteMutationValidator.ValidateShape(request);
 
-        var error = Assert.Single(result.Errors);
+        UseCaseError error = Assert.Single(result.Errors);
         Assert.Equal(nameof(SiteMutation.StartTime), error.Field);
         Assert.Equal("Start time needs to be before end time", error.Message);
     }

@@ -1,5 +1,76 @@
 # Project State
 
+## Authoritative checkpoint: explicit local types ready for publication — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- **PR remediation resumed.** PR
+  `https://github.com/chris-oldgeorge/rvt-mono/pull/17` is open. Commit
+  `7456ffd6` is pushed; local follow-up commit `2b8fb80` is not pushed.
+- The first CI run (`30394803605`) passed setup, restore, policy,
+  configuration, and workflow checks, then failed the changed-range ratchet.
+  Explicit local types made adjacent target-typed construction and collection
+  rules applicable on the same changed lines.
+- Local remediation applied repository whitespace formatting and targeted
+  Roslyn fixes for the reported style rules. It also lower-cased one changed
+  lambda variable and initialized 39 EF `DbSet` properties with `null!` to
+  clear the newly surfaced CS8618 file-level increase.
+- The first targeted formatter sequence mistakenly omitted `--severity info`,
+  so its 16-file fixed point did not match the ratchet's invocation. After
+  reproducing that mismatch, the exact info-severity rule set was applied. Two
+  passes changed 287 already-migrated C# files; a third identical pass left the
+  diff hash unchanged at
+  `1b6d71018b18fd37614de84a0521a31d361d9ba7`.
+- The exact-severity result still passes strict `IDE0008` verification, and
+  the complete solution builds with 0 warnings and 0 errors. No remediation
+  commit has been pushed.
+- The next exact ratchet run reduced the remaining scope to 15 findings: one
+  `IDE0047` expression and 14 `IDE1006` tuple-element names in four Portal
+  files. The expression was formatted and the tuple elements were renamed to
+  lower camel case without changing tuple order or values. The solution still
+  builds with 0 warnings and 0 errors.
+- Final local verification:
+  `scripts/verify-engineering-standards.sh --base origin/main --head HEAD`
+  passes with only baseline decreases and no violations or increases; strict
+  `IDE0008` passes; the full solution builds with 0 warnings and 0 errors.
+- Next: push the local follow-up commit to PR #17, wait for green CI, then
+  merge and verify `origin/main`.
+- Working branch `codex/explicit-local-types-main` is based directly on
+  `origin/main` at `6be9c90a`; it supersedes the preserved stale-base commit
+  `fd45166` on `codex/explicit-local-types`.
+- The repository now enforces explicit local types through both root
+  `.editorconfig` files: all `csharp_style_var_*` options and `IDE0008` are
+  errors.
+- The migration replaced 9,859 eligible C# `var` declarations across 587
+  files: 4,094 in Portal, 4,367 in monitor applications, 1,397 in
+  `libs/rvt-monitor-common`, and one documentation-regression fixture.
+  Seven JavaScript declarations were also changed from `var` to `const`.
+- Thirty-three active C# `var` tokens remain intentionally: 32 are
+  anonymous/query-shaped values that cannot be named directly, and one is a
+  pattern arm. Strict project-scoped `IDE0008` verification passes for every
+  affected project, including five legacy monitor files checked through
+  temporary project inclusion.
+- The standalone `services/reporting` tree was deleted by the newer mainline
+  reporting-consolidation work and remains untouched; only the surviving
+  `libs/rvt-monitor-common` projects were migrated.
+- The Omnidots manual-test helper no longer contains a credential-like literal.
+  It requires `OMNIDOTS_TEST_SECRET` and fails before making an HTTP request
+  when the variable is absent. The user explicitly authorized this change.
+  Git history still contains the old value, so it must be rotated if it was
+  ever live.
+- Independent reviews found no behavior changes in the Portal, monitor, or
+  shared-library migrations.
+- Full integration tests require a disposable
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`; do not use the production database.
+  CI provisions its own PostgreSQL service and is the authoritative integration
+  test gate before merge.
+- Refreshed verification: the solution builds with 0 warnings and 0 errors;
+  all 50 engineering-policy tests and the configuration, workflow,
+  documentation, JavaScript-syntax, and whitespace guards pass. A local full
+  test run reaches only the documented missing-disposable-PostgreSQL failures;
+  Portal reports 548 passed, 11 skipped, and 0 failed.
+- Publication sequence: commit only the explicit-type migration and its plan,
+  push the branch, open a ready PR, wait for required CI, then merge to `main`.
+
 ## Authoritative checkpoint: Rvt.Monitor.Common hub cleanup — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

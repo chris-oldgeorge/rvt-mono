@@ -15,11 +15,11 @@ internal sealed class SiteArchiveWorkspaceFactory : ISiteArchiveWorkspaceFactory
     // Function summary: Creates a unique workspace and blob name for a site archive request.
     public SiteArchiveWorkspace Create(Guid siteId)
     {
-        var archiveId = $"{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}";
-        var rootPath = Path.Combine(Path.GetTempPath(), "rvt-site-archives", siteId.ToString("N"), archiveId);
-        var filesPath = Path.Combine(rootPath, "files");
-        var blobName = $"{siteId:N}/site-archive.zip";
-        var zipPath = Path.Combine(rootPath, $"{archiveId}.zip");
+        string archiveId = $"{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}";
+        string rootPath = Path.Combine(Path.GetTempPath(), "rvt-site-archives", siteId.ToString("N"), archiveId);
+        string filesPath = Path.Combine(rootPath, "files");
+        string blobName = $"{siteId:N}/site-archive.zip";
+        string zipPath = Path.Combine(rootPath, $"{archiveId}.zip");
 
         return new SiteArchiveWorkspace(rootPath, filesPath, zipPath, blobName);
     }

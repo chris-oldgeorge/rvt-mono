@@ -9,7 +9,7 @@ public sealed class S3StorageOptionsTests
     [TestMethod]
     public void Bind_WhenNoSettings_UsesEmptyOptionalDefaults()
     {
-        var options = S3StorageOptions.Bind(new ConfigurationBuilder().Build());
+        S3StorageOptions options = S3StorageOptions.Bind(new ConfigurationBuilder().Build());
 
         Assert.AreEqual(string.Empty, options.Bucket);
         Assert.AreEqual(string.Empty, options.Prefix);
@@ -21,7 +21,7 @@ public sealed class S3StorageOptionsTests
     [TestMethod]
     public void Bind_ReadsProviderNeutralSettings()
     {
-        var options = S3StorageOptions.Bind(CreateConfiguration(new()
+        S3StorageOptions options = S3StorageOptions.Bind(CreateConfiguration(new()
         {
             ["BlobStorage:S3Bucket"] = "recordings",
             ["BlobStorage:Prefix"] = "tenant-a",
@@ -46,7 +46,7 @@ public sealed class S3StorageOptionsTests
         string serviceUrlKey,
         string forcePathStyleKey)
     {
-        var options = S3StorageOptions.Bind(CreateConfiguration(new()
+        S3StorageOptions options = S3StorageOptions.Bind(CreateConfiguration(new()
         {
             [bucketKey] = "recordings",
             ["RVT__BLOB_PREFIX"] = "tenant-b",
@@ -65,7 +65,7 @@ public sealed class S3StorageOptionsTests
     [TestMethod]
     public void Bind_WithDefaultPrefix_UsesDefaultWhenNoPrefixIsConfigured()
     {
-        var options = S3StorageOptions.Bind(
+        S3StorageOptions options = S3StorageOptions.Bind(
             new ConfigurationBuilder().Build(),
             defaultPrefix: "rvtreports");
 
@@ -75,7 +75,7 @@ public sealed class S3StorageOptionsTests
     [TestMethod]
     public void Bind_InvalidForcePathStyle_UsesFalse()
     {
-        var options = S3StorageOptions.Bind(CreateConfiguration(new()
+        S3StorageOptions options = S3StorageOptions.Bind(CreateConfiguration(new()
         {
             ["RVT__S3_FORCE_PATH_STYLE"] = "not-a-boolean",
         }));
@@ -86,10 +86,9 @@ public sealed class S3StorageOptionsTests
     [TestMethod]
     public void OptionsSurface_DoesNotAcceptStaticCredentials()
     {
-        var propertyNames = typeof(S3StorageOptions)
+        string[] propertyNames = [.. typeof(S3StorageOptions)
             .GetProperties()
-            .Select(property => property.Name)
-            .ToArray();
+            .Select(property => property.Name)];
 
         Assert.IsFalse(propertyNames.Any(name =>
             name.Contains("Access", StringComparison.OrdinalIgnoreCase)

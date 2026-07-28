@@ -29,10 +29,10 @@ internal sealed record ReleaseAuditOptions(
         string? revision = null;
         string? receipt = null;
 
-        for (var index = 1; index < args.Count; index += 2)
+        for (int index = 1; index < args.Count; index += 2)
         {
-            var flag = args[index];
-            var value = args[index + 1];
+            string flag = args[index];
+            string value = args[index + 1];
             if (value.StartsWith("--", StringComparison.Ordinal))
             {
                 return null;
@@ -65,7 +65,7 @@ internal sealed record ReleaseAuditOptions(
 
         try
         {
-            var receiptPath = Path.GetFullPath(receipt);
+            string receiptPath = Path.GetFullPath(receipt);
             return Path.EndsInDirectorySeparator(receiptPath)
                 || string.IsNullOrEmpty(Path.GetFileName(receiptPath))
                 || Directory.Exists(receiptPath)

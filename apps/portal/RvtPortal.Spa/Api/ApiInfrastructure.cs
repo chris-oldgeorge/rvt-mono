@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 
 namespace RvtPortal.Spa.Api;
 
@@ -29,7 +30,7 @@ public static class ApiDiagnostics
     // Function summary: Returns the current API correlation id from request state or tracing.
     public static string GetCorrelationId(this HttpContext context)
     {
-        if (context.Items.TryGetValue(CorrelationIdItem, out var value) && value is string id && !string.IsNullOrWhiteSpace(id))
+        if (context.Items.TryGetValue(CorrelationIdItem, out object? value) && value is string id && !string.IsNullOrWhiteSpace(id))
         {
             return id;
         }
@@ -51,7 +52,7 @@ public static class ApiDiagnostics
             return null;
         }
 
-        var trimmed = value.Trim();
+        string trimmed = value.Trim();
         if (trimmed.Length > 128)
         {
             trimmed = trimmed[..128];
@@ -59,7 +60,7 @@ public static class ApiDiagnostics
 
         // Allow only a conservative token charset; anything with control characters
         // (CR/LF, etc.) is dropped so it cannot inject forged lines into logs.
-        foreach (var character in trimmed)
+        foreach (char character in trimmed)
         {
             if (!char.IsLetterOrDigit(character) && character is not ('-' or '_' or '.' or ':'))
             {
@@ -81,7 +82,7 @@ public static class ApiProblems
         string? detail = null,
         string? type = null)
     {
-        var problem = new ProblemDetails
+        ProblemDetails problem = new()
         {
             Status = statusCode,
             Title = title,
@@ -106,10 +107,10 @@ public sealed class ApiCorrelationMiddleware
     // Function summary: Sanitizes or creates the request correlation id and exposes it on API responses.
     public async Task Invoke(HttpContext context)
     {
-        var suppliedCorrelationId = context.Request.Headers.TryGetValue(ApiDiagnostics.CorrelationIdHeader, out var headerValue) && headerValue.Count > 0
+        string? suppliedCorrelationId = context.Request.Headers.TryGetValue(ApiDiagnostics.CorrelationIdHeader, out StringValues headerValue) && headerValue.Count > 0
             ? headerValue[0]
             : null;
-        var correlationId = ApiDiagnostics.SanitizeCorrelationId(suppliedCorrelationId) ?? context.TraceIdentifier;
+        string correlationId = ApiDiagnostics.SanitizeCorrelationId(suppliedCorrelationId) ?? context.TraceIdentifier;
         context.SetCorrelationId(correlationId);
 
         if (context.Request.Path.StartsWithSegments("/api"))
@@ -155,7 +156,7 @@ public sealed class ApiExceptionMiddleware
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/problem+json";
 
-            var problem = ApiProblems.Create(
+            ProblemDetails problem = ApiProblems.Create(
                 context,
                 StatusCodes.Status500InternalServerError,
                 "An unexpected API error occurred.",
@@ -188,7 +189,7 @@ public sealed class SecurityHeadersMiddleware
     {
         context.Response.OnStarting(() =>
         {
-            var headers = context.Response.Headers;
+            IHeaderDictionary headers = context.Response.Headers;
             headers.XContentTypeOptions = "nosniff";
             headers.XFrameOptions = "DENY";
             headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
@@ -246,8 +247,8 @@ public sealed class ApiCsrfProtectionMiddleware
             return;
         }
 
-        var requestOrigin = GetRequestOrigin(context);
-        var suppliedOrigin = GetSuppliedOrigin(context);
+        string requestOrigin = GetRequestOrigin(context);
+        string? suppliedOrigin = GetSuppliedOrigin(context);
         if (suppliedOrigin is not null && !IsAllowedOrigin(suppliedOrigin, requestOrigin))
         {
             logger.LogWarning(
@@ -270,7 +271,7 @@ public sealed class ApiCsrfProtectionMiddleware
     // Function summary: Reads the strongest available browser origin signal for CSRF validation.
     private static string? GetSuppliedOrigin(HttpContext context)
     {
-        var origin = context.Request.Headers.Origin.FirstOrDefault();
+        string? origin = context.Request.Headers.Origin.FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(origin))
         {
             return origin;
@@ -282,7 +283,7 @@ public sealed class ApiCsrfProtectionMiddleware
         // blocked sentinel rather than falling through to the fail-open path,
         // which previously let same-site forgeries through when Origin/Referer
         // were absent.
-        var fetchSite = context.Request.Headers["Sec-Fetch-Site"].FirstOrDefault();
+        string? fetchSite = context.Request.Headers["Sec-Fetch-Site"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(fetchSite))
         {
             if (string.Equals(fetchSite, "same-origin", StringComparison.OrdinalIgnoreCase) ||
@@ -294,8 +295,8 @@ public sealed class ApiCsrfProtectionMiddleware
             return fetchSite;
         }
 
-        var referer = context.Request.Headers.Referer.FirstOrDefault();
-        if (Uri.TryCreate(referer, UriKind.Absolute, out var refererUri))
+        string? referer = context.Request.Headers.Referer.FirstOrDefault();
+        if (Uri.TryCreate(referer, UriKind.Absolute, out Uri? refererUri))
         {
             return refererUri.GetLeftPart(UriPartial.Authority);
         }
@@ -306,20 +307,20 @@ public sealed class ApiCsrfProtectionMiddleware
     // Function summary: Checks whether an origin matches the request origin or configured SPA origins.
     private bool IsAllowedOrigin(string origin, string requestOrigin)
     {
-        if (!Uri.TryCreate(origin, UriKind.Absolute, out var originUri))
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out Uri? originUri))
         {
             return false;
         }
 
-        var normalizedOrigin = originUri.GetLeftPart(UriPartial.Authority);
+        string normalizedOrigin = originUri.GetLeftPart(UriPartial.Authority);
         if (string.Equals(normalizedOrigin, requestOrigin, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        foreach (var configuredOrigin in configuration.GetSection("Spa:AllowedOrigins").Get<string[]>() ?? [])
+        foreach (string configuredOrigin in configuration.GetSection("Spa:AllowedOrigins").Get<string[]>() ?? [])
         {
-            if (Uri.TryCreate(configuredOrigin, UriKind.Absolute, out var configuredUri) &&
+            if (Uri.TryCreate(configuredOrigin, UriKind.Absolute, out Uri? configuredUri) &&
                 string.Equals(normalizedOrigin, configuredUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
             {
                 return true;
@@ -354,7 +355,7 @@ public sealed class ApiCsrfProtectionMiddleware
     {
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/problem+json";
-        var problem = ApiProblems.Create(context, statusCode, title, detail);
+        ProblemDetails problem = ApiProblems.Create(context, statusCode, title, detail);
         await context.Response.WriteAsync(JsonSerializer.Serialize(problem, JsonSerializerOptions.Web));
     }
 }
@@ -389,7 +390,7 @@ public sealed class ApiObservabilityMiddleware
             return;
         }
 
-        var stopwatch = Stopwatch.StartNew();
+        Stopwatch stopwatch = Stopwatch.StartNew();
         context.Response.OnStarting(() =>
         {
             if (!context.Response.Headers.ContainsKey("Server-Timing"))

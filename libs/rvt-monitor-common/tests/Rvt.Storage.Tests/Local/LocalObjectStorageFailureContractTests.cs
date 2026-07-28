@@ -15,10 +15,10 @@ public sealed class LocalObjectStorageFailureContractTests
     [TestMethod]
     public async Task WriteAsync_WhenTheRootIsAFile_ReportsThroughThePortContract()
     {
-        using var temporary = new TemporaryDirectory();
+        using TemporaryDirectory temporary = new();
         string rootAsFile = Path.Combine(temporary.Path, "not-a-directory");
         await File.WriteAllTextAsync(rootAsFile, "occupied");
-        var client = new LocalObjectStorageClient(
+        LocalObjectStorageClient client = new(
             "recordings",
             new LocalStorageOptions { RootPath = rootAsFile, Container = "container" });
 
@@ -35,8 +35,8 @@ public sealed class LocalObjectStorageFailureContractTests
     [TestMethod]
     public void GetObjectUri_ReturnsAFileUriUnderTheConfiguredRoot()
     {
-        using var temporary = new TemporaryDirectory();
-        var client = new LocalObjectStorageClient(
+        using TemporaryDirectory temporary = new();
+        LocalObjectStorageClient client = new(
             "recordings",
             new LocalStorageOptions { RootPath = temporary.Path, Container = "container" });
 
@@ -53,7 +53,7 @@ public sealed class LocalObjectStorageFailureContractTests
     {
         // Validation failures are caller errors, not storage faults, and stay
         // outside the ObjectStorageException contract by design.
-        var client = new LocalObjectStorageClient(
+        LocalObjectStorageClient client = new(
             "recordings",
             new LocalStorageOptions { RootPath = string.Empty, Container = "container" });
 
@@ -64,10 +64,10 @@ public sealed class LocalObjectStorageFailureContractTests
     [TestMethod]
     public async Task Operations_StillSurfaceCallerCancellationAsOperationCanceled()
     {
-        using var temporary = new TemporaryDirectory();
-        using var cancellation = new CancellationTokenSource();
+        using TemporaryDirectory temporary = new();
+        using CancellationTokenSource cancellation = new();
         await cancellation.CancelAsync();
-        var client = new LocalObjectStorageClient(
+        LocalObjectStorageClient client = new(
             "recordings",
             new LocalStorageOptions { RootPath = temporary.Path, Container = "container" });
 

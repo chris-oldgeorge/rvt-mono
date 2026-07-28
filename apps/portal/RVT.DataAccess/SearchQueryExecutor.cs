@@ -3,14 +3,8 @@
 // - 2026-07-14 pending Made the shared read path async and no-tracking; replaced PagedList with SQL count+skip/take.
 // - 2026-07-09 pending Extracted the generic repository's ReadFiltered core so the time-series reader can reuse it.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using RVT.Entities;
 using RVT.Entities.Querying;
 
 
@@ -52,8 +46,8 @@ namespace RVT.DataAccess
 
             if (paged)
             {
-                var totalCount = await query.CountAsync(cancellationToken);
-                var pageRows = await query
+                int totalCount = await query.CountAsync(cancellationToken);
+                List<TEntity> pageRows = await query
                     .Skip(Math.Max(page - 1, 0) * pageSize)
                     .Take(pageSize)
                     .ToListAsync(cancellationToken);
@@ -62,8 +56,8 @@ namespace RVT.DataAccess
             }
 
             // Read one row past the bound so a capped result can be reported rather than silently truncated.
-            var rows = await query.Take(maximumRecords + 1).ToListAsync(cancellationToken);
-            var hasMore = rows.Count > maximumRecords;
+            List<TEntity> rows = await query.Take(maximumRecords + 1).ToListAsync(cancellationToken);
+            bool hasMore = rows.Count > maximumRecords;
             if (hasMore)
             {
                 rows.RemoveAt(rows.Count - 1);

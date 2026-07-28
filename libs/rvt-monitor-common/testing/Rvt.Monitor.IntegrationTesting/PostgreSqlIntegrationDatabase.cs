@@ -34,16 +34,16 @@ public sealed class PostgreSqlIntegrationDatabase : IAsyncDisposable
     public static async Task<PostgreSqlIntegrationDatabase> CreateAsync(
         string setupSql, string resetSql, CancellationToken cancellationToken = default)
     {
-        var adminConnectionString = GetAdminConnectionString();
+        string? adminConnectionString = GetAdminConnectionString();
         if (string.IsNullOrWhiteSpace(adminConnectionString))
         {
             throw new InvalidOperationException(
                 $"Set {ConnectionStringEnvironmentVariable} to run PostgreSQL integration tests.");
         }
 
-        var schemaName = $"rvt_integration_{Guid.NewGuid():N}";
-        var builder = new NpgsqlConnectionStringBuilder(adminConnectionString) { SearchPath = schemaName };
-        var database = new PostgreSqlIntegrationDatabase(adminConnectionString, builder.ConnectionString, schemaName);
+        string schemaName = $"rvt_integration_{Guid.NewGuid():N}";
+        NpgsqlConnectionStringBuilder builder = new(adminConnectionString) { SearchPath = schemaName };
+        PostgreSqlIntegrationDatabase database = new(adminConnectionString, builder.ConnectionString, schemaName);
 
         try
         {
@@ -99,17 +99,17 @@ public sealed class PostgreSqlIntegrationDatabase : IAsyncDisposable
 
     private async Task ExecuteScopedAsync(string sql, CancellationToken cancellationToken)
     {
-        await using var connection = OpenConnection();
+        await using NpgsqlConnection connection = OpenConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private async Task ExecuteAdminAsync(string sql, CancellationToken cancellationToken)
     {
-        await using var connection = new NpgsqlConnection(adminConnectionString);
+        await using NpgsqlConnection connection = new(adminConnectionString);
         await connection.OpenAsync(cancellationToken);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -118,14 +118,14 @@ public sealed class PostgreSqlIntegrationDatabase : IAsyncDisposable
 
     private static string? ReadDevelopmentConnectionString()
     {
-        var settingsPath = Path.Combine(AppContext.BaseDirectory, DevelopmentSettingsFileName);
+        string settingsPath = Path.Combine(AppContext.BaseDirectory, DevelopmentSettingsFileName);
         if (!File.Exists(settingsPath))
         {
             return null;
         }
 
-        using var document = JsonDocument.Parse(File.ReadAllText(settingsPath));
-        return document.RootElement.TryGetProperty(ConnectionStringEnvironmentVariable, out var value) &&
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(settingsPath));
+        return document.RootElement.TryGetProperty(ConnectionStringEnvironmentVariable, out JsonElement value) &&
                value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;

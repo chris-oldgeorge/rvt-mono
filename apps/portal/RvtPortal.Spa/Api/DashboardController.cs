@@ -13,10 +13,9 @@ using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RVT.BusinessLogic.Application.Paging;
-using RVT.Entities;
+using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Application.Dashboard;
-using RvtPortal.Spa.Application.Monitors;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Api;
@@ -46,8 +45,8 @@ public class DashboardController : ControllerBase
     // Function summary: Returns a role-scoped dashboard summary through the dashboard application service.
     public async Task<ActionResult<DashboardSummaryResponse>> Summary()
     {
-        var actor = await CreateActorAsync();
-        var result = await dashboard.GetSummaryAsync(actor, HttpContext.RequestAborted);
+        DashboardActor actor = await CreateActorAsync();
+        DashboardSummaryModel result = await dashboard.GetSummaryAsync(actor, HttpContext.RequestAborted);
         return DashboardApiMapper.ToSummaryResponse(result);
     }
 
@@ -58,7 +57,7 @@ public class DashboardController : ControllerBase
     // Function summary: Queries breach-alert rows through the application-layer dashboard use case.
     public async Task<ActionResult<BreachesAlertsResponse>> BreachesAlerts([FromQuery] BreachesAlertsRequest request)
     {
-        var page = PageRequestFactory.Create(
+        PageRequest page = PageRequestFactory.Create(
             request.SearchText,
             request.Page,
             request.PageSize,
@@ -71,7 +70,7 @@ public class DashboardController : ControllerBase
             return InvalidSort(page.Sort, DashboardBreachApplicationService.SortFields);
         }
 
-        var result = await dashboardBreaches.QueryAsync(
+        DashboardBreachResult result = await dashboardBreaches.QueryAsync(
             new DashboardBreachQuery(request.Date, page),
             HttpContext.RequestAborted);
         return DashboardApiMapper.ToBreachesAlertsResponse(result);
@@ -83,8 +82,8 @@ public class DashboardController : ControllerBase
     // Function summary: Returns role-scoped dashboard map markers through the dashboard application service.
     public async Task<ActionResult<MapMarkersResponse>> MapMarkers([FromQuery] MapMarkersRequest request)
     {
-        var actor = await CreateActorAsync();
-        var result = await dashboard.GetMapMarkersAsync(actor, request.SiteId, HttpContext.RequestAborted);
+        DashboardActor actor = await CreateActorAsync();
+        DashboardMapMarkersModel? result = await dashboard.GetMapMarkersAsync(actor, request.SiteId, HttpContext.RequestAborted);
         if (result is null && request.SiteId.HasValue)
         {
             return SiteNotFound(request.SiteId.Value);
@@ -106,13 +105,13 @@ public class DashboardController : ControllerBase
             ModelState.AddModelError(nameof(CalendarMonthRequest.DeploymentId), "Deployment is required.");
             return ValidationProblem(ModelState);
         }
-        if (!TrySelectCalendarMonth(request.Year, request.Month, out var selectedMonth))
+        if (!TrySelectCalendarMonth(request.Year, request.Month, out DateTime selectedMonth))
         {
             return ValidationProblem(ModelState);
         }
 
-        var actor = await CreateActorAsync();
-        var result = await dashboard.GetCalendarMonthAsync(
+        DashboardActor actor = await CreateActorAsync();
+        DashboardCalendarMonthModel? result = await dashboard.GetCalendarMonthAsync(
             actor,
             request.DeploymentId.Value,
             selectedMonth,
@@ -137,7 +136,7 @@ public class DashboardController : ControllerBase
         {
             ModelState.AddModelError(nameof(CalendarDayRequest.MonitorId), "Monitor is required.");
         }
-        if (!TryCreateDate(request.Year, request.Month, request.Day, out var displayDay))
+        if (!TryCreateDate(request.Year, request.Month, request.Day, out DateTime displayDay))
         {
             ModelState.AddModelError(nameof(CalendarDayRequest.Day), "A valid calendar day is required.");
         }
@@ -146,9 +145,9 @@ public class DashboardController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var actor = await CreateActorAsync();
-        var monitorId = request.MonitorId.GetValueOrDefault();
-        var result = await dashboard.GetCalendarDayAsync(
+        DashboardActor actor = await CreateActorAsync();
+        Guid monitorId = request.MonitorId.GetValueOrDefault();
+        DashboardCalendarDayModel? result = await dashboard.GetCalendarDayAsync(
             actor,
             monitorId,
             displayDay,
@@ -164,7 +163,7 @@ public class DashboardController : ControllerBase
     // Function summary: Builds the dashboard actor from authenticated HTTP user state.
     private async Task<DashboardActor> CreateActorAsync()
     {
-        var currentUser = await currentUsers.CreateAsync(User, HttpContext.RequestAborted);
+        PortalUserContext currentUser = await currentUsers.CreateAsync(User, HttpContext.RequestAborted);
         return DashboardActor.FromPortalUser(
             currentUser,
             User.IsInRole(RoleNames.RVTMasterAdmin),
@@ -174,7 +173,7 @@ public class DashboardController : ControllerBase
     // Function summary: Attempts select calendar month and reports whether it succeeded.
     private bool TrySelectCalendarMonth(int? year, int? month, out DateTime selectedMonth)
     {
-        var now = DateTime.Today;
+        DateTime now = DateTime.Today;
         if (year is < 1 or > 9999)
         {
             ModelState.AddModelError(nameof(CalendarMonthRequest.Year), "A valid year is required.");
@@ -225,7 +224,7 @@ public class DashboardController : ControllerBase
     // Function summary: Builds an invalid-sort problem response for breach-alert queries.
     private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
     {
-        var problem = ApiProblems.Create(
+        ProblemDetails problem = ApiProblems.Create(
             HttpContext,
             StatusCodes.Status400BadRequest,
             "Invalid sort field",

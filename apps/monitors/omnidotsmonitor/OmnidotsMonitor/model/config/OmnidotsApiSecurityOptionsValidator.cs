@@ -85,12 +85,12 @@ internal static class OmnidotsApiSecurityValidation
 
     private static bool HasStrongDistinctSecrets(string? webhookSecret, string? configSecret)
     {
-        if (!TryGetSecretBytes(webhookSecret, out var webhookSecretBytes))
+        if (!TryGetSecretBytes(webhookSecret, out byte[]? webhookSecretBytes))
         {
             return false;
         }
 
-        if (!TryGetSecretBytes(configSecret, out var configSecretBytes))
+        if (!TryGetSecretBytes(configSecret, out byte[]? configSecretBytes))
         {
             CryptographicOperations.ZeroMemory(webhookSecretBytes);
             return false;
@@ -109,7 +109,7 @@ internal static class OmnidotsApiSecurityValidation
 
     private static bool IsAbsoluteHttpsUrl(string? value) =>
         !string.IsNullOrWhiteSpace(value) &&
-        Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+        Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) &&
         string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
         !string.IsNullOrEmpty(uri.Host);
 }

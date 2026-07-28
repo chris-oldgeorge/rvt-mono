@@ -2,6 +2,7 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json.Customer;
+using MyAtm.Model.Json.DeviceInfo;
 
 namespace MyAtm.Api.UseCases;
 
@@ -33,11 +34,11 @@ public sealed class StoreMonitorsHandler
 
     public async Task RunAsync(int customerId, CancellationToken cancellationToken = default)
     {
-        var failures = new MyAtmFailureCollector(operationalCommands);
-        var fullPageFingerprints = new HashSet<string>(StringComparer.Ordinal);
-        var skip = 0;
+        MyAtmFailureCollector failures = new(operationalCommands);
+        HashSet<string> fullPageFingerprints = new(StringComparer.Ordinal);
+        int skip = 0;
 
-        for (var pageNumber = 1; pageNumber <= maxDevicePagesPerRun; pageNumber++)
+        for (int pageNumber = 1; pageNumber <= maxDevicePagesPerRun; pageNumber++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             List<DustMonitor> devices;
@@ -51,7 +52,7 @@ public sealed class StoreMonitorsHandler
                 break;
             }
 
-            var isFullPage = devices.Count >= devicePageSize;
+            bool isFullPage = devices.Count >= devicePageSize;
             if (isFullPage && !fullPageFingerprints.Add(Fingerprint(devices)))
             {
                 failures.Capture(
@@ -61,11 +62,11 @@ public sealed class StoreMonitorsHandler
                 break;
             }
 
-            var dtos = new List<DustMonitorDto>(devices.Count);
-            foreach (var device in devices)
+            List<DustMonitorDto> dtos = new(devices.Count);
+            foreach (DustMonitor device in devices)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var serialId = device.SerialNumber;
+                string? serialId = device.SerialNumber;
                 if (string.IsNullOrWhiteSpace(serialId))
                 {
                     failures.Capture(
@@ -77,7 +78,7 @@ public sealed class StoreMonitorsHandler
 
                 try
                 {
-                    var deviceInfo = await gateway.HttpGetDeviceInfoAsync(
+                    DustMonitorInfo deviceInfo = await gateway.HttpGetDeviceInfoAsync(
                         customerId,
                         serialId,
                         cancellationToken);
@@ -89,7 +90,7 @@ public sealed class StoreMonitorsHandler
                 }
             }
 
-            var filteredDtos = MyAtmTestLocalMonitorFilter.ApplyCatalog(dtos, testLocal);
+            List<DustMonitorDto> filteredDtos = MyAtmTestLocalMonitorFilter.ApplyCatalog(dtos, testLocal);
             if (filteredDtos.Count > 0)
             {
                 try

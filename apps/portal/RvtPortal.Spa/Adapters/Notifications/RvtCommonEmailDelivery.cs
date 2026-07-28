@@ -5,10 +5,9 @@
 //   so AccountMessenger, the auth/user workflows, and their error handling were not touched by this swap.
 // - 2026-07-15 pending Moved SendGrid delivery out of RVT.Utilities.EmailSender behind the IEmailDelivery port.
 
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RVT.BusinessLogic.Ports.Notifications;
 using Rvt.Communication.Abstractions;
+using RVT.BusinessLogic.Ports.Notifications;
 
 namespace RvtPortal.Spa.Adapters.Notifications;
 

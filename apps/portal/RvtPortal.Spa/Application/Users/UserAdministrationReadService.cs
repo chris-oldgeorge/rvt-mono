@@ -92,7 +92,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var user = await applicationContext.Users
+        ApplicationUser? user = await applicationContext.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (user is null)
@@ -100,8 +100,8 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
             return null;
         }
 
-        var listItem = (await BuildUserModelsAsync([user], actor, cancellationToken)).Single();
-        var options = await OptionsAsync(actor, cancellationToken);
+        UserListModel listItem = (await BuildUserModelsAsync([user], actor, cancellationToken)).Single();
+        UserAdministrationOptionsModel options = await OptionsAsync(actor, cancellationToken);
         return new UserDetailModel
         {
             Id = listItem.Id,
@@ -134,7 +134,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var site = await domainContext.Sites
+        Site? site = await domainContext.Sites
             .AsNoTracking()
             .Include(item => item.Contracts)
             .SingleOrDefaultAsync(item => item.Id == siteId, cancellationToken);
@@ -143,33 +143,33 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
             return null;
         }
 
-        var companyId = site.Contracts?.Select(contract => contract.CompanyId).FirstOrDefault();
-        var companies = await LoadCompaniesAsync(cancellationToken);
-        var assigned = await domainContext.SiteUsers
+        Guid? companyId = site.Contracts?.Select(contract => contract.CompanyId).FirstOrDefault();
+        Dictionary<Guid, string> companies = await LoadCompaniesAsync(cancellationToken);
+        List<SiteUsers> assigned = await domainContext.SiteUsers
             .AsNoTracking()
             .Where(siteUser => siteUser.SiteId == siteId)
             .ToListAsync(cancellationToken);
-        var assignedUserIds = assigned.Select(item => item.UserId.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var candidates = applicationContext.Users.AsNoTracking();
+        HashSet<string> assignedUserIds = assigned.Select(item => item.UserId.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        IQueryable<ApplicationUser> candidates = applicationContext.Users.AsNoTracking();
         if (companyId.HasValue)
         {
             candidates = candidates.Where(user => user.CompanyId == companyId.Value);
         }
 
-        var candidateItems = await BuildUserModelsAsync(await candidates.ToListAsync(cancellationToken), actor, cancellationToken);
+        List<UserListModel> candidateItems = await BuildUserModelsAsync(await candidates.ToListAsync(cancellationToken), actor, cancellationToken);
 
         return new SiteAssignmentModel
         {
             SiteId = site.Id,
             SiteName = site.SiteName,
             CompanyId = companyId == Guid.Empty ? null : companyId,
-            CompanyName = companyId.HasValue && companies.TryGetValue(companyId.Value, out var companyName) ? companyName : null,
-            AvailableUsers = candidateItems.Where(user => !assignedUserIds.Contains(user.Id)).ToList(),
-            AssignedUsers = candidateItems
+            CompanyName = companyId.HasValue && companies.TryGetValue(companyId.Value, out string? companyName) ? companyName : null,
+            AvailableUsers = [.. candidateItems.Where(user => !assignedUserIds.Contains(user.Id))],
+            AssignedUsers = [.. candidateItems
                 .Where(user => assignedUserIds.Contains(user.Id))
                 .Select(user =>
                 {
-                    var assignment = assigned.Single(item => item.UserId.ToString().Equals(user.Id, StringComparison.OrdinalIgnoreCase));
+                    SiteUsers assignment = assigned.Single(item => item.UserId.ToString().Equals(user.Id, StringComparison.OrdinalIgnoreCase));
                     return new SiteUserAssignmentModel
                     {
                         Id = user.Id,
@@ -193,8 +193,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
                         CanManageNotificationSettings = user.CanManageNotificationSettings,
                         SiteContact = assignment.SiteContact
                     };
-                })
-                .ToList()
+                })]
         };
     }
 
@@ -204,11 +203,11 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var companies = await LoadCompaniesAsync(cancellationToken);
-        var roleByUser = await LoadRolesAsync(users.Select(user => user.Id), cancellationToken);
-        var siteCounts = await LoadSiteCountsAsync(users.Select(user => user.Id), cancellationToken);
+        Dictionary<Guid, string> companies = await LoadCompaniesAsync(cancellationToken);
+        Dictionary<string, string> roleByUser = await LoadRolesAsync(users.Select(user => user.Id), cancellationToken);
+        Dictionary<Guid, int> siteCounts = await LoadSiteCountsAsync(users.Select(user => user.Id), cancellationToken);
 
-        return users.Select(user => BuildUserModel(user, roleByUser, companies, siteCounts, actor)).ToList();
+        return [.. users.Select(user => BuildUserModel(user, roleByUser, companies, siteCounts, actor))];
     }
 
     // Function summary: Converts one Identity user into the shared admin user model.
@@ -219,9 +218,9 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         IReadOnlyDictionary<Guid, int> siteCounts,
         UserListActor actor)
     {
-        var role = roleByUser.TryGetValue(user.Id, out var resolvedRole) ? resolvedRole : "";
-        var parsedId = Guid.TryParse(user.Id, out var userId) ? userId : Guid.Empty;
-        var companyName = user.CompanyId.HasValue && companies.TryGetValue(user.CompanyId.Value, out var name) ? name : null;
+        string role = roleByUser.TryGetValue(user.Id, out string? resolvedRole) ? resolvedRole : "";
+        Guid parsedId = Guid.TryParse(user.Id, out Guid userId) ? userId : Guid.Empty;
+        string? companyName = user.CompanyId.HasValue && companies.TryGetValue(user.CompanyId.Value, out string? name) ? name : null;
         return new UserListModel
         {
             Id = user.Id,
@@ -233,7 +232,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
             PhoneNumber = user.PhoneNumber,
             CompanyRole = user.CompanyRole,
             Role = role,
-            SiteCount = parsedId == Guid.Empty || !siteCounts.TryGetValue(parsedId, out var count) ? 0 : count,
+            SiteCount = parsedId == Guid.Empty || !siteCounts.TryGetValue(parsedId, out int count) ? 0 : count,
             EmailConfirmed = user.EmailConfirmed,
             CanEdit = CanEditUser(role, actor),
             CanDisable = !user.IsDisabled && CanEditUser(role, actor),
@@ -250,15 +249,14 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        var configuredRoles = await applicationContext.Roles
+        List<string?> configuredRoles = await applicationContext.Roles
             .AsNoTracking()
             .Select(role => role.Name)
             .ToListAsync(cancellationToken);
-        return RoleOrder
+        return [.. RoleOrder
             .Where(role => configuredRoles.Contains(role))
             .Where(role => CanAssignRole(role, actor))
-            .Select(role => new UserOptionModel { Value = role, Label = role })
-            .ToList();
+            .Select(role => new UserOptionModel { Value = role, Label = role })];
     }
 
     // Function summary: Builds company options for user edit forms.
@@ -284,7 +282,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         IEnumerable<string> userIds,
         CancellationToken cancellationToken)
     {
-        var ids = userIds.ToList();
+        List<string> ids = [.. userIds];
         if (ids.Count == 0)
         {
             return [];
@@ -307,11 +305,10 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         IEnumerable<string> userIds,
         CancellationToken cancellationToken)
     {
-        var parsedIds = userIds
-            .Select(id => Guid.TryParse(id, out var parsedId) ? parsedId : (Guid?)null)
+        List<Guid> parsedIds = [.. userIds
+            .Select(id => Guid.TryParse(id, out Guid parsedId) ? parsedId : (Guid?)null)
             .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToList();
+            .Select(id => id!.Value)];
         return parsedIds.Count == 0
             ? []
             : await domainContext.SiteUsers

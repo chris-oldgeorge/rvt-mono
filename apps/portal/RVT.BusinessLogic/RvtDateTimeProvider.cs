@@ -69,7 +69,7 @@ public sealed class RvtDateTimeProvider : IRvtDateTimeProvider
         {
             return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
         }
-        catch (TimeZoneNotFoundException) when (TryResolveMappedTimeZone(timeZoneId, out var mappedTimeZone))
+        catch (TimeZoneNotFoundException) when (TryResolveMappedTimeZone(timeZoneId, out TimeZoneInfo? mappedTimeZone))
         {
             return mappedTimeZone;
         }
@@ -86,13 +86,13 @@ public sealed class RvtDateTimeProvider : IRvtDateTimeProvider
     // Function summary: Resolves a configured time zone through runtime-supported Windows/IANA mappings.
     private static bool TryResolveMappedTimeZone(string timeZoneId, out TimeZoneInfo mappedTimeZone)
     {
-        if (TimeZoneInfo.TryConvertWindowsIdToIanaId(timeZoneId, out var ianaId))
+        if (TimeZoneInfo.TryConvertWindowsIdToIanaId(timeZoneId, out string? ianaId))
         {
             mappedTimeZone = TimeZoneInfo.FindSystemTimeZoneById(ianaId);
             return true;
         }
 
-        if (TimeZoneInfo.TryConvertIanaIdToWindowsId(timeZoneId, out var windowsId))
+        if (TimeZoneInfo.TryConvertIanaIdToWindowsId(timeZoneId, out string? windowsId))
         {
             mappedTimeZone = TimeZoneInfo.FindSystemTimeZoneById(windowsId);
             return true;

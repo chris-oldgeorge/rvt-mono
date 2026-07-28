@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.EntityFramework;
 
@@ -21,7 +22,7 @@ public sealed class OmnidotsMonitorContextFactory : IMonitorDbContextFactory<Omn
 
     public OmnidotsMonitorContext CreateDbContext()
     {
-        var options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(
+        DbContextOptions<OmnidotsMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(
             connectionString);
         return new OmnidotsMonitorContext(options, monitorOptions);
     }

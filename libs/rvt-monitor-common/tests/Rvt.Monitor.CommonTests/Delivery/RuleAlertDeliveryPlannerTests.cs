@@ -1,3 +1,4 @@
+using System.Reflection;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -20,25 +21,25 @@ public sealed class RuleAlertDeliveryPlannerTests
     [DataRow(AlertType.BatteryCaution)]
     public void Plan_PreservesNotificationSemanticsAndCreatesDeterministicOrderedDeliveries(AlertType alertType)
     {
-        var request = Request(alertType);
-        var contacts = new List<RulesContactDto>
-        {
+        RuleNotificationRequest request = Request(alertType);
+        List<RulesContactDto> contacts =
+        [
             new(true, true, "first@example.test", "441111111111", TimeSpan.FromHours(9), TimeSpan.FromHours(11)),
             new(true, false, "second@example.test", null, null, null),
             new(true, true, "outside@example.test", "442222222222", TimeSpan.FromHours(11), TimeSpan.FromHours(12)),
             new(true, true, " ", " ", null, null)
-        };
-        var correlationKey = $"svantek:rule:monitor:rule:{alertType}:{AlertTime:O}";
-        var planner = new RuleAlertDeliveryPlanner();
+        ];
+        string correlationKey = $"svantek:rule:monitor:rule:{alertType}:{AlertTime:O}";
+        RuleAlertDeliveryPlanner planner = new();
 
-        var plan = planner.Plan(
+        RuleAlertDeliveryPlan plan = planner.Plan(
             request,
             contacts,
             MonitorDeliveryProducers.Svantek,
             customerId: null,
             correlationKey,
             CreatedAt);
-        var replay = planner.Plan(
+        RuleAlertDeliveryPlan replay = planner.Plan(
             request,
             contacts,
             MonitorDeliveryProducers.Svantek,
@@ -46,7 +47,7 @@ public sealed class RuleAlertDeliveryPlannerTests
             correlationKey,
             CreatedAt);
 
-        var expectedNotificationId = MonitorDeliveryIdentity.CreateGuid($"notification:{correlationKey}");
+        Guid expectedNotificationId = MonitorDeliveryIdentity.CreateGuid($"notification:{correlationKey}");
         Assert.AreEqual(expectedNotificationId, plan.Notification.Id);
         Assert.AreEqual(request.AlertTime, plan.Notification.NotificationTime);
         Assert.AreEqual(request.LimitOn, plan.Notification.LimitOn);
@@ -71,13 +72,13 @@ public sealed class RuleAlertDeliveryPlannerTests
             new[] { "alert", "first@example.test", "second@example.test", "441111111111" },
             plan.Deliveries.Select(delivery => delivery.Destination).ToArray());
 
-        var expectedKeys = new[]
-        {
+        string[] expectedKeys =
+        [
             $"{correlationKey}:MqttAlert:alert",
             $"{correlationKey}:Email:first@example.test",
             $"{correlationKey}:Email:second@example.test",
             $"{correlationKey}:Sms:441111111111"
-        };
+        ];
         CollectionAssert.AreEqual(expectedKeys, plan.Deliveries.Select(delivery => delivery.DeliveryKey).ToArray());
         CollectionAssert.AreEqual(
             expectedKeys.Select(key => MonitorDeliveryIdentity.CreateGuid($"outbox:{key}")).ToArray(),
@@ -91,9 +92,9 @@ public sealed class RuleAlertDeliveryPlannerTests
         Assert.IsTrue(plan.Deliveries.All(delivery => delivery.CreatedAt == CreatedAt));
         Assert.IsTrue(plan.Deliveries.All(delivery => delivery.Payload == plan.Deliveries[0].Payload));
 
-        foreach (var delivery in plan.Deliveries)
+        foreach (MonitorDeliveryRequest delivery in plan.Deliveries)
         {
-            var payload = Decode(delivery);
+            MonitorDeliveryPayloadV1 payload = Decode(delivery);
             Assert.AreEqual(expectedNotificationId, payload.NotificationId);
             Assert.AreEqual(AlertTime, payload.Timestamp);
             Assert.AreEqual("SV-157206", payload.SerialId);
@@ -117,7 +118,7 @@ public sealed class RuleAlertDeliveryPlannerTests
     [TestMethod]
     public void Plan_PreservesCustomerIdInEveryPayload()
     {
-        var plan = new RuleAlertDeliveryPlanner().Plan(
+        RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             [],
             MonitorDeliveryProducers.MyAtm,
@@ -132,14 +133,14 @@ public sealed class RuleAlertDeliveryPlannerTests
     [TestMethod]
     public void Plan_DeduplicatesEligibleEmailDestinationsUsingOrdinalComparison()
     {
-        var contacts = new List<RulesContactDto>
-        {
+        List<RulesContactDto> contacts =
+        [
             new(true, false, "duplicate@example.test", null, null, null),
             new(true, false, "duplicate@example.test", null, null, null),
             new(true, false, "DUPLICATE@example.test", null, null, null)
-        };
+        ];
 
-        var plan = new RuleAlertDeliveryPlanner().Plan(
+        RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             contacts,
             MonitorDeliveryProducers.Svantek,
@@ -158,15 +159,15 @@ public sealed class RuleAlertDeliveryPlannerTests
     [TestMethod]
     public void Plan_DeduplicatesEligibleSmsDestinationsAndPreservesFirstEligibleOrder()
     {
-        var contacts = new List<RulesContactDto>
-        {
+        List<RulesContactDto> contacts =
+        [
             new(false, true, string.Empty, "442222222222", null, null),
             new(false, true, string.Empty, "441111111111", null, null),
             new(false, true, string.Empty, "442222222222", null, null),
             new(false, true, string.Empty, "441111111111", null, null)
-        };
+        ];
 
-        var plan = new RuleAlertDeliveryPlanner().Plan(
+        RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             contacts,
             MonitorDeliveryProducers.Svantek,
@@ -213,7 +214,7 @@ public sealed class RuleAlertDeliveryPlannerTests
     [DataRow(" ")]
     public void Plan_RejectsBlankSerialId(string serialId)
     {
-        var request = Request(AlertType.Alert) with { SerialId = serialId };
+        RuleNotificationRequest request = Request(AlertType.Alert) with { SerialId = serialId };
 
         Assert.ThrowsExactly<ArgumentException>(() => new RuleAlertDeliveryPlanner().Plan(
             request,
@@ -229,7 +230,7 @@ public sealed class RuleAlertDeliveryPlannerTests
     [DataRow(DateTimeKind.Unspecified)]
     public void Plan_RejectsNonUtcAlertTime(DateTimeKind kind)
     {
-        var request = Request(AlertType.Alert) with
+        RuleNotificationRequest request = Request(AlertType.Alert) with
         {
             AlertTime = DateTime.SpecifyKind(AlertTime, kind)
         };
@@ -248,7 +249,7 @@ public sealed class RuleAlertDeliveryPlannerTests
     [DataRow(DateTimeKind.Unspecified)]
     public void Plan_RejectsNonUtcCreatedAt(DateTimeKind kind)
     {
-        var createdAt = DateTime.SpecifyKind(CreatedAt, kind);
+        DateTime createdAt = DateTime.SpecifyKind(CreatedAt, kind);
 
         Assert.ThrowsExactly<ArgumentException>(() => new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
@@ -262,11 +263,11 @@ public sealed class RuleAlertDeliveryPlannerTests
     [TestMethod]
     public void Planner_HasNoInjectedTransportPersistenceOrDelegateDependencies()
     {
-        var plannerType = typeof(RuleAlertDeliveryPlanner);
+        Type plannerType = typeof(RuleAlertDeliveryPlanner);
 
-        var constructors = plannerType.GetConstructors();
+        ConstructorInfo[] constructors = plannerType.GetConstructors();
         Assert.HasCount(1, constructors);
-        var constructor = constructors[0];
+        ConstructorInfo constructor = constructors[0];
         Assert.HasCount(0, constructor.GetParameters());
         Assert.HasCount(0, plannerType.GetFields(
             System.Reflection.BindingFlags.Instance |

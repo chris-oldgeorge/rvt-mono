@@ -17,7 +17,7 @@ public static class MonitorDb
 
     public static void ValidateLegacyProvider(string? primaryProvider, string? fallbackProvider)
     {
-        var provider = !string.IsNullOrWhiteSpace(primaryProvider)
+        string? provider = !string.IsNullOrWhiteSpace(primaryProvider)
             ? primaryProvider
             : fallbackProvider;
         if (string.IsNullOrWhiteSpace(provider))
@@ -25,7 +25,7 @@ public static class MonitorDb
             return;
         }
 
-        var normalized = provider.Trim().ToLowerInvariant();
+        string normalized = provider.Trim().ToLowerInvariant();
         if (normalized is
             "postgres" or
             "postgresql" or
@@ -48,7 +48,7 @@ public static class MonitorDb
 
     public static DbCommand CreateCommand(string sql, DbConnection connection)
     {
-        var command = connection.CreateCommand();
+        DbCommand command = connection.CreateCommand();
         command.CommandText = sql;
         return command;
     }
@@ -59,17 +59,16 @@ public static class MonitorDb
         DataTable table,
         MonitorDbOptions options)
     {
-        var columns = table.Columns
+        string[] columns = [.. table.Columns
             .Cast<DataColumn>()
-            .Select(column => RequireSafeSqlIdentifier(column.ColumnName, "bulk insert column"))
-            .ToArray();
-        var mappedTable = options.IdentifierMap.TryGetValue(tableName, out var mapped)
+            .Select(column => RequireSafeSqlIdentifier(column.ColumnName, "bulk insert column"))];
+        string mappedTable = options.IdentifierMap.TryGetValue(tableName, out string? mapped)
             ? mapped
             : tableName;
-        var targetTable = RequireSafeSqlIdentifier(mappedTable, "bulk insert table");
+        string targetTable = RequireSafeSqlIdentifier(mappedTable, "bulk insert table");
 
-        using var connection = (NpgsqlConnection)OpenConnection(connectionString);
-        using var writer = connection.BeginBinaryImport(
+        using NpgsqlConnection connection = (NpgsqlConnection)OpenConnection(connectionString);
+        using NpgsqlBinaryImporter writer = connection.BeginBinaryImport(
             $"COPY {targetTable} ({string.Join(", ", columns)}) FROM STDIN (FORMAT BINARY)");
         foreach (DataRow row in table.Rows)
         {
@@ -95,8 +94,8 @@ public static class MonitorDb
             VALUES (@Host, @Source, @Message, @Level, @StackTrace, @Variables, @LogTime);
             """;
 
-        using var connection = OpenConnection(connectionString);
-        using var command = CreateCommand(sql, connection);
+        using DbConnection connection = OpenConnection(connectionString);
+        using DbCommand command = CreateCommand(sql, connection);
         command.Parameters.AddWithValue("@Host", HostName());
         command.Parameters.AddWithValue("@Source", serviceName + " " + serviceVersion);
         command.Parameters.AddWithValue("@Message", exception.Message);
@@ -112,7 +111,7 @@ public static class MonitorDb
         IReadOnlyDictionary<string, string> allowedIdentifiers,
         string context)
     {
-        if (!allowedIdentifiers.TryGetValue(identifier, out var mappedIdentifier))
+        if (!allowedIdentifiers.TryGetValue(identifier, out string? mappedIdentifier))
         {
             throw new NotSupportedException($"Unsupported SQL identifier '{identifier}' for {context}.");
         }
@@ -132,7 +131,7 @@ public static class MonitorDb
 
     private static string HostName()
     {
-        var hostName = Environment.GetEnvironmentVariable("WEBSITE_HOSTNAME") ?? Environment.MachineName;
+        string hostName = Environment.GetEnvironmentVariable("WEBSITE_HOSTNAME") ?? Environment.MachineName;
         return hostName.Length > 100 ? hostName[..100] : hostName;
     }
 }

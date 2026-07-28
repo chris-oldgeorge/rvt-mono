@@ -17,7 +17,7 @@ public sealed class ImportedReportingContractTests
         Assert.True(typeof(IReportNarrativeProvider).IsInterface);
         Assert.Equal(FrequencyType.OneTime, (FrequencyType)5);
 
-        var periods = ReportPeriodCalculator.CreatePeriods(
+        IReadOnlyList<ReportPeriod> periods = ReportPeriodCalculator.CreatePeriods(
             new ReportRule { Frequency = FrequencyType.Daily },
             new DateTimeOffset(2026, 7, 14, 4, 0, 0, TimeSpan.Zero));
 

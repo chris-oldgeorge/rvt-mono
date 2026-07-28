@@ -25,7 +25,7 @@ public sealed class ObjectStorageException : Exception
         string resourceName,
         StorageObjectKey? key)
     {
-        var keyDescription = key is null ? string.Empty : $" and key '{key}'";
+        string keyDescription = key is null ? string.Empty : $" and key '{key}'";
         return $"Object storage operation failed for resource '{resourceName}'{keyDescription} ({kind}).";
     }
 }

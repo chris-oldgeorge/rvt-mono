@@ -16,20 +16,20 @@ public static class SeedDatabase
     // Function summary: Initializes initialize state required by the application.
     public static async Task Initialize(IServiceProvider serviceProvider)
     {
-        var logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(SeedDatabase));
+        ILogger logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(SeedDatabase));
         try
         {
-            var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-            var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-            var seedCredential = configuration[MasterAdminSeedSettingName];
+            RoleManager<IdentityRole> roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+            UserManager<ApplicationUser> userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            string? seedCredential = configuration[MasterAdminSeedSettingName];
 
             await EnsureRoleAsync(roleManager, RoleNames.RVTMasterAdmin);
             await EnsureRoleAsync(roleManager, RoleNames.RVTAdmin);
             await EnsureRoleAsync(roleManager, RoleNames.RVTInstaller);
             await EnsureRoleAsync(roleManager, RoleNames.CompanyUser);
 
-            var masterAdmin = await userManager.FindByNameAsync(DefaultMasterAdminEmail)
+            ApplicationUser? masterAdmin = await userManager.FindByNameAsync(DefaultMasterAdminEmail)
                 ?? await userManager.FindByEmailAsync(DefaultMasterAdminEmail);
             if (masterAdmin == null)
             {
@@ -48,7 +48,7 @@ public static class SeedDatabase
                     return;
                 }
 
-                var createResult = await userManager.CreateAsync(masterAdmin, seedCredential);
+                IdentityResult createResult = await userManager.CreateAsync(masterAdmin, seedCredential);
                 if (!createResult.Succeeded)
                 {
                     LogIdentityErrors(logger, createResult, "Could not create default master admin user", DefaultMasterAdminEmail);
@@ -62,7 +62,7 @@ public static class SeedDatabase
 
             if (!await userManager.IsInRoleAsync(masterAdmin, RoleNames.RVTMasterAdmin))
             {
-                var roleResult = await userManager.AddToRoleAsync(masterAdmin, RoleNames.RVTMasterAdmin);
+                IdentityResult roleResult = await userManager.AddToRoleAsync(masterAdmin, RoleNames.RVTMasterAdmin);
                 if (!roleResult.Succeeded)
                 {
                     logger.LogWarning("Could not assign {Role} to default master admin user {UserName}: {Errors}",
@@ -97,7 +97,7 @@ public static class SeedDatabase
         ILogger logger,
         ApplicationUser masterAdmin)
     {
-        var shouldUpdateUser = false;
+        bool shouldUpdateUser = false;
         if (!string.Equals(masterAdmin.UserName, DefaultMasterAdminEmail, StringComparison.OrdinalIgnoreCase))
         {
             masterAdmin.UserName = DefaultMasterAdminEmail;
@@ -120,7 +120,7 @@ public static class SeedDatabase
         }
         if (shouldUpdateUser)
         {
-            var updateResult = await userManager.UpdateAsync(masterAdmin);
+            IdentityResult updateResult = await userManager.UpdateAsync(masterAdmin);
             if (!updateResult.Succeeded)
             {
                 LogIdentityErrors(logger, updateResult, "Could not update default master admin user", DefaultMasterAdminEmail);
@@ -136,7 +136,7 @@ public static class SeedDatabase
     {
         if (masterAdmin.LockoutEnd.HasValue)
         {
-            var lockoutResult = await userManager.SetLockoutEndDateAsync(masterAdmin, null);
+            IdentityResult lockoutResult = await userManager.SetLockoutEndDateAsync(masterAdmin, null);
             if (!lockoutResult.Succeeded)
             {
                 LogIdentityErrors(logger, lockoutResult, "Could not clear default master admin lockout", DefaultMasterAdminEmail);
@@ -152,7 +152,7 @@ public static class SeedDatabase
     {
         if (masterAdmin.AccessFailedCount > 0)
         {
-            var resetAccessResult = await userManager.ResetAccessFailedCountAsync(masterAdmin);
+            IdentityResult resetAccessResult = await userManager.ResetAccessFailedCountAsync(masterAdmin);
             if (!resetAccessResult.Succeeded)
             {
                 LogIdentityErrors(logger, resetAccessResult, "Could not reset failed login count for default master admin user", DefaultMasterAdminEmail);
@@ -174,8 +174,8 @@ public static class SeedDatabase
 
         if (!await userManager.CheckPasswordAsync(masterAdmin, seedCredential))
         {
-            var resetToken = await userManager.GeneratePasswordResetTokenAsync(masterAdmin);
-            var passwordResult = await userManager.ResetPasswordAsync(masterAdmin, resetToken, seedCredential);
+            string resetToken = await userManager.GeneratePasswordResetTokenAsync(masterAdmin);
+            IdentityResult passwordResult = await userManager.ResetPasswordAsync(masterAdmin, resetToken, seedCredential);
             if (!passwordResult.Succeeded)
             {
                 LogIdentityErrors(logger, passwordResult, "Could not reset default master admin credential", DefaultMasterAdminEmail);
@@ -190,7 +190,7 @@ public static class SeedDatabase
         {
             return;
         }
-        var result = await roleManager.CreateAsync(new IdentityRole
+        IdentityResult result = await roleManager.CreateAsync(new IdentityRole
         {
             Name = roleName,
             NormalizedName = roleName.ToUpperInvariant()

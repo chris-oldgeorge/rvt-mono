@@ -32,7 +32,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext _)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
         database = await PostgreSqlIntegrationDatabase.CreateAsync(
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/create.postgres.sql"),
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
@@ -55,7 +55,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"));
         await SeedAlertGraphAsync();
 
-        var monitorOptions = new MonitorDbOptions(
+        MonitorDbOptions monitorOptions = new(
             new Dictionary<string, string>());
         store = new EfAlertOutboxStore<OmnidotsMonitorContext>(
             new OmnidotsMonitorContextFactory(database.ConnectionString, monitorOptions));
@@ -64,8 +64,8 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task ClaimNextDueAsync_ClaimsOldestDueAndMaterializesAllFields()
     {
-        var oldestId = Guid.NewGuid();
-        var newerId = Guid.NewGuid();
+        Guid oldestId = Guid.NewGuid();
+        Guid newerId = Guid.NewGuid();
         await InsertOutboxAsync(
             oldestId,
             "Email",
@@ -84,7 +84,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             UtcNow.AddMinutes(-5),
             createdAt: UtcNow.AddMinutes(-15));
 
-        var claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
+        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
 
         Assert.IsNotNull(claim);
         Assert.AreEqual(oldestId, claim.Id);
@@ -110,15 +110,15 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task ClaimNextDueAsync_SkipsLockedOldestRowAndClaimsNextDueRow()
     {
-        var firstId = Guid.NewGuid();
-        var secondId = Guid.NewGuid();
+        Guid firstId = Guid.NewGuid();
+        Guid secondId = Guid.NewGuid();
         await InsertOutboxAsync(firstId, nextAttemptAt: UtcNow.AddMinutes(-2));
         await InsertOutboxAsync(secondId, nextAttemptAt: UtcNow.AddMinutes(-1));
 
-        await using var blockingConnection = database!.OpenConnection();
+        await using NpgsqlConnection blockingConnection = database!.OpenConnection();
         await blockingConnection.OpenAsync();
-        await using var blockingTransaction = await blockingConnection.BeginTransactionAsync();
-        await using (var lockCommand = new NpgsqlCommand(
+        await using NpgsqlTransaction blockingTransaction = await blockingConnection.BeginTransactionAsync();
+        await using (NpgsqlCommand lockCommand = new(
             "SELECT id FROM alert_delivery_outbox WHERE id = @id FOR UPDATE;",
             blockingConnection,
             blockingTransaction))
@@ -127,13 +127,13 @@ public sealed class OmnidotsAlertOutboxStoreTests
             Assert.AreEqual(firstId, await lockCommand.ExecuteScalarAsync());
         }
 
-        var skippedClaim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
+        ClaimedAlertDelivery? skippedClaim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
 
         Assert.IsNotNull(skippedClaim);
         Assert.AreEqual(secondId, skippedClaim.Id);
 
         await blockingTransaction.RollbackAsync();
-        var unlockedClaim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
+        ClaimedAlertDelivery? unlockedClaim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
 
         Assert.IsNotNull(unlockedClaim);
         Assert.AreEqual(firstId, unlockedClaim.Id);
@@ -144,8 +144,8 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task ClaimNextDueAsync_ExpiredLeaseIsReclaimedWithFreshFence()
     {
-        var id = Guid.NewGuid();
-        var expiredLeaseId = Guid.NewGuid();
+        Guid id = Guid.NewGuid();
+        Guid expiredLeaseId = Guid.NewGuid();
         await InsertOutboxAsync(
             id,
             status: "Leased",
@@ -154,7 +154,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             leaseId: expiredLeaseId,
             leaseUntil: UtcNow.AddSeconds(-1));
 
-        var claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
+        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
 
         Assert.IsNotNull(claim);
         Assert.AreEqual(id, claim.Id);
@@ -166,23 +166,23 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task FencedOutcomes_RejectStaleLeaseWithoutChangingRowOrWritingAudit()
     {
-        var id = Guid.NewGuid();
+        Guid id = Guid.NewGuid();
         await InsertOutboxAsync(id, kind: "Email", nextAttemptAt: UtcNow);
-        var claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
+        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
         Assert.IsNotNull(claim);
-        var staleLeaseId = Guid.NewGuid();
-        var audit = new AlertDeliveryAudit(
+        Guid staleLeaseId = Guid.NewGuid();
+        AlertDeliveryAudit audit = new(
             NotificationId,
             "ops@example.test",
             "Sent ok",
             UtcNow.AddSeconds(1));
 
-        var completed = await store.CompleteAsync(
+        bool completed = await store.CompleteAsync(
             id,
             staleLeaseId,
             UtcNow.AddSeconds(1),
             audit);
-        var retried = await store.RetryAsync(
+        bool retried = await store.RetryAsync(
             id,
             staleLeaseId,
             UtcNow.AddMinutes(1),
@@ -200,13 +200,13 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task CompleteAsync_CommitsCompletionAndSuccessAuditTogether()
     {
-        var id = Guid.NewGuid();
+        Guid id = Guid.NewGuid();
         await InsertOutboxAsync(id, kind: "Email", destination: "ops@example.test", nextAttemptAt: UtcNow);
-        var claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
+        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
         Assert.IsNotNull(claim);
-        var completedAt = UtcNow.AddSeconds(1);
+        DateTime completedAt = UtcNow.AddSeconds(1);
 
-        var completed = await store.CompleteAsync(
+        bool completed = await store.CompleteAsync(
             id,
             claim.LeaseId,
             completedAt,
@@ -227,9 +227,9 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task CompleteAsync_AuditInsertFailureRollsBackCompletionAndPreservesFence()
     {
-        var id = Guid.NewGuid();
+        Guid id = Guid.NewGuid();
         await InsertOutboxAsync(id, kind: "Email", destination: "ops@example.test", nextAttemptAt: UtcNow);
-        var claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
+        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
         Assert.IsNotNull(claim);
 
         await Assert.ThrowsExactlyAsync<DbUpdateException>(() =>
@@ -248,14 +248,14 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task RetryAsync_FinalFailureCommitsDeadLetterAndFailureAuditTogether()
     {
-        var id = Guid.NewGuid();
+        Guid id = Guid.NewGuid();
         await InsertOutboxAsync(id, kind: "Sms", destination: "+15550001111", nextAttemptAt: UtcNow);
-        var claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
+        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
         Assert.IsNotNull(claim);
-        var failedAt = UtcNow.AddSeconds(2);
+        DateTime failedAt = UtcNow.AddSeconds(2);
         const string safeError = "Alert delivery failed (HttpRequestException).";
 
-        var deadLettered = await store.RetryAsync(
+        bool deadLettered = await store.RetryAsync(
             id,
             claim.LeaseId,
             failedAt,
@@ -283,8 +283,8 @@ public sealed class OmnidotsAlertOutboxStoreTests
     {
         const string rawPayload = "{raw-payload-secret";
         const string destination = "ops@example.test";
-        var id = Guid.NewGuid();
-        var failedAt = UtcNow.AddSeconds(2);
+        Guid id = Guid.NewGuid();
+        DateTime failedAt = UtcNow.AddSeconds(2);
         await InsertOutboxAsync(
             id,
             kind: "Email",
@@ -292,20 +292,20 @@ public sealed class OmnidotsAlertOutboxStoreTests
             payload: rawPayload,
             nextAttemptAt: UtcNow,
             attemptCount: 7);
-        var adapter = new Mock<IAlertDeliveryAdapter>();
+        Mock<IAlertDeliveryAdapter> adapter = new();
         adapter.SetupGet(candidate => candidate.Kind).Returns("Email");
         adapter.Setup(candidate => candidate.DeliverAsync(
                 It.IsAny<ClaimedAlertDelivery>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new JsonException(rawPayload));
-        var dispatcher = new DurableAlertDispatcher(
+        DurableAlertDispatcher dispatcher = new(
             store,
             [adapter.Object],
             Options.Create(new DurableAlertOptions { BatchSize = 1, MaxAttempts = 8 }),
             new FixedTimeProvider(failedAt),
             NullLogger<DurableAlertDispatcher>.Instance);
 
-        var exception = await Assert.ThrowsExactlyAsync<AggregateException>(
+        AggregateException exception = await Assert.ThrowsExactlyAsync<AggregateException>(
             () => dispatcher.DispatchAsync());
 
         Assert.AreEqual("DeadLetter", await ReadStringAsync(
@@ -320,7 +320,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
         Assert.AreEqual(NotificationId, await ReadGuidAsync(
             "SELECT notification_id FROM notification_sent WHERE address = @address;",
             destination));
-        var safeError = await ReadStringAsync(
+        string safeError = await ReadStringAsync(
             "SELECT last_error FROM alert_delivery_outbox WHERE id = @id;",
             id);
         Assert.AreEqual("Alert delivery failed (JsonException).", safeError);
@@ -331,9 +331,9 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task RetryAsync_FinalAuditInsertFailureRollsBackDeadLetterAndPreservesFence()
     {
-        var id = Guid.NewGuid();
+        Guid id = Guid.NewGuid();
         await InsertOutboxAsync(id, kind: "Sms", destination: "+15550001111", nextAttemptAt: UtcNow);
-        var claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
+        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
         Assert.IsNotNull(claim);
         const string safeError = "Alert delivery failed (HttpRequestException).";
 
@@ -356,14 +356,14 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task RetryAsync_RetryClearsLeaseAndBoundsPersistedError()
     {
-        var id = Guid.NewGuid();
+        Guid id = Guid.NewGuid();
         await InsertOutboxAsync(id, kind: "Email", nextAttemptAt: UtcNow);
-        var claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
+        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
         Assert.IsNotNull(claim);
-        var nextAttemptAt = UtcNow.AddMinutes(1);
-        var oversizedSafeError = new string('x', 300);
+        DateTime nextAttemptAt = UtcNow.AddMinutes(1);
+        string oversizedSafeError = new('x', 300);
 
-        var retried = await store.RetryAsync(
+        bool retried = await store.RetryAsync(
             id,
             claim.LeaseId,
             nextAttemptAt,
@@ -386,12 +386,12 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task DeleteCompletedBeforeAsync_DeletesOnlyCompletedRowsOlderThanCutoff()
     {
-        var oldCompleted = Guid.NewGuid();
-        var boundaryCompleted = Guid.NewGuid();
-        var newCompleted = Guid.NewGuid();
-        var oldDeadLetter = Guid.NewGuid();
-        var oldPending = Guid.NewGuid();
-        var cutoff = UtcNow;
+        Guid oldCompleted = Guid.NewGuid();
+        Guid boundaryCompleted = Guid.NewGuid();
+        Guid newCompleted = Guid.NewGuid();
+        Guid oldDeadLetter = Guid.NewGuid();
+        Guid oldPending = Guid.NewGuid();
+        DateTime cutoff = UtcNow;
         await InsertOutboxAsync(
             oldCompleted,
             status: "Completed",
@@ -417,7 +417,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             status: "Pending",
             nextAttemptAt: UtcNow.AddDays(-3));
 
-        var deleted = await store.DeleteCompletedBeforeAsync(cutoff);
+        int deleted = await store.DeleteCompletedBeforeAsync(cutoff);
 
         Assert.AreEqual(1, deleted);
         CollectionAssert.AreEquivalent(
@@ -428,9 +428,9 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [TestMethod]
     public async Task ClaimNextDueAsync_PreCanceled_DoesNotClaimRow()
     {
-        var id = Guid.NewGuid();
+        Guid id = Guid.NewGuid();
         await InsertOutboxAsync(id, nextAttemptAt: UtcNow);
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         await cancellation.CancelAsync();
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
@@ -517,31 +517,31 @@ public sealed class OmnidotsAlertOutboxStoreTests
 
     private static async Task ExecuteAsync(string sql, Action<NpgsqlCommand> configure)
     {
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         configure(command);
         await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<int> CountAsync(string query)
     {
-        var sql = query switch
+        string sql = query switch
         {
             "SELECT COUNT(*) FROM alert_delivery_outbox WHERE status = 'Leased';" => query,
             "SELECT COUNT(*) FROM notification_sent;" => query,
             _ => throw new ArgumentOutOfRangeException(nameof(query))
         };
 
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static async Task<string> ReadStringAsync(string query, Guid id)
     {
-        var sql = query switch
+        string sql = query switch
         {
             "SELECT status FROM alert_delivery_outbox WHERE id = @id;" => query,
             "SELECT last_error FROM alert_delivery_outbox WHERE id = @id;" => query,
@@ -549,9 +549,9 @@ public sealed class OmnidotsAlertOutboxStoreTests
             _ => throw new ArgumentOutOfRangeException(nameof(query))
         };
 
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
         return (string)(await command.ExecuteScalarAsync())!;
     }
@@ -563,37 +563,37 @@ public sealed class OmnidotsAlertOutboxStoreTests
             throw new ArgumentOutOfRangeException(nameof(query));
         }
 
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(query, connection);
+        await using NpgsqlCommand command = new(query, connection);
         command.Parameters.AddWithValue("id", id);
         return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static async Task<Guid?> ReadNullableGuidAsync(Guid id)
     {
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
+        await using NpgsqlCommand command = new(
             "SELECT lease_id FROM alert_delivery_outbox WHERE id = @id;",
             connection);
         command.Parameters.AddWithValue("id", id);
-        var value = await command.ExecuteScalarAsync();
+        object? value = await command.ExecuteScalarAsync();
         return value is DBNull ? null : (Guid?)value;
     }
 
     private static async Task<DateTime> ReadDateTimeAsync(string query, Guid id)
     {
-        var sql = query switch
+        string sql = query switch
         {
             "SELECT completed_at FROM alert_delivery_outbox WHERE id = @id;" => query,
             "SELECT next_attempt_at FROM alert_delivery_outbox WHERE id = @id;" => query,
             _ => throw new ArgumentOutOfRangeException(nameof(query))
         };
 
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
         return (DateTime)(await command.ExecuteScalarAsync())!;
     }
@@ -605,58 +605,58 @@ public sealed class OmnidotsAlertOutboxStoreTests
             throw new ArgumentOutOfRangeException(nameof(query));
         }
 
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(query, connection);
+        await using NpgsqlCommand command = new(query, connection);
         command.Parameters.AddWithValue("address", address);
         return (Guid)(await command.ExecuteScalarAsync())!;
     }
 
     private static async Task<DateTime?> ReadNullableDateTimeAsync(string column, Guid id)
     {
-        var sql = column switch
+        string sql = column switch
         {
             "completed_at" => "SELECT completed_at FROM alert_delivery_outbox WHERE id = @id;",
             _ => throw new ArgumentOutOfRangeException(nameof(column))
         };
 
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
-        var value = await command.ExecuteScalarAsync();
+        object? value = await command.ExecuteScalarAsync();
         return value is DBNull ? null : (DateTime?)value;
     }
 
     private static async Task<string?> ReadNullableStringAsync(string column, Guid id)
     {
-        var sql = column switch
+        string sql = column switch
         {
             "last_error" => "SELECT last_error FROM alert_delivery_outbox WHERE id = @id;",
             _ => throw new ArgumentOutOfRangeException(nameof(column))
         };
 
-        await using var connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
-        var value = await command.ExecuteScalarAsync();
+        object? value = await command.ExecuteScalarAsync();
         return value is DBNull ? null : (string?)value;
     }
 
     private static async Task<Guid[]> ReadIdsAsync()
     {
-        var ids = new List<Guid>();
-        await using var connection = database!.OpenConnection();
+        List<Guid> ids = [];
+        await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand("SELECT id FROM alert_delivery_outbox;", connection);
-        await using var reader = await command.ExecuteReaderAsync();
+        await using NpgsqlCommand command = new("SELECT id FROM alert_delivery_outbox;", connection);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
             ids.Add(reader.GetGuid(0));
         }
 
-        return ids.ToArray();
+        return [.. ids];
     }
 
     private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider

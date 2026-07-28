@@ -31,19 +31,22 @@ public sealed class SchemaValidationHostedService : IHostedService
     // Function summary: Validates both EF models against the live schema, throwing when anything is missing.
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        using var scope = services.CreateScope();
+        using IServiceScope scope = services.CreateScope();
 
         SchemaMismatch[] mismatches;
         try
         {
             // Resolving the contexts constructs the DbConnection, which can itself throw on a bad connection
             // string - so it belongs inside the guard, not outside it.
-            var domainContext = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-            var searchContext = scope.ServiceProvider.GetRequiredService<RVTSearchContext>();
+            RVTDbContext domainContext = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+            RVTSearchContext searchContext = scope.ServiceProvider.GetRequiredService<RVTSearchContext>();
 
-            mismatches = (await RvtSchemaValidator.ValidateAsync(domainContext, cancellationToken))
-                .Concat(await RvtSchemaValidator.ValidateAsync(searchContext, cancellationToken))
-                .ToArray();
+            mismatches =
+            [
+                .. await RvtSchemaValidator.ValidateAsync(domainContext, cancellationToken)
+,
+                .. await RvtSchemaValidator.ValidateAsync(searchContext, cancellationToken),
+            ];
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -65,7 +68,7 @@ public sealed class SchemaValidationHostedService : IHostedService
             return;
         }
 
-        var detail = string.Join(Environment.NewLine + "  ", mismatches.Select(mismatch => mismatch.ToString()));
+        string detail = string.Join(Environment.NewLine + "  ", mismatches.Select(mismatch => mismatch.ToString()));
         throw new InvalidOperationException(
             $"The database does not match the EF model ({mismatches.Length} problem(s)). Apply the pending " +
             $"migrations and post-load scripts, or set Database:ValidateSchemaOnStartup=false to start anyway:" +

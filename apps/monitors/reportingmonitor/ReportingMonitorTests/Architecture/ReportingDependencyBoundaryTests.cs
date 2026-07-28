@@ -18,14 +18,14 @@ public sealed class ReportingDependencyBoundaryTests
     [Fact]
     public void ApplicationCodeOutsideCompositionAndDataAdapters_DoesNotReferenceEfCoreEntitiesOrNpgsql()
     {
-        var sourceFiles = Directory
+        IEnumerable<string> sourceFiles = Directory
             .GetFiles(Path.Combine(FindMonitorsRoot(), "reportingmonitor", "ReportingMonitor", "api"), "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}api{Path.DirectorySeparatorChar}db{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Where(path => !path.EndsWith("ReportingMonitorServices.cs", StringComparison.Ordinal));
 
         Assert.All(sourceFiles, path =>
         {
-            var text = File.ReadAllText(path);
+            string text = File.ReadAllText(path);
             Assert.DoesNotContain("ReportingMonitorContext", text, StringComparison.Ordinal);
             Assert.DoesNotContain("Npgsql", text, StringComparison.Ordinal);
             Assert.DoesNotContain("ReportRuleEntity", text, StringComparison.Ordinal);
@@ -35,10 +35,10 @@ public sealed class ReportingDependencyBoundaryTests
     [Fact]
     public void Composition_ResolvesEveryNarrowReportingPortAndScheduledJobGraph()
     {
-        using var provider = ReportingServiceProviderFactory.Create();
-        using var scope = provider.CreateScope();
+        using ServiceProvider provider = ReportingServiceProviderFactory.Create();
+        using IServiceScope scope = provider.CreateScope();
 
-        var dbClient = scope.ServiceProvider.GetRequiredService<ReportingDbClient>();
+        ReportingDbClient dbClient = scope.ServiceProvider.GetRequiredService<ReportingDbClient>();
         Assert.Same(dbClient, scope.ServiceProvider.GetRequiredService<IReportingRuleQueries>());
         Assert.Same(dbClient, scope.ServiceProvider.GetRequiredService<IReportingDataQueries>());
         Assert.Same(dbClient, scope.ServiceProvider.GetRequiredService<IReportingGenerationLocks>());
@@ -59,7 +59,7 @@ public sealed class ReportingDependencyBoundaryTests
     [Fact]
     public void Composition_ProviderNeutralKey_SelectsLocalAheadOfRvtAliases()
     {
-        using var provider = ReportingServiceProviderFactory.Create(
+        using ServiceProvider provider = ReportingServiceProviderFactory.Create(
             configurationValues: new Dictionary<string, string?>
             {
                 ["BlobStorage:Provider"] = "Local",
@@ -73,7 +73,7 @@ public sealed class ReportingDependencyBoundaryTests
     [Fact]
     public void Composition_BlankProviderNeutralKey_UsesRvtAzureAlias()
     {
-        using var provider = ReportingServiceProviderFactory.Create(
+        using ServiceProvider provider = ReportingServiceProviderFactory.Create(
             configurationValues: new Dictionary<string, string?>
             {
                 ["BlobStorage:Provider"] = " ",
@@ -91,7 +91,7 @@ public sealed class ReportingDependencyBoundaryTests
     [Fact]
     public void Composition_LiteralRvtProviderAlias_SelectsS3()
     {
-        using var provider = ReportingServiceProviderFactory.Create(
+        using ServiceProvider provider = ReportingServiceProviderFactory.Create(
             configurationValues: new Dictionary<string, string?>
             {
                 ["RVT__BLOB_PROVIDER"] = "S3",
@@ -108,7 +108,7 @@ public sealed class ReportingDependencyBoundaryTests
     [Fact]
     public void Composition_LegacyReportContainerAlias_OverridesTheReportingContainerDefault()
     {
-        using var provider = ReportingServiceProviderFactory.Create(
+        using ServiceProvider provider = ReportingServiceProviderFactory.Create(
             configurationValues: new Dictionary<string, string?>
             {
                 ["RVT__BLOB_REPORT_CONTAINER_NAME"] = "legacy-report-container",
@@ -122,7 +122,7 @@ public sealed class ReportingDependencyBoundaryTests
     [Fact]
     public void Composition_UnsupportedProvider_ThrowsExactSafeMessage()
     {
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
             ReportingServiceProviderFactory.Create(
                 configurationValues: new Dictionary<string, string?>
                 {
@@ -141,22 +141,21 @@ public sealed class ReportingDependencyBoundaryTests
             typeof(ReportMessageSender).Assembly.GetReferencedAssemblies(),
             reference => reference.Name?.Contains("SendGrid", StringComparison.OrdinalIgnoreCase) == true);
 
-        var messagingProject = File.ReadAllText(Path.Combine(
+        string messagingProject = File.ReadAllText(Path.Combine(
             FindMonitorsRoot(),
             "reportingmonitor",
             "Rvt.Reporting.Messaging",
             "Rvt.Reporting.Messaging.csproj"));
         Assert.DoesNotContain("SendGrid", messagingProject, StringComparison.OrdinalIgnoreCase);
 
-        var messagingSource = Directory
+        string[] messagingSource = [.. Directory
             .EnumerateFiles(
                 Path.Combine(FindMonitorsRoot(), "reportingmonitor", "Rvt.Reporting.Messaging"),
                 "*.cs",
                 SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-            .Select(File.ReadAllText)
-            .ToArray();
+            .Select(File.ReadAllText)];
 
         Assert.DoesNotContain(messagingSource, text =>
             text.Contains("using " + "SendGrid", StringComparison.Ordinal) ||
@@ -167,10 +166,10 @@ public sealed class ReportingDependencyBoundaryTests
 
     private static string FindMonitorsRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var gitPath = Path.Combine(directory.FullName, ".git");
+            string gitPath = Path.Combine(directory.FullName, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
                 return Path.Combine(directory.FullName, "apps", "monitors");

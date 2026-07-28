@@ -21,7 +21,7 @@ public static class MonitorHost
 
     public static IConfiguration BuildConfiguration(string[] args)
     {
-        var environmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+        string environmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
             ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
             ?? "Production";
 
@@ -44,14 +44,14 @@ public static class MonitorHost
         Action<IServiceCollection, IConfiguration>? configureServices = null)
         where TDispatcher : class, IMonitorJobDispatcher
     {
-        var configuration = BuildConfiguration(args);
-        var jobName = getJobName(args);
+        IConfiguration configuration = BuildConfiguration(args);
+        string? jobName = getJobName(args);
         if (!string.IsNullOrWhiteSpace(jobName))
         {
-            using var oneShotHost = CreateOneShotHost(args, configuration, monitorName, configureLogging, configureServices);
+            using IHost oneShotHost = CreateOneShotHost(args, configuration, monitorName, configureLogging, configureServices);
             await oneShotHost.StartAsync();
-            var loggerFactory = oneShotHost.Services.GetRequiredService<ILoggerFactory>();
-            var logger = loggerFactory.CreateLogger("Rvt.Monitor.Job");
+            ILoggerFactory loggerFactory = oneShotHost.Services.GetRequiredService<ILoggerFactory>();
+            ILogger logger = loggerFactory.CreateLogger("Rvt.Monitor.Job");
             try
             {
                 return await MonitorJobTelemetry.ExecuteAsync(
@@ -72,12 +72,12 @@ public static class MonitorHost
             }
         }
 
-        var apiEnabled = configuration.GetValue<bool>("MonitorApi:Enabled");
-        var schedulerEnabled = MonitorInfrastructureOptions.IsQuartzSchedulerEnabled(configuration);
+        bool apiEnabled = configuration.GetValue<bool>("MonitorApi:Enabled");
+        bool schedulerEnabled = MonitorInfrastructureOptions.IsQuartzSchedulerEnabled(configuration);
 
         if (apiEnabled)
         {
-            var apiBuilder = WebApplication.CreateBuilder(args);
+            WebApplicationBuilder apiBuilder = WebApplication.CreateBuilder(args);
             apiBuilder.Configuration.AddConfiguration(configuration);
             configureLogging?.Invoke(apiBuilder.Logging);
             MonitorOpenTelemetry.ConfigureLogging(apiBuilder.Logging, apiBuilder.Configuration, monitorName);
@@ -91,7 +91,7 @@ public static class MonitorHost
                 apiBuilder.Services.AddMonitorQuartzScheduler<TDispatcher>(apiBuilder.Configuration, monitorName);
             }
 
-            var app = apiBuilder.Build();
+            WebApplication app = apiBuilder.Build();
             mapApi(app);
             await app.RunAsync();
             return 0;
@@ -99,7 +99,7 @@ public static class MonitorHost
 
         if (schedulerEnabled)
         {
-            var schedulerHostBuilder = Host.CreateDefaultBuilder(args)
+            IHostBuilder schedulerHostBuilder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => builder.AddConfiguration(configuration))
                 .ConfigureServices((context, services) =>
                 {
@@ -115,7 +115,7 @@ public static class MonitorHost
                     MonitorOpenTelemetry.ConfigureLogging(logging, context.Configuration, monitorName);
                 });
 
-            var schedulerHost = schedulerHostBuilder.Build();
+            IHost schedulerHost = schedulerHostBuilder.Build();
             await schedulerHost.RunAsync();
             return 0;
         }

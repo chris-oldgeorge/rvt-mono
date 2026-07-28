@@ -109,7 +109,7 @@ public sealed class NoiseRuleEvaluator
             return rule.AlertType;
         }
 
-        var contacts = readAlertContacts(request.MonitorId);
+        List<RvtContactDto> contacts = readAlertContacts(request.MonitorId);
         processAlertForContacts(
             new RuleNotificationRequest(
                 request.FleetNr,
@@ -123,7 +123,7 @@ public sealed class NoiseRuleEvaluator
                 request.MonitorId),
             contacts);
 
-        var text = string.Format(
+        string text = string.Format(
             "Alert {0} level={1} exceeds limitOn/Off={2}/{3}",
             rule.Field,
             level,

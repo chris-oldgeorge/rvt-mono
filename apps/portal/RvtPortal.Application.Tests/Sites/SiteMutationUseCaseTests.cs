@@ -10,9 +10,9 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task CreateAsync_StagesSiteAndSavesOnceInsideTransaction()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
 
-        var result = await fixture.Service.CreateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.CreateAsync(
             fixture.Admin,
             fixture.Mutation,
             CancellationToken.None);
@@ -28,7 +28,7 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task CreateAsync_InvalidTimePair_DoesNotOpenTransaction()
     {
-        var fixture = SiteMutationFixture.Valid() with
+        SiteMutationFixture fixture = SiteMutationFixture.Valid() with
         {
             Mutation = SiteMutationFixture.ValidMutation() with
             {
@@ -37,7 +37,7 @@ public sealed class SiteMutationUseCaseTests
             }
         };
 
-        var result = await fixture.Service.CreateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.CreateAsync(
             fixture.Admin,
             fixture.Mutation,
             CancellationToken.None);
@@ -50,8 +50,8 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task CreateAsync_UserWhoCannotManage_ReturnsForbiddenBeforeBusinessReads()
     {
-        var fixture = SiteMutationFixture.Valid();
-        var companyUser = new PortalUserContext(
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
+        PortalUserContext companyUser = new(
             Guid.NewGuid(),
             "company",
             fixture.Mutation.CompanyId,
@@ -59,7 +59,7 @@ public sealed class SiteMutationUseCaseTests
             false,
             true);
 
-        var result = await fixture.Service.CreateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.CreateAsync(
             companyUser,
             fixture.Mutation,
             CancellationToken.None);
@@ -83,7 +83,7 @@ public sealed class SiteMutationUseCaseTests
         bool companyExists,
         string expectedMessage)
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
         fixture.Reads.MutationData = fixture.Reads.MutationData with
         {
             ContractExists = contractExists,
@@ -92,7 +92,7 @@ public sealed class SiteMutationUseCaseTests
             CompanyExists = companyExists
         };
 
-        var result = await fixture.Service.CreateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.CreateAsync(
             fixture.Admin,
             fixture.Mutation,
             CancellationToken.None);
@@ -107,13 +107,13 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task CreateAsync_DuplicateSiteName_ReturnsValidationWithoutWriting()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
         fixture.Reads.MutationData = fixture.Reads.MutationData with
         {
             DuplicateSiteName = true
         };
 
-        var result = await fixture.Service.CreateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.CreateAsync(
             fixture.Admin,
             fixture.Mutation,
             CancellationToken.None);
@@ -130,13 +130,13 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task CreateAsync_MissingCompany_ReturnsValidationWithoutWriting()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
         fixture.Reads.MutationData = fixture.Reads.MutationData with
         {
             CompanyExists = false
         };
 
-        var result = await fixture.Service.CreateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.CreateAsync(
             fixture.Admin,
             fixture.Mutation,
             CancellationToken.None);
@@ -153,10 +153,10 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task CreateAsync_StaleContractClaim_ReturnsAssignedValidation()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
         fixture.Writes.ClaimContractResult = false;
 
-        var result = await fixture.Service.CreateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.CreateAsync(
             fixture.Admin,
             fixture.Mutation,
             CancellationToken.None);
@@ -174,8 +174,8 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateAsync_MalformedRequest_UserWhoCannotManage_ReturnsForbiddenBeforeValidation()
     {
-        var fixture = SiteMutationFixture.Valid();
-        var companyUser = new PortalUserContext(
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
+        PortalUserContext companyUser = new(
             Guid.NewGuid(),
             "company",
             fixture.Mutation.CompanyId,
@@ -183,7 +183,7 @@ public sealed class SiteMutationUseCaseTests
             false,
             true);
 
-        var result = await fixture.Service.UpdateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.UpdateAsync(
             companyUser,
             fixture.Reads.Detail.Id,
             fixture.Mutation with
@@ -205,10 +205,10 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateAsync_MalformedRequest_MissingSiteReturnsMaskedNotFound()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
         fixture.Reads.Exists = false;
 
-        var result = await fixture.Service.UpdateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.UpdateAsync(
             fixture.Admin,
             fixture.Reads.Detail.Id,
             fixture.Mutation with
@@ -231,9 +231,9 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateAsync_MalformedRequest_ExistingSiteReturnsValidationBeforeBusinessReads()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
 
-        var result = await fixture.Service.UpdateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.UpdateAsync(
             fixture.Admin,
             fixture.Reads.Detail.Id,
             fixture.Mutation with
@@ -256,7 +256,7 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateAsync_MissingSite_TakesPrecedenceOverInvalidMutationFacts()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
         fixture.Reads.Exists = false;
         fixture.Reads.MutationData = fixture.Reads.MutationData with
         {
@@ -264,7 +264,7 @@ public sealed class SiteMutationUseCaseTests
             CompanyExists = false
         };
 
-        var result = await fixture.Service.UpdateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.UpdateAsync(
             fixture.Admin,
             fixture.Reads.Detail.Id,
             fixture.Mutation with { ContractId = null },
@@ -284,10 +284,10 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateAsync_MissingSite_ReturnsNotFoundWithoutSaving()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
         fixture.Writes.UpdateResult = false;
 
-        var result = await fixture.Service.UpdateAsync(
+        UseCaseResult<SiteDetailModel> result = await fixture.Service.UpdateAsync(
             fixture.Admin,
             fixture.Reads.Detail.Id,
             fixture.Mutation with { ContractId = null },
@@ -302,8 +302,8 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateNotificationSettingAsync_InvalidTime_CompanyUserCannotUpdateAnotherUsersSetting()
     {
-        var fixture = SiteMutationFixture.Valid();
-        var companyUser = new PortalUserContext(
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
+        PortalUserContext companyUser = new(
             Guid.NewGuid(),
             "company",
             Guid.NewGuid(),
@@ -315,7 +315,7 @@ public sealed class SiteMutationUseCaseTests
             fixture.Reads.Detail.Id,
             Guid.NewGuid());
 
-        var result = await fixture.Service.UpdateNotificationSettingAsync(
+        UseCaseResult<SiteNotificationSettingModel> result = await fixture.Service.UpdateNotificationSettingAsync(
             companyUser,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
@@ -333,9 +333,9 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateNotificationSettingAsync_CompanyUserCanUpdateOwnSetting()
     {
-        var fixture = SiteMutationFixture.Valid();
-        var userId = Guid.NewGuid();
-        var companyUser = new PortalUserContext(
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
+        Guid userId = Guid.NewGuid();
+        PortalUserContext companyUser = new(
             userId,
             "company",
             Guid.NewGuid(),
@@ -372,7 +372,7 @@ public sealed class SiteMutationUseCaseTests
             true,
             [PortalRoleNames.CompanyUser]);
 
-        var result = await fixture.Service.UpdateNotificationSettingAsync(
+        UseCaseResult<SiteNotificationSettingModel> result = await fixture.Service.UpdateNotificationSettingAsync(
             companyUser,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
@@ -390,9 +390,9 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateNotificationSettingAsync_MalformedEndTimeReportsExactLegacyFieldsWithoutWriting()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
 
-        var result = await fixture.Service.UpdateNotificationSettingAsync(
+        UseCaseResult<SiteNotificationSettingModel> result = await fixture.Service.UpdateNotificationSettingAsync(
             fixture.Admin,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
@@ -434,10 +434,10 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateNotificationSettingAsync_InvalidTime_MissingTargetReturnsNotFoundWithoutSaving()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
         fixture.Reads.NotificationTarget = null;
 
-        var result = await fixture.Service.UpdateNotificationSettingAsync(
+        UseCaseResult<SiteNotificationSettingModel> result = await fixture.Service.UpdateNotificationSettingAsync(
             fixture.Admin,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
@@ -455,10 +455,10 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateNotificationSettingAsync_InvalidTime_MissingSiteReturnsMaskedNotFound()
     {
-        var fixture = SiteMutationFixture.Valid();
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
         fixture.Reads.Exists = false;
 
-        var result = await fixture.Service.UpdateNotificationSettingAsync(
+        UseCaseResult<SiteNotificationSettingModel> result = await fixture.Service.UpdateNotificationSettingAsync(
             fixture.Admin,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
@@ -480,9 +480,9 @@ public sealed class SiteMutationUseCaseTests
         int startOffsetDays,
         int endOffsetDays)
     {
-        var fixture = SiteMutationFixture.Valid();
-        var userId = Guid.NewGuid();
-        var companyUser = new PortalUserContext(
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
+        Guid userId = Guid.NewGuid();
+        PortalUserContext companyUser = new(
             userId,
             "company",
             fixture.Mutation.CompanyId,
@@ -498,7 +498,7 @@ public sealed class SiteMutationUseCaseTests
             fixture.Reads.Detail.Id,
             userId);
 
-        var result = await fixture.Service.UpdateNotificationSettingAsync(
+        UseCaseResult<SiteNotificationSettingModel> result = await fixture.Service.UpdateNotificationSettingAsync(
             companyUser,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
@@ -519,9 +519,9 @@ public sealed class SiteMutationUseCaseTests
     [Fact]
     public async Task UpdateNotificationSettingAsync_InvalidTime_InaccessibleSiteIsMaskedBeforeTargetOwnership()
     {
-        var fixture = SiteMutationFixture.Valid();
-        var userId = Guid.NewGuid();
-        var companyUser = new PortalUserContext(
+        SiteMutationFixture fixture = SiteMutationFixture.Valid();
+        Guid userId = Guid.NewGuid();
+        PortalUserContext companyUser = new(
             userId,
             "company",
             fixture.Mutation.CompanyId,
@@ -534,7 +534,7 @@ public sealed class SiteMutationUseCaseTests
             fixture.Reads.Detail.Id,
             Guid.NewGuid());
 
-        var result = await fixture.Service.UpdateNotificationSettingAsync(
+        UseCaseResult<SiteNotificationSettingModel> result = await fixture.Service.UpdateNotificationSettingAsync(
             companyUser,
             fixture.Reads.Detail.Id,
             fixture.SiteUserId,
@@ -562,7 +562,7 @@ public sealed class SiteMutationUseCaseTests
     {
         public static SiteMutationFixture Valid()
         {
-            var now = new DateTimeOffset(
+            DateTimeOffset now = new(
                 2026,
                 7,
                 23,
@@ -570,13 +570,13 @@ public sealed class SiteMutationUseCaseTests
                 0,
                 0,
                 TimeSpan.Zero);
-            var siteUserId = Guid.NewGuid();
-            var detail = new SiteDetailModel
+            Guid siteUserId = Guid.NewGuid();
+            SiteDetailModel detail = new()
             {
                 Id = Guid.NewGuid(),
                 SiteName = "Valid Site"
             };
-            var reads = new MutationSiteReadPort
+            MutationSiteReadPort reads = new()
             {
                 Exists = true,
                 MutationData = new SiteMutationValidationData(
@@ -595,11 +595,11 @@ public sealed class SiteMutationUseCaseTests
                     detail.SiteName,
                     [])
             };
-            var writes = new RecordingSiteWritePort(detail.Id);
-            var unitOfWork = new RecordingUnitOfWork();
+            RecordingSiteWritePort writes = new(detail.Id);
+            RecordingUnitOfWork unitOfWork = new();
             reads.IsTransactionActive = () => unitOfWork.IsTransactionActive;
-            var users = new RecordingPortalUserDirectory();
-            var service = new SiteApplicationService(
+            RecordingPortalUserDirectory users = new();
+            SiteApplicationService service = new(
                 reads,
                 writes,
                 unitOfWork,

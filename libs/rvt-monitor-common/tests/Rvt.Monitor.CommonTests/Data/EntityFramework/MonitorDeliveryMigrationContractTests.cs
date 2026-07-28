@@ -10,7 +10,7 @@ public sealed class MonitorDeliveryMigrationContractTests
     [TestMethod]
     public void PostgreSqlMigration_CreatesSharedDeliveryOutboxContract()
     {
-        var sql = ReadMigration(PostgreSqlMigration);
+        string sql = ReadMigration(PostgreSqlMigration);
 
         StringAssert.Contains(sql, "CREATE TABLE IF NOT EXISTS monitor_delivery_outbox");
         StringAssert.Contains(sql, "UNIQUE (producer, delivery_key)");
@@ -29,8 +29,8 @@ public sealed class MonitorDeliveryMigrationContractTests
 
     private static string ReadMigration(string fileName)
     {
-        var repositoryRoot = FindRepositoryRoot();
-        var path = Path.Combine(repositoryRoot, "database", "migrations", fileName);
+        string repositoryRoot = FindRepositoryRoot();
+        string path = Path.Combine(repositoryRoot, "database", "migrations", fileName);
 
         Assert.IsTrue(File.Exists(path), $"Expected migration file '{path}' to exist.");
         return File.ReadAllText(path);
@@ -38,10 +38,10 @@ public sealed class MonitorDeliveryMigrationContractTests
 
     private static string FindRepositoryRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var gitPath = Path.Combine(directory.FullName, ".git");
+            string gitPath = Path.Combine(directory.FullName, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
                 return Path.Combine(directory.FullName, "libs", "rvt-monitor-common");

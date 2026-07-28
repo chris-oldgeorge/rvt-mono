@@ -31,14 +31,14 @@ public sealed class DurableAlertService : IAlertIngressPort
     {
         Validate(signal);
 
-        var sourceKeyHash = AlertIdentity.CreateSourceKeyHash(signal.SourceEventKey);
-        var notificationId = AlertIdentity.CreateNotificationId(signal.Source, sourceKeyHash);
-        var request = new AlertCommitRequest(
+        byte[] sourceKeyHash = AlertIdentity.CreateSourceKeyHash(signal.SourceEventKey);
+        Guid notificationId = AlertIdentity.CreateNotificationId(signal.Source, sourceKeyHash);
+        AlertCommitRequest request = new(
             signal,
             sourceKeyHash,
             notificationId,
             timeProvider.GetUtcNow().UtcDateTime);
-        var result = await store.CommitAsync(request, cancellationToken);
+        AlertCommitResult result = await store.CommitAsync(request, cancellationToken);
 
         return new AlertIngressResult(
             result.OccurrenceId,

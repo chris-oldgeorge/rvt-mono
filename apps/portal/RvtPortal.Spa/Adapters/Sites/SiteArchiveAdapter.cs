@@ -17,7 +17,7 @@ public sealed class SiteArchiveAdapter(ISiteArchiveService archiveService)
     {
         try
         {
-            var url = await archiveService.Process(siteId, cancellationToken);
+            string url = await archiveService.Process(siteId, cancellationToken);
             return SiteArchiveExportResult.Success(url);
         }
         catch (OperationCanceledException)

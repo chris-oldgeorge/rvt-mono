@@ -32,7 +32,7 @@ public class ReportsController : ControllerBase
     // Function summary: Queries reports through the report application service.
     public async Task<ActionResult<QueryReportsResponse>> Query([FromQuery] QueryReportsRequest request)
     {
-        var result = await reports.QueryAsync(
+        ReportQueryResult result = await reports.QueryAsync(
             new ReportQuery(
                 request.SearchText,
                 request.Sort,
@@ -51,14 +51,14 @@ public class ReportsController : ControllerBase
     // Function summary: Retrieves report detail by id.
     public async Task<ActionResult<EntityResponse<ReportListItem>>> Get(Guid id)
     {
-        var report = await reports.GetAsync(id, HttpContext.RequestAborted);
+        ReportListItem? report = await reports.GetAsync(id, HttpContext.RequestAborted);
         return report == null ? ReportNotFound(id) : new EntityResponse<ReportListItem> { Item = report };
     }
 
     // Function summary: Builds the invalid-sort problem response while preserving the existing report API contract.
     private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
     {
-        var problem = ApiProblems.Create(
+        ProblemDetails problem = ApiProblems.Create(
             HttpContext,
             StatusCodes.Status400BadRequest,
             "Invalid sort field",

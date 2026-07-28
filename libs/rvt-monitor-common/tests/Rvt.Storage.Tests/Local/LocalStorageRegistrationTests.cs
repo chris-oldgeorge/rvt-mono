@@ -11,12 +11,12 @@ public sealed class LocalStorageRegistrationTests
     [TestMethod]
     public void AddRvtLocalStorage_WithFactory_RegistersExactlyOneNamedClient()
     {
-        using var provider = CreateProvider(services =>
+        using ServiceProvider provider = CreateProvider(services =>
             services.AddRvtLocalStorage(
                 "recordings",
                 _ => new LocalStorageOptions { RootPath = "/tmp/rvt-tests" }));
 
-        var registrations = provider.GetServices<ObjectStorageClientRegistration>().ToArray();
+        ObjectStorageClientRegistration[] registrations = [.. provider.GetServices<ObjectStorageClientRegistration>()];
 
         Assert.HasCount(1, registrations);
         Assert.AreEqual("recordings", registrations[0].ResourceName);
@@ -26,15 +26,15 @@ public sealed class LocalStorageRegistrationTests
     [TestMethod]
     public void AddRvtLocalStorage_FactoryReturnsTheKeyedSingleton()
     {
-        using var provider = CreateProvider(services =>
+        using ServiceProvider provider = CreateProvider(services =>
             services.AddRvtLocalStorage(
                 "recordings",
                 new LocalStorageOptions { RootPath = "/tmp/rvt-tests" }));
 
-        var factoryClient = provider
+        IObjectStorageClient factoryClient = provider
             .GetRequiredService<IObjectStorageClientFactory>()
             .GetRequiredClient("recordings");
-        var keyedClient = provider.GetRequiredKeyedService<LocalObjectStorageClient>("recordings");
+        LocalObjectStorageClient keyedClient = provider.GetRequiredKeyedService<LocalObjectStorageClient>("recordings");
 
         Assert.AreSame(keyedClient, factoryClient);
         Assert.AreSame(factoryClient, provider
@@ -45,12 +45,12 @@ public sealed class LocalStorageRegistrationTests
     [TestMethod]
     public async Task AddRvtLocalStorage_HostStartupResolvesAndValidatesNamedClient()
     {
-        using var provider = CreateProvider(services =>
+        using ServiceProvider provider = CreateProvider(services =>
             services.AddRvtLocalStorage(
                 "recordings",
                 new LocalStorageOptions { RootPath = "/tmp/rvt-tests" }));
 
-        var hostedService = provider.GetServices<IHostedService>().Single();
+        IHostedService hostedService = provider.GetServices<IHostedService>().Single();
 
         await hostedService.StartAsync(CancellationToken.None);
         Assert.IsInstanceOfType<LocalObjectStorageClient>(
@@ -62,9 +62,9 @@ public sealed class LocalStorageRegistrationTests
     [DataRow(" ")]
     public void AddRvtLocalStorage_WhenResourceNameIsBlank_ThrowsAtRegistration(string resourceName)
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
 
-        var exception = Assert.ThrowsExactly<ArgumentException>(() =>
+        ArgumentException exception = Assert.ThrowsExactly<ArgumentException>(() =>
             services.AddRvtLocalStorage(resourceName, new LocalStorageOptions()));
 
         Assert.AreEqual("resourceName", exception.ParamName);
@@ -73,7 +73,7 @@ public sealed class LocalStorageRegistrationTests
     private static ServiceProvider CreateProvider(
         Action<IServiceCollection> configureServices)
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         configureServices(services);
         return services.BuildServiceProvider();

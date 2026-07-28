@@ -9,7 +9,7 @@ public sealed class MyAtmVendorOptionsTests
     [TestMethod]
     public void Validate_DefaultLimitsWithCredentials_AreAccepted()
     {
-        var options = ValidOptions();
+        MyAtmVendorOptions options = ValidOptions();
 
         options.Validate();
 
@@ -25,7 +25,7 @@ public sealed class MyAtmVendorOptionsTests
     [DataRow("https://vendor.example/", null)]
     public void Validate_RejectsMissingOrInvalidCredentials(string? baseUrl, string? apiKey)
     {
-        var options = ValidOptions();
+        MyAtmVendorOptions options = ValidOptions();
         options.BaseUrl = baseUrl ?? string.Empty;
         options.ApiKey = apiKey ?? string.Empty;
 
@@ -35,7 +35,7 @@ public sealed class MyAtmVendorOptionsTests
     [TestMethod]
     public void Validate_RejectsFallbackDelayGreaterThanMaximumRetryDelay()
     {
-        var options = ValidOptions();
+        MyAtmVendorOptions options = ValidOptions();
         options.FallbackRetryCapSeconds = 31;
         options.MaximumRetryDelaySeconds = 30;
 

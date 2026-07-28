@@ -41,10 +41,10 @@ public sealed class ProcessWebhookHandler
             throw new OmnidotsWebhookAuthenticationException();
         }
 
-        var json = DecodeJson(body.Span);
-        var alarm = JsonSerializer.Deserialize<AlarmDataV2>(json)
+        string json = DecodeJson(body.Span);
+        AlarmDataV2 alarm = JsonSerializer.Deserialize<AlarmDataV2>(json)
             ?? throw AdapterException.Of("Invalid alarm payload.");
-        var signal = translator.Translate(
+        AlertSignal signal = translator.Translate(
             alarm,
             body.Span,
             TimeSpan.FromMinutes(securityOptions.NotificationDelayMinutes));
@@ -56,7 +56,7 @@ public sealed class ProcessWebhookHandler
     {
         try
         {
-            var json = StrictUtf8.GetString(body);
+            string json = StrictUtf8.GetString(body);
             return json.Length > 0 && json[0] == '\uFEFF'
                 ? json[1..]
                 : json;

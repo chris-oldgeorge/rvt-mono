@@ -47,7 +47,7 @@ public sealed class ReportInvariantFormattingTests
     [Fact]
     public void BuildReportChrome_FormatsTheGeneratedTimestampInvariantly()
     {
-        var generatedAt = new DateTimeOffset(2026, 3, 9, 14, 5, 0, TimeSpan.Zero);
+        DateTimeOffset generatedAt = new(2026, 3, 9, 14, 5, 0, TimeSpan.Zero);
 
         ReportChrome chrome = WithCulture(
             new CultureInfo("ar-SA"),

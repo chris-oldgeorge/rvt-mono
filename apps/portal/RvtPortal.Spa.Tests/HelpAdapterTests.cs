@@ -16,16 +16,16 @@ public sealed class HelpAdapterTests
     [Fact]
     public async Task ReadAdapter_PublishedQueryFiltersSearchesAndOrders()
     {
-        var seeded = await SeedAsync();
-        using var factory = seeded.Factory;
-        using var scope = seeded.Factory.Services.CreateScope();
-        var adapter = new EfHelpReadAdapter(
+        SeededHelpData seeded = await SeedAsync();
+        using SpaTestApplicationFactory factory = seeded.Factory;
+        using IServiceScope scope = seeded.Factory.Services.CreateScope();
+        EfHelpReadAdapter adapter = new(
             scope.ServiceProvider.GetRequiredService<RVTDbContext>());
 
-        var overview = await adapter.QueryPublishedAsync(
+        HelpOverviewModel overview = await adapter.QueryPublishedAsync(
             searchText: null,
             CancellationToken.None);
-        var searched = await adapter.QueryPublishedAsync(
+        HelpOverviewModel searched = await adapter.QueryPublishedAsync(
             "DUST",
             CancellationToken.None);
 
@@ -36,7 +36,7 @@ public sealed class HelpAdapterTests
             ["Alert response", "Dust guide"],
             overview.Sections.SelectMany(section => section.Articles)
                 .Select(article => article.Title));
-        var searchedSection = Assert.Single(searched.Sections);
+        HelpSectionModel searchedSection = Assert.Single(searched.Sections);
         Assert.Equal("Data", searchedSection.Title);
         Assert.Equal("Dust guide", Assert.Single(searchedSection.Articles).Title);
         Assert.DoesNotContain(
@@ -47,17 +47,17 @@ public sealed class HelpAdapterTests
     [Fact]
     public async Task ReadAdapter_AdminQueryAppliesStatusTypeAndSearchFilters()
     {
-        var seeded = await SeedAsync();
-        using var factory = seeded.Factory;
-        using var scope = seeded.Factory.Services.CreateScope();
-        var adapter = new EfHelpReadAdapter(
+        SeededHelpData seeded = await SeedAsync();
+        using SpaTestApplicationFactory factory = seeded.Factory;
+        using IServiceScope scope = seeded.Factory.Services.CreateScope();
+        EfHelpReadAdapter adapter = new(
             scope.ServiceProvider.GetRequiredService<RVTDbContext>());
 
-        var overview = await adapter.QueryAdminAsync(
+        HelpAdminOverviewModel overview = await adapter.QueryAdminAsync(
             new HelpAdminQuery("draft", "Draft", "faq"),
             CancellationToken.None);
 
-        var article = Assert.Single(overview.Articles);
+        HelpArticleModel article = Assert.Single(overview.Articles);
         Assert.Equal(seeded.DraftArticleId, article.Id);
         Assert.Equal("Draft FAQ", article.Title);
         Assert.Equal("Draft", overview.Status);
@@ -71,19 +71,19 @@ public sealed class HelpAdapterTests
     [Fact]
     public async Task ReadAdapter_DetailHonorsPublicationAndOrdersAssets()
     {
-        var seeded = await SeedAsync();
-        using var factory = seeded.Factory;
-        using var scope = seeded.Factory.Services.CreateScope();
-        var adapter = new EfHelpReadAdapter(
+        SeededHelpData seeded = await SeedAsync();
+        using SpaTestApplicationFactory factory = seeded.Factory;
+        using IServiceScope scope = seeded.Factory.Services.CreateScope();
+        EfHelpReadAdapter adapter = new(
             scope.ServiceProvider.GetRequiredService<RVTDbContext>());
 
-        var published = await adapter.GetPublishedArticleAsync(
+        HelpArticleModel? published = await adapter.GetPublishedArticleAsync(
             "dust-guide",
             CancellationToken.None);
-        var hiddenDraft = await adapter.GetPublishedArticleAsync(
+        HelpArticleModel? hiddenDraft = await adapter.GetPublishedArticleAsync(
             "draft-faq",
             CancellationToken.None);
-        var adminDraft = await adapter.GetAdminArticleAsync(
+        HelpArticleModel? adminDraft = await adapter.GetAdminArticleAsync(
             seeded.DraftArticleId,
             CancellationToken.None);
 
@@ -98,17 +98,17 @@ public sealed class HelpAdapterTests
     [Fact]
     public async Task ReadAdapter_MutationValidationReportsSlugAndAssetOwnership()
     {
-        var seeded = await SeedAsync();
-        using var factory = seeded.Factory;
-        using var scope = seeded.Factory.Services.CreateScope();
-        var adapter = new EfHelpReadAdapter(
+        SeededHelpData seeded = await SeedAsync();
+        using SpaTestApplicationFactory factory = seeded.Factory;
+        using IServiceScope scope = seeded.Factory.Services.CreateScope();
+        EfHelpReadAdapter adapter = new(
             scope.ServiceProvider.GetRequiredService<RVTDbContext>());
 
-        var sameArticle = await adapter.GetMutationValidationDataAsync(
+        HelpMutationValidationData sameArticle = await adapter.GetMutationValidationDataAsync(
             "dust-guide",
             seeded.DustArticleId,
             CancellationToken.None);
-        var newArticle = await adapter.GetMutationValidationDataAsync(
+        HelpMutationValidationData newArticle = await adapter.GetMutationValidationDataAsync(
             "dust-guide",
             articleId: null,
             CancellationToken.None);
@@ -126,13 +126,13 @@ public sealed class HelpAdapterTests
     [Fact]
     public async Task WriteAdapter_CreateReusesSectionAndStagesCanonicalArticle()
     {
-        var seeded = await SeedAsync();
-        using var factory = seeded.Factory;
-        using var scope = seeded.Factory.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        var adapter = new EfHelpWriteAdapter(context);
-        var now = new DateTime(2026, 7, 28, 10, 30, 0, DateTimeKind.Utc);
-        var mutation = ValidatedMutation(
+        SeededHelpData seeded = await SeedAsync();
+        using SpaTestApplicationFactory factory = seeded.Factory;
+        using IServiceScope scope = seeded.Factory.Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        EfHelpWriteAdapter adapter = new(context);
+        DateTime now = new(2026, 7, 28, 10, 30, 0, DateTimeKind.Utc);
+        ValidatedHelpArticleMutation mutation = ValidatedMutation(
             sectionTitle: "Data centre",
             sectionSlug: "data",
             assets:
@@ -151,7 +151,7 @@ public sealed class HelpAdapterTests
                     2)
             ]);
 
-        var articleId = await adapter.CreateAsync(
+        Guid articleId = await adapter.CreateAsync(
             mutation,
             now,
             CancellationToken.None);
@@ -166,7 +166,7 @@ public sealed class HelpAdapterTests
                 .Count(entry => entry.State == EntityState.Added));
 
         await context.SaveChangesAsync();
-        var article = await context.HelpArticles
+        HelpArticle article = await context.HelpArticles
             .Include(item => item.Section)
             .Include(item => item.Assets)
             .SingleAsync(item => item.Id == articleId);
@@ -186,21 +186,21 @@ public sealed class HelpAdapterTests
     [Fact]
     public async Task WriteAdapter_CreateAddsCanonicalPublishedSectionWhenMissing()
     {
-        using var factory = new SpaTestApplicationFactory();
-        using var scope = factory.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        var adapter = new EfHelpWriteAdapter(context);
-        var mutation = ValidatedMutation(
+        using SpaTestApplicationFactory factory = new();
+        using IServiceScope scope = factory.Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        EfHelpWriteAdapter adapter = new(context);
+        ValidatedHelpArticleMutation mutation = ValidatedMutation(
             sectionTitle: "Getting started",
             sectionSlug: "getting-started");
 
-        var articleId = await adapter.CreateAsync(
+        Guid articleId = await adapter.CreateAsync(
             mutation,
             new DateTime(2026, 7, 28, 11, 0, 0, DateTimeKind.Utc),
             CancellationToken.None);
         await context.SaveChangesAsync();
 
-        var section = await context.HelpSections
+        HelpSection section = await context.HelpSections
             .Include(item => item.Articles)
             .SingleAsync(item => item.Slug == "getting-started");
         Assert.NotEqual(Guid.Empty, section.Id);
@@ -211,15 +211,15 @@ public sealed class HelpAdapterTests
     [Fact]
     public async Task WriteAdapter_UpdateMovesArticleAndReconcilesAssetsById()
     {
-        var seeded = await SeedAsync();
-        using var factory = seeded.Factory;
-        using var scope = seeded.Factory.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        var adapter = new EfHelpWriteAdapter(context);
-        var retainedAssetId = seeded.DustAssetIds[0];
-        var omittedAssetId = seeded.DustAssetIds[1];
-        var now = new DateTime(2026, 7, 28, 12, 0, 0, DateTimeKind.Utc);
-        var mutation = ValidatedMutation(
+        SeededHelpData seeded = await SeedAsync();
+        using SpaTestApplicationFactory factory = seeded.Factory;
+        using IServiceScope scope = seeded.Factory.Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        EfHelpWriteAdapter adapter = new(context);
+        Guid retainedAssetId = seeded.DustAssetIds[0];
+        Guid omittedAssetId = seeded.DustAssetIds[1];
+        DateTime now = new(2026, 7, 28, 12, 0, 0, DateTimeKind.Utc);
+        ValidatedHelpArticleMutation mutation = ValidatedMutation(
             sectionTitle: "Alerts",
             sectionSlug: "alerts",
             title: "Updated dust guide",
@@ -239,7 +239,7 @@ public sealed class HelpAdapterTests
                     4)
             ]);
 
-        var updated = await adapter.UpdateAsync(
+        bool updated = await adapter.UpdateAsync(
             seeded.DustArticleId,
             mutation,
             now,
@@ -247,7 +247,7 @@ public sealed class HelpAdapterTests
         await context.SaveChangesAsync();
 
         Assert.True(updated);
-        var article = await context.HelpArticles
+        HelpArticle article = await context.HelpArticles
             .Include(item => item.Section)
             .Include(item => item.Assets)
             .SingleAsync(item => item.Id == seeded.DustArticleId);
@@ -256,7 +256,7 @@ public sealed class HelpAdapterTests
         Assert.Equal(now, article.UpdatedAtUtc);
         Assert.Contains(article.Assets, asset => asset.Id == retainedAssetId);
         Assert.DoesNotContain(article.Assets, asset => asset.Id == omittedAssetId);
-        var newAsset = Assert.Single(
+        HelpAsset newAsset = Assert.Single(
             article.Assets,
             asset => asset.Id != retainedAssetId);
         Assert.NotEqual(Guid.Empty, newAsset.Id);
@@ -268,12 +268,12 @@ public sealed class HelpAdapterTests
     [Fact]
     public async Task WriteAdapter_UpdateRejectsForeignAssetWithoutStagingChanges()
     {
-        var seeded = await SeedAsync();
-        using var factory = seeded.Factory;
-        using var scope = seeded.Factory.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        var adapter = new EfHelpWriteAdapter(context);
-        var mutation = ValidatedMutation(
+        SeededHelpData seeded = await SeedAsync();
+        using SpaTestApplicationFactory factory = seeded.Factory;
+        using IServiceScope scope = seeded.Factory.Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        EfHelpWriteAdapter adapter = new(context);
+        ValidatedHelpArticleMutation mutation = ValidatedMutation(
             title: "Must not be staged",
             assets:
             [
@@ -285,7 +285,7 @@ public sealed class HelpAdapterTests
                     0)
             ]);
 
-        var updated = await adapter.UpdateAsync(
+        bool updated = await adapter.UpdateAsync(
             seeded.DustArticleId,
             mutation,
             new DateTime(2026, 7, 28, 13, 0, 0, DateTimeKind.Utc),
@@ -304,27 +304,27 @@ public sealed class HelpAdapterTests
     [Fact]
     public async Task WriteAdapter_PublicationAndDeletionReportMissingAndUseSuppliedUtc()
     {
-        var seeded = await SeedAsync();
-        using var factory = seeded.Factory;
-        using var scope = seeded.Factory.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        var adapter = new EfHelpWriteAdapter(context);
-        var now = new DateTime(2026, 7, 28, 14, 0, 0, DateTimeKind.Utc);
+        SeededHelpData seeded = await SeedAsync();
+        using SpaTestApplicationFactory factory = seeded.Factory;
+        using IServiceScope scope = seeded.Factory.Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        EfHelpWriteAdapter adapter = new(context);
+        DateTime now = new(2026, 7, 28, 14, 0, 0, DateTimeKind.Utc);
 
-        var published = await adapter.SetPublicationAsync(
+        bool published = await adapter.SetPublicationAsync(
             seeded.DraftArticleId,
             isPublished: true,
             now,
             CancellationToken.None);
-        var missingPublication = await adapter.SetPublicationAsync(
+        bool missingPublication = await adapter.SetPublicationAsync(
             Guid.NewGuid(),
             isPublished: true,
             now,
             CancellationToken.None);
-        var deleted = await adapter.DeleteAsync(
+        bool deleted = await adapter.DeleteAsync(
             seeded.DustArticleId,
             CancellationToken.None);
-        var missingDelete = await adapter.DeleteAsync(
+        bool missingDelete = await adapter.DeleteAsync(
             Guid.NewGuid(),
             CancellationToken.None);
         await context.SaveChangesAsync();
@@ -333,7 +333,7 @@ public sealed class HelpAdapterTests
         Assert.False(missingPublication);
         Assert.True(deleted);
         Assert.False(missingDelete);
-        var draft = await context.HelpArticles.SingleAsync(
+        HelpArticle draft = await context.HelpArticles.SingleAsync(
             article => article.Id == seeded.DraftArticleId);
         Assert.True(draft.IsPublished);
         Assert.Equal(now, draft.UpdatedAtUtc);
@@ -347,7 +347,7 @@ public sealed class HelpAdapterTests
         string title = "New guide",
         IReadOnlyList<HelpAssetMutation>? assets = null)
     {
-        var result = HelpMutationValidator.ValidateShape(
+        HelpMutationValidationResult result = HelpMutationValidator.ValidateShape(
             new HelpArticleMutation(
                 sectionTitle,
                 sectionSlug,
@@ -367,16 +367,16 @@ public sealed class HelpAdapterTests
 
     private static async Task<SeededHelpData> SeedAsync()
     {
-        var factory = new SpaTestApplicationFactory();
-        var alertsSectionId = Guid.NewGuid();
-        var dataSectionId = Guid.NewGuid();
-        var hiddenSectionId = Guid.NewGuid();
-        var alertArticleId = Guid.NewGuid();
-        var dustArticleId = Guid.NewGuid();
-        var draftArticleId = Guid.NewGuid();
-        var hiddenArticleId = Guid.NewGuid();
-        var dustAssetIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
-        var now = new DateTime(2026, 7, 28, 8, 0, 0, DateTimeKind.Utc);
+        SpaTestApplicationFactory factory = new();
+        Guid alertsSectionId = Guid.NewGuid();
+        Guid dataSectionId = Guid.NewGuid();
+        Guid hiddenSectionId = Guid.NewGuid();
+        Guid alertArticleId = Guid.NewGuid();
+        Guid dustArticleId = Guid.NewGuid();
+        Guid draftArticleId = Guid.NewGuid();
+        Guid hiddenArticleId = Guid.NewGuid();
+        Guid[] dustAssetIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        DateTime now = new(2026, 7, 28, 8, 0, 0, DateTimeKind.Utc);
 
         await factory.SeedDomainEntitiesAsync(
             new HelpSection

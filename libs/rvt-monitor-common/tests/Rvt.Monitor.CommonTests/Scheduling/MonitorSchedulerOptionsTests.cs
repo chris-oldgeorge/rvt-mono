@@ -9,7 +9,7 @@ public sealed class MonitorSchedulerOptionsTests
     [TestMethod]
     public void Bind_ReturnsEnabledJobsOnly()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["MonitorScheduler:Enabled"] = "true",
@@ -25,7 +25,7 @@ public sealed class MonitorSchedulerOptionsTests
             })
             .Build();
 
-        var options = MonitorSchedulerOptions.Bind(configuration);
+        MonitorSchedulerOptions options = MonitorSchedulerOptions.Bind(configuration);
 
         Assert.IsTrue(options.Enabled);
         Assert.AreEqual("UTC", options.TimeZoneId);

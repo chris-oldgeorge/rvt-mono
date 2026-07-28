@@ -17,8 +17,8 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
         string? searchText,
         CancellationToken cancellationToken)
     {
-        var search = NormalizeSearch(searchText);
-        var articleQuery = domainContext.HelpArticles
+        string? search = NormalizeSearch(searchText);
+        IQueryable<HelpArticle> articleQuery = domainContext.HelpArticles
             .AsNoTracking()
             .Where(article =>
                 article.IsPublished &&
@@ -29,18 +29,17 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
             search,
             includeSectionTitle: false);
 
-        var articles = await articleQuery
+        List<HelpArticleSummaryRow> articles = await articleQuery
             .OrderBy(article => article.Section!.SortOrder)
             .ThenBy(article => article.Section!.Title)
             .ThenBy(article => article.SortOrder)
             .ThenBy(article => article.Title)
             .Select(articleSummaryProjection)
             .ToListAsync(cancellationToken);
-        var sectionIds = articles
+        List<Guid> sectionIds = [.. articles
             .Select(article => article.SectionId)
-            .Distinct()
-            .ToList();
-        var sections = await domainContext.HelpSections
+            .Distinct()];
+        List<HelpSectionRow> sections = await domainContext.HelpSections
             .AsNoTracking()
             .Where(section => section.IsPublished && sectionIds.Contains(section.Id))
             .OrderBy(section => section.SortOrder)
@@ -78,14 +77,14 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
         HelpAdminQuery query,
         CancellationToken cancellationToken)
     {
-        var search = NormalizeSearch(query.SearchText);
-        var status = string.IsNullOrWhiteSpace(query.Status)
+        string? search = NormalizeSearch(query.SearchText);
+        string status = string.IsNullOrWhiteSpace(query.Status)
             ? "All"
             : query.Status.Trim();
-        var contentType = string.IsNullOrWhiteSpace(query.ContentType)
+        string contentType = string.IsNullOrWhiteSpace(query.ContentType)
             ? "All"
             : query.ContentType.Trim();
-        var articleQuery = domainContext.HelpArticles.AsNoTracking();
+        IQueryable<HelpArticle> articleQuery = domainContext.HelpArticles.AsNoTracking();
         articleQuery = ApplySearch(
             articleQuery,
             search,
@@ -110,13 +109,13 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
             }
             else
             {
-                var pattern = EscapeLikePattern(contentType);
+                string pattern = EscapeLikePattern(contentType);
                 articleQuery = articleQuery.Where(article =>
                     EF.Functions.ILike(article.ContentType, pattern, "\\"));
             }
         }
 
-        var articles = await articleQuery
+        List<HelpArticleModel> articles = await articleQuery
             .OrderBy(article => article.Section == null ? 0 : article.Section.SortOrder)
             .ThenBy(article => article.Section == null ? "" : article.Section.Title)
             .ThenBy(article => article.SortOrder)
@@ -124,16 +123,16 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
             .Select(articleProjection)
             .ToListAsync(cancellationToken);
 
-        var sectionArticleQuery = ApplySearch(
+        IQueryable<HelpArticle> sectionArticleQuery = ApplySearch(
             domainContext.HelpArticles.AsNoTracking(),
             search,
             includeSectionTitle: true);
-        var sectionArticles = await sectionArticleQuery
+        List<HelpArticleSummaryRow> sectionArticles = await sectionArticleQuery
             .OrderBy(article => article.SortOrder)
             .ThenBy(article => article.Title)
             .Select(articleSummaryProjection)
             .ToListAsync(cancellationToken);
-        var sections = await domainContext.HelpSections
+        List<HelpSectionRow> sections = await domainContext.HelpSections
             .AsNoTracking()
             .OrderBy(section => section.SortOrder)
             .ThenBy(section => section.Title)
@@ -170,11 +169,11 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
         Guid? articleId,
         CancellationToken cancellationToken)
     {
-        var articleExists = articleId.HasValue &&
+        bool articleExists = articleId.HasValue &&
             await domainContext.HelpArticles
                 .AsNoTracking()
                 .AnyAsync(article => article.Id == articleId.Value, cancellationToken);
-        var slugBelongsToAnotherArticle = await domainContext.HelpArticles
+        bool slugBelongsToAnotherArticle = await domainContext.HelpArticles
             .AsNoTracking()
             .AnyAsync(
                 article => article.Slug == slug && article.Id != articleId,
@@ -222,7 +221,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
                     article.ContentType.Contains(search, StringComparison.OrdinalIgnoreCase));
         }
 
-        var pattern = $"%{EscapeLikePattern(search)}%";
+        string pattern = $"%{EscapeLikePattern(search)}%";
         return includeSectionTitle
             ? query.Where(article =>
                 EF.Functions.ILike(article.Title, pattern, "\\") ||
@@ -258,7 +257,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
         IReadOnlyList<HelpSectionRow> sections,
         IReadOnlyList<HelpArticleSummaryRow> articles)
     {
-        var articlesBySection = articles
+        Dictionary<Guid, List<HelpArticleSummaryModel>> articlesBySection = articles
             .GroupBy(article => article.SectionId)
             .ToDictionary(
                 group => group.Key,
@@ -276,7 +275,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
 
     private static string? NormalizeSearch(string? searchText)
     {
-        var trimmed = searchText?.Trim();
+        string? trimmed = searchText?.Trim();
         return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
 

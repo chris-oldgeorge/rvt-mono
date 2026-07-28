@@ -15,7 +15,7 @@ public sealed class OmnidotsWebhookSignatureValidator
 
     public bool IsValid(ReadOnlySpan<byte> body, string? signature, string secret)
     {
-        if (!OmnidotsApiSecurityValidation.TryGetSecretBytes(secret, out var secretBytes))
+        if (!OmnidotsApiSecurityValidation.TryGetSecretBytes(secret, out byte[]? secretBytes))
         {
             return false;
         }
@@ -32,11 +32,11 @@ public sealed class OmnidotsWebhookSignatureValidator
             Span<byte> suppliedDigest = stackalloc byte[SHA256.HashSizeInBytes];
             try
             {
-                var status = Convert.FromHexString(
+                OperationStatus status = Convert.FromHexString(
                     signature.AsSpan(SignaturePrefix.Length),
                     suppliedDigest,
-                    out var charsConsumed,
-                    out var bytesWritten);
+                    out int charsConsumed,
+                    out int bytesWritten);
                 if (status != OperationStatus.Done ||
                     charsConsumed != Sha256HexLength ||
                     bytesWritten != SHA256.HashSizeInBytes)
@@ -49,7 +49,7 @@ public sealed class OmnidotsWebhookSignatureValidator
                 return false;
             }
 
-            var expectedDigest = HMACSHA256.HashData(secretBytes, body);
+            byte[] expectedDigest = HMACSHA256.HashData(secretBytes, body);
             return CryptographicOperations.FixedTimeEquals(expectedDigest, suppliedDigest);
         }
         finally

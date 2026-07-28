@@ -43,10 +43,10 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
     // Function summary: Builds a complete monitor detail response for controller and CQRS read paths.
     public async Task<MonitorDetailResponse> BuildAsync(MonitorEntity monitor, Deployment? deployment, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        var ownershipWindow = deployment is null
-            ? (MonitorOwnershipWindow?)null
+        MonitorOwnershipWindow? ownershipWindow = deployment is null
+            ? null
             : MonitorOwnershipWindowResolver.ForDeployment(deployment);
-        var notifications = ownershipWindow is null
+        List<Notification> notifications = ownershipWindow is null
             ? []
             : await domainContext.Notifications
                 .AsNoTracking()
@@ -57,8 +57,8 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
                 .OrderByDescending(notification => notification.NotificationTime)
                 .Take(10)
                 .ToListAsync(cancellationToken);
-        var row = BuildListItem(monitor, deployment, notifications.Where(notification => notification.ClosedTime == null).ToList(), user);
-        var alertLevels = await domainContext.RvtAlertRules
+        MonitorListItem row = BuildListItem(monitor, deployment, [.. notifications.Where(notification => notification.ClosedTime == null)], user);
+        List<Alertlevel> alertLevels = await domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(level => level.MonitorId == monitor.Id && !level.IsDeleted)
             .OrderBy(level => level.AlertType)
@@ -105,16 +105,16 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
             LatestAverage = await summaryService.BuildLatestAverageAsync(deployment),
             LatestBattery = await summaryService.BuildLatestBatteryAsync(monitor),
             DeploymentSummary = summaryService.BuildDeploymentSummary(deployment),
-            AlertLevels = alertLevels.Select(BuildAlertLevelItem).ToList(),
-            RecentNotifications = notifications.Select(BuildNotificationItem).ToList()
+            AlertLevels = [.. alertLevels.Select(BuildAlertLevelItem)],
+            RecentNotifications = [.. notifications.Select(BuildNotificationItem)]
         };
     }
 
     // Function summary: Builds the monitor list fields embedded inside monitor detail responses.
     private static MonitorListItem BuildListItem(MonitorEntity monitor, Deployment? deployment, List<Notification> notifications, ClaimsPrincipal user)
     {
-        var lastDataTime = LastDataTime(monitor);
-        var contract = deployment?.Contract;
+        DateTime? lastDataTime = LastDataTime(monitor);
+        Contract? contract = deployment?.Contract;
         return new MonitorListItem
         {
             Id = monitor.Id,

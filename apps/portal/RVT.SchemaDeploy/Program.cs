@@ -19,18 +19,18 @@ using RVT.SchemaDeploy;
 //
 // See docs/database/portal/ef-migrations.md.
 
-var options = DeployOptions.Parse(args);
+DeployOptions? options = DeployOptions.Parse(args);
 if (options is null)
 {
     DeployOptions.PrintUsage();
     return 2;
 }
 
-var runner = new ScriptRunner(options);
+ScriptRunner runner = new(options);
 
 try
 {
-    var applied = await runner.RunAsync();
+    int applied = await runner.RunAsync();
     Console.WriteLine();
     Console.WriteLine(options.DryRun
         ? $"Dry run: {applied} script(s) would be applied. Nothing was executed."

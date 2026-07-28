@@ -30,13 +30,13 @@ internal sealed class TransmitSmsClient
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        using var message = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        using HttpRequestMessage message = new(HttpMethod.Post, endpoint);
         message.Headers.Authorization = new AuthenticationHeaderValue(
             "Basic",
             Convert.ToBase64String(Encoding.ASCII.GetBytes($"{request.ApiKey}:{request.ApiSecret}")));
         message.Content = new FormUrlEncodedContent(BuildFields(request));
 
-        using var response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
             throw new TransmitSmsException(
@@ -45,11 +45,11 @@ internal sealed class TransmitSmsClient
                 RetryAfter(response.Headers.RetryAfter));
         }
 
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        var result = JsonSerializer.Deserialize(
+        string responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        TransmitSmsResponse? result = JsonSerializer.Deserialize(
             responseBody,
             TransmitSmsJsonContext.Default.TransmitSmsResponse);
-        var errorCode = result?.Error?.Code;
+        string? errorCode = result?.Error?.Code;
         if (!string.Equals(errorCode, "SUCCESS", StringComparison.OrdinalIgnoreCase))
         {
             throw new TransmitSmsException(errorCode ?? "UNKNOWN", statusCode: null, retryAfter: null);
@@ -79,7 +79,7 @@ internal sealed class TransmitSmsClient
             return null;
         }
 
-        var delay = date - DateTimeOffset.UtcNow;
+        TimeSpan delay = date - DateTimeOffset.UtcNow;
         return delay > TimeSpan.Zero ? delay : TimeSpan.Zero;
     }
 }

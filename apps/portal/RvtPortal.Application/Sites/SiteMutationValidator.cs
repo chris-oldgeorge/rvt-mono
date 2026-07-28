@@ -38,8 +38,8 @@ public static class SiteMutationValidator
 {
     public static SiteMutationValidationResult ValidateShape(SiteMutation request)
     {
-        var errors = new List<UseCaseError>();
-        var siteName = request.SiteName?.Trim();
+        List<UseCaseError> errors = new();
+        string? siteName = request.SiteName?.Trim();
         if (string.IsNullOrWhiteSpace(siteName))
         {
             errors.Add(new UseCaseError(
@@ -79,17 +79,17 @@ public static class SiteMutationValidator
             30,
             errors);
 
-        var weekday = ValidateTimePair(
+        SiteTimePairValidationResult weekday = ValidateTimePair(
             request.StartTime,
             request.EndTime,
             nameof(SiteMutation.StartTime),
             nameof(SiteMutation.EndTime));
-        var saturday = ValidateTimePair(
+        SiteTimePairValidationResult saturday = ValidateTimePair(
             request.SatStartTime,
             request.SatEndTime,
             nameof(SiteMutation.SatStartTime),
             nameof(SiteMutation.SatEndTime));
-        var sunday = ValidateTimePair(
+        SiteTimePairValidationResult sunday = ValidateTimePair(
             request.SunStartTime,
             request.SunEndTime,
             nameof(SiteMutation.SunStartTime),
@@ -98,7 +98,7 @@ public static class SiteMutationValidator
         errors.AddRange(saturday.Errors);
         errors.AddRange(sunday.Errors);
 
-        var operatingHours = ValidateOperatingHours(
+        IReadOnlyList<ValidatedSiteOperatingHours> operatingHours = ValidateOperatingHours(
             request,
             weekday,
             saturday,
@@ -109,7 +109,7 @@ public static class SiteMutationValidator
             return new SiteMutationValidationResult(errors, null);
         }
 
-        var normalized = request with
+        SiteMutation normalized = request with
         {
             SiteName = siteName!,
             AddressLine1 = EmptyToNull(request.AddressLine1),
@@ -141,7 +141,7 @@ public static class SiteMutationValidator
             return shape;
         }
 
-        var errors = new List<UseCaseError>();
+        List<UseCaseError> errors = new();
         if (data.DuplicateSiteName)
         {
             errors.Add(new UseCaseError(
@@ -158,7 +158,7 @@ public static class SiteMutationValidator
 
         if (requireContract)
         {
-            var contractId = shape.Value!.Source.ContractId;
+            Guid? contractId = shape.Value!.Source.ContractId;
             if (!contractId.HasValue ||
                 contractId.Value == Guid.Empty ||
                 !data.ContractExists)
@@ -195,9 +195,9 @@ public static class SiteMutationValidator
         string startField,
         string endField)
     {
-        var errors = new List<UseCaseError>();
-        var start = ParseOptionalTime(startValue, startField, errors);
-        var end = ParseOptionalTime(endValue, endField, errors);
+        List<UseCaseError> errors = new();
+        TimeSpan? start = ParseOptionalTime(startValue, startField, errors);
+        TimeSpan? end = ParseOptionalTime(endValue, endField, errors);
         ValidateTimePair(startField, start, end, errors);
         return new SiteTimePairValidationResult(errors, start, end);
     }
@@ -214,12 +214,12 @@ public static class SiteMutationValidator
             return LegacyOperatingHours(weekday, saturday, sunday);
         }
 
-        var parsedByDay = new Dictionary<int, ValidatedSiteOperatingHours>();
-        var seenDays = new HashSet<int>();
+        Dictionary<int, ValidatedSiteOperatingHours> parsedByDay = new();
+        HashSet<int> seenDays = new();
 
-        foreach (var hours in request.OperatingHours)
+        foreach (SiteOperatingHoursMutation hours in request.OperatingHours)
         {
-            var key = $"{nameof(SiteMutation.OperatingHours)}[{hours.DayOfWeek}]";
+            string key = $"{nameof(SiteMutation.OperatingHours)}[{hours.DayOfWeek}]";
             if (hours.DayOfWeek is < 1 or > 7 ||
                 !seenDays.Add(hours.DayOfWeek))
             {
@@ -239,7 +239,7 @@ public static class SiteMutationValidator
                 continue;
             }
 
-            var pair = ValidateTimePair(
+            SiteTimePairValidationResult pair = ValidateTimePair(
                 hours.StartTime,
                 hours.EndTime,
                 key,
@@ -252,11 +252,10 @@ public static class SiteMutationValidator
                 !pair.StartTime.HasValue && !pair.EndTime.HasValue);
         }
 
-        return Enumerable.Range(1, 7)
-            .Select(day => parsedByDay.TryGetValue(day, out var hours)
+        return [.. Enumerable.Range(1, 7)
+            .Select(day => parsedByDay.TryGetValue(day, out ValidatedSiteOperatingHours? hours)
                 ? hours
-                : new ValidatedSiteOperatingHours(day, null, null, true))
-            .ToList();
+                : new ValidatedSiteOperatingHours(day, null, null, true))];
     }
 
     private static IReadOnlyList<ValidatedSiteOperatingHours> LegacyOperatingHours(
@@ -296,7 +295,7 @@ public static class SiteMutationValidator
             value,
             "hh\\:mm",
             CultureInfo.InvariantCulture,
-            out var parsed))
+            out TimeSpan parsed))
         {
             return parsed;
         }

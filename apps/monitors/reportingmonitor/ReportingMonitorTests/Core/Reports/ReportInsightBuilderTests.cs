@@ -12,9 +12,9 @@ public sealed class ReportInsightBuilderTests
     [Fact]
     public void BuildExecutiveSummary_GroupsBreachesWorstPeriodsAndTrafficLightsByMonitorType()
     {
-        var firstDay = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
-        var secondDay = new DateTimeOffset(2026, 6, 2, 14, 0, 0, TimeSpan.Zero);
-        var site = new SiteReportData
+        DateTimeOffset firstDay = new(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        DateTimeOffset secondDay = new(2026, 6, 2, 14, 0, 0, TimeSpan.Zero);
+        SiteReportData site = new()
         {
             Monitors =
             [
@@ -37,9 +37,9 @@ public sealed class ReportInsightBuilderTests
             ]
         };
 
-        var summary = ReportInsightBuilder.BuildExecutiveSummary(site, firstDay, secondDay.AddDays(1));
+        ReportExecutiveSummary summary = ReportInsightBuilder.BuildExecutiveSummary(site, firstDay, secondDay.AddDays(1));
 
-        var dust = Assert.Single(summary.MonitorTypes, item => item.MonitorType == MonitorType.Dust);
+        MonitorTypeExecutiveSummary dust = Assert.Single(summary.MonitorTypes, item => item.MonitorType == MonitorType.Dust);
         Assert.Equal(2, dust.AlertBreaches);
         Assert.Equal(1, dust.CautionBreaches);
         Assert.Equal(ReportTrafficLightStatus.Red, dust.Status);
@@ -48,18 +48,18 @@ public sealed class ReportInsightBuilderTests
         Assert.Equal(14, dust.WorstHour);
         Assert.Equal(2, dust.WorstHourBreaches);
 
-        var noise = Assert.Single(summary.MonitorTypes, item => item.MonitorType == MonitorType.Noise);
+        MonitorTypeExecutiveSummary noise = Assert.Single(summary.MonitorTypes, item => item.MonitorType == MonitorType.Noise);
         Assert.Equal(ReportTrafficLightStatus.Amber, noise.Status);
 
-        var vibration = Assert.Single(summary.MonitorTypes, item => item.MonitorType == MonitorType.Vibration);
+        MonitorTypeExecutiveSummary vibration = Assert.Single(summary.MonitorTypes, item => item.MonitorType == MonitorType.Vibration);
         Assert.Equal(ReportTrafficLightStatus.Green, vibration.Status);
     }
 
     [Fact]
     public void BuildAlertHeatmaps_GroupsNotificationCountsByMonitorTypeDayAndHour()
     {
-        var measuredAt = new DateTimeOffset(2026, 6, 3, 9, 15, 0, TimeSpan.Zero);
-        var site = new SiteReportData
+        DateTimeOffset measuredAt = new(2026, 6, 3, 9, 15, 0, TimeSpan.Zero);
+        SiteReportData site = new()
         {
             Monitors =
             [
@@ -76,8 +76,8 @@ public sealed class ReportInsightBuilderTests
             ]
         };
 
-        var heatmap = Assert.Single(ReportInsightBuilder.BuildAlertHeatmaps(site));
-        var cell = Assert.Single(heatmap.Cells, item => item.Day == DateOnly.FromDateTime(measuredAt.UtcDateTime) && item.Hour == 9);
+        ReportAlertHeatmap heatmap = Assert.Single(ReportInsightBuilder.BuildAlertHeatmaps(site));
+        ReportAlertHeatmapCell cell = Assert.Single(heatmap.Cells, item => item.Day == DateOnly.FromDateTime(measuredAt.UtcDateTime) && item.Hour == 9);
 
         Assert.Equal(MonitorType.Noise, heatmap.MonitorType);
         Assert.Equal(1, cell.AlertCount);
@@ -88,16 +88,16 @@ public sealed class ReportInsightBuilderTests
     [Fact]
     public void BuildDefaultNarrative_UsesAvailableSummaryDataWhenAiIsUnavailable()
     {
-        var fromUtc = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var toUtc = new DateTimeOffset(2026, 6, 7, 23, 59, 59, TimeSpan.Zero);
-        var summary = new ReportExecutiveSummary(
+        DateTimeOffset fromUtc = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset toUtc = new(2026, 6, 7, 23, 59, 59, TimeSpan.Zero);
+        ReportExecutiveSummary summary = new(
             fromUtc,
             toUtc,
             [
                 new MonitorTypeExecutiveSummary(MonitorType.Dust, 2, 3, 1, DateOnly.FromDateTime(fromUtc.UtcDateTime), 2, 14, 2, ReportTrafficLightStatus.Red)
             ]);
 
-        var narrative = ReportInsightBuilder.BuildDefaultNarrative("North Site", summary);
+        string narrative = ReportInsightBuilder.BuildDefaultNarrative("North Site", summary);
 
         Assert.Contains("North Site", narrative, StringComparison.Ordinal);
         Assert.Contains("Dust", narrative, StringComparison.Ordinal);

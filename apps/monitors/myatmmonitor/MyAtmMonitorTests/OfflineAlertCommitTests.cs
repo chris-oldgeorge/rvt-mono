@@ -26,14 +26,14 @@ public sealed class OfflineAlertCommitTests
     [TestMethod]
     public async Task ScheduledOfflineTransition_CommitsMonitorStateOccurrenceAndEmailDeliveryAtomically()
     {
-        var httpClient = new Mock<IHttpClient>();
-        var dbClient = new Mock<IDBClient>();
-        var mqttClient = new Mock<IMqttClient>();
-        var messageService = new Mock<IMessageService>();
-        var customerId = 765;
-        var monitor = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow.AddHours(-25), singleItem: true).Single();
-        var rule = MyAtmFixture.OfflineRules().Single();
-        var contact = MyAtmFixture.AlertContacts().Single();
+        Mock<IHttpClient> httpClient = new();
+        Mock<IDBClient> dbClient = new();
+        Mock<IMqttClient> mqttClient = new();
+        Mock<IMessageService> messageService = new();
+        int customerId = 765;
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow.AddHours(-25), singleItem: true).Single();
+        Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule = MyAtmFixture.OfflineRules().Single();
+        Rvt.Monitor.Common.Rules.RvtContactDto contact = MyAtmFixture.AlertContacts().Single();
         MyAtmAlertCommit? commit = null;
 
         dbClient.Setup(client => client.ReadRules(null)).Returns([rule]);
@@ -52,7 +52,7 @@ public sealed class OfflineAlertCommitTests
             .Callback<MyAtmAlertCommit, CancellationToken>((value, _) => commit = value)
             .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
 
-        var api = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
+        MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
         await api.CheckForOfflineMonitorsAsync(customerId);
 
@@ -61,16 +61,16 @@ public sealed class OfflineAlertCommitTests
         Assert.IsFalse(commit.MonitorStateMutation.ExpectedOffline);
         Assert.IsTrue(commit.MonitorStateMutation.Offline);
         Assert.HasCount(1, commit.Occurrences);
-        var occurrence = commit.Occurrences[0];
+        MyAtmAlertOccurrenceInput occurrence = commit.Occurrences[0];
         Assert.AreEqual(AlertType.Offline, occurrence.AlertType);
         Assert.IsNotNull(occurrence.DeliveryPlan);
-        var expectedNotificationId = MonitorDeliveryIdentity.CreateGuid($"notification:{occurrence.Key}");
+        Guid expectedNotificationId = MonitorDeliveryIdentity.CreateGuid($"notification:{occurrence.Key}");
         Assert.AreEqual(expectedNotificationId, occurrence.DeliveryPlan.Notification.Id);
         CollectionAssert.AreEquivalent(
             new[] { MonitorDeliveryKind.Email },
             occurrence.DeliveryPlan.Deliveries.Select(delivery => delivery.Kind).ToArray());
-        var delivery = occurrence.DeliveryPlan.Deliveries.Single();
-        var expectedKey = $"{occurrence.Key}:Email:{contact.EmailAddress}";
+        MonitorDeliveryRequest delivery = occurrence.DeliveryPlan.Deliveries.Single();
+        string expectedKey = $"{occurrence.Key}:Email:{contact.EmailAddress}";
         Assert.AreEqual(expectedKey, delivery.DeliveryKey);
         Assert.AreEqual(MonitorDeliveryIdentity.CreateGuid($"outbox:{expectedKey}"), delivery.Id);
         Assert.AreEqual(MonitorDeliveryProducers.MyAtm, delivery.Producer);
@@ -78,7 +78,7 @@ public sealed class OfflineAlertCommitTests
         Assert.AreEqual(occurrence.Key, delivery.CorrelationKey);
         Assert.AreEqual(1, delivery.PayloadVersion);
         Assert.AreEqual(commit.UtcNow, delivery.CreatedAt);
-        var payload = Decode(delivery);
+        MonitorDeliveryPayloadV1 payload = Decode(delivery);
         Assert.AreEqual(expectedNotificationId, payload.NotificationId);
         Assert.AreEqual(occurrence.TriggeredAt.ToUniversalTime(), payload.Timestamp);
         Assert.AreEqual(monitor.SerialId, payload.SerialId);
@@ -98,14 +98,14 @@ public sealed class OfflineAlertCommitTests
     [TestMethod]
     public async Task ScheduledOnlineRecovery_CommitsOnlyTheExpectedOfflineStateChange()
     {
-        var httpClient = new Mock<IHttpClient>();
-        var dbClient = new Mock<IDBClient>();
-        var mqttClient = new Mock<IMqttClient>();
-        var messageService = new Mock<IMessageService>();
-        var customerId = 765;
-        var monitor = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow, singleItem: true).Single();
+        Mock<IHttpClient> httpClient = new();
+        Mock<IDBClient> dbClient = new();
+        Mock<IMqttClient> mqttClient = new();
+        Mock<IMessageService> messageService = new();
+        int customerId = 765;
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow, singleItem: true).Single();
         monitor.Offline = true;
-        var rule = MyAtmFixture.OfflineRules().Single();
+        Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule = MyAtmFixture.OfflineRules().Single();
         MyAtmAlertCommit? commit = null;
 
         dbClient.Setup(client => client.ReadRules(null)).Returns([rule]);
@@ -114,7 +114,7 @@ public sealed class OfflineAlertCommitTests
             .Callback<MyAtmAlertCommit, CancellationToken>((value, _) => commit = value)
             .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
 
-        var api = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
+        MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
         await api.CheckForOfflineMonitorsAsync(customerId);
 

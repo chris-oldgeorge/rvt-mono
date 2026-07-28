@@ -10,7 +10,7 @@ public sealed class PostgreSqlIntegrationDatabaseTests
     [TestMethod]
     public void ResolveAdminConnectionString_PrefersTheExplicitEnvironmentValue()
     {
-        var connectionString = PostgreSqlIntegrationDatabase.ResolveAdminConnectionString(
+        string? connectionString = PostgreSqlIntegrationDatabase.ResolveAdminConnectionString(
             "Host=environment",
             "Host=development");
 
@@ -20,7 +20,7 @@ public sealed class PostgreSqlIntegrationDatabaseTests
     [TestMethod]
     public void ResolveAdminConnectionString_UsesTheLocalDevelopmentValueWhenTheEnvironmentIsUnset()
     {
-        var connectionString = PostgreSqlIntegrationDatabase.ResolveAdminConnectionString(
+        string? connectionString = PostgreSqlIntegrationDatabase.ResolveAdminConnectionString(
             environmentValue: null,
             developmentValue: "Host=development");
 
@@ -30,12 +30,12 @@ public sealed class PostgreSqlIntegrationDatabaseTests
     [TestMethod]
     public async Task CreateAsync_UsesGeneratedSchemaAsTheOnlySearchPath()
     {
-        await using var database = await PostgreSqlIntegrationDatabase.CreateAsync(
+        await using PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(
             "CREATE TABLE probe (id integer PRIMARY KEY);", "TRUNCATE TABLE probe;");
 
-        await using var connection = database.OpenConnection();
+        await using NpgsqlConnection connection = database.OpenConnection();
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand("SHOW search_path;", connection);
+        await using NpgsqlCommand command = new("SHOW search_path;", connection);
 
         Assert.AreEqual(database.SchemaName, (string?)await command.ExecuteScalarAsync());
     }
@@ -44,16 +44,16 @@ public sealed class PostgreSqlIntegrationDatabaseTests
     public async Task DisposeAsync_DropsOnlyTheGeneratedSchema()
     {
         string schemaName;
-        await using (var database = await PostgreSqlIntegrationDatabase.CreateAsync(
+        await using (PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(
             "CREATE TABLE probe (id integer PRIMARY KEY);", "TRUNCATE TABLE probe;"))
         {
             schemaName = database.SchemaName;
         }
 
-        await using var connection = new NpgsqlConnection(
+        await using NpgsqlConnection connection = new(
             PostgreSqlIntegrationDatabase.GetAdminConnectionString());
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
+        await using NpgsqlCommand command = new(
             "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = @schema);", connection);
         command.Parameters.AddWithValue("schema", schemaName);
 
@@ -64,16 +64,16 @@ public sealed class PostgreSqlIntegrationDatabaseTests
     public async Task FixtureCleanup_DropsItsOwnGeneratedSchema()
     {
         string schemaName;
-        await using (var database = await PostgreSqlIntegrationDatabase.CreateAsync(
+        await using (PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(
             "CREATE TABLE probe (id integer PRIMARY KEY);", "TRUNCATE TABLE probe;"))
         {
             schemaName = database.SchemaName;
         }
 
-        await using var connection = new NpgsqlConnection(
+        await using NpgsqlConnection connection = new(
             PostgreSqlIntegrationDatabase.GetAdminConnectionString());
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
+        await using NpgsqlCommand command = new(
             "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = @schema);", connection);
         command.Parameters.AddWithValue("schema", schemaName);
 
@@ -83,9 +83,9 @@ public sealed class PostgreSqlIntegrationDatabaseTests
     [TestMethod]
     public async Task DisposeAsync_RetriesFailedDropAndIncludesSchemaNameInTheError()
     {
-        var schemaName = "rvt_integration_dispose_retry";
-        var attempts = 0;
-        var database = new PostgreSqlIntegrationDatabase(
+        string schemaName = "rvt_integration_dispose_retry";
+        int attempts = 0;
+        PostgreSqlIntegrationDatabase database = new(
             "Host=unused", "Host=unused", schemaName, _ =>
             {
                 attempts++;
@@ -94,7 +94,7 @@ public sealed class PostgreSqlIntegrationDatabaseTests
                     : Task.CompletedTask;
             });
 
-        var exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(database.DisposeAsync().AsTask);
+        InvalidOperationException exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(database.DisposeAsync().AsTask);
 
         StringAssert.Contains(exception.Message, schemaName);
         await database.DisposeAsync();

@@ -13,8 +13,8 @@ public sealed class SharedRuntimeNamespaceTests
     [TestMethod]
     public void SharedRuntimeContractsUseTheirOwningLibraryNamespaces()
     {
-        var runtimeContracts = new[]
-        {
+        Type[] runtimeContracts =
+        [
             typeof(RvtConfig),
             typeof(AdapterException),
             typeof(IEmailDeliveryPort),
@@ -26,7 +26,7 @@ public sealed class SharedRuntimeNamespaceTests
             typeof(NotificationDto),
             typeof(global::Rvt.Monitor.Common.Rules.RvtAlertRuleDto),
             typeof(DateTimeUtil)
-        };
+        ];
 
         CollectionAssert.AllItemsAreUnique(runtimeContracts.Select(type => type.FullName).ToArray());
         Assert.AreEqual("Rvt.Communication.Abstractions", typeof(IMessageService).Namespace);

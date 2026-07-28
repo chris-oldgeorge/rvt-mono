@@ -359,12 +359,12 @@ public static class MonitorModelBuilderExtensions
         string logicalName,
         string canonicalName)
     {
-        if (!options.IdentifierMap.TryGetValue(logicalName, out var mappedName))
+        if (!options.IdentifierMap.TryGetValue(logicalName, out string? mappedName))
         {
             return canonicalName;
         }
 
-        var safeName = MonitorDb.RequireSafeSqlIdentifier(
+        string safeName = MonitorDb.RequireSafeSqlIdentifier(
             mappedName,
             $"shared EF table '{logicalName}'");
         return safeName.Length >= 2 && safeName[0] == '"' && safeName[^1] == '"'

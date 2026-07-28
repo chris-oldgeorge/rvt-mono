@@ -43,17 +43,17 @@ public sealed class SvantekJobFailureSemanticsTests
     [TestMethod]
     public async Task StoreMonitorsAsync_ContinuesIndependentProjects_RecordsIdentifiers_AndThrowsAggregate()
     {
-        using var cancellation = new CancellationTokenSource();
-        var token = cancellation.Token;
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
+        using CancellationTokenSource cancellation = new();
+        CancellationToken token = cancellation.Token;
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
         http.SetupSequence(client => client.PostAsync(
                 It.IsAny<string>(),
                 It.IsAny<HttpContent>(),
                 token))
             .ReturnsAsync(ProjectsJson)
             .ReturnsAsync(StationsJson);
-        var monitorCommands = new Mock<ISvantekMonitorCommands>(MockBehavior.Strict);
-        var persistedProjects = new List<int>();
+        Mock<ISvantekMonitorCommands> monitorCommands = new(MockBehavior.Strict);
+        List<int> persistedProjects = [];
         monitorCommands.Setup(commands => commands.WriteMonitorListAsync(
                 It.IsAny<IReadOnlyList<NoiseMonitorDto>>(),
                 token))
@@ -63,11 +63,11 @@ public sealed class SvantekJobFailureSemanticsTests
                 monitors.Single().ProjectId is 1 or 3
                     ? Task.FromException(new IOException($"project {monitors.Single().ProjectId} failed"))
                     : Task.CompletedTask);
-        var operational = new Mock<ISvantekOperationalCommands>(MockBehavior.Strict);
-        var recordedIdentifiers = new List<string>();
+        Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
+        List<string> recordedIdentifiers = [];
         operational.Setup(commands => commands.HandleException(It.IsAny<string>(), It.IsAny<Exception>()))
             .Callback((string identifier, Exception _) => recordedIdentifiers.Add(identifier));
-        var handler = new StoreMonitorsHandler(
+        StoreMonitorsHandler handler = new(
             new SvantekHttpGateway(http.Object, "key"),
             monitorCommands.Object,
             operational.Object,
@@ -84,7 +84,7 @@ public sealed class SvantekJobFailureSemanticsTests
         }
 
         Assert.IsInstanceOfType<SvantekJobAggregateException>(observed, observed?.ToString());
-        var aggregate = (SvantekJobAggregateException)observed;
+        SvantekJobAggregateException aggregate = (SvantekJobAggregateException)observed;
 
         CollectionAssert.AreEqual(new[] { 1, 2, 3 }, persistedProjects);
         CollectionAssert.AreEqual(
@@ -103,21 +103,21 @@ public sealed class SvantekJobFailureSemanticsTests
     [TestMethod]
     public async Task StoreMonitorsAsync_SetupFailureEscapesImmediatelyWithoutOperationalCapture()
     {
-        var authenticationFailure = new UnauthorizedAccessException("authentication rejected");
-        var http = new Mock<IHttpClient>(MockBehavior.Strict);
+        UnauthorizedAccessException authenticationFailure = new("authentication rejected");
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
         http.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
                 CancellationToken.None))
             .ThrowsAsync(authenticationFailure);
-        var operational = new Mock<ISvantekOperationalCommands>(MockBehavior.Strict);
-        var handler = new StoreMonitorsHandler(
+        Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
+        StoreMonitorsHandler handler = new(
             new SvantekHttpGateway(http.Object, "key"),
             Mock.Of<ISvantekMonitorCommands>(),
             operational.Object,
             testLocal: false);
 
-        var exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => handler.RunAsync());
+        AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => handler.RunAsync());
 
         Assert.AreSame(authenticationFailure, exception.InnerException, exception.ToString());
         operational.Verify(
@@ -128,22 +128,22 @@ public sealed class SvantekJobFailureSemanticsTests
     [TestMethod]
     public void FailureCollector_SnapshotsFailuresImmutably_AndNeverCapturesCancellation()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
-        var operational = new Mock<ISvantekOperationalCommands>(MockBehavior.Strict);
+        Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
         operational.Setup(commands => commands.HandleException("first", It.IsAny<IOException>()));
         operational.Setup(commands => commands.HandleException("second", It.IsAny<TimeoutException>()));
         operational.Setup(commands => commands.HandleException("later", It.IsAny<InvalidOperationException>()));
-        var collector = new SvantekFailureCollector(operational.Object);
+        SvantekFailureCollector collector = new(operational.Object);
 
         collector.Capture("first", new IOException("one"));
         collector.Capture("second", new TimeoutException("two"));
-        var aggregate = Assert.ThrowsExactly<SvantekJobAggregateException>(
+        SvantekJobAggregateException aggregate = Assert.ThrowsExactly<SvantekJobAggregateException>(
             () => collector.ThrowIfAny("job"));
         collector.Capture("later", new InvalidOperationException("three"));
-        var cancellationException = new OperationCanceledException(cancellation.Token);
+        OperationCanceledException cancellationException = new(cancellation.Token);
 
-        var observedCancellation = Assert.ThrowsExactly<OperationCanceledException>(
+        OperationCanceledException observedCancellation = Assert.ThrowsExactly<OperationCanceledException>(
             () => collector.Capture("cancelled", cancellationException));
 
         Assert.AreSame(cancellationException, observedCancellation);

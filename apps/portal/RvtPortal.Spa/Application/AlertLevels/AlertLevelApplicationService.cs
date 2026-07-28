@@ -6,7 +6,6 @@
 
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic.Application;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Identity;
@@ -69,7 +68,7 @@ public sealed class AlertLevelQueryResult
     public bool MissingMonitor { get; init; }
     public bool NotFound { get; init; }
     public string? InvalidSort { get; init; }
-    public IReadOnlyCollection<string> ValidSorts { get; init; } = AlertLevelApplicationService.SortFields.Keys.ToArray();
+    public IReadOnlyCollection<string> ValidSorts { get; init; } = [.. AlertLevelApplicationService.SortFields.Keys];
     public QueryAlertLevelsResponse? Response { get; init; }
 }
 
@@ -152,38 +151,38 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
             return new AlertLevelQueryResult { MissingMonitor = true };
         }
 
-        var monitorId = query.MonitorId.Value;
-        var monitor = await domainContext.MonitorsList.AsNoTracking().SingleOrDefaultAsync(item => item.Id == monitorId, cancellationToken);
+        Guid monitorId = query.MonitorId.Value;
+        RVT.Entities.Monitor? monitor = await domainContext.MonitorsList.AsNoTracking().SingleOrDefaultAsync(item => item.Id == monitorId, cancellationToken);
         if (monitor == null || !await CanReadMonitorAsync(actor, monitorId, cancellationToken))
         {
             return new AlertLevelQueryResult { NotFound = true };
         }
 
-        var requestedSort = string.IsNullOrWhiteSpace(query.Sort) ? "alertField" : query.Sort.Trim();
+        string requestedSort = string.IsNullOrWhiteSpace(query.Sort) ? "alertField" : query.Sort.Trim();
         if (!SortFields.ContainsKey(requestedSort))
         {
             return new AlertLevelQueryResult
             {
                 InvalidSort = requestedSort,
-                ValidSorts = SortFields.Keys.ToArray()
+                ValidSorts = [.. SortFields.Keys]
             };
         }
 
-        var levels = await domainContext.RvtAlertRules
+        List<Alertlevel> levels = await domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(level => level.MonitorId == monitorId && !level.IsDeleted)
             .ToListAsync(cancellationToken);
-        var rows = ApplySort(
+        List<AlertLevelItem> rows = [.. ApplySort(
             levels.Select(level => AlertLevelWorkflow.BuildAlertLevelItem(level, monitor.TypeOfMonitor)),
             requestedSort,
-            query.SortDir).ToList();
-        var total = rows.Count;
+            query.SortDir)];
+        int total = rows.Count;
 
         return new AlertLevelQueryResult
         {
             Response = new QueryAlertLevelsResponse
             {
-                Results = rows.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToList(),
+                Results = [.. rows.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)],
                 Total = total,
                 Page = query.Page,
                 PageSize = query.PageSize,
@@ -209,7 +208,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         Guid monitorId,
         CancellationToken cancellationToken)
     {
-        var monitor = await domainContext.MonitorsList.AsNoTracking().SingleOrDefaultAsync(item => item.Id == monitorId, cancellationToken);
+        RVT.Entities.Monitor? monitor = await domainContext.MonitorsList.AsNoTracking().SingleOrDefaultAsync(item => item.Id == monitorId, cancellationToken);
         return monitor == null || !await CanReadMonitorAsync(actor, monitorId, cancellationToken)
             ? null
             : AlertLevelWorkflow.BuildOptions(monitor);
@@ -221,7 +220,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         Guid alertLevelId,
         CancellationToken cancellationToken)
     {
-        var level = await domainContext.RvtAlertRules.AsNoTracking().SingleOrDefaultAsync(
+        Alertlevel? level = await domainContext.RvtAlertRules.AsNoTracking().SingleOrDefaultAsync(
             item => item.Id == alertLevelId && !item.IsDeleted,
             cancellationToken);
         return level == null || !await CanReadMonitorAsync(actor, level.MonitorId, cancellationToken)
@@ -234,7 +233,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         AlertLevelMutationRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new CreateAlertLevelCommand(request), cancellationToken);
+        AlertLevelCommandResult result = await mediator.Send(new CreateAlertLevelCommand(request), cancellationToken);
         return AlertLevelMutationWorkflowResult.FromCommand(result);
     }
 
@@ -244,7 +243,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         AlertLevelMutationRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new UpdateAlertLevelCommand(alertLevelId, request), cancellationToken);
+        AlertLevelCommandResult result = await mediator.Send(new UpdateAlertLevelCommand(alertLevelId, request), cancellationToken);
         return AlertLevelMutationWorkflowResult.FromCommand(result);
     }
 
@@ -254,14 +253,14 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         VibrationAlertLevelMutationRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new UpdateVibrationAlertLevelsCommand(monitorId, request), cancellationToken);
+        VibrationAlertLevelCommandResult result = await mediator.Send(new UpdateVibrationAlertLevelsCommand(monitorId, request), cancellationToken);
         return VibrationAlertLevelMutationWorkflowResult.FromCommand(result);
     }
 
     // Function summary: Soft-deletes an alert level through the transactional command pipeline.
     public async Task<AlertLevelMutationWorkflowResult> DeleteAsync(Guid alertLevelId, CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new DeleteAlertLevelCommand(alertLevelId), cancellationToken);
+        AlertLevelCommandResult result = await mediator.Send(new DeleteAlertLevelCommand(alertLevelId), cancellationToken);
         return AlertLevelMutationWorkflowResult.FromCommand(result);
     }
 
@@ -281,8 +280,8 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
             return false;
         }
 
-        var userId = actor.UserId.Value;
-        var activeAssignments = domainContext.SiteUsers
+        Guid userId = actor.UserId.Value;
+        IQueryable<SiteUsers> activeAssignments = domainContext.SiteUsers
             .Where(ActiveSiteAssignment.ForUser(userId, timeProvider.GetUtcNow().UtcDateTime));
         return await domainContext.Deployments
             .AsNoTracking()
@@ -298,7 +297,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
     // Function summary: Applies the requested alert-level sort to projected API rows.
     private static IEnumerable<AlertLevelItem> ApplySort(IEnumerable<AlertLevelItem> rows, string sort, string sortDir)
     {
-        var descending = sortDir == SortDirections.Descending;
+        bool descending = sortDir == SortDirections.Descending;
         return sort.ToLowerInvariant() switch
         {
             "alerttype" => OrderRows(rows, row => row.AlertType, descending),

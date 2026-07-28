@@ -1,5 +1,7 @@
 using Rvt.Monitor.Common.Notifications;
+using Rvt.Monitor.Common.Rules;
 using Svantek.Api.Db;
+using SvantekMonitor.model.dto;
 
 namespace Svantek.Api.UseCases;
 
@@ -28,12 +30,12 @@ public sealed class NotifySiteAveragesHandler
 
     public async Task RunAsync(DateTime date, CancellationToken cancellationToken = default)
     {
-        var monitors = await monitorQueries
+        List<SiteMonitorsWithSiteHoursDto> monitors = await monitorQueries
             .ReadSiteMonitorsWithSiteHoursAsync(date, cancellationToken)
             .ConfigureAwait(false);
-        var failures = new SvantekFailureCollector(operationalCommands);
+        SvantekFailureCollector failures = new(operationalCommands);
 
-        foreach (var monitor in monitors)
+        foreach (SiteMonitorsWithSiteHoursDto monitor in monitors)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
@@ -43,9 +45,9 @@ public sealed class NotifySiteAveragesHandler
                     continue;
                 }
 
-                var periodStart = date + monitor.StartTime.Value;
-                var periodEnd = date + monitor.EndTime.Value;
-                var level = ruleQueries.GetAverageNoiseLevel(
+                DateTime periodStart = date + monitor.StartTime.Value;
+                DateTime periodEnd = date + monitor.EndTime.Value;
+                double level = ruleQueries.GetAverageNoiseLevel(
                     monitor.SerialId,
                     "LAeq",
                     periodStart,
@@ -76,13 +78,12 @@ public sealed class NotifySiteAveragesHandler
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var rules = ruleQueries.ReadRules(monitor.SerialId)
+        List<RvtAlertRuleDto> rules = [.. ruleQueries.ReadRules(monitor.SerialId)
             .Where(rule => rule.AveragingPeriod == 0 && rule.Field == "LAeq")
-            .OrderBy(rule => rule.AlertType)
-            .ToList();
-        var previousAlert = AlertType.Ignore;
+            .OrderBy(rule => rule.AlertType)];
+        AlertType previousAlert = AlertType.Ignore;
 
-        foreach (var rule in rules)
+        foreach (RvtAlertRuleDto rule in rules)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (rule.LimitOn <= level && !rule.IsActive && !rule.IsDeleted)
@@ -90,7 +91,7 @@ public sealed class NotifySiteAveragesHandler
                 if (rule.AlertType == AlertType.Alert ||
                     (previousAlert != AlertType.Alert && rule.AlertType == AlertType.Caution))
                 {
-                    var contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
+                    List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
                     ruleProcessor.ProcessAlertForContacts(
                         monitor.FleetNr,
                         monitor.SerialId,

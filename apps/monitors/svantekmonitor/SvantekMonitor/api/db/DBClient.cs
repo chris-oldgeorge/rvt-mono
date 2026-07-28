@@ -1,10 +1,10 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
+using Rvt.Monitor.Common.Data.Queries;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -41,14 +41,14 @@ namespace Svantek.Api.Db
                 return;
             }
 
-            using var context = CreateContext();
+            using SvantekMonitorContext context = CreateContext();
             InsertNoiseDtos(context, dtos);
             context.SaveChanges();
         }
 
         public void InsertNoiseDtos(string serialId, List<NoiseDto> dtos)
         {
-            foreach (var dto in dtos)
+            foreach (NoiseDto dto in dtos)
             {
                 dto.SerialId = serialId;
             }
@@ -65,22 +65,22 @@ namespace Svantek.Api.Db
             DataTable table,
             CancellationToken cancellationToken = default)
         {
-            var dtos = ToNoiseDtos(table);
+            List<NoiseDto> dtos = ToNoiseDtos(table);
             if (dtos.Count == 0)
             {
                 RvtLogger.Logger.LogWarning("Attempt to insert empty InsertNoiseDtos !");
                 return;
             }
 
-            await using var context = CreateContext();
+            await using SvantekMonitorContext context = CreateContext();
             await InsertNoiseDtosAsync(context, dtos, cancellationToken).ConfigureAwait(false);
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public List<NoiseMonitorReadDto> ReadMonitorList(DateTime? lastDataTime)
         {
-            var minLastDataTime = lastDataTime ?? SvantekApi.JAN1_1970;
-            using var context = CreateContext();
+            DateTime minLastDataTime = lastDataTime ?? SvantekApi.JAN1_1970;
+            using SvantekMonitorContext context = CreateContext();
 
             var rows = (from monitor in context.Monitors.AsNoTracking()
                         join status in context.SvantekMonitorStatus.AsNoTracking() on monitor.SerialId equals status.SerialId
@@ -96,17 +96,15 @@ namespace Svantek.Api.Db
                             Deployment = deployment
                         }).ToList();
 
-            return rows
-                .Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))
-                .ToList();
+            return [.. rows.Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))];
         }
 
         public async Task<List<NoiseMonitorReadDto>> ReadMonitorListAsync(
             DateTime? lastDataTime,
             CancellationToken cancellationToken = default)
         {
-            var minLastDataTime = lastDataTime ?? SvantekApi.JAN1_1970;
-            await using var context = CreateContext();
+            DateTime minLastDataTime = lastDataTime ?? SvantekApi.JAN1_1970;
+            await using SvantekMonitorContext context = CreateContext();
 
             var rows = await (from monitor in context.Monitors.AsNoTracking()
                               join status in context.SvantekMonitorStatus.AsNoTracking() on monitor.SerialId equals status.SerialId
@@ -124,18 +122,16 @@ namespace Svantek.Api.Db
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return rows
-                .Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))
-                .ToList();
+            return [.. rows.Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))];
         }
 
         public void WriteMonitorList(List<NoiseMonitorDto> monitors)
         {
-            using var context = CreateContext();
+            using SvantekMonitorContext context = CreateContext();
 
-            foreach (var dto in monitors)
+            foreach (NoiseMonitorDto dto in monitors)
             {
-                var monitor = context.Monitors.FirstOrDefault(row =>
+                MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
                     row.SerialId == dto.SerialId &&
                     row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE);
 
@@ -148,7 +144,7 @@ namespace Svantek.Api.Db
                     SvantekDbMapper.UpdateMonitorEntity(monitor, dto);
                 }
 
-                var status = context.SvantekMonitorStatus.FirstOrDefault(row => row.SerialId == dto.SerialId);
+                SvantekMonitorStatusEntity? status = context.SvantekMonitorStatus.FirstOrDefault(row => row.SerialId == dto.SerialId);
                 if (status == null)
                 {
                     context.SvantekMonitorStatus.Add(SvantekDbMapper.ToStatusEntity(dto));
@@ -166,11 +162,11 @@ namespace Svantek.Api.Db
             IReadOnlyList<NoiseMonitorDto> monitors,
             CancellationToken cancellationToken = default)
         {
-            await using var context = CreateContext();
+            await using SvantekMonitorContext context = CreateContext();
 
-            foreach (var dto in monitors)
+            foreach (NoiseMonitorDto dto in monitors)
             {
-                var monitor = await context.Monitors.FirstOrDefaultAsync(row =>
+                MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(row =>
                     row.SerialId == dto.SerialId &&
                     row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE,
                     cancellationToken).ConfigureAwait(false);
@@ -184,7 +180,7 @@ namespace Svantek.Api.Db
                     SvantekDbMapper.UpdateMonitorEntity(monitor, dto);
                 }
 
-                var status = await context.SvantekMonitorStatus.FirstOrDefaultAsync(
+                SvantekMonitorStatusEntity? status = await context.SvantekMonitorStatus.FirstOrDefaultAsync(
                     row => row.SerialId == dto.SerialId,
                     cancellationToken).ConfigureAwait(false);
                 if (status == null)
@@ -202,8 +198,8 @@ namespace Svantek.Api.Db
 
         public void UpdateMonitorStatus(string serialId, int errorCount)
         {
-            using var context = CreateContext();
-            var status = context.SvantekMonitorStatus.FirstOrDefault(row => row.SerialId == serialId);
+            using SvantekMonitorContext context = CreateContext();
+            SvantekMonitorStatusEntity? status = context.SvantekMonitorStatus.FirstOrDefault(row => row.SerialId == serialId);
             if (status == null)
             {
                 return;
@@ -218,7 +214,7 @@ namespace Svantek.Api.Db
             RvtLogger.Logger.LogError("DBClient HandleException message={Value1} exception={Value2}",
                                        message, exception.Message);
 
-            using var context = CreateContext();
+            using SvantekMonitorContext context = CreateContext();
             context.SvantekErrorMessages.Add(new SvantekErrorMessageEntity
             {
                 Tag = Truncate(message, 64),
@@ -230,9 +226,9 @@ namespace Svantek.Api.Db
 
         public void WriteLatestTimestamp(string serialId, DateTime lastDataTime)
         {
-            var normalizedLastDataTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(lastDataTime);
-            using var context = CreateContext();
-            var monitor = context.Monitors.FirstOrDefault(row =>
+            DateTime normalizedLastDataTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(lastDataTime);
+            using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
                 row.SerialId == serialId &&
                 row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE);
             if (monitor == null)
@@ -249,9 +245,9 @@ namespace Svantek.Api.Db
             DateTime lastDataTime,
             CancellationToken cancellationToken = default)
         {
-            var normalizedLastDataTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(lastDataTime);
-            await using var context = CreateContext();
-            var monitor = await context.Monitors.FirstOrDefaultAsync(row =>
+            DateTime normalizedLastDataTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(lastDataTime);
+            await using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(row =>
                 row.SerialId == serialId &&
                 row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE,
                 cancellationToken).ConfigureAwait(false);
@@ -266,7 +262,7 @@ namespace Svantek.Api.Db
 
         public List<RvtAlertRuleDto> ReadRules(string? serialNumber)
         {
-            using var context = CreateContext();
+            using SvantekMonitorContext context = CreateContext();
 
             IQueryable<RvtAlertRuleEntity> query;
             if (serialNumber == null)
@@ -283,15 +279,14 @@ namespace Svantek.Api.Db
                         select rule;
             }
 
-            return query
+            return [.. query
                 .AsEnumerable()
-                .Select(rule => ToRuleDto(rule, serialNumber))
-                .ToList();
+                .Select(rule => ToRuleDto(rule, serialNumber))];
         }
 
         public List<RvtContactDto> ReadAlertContacts(Guid monitorId, out Guid siteId)
         {
-            using var context = CreateContext();
+            using SvantekMonitorContext context = CreateContext();
 
             var contactRows = (from deployment in context.Deployments.AsNoTracking()
                                join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
@@ -312,19 +307,19 @@ namespace Svantek.Api.Db
 
             siteId = contactRows.FirstOrDefault()?.SiteId ?? Guid.Empty;
 
-            var userIds = contactRows
+            HashSet<string> userIds = contactRows
                 .Select(row => row.UserId.ToString())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var usersById = context.Users
+            Dictionary<string, AspNetUserEntity> usersById = context.Users
                 .AsNoTracking()
                 .Where(user => userIds.Contains(user.Id))
                 .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
 
-            return contactRows
+            return [.. contactRows
                 .Where(row => usersById.ContainsKey(row.UserId.ToString()))
                 .Select(row =>
                 {
-                    var user = usersById[row.UserId.ToString()];
+                    AspNetUserEntity user = usersById[row.UserId.ToString()];
                     return new RvtContactDto(
                         useEmail: row.Email,
                         useSms: row.SMS,
@@ -332,13 +327,12 @@ namespace Svantek.Api.Db
                         phoneNumber: user.PhoneNumber,
                         sendStartTime: row.StartTime,
                         sendEndTime: row.EndTime);
-                })
-                .ToList();
+                })];
         }
 
         public void WriteNotification(NotificationDto dto)
         {
-            using var context = CreateContext();
+            using SvantekMonitorContext context = CreateContext();
             context.Notifications.Add(new NotificationEntity
             {
                 Id = dto.Id,
@@ -357,7 +351,7 @@ namespace Svantek.Api.Db
 
         public bool HasOpenNotification(Guid monitorId, string alertField, AlertType alertType)
         {
-            using var context = CreateContext();
+            using SvantekMonitorContext context = CreateContext();
 
             return context.Notifications
                 .AsNoTracking()
@@ -369,8 +363,8 @@ namespace Svantek.Api.Db
 
         public void UpdateAlertRule(RvtAlertRuleDto dto)
         {
-            using var context = CreateContext();
-            var rule = context.AlertRules.FirstOrDefault(row => row.Id == dto.RuleId);
+            using SvantekMonitorContext context = CreateContext();
+            RvtAlertRuleEntity? rule = context.AlertRules.FirstOrDefault(row => row.Id == dto.RuleId);
             if (rule == null)
             {
                 return;
@@ -383,11 +377,11 @@ namespace Svantek.Api.Db
 
         public double GetAverageNoiseLevel(string serialNumber, string columnName, DateTime start, DateTime end)
         {
-            using var context = CreateContext();
-            var field = SvantekAggregateFields.Resolve(columnName);
-            var normalizedStart = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(start);
-            var normalizedEnd = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(end);
-            var query = context.NoiseLevels
+            using SvantekMonitorContext context = CreateContext();
+            MonitorAggregateField<SvantekNoiseLevelEntity> field = SvantekAggregateFields.Resolve(columnName);
+            DateTime normalizedStart = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(start);
+            DateTime normalizedEnd = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(end);
+            IQueryable<SvantekNoiseLevelEntity> query = context.NoiseLevels
                 .Where(row => row.SerialId == serialNumber)
                 .Where(row => row.SampleTime > normalizedStart && row.SampleTime <= normalizedEnd);
 
@@ -399,7 +393,7 @@ namespace Svantek.Api.Db
             RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
                 SensitiveLogRedactor.Redact(address), message);
 
-            using var context = CreateContext();
+            using SvantekMonitorContext context = CreateContext();
             context.NotificationAudits.Add(new NotificationSentEntity
             {
                 Id = Guid.NewGuid(),
@@ -413,8 +407,8 @@ namespace Svantek.Api.Db
 
         public void SetMonitorOffline(Guid monitorId, bool offline)
         {
-            using var context = CreateContext();
-            var monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
+            using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
             if (monitor == null)
             {
                 return;
@@ -429,8 +423,8 @@ namespace Svantek.Api.Db
             bool offline,
             CancellationToken cancellationToken = default)
         {
-            await using var context = CreateContext();
-            var monitor = await context.Monitors.FirstOrDefaultAsync(
+            await using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(
                 row => row.Id == monitorId,
                 cancellationToken).ConfigureAwait(false);
             if (monitor == null)
@@ -444,10 +438,8 @@ namespace Svantek.Api.Db
 
         public void ClearErrorMessages(DateTime before)
         {
-            using var context = CreateContext();
-            var messages = context.SvantekErrorMessages
-                .Where(row => row.ErrorTime < before)
-                .ToList();
+            using SvantekMonitorContext context = CreateContext();
+            List<SvantekErrorMessageEntity> messages = [.. context.SvantekErrorMessages.Where(row => row.ErrorTime < before)];
 
             context.SvantekErrorMessages.RemoveRange(messages);
             context.SaveChanges();
@@ -455,8 +447,8 @@ namespace Svantek.Api.Db
 
         public SiteInfoDto ReadSiteInfo(Guid siteId)
         {
-            using var context = CreateContext();
-            var site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId);
+            using SvantekMonitorContext context = CreateContext();
+            SiteEntity? site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId);
             if (site == null)
             {
                 throw AdapterException.Of($"No site info for site Id={siteId}");
@@ -474,7 +466,7 @@ namespace Svantek.Api.Db
 
         public List<SiteMonitorsWithSiteHoursDto> ReadSiteMonitorsWithSiteHours(DateTime Day)
         {
-            using var context = CreateContext();
+            using SvantekMonitorContext context = CreateContext();
 
             var query = from monitor in context.Monitors.AsNoTracking()
                         join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
@@ -497,17 +489,17 @@ namespace Svantek.Api.Db
                 _ => query.Where(row => row.Site.StartTime != null && row.Site.EndTime != null)
             };
 
-            return query
+            return [.. query
                 .AsEnumerable()
                 .Select(row =>
                 {
-                    var startTime = Day.DayOfWeek switch
+                    TimeSpan startTime = Day.DayOfWeek switch
                     {
                         DayOfWeek.Saturday => row.Site.SatStartTime!.Value,
                         DayOfWeek.Sunday => row.Site.SunStartTime!.Value,
                         _ => row.Site.StartTime!.Value
                     };
-                    var endTime = Day.DayOfWeek switch
+                    TimeSpan endTime = Day.DayOfWeek switch
                     {
                         DayOfWeek.Saturday => row.Site.SatEndTime!.Value,
                         DayOfWeek.Sunday => row.Site.SunEndTime!.Value,
@@ -524,15 +516,14 @@ namespace Svantek.Api.Db
                         siteName: row.Site.SiteName ?? string.Empty,
                         startTime: startTime,
                         endTime: endTime);
-                })
-                .ToList();
+                })];
         }
 
         public async Task<List<SiteMonitorsWithSiteHoursDto>> ReadSiteMonitorsWithSiteHoursAsync(
             DateTime day,
             CancellationToken cancellationToken = default)
         {
-            await using var context = CreateContext();
+            await using SvantekMonitorContext context = CreateContext();
 
             var query = from monitor in context.Monitors.AsNoTracking()
                         join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
@@ -555,15 +546,15 @@ namespace Svantek.Api.Db
             };
 
             var rows = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
-            return rows.Select(row =>
+            return [.. rows.Select(row =>
             {
-                var startTime = day.DayOfWeek switch
+                TimeSpan startTime = day.DayOfWeek switch
                 {
                     DayOfWeek.Saturday => row.Site.SatStartTime!.Value,
                     DayOfWeek.Sunday => row.Site.SunStartTime!.Value,
                     _ => row.Site.StartTime!.Value
                 };
-                var endTime = day.DayOfWeek switch
+                TimeSpan endTime = day.DayOfWeek switch
                 {
                     DayOfWeek.Saturday => row.Site.SatEndTime!.Value,
                     DayOfWeek.Sunday => row.Site.SunEndTime!.Value,
@@ -580,12 +571,12 @@ namespace Svantek.Api.Db
                     siteName: row.Site.SiteName ?? string.Empty,
                     startTime: startTime,
                     endTime: endTime);
-            }).ToList();
+            })];
         }
 
         public void WriteDailyAverage(Guid siteId, Guid monitorId, string field, double level, DateTime timestamp)
         {
-            using var context = CreateContext();
+            using SvantekMonitorContext context = CreateContext();
             context.SiteAverages.Add(new SiteAverageEntity
             {
                 Id = Guid.NewGuid(),
@@ -606,7 +597,7 @@ namespace Svantek.Api.Db
             DateTime timestamp,
             CancellationToken cancellationToken = default)
         {
-            await using var context = CreateContext();
+            await using SvantekMonitorContext context = CreateContext();
             context.SiteAverages.Add(new SiteAverageEntity
             {
                 Id = Guid.NewGuid(),
@@ -621,10 +612,10 @@ namespace Svantek.Api.Db
 
         public void Create8hourAverage(string serialId, DateTime SampleTime)
         {
-            var normalizedSampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(SampleTime);
-            using var context = CreateContext();
+            DateTime normalizedSampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(SampleTime);
+            using SvantekMonitorContext context = CreateContext();
 
-            var exists = context.Noise8HourAverages.Any(row =>
+            bool exists = context.Noise8HourAverages.Any(row =>
                 row.SerialId == serialId &&
                 row.SampleTime == normalizedSampleTime);
             if (exists)
@@ -632,11 +623,10 @@ namespace Svantek.Api.Db
                 return;
             }
 
-            var rows = context.NoiseLevels
+            List<SvantekNoiseLevelEntity> rows = [.. context.NoiseLevels
                 .AsNoTracking()
                 .Where(row => row.SerialId == serialId)
-                .Where(row => row.SampleTime > normalizedSampleTime.AddHours(-8) && row.SampleTime <= normalizedSampleTime)
-                .ToList();
+                .Where(row => row.SampleTime > normalizedSampleTime.AddHours(-8) && row.SampleTime <= normalizedSampleTime)];
             if (rows.Count == 0)
             {
                 return;
@@ -664,10 +654,10 @@ namespace Svantek.Api.Db
             DateTime sampleTime,
             CancellationToken cancellationToken = default)
         {
-            var normalizedSampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(sampleTime);
-            await using var context = CreateContext();
+            DateTime normalizedSampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(sampleTime);
+            await using SvantekMonitorContext context = CreateContext();
 
-            var exists = await context.Noise8HourAverages.AnyAsync(row =>
+            bool exists = await context.Noise8HourAverages.AnyAsync(row =>
                 row.SerialId == serialId &&
                 row.SampleTime == normalizedSampleTime,
                 cancellationToken).ConfigureAwait(false);
@@ -676,7 +666,7 @@ namespace Svantek.Api.Db
                 return;
             }
 
-            var rows = await context.NoiseLevels
+            List<SvantekNoiseLevelEntity> rows = await context.NoiseLevels
                 .AsNoTracking()
                 .Where(row => row.SerialId == serialId)
                 .Where(row => row.SampleTime > normalizedSampleTime.AddHours(-8) && row.SampleTime <= normalizedSampleTime)
@@ -706,8 +696,8 @@ namespace Svantek.Api.Db
 
         public void SetMonitorBatteryStatus(Guid monitorId, byte batteryStatus)
         {
-            using var context = CreateContext();
-            var monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
+            using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
             if (monitor == null)
             {
                 return;
@@ -722,8 +712,8 @@ namespace Svantek.Api.Db
             byte batteryStatus,
             CancellationToken cancellationToken = default)
         {
-            await using var context = CreateContext();
-            var monitor = await context.Monitors.FirstOrDefaultAsync(
+            await using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(
                 row => row.Id == monitorId,
                 cancellationToken).ConfigureAwait(false);
             if (monitor == null)
@@ -737,8 +727,8 @@ namespace Svantek.Api.Db
 
         public List<NoiseNotificationLatest> ReadLatestNotification()
         {
-            using var context = CreateContext();
-            var cutoff = DateTime.Now.AddHours(-12);
+            using SvantekMonitorContext context = CreateContext();
+            DateTime cutoff = DateTime.Now.AddHours(-12);
 
             var rows = (from notification in context.Notifications.AsNoTracking()
                         join monitor in context.Monitors.AsNoTracking() on notification.MonitorId equals monitor.Id
@@ -754,7 +744,7 @@ namespace Svantek.Api.Db
                             Status = status
                         }).ToList();
 
-            return rows
+            return [.. rows
                 .Select(row => new NoiseNotificationLatest(
                     NotificationId: row.Notification.Id,
                     MonitorId: row.Monitor.Id,
@@ -763,15 +753,14 @@ namespace Svantek.Api.Db
                     ProjectId: row.Status.ProjectId ?? 0,
                     PointId: row.Status.PointId ?? 0,
                     NotificationTime: row.Notification.NotificationTime,
-                    AvgPeriod: row.Notification.AveragingPeriod))
-                .ToList();
+                    AvgPeriod: row.Notification.AveragingPeriod))];
         }
 
         public async Task<List<NoiseNotificationLatest>> ReadLatestNotificationAsync(
             CancellationToken cancellationToken = default)
         {
-            await using var context = CreateContext();
-            var cutoff = DateTime.Now.AddHours(-12);
+            await using SvantekMonitorContext context = CreateContext();
+            DateTime cutoff = DateTime.Now.AddHours(-12);
 
             var rows = await (from notification in context.Notifications.AsNoTracking()
                               join monitor in context.Monitors.AsNoTracking() on notification.MonitorId equals monitor.Id
@@ -789,7 +778,7 @@ namespace Svantek.Api.Db
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return rows.Select(row => new NoiseNotificationLatest(
+            return [.. rows.Select(row => new NoiseNotificationLatest(
                 NotificationId: row.Notification.Id,
                 MonitorId: row.Monitor.Id,
                 FleetNr: row.Monitor.FleetNr ?? string.Empty,
@@ -797,13 +786,13 @@ namespace Svantek.Api.Db
                 ProjectId: row.Status.ProjectId ?? 0,
                 PointId: row.Status.PointId ?? 0,
                 NotificationTime: row.Notification.NotificationTime,
-                AvgPeriod: row.Notification.AveragingPeriod)).ToList();
+                AvgPeriod: row.Notification.AveragingPeriod))];
         }
 
         public bool WriteSoundFile(Guid notificationId, string fileName)
         {
-            using var context = CreateContext();
-            var notification = context.Notifications.FirstOrDefault(row => row.Id == notificationId);
+            using SvantekMonitorContext context = CreateContext();
+            NotificationEntity? notification = context.Notifications.FirstOrDefault(row => row.Id == notificationId);
             if (notification == null)
             {
                 return true;
@@ -819,8 +808,8 @@ namespace Svantek.Api.Db
             string fileName,
             CancellationToken cancellationToken = default)
         {
-            await using var context = CreateContext();
-            var notification = await context.Notifications.FirstOrDefaultAsync(
+            await using SvantekMonitorContext context = CreateContext();
+            NotificationEntity? notification = await context.Notifications.FirstOrDefaultAsync(
                 row => row.Id == notificationId,
                 cancellationToken).ConfigureAwait(false);
             if (notification == null)
@@ -835,13 +824,13 @@ namespace Svantek.Api.Db
 
         private SvantekMonitorContext CreateContext()
         {
-            var monitorOptions = SvantekMonitorDbOptions.Current;
-            var options = MonitorDbContextOptionsFactory.CreateOptions<SvantekMonitorContext>(ConnectionString);
+            MonitorDbOptions monitorOptions = SvantekMonitorDbOptions.Current;
+            DbContextOptions<SvantekMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<SvantekMonitorContext>(ConnectionString);
             return new SvantekMonitorContext(options, monitorOptions);
         }
 
         private static List<NoiseDto> ToNoiseDtos(DataTable table) =>
-            table.Rows
+            [.. table.Rows
                 .Cast<DataRow>()
                 .Select(row => new NoiseDto
                 {
@@ -855,22 +844,21 @@ namespace Svantek.Api.Db
                     LCmax = Convert.ToDouble(row["LCmax"]),
                     LC90 = Convert.ToDouble(row["LC90"]),
                     LC10 = Convert.ToDouble(row["LC10"])
-                })
-                .ToList();
+                })];
 
         private static void InsertNoiseDtos(SvantekMonitorContext context, IEnumerable<NoiseDto> dtos)
         {
-            var seen = new HashSet<(string SerialId, DateTime SampleTime)>();
+            HashSet<(string SerialId, DateTime SampleTime)> seen = [];
 
-            foreach (var dto in dtos)
+            foreach (NoiseDto dto in dtos)
             {
-                var sampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(dto.SampleTime);
+                DateTime sampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(dto.SampleTime);
                 if (!seen.Add((dto.SerialId, sampleTime)))
                 {
                     continue;
                 }
 
-                var exists = context.NoiseLevels.Any(row =>
+                bool exists = context.NoiseLevels.Any(row =>
                     row.SerialId == dto.SerialId &&
                     row.SampleTime == sampleTime);
                 if (exists)
@@ -878,7 +866,7 @@ namespace Svantek.Api.Db
                     continue;
                 }
 
-                var entity = SvantekDbMapper.ToNoiseLevelEntity(dto.SerialId, dto);
+                SvantekNoiseLevelEntity entity = SvantekDbMapper.ToNoiseLevelEntity(dto.SerialId, dto);
                 entity.SampleTime = sampleTime;
                 context.NoiseLevels.Add(entity);
             }
@@ -889,18 +877,18 @@ namespace Svantek.Api.Db
             IEnumerable<NoiseDto> dtos,
             CancellationToken cancellationToken)
         {
-            var seen = new HashSet<(string SerialId, DateTime SampleTime)>();
+            HashSet<(string SerialId, DateTime SampleTime)> seen = [];
 
-            foreach (var dto in dtos)
+            foreach (NoiseDto dto in dtos)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var sampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(dto.SampleTime);
+                DateTime sampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(dto.SampleTime);
                 if (!seen.Add((dto.SerialId, sampleTime)))
                 {
                     continue;
                 }
 
-                var exists = await context.NoiseLevels.AnyAsync(row =>
+                bool exists = await context.NoiseLevels.AnyAsync(row =>
                     row.SerialId == dto.SerialId &&
                     row.SampleTime == sampleTime,
                     cancellationToken).ConfigureAwait(false);
@@ -909,7 +897,7 @@ namespace Svantek.Api.Db
                     continue;
                 }
 
-                var entity = SvantekDbMapper.ToNoiseLevelEntity(dto.SerialId, dto);
+                SvantekNoiseLevelEntity entity = SvantekDbMapper.ToNoiseLevelEntity(dto.SerialId, dto);
                 entity.SampleTime = sampleTime;
                 context.NoiseLevels.Add(entity);
             }

@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
@@ -109,10 +108,10 @@ namespace Omnidots.Model.Json
         public NotificationDto GetNotification(Guid monitorId)
         {
 
-            var vtop = GetAxesWithMaxValue(out string axis);
-            var millis = CreatedAt! * 1000;
-            var createdTime = DateTimeUtil.FromMillis((long)millis);
-            var fieldStr = "vtop {0}";
+            AlarmFdomVtop vtop = GetAxesWithMaxValue(out string axis);
+            double? millis = CreatedAt! * 1000;
+            DateTime createdTime = DateTimeUtil.FromMillis((long)millis);
+            string fieldStr = "vtop {0}";
 
             vtop.GetAlertTypeValueAndLimit(alertType: out AlertType alertType,
                                       level: out double level,
@@ -121,7 +120,7 @@ namespace Omnidots.Model.Json
             RvtLogger.Logger.LogInformation("Creating notification alertType={Value1} level={Value2} limit={Value3}",
                                              alertType, level, limit);
 
-            var notification = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto notification = new(id: Guid.NewGuid(),
                  notificationTime: createdTime,
                  limitOn: limit,
                  averagingPeriod: Data!.MeasurementDuration,
@@ -130,19 +129,20 @@ namespace Omnidots.Model.Json
                  closedByUser: null,
                  alertType: alertType,
                  alertField: string.Format(fieldStr, axis),
-                 monitorId: monitorId);
-
-            notification.ApiMessage = Text;
+                 monitorId: monitorId)
+            {
+                ApiMessage = Text
+            };
 
             return notification;
         }
 
         private AlarmFdomVtop GetAxesWithMaxValue(out string axis)
         {
-            var axes = Data!.Axes!;
-            var x = axes.X!.vtop!.Value;
-            var y = axes.Y!.vtop!.Value;
-            var z = axes.Z!.vtop!.Value;
+            Axes axes = Data!.Axes!;
+            double x = axes.X!.vtop!.Value;
+            double y = axes.Y!.vtop!.Value;
+            double z = axes.Z!.vtop!.Value;
 
             if (x > y && x > z)
             {
@@ -184,7 +184,7 @@ namespace Omnidots.Model.Json
         {
             level = vtop!.Value;
 
-            var alarmLimits = vtop.AlarmLimits!;
+            AlarmLimits alarmLimits = vtop.AlarmLimits!;
 
             if (level >= alarmLimits.AlarmLevel3)
             {

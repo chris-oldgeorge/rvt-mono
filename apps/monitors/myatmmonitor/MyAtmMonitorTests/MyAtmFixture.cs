@@ -4,7 +4,6 @@ using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using MyAtm.Model.Json.Customer;
 using MyAtm.Model.Json.DeviceInfo;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -12,7 +11,6 @@ using Rvt.Monitor.Common.Rules;
 
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace MyAtmMonitorTests
 {
@@ -26,8 +24,8 @@ namespace MyAtmMonitorTests
 
         public static string DeviceInfoResponseJson(string serialNumber)
         {
-            var json = TestUtil.ReadTextFromFile("testdata/device_info.json");
-            var deviceInfo = JsonSerializer.Deserialize<DustMonitorInfo>(json);
+            string json = TestUtil.ReadTextFromFile("testdata/device_info.json");
+            DustMonitorInfo? deviceInfo = JsonSerializer.Deserialize<DustMonitorInfo>(json);
             deviceInfo!.SerialNumber = serialNumber;
             return JsonSerializer.Serialize(deviceInfo);
         }
@@ -39,22 +37,22 @@ namespace MyAtmMonitorTests
 
         public static List<RvtContactDto> AlertContacts(TimeSpan? sendStartTime = null, TimeSpan? sendEndTime = null)
         {
-            return new List<RvtContactDto>()
-            {
+            return
+            [
                 new RvtContactDto(ContactMethod.Email, "baz@bob.org", (string?)null,true,false, sendStartTime, sendEndTime)
-            };
+            ];
         }
 
         public static List<DustMonitorDto> CustomerDeviceDtos(DateTime? lastDataTime, bool singleItem = false)
         {
-            var json = DevicesResponseJson();
-            var devices = JsonSerializer.Deserialize<List<DustMonitor>>(json)!;
-            var dtos = new List<DustMonitorDto>();
-            foreach (var device in devices)
+            string json = DevicesResponseJson();
+            List<DustMonitor> devices = JsonSerializer.Deserialize<List<DustMonitor>>(json)!;
+            List<DustMonitorDto> dtos = [];
+            foreach (DustMonitor device in devices)
             {
-                var deviceJson = DeviceInfoResponseJson(device.SerialNumber!);
-                var deviceInfo = JsonSerializer.Deserialize<DustMonitorInfo>(deviceJson)!;
-                var dto = new DustMonitorDto(deviceInfo)
+                string deviceJson = DeviceInfoResponseJson(device.SerialNumber!);
+                DustMonitorInfo deviceInfo = JsonSerializer.Deserialize<DustMonitorInfo>(deviceJson)!;
+                DustMonitorDto dto = new(deviceInfo)
                 {
                     LastDataTime1Min = lastDataTime,
                     FleetNr = "Fnr" + device.SerialNumber!.ToString(), //Instead fo fleetNr using the serial
@@ -145,10 +143,10 @@ namespace MyAtmMonitorTests
         public static string MeasurementsResponseJson(int numMeasuements, DateTime startTime, double startLevel = 1.0, double levelInc = 0.5)
         {
 
-            var measurements = new List<DeviceMeasurement>();
-            for (var i = 0; i < numMeasuements; i++)
+            List<DeviceMeasurement> measurements = [];
+            for (int i = 0; i < numMeasuements; i++)
             {
-                var level = startLevel + (levelInc * i);
+                double level = startLevel + (levelInc * i);
                 measurements.Insert(0,
                     CreateDeviceMeasurement(startTime.AddMinutes(i), level * 4, level * 2, level));
             }
@@ -180,8 +178,8 @@ namespace MyAtmMonitorTests
         internal static List<RvtAlertRuleDto> OfflineRules()
         {
 
-            var rules = new List<RvtAlertRuleDto>
-            {
+            List<RvtAlertRuleDto> rules =
+            [
                 new(ruleId: Guid.NewGuid(),
                           serialId: null,
                           field: "offline-rule",
@@ -201,7 +199,7 @@ namespace MyAtmMonitorTests
                         isDeleted: false,
                         created: DateTime.UtcNow,
                         accessed: null)
-            };
+            ];
 
             return rules;
         }

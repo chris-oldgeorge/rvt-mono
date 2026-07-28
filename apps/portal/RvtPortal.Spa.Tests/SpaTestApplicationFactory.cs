@@ -11,7 +11,6 @@
 using System.Data.Common;
 using System.Globalization;
 using Microsoft.AspNetCore.Hosting;
-using RvtPortal.Spa.Adapters.Archive;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +22,7 @@ using Microsoft.Extensions.Options;
 using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
 using RVT.Entities;
+using RvtPortal.Spa.Adapters.Archive;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Tests;
@@ -89,7 +89,7 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
                 options.UseInMemoryDatabase($"{databaseName}-domain").UseInternalServiceProvider(databaseProvider));
             services.AddDbContext<RVTSearchContext>(options =>
                 options.UseInMemoryDatabase($"{databaseName}-search").UseInternalServiceProvider(databaseProvider));
-            services.AddSingleton<IOptions<RvtDatabaseOptions>>(Options.Create(new RvtDatabaseOptions
+            services.AddSingleton(Options.Create(new RvtDatabaseOptions
             {
                 ConnectionString = "Testing"
             }));
@@ -150,16 +150,16 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
         Guid? companyId = null,
         string? name = null)
     {
-        using var scope = Services.CreateScope();
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        using IServiceScope scope = Services.CreateScope();
+        RoleManager<IdentityRole> roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
         await EnsureRoleAsync(roleManager, RoleNames.RVTMasterAdmin);
         await EnsureRoleAsync(roleManager, RoleNames.RVTAdmin);
         await EnsureRoleAsync(roleManager, RoleNames.RVTInstaller);
         await EnsureRoleAsync(roleManager, RoleNames.CompanyUser);
 
-        var user = new ApplicationUser
+        ApplicationUser user = new()
         {
             UserName = email,
             Email = email,
@@ -170,12 +170,12 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
             CompanyRole = roleName == RoleNames.CompanyUser ? "Site contact" : null
         };
 
-        var createResult = password is null
+        IdentityResult createResult = password is null
             ? await userManager.CreateAsync(user)
             : await userManager.CreateAsync(user, password);
         EnsureSucceeded(createResult);
 
-        var roleResult = await userManager.AddToRoleAsync(user, roleName);
+        IdentityResult roleResult = await userManager.AddToRoleAsync(user, roleName);
         EnsureSucceeded(roleResult);
 
         return user;
@@ -184,26 +184,26 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
     // Function summary: Handles the generate password reset token workflow for this module.
     public async Task<string> GeneratePasswordResetTokenAsync(string email)
     {
-        using var scope = Services.CreateScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var user = await userManager.FindByEmailAsync(email) ?? throw new InvalidOperationException($"User {email} was not found.");
+        using IServiceScope scope = Services.CreateScope();
+        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        ApplicationUser user = await userManager.FindByEmailAsync(email) ?? throw new InvalidOperationException($"User {email} was not found.");
         return await userManager.GeneratePasswordResetTokenAsync(user);
     }
 
     // Function summary: Handles the generate email confirmation token workflow for this module.
     public async Task<string> GenerateEmailConfirmationTokenAsync(string email)
     {
-        using var scope = Services.CreateScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var user = await userManager.FindByEmailAsync(email) ?? throw new InvalidOperationException($"User {email} was not found.");
+        using IServiceScope scope = Services.CreateScope();
+        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        ApplicationUser user = await userManager.FindByEmailAsync(email) ?? throw new InvalidOperationException($"User {email} was not found.");
         return await userManager.GenerateEmailConfirmationTokenAsync(user);
     }
 
     // Function summary: Initializes domain companies state required by the application.
     public async Task SeedDomainCompaniesAsync(params Company[] companies)
     {
-        using var scope = Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        using IServiceScope scope = Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
         context.Companies.AddRange(companies);
         await context.SaveChangesAsync();
     }
@@ -211,8 +211,8 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
     // Function summary: Initializes domain entities state required by the application.
     public async Task SeedDomainEntitiesAsync(params object[] entities)
     {
-        using var scope = Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        using IServiceScope scope = Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
         context.AddRange(entities);
         await context.SaveChangesAsync();
     }
@@ -220,8 +220,8 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
     // Function summary: Initializes search entities state required by the application.
     public async Task SeedSearchEntitiesAsync(params object[] entities)
     {
-        using var scope = Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<RVTSearchContext>();
+        using IServiceScope scope = Services.CreateScope();
+        RVTSearchContext context = scope.ServiceProvider.GetRequiredService<RVTSearchContext>();
         context.AddRange(entities);
         await context.SaveChangesAsync();
     }

@@ -31,13 +31,13 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        var leaseId = Guid.NewGuid();
-        var leaseUntil = utcNow.Add(lease);
-        await using var context = contextFactory.CreateDbContext();
-        await using var transaction = await context.Database.BeginTransactionAsync(
+        Guid leaseId = Guid.NewGuid();
+        DateTime leaseUntil = utcNow.Add(lease);
+        await using TContext context = contextFactory.CreateDbContext();
+        await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(
             AlertOutboxClaimSql.IsolationLevel,
             cancellationToken);
-        var claimed = await ExecuteClaimAsync(
+        ClaimedAlertDelivery? claimed = await ExecuteClaimAsync(
             context,
             transaction,
             utcNow,
@@ -56,9 +56,9 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        await using var context = contextFactory.CreateDbContext();
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        var affected = await context.AlertDeliveryOutbox
+        await using TContext context = contextFactory.CreateDbContext();
+        await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        int affected = await context.AlertDeliveryOutbox
             .Where(row => row.Id == id && row.Status == LeasedStatus && row.LeaseId == leaseId)
             .ExecuteUpdateAsync(
                 updates => updates
@@ -96,15 +96,15 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
     {
         ArgumentNullException.ThrowIfNull(error);
         cancellationToken.ThrowIfCancellationRequested();
-        var persistedError = error.Length <= MaximumErrorLength
+        string persistedError = error.Length <= MaximumErrorLength
             ? error
             : error[..MaximumErrorLength];
-        var status = deadLetter ? DeadLetterStatus : PendingStatus;
+        string status = deadLetter ? DeadLetterStatus : PendingStatus;
         DateTime? completedAt = deadLetter ? nextAttemptAt : null;
 
-        await using var context = contextFactory.CreateDbContext();
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        var affected = await context.AlertDeliveryOutbox
+        await using TContext context = contextFactory.CreateDbContext();
+        await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        int affected = await context.AlertDeliveryOutbox
             .Where(row => row.Id == id && row.Status == LeasedStatus && row.LeaseId == leaseId)
             .ExecuteUpdateAsync(
                 updates => updates
@@ -137,7 +137,7 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        await using var context = contextFactory.CreateDbContext();
+        await using TContext context = contextFactory.CreateDbContext();
         return await context.AlertDeliveryOutbox
             .Where(row => row.Status == CompletedStatus && row.CompletedAt < cutoff)
             .ExecuteDeleteAsync(cancellationToken);
@@ -151,7 +151,7 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
         DateTime leaseUntil,
         CancellationToken cancellationToken)
     {
-        await using var command = context.Database.GetDbConnection().CreateCommand();
+        await using DbCommand command = context.Database.GetDbConnection().CreateCommand();
         command.Transaction = transaction.GetDbTransaction();
         command.CommandText = AlertOutboxClaimSql.Statement;
         AddInstantParameter(command, "@now", utcNow);
@@ -159,7 +159,7 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
         AddInstantParameter(command, "@leaseUntil", leaseUntil);
 
         ClaimedAlertDelivery claimed;
-        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+        await using (DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken))
         {
             if (!await reader.ReadAsync(cancellationToken))
             {
@@ -169,7 +169,7 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
             claimed = Materialize(reader);
         }
 
-        var notificationId = await context.AlertOccurrences
+        Guid? notificationId = await context.AlertOccurrences
             .AsNoTracking()
             .Where(row => row.Id == claimed.OccurrenceId)
             .Select(row => row.NotificationId)
@@ -179,7 +179,7 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
 
     private static ClaimedAlertDelivery Materialize(DbDataReader reader)
     {
-        var names = PostgreSqlColumns.Instance;
+        ClaimColumns names = PostgreSqlColumns.Instance;
         return new ClaimedAlertDelivery(
             reader.GetGuid(reader.GetOrdinal(names.Id)),
             reader.GetGuid(reader.GetOrdinal(names.OccurrenceId)),
@@ -212,7 +212,7 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
 
     private static void AddParameter(DbCommand command, string name, DbType type, object value)
     {
-        var parameter = command.CreateParameter();
+        DbParameter parameter = command.CreateParameter();
         parameter.ParameterName = name;
         parameter.DbType = type;
         parameter.Value = value;
@@ -224,7 +224,7 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
         string name,
         DateTime value)
     {
-        var parameter = command.CreateParameter();
+        DbParameter parameter = command.CreateParameter();
         parameter.ParameterName = name;
         parameter.Value = value;
         if (parameter is not NpgsqlParameter postgreSqlParameter)
@@ -239,13 +239,13 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
 
     private static DateTime? ReadNullableDateTime(DbDataReader reader, string name)
     {
-        var ordinal = reader.GetOrdinal(name);
+        int ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
     }
 
     private static string? ReadNullableString(DbDataReader reader, string name)
     {
-        var ordinal = reader.GetOrdinal(name);
+        int ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
     }
 

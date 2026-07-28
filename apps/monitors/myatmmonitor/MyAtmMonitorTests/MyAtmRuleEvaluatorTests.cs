@@ -1,7 +1,6 @@
 using MyAtm.Api;
 using MyAtm.Api.Rules;
 using MyAtm.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -15,14 +14,14 @@ public sealed class MyAtmRuleEvaluatorTests
     [TestMethod]
     public void TransitionEvaluator_ActivatesAtLimitOnAndDeactivatesAtLimitOff()
     {
-        var monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
-        var rule = CreateRule(monitor, "Pm1", AlertType.Alert, AlwaysActive());
-        var sampleAtLimitOn = new DustDto(monitor.SerialId, 60, DateTime.UnixEpoch, 10, null, null, null, null, null, null);
-        var sampleAtLimitOff = new DustDto(monitor.SerialId, 60, DateTime.UnixEpoch.AddMinutes(1), 8, null, null, null, null, null, null);
-        var evaluator = new MyAtmAlertTransitionEvaluator();
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
+        RvtAlertRuleDto rule = CreateRule(monitor, "Pm1", AlertType.Alert, AlwaysActive());
+        DustDto sampleAtLimitOn = new(monitor.SerialId, 60, DateTime.UnixEpoch, 10, null, null, null, null, null, null);
+        DustDto sampleAtLimitOff = new(monitor.SerialId, 60, DateTime.UnixEpoch.AddMinutes(1), 8, null, null, null, null, null, null);
+        MyAtmAlertTransitionEvaluator evaluator = new();
 
-        var activation = evaluator.Evaluate(rule, isActive: false, sampleAtLimitOn, alertForFieldIsActive: false);
-        var deactivation = evaluator.Evaluate(rule, isActive: true, sampleAtLimitOff, alertForFieldIsActive: false);
+        MyAtmAlertTransition activation = evaluator.Evaluate(rule, isActive: false, sampleAtLimitOn, alertForFieldIsActive: false);
+        MyAtmAlertTransition deactivation = evaluator.Evaluate(rule, isActive: true, sampleAtLimitOff, alertForFieldIsActive: false);
 
         Assert.IsTrue(activation.IsActive);
         Assert.IsTrue(activation.Activated);
@@ -34,15 +33,15 @@ public sealed class MyAtmRuleEvaluatorTests
     [TestMethod]
     public void TransitionEvaluator_LeavesStateForMissingValueOrInactiveWindow()
     {
-        var monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
-        var inactiveRule = CreateRule(monitor, "Pm1", AlertType.Alert, new Rvt.Monitor.Common.Rules.AlertActivityTimeDto());
-        var activeRule = CreateRule(monitor, "Pm1", AlertType.Alert, AlwaysActive());
-        var missingValue = new DustDto(monitor.SerialId, 60, DateTime.UnixEpoch, null, null, null, null, null, null, null);
-        var outsideWindow = new DustDto(monitor.SerialId, 60, DateTime.UnixEpoch, 11, null, null, null, null, null, null);
-        var evaluator = new MyAtmAlertTransitionEvaluator();
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
+        RvtAlertRuleDto inactiveRule = CreateRule(monitor, "Pm1", AlertType.Alert, new Rvt.Monitor.Common.Rules.AlertActivityTimeDto());
+        RvtAlertRuleDto activeRule = CreateRule(monitor, "Pm1", AlertType.Alert, AlwaysActive());
+        DustDto missingValue = new(monitor.SerialId, 60, DateTime.UnixEpoch, null, null, null, null, null, null, null);
+        DustDto outsideWindow = new(monitor.SerialId, 60, DateTime.UnixEpoch, 11, null, null, null, null, null, null);
+        MyAtmAlertTransitionEvaluator evaluator = new();
 
-        var missing = evaluator.Evaluate(activeRule, isActive: true, missingValue, alertForFieldIsActive: false);
-        var inactive = evaluator.Evaluate(inactiveRule, isActive: false, outsideWindow, alertForFieldIsActive: false);
+        MyAtmAlertTransition missing = evaluator.Evaluate(activeRule, isActive: true, missingValue, alertForFieldIsActive: false);
+        MyAtmAlertTransition inactive = evaluator.Evaluate(inactiveRule, isActive: false, outsideWindow, alertForFieldIsActive: false);
 
         Assert.IsTrue(missing.IsActive);
         Assert.IsFalse(missing.Activated);
@@ -53,16 +52,16 @@ public sealed class MyAtmRuleEvaluatorTests
     [TestMethod]
     public void TransitionEvaluator_DeactivatesDeletedRuleAndGivesAlertPrecedenceOverCaution()
     {
-        var monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
-        var sample = new DustDto(monitor.SerialId, 60, DateTime.UnixEpoch, 11, null, null, null, null, null, null);
-        var evaluator = new MyAtmAlertTransitionEvaluator();
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
+        DustDto sample = new(monitor.SerialId, 60, DateTime.UnixEpoch, 11, null, null, null, null, null, null);
+        MyAtmAlertTransitionEvaluator evaluator = new();
 
-        var deleted = evaluator.Evaluate(
+        MyAtmAlertTransition deleted = evaluator.Evaluate(
             CreateRule(monitor, "Pm1", AlertType.Alert, AlwaysActive(), isDeleted: true),
             isActive: true,
             sample,
             alertForFieldIsActive: false);
-        var caution = evaluator.Evaluate(
+        MyAtmAlertTransition caution = evaluator.Evaluate(
             CreateRule(monitor, "Pm1", AlertType.Caution, AlwaysActive()),
             isActive: false,
             sample,
@@ -77,9 +76,9 @@ public sealed class MyAtmRuleEvaluatorTests
     [TestMethod]
     public void Evaluate_RepeatedOverLimitSamplesCreatesOneActivationAndProposal()
     {
-        var monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
-        var ruleId = Guid.NewGuid();
-        var rule = new RvtAlertRuleDto(
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
+        Guid ruleId = Guid.NewGuid();
+        RvtAlertRuleDto rule = new(
             ruleId,
             monitor.SerialId,
             "Pm1",
@@ -92,16 +91,16 @@ public sealed class MyAtmRuleEvaluatorTests
             isDeleted: false,
             created: DateTime.UnixEpoch,
             accessed: null);
-        var samples = new List<DustDto>
-        {
+        List<DustDto> samples =
+        [
             new(monitor.SerialId, 60, DateTime.UnixEpoch.AddMinutes(1), 11, null, null, null, null, null, null),
             new(monitor.SerialId, 60, DateTime.UnixEpoch.AddMinutes(2), 12, null, null, null, null, null, null)
-        };
+        ];
 
-        var result = new MyAtmRuleEvaluator().Evaluate(
+        MyAtmRuleEvaluation result = new MyAtmRuleEvaluator().Evaluate(
             monitor,
             Period.Minutes1,
-            new[] { rule },
+            [rule],
             samples,
             DateTime.UnixEpoch.AddMinutes(3));
 
@@ -117,19 +116,19 @@ public sealed class MyAtmRuleEvaluatorTests
     [TestMethod]
     public void Evaluate_AlertSuppressesSameFieldCaution()
     {
-        var monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
-        var activity = AlwaysActive();
-        var alertRule = CreateRule(monitor, "Pm1", AlertType.Alert, activity);
-        var cautionRule = CreateRule(monitor, "Pm1", AlertType.Caution, activity);
-        var samples = new[]
-        {
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
+        Rvt.Monitor.Common.Rules.AlertActivityTimeDto activity = AlwaysActive();
+        RvtAlertRuleDto alertRule = CreateRule(monitor, "Pm1", AlertType.Alert, activity);
+        RvtAlertRuleDto cautionRule = CreateRule(monitor, "Pm1", AlertType.Caution, activity);
+        DustDto[] samples =
+        [
             new DustDto(monitor.SerialId, 60, DateTime.UnixEpoch.AddMinutes(1), 11, null, null, null, null, null, null)
-        };
+        ];
 
-        var result = new MyAtmRuleEvaluator().Evaluate(
+        MyAtmRuleEvaluation result = new MyAtmRuleEvaluator().Evaluate(
             monitor,
             Period.Minutes1,
-            new[] { alertRule, cautionRule },
+            [alertRule, cautionRule],
             samples,
             DateTime.UnixEpoch.AddMinutes(2));
 
@@ -142,13 +141,13 @@ public sealed class MyAtmRuleEvaluatorTests
     [TestMethod]
     public void AggregateOccurrence_UsesTheSharedPlannerWithoutChangingItsDeterministicCorrelationKey()
     {
-        var monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
-        var rule = CreateRule(monitor, "Pm2_5", AlertType.Alert, AlwaysActive());
-        var triggeredAt = new DateTime(2026, 7, 15, 12, 30, 0, DateTimeKind.Utc);
-        var commitTime = triggeredAt.AddSeconds(5);
-        var processor = new MyAtmRuleProcessor(new StubRuleQueries(), "https://portal.example.test/");
+        DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
+        RvtAlertRuleDto rule = CreateRule(monitor, "Pm2_5", AlertType.Alert, AlwaysActive());
+        DateTime triggeredAt = new(2026, 7, 15, 12, 30, 0, DateTimeKind.Utc);
+        DateTime commitTime = triggeredAt.AddSeconds(5);
+        MyAtmRuleProcessor processor = new(new StubRuleQueries(), "https://portal.example.test/");
 
-        var commit = processor.CreateAggregateCommit(
+        MyAtmAlertCommit commit = processor.CreateAggregateCommit(
             monitor,
             rule,
             level: 11,
@@ -156,8 +155,8 @@ public sealed class MyAtmRuleEvaluatorTests
             alertForFieldIsActive: false,
             commitTime);
 
-        var occurrence = commit.Occurrences.Single();
-        var expectedKey = $"{monitor.Id:N}:{rule.RuleId:N}:{triggeredAt:O}:{AlertType.Alert}";
+        MyAtmAlertOccurrenceInput occurrence = commit.Occurrences.Single();
+        string expectedKey = $"{monitor.Id:N}:{rule.RuleId:N}:{triggeredAt:O}:{AlertType.Alert}";
         Assert.AreEqual(expectedKey, occurrence.Key);
         Assert.IsNotNull(occurrence.DeliveryPlan);
         Assert.AreEqual(

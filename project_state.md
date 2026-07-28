@@ -10,6 +10,9 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
+- `main` additionally carries the repo-wide explicit-local-types style pass
+  (PR #17, merge `c6e77e3a`, 593 files) — local variables use explicit types
+  everywhere; keep new code consistent with it.
 - `main` carries the critical-findings remediation (PR #15, merge `6be9c90`):
   reporting consolidated onto `apps/monitors/reportingmonitor`, alert
   delivery/heatmap/contact-skipping fixes, AirQ and Omnidots import chains

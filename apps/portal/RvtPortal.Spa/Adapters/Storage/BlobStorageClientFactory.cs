@@ -22,14 +22,14 @@ public sealed class BlobStorageClientFactory : IBlobStorageClientFactory
 
     public BlobContainerClient? CreateContainerClient(string containerName)
     {
-        var connectionString = configuration["BlobStorage:blobConnectionString"];
+        string? connectionString = configuration["BlobStorage:blobConnectionString"];
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
             return new BlobContainerClient(connectionString, containerName);
         }
 
-        var serviceUri = configuration["BlobStorage:blobServiceUri"];
-        return Uri.TryCreate(serviceUri, UriKind.Absolute, out var uri)
+        string? serviceUri = configuration["BlobStorage:blobServiceUri"];
+        return Uri.TryCreate(serviceUri, UriKind.Absolute, out Uri? uri)
             ? new BlobServiceClient(uri, new DefaultAzureCredential()).GetBlobContainerClient(containerName)
             : null;
     }

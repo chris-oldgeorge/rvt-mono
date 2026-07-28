@@ -17,7 +17,7 @@ internal static class SvantekStorageComposition
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var configuredProvider = new[]
+        string configuredProvider = new[]
         {
             configuration["BlobStorage:Provider"],
             configuration["RVT:BLOB_PROVIDER"],

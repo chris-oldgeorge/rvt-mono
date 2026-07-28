@@ -16,8 +16,8 @@ internal sealed record MonitorOpenTelemetryOptions(
 
     public static MonitorOpenTelemetryOptions Bind(IConfiguration configuration, string monitorName)
     {
-        var enabled = configuration.GetValue<bool>("OpenTelemetry:Enabled");
-        var endpointText = FirstConfigured(
+        bool enabled = configuration.GetValue<bool>("OpenTelemetry:Enabled");
+        string endpointText = FirstConfigured(
             configuration["OpenTelemetry:OtlpEndpoint"],
             configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
 
@@ -32,7 +32,7 @@ internal sealed record MonitorOpenTelemetryOptions(
 
     private static Uri ResolveEndpoint(string? endpointText)
     {
-        return Uri.TryCreate(endpointText, UriKind.Absolute, out var endpoint)
+        return Uri.TryCreate(endpointText, UriKind.Absolute, out Uri? endpoint)
             ? endpoint
             : DefaultOtlpEndpoint;
     }
@@ -46,7 +46,7 @@ internal sealed record MonitorOpenTelemetryOptions(
 
     private static LogLevel ResolveLogLevel(string? logLevel)
     {
-        return Enum.TryParse<LogLevel>(logLevel, ignoreCase: true, out var parsed)
+        return Enum.TryParse<LogLevel>(logLevel, ignoreCase: true, out LogLevel parsed)
             ? parsed
             : LogLevel.Information;
     }

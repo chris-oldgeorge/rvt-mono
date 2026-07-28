@@ -37,7 +37,7 @@ namespace OmnidotsAdapterTests
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask("blah"));
 
-            var gateway = new OmnidotsHttpGateway(httpClient.Object, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
+            OmnidotsHttpGateway gateway = new(httpClient.Object, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
                 await gateway.AuthenticateAsync();
@@ -68,7 +68,7 @@ namespace OmnidotsAdapterTests
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.ErrorJson()));
 
-            var gateway = new OmnidotsHttpGateway(httpClient.Object, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
+            OmnidotsHttpGateway gateway = new(httpClient.Object, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
                 await gateway.AuthenticateAsync();
@@ -396,7 +396,7 @@ namespace OmnidotsAdapterTests
                     url.StartsWith(endpoint, StringComparison.Ordinal) &&
                     url.Contains("measuring_point_id=2", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
-            var recordingException = new InvalidOperationException("database-password=secret-value");
+            InvalidOperationException recordingException = new("database-password=secret-value");
             dbClient.Setup(c => c.HandleException($"{operation} serialId=1", It.IsAny<AdapterException>()))
                 .Throws(recordingException);
 
@@ -433,7 +433,7 @@ namespace OmnidotsAdapterTests
                     url.StartsWith("/api/v1/get_traces_list", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.StringTask("invalid-json"))
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"traces\":[]}"));
-            var recordingException = new InvalidOperationException("database-password=secret-value");
+            InvalidOperationException recordingException = new("database-password=secret-value");
             dbClient.Setup(c => c.HandleException("Failed to read traces for serialId=23423", It.IsAny<AdapterException>()))
                 .Throws(recordingException);
 

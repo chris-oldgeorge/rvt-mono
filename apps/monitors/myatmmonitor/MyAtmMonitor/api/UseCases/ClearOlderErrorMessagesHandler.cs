@@ -16,7 +16,7 @@ namespace MyAtm.Api.UseCases
 
         public void Run()
         {
-            var cutOff = DateTime.UtcNow.AddDays(-7);
+            DateTime cutOff = DateTime.UtcNow.AddDays(-7);
             operationalCommands.ClearErrorMessages(cutOff);
         }
     }

@@ -29,15 +29,15 @@ public static class SensitiveLogRedactor
             return "(empty)";
         }
 
-        var queryIndex = url.IndexOf('?');
+        int queryIndex = url.IndexOf('?');
         if (queryIndex < 0)
         {
             return url;
         }
 
-        var path = url[..queryIndex];
-        var query = url[(queryIndex + 1)..];
-        var redactedQuery = string.Join("&", query.Split('&').Select(RedactQueryPart));
+        string path = url[..queryIndex];
+        string query = url[(queryIndex + 1)..];
+        string redactedQuery = string.Join("&", query.Split('&').Select(RedactQueryPart));
         return path + "?" + redactedQuery;
     }
 
@@ -50,7 +50,7 @@ public static class SensitiveLogRedactor
 
         try
         {
-            var node = JsonNode.Parse(payload);
+            JsonNode? node = JsonNode.Parse(payload);
             if (node is null)
             {
                 return RedactSensitiveAssignments(payload);
@@ -67,13 +67,13 @@ public static class SensitiveLogRedactor
 
     private static string RedactQueryPart(string part)
     {
-        var separatorIndex = part.IndexOf('=');
+        int separatorIndex = part.IndexOf('=');
         if (separatorIndex < 0)
         {
             return IsSensitiveName(part) ? part + "=****" : part;
         }
 
-        var name = part[..separatorIndex];
+        string name = part[..separatorIndex];
         return IsSensitiveName(name)
             ? name + "=" + Redact(part[(separatorIndex + 1)..])
             : part;
@@ -83,7 +83,7 @@ public static class SensitiveLogRedactor
     {
         if (node is JsonObject objectNode)
         {
-            foreach (var property in objectNode.ToList())
+            foreach (KeyValuePair<string, JsonNode?> property in objectNode.ToList())
             {
                 if (IsSensitiveName(property.Key))
                 {
@@ -102,7 +102,7 @@ public static class SensitiveLogRedactor
 
         if (node is JsonArray arrayNode)
         {
-            foreach (var item in arrayNode)
+            foreach (JsonNode? item in arrayNode)
             {
                 if (item is not null)
                 {
@@ -114,7 +114,7 @@ public static class SensitiveLogRedactor
 
     private static string GetPropertyValue(JsonNode? value)
     {
-        if (value is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var text))
+        if (value is JsonValue jsonValue && jsonValue.TryGetValue<string>(out string? text))
         {
             return text;
         }
@@ -140,7 +140,7 @@ public static class SensitiveLogRedactor
 
     private static bool IsSensitiveName(string name)
     {
-        var normalizedName = name.Replace("_", string.Empty, StringComparison.Ordinal)
+        string normalizedName = name.Replace("_", string.Empty, StringComparison.Ordinal)
             .Replace("-", string.Empty, StringComparison.Ordinal)
             .ToLowerInvariant();
 

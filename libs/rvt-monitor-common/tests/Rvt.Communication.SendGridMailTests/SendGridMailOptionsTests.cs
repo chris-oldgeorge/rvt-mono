@@ -9,7 +9,7 @@ public sealed class SendGridMailOptionsTests
     [TestMethod]
     public void FromConfiguration_UsesColonKeysForAllSendGridSettings()
     {
-        var options = Load(
+        SendGridMailOptions options = Load(
             ("RVT:EMAIL_ENABLED", "false"),
             ("RVT:SENDGRID_API_KEY", "api-key"),
             ("RVT:EMAIL_ALERT_FROM_EMAIL", "alerts@example.test"),
@@ -24,7 +24,7 @@ public sealed class SendGridMailOptionsTests
     [TestMethod]
     public void FromConfiguration_FallsBackToLiteralDoubleUnderscoreKeys()
     {
-        var options = Load(
+        SendGridMailOptions options = Load(
             ("RVT__EMAIL_ENABLED", "false"),
             ("RVT__SENDGRID_API_KEY", "api-key"),
             ("RVT__EMAIL_ALERT_FROM_EMAIL", "alerts@example.test"),
@@ -39,7 +39,7 @@ public sealed class SendGridMailOptionsTests
     [TestMethod]
     public void FromConfiguration_PrefersColonKeysOverLiteralDoubleUnderscoreKeys()
     {
-        var options = Load(
+        SendGridMailOptions options = Load(
             ("RVT:EMAIL_ENABLED", "true"),
             ("RVT__EMAIL_ENABLED", "false"),
             ("RVT:SENDGRID_API_KEY", "colon-key"),
@@ -58,7 +58,7 @@ public sealed class SendGridMailOptionsTests
     [TestMethod]
     public void Validate_EnabledEmailReportsRequiredKeysWithoutConfiguredValues()
     {
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             new SendGridMailOptions
             {
                 FromEmail = string.Empty,

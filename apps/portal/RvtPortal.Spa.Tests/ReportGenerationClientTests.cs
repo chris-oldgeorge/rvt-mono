@@ -10,8 +10,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
-using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Adapters.Reporting;
+using RvtPortal.Spa.Api;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -21,12 +21,12 @@ public sealed class ReportGenerationClientTests
     // Function summary: Verifies malformed report-service configuration becomes a typed unavailable result without exposing credentials.
     public async Task RequestGenerationAsync_WithInvalidBaseUrl_ThrowsTypedConfigurationFailure()
     {
-        var client = new ReportingServiceReportGenerationClient(
+        ReportingServiceReportGenerationClient client = new(
             new HttpClient(new CapturingHandler(new { })),
             Options.Create(new ReportGenerationServiceOptions { BaseUrl = "not a url", InternalApiKey = "report-secret" }),
             TimeProvider.System);
 
-        var exception = await Assert.ThrowsAsync<ReportGenerationServiceException>(() => client.RequestGenerationAsync(
+        ReportGenerationServiceException exception = await Assert.ThrowsAsync<ReportGenerationServiceException>(() => client.RequestGenerationAsync(
             Guid.NewGuid(), new ReportGenerationRequest { SendToRecipients = true }, CancellationToken.None));
 
         Assert.Equal(StatusCodes.Status503ServiceUnavailable, exception.StatusCode);
@@ -37,12 +37,12 @@ public sealed class ReportGenerationClientTests
     // Function summary: Verifies a downstream timeout becomes a typed gateway-timeout failure when the caller did not cancel.
     public async Task RequestGenerationAsync_WhenDownstreamTimesOut_ThrowsGatewayTimeout()
     {
-        var client = new ReportingServiceReportGenerationClient(
+        ReportingServiceReportGenerationClient client = new(
             new HttpClient(new ThrowingHandler(new TaskCanceledException("downstream timeout"))),
             Options.Create(new ReportGenerationServiceOptions { BaseUrl = "https://reports.internal" }),
             TimeProvider.System);
 
-        var exception = await Assert.ThrowsAsync<ReportGenerationServiceException>(() => client.RequestGenerationAsync(
+        ReportGenerationServiceException exception = await Assert.ThrowsAsync<ReportGenerationServiceException>(() => client.RequestGenerationAsync(
             Guid.NewGuid(), new ReportGenerationRequest { SendToRecipients = true }, CancellationToken.None));
 
         Assert.Equal(StatusCodes.Status504GatewayTimeout, exception.StatusCode);
@@ -54,14 +54,14 @@ public sealed class ReportGenerationClientTests
         const string baseUrl = "https://reports.internal";
         const string internalApiKey = "test-secret";
         const int reportCount = 1;
-        var reportDate = new DateTime(2026, 6, 24);
+        DateTime reportDate = new(2026, 6, 24);
         // triggerUtc is the report date serialized at UTC midnight in ISO-8601.
-        var expectedTrigger = new DateTimeOffset(reportDate, TimeSpan.Zero)
+        string expectedTrigger = new DateTimeOffset(reportDate, TimeSpan.Zero)
             .ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
 
-        var reportRuleId = Guid.NewGuid();
-        var generatedReportId = Guid.NewGuid();
-        using var handler = new CapturingHandler(new
+        Guid reportRuleId = Guid.NewGuid();
+        Guid generatedReportId = Guid.NewGuid();
+        using CapturingHandler handler = new(new
         {
             count = reportCount,
             reports = new[]
@@ -76,8 +76,8 @@ public sealed class ReportGenerationClientTests
                 }
             }
         });
-        var httpClient = new HttpClient(handler);
-        var client = new ReportingServiceReportGenerationClient(
+        HttpClient httpClient = new(handler);
+        ReportingServiceReportGenerationClient client = new(
             httpClient,
             Options.Create(new ReportGenerationServiceOptions
             {
@@ -86,7 +86,7 @@ public sealed class ReportGenerationClientTests
             }),
             TimeProvider.System);
 
-        var response = await client.RequestGenerationAsync(reportRuleId, new ReportGenerationRequest
+        ReportGenerationRequestResponse? response = await client.RequestGenerationAsync(reportRuleId, new ReportGenerationRequest
         {
             ReportDate = reportDate,
             SendToRecipients = true
@@ -101,7 +101,7 @@ public sealed class ReportGenerationClientTests
         Assert.Equal("Completed", response.Status);
         Assert.Contains($"{reportCount} report", response.Message, StringComparison.OrdinalIgnoreCase);
 
-        var payload = JsonSerializer.Deserialize<JsonElement>(handler.RequestBody);
+        JsonElement payload = JsonSerializer.Deserialize<JsonElement>(handler.RequestBody);
         Assert.Equal(expectedTrigger, payload.GetProperty("triggerUtc").GetString());
     }
 
@@ -111,9 +111,9 @@ public sealed class ReportGenerationClientTests
     {
         // The service omits the count, so the client derives it from the returned report rows.
         const int reportRowCount = 1;
-        var reportRuleId = Guid.NewGuid();
-        var generatedReportId = Guid.NewGuid();
-        using var handler = new CapturingHandler(new
+        Guid reportRuleId = Guid.NewGuid();
+        Guid generatedReportId = Guid.NewGuid();
+        using CapturingHandler handler = new(new
         {
             reports = new[]
             {
@@ -123,8 +123,8 @@ public sealed class ReportGenerationClientTests
                 }
             }
         });
-        var httpClient = new HttpClient(handler);
-        var client = new ReportingServiceReportGenerationClient(
+        HttpClient httpClient = new(handler);
+        ReportingServiceReportGenerationClient client = new(
             httpClient,
             Options.Create(new ReportGenerationServiceOptions
             {
@@ -132,7 +132,7 @@ public sealed class ReportGenerationClientTests
             }),
             TimeProvider.System);
 
-        var response = await client.RequestGenerationAsync(reportRuleId, new ReportGenerationRequest
+        ReportGenerationRequestResponse? response = await client.RequestGenerationAsync(reportRuleId, new ReportGenerationRequest
         {
             SendToRecipients = true
         }, CancellationToken.None);

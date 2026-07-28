@@ -15,8 +15,8 @@ public sealed class ReportGraphTests
     [Fact]
     public void BuildReportGraphs_GroupsNoiseDailyAveragesAcrossMonitors()
     {
-        var measuredAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var site = new SiteReportData
+        DateTimeOffset measuredAt = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        SiteReportData site = new()
         {
             Monitors =
             [
@@ -37,9 +37,9 @@ public sealed class ReportGraphTests
             ]
         };
 
-        var graphs = QuestPdfReportRenderer.BuildReportGraphs(site);
+        IReadOnlyList<ReportGraph> graphs = QuestPdfReportRenderer.BuildReportGraphs(site);
 
-        var graph = Assert.Single(graphs, item => item.Title == "Noise Daily Averages");
+        ReportGraph graph = Assert.Single(graphs, item => item.Title == "Noise Daily Averages");
         Assert.Equal("dB", graph.Unit);
         Assert.Equal(2, graph.Series.Count);
         Assert.Contains(graph.Series, series => series.Name == "Noise 1" && series.Points.Single().Value == 54m);
@@ -49,8 +49,8 @@ public sealed class ReportGraphTests
     [Fact]
     public void BuildReportGraphs_AddsMatchingAlertLimitLines()
     {
-        var measuredAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var monitor = new MonitorReportData
+        DateTimeOffset measuredAt = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        MonitorReportData monitor = new()
         {
             SerialId = "N1",
             TypeOfMonitor = MonitorType.Noise,
@@ -62,9 +62,9 @@ public sealed class ReportGraphTests
             ]
         };
 
-        var graph = Assert.Single(QuestPdfReportRenderer.BuildReportGraphs(new SiteReportData { Monitors = [monitor] }));
+        ReportGraph graph = Assert.Single(QuestPdfReportRenderer.BuildReportGraphs(new SiteReportData { Monitors = [monitor] }));
 
-        var limit = Assert.Single(graph.Limits);
+        ReportGraphLimit limit = Assert.Single(graph.Limits);
         Assert.Equal(70m, limit.Value);
         Assert.Equal("Alert 70 dB", limit.Label);
     }
@@ -72,15 +72,15 @@ public sealed class ReportGraphTests
     [Fact]
     public void BuildGraphSvg_UsesInvariantDecimalCoordinates_WhenCurrentCultureUsesCommaDecimalSeparator()
     {
-        var originalCulture = CultureInfo.CurrentCulture;
-        var originalUiCulture = CultureInfo.CurrentUICulture;
+        CultureInfo originalCulture = CultureInfo.CurrentCulture;
+        CultureInfo originalUiCulture = CultureInfo.CurrentUICulture;
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("el-GR");
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("el-GR");
 
-            var measuredAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-            var graph = new ReportGraph(
+            DateTimeOffset measuredAt = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+            ReportGraph graph = new(
                 "Noise Hourly Averages",
                 MonitorType.Noise,
                 "Hourly",
@@ -95,8 +95,8 @@ public sealed class ReportGraphTests
                 ],
                 []);
 
-            var svg = InvokeBuildGraphSvg(graph);
-            var points = Regex.Match(svg, "points=\"([^\"]+)\"").Groups[1].Value;
+            string svg = InvokeBuildGraphSvg(graph);
+            string points = Regex.Match(svg, "points=\"([^\"]+)\"").Groups[1].Value;
 
             Assert.DoesNotMatch(new Regex("""points="[^"]*\d+,\d+,\d+"""), svg);
             Assert.Contains(".", points);
@@ -110,7 +110,7 @@ public sealed class ReportGraphTests
 
     private static string InvokeBuildGraphSvg(ReportGraph graph)
     {
-        var method = typeof(QuestPdfReportRenderer).GetMethod("BuildGraphSvg", BindingFlags.Static | BindingFlags.NonPublic);
+        MethodInfo? method = typeof(QuestPdfReportRenderer).GetMethod("BuildGraphSvg", BindingFlags.Static | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return Assert.IsType<string>(method.Invoke(null, [graph]));
     }

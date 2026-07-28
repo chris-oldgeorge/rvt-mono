@@ -5,6 +5,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
+using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Common;
 
@@ -37,14 +38,14 @@ public sealed class UpdateInstallerDeploymentLocationCommandHandler
         UpdateInstallerDeploymentLocationCommand request,
         CancellationToken cancellationToken)
     {
-        var result = new InstallerDeploymentCommandResult();
+        InstallerDeploymentCommandResult result = new();
         Validate(request.Request, result.Errors);
         if (result.Errors.Count > 0)
         {
             return result;
         }
 
-        var deployment = await domainContext.Deployments
+        Deployment? deployment = await domainContext.Deployments
             .Include(item => item.Monitor)
             .SingleOrDefaultAsync(item => item.Id == request.DeploymentId && item.EndDate == null, cancellationToken);
         if (deployment == null)
@@ -85,7 +86,7 @@ public sealed class UpdateInstallerDeploymentLocationCommandHandler
 
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }

@@ -1,4 +1,5 @@
 using Amazon;
+using Amazon.S3;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -12,10 +13,10 @@ public sealed class S3StorageRegistrationTests
     [TestMethod]
     public void AddRvtS3Storage_WithFactory_RegistersExactlyOneNamedClient()
     {
-        using var provider = CreateProvider(services =>
+        using ServiceProvider provider = CreateProvider(services =>
             services.AddRvtS3Storage("recordings", _ => ValidOptions()));
 
-        var registrations = provider.GetServices<ObjectStorageClientRegistration>().ToArray();
+        ObjectStorageClientRegistration[] registrations = [.. provider.GetServices<ObjectStorageClientRegistration>()];
 
         Assert.HasCount(1, registrations);
         Assert.AreEqual("recordings", registrations[0].ResourceName);
@@ -25,13 +26,13 @@ public sealed class S3StorageRegistrationTests
     [TestMethod]
     public void AddRvtS3Storage_FactoryReturnsTheKeyedSingleton()
     {
-        using var provider = CreateProvider(services =>
+        using ServiceProvider provider = CreateProvider(services =>
             services.AddRvtS3Storage("recordings", ValidOptions()));
 
-        var factoryClient = provider
+        IObjectStorageClient factoryClient = provider
             .GetRequiredService<IObjectStorageClientFactory>()
             .GetRequiredClient("recordings");
-        var keyedClient =
+        S3ObjectStorageClient keyedClient =
             provider.GetRequiredKeyedService<S3ObjectStorageClient>("recordings");
 
         Assert.AreSame(keyedClient, factoryClient);
@@ -43,10 +44,10 @@ public sealed class S3StorageRegistrationTests
     [TestMethod]
     public async Task AddRvtS3Storage_HostStartupResolvesAndValidatesNamedClient()
     {
-        using var provider = CreateProvider(services =>
+        using ServiceProvider provider = CreateProvider(services =>
             services.AddRvtS3Storage("recordings", ValidOptions()));
 
-        var hostedService = provider.GetServices<IHostedService>().Single();
+        IHostedService hostedService = provider.GetServices<IHostedService>().Single();
 
         await hostedService.StartAsync(CancellationToken.None);
         Assert.IsInstanceOfType<S3ObjectStorageClient>(
@@ -56,10 +57,10 @@ public sealed class S3StorageRegistrationTests
     [TestMethod]
     public async Task AddRvtS3Storage_WhenBucketIsMissing_StartupValidationFailsSafely()
     {
-        using var provider = CreateProvider(services =>
+        using ServiceProvider provider = CreateProvider(services =>
             services.AddRvtS3Storage("recordings", new S3StorageOptions()));
 
-        var exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+        InvalidOperationException exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
             provider.GetServices<IHostedService>().Single().StartAsync(CancellationToken.None));
 
         Assert.Contains("RVT__S3_BUCKET", exception.Message);
@@ -69,12 +70,12 @@ public sealed class S3StorageRegistrationTests
     public void AddRvtS3Storage_WhenPrefixContainsTraversal_ThrowsSafely()
     {
         const string configuredValue = "../configured-prefix";
-        using var provider = CreateProvider(services =>
+        using ServiceProvider provider = CreateProvider(services =>
             services.AddRvtS3Storage(
                 "recordings",
                 ValidOptions() with { Prefix = configuredValue }));
 
-        var exception = Assert.ThrowsExactly<ArgumentException>(() =>
+        ArgumentException exception = Assert.ThrowsExactly<ArgumentException>(() =>
             provider.GetRequiredService<IObjectStorageClientFactory>());
 
         Assert.DoesNotContain(configuredValue, exception.Message);
@@ -84,12 +85,12 @@ public sealed class S3StorageRegistrationTests
     public void AddRvtS3Storage_WhenServiceUrlIsNotAbsolute_ThrowsSafely()
     {
         const string configuredValue = "configured-relative-service-url";
-        using var provider = CreateProvider(services =>
+        using ServiceProvider provider = CreateProvider(services =>
             services.AddRvtS3Storage(
                 "recordings",
                 ValidOptions() with { ServiceUrl = configuredValue }));
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
             provider.GetRequiredService<IObjectStorageClientFactory>());
 
         Assert.Contains("RVT__S3_SERVICE_URL", exception.Message);
@@ -99,7 +100,7 @@ public sealed class S3StorageRegistrationTests
     [TestMethod]
     public void CreateClientConfiguration_WithRegionOnly_UsesRegionEndpoint()
     {
-        var config = S3ObjectStorageClient.CreateClientConfiguration(
+        AmazonS3Config config = S3ObjectStorageClient.CreateClientConfiguration(
             ValidOptions() with
             {
                 Region = " eu-west-1 ",
@@ -114,7 +115,7 @@ public sealed class S3StorageRegistrationTests
     [TestMethod]
     public void CreateClientConfiguration_WithCompatibleService_UsesServiceUrlAndAuthenticationRegion()
     {
-        var config = S3ObjectStorageClient.CreateClientConfiguration(
+        AmazonS3Config config = S3ObjectStorageClient.CreateClientConfiguration(
             ValidOptions() with
             {
                 Region = " us-east-1 ",
@@ -131,7 +132,7 @@ public sealed class S3StorageRegistrationTests
     [TestMethod]
     public void CreateClientConfiguration_WithNeitherRegionNorServiceUrl_LeavesEndpointUnset()
     {
-        var config = S3ObjectStorageClient.CreateClientConfiguration(
+        AmazonS3Config config = S3ObjectStorageClient.CreateClientConfiguration(
             ValidOptions() with { Region = string.Empty });
 
         Assert.IsNull(config.RegionEndpoint);
@@ -145,9 +146,9 @@ public sealed class S3StorageRegistrationTests
     public void AddRvtS3Storage_WhenResourceNameIsBlank_ThrowsAtRegistration(
         string resourceName)
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
 
-        var exception = Assert.ThrowsExactly<ArgumentException>(() =>
+        ArgumentException exception = Assert.ThrowsExactly<ArgumentException>(() =>
             services.AddRvtS3Storage(resourceName, ValidOptions()));
 
         Assert.AreEqual("resourceName", exception.ParamName);
@@ -163,7 +164,7 @@ public sealed class S3StorageRegistrationTests
     private static ServiceProvider CreateProvider(
         Action<IServiceCollection> configureServices)
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         configureServices(services);
         return services.BuildServiceProvider();

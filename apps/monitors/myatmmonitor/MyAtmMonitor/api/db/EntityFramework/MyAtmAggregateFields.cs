@@ -15,7 +15,7 @@ public static class MyAtmAggregateFields
 
     public static MonitorAggregateField<MyAtmDustLevelEntity> Resolve(string fieldName)
     {
-        return Fields.TryGetValue(fieldName, out var field)
+        return Fields.TryGetValue(fieldName, out MonitorAggregateField<MyAtmDustLevelEntity>? field)
             ? field
             : throw new NotSupportedException($"Unsupported MyAtm aggregate field '{fieldName}'.");
     }

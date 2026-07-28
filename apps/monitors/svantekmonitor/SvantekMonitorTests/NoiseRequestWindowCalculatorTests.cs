@@ -13,9 +13,9 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_CapsFirstImportAtSevenDaysAndEmitsContiguousBoundedWindows()
     {
-        var calculator = CreateCalculator();
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: UtcNow.AddDays(-30),
             watermark: null,
             lastStatusTimestamp: null,
@@ -27,7 +27,7 @@ public sealed class NoiseRequestWindowCalculatorTests
         Assert.IsTrue(windows.All(window => window.End - window.Start <= TimeSpan.FromHours(12)));
         Assert.IsTrue(windows.All(window =>
             window.Start.Kind == DateTimeKind.Utc && window.End.Kind == DateTimeKind.Utc));
-        for (var index = 1; index < windows.Count; index++)
+        for (int index = 1; index < windows.Count; index++)
         {
             Assert.AreEqual(windows[index - 1].End, windows[index].Start);
         }
@@ -36,10 +36,10 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_StartsAtWatermarkMinusOverlapWhenAfterDeployment()
     {
-        var calculator = CreateCalculator();
-        var watermark = UtcNow.AddHours(-2);
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+        DateTime watermark = UtcNow.AddHours(-2);
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: UtcNow.AddDays(-1),
             watermark: watermark,
             lastStatusTimestamp: null,
@@ -51,10 +51,10 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_DoesNotOverlapBeforeDeployment()
     {
-        var calculator = CreateCalculator();
-        var deployment = UtcNow.AddMinutes(-2);
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+        DateTime deployment = UtcNow.AddMinutes(-2);
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: deployment,
             watermark: UtcNow,
             lastStatusTimestamp: null,
@@ -67,9 +67,9 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_EndsOneHourAfterLastStatusTimestamp()
     {
-        var calculator = CreateCalculator();
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: UtcNow.AddHours(-4),
             watermark: UtcNow.AddHours(-3),
             lastStatusTimestamp: UtcNow.AddHours(-2),
@@ -81,9 +81,9 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_ClampsFutureStatusEndToInjectedUtcNow()
     {
-        var calculator = CreateCalculator();
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: UtcNow.AddHours(-2),
             watermark: UtcNow.AddHours(-1),
             lastStatusTimestamp: UtcNow.AddHours(2),
@@ -95,9 +95,9 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_ReturnsEmptyForFutureInterval()
     {
-        var calculator = CreateCalculator();
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: UtcNow.AddMinutes(1),
             watermark: null,
             lastStatusTimestamp: null,
@@ -109,9 +109,9 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_ReturnsEmptyForDegenerateInterval()
     {
-        var calculator = CreateCalculator();
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: UtcNow,
             watermark: UtcNow,
             lastStatusTimestamp: null,
@@ -123,10 +123,10 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_EmitsExactTwelveHourSlices()
     {
-        var calculator = CreateCalculator();
-        var deployment = UtcNow.AddHours(-24);
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+        DateTime deployment = UtcNow.AddHours(-24);
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: deployment,
             watermark: deployment,
             lastStatusTimestamp: null,
@@ -140,10 +140,10 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_EmitsShortFinalSlice()
     {
-        var calculator = CreateCalculator();
-        var deployment = UtcNow.AddHours(-25);
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+        DateTime deployment = UtcNow.AddHours(-25);
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: deployment,
             watermark: deployment,
             lastStatusTimestamp: null,
@@ -159,10 +159,10 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_SaturatesWatermarkOverlapAtMinimumUtcDateTime()
     {
-        var calculator = CreateCalculator();
-        var now = UtcMin.AddHours(1);
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+        DateTime now = UtcMin.AddHours(1);
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: UtcMin,
             watermark: UtcMin,
             lastStatusTimestamp: null,
@@ -175,10 +175,10 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_SaturatesInitialBackfillAtMinimumUtcDateTime()
     {
-        var calculator = CreateCalculator();
-        var now = UtcMin.AddHours(1);
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+        DateTime now = UtcMin.AddHours(1);
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: UtcMin,
             watermark: null,
             lastStatusTimestamp: null,
@@ -191,10 +191,10 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_SaturatesStatusExtensionAtMaximumUtcDateTime()
     {
-        var calculator = CreateCalculator();
-        var deployment = UtcMax.AddHours(-1);
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+        DateTime deployment = UtcMax.AddHours(-1);
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: deployment,
             watermark: deployment.AddMinutes(5),
             lastStatusTimestamp: UtcMax,
@@ -207,10 +207,10 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_SaturatesSliceAdvancementAtMaximumUtcDateTime()
     {
-        var calculator = CreateCalculator();
-        var deployment = UtcMax.AddHours(-1);
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+        DateTime deployment = UtcMax.AddHours(-1);
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: deployment,
             watermark: deployment.AddMinutes(5),
             lastStatusTimestamp: null,
@@ -223,12 +223,12 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_NormalizesMixedDateTimeKindsBeforeComparingAndCalculating()
     {
-        var calculator = CreateCalculator();
-        var localNow = UtcNow.ToLocalTime();
-        var localWatermark = UtcNow.AddHours(-3).ToLocalTime();
-        var unspecifiedStatus = DateTime.SpecifyKind(UtcNow.AddHours(-1), DateTimeKind.Unspecified);
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+        DateTime localNow = UtcNow.ToLocalTime();
+        DateTime localWatermark = UtcNow.AddHours(-3).ToLocalTime();
+        DateTime unspecifiedStatus = DateTime.SpecifyKind(UtcNow.AddHours(-1), DateTimeKind.Unspecified);
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: UtcNow.AddHours(-4),
             watermark: localWatermark,
             lastStatusTimestamp: unspecifiedStatus,
@@ -243,12 +243,12 @@ public sealed class NoiseRequestWindowCalculatorTests
     [TestMethod]
     public void Calculate_TreatsUnspecifiedInputsAsUtcAndEmitsUtcBoundaries()
     {
-        var calculator = CreateCalculator();
-        var unspecifiedNow = DateTime.SpecifyKind(UtcNow, DateTimeKind.Unspecified);
-        var unspecifiedDeployment = DateTime.SpecifyKind(UtcNow.AddHours(-2), DateTimeKind.Unspecified);
-        var unspecifiedWatermark = DateTime.SpecifyKind(UtcNow.AddHours(-1), DateTimeKind.Unspecified);
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+        DateTime unspecifiedNow = DateTime.SpecifyKind(UtcNow, DateTimeKind.Unspecified);
+        DateTime unspecifiedDeployment = DateTime.SpecifyKind(UtcNow.AddHours(-2), DateTimeKind.Unspecified);
+        DateTime unspecifiedWatermark = DateTime.SpecifyKind(UtcNow.AddHours(-1), DateTimeKind.Unspecified);
 
-        var windows = calculator.Calculate(
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
             deploymentStart: unspecifiedDeployment,
             watermark: unspecifiedWatermark,
             lastStatusTimestamp: null,

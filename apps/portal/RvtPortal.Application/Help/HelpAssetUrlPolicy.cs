@@ -61,7 +61,7 @@ public static class HelpAssetUrlPolicy
                 : Invalid("unsupported_relative_path");
         }
 
-        if (Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        if (Uri.TryCreate(value, UriKind.Absolute, out Uri? uri))
         {
             if (!uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
             {

@@ -44,9 +44,9 @@ public sealed class ReportingMonitorJobDispatcher : IMonitorJobDispatcher
                         "ReportingMonitorJobDispatcher was created without a service scope factory and cannot run jobs.");
                 }
 
-                await using (var scope = _scopeFactory.CreateAsyncScope())
+                await using (AsyncServiceScope scope = _scopeFactory.CreateAsyncScope())
                 {
-                    var handler = scope.ServiceProvider.GetRequiredService<GenerateScheduledReportsHandler>();
+                    GenerateScheduledReportsHandler handler = scope.ServiceProvider.GetRequiredService<GenerateScheduledReportsHandler>();
                     await handler.HandleAsync(DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false);
                 }
 

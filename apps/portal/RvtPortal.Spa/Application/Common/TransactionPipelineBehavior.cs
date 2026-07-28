@@ -31,7 +31,7 @@ public sealed class TransactionPipelineBehavior<TRequest, TResponse> : IPipeline
         return unitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
-                var response = await next(token);
+                TResponse? response = await next(token);
                 await unitOfWork.SaveChangesAsync(token);
                 return response;
             },

@@ -35,7 +35,7 @@ public sealed class TransmitSmsAdapter : ISmsDeliveryPort
 
         if (httpClientFactory is not null)
         {
-            using var operationClient = httpClientFactory.CreateClient(
+            using HttpClient operationClient = httpClientFactory.CreateClient(
                 TransmitSmsServiceCollectionExtensions.HttpClientName);
             await SendAsync(
                 new TransmitSmsClient(operationClient),
@@ -110,7 +110,7 @@ public sealed class TransmitSmsAdapter : ISmsDeliveryPort
             return DeliveryFailureKind.Permanent;
         }
 
-        var value = (int)statusCode.Value;
+        int value = (int)statusCode.Value;
         return statusCode is HttpStatusCode.RequestTimeout || value == 429 || value >= 500
             ? DeliveryFailureKind.Transient
             : DeliveryFailureKind.Permanent;

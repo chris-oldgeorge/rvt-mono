@@ -21,7 +21,7 @@ public static class AirQAggregateFields
 
     public static MonitorAggregateField<AirQNoiseLevelEntity> Resolve(string fieldName)
     {
-        return Fields.TryGetValue(fieldName, out var field)
+        return Fields.TryGetValue(fieldName, out MonitorAggregateField<AirQNoiseLevelEntity>? field)
             ? field
             : throw new NotSupportedException($"Unsupported AirQ aggregate field '{fieldName}'.");
     }

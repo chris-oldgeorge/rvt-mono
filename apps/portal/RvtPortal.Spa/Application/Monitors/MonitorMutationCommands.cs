@@ -44,8 +44,8 @@ public sealed class UpdateMonitorCommandHandler : IRequestHandler<UpdateMonitorC
     // Function summary: Updates monitor fields and optional deployment coordinates.
     public async Task<MonitorMutationCommandResult> Handle(UpdateMonitorCommand request, CancellationToken cancellationToken)
     {
-        var result = new MonitorMutationCommandResult { MonitorId = request.MonitorId };
-        var monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(
+        MonitorMutationCommandResult result = new() { MonitorId = request.MonitorId };
+        MonitorEntity? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(
             item => item.Id == request.MonitorId && !item.Archived,
             cancellationToken);
         if (monitor == null)
@@ -61,7 +61,7 @@ public sealed class UpdateMonitorCommandHandler : IRequestHandler<UpdateMonitorC
             return result;
         }
 
-        var hadNoFleetNumber = string.IsNullOrWhiteSpace(monitor.FleetNr);
+        bool hadNoFleetNumber = string.IsNullOrWhiteSpace(monitor.FleetNr);
         monitor.FleetNr = EmptyToNull(request.Request.FleetNumber);
         monitor.CalibrationDate = request.Request.CalibrationDate;
         monitor.CalibrationDue = request.Request.CalibrationDue;
@@ -72,7 +72,7 @@ public sealed class UpdateMonitorCommandHandler : IRequestHandler<UpdateMonitorC
 
         if (request.Request.DeploymentId.HasValue)
         {
-            var deployment = await domainContext.Deployments.SingleOrDefaultAsync(
+            Deployment? deployment = await domainContext.Deployments.SingleOrDefaultAsync(
                 item => item.Id == request.Request.DeploymentId.Value && item.MonitorId == request.MonitorId,
                 cancellationToken);
             if (deployment == null)
@@ -109,8 +109,8 @@ public sealed class SetMonitorFleetNumberCommandHandler
     // Function summary: Sets a monitor fleet number and creates default alert levels when needed.
     public async Task<MonitorMutationCommandResult> Handle(SetMonitorFleetNumberCommand request, CancellationToken cancellationToken)
     {
-        var result = new MonitorMutationCommandResult { MonitorId = request.MonitorId };
-        var monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(
+        MonitorMutationCommandResult result = new() { MonitorId = request.MonitorId };
+        MonitorEntity? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(
             item => item.Id == request.MonitorId && !item.Archived,
             cancellationToken);
         if (monitor == null)
@@ -120,14 +120,14 @@ public sealed class SetMonitorFleetNumberCommandHandler
             return result;
         }
 
-        var mutation = new MonitorMutationRequest { FleetNumber = request.FleetNumber };
+        MonitorMutationRequest mutation = new() { FleetNumber = request.FleetNumber };
         await MonitorMutationWorkflow.ValidateMonitorMutationAsync(domainContext, request.MonitorId, mutation, result.Errors, cancellationToken);
         if (result.Errors.Count > 0)
         {
             return result;
         }
 
-        var wasFirstFleetNumber = string.IsNullOrWhiteSpace(monitor.FleetNr);
+        bool wasFirstFleetNumber = string.IsNullOrWhiteSpace(monitor.FleetNr);
         monitor.FleetNr = request.FleetNumber.Trim();
         if (wasFirstFleetNumber)
         {
@@ -152,14 +152,14 @@ public sealed class CreateDefaultMonitorAlertLevelsCommandHandler
     // Function summary: Creates default alert levels for all monitors with fleet numbers.
     public async Task<DefaultMonitorsResponse> Handle(CreateDefaultMonitorAlertLevelsCommand request, CancellationToken cancellationToken)
     {
-        var monitors = await domainContext.MonitorsList
+        List<MonitorEntity> monitors = await domainContext.MonitorsList
             .Where(monitor => !monitor.Archived && !string.IsNullOrWhiteSpace(monitor.FleetNr))
             .OrderBy(monitor => monitor.FleetNr)
             .ToListAsync(cancellationToken);
-        var response = new DefaultMonitorsResponse { Processed = monitors.Count };
-        foreach (var monitor in monitors)
+        DefaultMonitorsResponse response = new() { Processed = monitors.Count };
+        foreach (MonitorEntity? monitor in monitors)
         {
-            var created = await MonitorMutationWorkflow.AddDefaultAlertLevelsAsync(domainContext, monitor, cancellationToken);
+            int created = await MonitorMutationWorkflow.AddDefaultAlertLevelsAsync(domainContext, monitor, cancellationToken);
             if (created > 0)
             {
                 response.CreatedAlertLevels += created;
@@ -190,7 +190,7 @@ internal static class MonitorMutationWorkflow
         Dictionary<string, string[]> errors,
         CancellationToken cancellationToken)
     {
-        var fleet = EmptyToNull(request.FleetNumber);
+        string? fleet = EmptyToNull(request.FleetNumber);
         if (fleet?.Length > 32)
         {
             AddError(errors, nameof(MonitorMutationRequest.FleetNumber), "Fleet number must be 32 characters or fewer.");
@@ -295,7 +295,7 @@ internal static class MonitorMutationWorkflow
 
     private static void AddError(Dictionary<string, string[]> errors, string key, string message)
     {
-        errors[key] = errors.TryGetValue(key, out var existing)
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
             ? [.. existing, message]
             : [message];
     }

@@ -15,7 +15,7 @@ public sealed class OmnidotsMonitoringOptions
 
     public void Validate()
     {
-        var failures = GetValidationFailures();
+        IReadOnlyList<string> failures = GetValidationFailures();
         if (failures.Count > 0)
         {
             throw new OptionsValidationException(SectionName, typeof(OmnidotsMonitoringOptions), failures);
@@ -24,7 +24,7 @@ public sealed class OmnidotsMonitoringOptions
 
     internal IReadOnlyList<string> GetValidationFailures()
     {
-        var failures = new List<string>();
+        List<string> failures = [];
 
         if (string.IsNullOrWhiteSpace(Recipient) || !MailAddress.TryCreate(Recipient, out _))
         {

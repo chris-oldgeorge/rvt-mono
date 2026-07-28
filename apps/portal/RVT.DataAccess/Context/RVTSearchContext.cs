@@ -1,4 +1,4 @@
-﻿// File summary: Defines Entity Framework Core context configuration for RVT domain and search data.
+// File summary: Defines Entity Framework Core context configuration for RVT domain and search data.
 // Major updates:
 // - 2026-07-23 Pinned every non-daily SampleTime to timestamp-without-zone and daily aggregates to date.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -8,11 +8,8 @@
 // - 2026-06-25 pending Added monitor measurement removal-impact view mapping for consolidated count lookups.
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using RVT.DataAccess.Configuration;
 using RVT.DataAccess.EntityModels.Models;
-using System;
-using System.Collections.Generic;
 
 namespace RVT.DataAccess.Context;
 
@@ -24,91 +21,91 @@ public partial class RVTSearchContext : DbContext
     {
     }
 
-    public virtual DbSet<AdminDashboardDatum> AdminDashboardData { get; set; }
+    public virtual DbSet<AdminDashboardDatum> AdminDashboardData { get; set; } = null!;
 
-    public virtual DbSet<CompanySearch> CompanySearches { get; set; }
+    public virtual DbSet<CompanySearch> CompanySearches { get; set; } = null!;
 
-    public virtual DbSet<ContractSearch> ContractSearches { get; set; }
+    public virtual DbSet<ContractSearch> ContractSearches { get; set; } = null!;
 
-    public virtual DbSet<CustomerDashboardMonitorDatum> CustomerDashboardMonitorData { get; set; }
+    public virtual DbSet<CustomerDashboardMonitorDatum> CustomerDashboardMonitorData { get; set; } = null!;
 
-    public virtual DbSet<CustomerDashboardNotificationDatum> CustomerDashboardNotificationData { get; set; }
+    public virtual DbSet<CustomerDashboardNotificationDatum> CustomerDashboardNotificationData { get; set; } = null!;
 
-    public virtual DbSet<MonitorCurrentSearch> MonitorCurrentSearches { get; set; }
+    public virtual DbSet<MonitorCurrentSearch> MonitorCurrentSearches { get; set; } = null!;
 
-    public virtual DbSet<MonitorSearch> MonitorSearches { get; set; }
+    public virtual DbSet<MonitorSearch> MonitorSearches { get; set; } = null!;
 
-    public virtual DbSet<MonitorUserSearch> MonitorUserSearches { get; set; }
+    public virtual DbSet<MonitorUserSearch> MonitorUserSearches { get; set; } = null!;
 
-    public virtual DbSet<MonitorMeasurementRemovalImpact> MonitorMeasurementRemovalImpacts { get; set; }
+    public virtual DbSet<MonitorMeasurementRemovalImpact> MonitorMeasurementRemovalImpacts { get; set; } = null!;
 
-    public virtual DbSet<MyAtmDustLevel> MyAtmDustLevels { get; set; }
+    public virtual DbSet<MyAtmDustLevel> MyAtmDustLevels { get; set; } = null!;
 
-    public virtual DbSet<MyAtmDustLevel8hourAvg> MyAtmDustLevel8hourAvgs { get; set; }
+    public virtual DbSet<MyAtmDustLevel8hourAvg> MyAtmDustLevel8hourAvgs { get; set; } = null!;
 
-    public virtual DbSet<NoiseLevel15minAvg> NoiseLevel15minAvgs { get; set; }
+    public virtual DbSet<NoiseLevel15minAvg> NoiseLevel15minAvgs { get; set; } = null!;
 
-    public virtual DbSet<NoiseLevel1dayAvg> NoiseLevel1dayAvgs { get; set; }
+    public virtual DbSet<NoiseLevel1dayAvg> NoiseLevel1dayAvgs { get; set; } = null!;
 
-    public virtual DbSet<NoiseLevel1hourAvg> NoiseLevel1hourAvgs { get; set; }
+    public virtual DbSet<NoiseLevel1hourAvg> NoiseLevel1hourAvgs { get; set; } = null!;
 
-    public virtual DbSet<NoiseLevelSiteAvg> NoiseLevelSiteAvgs { get; set; }
+    public virtual DbSet<NoiseLevelSiteAvg> NoiseLevelSiteAvgs { get; set; } = null!;
 
-    public virtual DbSet<NotificationSearch> NotificationSearches { get; set; }
+    public virtual DbSet<NotificationSearch> NotificationSearches { get; set; } = null!;
 
-    public virtual DbSet<NotificationUserSearch> NotificationUserSearches { get; set; }
+    public virtual DbSet<NotificationUserSearch> NotificationUserSearches { get; set; } = null!;
 
-    public virtual DbSet<OmnidotsMonitorStatus> OmnidotsMonitorStatuses { get; set; }
+    public virtual DbSet<OmnidotsMonitorStatus> OmnidotsMonitorStatuses { get; set; } = null!;
 
-    public virtual DbSet<OmnidotsPeakLevel> OmnidotsPeakLevels { get; set; }
+    public virtual DbSet<OmnidotsPeakLevel> OmnidotsPeakLevels { get; set; } = null!;
 
-    public virtual DbSet<OmnidotsPeakLevel15min> OmnidotsPeakLevel15mins { get; set; }
+    public virtual DbSet<OmnidotsPeakLevel15min> OmnidotsPeakLevel15mins { get; set; } = null!;
 
-    public virtual DbSet<OmnidotsPeakLevel1dayPeak> OmnidotsPeakLevel1dayPeaks { get; set; }
+    public virtual DbSet<OmnidotsPeakLevel1dayPeak> OmnidotsPeakLevel1dayPeaks { get; set; } = null!;
 
-    public virtual DbSet<OmnidotsPeakLevel1min> OmnidotsPeakLevel1mins { get; set; }
+    public virtual DbSet<OmnidotsPeakLevel1min> OmnidotsPeakLevel1mins { get; set; } = null!;
 
-    public virtual DbSet<OmnidotsPeakLevel20min> OmnidotsPeakLevel20mins { get; set; }
+    public virtual DbSet<OmnidotsPeakLevel20min> OmnidotsPeakLevel20mins { get; set; } = null!;
 
-    public virtual DbSet<OmnidotsPeakLevel5min> OmnidotsPeakLevel5mins { get; set; }
+    public virtual DbSet<OmnidotsPeakLevel5min> OmnidotsPeakLevel5mins { get; set; } = null!;
 
-    public virtual DbSet<OmnidotsSensor> OmnidotsSensors { get; set; }
+    public virtual DbSet<OmnidotsSensor> OmnidotsSensors { get; set; } = null!;
 
-    public virtual DbSet<OmnidotsTrace> OmnidotsTraces { get; set; }
+    public virtual DbSet<OmnidotsTrace> OmnidotsTraces { get; set; } = null!;
 
-    public virtual DbSet<OmnidotsTracesIndex> OmnidotsTracesIndices { get; set; }
+    public virtual DbSet<OmnidotsTracesIndex> OmnidotsTracesIndices { get; set; } = null!;
 
-    public virtual DbSet<ReportRule> ReportRules { get; set; }
+    public virtual DbSet<ReportRule> ReportRules { get; set; } = null!;
 
-    public virtual DbSet<ReportRuleSearch> ReportRuleSearches { get; set; }
+    public virtual DbSet<ReportRuleSearch> ReportRuleSearches { get; set; } = null!;
 
-    public virtual DbSet<ReportRuleUserSearch> ReportRuleUserSearches { get; set; }
+    public virtual DbSet<ReportRuleUserSearch> ReportRuleUserSearches { get; set; } = null!;
 
-    public virtual DbSet<ReportSearch> ReportSearches { get; set; }
+    public virtual DbSet<ReportSearch> ReportSearches { get; set; } = null!;
 
-    public virtual DbSet<ReportUser> ReportUsers { get; set; }
+    public virtual DbSet<ReportUser> ReportUsers { get; set; } = null!;
 
-    public virtual DbSet<ReportUserSearch> ReportUserSearches { get; set; }
+    public virtual DbSet<ReportUserSearch> ReportUserSearches { get; set; } = null!;
 
-    public virtual DbSet<SiteSearch> SiteSearches { get; set; }
+    public virtual DbSet<SiteSearch> SiteSearches { get; set; } = null!;
 
-    public virtual DbSet<SiteUserSearch> SiteUserSearches { get; set; }
+    public virtual DbSet<SiteUserSearch> SiteUserSearches { get; set; } = null!;
 
-    public virtual DbSet<SvantekMonitorStatus> SvantekMonitorStatuses { get; set; }
+    public virtual DbSet<SvantekMonitorStatus> SvantekMonitorStatuses { get; set; } = null!;
 
-    public virtual DbSet<UserSearch> UserSearches { get; set; }
+    public virtual DbSet<UserSearch> UserSearches { get; set; } = null!;
 
-    public virtual DbSet<UsersForReportSearch> UsersForReportSearches { get; set; }
+    public virtual DbSet<UsersForReportSearch> UsersForReportSearches { get; set; } = null!;
 
-    public virtual DbSet<UsersForSiteSearch> UsersForSiteSearches { get; set; }
+    public virtual DbSet<UsersForSiteSearch> UsersForSiteSearches { get; set; } = null!;
 
     // Function summary: Handles the on configuring workflow for this module.
     // The parameterless constructor and its OnConfiguring fallback are gone; see RVTDbContext for why.
     // Function summary: Handles the on model creating workflow for this module.
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        var dateTimeColumnType = IsPostgres() ? "timestamp without time zone" : "datetime";
-        var guidDefaultSql = IsPostgres() ? "gen_random_uuid()" : "(newid())";
+        string dateTimeColumnType = IsPostgres() ? "timestamp without time zone" : "datetime";
+        string guidDefaultSql = IsPostgres() ? "gen_random_uuid()" : "(newid())";
 
         modelBuilder.Entity<AdminDashboardDatum>(entity =>
         {

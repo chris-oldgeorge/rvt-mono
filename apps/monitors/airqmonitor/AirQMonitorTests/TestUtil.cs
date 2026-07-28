@@ -4,15 +4,10 @@ using AirQ.Api.Http;
 using AirQ.Model.Dto;
 using Moq;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests
 {
 
@@ -45,8 +40,8 @@ namespace AirQMonitorTests
         {
             try
             {
-                using var sr = new StreamReader(fileName);
-                var txt = sr.ReadToEnd();
+                using StreamReader sr = new(fileName);
+                string txt = sr.ReadToEnd();
                 Console.WriteLine(txt);
                 return txt;
             }
@@ -63,12 +58,14 @@ namespace AirQMonitorTests
         {
 
             if (expected.Count != actual.Count)
-                return false;
-
-            for (var i = 0; i < expected.Count; i++)
             {
-                var a = actual[i];
-                var e = expected[i];
+                return false;
+            }
+
+            for (int i = 0; i < expected.Count; i++)
+            {
+                NoiseMonitorDto a = actual[i];
+                NoiseMonitorDto e = expected[i];
                 if (a.ListedAtTime < e.ListedAtTime.AddMinutes(-2) ||
                     a.ListedAtTime > e.ListedAtTime.AddMinutes(2))
                 {

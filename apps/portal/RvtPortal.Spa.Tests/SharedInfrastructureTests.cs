@@ -12,12 +12,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using RVT.BusinessLogic;
-using RvtPortal.Spa.Application.Companies;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Querying;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Application.Companies;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Tests;
@@ -36,25 +35,25 @@ public class SharedInfrastructureTests
         // descending and paged 2-per-page, the first page is Bravo then Alpine.
         const string searchText = "a";
         const int pageSize = 2;
-        var alpha = new CompanySearch { Id = Guid.NewGuid(), CompanyName = "Alpha Monitoring", NrUsers = 1, Sites = "Site A", Contracts = "A-001" };
-        var bravo = new CompanySearch { Id = Guid.NewGuid(), CompanyName = "Bravo Monitoring", NrUsers = 4, Sites = "Site B", Contracts = "B-001" };
-        var alpine = new CompanySearch { Id = Guid.NewGuid(), CompanyName = "Alpine Sensors", NrUsers = 2, Sites = null, Contracts = null };
-        var seededCompanies = new[] { alpha, bravo, alpine };
+        CompanySearch alpha = new() { Id = Guid.NewGuid(), CompanyName = "Alpha Monitoring", NrUsers = 1, Sites = "Site A", Contracts = "A-001" };
+        CompanySearch bravo = new() { Id = Guid.NewGuid(), CompanyName = "Bravo Monitoring", NrUsers = 4, Sites = "Site B", Contracts = "B-001" };
+        CompanySearch alpine = new() { Id = Guid.NewGuid(), CompanyName = "Alpine Sensors", NrUsers = 2, Sites = null, Contracts = null };
+        CompanySearch[] seededCompanies = new[] { alpha, bravo, alpine };
         string[] expectedFirstPageOrder = [bravo.CompanyName, alpine.CompanyName];
 
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        using var app = WithCompanyService(factory, seededCompanies);
-        var client = CreateClient(app);
+        using WebApplicationFactory<Program> app = WithCompanyService(factory, seededCompanies);
+        HttpClient client = CreateClient(app);
         await LoginAsync(client, AdminEmail, Password);
 
-        var firstPage = await client.GetFromJsonAsync<QueryCompaniesResponse>(
+        QueryCompaniesResponse? firstPage = await client.GetFromJsonAsync<QueryCompaniesResponse>(
             $"/api/companies?searchText={searchText}&page=1&pageSize={pageSize}&sort=companyName&sortDir=Descending");
-        var emptyPage = await client.GetFromJsonAsync<QueryCompaniesResponse>(
+        QueryCompaniesResponse? emptyPage = await client.GetFromJsonAsync<QueryCompaniesResponse>(
             $"/api/companies?searchText={searchText}&page=3&pageSize={pageSize}&sort=companyName&sortDir=Ascending");
 
         Assert.NotNull(firstPage);
-        Assert.Equal(seededCompanies.Length, firstPage!.Total);
+        Assert.Equal(seededCompanies.Length, firstPage.Total);
         Assert.Equal(pageSize, firstPage.PageSize);
         Assert.Equal(2, firstPage.TotalPages);
         Assert.True(firstPage.HasNextPage);
@@ -65,7 +64,7 @@ public class SharedInfrastructureTests
         Assert.Equal(expectedFirstPageOrder, firstPage.Results.Select(company => company.CompanyName));
 
         Assert.NotNull(emptyPage);
-        Assert.Empty(emptyPage!.Results);
+        Assert.Empty(emptyPage.Results);
         Assert.Equal(3, emptyPage.Page);
         Assert.False(emptyPage.HasNextPage);
         Assert.True(emptyPage.HasPreviousPage);
@@ -75,21 +74,21 @@ public class SharedInfrastructureTests
     // Function summary: Handles the companies query returns problem details for invalid sort field workflow for this module.
     public async Task Companies_Query_ReturnsProblemDetails_ForInvalidSortField()
     {
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
-        using var app = WithCompanyService(factory);
-        var client = CreateClient(app);
+        using WebApplicationFactory<Program> app = WithCompanyService(factory);
+        HttpClient client = CreateClient(app);
         await LoginAsync(client, AdminEmail, Password);
 
-        var response = await client.GetAsync("/api/companies?sort=notAField");
-        var body = await response.Content.ReadAsStringAsync();
-        using var document = JsonDocument.Parse(body);
+        HttpResponseMessage response = await client.GetAsync("/api/companies?sort=notAField");
+        string body = await response.Content.ReadAsStringAsync();
+        using JsonDocument document = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.True(response.Headers.Contains(ApiDiagnostics.CorrelationIdHeader));
         Assert.Equal("Invalid sort field", document.RootElement.GetProperty("title").GetString());
         Assert.Equal(400, document.RootElement.GetProperty("status").GetInt32());
-        Assert.True(document.RootElement.TryGetProperty("allowedSortFields", out var allowedSortFields));
+        Assert.True(document.RootElement.TryGetProperty("allowedSortFields", out JsonElement allowedSortFields));
         Assert.Contains("companyName", allowedSortFields.EnumerateArray().Select(item => item.GetString()));
         Assert.True(document.RootElement.TryGetProperty("correlationId", out _));
     }
@@ -105,26 +104,26 @@ public class SharedInfrastructureTests
         const string matchingCompany = "RVT Alpha";
         const string nonMatchingCompany = "Quiet Site";
 
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller);
         await factory.SeedDomainCompaniesAsync(
             new Company { Id = Guid.NewGuid(), CompanyName = matchingCompany, Contracts = [] },
             new Company { Id = Guid.NewGuid(), CompanyName = nonMatchingCompany, Contracts = [] });
-        var anonymousClient = CreateClient(factory);
-        var installerClient = CreateClient(factory);
-        var adminClient = CreateClient(factory);
+        HttpClient anonymousClient = CreateClient(factory);
+        HttpClient installerClient = CreateClient(factory);
+        HttpClient adminClient = CreateClient(factory);
 
-        var anonymous = await anonymousClient.GetAsync($"/api/lookups/companies?query={query}");
+        HttpResponseMessage anonymous = await anonymousClient.GetAsync($"/api/lookups/companies?query={query}");
         await LoginAsync(installerClient, InstallerEmail, Password);
-        var installerLookup = await installerClient.GetAsync($"/api/lookups/companies?query={query}&take={take}");
+        HttpResponseMessage installerLookup = await installerClient.GetAsync($"/api/lookups/companies?query={query}&take={take}");
         await LoginAsync(adminClient, AdminEmail, Password);
-        var lookup = await adminClient.GetFromJsonAsync<SearchLookupResponse>($"/api/lookups/companies?query={query}&take={take}");
+        SearchLookupResponse? lookup = await adminClient.GetFromJsonAsync<SearchLookupResponse>($"/api/lookups/companies?query={query}&take={take}");
 
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, installerLookup.StatusCode);
         Assert.NotNull(lookup);
-        Assert.Equal("companies", lookup!.Kind);
+        Assert.Equal("companies", lookup.Kind);
         Assert.Equal(query, lookup.Query);
         Assert.Equal(take, lookup.Take);
         Assert.Equal(new[] { matchingCompany }, lookup.Results);
@@ -139,32 +138,32 @@ public class SharedInfrastructureTests
         const string query = "late";
         const string lateCompany = "Late Arrival";
 
-        using var factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainCompaniesAsync(
             new Company { Id = Guid.NewGuid(), CompanyName = "RVT Alpha", Contracts = [] });
-        var client = CreateClient(factory);
+        HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 
-        var firstLookup = await client.GetFromJsonAsync<SearchLookupResponse>($"/api/lookups/companies?query={query}&take=5");
+        SearchLookupResponse? firstLookup = await client.GetFromJsonAsync<SearchLookupResponse>($"/api/lookups/companies?query={query}&take=5");
         await factory.SeedDomainCompaniesAsync(
             new Company { Id = Guid.NewGuid(), CompanyName = lateCompany, Contracts = [] });
-        var secondLookup = await client.GetFromJsonAsync<SearchLookupResponse>($"/api/lookups/companies?query={query}&take=5");
+        SearchLookupResponse? secondLookup = await client.GetFromJsonAsync<SearchLookupResponse>($"/api/lookups/companies?query={query}&take=5");
 
         Assert.NotNull(firstLookup);
-        Assert.Empty(firstLookup!.Results);
+        Assert.Empty(firstLookup.Results);
         Assert.NotNull(secondLookup);
-        Assert.Equal(new[] { lateCompany }, secondLookup!.Results);
+        Assert.Equal(new[] { lateCompany }, secondLookup.Results);
     }
 
     [Fact]
     // Function summary: Handles the diagnostic download returns file headers for download helper smoke workflow for this module.
     public async Task DiagnosticDownload_ReturnsFileHeaders_ForDownloadHelperSmoke()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var client = CreateClient(factory);
+        using SpaTestApplicationFactory factory = new();
+        HttpClient client = CreateClient(factory);
 
-        var response = await client.GetAsync("/api/health/diagnostics/download");
+        HttpResponseMessage response = await client.GetAsync("/api/health/diagnostics/download");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/plain", response.Content.Headers.ContentType?.MediaType);
@@ -176,14 +175,14 @@ public class SharedInfrastructureTests
     // Function summary: Handles the API exceptions return friendly problem details with correlation ID workflow for this module.
     public async Task ApiExceptions_ReturnFriendlyProblemDetails_WithCorrelationId()
     {
-        using var factory = new SpaTestApplicationFactory();
-        var client = CreateClient(factory);
-        var request = new HttpRequestMessage(HttpMethod.Get, "/api/health/diagnostics/fault");
+        using SpaTestApplicationFactory factory = new();
+        HttpClient client = CreateClient(factory);
+        HttpRequestMessage request = new(HttpMethod.Get, "/api/health/diagnostics/fault");
         request.Headers.Add(ApiDiagnostics.CorrelationIdHeader, "shared-correlation");
 
-        var response = await client.SendAsync(request);
-        var body = await response.Content.ReadAsStringAsync();
-        using var document = JsonDocument.Parse(body);
+        HttpResponseMessage response = await client.SendAsync(request);
+        string body = await response.Content.ReadAsStringAsync();
+        using JsonDocument document = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal("shared-correlation", response.Headers.GetValues(ApiDiagnostics.CorrelationIdHeader).Single());
@@ -239,7 +238,7 @@ public class SharedInfrastructureTests
         // Function summary: Handles the search workflow for this module.
         public Task<SearchQueryResult<CompanySearch>> Search(string companyName, int? page, OrderByDirectionEnum sortdir, string sort, int pageSize, CancellationToken cancellationToken = default)
         {
-            var filtered = companies
+            IEnumerable<CompanySearch> filtered = companies
                 .Where(company => company.CompanyName.Contains(companyName, StringComparison.OrdinalIgnoreCase));
             filtered = sort switch
             {
@@ -257,12 +256,12 @@ public class SharedInfrastructureTests
                     : filtered.OrderBy(company => company.CompanyName)
             };
 
-            var pageValue = Math.Max(page ?? 1, 1);
-            var items = filtered.ToList();
+            int pageValue = Math.Max(page ?? 1, 1);
+            List<CompanySearch> items = [.. filtered];
             return Task.FromResult(new SearchQueryResult<CompanySearch>(
                 true,
                 "",
-                items.Skip((pageValue - 1) * pageSize).Take(pageSize).ToList(),
+                [.. items.Skip((pageValue - 1) * pageSize).Take(pageSize)],
                 items.Count,
                 ""));
         }

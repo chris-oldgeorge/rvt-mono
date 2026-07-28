@@ -10,13 +10,8 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Model.Json;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace MyAtmMonitorTests
 {
 
@@ -25,7 +20,7 @@ namespace MyAtmMonitorTests
     {
         public TestMyAtmApiExceptions()
         {
-            var factory = LoggerFactory.Create(builder =>
+            ILoggerFactory factory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
             });
@@ -35,12 +30,12 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public async Task TestStoreDevices_HandlesJsonExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
             httpClient.Setup(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100")).
                     Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah."));
 
-            var aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => testObj.StoreMonitorsAsync(987));
+            MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => testObj.StoreMonitorsAsync(987));
             Assert.IsInstanceOfType<AdapterException>(aggregate.Failures.Single().Exception);
 
             httpClient.Verify(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100"), Times.Exactly(1));
@@ -56,13 +51,13 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public async Task TestStoreDevices_HandlesExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                          out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
 
             httpClient.Setup(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100")).
                     Throws(new IOException());
 
-            var aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => testObj.StoreMonitorsAsync(987));
+            MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => testObj.StoreMonitorsAsync(987));
             Assert.IsInstanceOfType<AdapterException>(aggregate.Failures.Single().Exception);
             httpClient.Verify(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100"), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
@@ -77,10 +72,10 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public async Task ReadMonitorsList_HandlesExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                          out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
 
-            var customerId = 656;
+            int customerId = 656;
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Throws(new IOException());
 
@@ -101,17 +96,17 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public async Task TestStoreDustLevels_HandlesJsonExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                          out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
 
-            var customerId = 987;
+            int customerId = 987;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
                                  Returns(Task<string>.Factory.StartNew(() => "Blah !!!"));
 
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow));
 
-            var exception = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(
+            MyAtmJobAggregateException exception = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(
                 () => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1));
             Assert.HasCount(2, exception.Failures);
 
@@ -130,17 +125,17 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public async Task TestStoreDustLevels_HandlesExceptionCorrectly()
         {
-            var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                          out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
 
-            var customerId = 987;
+            int customerId = 987;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
                                  Throws(new IOException());
 
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow));
 
-            var exception = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(
+            MyAtmJobAggregateException exception = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(
                 () => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1));
             Assert.HasCount(2, exception.Failures);
 

@@ -26,7 +26,7 @@ public class SearchLookupRequest
     // Function summary: Normalizes lookup result limits to the supported range.
     public int GetNormalizedTake()
     {
-        var requestedTake = Take.GetValueOrDefault(20);
+        int requestedTake = Take.GetValueOrDefault(20);
         return requestedTake <= 0 ? 20 : Math.Min(requestedTake, 50);
     }
 }
@@ -65,14 +65,14 @@ public class PagedQueryRequest
     // Function summary: Normalizes page numbers to the first valid page.
     public int GetNormalizedPage()
     {
-        var requestedPage = Page.GetValueOrDefault(1);
+        int requestedPage = Page.GetValueOrDefault(1);
         return requestedPage <= 0 ? 1 : requestedPage;
     }
 
     // Function summary: Normalizes page sizes to the supported range.
     public int GetNormalizedPageSize()
     {
-        var requestedPageSize = PageSize.GetValueOrDefault(20);
+        int requestedPageSize = PageSize.GetValueOrDefault(20);
         return requestedPageSize <= 0 ? 20 : Math.Min(requestedPageSize, 100);
     }
 

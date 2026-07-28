@@ -1,6 +1,6 @@
 # Project State
 
-## R1 architecture guards complete; Help Admin release still conditional — 2026-07-28
+## R1 integrated into main; Help Admin release still conditional — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
 - This top checkpoint is the sole current authority for R1 and Help Admin. It
@@ -8,11 +8,12 @@
   release gate, and next-step instruction concerning either item. Lower
   sections are preserved only as historical evidence and must not override or
   direct work away from this checkpoint.
-- Current Git integration state: the clean local `main` checkout and
-  `origin/main` are synchronized at `bef6da3`. There is no unpublished
-  `main` commit or pending `main` push recorded by this checkpoint.
-- R1 is complete on the unmerged implementation branch
-  `codex/r1-architecture-guards`. The implementation builds on `aaa20de`
+- Current Git integration state: R1 was merged into local `main` by
+  `54d59cb` (`Merge R1 architecture guards`). This checkpoint is committed
+  after that merge and is included in the same integration push to
+  `origin/main`; verify local and remote refs before any later mutation.
+- R1 is integrated into `main`. The reviewed source branch remains
+  `codex/r1-architecture-guards` at `151971b`. The implementation builds on `aaa20de`
   (`Repair monorepo test paths`) and `f59d5d1` (`Record monorepo path repair
   verification`) and is recorded in `0fd8921` (`test: add portable monitor
   repository layout`), `b1433eb` (`style: satisfy repository layout
@@ -24,10 +25,10 @@
   ambiguity`), `8584049` (`test: require actionable repository root
   guidance`), `81ef27f` (`fix: guide relocated test hosts to explicit root`),
   and `d1dfad6` (`style: use current MSTest string assertions`). Merge commit
-  `c4b303b` reconciles the branch with current `origin/main`; it is not an R1
-  implementation unit. State commit `cb5fd5d` records the verified synchronized
-  main/origin state after the R1 code hardening. This documentation task does
-  not merge or modify `main`.
+  `c4b303b` reconciles the branch with its then-current `origin/main`; it is not
+  an R1 implementation unit. State commit `cb5fd5d` records the synchronized
+  pre-integration main/origin state. Merge commit `54d59cb` integrates the
+  reviewed branch into `main`.
 - `Rvt.Monitor.IntegrationTesting.RepositoryLayout` is the shared monitor
   test-support authority for the monorepo root and repository-relative paths.
   It independently evaluates four candidates: test output, the
@@ -69,6 +70,11 @@
 - Mono-layout, mono-solution, RVT common source-boundary normal/regression,
   engineering-standards, and `git diff --check` verification passed. No
   PostgreSQL integration credential or production/release database was used.
+- Post-merge verification on `main` passed the disposable architecture
+  mutation harness: baseline 2/2, both intended mutations rejected, and
+  restored baseline 2/2. The engineering-standards working-tree gate and
+  `git diff --check origin/main..HEAD` also passed, and the disposable
+  worktree was removed.
 - Current R1 file structure:
   - `libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/RepositoryLayout.cs`
     — shared repository-root and path authority;

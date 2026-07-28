@@ -2,10 +2,14 @@
 // Major updates:
 // - 2026-07-28 Added release-audit classifier and receipt contract coverage.
 // - 2026-07-28 Added fail-closed option, orchestration, and atomic receipt-writing coverage.
+// - 2026-07-28 Added opt-in PostgreSQL transaction and row-reader integration coverage.
 
 using System.Text.Json;
+using Npgsql;
+using NpgsqlTypes;
 using RVT.ReleaseAudit;
 using RvtPortal.Testing.Help;
+using RvtPortal.Spa.Tests.Support;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -484,6 +488,97 @@ public sealed class HelpAssetUrlAuditTests
         Assert.DoesNotContain(invalidRawUrl, json, StringComparison.Ordinal);
         using var document = JsonDocument.Parse(json);
         Assert.Equal("blocked", document.RootElement.GetProperty("outcome").GetString());
+    }
+
+    [RequiresPostgresFact]
+    public async Task RowReader_ReadsCompleteCorpusInsideReadOnlyRepeatableReadTransaction()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(
+            RequiresPostgresFactAttribute.ConnectionVariable);
+        Assert.False(string.IsNullOrWhiteSpace(connectionString));
+
+        var expectedRows = HelpAssetUrlPolicyCases.All
+            .Select((@case, index) => new HelpAssetUrlAuditRow(
+                Guid.Parse($"10000000-0000-0000-0000-{index + 1:D12}"),
+                Guid.Parse($"20000000-0000-0000-0000-{index + 1:D12}"),
+                @case.Input))
+            .ToArray();
+        var expectedViolations = HelpAssetUrlPolicyCases.All
+            .Select((@case, index) => (@case, index))
+            .Where(item => item.@case.PersistedViolation is not null)
+            .Select(item => new HelpAssetUrlViolation(
+                expectedRows[item.index].AssetId,
+                expectedRows[item.index].HelpArticleId,
+                item.@case.PersistedViolation!))
+            .OrderBy(violation => violation.HelpArticleId)
+            .ThenBy(violation => violation.AssetId)
+            .ThenBy(violation => violation.ViolationCode, StringComparer.Ordinal)
+            .ToArray();
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using (var create = new NpgsqlCommand(
+            """
+            CREATE TEMP TABLE help_asset (
+                id uuid PRIMARY KEY,
+                help_article_id uuid NOT NULL,
+                url text NULL
+            ) ON COMMIT PRESERVE ROWS;
+            """,
+            connection))
+        {
+            await create.ExecuteNonQueryAsync();
+        }
+
+        foreach (var row in expectedRows)
+        {
+            await using var insert = new NpgsqlCommand(
+                """
+                INSERT INTO pg_temp.help_asset (id, help_article_id, url)
+                VALUES ($1, $2, $3);
+                """,
+                connection);
+            insert.Parameters.AddWithValue(NpgsqlDbType.Uuid, row.AssetId);
+            insert.Parameters.AddWithValue(NpgsqlDbType.Uuid, row.HelpArticleId);
+            insert.Parameters.AddWithValue(
+                NpgsqlDbType.Text,
+                row.Url is null ? DBNull.Value : row.Url);
+            await insert.ExecuteNonQueryAsync();
+        }
+
+        await using var transaction = await HelpAssetUrlAudit.BeginReadOnlyTransactionAsync(
+            connection,
+            CancellationToken.None);
+        try
+        {
+            var rows = await HelpAssetUrlAudit.ReadRowsAsync(
+                connection,
+                transaction,
+                HelpAssetRelation.Temporary,
+                CancellationToken.None);
+
+            await using var readOnlyCommand = new NpgsqlCommand(
+                "SHOW transaction_read_only;",
+                connection,
+                transaction);
+            await using var isolationCommand = new NpgsqlCommand(
+                "SHOW transaction_isolation;",
+                connection,
+                transaction);
+            var readOnly = (string?)await readOnlyCommand.ExecuteScalarAsync();
+            var isolation = (string?)await isolationCommand.ExecuteScalarAsync();
+
+            Assert.Equal("on", readOnly);
+            Assert.Equal("repeatable read", isolation);
+            Assert.Equal(
+                expectedRows.Select(row => row.AssetId).Order(),
+                rows.Select(row => row.AssetId).Order());
+            Assert.Equal(expectedViolations, Classify(rows).Violations);
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
     }
 
     private static HelpAssetUrlAuditReceipt Classify(IReadOnlyList<HelpAssetUrlAuditRow> rows) =>

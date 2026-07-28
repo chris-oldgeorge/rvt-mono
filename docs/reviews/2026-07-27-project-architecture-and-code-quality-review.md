@@ -63,18 +63,14 @@ canonical create route is `POST /api/help/admin/articles`, and application plus
 HTTP authorization independently protect admin operations.
 
 Assets remain URL metadata only. Persisted rows must pass the HTTPS or
-`/help-assets/` policy. The read-only
-`apps/portal/docs/release/validate-help-asset-urls.sql` query is a useful coarse
-preflight, but it is not equivalent to the application's .NET URI validation:
-it accepts `https://:443/guide.pdf`, while its case-sensitive scheme match
-rejects `HTTPS://docs.rvt.test/guide.pdf`, which the application accepts
-case-insensitively. The shared BCL-only `HelpAssetUrlPolicy` and read-only .NET
-release-audit adapter that reuses it are implemented. Help Admin remains
-conditional until zero-finding receipts from that audit exist for every release
-database; no release-database receipts were produced during implementation.
-Each receipt must identify the environment/database, UTC execution time,
-application revision, and returned finding count; exit `10`, `2`, `3`, a
-missing receipt, or any finding blocks release. The design is recorded in
+`/help-assets/` policy. The retired SQL artifact was removed. The shared
+BCL-only `HelpAssetUrlPolicy` and `RVT.ReleaseAudit help-asset-urls` are the
+sole policy/audit authority. Help Admin remains conditional until zero-finding
+receipts from that audit exist for every release database; no release-database
+receipts were produced during implementation. Each receipt must identify the
+environment/database, UTC execution time, application revision, and returned
+finding count; exit `10`, `2`, `3`, a missing receipt, or any finding blocks
+release. The design is recorded in
 `docs/superpowers/specs/2026-07-28-help-asset-url-release-audit-design.md`.
 Stable persisted asset IDs and client-only row keys are covered by focused
 regressions, and the browser journey covers create, publish, preview, edit,

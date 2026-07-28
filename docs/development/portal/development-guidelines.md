@@ -90,17 +90,16 @@ and the per-controller delegation cases).
   or a client-only random key. Never key an editable row by its title, value, or
   array index; preserve and restore focus through ID/key-addressed refs.
 - **Release requires clean persisted URLs under the application policy.** The
-  shared BCL-only `HelpAssetUrlPolicy` is the authority; the SQL query remains
-  a non-authoritative coarse preflight. `RVT.ReleaseAudit` reuses the policy
-  through a read-only audit-row reader. Every release database must produce a
-  complete zero-finding receipt from `help-asset-urls` before Help Admin can
-  become `READY`; an exit `10`, `2`, `3`, or missing receipt blocks release.
+  retired SQL artifact was removed. The shared BCL-only `HelpAssetUrlPolicy`
+  and `RVT.ReleaseAudit help-asset-urls`, which reuses it through a read-only
+  audit-row reader, are the sole policy/audit authority. Every release database
+  must produce a complete zero-finding receipt before Help Admin can become
+  `READY`; an exit `10`, `2`, `3`, or missing receipt blocks release.
 
 Enforced by: `HelpApplicationServiceTests`, `HelpAdapterTests`,
 `HelpCmsOperationsTests`, `HelpAssetUrlPolicyTests`, shared-corpus mutation
 tests, `HelpAssetUrlAuditTests`, the opt-in PostgreSQL audit-row-reader test,
-`HelpAdminPanel.test.tsx`, and `help-admin.spec.ts`. The SQL guard proves only
-coarse query behavior; it does not prove parity with `System.Uri`.
+`HelpAdminPanel.test.tsx`, and `help-admin.spec.ts`.
 
 ## Ports and adapters
 

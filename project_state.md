@@ -1,5 +1,35 @@
 # Project State
 
+## Authoritative checkpoint: PR #6 merged into main — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- PR #6, `Remediate Portal npm advisories`, was accepted and merged into
+  `main` with merge commit `2542205ea5288e0804e2fa9b2443076dd0a515f2`.
+  Its remote feature branch `codex/portal-npm-advisories` was deleted.
+- Before merge, the feature branch incorporated `main` checkpoint `b47b498`,
+  preserving the separate legacy Azure Pipelines cleanup. The only merge
+  conflict was this state document; both workstream checkpoints were retained.
+- Fresh Node 24 verification on the integrated head passed `npm ci`, ESLint
+  with zero errors and the same two Fast Refresh warnings, all 78 Vitest
+  tests, the Vite 6.4.3 production build, and `npm audit` with zero
+  vulnerabilities at every severity.
+- The changed-range engineering-standards ratchet and both workflow contract
+  tests passed locally. Exact-head GitHub Engineering Standards run
+  `30356087429` passed before merge.
+- The primary `main` worktree was fast-forwarded to the merge while preserving
+  its unrelated, unstaged
+  `apps/portal/RvtPortal.Spa/Properties/launchSettings.json` change that sets
+  `RVT__EMAIL_ENABLED` to `false`. That developer-only setting was not staged
+  or committed.
+- Remaining pending work is deliberately separate: adopt the additional
+  ESLint 10 and React Hooks 7 recommended rules in a lint-modernization scope,
+  and complete the documented Help Admin/R2 operator release-database audit
+  before declaring that conditional release scope ready.
+- Next improvement step: plan and execute the lint-modernization scope with
+  deliberate React source changes and regression coverage. The Help Admin/R2
+  production decision remains gated by its retained zero-finding audit
+  receipt.
+
 ## Authoritative checkpoint: Portal npm advisories remediated — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

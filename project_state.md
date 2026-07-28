@@ -21,9 +21,15 @@
   and naming-convention project rules.
 - Final Portal verification on Node 24 passed: ESLint exits 0 with no errors
   and exactly the two established Fast Refresh warnings in
-  `src/operations/DataViewPanels.tsx` (894:17 and 903:17); Vitest reports
-  11 files and 101 tests passed; `tsc -b && vite build` passed; and `npm audit`
+  `src/operations/DataViewPanels.tsx` (902:17 and 911:17); Vitest reports
+  13 files and 132 tests passed; `tsc -b && vite build` passed; and `npm audit`
   reports zero vulnerabilities.
+- Final whole-branch review remediation added per-execution request ownership,
+  cross-deployment trace ownership, persistent request controls, and guards
+  that suppress generic failure handling after an abort. The independently
+  approved remediation commits are `c78768c`, `8bc7a77`, `0d94275`,
+  `f7b71b7`, and `904f532`; their slice reviews found no remaining
+  Important or Critical issue.
 - Repository verification passed on the integrated branch: `scripts/verify-engineering-standards.sh --base origin/main --head HEAD` exits 0,
   `tests/verify-engineering-standards-workflow.test.sh` passes,
   `tests/verify-manual-sonarqube-workflow.test.sh` passes, and
@@ -33,8 +39,9 @@
   dependency change, backend change, database change, API contract change, or
   Help Admin/R2 release-status change. Help Admin/R2 remains conditional on
   its separate operator release-database audit.
-- Next step: complete independent Task 8 and whole-branch review, then push
-  this dedicated review branch and open the prepared draft pull request.
+- Next step: repeat the whole-branch review on the final integrated head; only
+  after that review passes, push this dedicated review branch and open the
+  prepared draft pull request.
 
 ## Authoritative checkpoint: Sonar reliability follow-up merged — 2026-07-28
 

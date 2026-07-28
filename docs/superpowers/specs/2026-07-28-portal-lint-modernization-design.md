@@ -1,7 +1,7 @@
 # Portal Lint Modernization Design
 
 **Date:** 2026-07-28
-**Status:** Approved; implementation not started
+**Status:** Implemented and verified; pending final repeated review and publication
 **Decision owner:** RVT Portal product owner
 **Implementation branch:** `codex/portal-lint-modernization`
 

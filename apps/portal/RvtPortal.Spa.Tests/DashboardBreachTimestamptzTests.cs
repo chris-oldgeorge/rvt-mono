@@ -25,10 +25,10 @@ public sealed class DashboardBreachTimestamptzTests
     {
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
         DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>().UseNpgsql(connectionString).Options;
-        await using RVTDbContext context = new RVTDbContext(options);
+        await using RVTDbContext context = new(options);
 
-        RvtDateTimeProvider provider = new RvtDateTimeProvider(Options.Create(new RvtTimeZoneOptions { Local = "Europe/London" }));
-        DashboardBreachApplicationService service = new DashboardBreachApplicationService(context, provider);
+        RvtDateTimeProvider provider = new(Options.Create(new RvtTimeZoneOptions { Local = "Europe/London" }));
+        DashboardBreachApplicationService service = new(context, provider);
 
         // request.Date == null is the path that used DateTime.Today (Kind=Local); before the fix this threw when
         // the bound reached notification_time. Executing at all is the assertion.

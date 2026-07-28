@@ -8,7 +8,6 @@ using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
@@ -91,13 +90,13 @@ namespace OmnidotsAdapterTests
                                                              BatteryAlertType batteryStatus = BatteryAlertType.Off,
                                                              string? timeZone = "foo/bar")
         {
-            List<VibrationMonitorDto> monitors = new List<VibrationMonitorDto>();
+            List<VibrationMonitorDto> monitors = [];
             for (int i = 1; i <= numMonitors; i++)
             {
                 string serialId = "" + (serialIdIn + i);
                 Guid monitorId = Guid.NewGuid();
 
-                VibrationMonitorStatusDto monitorStatus = new VibrationMonitorStatusDto(
+                VibrationMonitorStatusDto monitorStatus = new(
                                         serialId: serialId,
                                         measurementDuration: i * 7,
                                         dataSaveLevel: i * 7.543,
@@ -130,7 +129,7 @@ namespace OmnidotsAdapterTests
                                            connectedUsing: connectedUsing, online: i % 2 == 0);
                 }
 
-                VibrationMonitorDto m = new VibrationMonitorDto(
+                VibrationMonitorDto m = new(
                                         id: monitorId,
                                         listedAtTime: DateTime.UtcNow,
                                         lastDataTime: null,
@@ -184,8 +183,8 @@ namespace OmnidotsAdapterTests
 
         internal static List<RvtAlertRuleDto> OfflineRules()
         {
-            List<RvtAlertRuleDto> rules = new List<RvtAlertRuleDto>
-            {
+            List<RvtAlertRuleDto> rules =
+            [
                 new(ruleId: Guid.NewGuid(),
                           serialId: null,
                           field: "offline-rule",
@@ -205,7 +204,7 @@ namespace OmnidotsAdapterTests
                         isDeleted: false,
                         created: DateTime.UtcNow,
                         accessed: null)
-            };
+            ];
 
             return rules;
         }
@@ -236,16 +235,16 @@ namespace OmnidotsAdapterTests
 
         public static List<RvtContactDto> AlertContacts(TimeSpan? sendStartTime = null, TimeSpan? sendEndTime = null)
         {
-            return new List<RvtContactDto>()
-            {
+            return
+            [
                 new RvtContactDto(ContactMethod.Email, "baz@bob.org", (string?)null,true,false, sendStartTime, sendEndTime)
-            };
+            ];
         }
 
         public static List<NotificationDto> Notifications(Guid monitorId, DateTime notificationTime, AlertType alertType)
         {
-            return new List<NotificationDto>
-            {
+            return
+            [
                 new NotificationDto(id: Guid.NewGuid(),
                                     notificationTime: notificationTime,
                                     limitOn: 10,
@@ -258,7 +257,7 @@ namespace OmnidotsAdapterTests
                                     monitorId: monitorId)
 
 
-            };
+            ];
         }
 
 
@@ -315,7 +314,7 @@ namespace OmnidotsAdapterTests
         {
             byte[] textBytes = Encoding.UTF8.GetBytes(text);
             byte[] keyBytes = Encoding.UTF8.GetBytes(key);
-            using HMACSHA256 hash = new HMACSHA256(keyBytes);
+            using HMACSHA256 hash = new(keyBytes);
             return string.Format("sha256={0}", BitConverter.ToString(hash.ComputeHash(textBytes)).Replace("-", "").ToLower());
         }
     }

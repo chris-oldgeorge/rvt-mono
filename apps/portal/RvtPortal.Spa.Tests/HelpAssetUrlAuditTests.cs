@@ -26,7 +26,7 @@ public sealed class HelpAssetUrlAuditTests
     {
         get
         {
-            TheoryData<string, string?, string?> cases = new TheoryData<string, string?, string?>();
+            TheoryData<string, string?, string?> cases = new();
             foreach (HelpAssetUrlCase @case in HelpAssetUrlPolicyCases.All)
             {
                 cases.Add(@case.Name, @case.Input, @case.PersistedViolation);
@@ -173,7 +173,7 @@ public sealed class HelpAssetUrlAuditTests
         const string rawUrl = "https://private.rvt.test/guide.pdf?token=raw-input";
         string? receiptPath = null;
         string? receiptJson = null;
-        HelpAssetUrlAuditRow row = new HelpAssetUrlAuditRow(
+        HelpAssetUrlAuditRow row = new(
             Guid.Parse("10000000-0000-0000-0000-000000000001"),
             Guid.Parse("20000000-0000-0000-0000-000000000001"),
             rawUrl);
@@ -208,7 +208,7 @@ public sealed class HelpAssetUrlAuditTests
     {
         const string rawRejectedUrl = "http://private.rvt.test/guide.pdf?credential=raw-input";
         string? receiptJson = null;
-        HelpAssetUrlAuditRow row = new HelpAssetUrlAuditRow(
+        HelpAssetUrlAuditRow row = new(
             Guid.Parse("10000000-0000-0000-0000-000000000001"),
             Guid.Parse("20000000-0000-0000-0000-000000000001"),
             rawRejectedUrl);
@@ -268,7 +268,7 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public async Task RunAsync_CancellationReturnsAuditFailure()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
         ProgramRunResult result = await RunProgramAsync(
             readRows: (_, cancellationToken) => Task.FromCanceled<HelpAssetUrlAuditReadResult>(
@@ -370,7 +370,7 @@ public sealed class HelpAssetUrlAuditTests
         string? input,
         string? expectedViolationCode)
     {
-        HelpAssetUrlAuditRow row = new HelpAssetUrlAuditRow(
+        HelpAssetUrlAuditRow row = new(
             Guid.Parse("10000000-0000-0000-0000-000000000001"),
             Guid.Parse("20000000-0000-0000-0000-000000000001"),
             input);
@@ -384,11 +384,11 @@ public sealed class HelpAssetUrlAuditTests
     [Fact]
     public void Classify_CountsEveryRowAndOmitsValidRowsFromViolations()
     {
-        HelpAssetUrlAuditRow invalidRow = new HelpAssetUrlAuditRow(
+        HelpAssetUrlAuditRow invalidRow = new(
             Guid.Parse("10000000-0000-0000-0000-000000000001"),
             Guid.Parse("20000000-0000-0000-0000-000000000001"),
             "http://docs.rvt.test/guide.pdf");
-        HelpAssetUrlAuditRow validRow = new HelpAssetUrlAuditRow(
+        HelpAssetUrlAuditRow validRow = new(
             Guid.Parse("10000000-0000-0000-0000-000000000002"),
             Guid.Parse("20000000-0000-0000-0000-000000000002"),
             "/help-assets/guide.pdf");
@@ -499,13 +499,12 @@ public sealed class HelpAssetUrlAuditTests
             RequiresPostgresFactAttribute.ConnectionVariable);
         Assert.False(string.IsNullOrWhiteSpace(connectionString));
 
-        HelpAssetUrlAuditRow[] expectedRows = HelpAssetUrlPolicyCases.All
+        HelpAssetUrlAuditRow[] expectedRows = [.. HelpAssetUrlPolicyCases.All
             .Select((@case, index) => new HelpAssetUrlAuditRow(
                 Guid.Parse($"10000000-0000-0000-0000-{index + 1:D12}"),
                 Guid.Parse($"20000000-0000-0000-0000-{index + 1:D12}"),
-                @case.Input))
-            .ToArray();
-        HelpAssetUrlViolation[] expectedViolations = HelpAssetUrlPolicyCases.All
+                @case.Input))];
+        HelpAssetUrlViolation[] expectedViolations = [.. HelpAssetUrlPolicyCases.All
             .Select((@case, index) => (@case, index))
             .Where(item => item.@case.PersistedViolation is not null)
             .Select(item => new HelpAssetUrlViolation(
@@ -514,12 +513,11 @@ public sealed class HelpAssetUrlAuditTests
                 item.@case.PersistedViolation!))
             .OrderBy(violation => violation.HelpArticleId)
             .ThenBy(violation => violation.AssetId)
-            .ThenBy(violation => violation.ViolationCode, StringComparer.Ordinal)
-            .ToArray();
+            .ThenBy(violation => violation.ViolationCode, StringComparer.Ordinal)];
 
-        await using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+        await using NpgsqlConnection connection = new(connectionString);
         await connection.OpenAsync();
-        await using (NpgsqlCommand create = new NpgsqlCommand(
+        await using (NpgsqlCommand create = new(
             """
             CREATE TEMP TABLE help_asset (
                 id uuid PRIMARY KEY,
@@ -534,7 +532,7 @@ public sealed class HelpAssetUrlAuditTests
 
         foreach (HelpAssetUrlAuditRow? row in expectedRows)
         {
-            await using NpgsqlCommand insert = new NpgsqlCommand(
+            await using NpgsqlCommand insert = new(
                 """
                 INSERT INTO pg_temp.help_asset (id, help_article_id, url)
                 VALUES ($1, $2, $3);
@@ -559,11 +557,11 @@ public sealed class HelpAssetUrlAuditTests
                 HelpAssetRelation.Temporary,
                 CancellationToken.None);
 
-            await using NpgsqlCommand readOnlyCommand = new NpgsqlCommand(
+            await using NpgsqlCommand readOnlyCommand = new(
                 "SHOW transaction_read_only;",
                 connection,
                 transaction);
-            await using NpgsqlCommand isolationCommand = new NpgsqlCommand(
+            await using NpgsqlCommand isolationCommand = new(
                 "SHOW transaction_isolation;",
                 connection,
                 transaction);
@@ -607,8 +605,8 @@ public sealed class HelpAssetUrlAuditTests
         Func<string, string, CancellationToken, Task>? writeReceipt = null,
         CancellationToken cancellationToken = default)
     {
-        StringWriter standardOutput = new StringWriter();
-        StringWriter standardError = new StringWriter();
+        StringWriter standardOutput = new();
+        StringWriter standardError = new();
         int exitCode = await ReleaseAuditProgram.RunAsync(
             args ?? ValidArguments(),
             getEnvironmentVariable ?? (_ => "Host=database.test;Database=rvt;Password=not-real"),

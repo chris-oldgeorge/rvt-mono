@@ -1,13 +1,7 @@
 using System.Text.Json;
 using AirQ.Model.Dto;
 using AirQ.Model.Http;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
-
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests
 {
 
@@ -26,7 +20,7 @@ namespace AirQMonitorTests
             Assert.IsNotNull(samples);
             Assert.HasCount(1, samples);
 
-            NoiseDto noiseDto = new NoiseDto(samples[0]);
+            NoiseDto noiseDto = new(samples[0]);
             Assert.IsNotNull(samples);
             Assert.AreEqual(DateTime.Parse("2023-09-18T11:30:00"), noiseDto.SampleTime);
 

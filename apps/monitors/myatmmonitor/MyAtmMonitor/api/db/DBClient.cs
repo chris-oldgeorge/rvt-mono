@@ -7,7 +7,6 @@ using MyAtm.Api.Db.Mapping;
 using MyAtm.Api.Rules;
 using MyAtm.Model.Config;
 using MyAtm.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
@@ -89,7 +88,7 @@ namespace MyAtm.Api.Db
         }
 
         private static List<DustMonitorDto> ToDustMonitorList(IQueryable<MonitorEntity> query) =>
-            query.Select(row => MyAtmDbMapper.ToDustMonitorDto(row)).ToList();
+            [.. query.Select(row => MyAtmDbMapper.ToDustMonitorDto(row))];
 
         public List<RvtAlertRuleDto> ReadRules(string? serialId)
         {
@@ -109,10 +108,9 @@ namespace MyAtm.Api.Db
                         select rule;
             }
 
-            return query
+            return [.. query
                 .AsEnumerable()
-                .Select(rule => ToRuleDto(rule, serialId))
-                .ToList();
+                .Select(rule => ToRuleDto(rule, serialId))];
         }
 
         public List<RvtAlertRuleDto> ReadRules(string? serialId, Period period)
@@ -126,16 +124,15 @@ namespace MyAtm.Api.Db
             using MyAtmMonitorContext context = CreateContext();
 
             IQueryable<RvtAlertRuleEntity> query = from rule in context.AlertRules.AsNoTracking()
-                        join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
-                        where monitor.TypeOfMonitor == DustMonitorDto.MONITOR_TYPE_DUST &&
-                              rule.SerialId == serialId &&
-                              rule.AveragingPeriod == periodSeconds
-                        select rule;
+                                                   join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
+                                                   where monitor.TypeOfMonitor == DustMonitorDto.MONITOR_TYPE_DUST &&
+                                                         rule.SerialId == serialId &&
+                                                         rule.AveragingPeriod == periodSeconds
+                                                   select rule;
 
-            return query
+            return [.. query
                 .AsEnumerable()
-                .Select(rule => ToRuleDto(rule, serialId))
-                .ToList();
+                .Select(rule => ToRuleDto(rule, serialId))];
         }
 
         public List<RvtAlertRuleDto> ReadRules(Period period)
@@ -144,17 +141,16 @@ namespace MyAtm.Api.Db
             using MyAtmMonitorContext context = CreateContext();
 
             IQueryable<RvtAlertRuleEntity> query = from rule in context.AlertRules.AsNoTracking()
-                        join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
-                        join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
-                        where monitor.TypeOfMonitor == DustMonitorDto.MONITOR_TYPE_DUST &&
-                              rule.AveragingPeriod == periodSeconds &&
-                              deployment.EndDate == null
-                        select rule;
+                                                   join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
+                                                   join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
+                                                   where monitor.TypeOfMonitor == DustMonitorDto.MONITOR_TYPE_DUST &&
+                                                         rule.AveragingPeriod == periodSeconds &&
+                                                         deployment.EndDate == null
+                                                   select rule;
 
-            return query
+            return [.. query
                 .AsEnumerable()
-                .Select(rule => ToRuleDto(rule, rule.SerialId))
-                .ToList();
+                .Select(rule => ToRuleDto(rule, rule.SerialId))];
         }
 
         public List<RvtContactDto> ReadAlertContacts(Guid monitorId)
@@ -185,7 +181,7 @@ namespace MyAtm.Api.Db
                 .Where(user => userIds.Contains(user.Id))
                 .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
 
-            return contactRows
+            return [.. contactRows
                 .Where(row => usersById.ContainsKey(row.UserId.ToString()))
                 .Select(row =>
                 {
@@ -197,8 +193,7 @@ namespace MyAtm.Api.Db
                         phoneNumber: user.PhoneNumber,
                         sendStartTime: row.StartTime,
                         sendEndTime: row.EndTime);
-                })
-                .ToList();
+                })];
         }
 
         public void WriteMonitorList(List<DustMonitorDto> devices)
@@ -354,7 +349,7 @@ namespace MyAtm.Api.Db
             }
 
             using MyAtmMonitorContext context = CreateContext();
-            Dictionary<(string SerialId, DateTime SampleTime, int Avrg), DustDto> pendingDtos = new Dictionary<(string SerialId, DateTime SampleTime, int Avrg), DustDto>();
+            Dictionary<(string SerialId, DateTime SampleTime, int Avrg), DustDto> pendingDtos = [];
 
             foreach (DustDto dto in dtos)
             {
@@ -367,14 +362,13 @@ namespace MyAtm.Api.Db
             DateTime earliest = pendingDtos.Keys.Min(key => key.SampleTime);
             DateTime latest = pendingDtos.Keys.Max(key => key.SampleTime);
 
-            HashSet<(string SerialId, DateTime, int Avrg)> existingKeys = context.DustLevels
+            HashSet<(string SerialId, DateTime, int Avrg)> existingKeys = [.. context.DustLevels
                 .AsNoTracking()
                 .Where(row => serialIds.Contains(row.SerialId))
                 .Where(row => row.SampleTime >= earliest && row.SampleTime <= latest)
                 .Select(row => new { row.SerialId, row.SampleTime, row.Avrg })
                 .AsEnumerable()
-                .Select(row => (row.SerialId, DateTimeUtil.AsUtc(row.SampleTime), row.Avrg))
-                .ToHashSet();
+                .Select(row => (row.SerialId, DateTimeUtil.AsUtc(row.SampleTime), row.Avrg))];
 
             foreach (((string SerialId, DateTime SampleTime, int Avrg) key, DustDto? dto) in pendingDtos)
             {
@@ -420,7 +414,7 @@ namespace MyAtm.Api.Db
                 rule.Accessed = DateTimeUtil.AsUtc(mutation.Accessed);
             }
 
-            List<MonitorDeliveryRequest> createdRequests = new List<MonitorDeliveryRequest>();
+            List<MonitorDeliveryRequest> createdRequests = [];
             if (commit.Measurements.Count > 0)
             {
                 string dataDeliveryKey = DataDeliveryKey(commit);
@@ -435,7 +429,7 @@ namespace MyAtm.Api.Db
                     createdRequests.Add(CreateDataInsertedRequest(commit, dataDeliveryKey));
                 }
             }
-            List<AcceptedAlertCandidate> acceptedCandidates = new List<AcceptedAlertCandidate>();
+            List<AcceptedAlertCandidate> acceptedCandidates = [];
             foreach (AlertOccurrenceProposal proposal in commit.AlertOccurrences)
             {
                 MyAtmAlertOccurrenceEntity? occurrence = await context.AlertOccurrences
@@ -714,10 +708,9 @@ namespace MyAtm.Api.Db
             IReadOnlyList<AccessoryInfoDto> page,
             CancellationToken cancellationToken = default)
         {
-            List<AccessoryInfoDto> normalized = page
+            List<AccessoryInfoDto> normalized = [.. page
                 .GroupBy(dto => new { dto.SerialId, SampleTime = DateTimeUtil.AsUtc(dto.SampleTime) })
-                .Select(group => group.First())
-                .ToList();
+                .Select(group => group.First())];
             if (normalized.Count == 0)
             {
                 return;
@@ -725,19 +718,16 @@ namespace MyAtm.Api.Db
 
             await using MyAtmMonitorContext context = CreateContext();
             await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            List<string> serialIds = normalized.Select(dto => dto.SerialId).Distinct().ToList();
-            List<DateTime> sampleTimes = normalized.Select(dto => DateTimeUtil.AsUtc(dto.SampleTime)).Distinct().ToList();
+            List<string> serialIds = [.. normalized.Select(dto => dto.SerialId).Distinct()];
+            List<DateTime> sampleTimes = [.. normalized.Select(dto => DateTimeUtil.AsUtc(dto.SampleTime)).Distinct()];
             var existing = await context.AccessoryInfo
                 .Where(row => serialIds.Contains(row.SerialId) && sampleTimes.Contains(row.SampleTime))
                 .Select(row => new { row.SerialId, row.SampleTime })
                 .ToListAsync(cancellationToken);
-            HashSet<(string SerialId, DateTime)> existingKeys = existing
-                .Select(row => (row.SerialId, DateTimeUtil.AsUtc(row.SampleTime)))
-                .ToHashSet();
-            List<MyAtmAccessoryInfoEntity> missing = normalized
+            HashSet<(string SerialId, DateTime)> existingKeys = [.. existing.Select(row => (row.SerialId, DateTimeUtil.AsUtc(row.SampleTime)))];
+            List<MyAtmAccessoryInfoEntity> missing = [.. normalized
                 .Where(dto => !existingKeys.Contains((dto.SerialId, DateTimeUtil.AsUtc(dto.SampleTime))))
-                .Select(ToAccessoryInfoEntityUtc)
-                .ToList();
+                .Select(ToAccessoryInfoEntityUtc)];
 
             context.AccessoryInfo.AddRange(missing);
             await context.SaveChangesAsync(cancellationToken);
@@ -802,8 +792,8 @@ namespace MyAtm.Api.Db
                 }
             }
 
-            List<MonitorDeliveryRequest> createdRequests = new List<MonitorDeliveryRequest>();
-            List<AcceptedAlertCandidate> acceptedCandidates = new List<AcceptedAlertCandidate>();
+            List<MonitorDeliveryRequest> createdRequests = [];
+            List<AcceptedAlertCandidate> acceptedCandidates = [];
             foreach (MyAtmAlertOccurrenceInput proposal in commit.Occurrences)
             {
                 if (await context.AlertOccurrences.AnyAsync(row => row.OccurrenceKey == proposal.Key, cancellationToken))
@@ -905,19 +895,19 @@ namespace MyAtm.Api.Db
         {
             using MyAtmMonitorContext context = CreateContext();
             MyAtmSiteSchedule? schedule = (from monitor in context.Monitors.AsNoTracking()
-                            join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
-                            join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
-                            join site in context.Sites.AsNoTracking() on contract.SiteId equals site.Id
-                            where monitor.Id == monitorId && deployment.EndDate == null
-                            select new MyAtmSiteSchedule
-                            {
-                                WeekdayStart = site.StartTime,
-                                WeekdayEnd = site.EndTime,
-                                SaturdayStart = site.SatStartTime,
-                                SaturdayEnd = site.SatEndTime,
-                                SundayStart = site.SunStartTime,
-                                SundayEnd = site.SunEndTime
-                            })
+                                           join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
+                                           join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
+                                           join site in context.Sites.AsNoTracking() on contract.SiteId equals site.Id
+                                           where monitor.Id == monitorId && deployment.EndDate == null
+                                           select new MyAtmSiteSchedule
+                                           {
+                                               WeekdayStart = site.StartTime,
+                                               WeekdayEnd = site.EndTime,
+                                               SaturdayStart = site.SatStartTime,
+                                               SaturdayEnd = site.SatEndTime,
+                                               SundayStart = site.SunStartTime,
+                                               SundayEnd = site.SunEndTime
+                                           })
                 .FirstOrDefault();
 
             return schedule ?? throw AdapterException.Of(
@@ -969,9 +959,7 @@ namespace MyAtm.Api.Db
         {
             using MyAtmMonitorContext context = CreateContext();
             DateTime beforeUtc = DateTimeUtil.AsUtc(before);
-            List<MyAtmErrorMessageEntity> messages = context.MyAtmErrorMessages
-                .Where(row => row.ErrorTime < beforeUtc)
-                .ToList();
+            List<MyAtmErrorMessageEntity> messages = [.. context.MyAtmErrorMessages.Where(row => row.ErrorTime < beforeUtc)];
 
             context.MyAtmErrorMessages.RemoveRange(messages);
             context.SaveChanges();
@@ -994,7 +982,7 @@ namespace MyAtm.Api.Db
                 return;
             }
 
-            Dictionary<(string SerialId, DateTime SampleTime, int Avrg), DustDto> pendingDtos = new Dictionary<(string SerialId, DateTime SampleTime, int Avrg), DustDto>();
+            Dictionary<(string SerialId, DateTime SampleTime, int Avrg), DustDto> pendingDtos = [];
             foreach (DustDto dto in dtos)
             {
                 pendingDtos.TryAdd((dto.SerialId, DateTimeUtil.AsUtc(dto.SampleTime), dto.Avrg), dto);
@@ -1003,14 +991,13 @@ namespace MyAtm.Api.Db
             HashSet<string> serialIds = pendingDtos.Keys.Select(key => key.SerialId).ToHashSet(StringComparer.Ordinal);
             DateTime earliest = pendingDtos.Keys.Min(key => key.SampleTime);
             DateTime latest = pendingDtos.Keys.Max(key => key.SampleTime);
-            HashSet<(string SerialId, DateTime, int Avrg)> existingKeys = (await context.DustLevels
+            HashSet<(string SerialId, DateTime, int Avrg)> existingKeys = [.. (await context.DustLevels
                     .AsNoTracking()
                     .Where(row => serialIds.Contains(row.SerialId))
                     .Where(row => row.SampleTime >= earliest && row.SampleTime <= latest)
                     .Select(row => new { row.SerialId, row.SampleTime, row.Avrg })
                     .ToListAsync(cancellationToken))
-                .Select(row => (row.SerialId, DateTimeUtil.AsUtc(row.SampleTime), row.Avrg))
-                .ToHashSet();
+                .Select(row => (row.SerialId, DateTimeUtil.AsUtc(row.SampleTime), row.Avrg))];
 
             foreach (((string SerialId, DateTime SampleTime, int Avrg) key, DustDto? dto) in pendingDtos)
             {
@@ -1128,7 +1115,7 @@ namespace MyAtm.Api.Db
             MyAtmDustImportCommit commit,
             string deliveryKey)
         {
-            MonitorDeliveryPayloadV1 payload = new MonitorDeliveryPayloadV1(
+            MonitorDeliveryPayloadV1 payload = new(
                 Guid.Empty,
                 DateTimeUtil.AsUtc(commit.Watermark),
                 commit.Monitor.SerialId,

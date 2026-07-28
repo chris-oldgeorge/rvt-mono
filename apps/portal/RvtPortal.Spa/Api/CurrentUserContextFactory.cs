@@ -4,7 +4,6 @@
 
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
-using RVT.Entities;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Data;
 
@@ -35,7 +34,7 @@ public sealed class CurrentUserContextFactory : ICurrentUserContextFactory
         }
 
         ApplicationUser? user = await userManager.GetUserAsync(principal);
-        Guid? userId = Guid.TryParse(user?.Id, out Guid parsedUserId) ? parsedUserId : (Guid?)null;
+        Guid? userId = Guid.TryParse(user?.Id, out Guid parsedUserId) ? parsedUserId : null;
         IReadOnlyCollection<string> roles = user == null
             ? []
             : (await userManager.GetRolesAsync(user)).ToArray();

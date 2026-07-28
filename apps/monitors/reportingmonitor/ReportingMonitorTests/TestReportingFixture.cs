@@ -54,13 +54,13 @@ public sealed class ReportingIntegrationContractTests
     [Fact]
     public void DeploymentExamples_OmitDatabaseProviderSelection()
     {
-        string[] paths = new[]
-        {
+        string[] paths =
+        [
             RepositoryPath("apps", "monitors", "scripts", "run-testlocal-suite.sh"),
             RepositoryPath("apps", "monitors", "README.md"),
             RepositoryPath("docs", "operations", "monitors", "container-builds.md"),
             RepositoryPath("docs", "modules", "monitors", "reportingmonitor", "README.md")
-        };
+        ];
 
         Assert.All(
             paths,
@@ -72,7 +72,7 @@ public sealed class ReportingIntegrationContractTests
 
     private static string RepositoryPath(params string[] segments)
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
             string gitPath = Path.Combine(directory.FullName, ".git");
@@ -94,7 +94,7 @@ internal static class ReportingServiceProviderFactory
         Action<IServiceCollection>? configureServices = null,
         IReadOnlyDictionary<string, string?>? configurationValues = null)
     {
-        Dictionary<string, string?> settings = new Dictionary<string, string?>
+        Dictionary<string, string?> settings = new()
         {
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=reporting_monitor_tests;Username=reporting",
             ["RVT:EMAIL_ENABLED"] = "false"
@@ -110,7 +110,7 @@ internal static class ReportingServiceProviderFactory
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(settings)
             .Build();
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment());
         services.AddLogging();

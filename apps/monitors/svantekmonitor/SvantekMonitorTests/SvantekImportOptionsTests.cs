@@ -13,7 +13,7 @@ public sealed class SvantekImportOptionsTests
     [TestMethod]
     public void Validate_UsesExactImportDefaults()
     {
-        SvantekImportOptions options = new SvantekImportOptions();
+        SvantekImportOptions options = new();
 
         options.Validate();
 
@@ -55,7 +55,7 @@ public sealed class SvantekImportOptionsTests
     [TestMethod]
     public void Validate_RejectsRequestWindowLongerThanInitialBackfill()
     {
-        SvantekImportOptions options = new SvantekImportOptions
+        SvantekImportOptions options = new()
         {
             MaximumInitialBackfill = TimeSpan.FromHours(12),
             MaximumRequestWindow = TimeSpan.FromHours(12).Add(TimeSpan.FromTicks(1))
@@ -67,7 +67,7 @@ public sealed class SvantekImportOptionsTests
     [TestMethod]
     public void Validate_AllowsRequestWindowEqualToInitialBackfill()
     {
-        SvantekImportOptions options = new SvantekImportOptions
+        SvantekImportOptions options = new()
         {
             MaximumInitialBackfill = TimeSpan.FromHours(12),
             MaximumRequestWindow = TimeSpan.FromHours(12)
@@ -87,7 +87,7 @@ public sealed class SvantekImportOptionsTests
                 [$"{SvantekImportOptions.SectionName}:WatermarkOverlap"] = "00:02:00"
             })
             .Build();
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSvantekMonitor(configuration);
 
@@ -111,7 +111,7 @@ public sealed class SvantekImportOptionsTests
                 [$"{SvantekImportOptions.SectionName}:MaximumRequestWindow"] = "00:00:00"
             })
             .Build();
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSvantekMonitor(configuration);
 

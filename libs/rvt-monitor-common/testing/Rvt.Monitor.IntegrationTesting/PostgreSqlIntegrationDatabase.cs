@@ -42,8 +42,8 @@ public sealed class PostgreSqlIntegrationDatabase : IAsyncDisposable
         }
 
         string schemaName = $"rvt_integration_{Guid.NewGuid():N}";
-        NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder(adminConnectionString) { SearchPath = schemaName };
-        PostgreSqlIntegrationDatabase database = new PostgreSqlIntegrationDatabase(adminConnectionString, builder.ConnectionString, schemaName);
+        NpgsqlConnectionStringBuilder builder = new(adminConnectionString) { SearchPath = schemaName };
+        PostgreSqlIntegrationDatabase database = new(adminConnectionString, builder.ConnectionString, schemaName);
 
         try
         {
@@ -101,15 +101,15 @@ public sealed class PostgreSqlIntegrationDatabase : IAsyncDisposable
     {
         await using NpgsqlConnection connection = OpenConnection();
         await connection.OpenAsync(cancellationToken);
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private async Task ExecuteAdminAsync(string sql, CancellationToken cancellationToken)
     {
-        await using NpgsqlConnection connection = new NpgsqlConnection(adminConnectionString);
+        await using NpgsqlConnection connection = new(adminConnectionString);
         await connection.OpenAsync(cancellationToken);
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 

@@ -37,10 +37,8 @@ using System.Reflection;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using RVT.BusinessLogic;
 using RVT.BusinessLogic.Ports.Storage;
-using RVT.BusinessLogic.Reports;
 using RvtPortal.Application.Sites;
 using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Adapters.Archive;
@@ -67,11 +65,10 @@ public class CqrsArchitectureTests
     // Function summary: Verifies application command records participate in the MediatR request pipeline.
     public void ApplicationCommandTypes_AreMediatRRequests()
     {
-        string?[] violations = ApplicationCommandTypes()
+        string?[] violations = [.. ApplicationCommandTypes()
             .Where(type => !ImplementsGenericInterface(type, typeof(IRequest<>)))
             .Select(type => type.FullName)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         Assert.Empty(violations);
     }
@@ -80,13 +77,12 @@ public class CqrsArchitectureTests
     // Function summary: Verifies mutating commands opt into the unit-of-work transaction pipeline.
     public void MutatingApplicationCommands_AreTransactional()
     {
-        HashSet<string> allowed = new HashSet<string>(AllowedNonTransactionalCommands, StringComparer.Ordinal);
-        string?[] violations = ApplicationCommandTypes()
+        HashSet<string> allowed = new(AllowedNonTransactionalCommands, StringComparer.Ordinal);
+        string?[] violations = [.. ApplicationCommandTypes()
             .Where(type => !allowed.Contains(type.Name))
             .Where(type => !typeof(ITransactionalRequest).IsAssignableFrom(type))
             .Select(type => type.FullName)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         Assert.Empty(violations);
     }
@@ -95,11 +91,10 @@ public class CqrsArchitectureTests
     // Function summary: Verifies API controllers stay as HTTP adapters instead of depending directly on MediatR.
     public void ApiControllers_DoNotDependOnMediator()
     {
-        string?[] violations = ApiControllerTypes()
+        string?[] violations = [.. ApiControllerTypes()
             .Where(type => ConstructorParameters(type).Contains(typeof(IMediator)))
             .Select(type => type.FullName)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         Assert.Empty(violations);
     }
@@ -113,7 +108,7 @@ public class CqrsArchitectureTests
         Assert.NotNull(lookupService);
 
         // No whole-table caching: the service must not take an IMemoryCache dependency.
-        Assert.DoesNotContain(typeof(Microsoft.Extensions.Caching.Memory.IMemoryCache), ConstructorParameters(lookupService!));
+        Assert.DoesNotContain(typeof(Microsoft.Extensions.Caching.Memory.IMemoryCache), ConstructorParameters(lookupService));
 
         // Async surface: every lookup operation returns a Task, so reads cannot block through sync-over-async.
         Assert.All(
@@ -128,7 +123,7 @@ public class CqrsArchitectureTests
     // provider rather than static configuration. Renovated from a brittle source-text scan of DateExtensions.cs.
     public void DateExtensions_RunsNoTypeLoadCodeAndConvertsThroughInjectedProvider()
     {
-        Type dateExtensions = typeof(RVT.BusinessLogic.DateExtensions);
+        Type dateExtensions = typeof(DateExtensions);
 
         // No static constructor => nothing (including an appsettings read) executes when the type loads.
         Assert.Null(dateExtensions.TypeInitializer);
@@ -163,7 +158,7 @@ public class CqrsArchitectureTests
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(SitesController));
 
-        Assert.Contains(typeof(RvtPortal.Application.Sites.ISiteApplicationService), constructorParameters);
+        Assert.Contains(typeof(ISiteApplicationService), constructorParameters);
         Assert.Contains(typeof(ICurrentUserContextFactory), constructorParameters);
         Assert.Contains(typeof(IApiResultMapper), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
@@ -197,7 +192,7 @@ public class CqrsArchitectureTests
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
-        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<RvtPortal.Spa.Data.ApplicationUser>), constructorParameters);
+        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
     }
 
     [Fact]
@@ -222,7 +217,7 @@ public class CqrsArchitectureTests
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
-        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<RvtPortal.Spa.Data.ApplicationUser>), constructorParameters);
+        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
         Assert.DoesNotContain(typeof(ICompanyService), constructorParameters);
         Assert.DoesNotContain(typeof(ILookupService), constructorParameters);
         Assert.DoesNotContain(typeof(IConfiguration), constructorParameters);
@@ -238,8 +233,8 @@ public class CqrsArchitectureTests
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
-        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.SignInManager<RvtPortal.Spa.Data.ApplicationUser>), constructorParameters);
-        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<RvtPortal.Spa.Data.ApplicationUser>), constructorParameters);
+        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.SignInManager<ApplicationUser>), constructorParameters);
+        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
         Assert.DoesNotContain(typeof(ICompanyService), constructorParameters);
         Assert.DoesNotContain(typeof(IConfiguration), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.BusinessLogic.Notifications.IAccountMessenger), constructorParameters);
@@ -272,11 +267,11 @@ public class CqrsArchitectureTests
         Assert.Contains(workflowServiceInterface, constructorParameters);
         Assert.Contains(typeof(ICurrentUserContextFactory), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
-        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<RvtPortal.Spa.Data.ApplicationUser>), constructorParameters);
-        Assert.DoesNotContain(typeof(RVT.BusinessLogic.Ports.Storage.IMonitorPictureStorage), constructorParameters);
-        Assert.DoesNotContain(typeof(RvtPortal.Spa.Application.Monitors.IMonitorDetailReader), constructorParameters);
-        Assert.DoesNotContain(typeof(RvtPortal.Spa.Application.Monitors.IMonitorListReader), constructorParameters);
-        Assert.DoesNotContain(typeof(RvtPortal.Spa.Application.Monitors.IMonitorRemovalImpactReader), constructorParameters);
+        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
+        Assert.DoesNotContain(typeof(IMonitorPictureStorage), constructorParameters);
+        Assert.DoesNotContain(typeof(Application.Monitors.IMonitorDetailReader), constructorParameters);
+        Assert.DoesNotContain(typeof(Application.Monitors.IMonitorListReader), constructorParameters);
+        Assert.DoesNotContain(typeof(Application.Monitors.IMonitorRemovalImpactReader), constructorParameters);
         Assert.DoesNotContain(typeof(IMediator), constructorParameters);
     }
 
@@ -291,7 +286,7 @@ public class CqrsArchitectureTests
         Assert.Contains(serviceInterface, constructorParameters);
         Assert.Contains(typeof(ICurrentUserContextFactory), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
-        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<RvtPortal.Spa.Data.ApplicationUser>), constructorParameters);
+        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
         Assert.DoesNotContain(typeof(IMediator), constructorParameters);
     }
 
@@ -306,8 +301,8 @@ public class CqrsArchitectureTests
         Assert.Contains(serviceInterface, constructorParameters);
         Assert.Contains(typeof(ICurrentUserContextFactory), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
-        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<RvtPortal.Spa.Data.ApplicationUser>), constructorParameters);
-        Assert.DoesNotContain(typeof(RvtPortal.Spa.Application.Monitors.IMonitorDetailReader), constructorParameters);
+        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
+        Assert.DoesNotContain(typeof(Application.Monitors.IMonitorDetailReader), constructorParameters);
         Assert.DoesNotContain(typeof(IConfiguration), constructorParameters);
         Assert.DoesNotContain(typeof(IHttpClientFactory), constructorParameters);
         Assert.DoesNotContain(typeof(IMediator), constructorParameters);
@@ -324,7 +319,7 @@ public class CqrsArchitectureTests
         Assert.Contains(serviceInterface, constructorParameters);
         Assert.Contains(typeof(ICurrentUserContextFactory), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
-        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<RvtPortal.Spa.Data.ApplicationUser>), constructorParameters);
+        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
         Assert.DoesNotContain(typeof(IMediator), constructorParameters);
     }
 
@@ -341,7 +336,7 @@ public class CqrsArchitectureTests
         Assert.Contains(companyServiceInterface, companyParameters);
         Assert.DoesNotContain(typeof(ICompanyService), companyParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), companyParameters);
-        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<RvtPortal.Spa.Data.ApplicationUser>), companyParameters);
+        Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), companyParameters);
         Assert.DoesNotContain(typeof(IMediator), companyParameters);
 
         Assert.NotNull(contractServiceInterface);
@@ -429,10 +424,9 @@ public class CqrsArchitectureTests
     // Function summary: Verifies the business-logic core does not reference the data-access adapter assembly.
     public void BusinessLogicCore_DoesNotReferenceDataAccessAdapter()
     {
-        string?[] referenced = typeof(IRvtDateTimeProvider).Assembly
+        string?[] referenced = [.. typeof(IRvtDateTimeProvider).Assembly
             .GetReferencedAssemblies()
-            .Select(assembly => assembly.Name)
-            .ToArray();
+            .Select(assembly => assembly.Name)];
 
         Assert.DoesNotContain("RVT.DataAccess", referenced);
     }
@@ -441,9 +435,9 @@ public class CqrsArchitectureTests
     // Function summary: Verifies the transaction pipeline saves changes only for transactional MediatR requests.
     public async Task TransactionPipeline_SavesOnlyTransactionalRequests()
     {
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
-        TransactionPipelineBehavior<TestTransactionalRequest, int> transactionalBehavior = new TransactionPipelineBehavior<TestTransactionalRequest, int>(unitOfWork);
-        TransactionPipelineBehavior<TestQueryRequest, int> queryBehavior = new TransactionPipelineBehavior<TestQueryRequest, int>(unitOfWork);
+        RecordingUnitOfWork unitOfWork = new();
+        TransactionPipelineBehavior<TestTransactionalRequest, int> transactionalBehavior = new(unitOfWork);
+        TransactionPipelineBehavior<TestQueryRequest, int> queryBehavior = new(unitOfWork);
 
         int transactionalResult = await transactionalBehavior.Handle(
             new TestTransactionalRequest(),
@@ -464,11 +458,10 @@ public class CqrsArchitectureTests
     // Function summary: Verifies the business layer owns no direct HTTP-client infrastructure; outbound vendor calls must cross an adapter port.
     public void BusinessLogicTypes_DoNotDependOnHttpClientFactory()
     {
-        string?[] violations = BusinessLogicTypes()
+        string?[] violations = [.. BusinessLogicTypes()
             .Where(type => ConstructorParameters(type).Contains(typeof(IHttpClientFactory)))
             .Select(type => type.FullName)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         Assert.Empty(violations);
     }
@@ -477,12 +470,11 @@ public class CqrsArchitectureTests
     // Function summary: Verifies the email vendor SDK stays in the host adapters; the business layer must not reference SendGrid.
     public void BusinessLogicAssembly_DoesNotReferenceSendGrid()
     {
-        string?[] offenders = new[] { typeof(IRvtDateTimeProvider).Assembly }
+        string?[] offenders = [.. new[] { typeof(IRvtDateTimeProvider).Assembly }
         .Where(assembly => assembly.GetReferencedAssemblies()
             .Any(reference => reference.Name?.Contains("SendGrid", StringComparison.OrdinalIgnoreCase) == true))
         .Select(assembly => assembly.GetName().Name)
-        .Order(StringComparer.Ordinal)
-        .ToArray();
+        .Order(StringComparer.Ordinal)];
 
         Assert.Empty(offenders);
     }
@@ -521,11 +513,10 @@ public class CqrsArchitectureTests
     // Function summary: Returns public constructor dependency types for an API controller.
     private static IReadOnlyCollection<Type> ConstructorParameters(Type controllerType)
     {
-        return controllerType
+        return [.. controllerType
             .GetConstructors(BindingFlags.Instance | BindingFlags.Public)
             .SelectMany(constructor => constructor.GetParameters())
-            .Select(parameter => parameter.ParameterType)
-            .ToArray();
+            .Select(parameter => parameter.ParameterType)];
     }
 
     // Function summary: Checks whether a type implements a specific open generic interface.

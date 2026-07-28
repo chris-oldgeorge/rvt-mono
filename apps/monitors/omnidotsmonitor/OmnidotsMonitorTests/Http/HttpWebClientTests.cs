@@ -15,16 +15,16 @@ public sealed class HttpWebClientTests
     [TestMethod]
     public async Task PostAsync_NonSuccess_DoesNotExposeVendorBodyInExceptionOrLogs()
     {
-        using CapturingLoggerProvider loggerProvider = new CapturingLoggerProvider();
+        using CapturingLoggerProvider loggerProvider = new();
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
         RvtLogger.CreateLogger(loggerFactory, nameof(HttpWebClientTests));
-        TrackingHttpContent responseContent = new TrackingHttpContent(RawVendorBodyMarker);
-        using HttpClient client = new HttpClient(new StubHttpMessageHandler(
+        TrackingHttpContent responseContent = new(RawVendorBodyMarker);
+        using HttpClient client = new(new StubHttpMessageHandler(
             new HttpResponseMessage(HttpStatusCode.BadRequest)
             {
                 Content = responseContent
             }));
-        HttpWebClient subject = new HttpWebClient("https://vendor.example.test", client);
+        HttpWebClient subject = new("https://vendor.example.test", client);
 
         AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => subject.PostAsync(
             "/api/v1/configure_measuring_point?token=vendor-token&measuring_point_id=23423",
@@ -45,13 +45,13 @@ public sealed class HttpWebClientTests
     {
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Debug));
         RvtLogger.CreateLogger(loggerFactory, nameof(HttpWebClientTests));
-        TrackingHttpContent responseContent = new TrackingHttpContent("successful-vendor-body");
-        using HttpClient client = new HttpClient(new StubHttpMessageHandler(
+        TrackingHttpContent responseContent = new("successful-vendor-body");
+        using HttpClient client = new(new StubHttpMessageHandler(
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = responseContent
             }));
-        HttpWebClient subject = new HttpWebClient("https://vendor.example.test", client);
+        HttpWebClient subject = new("https://vendor.example.test", client);
 
         string response = await subject.PostAsync(
             "/api/v1/configure_measuring_point?token=vendor-token&measuring_point_id=23423",

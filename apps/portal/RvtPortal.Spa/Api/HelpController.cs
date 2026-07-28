@@ -179,7 +179,7 @@ public sealed class HelpController(
             });
     }
 
-    private Task<RvtPortal.Application.Identity.PortalUserContext>
+    private Task<PortalUserContext>
         CurrentActorAsync() =>
         currentUserContextFactory.CreateAsync(
             User,

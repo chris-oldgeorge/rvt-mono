@@ -13,11 +13,11 @@ public sealed class DateTimeProviderTests
     // Function summary: Verifies the date-time provider uses the injected local time-zone option for UTC/local conversion.
     public void RvtDateTimeProvider_UsesConfiguredTimeZone()
     {
-        RvtDateTimeProvider provider = new RvtDateTimeProvider(Options.Create(new RvtTimeZoneOptions
+        RvtDateTimeProvider provider = new(Options.Create(new RvtTimeZoneOptions
         {
             Local = "South Africa Standard Time"
         }));
-        DateTime utc = new DateTime(2026, 1, 15, 10, 0, 0, DateTimeKind.Utc);
+        DateTime utc = new(2026, 1, 15, 10, 0, 0, DateTimeKind.Utc);
 
         DateTime local = provider.UtcToLocal(utc);
         DateTime roundTrip = provider.LocalToUtc(local);

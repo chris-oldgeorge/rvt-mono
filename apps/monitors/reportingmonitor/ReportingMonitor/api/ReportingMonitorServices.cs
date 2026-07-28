@@ -41,7 +41,7 @@ public static class ReportingMonitorServices
             MonitorDb.ValidateLegacyProvider(
                 configuration["RVT:DATABASE_PROVIDER"],
                 configuration["DatabaseProvider"]);
-            Dictionary<string, string> identifierMap = new Dictionary<string, string>(StringComparer.Ordinal);
+            Dictionary<string, string> identifierMap = new(StringComparer.Ordinal);
             return new MonitorDbOptions(identifierMap);
         });
 

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -35,14 +34,12 @@ public sealed class CheckForOfflineMonitorsHandler
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(null)
-            .Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))
-            .ToList();
+        List<RvtAlertRuleDto> rules = [.. ruleQueries.ReadRules(null).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
         List<NoiseMonitorReadDto> monitors = await monitorReader.ReadMonitorsAsync(
             lastDataTime: null,
             cancellationToken).ConfigureAwait(false);
         DateTime utcNow = DateTime.UtcNow;
-        SvantekFailureCollector failures = new SvantekFailureCollector(operationalCommands);
+        SvantekFailureCollector failures = new(operationalCommands);
 
         foreach (NoiseMonitorReadDto monitor in monitors)
         {

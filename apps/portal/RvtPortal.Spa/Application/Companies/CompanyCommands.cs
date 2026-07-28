@@ -45,7 +45,7 @@ public sealed class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyC
     // Function summary: Creates a company after validating its display name.
     public async Task<CompanyCommandResult> Handle(CreateCompanyCommand request, CancellationToken cancellationToken)
     {
-        CompanyCommandResult result = new CompanyCommandResult();
+        CompanyCommandResult result = new();
         string? companyName = await CompanyCommandWorkflow.ValidateCompanyNameAsync(
             domainContext,
             request.Request.CompanyName,
@@ -57,7 +57,7 @@ public sealed class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyC
             return result;
         }
 
-        Company company = new Company { Id = Guid.NewGuid(), CompanyName = companyName!, Contracts = [] };
+        Company company = new() { Id = Guid.NewGuid(), CompanyName = companyName!, Contracts = [] };
         domainContext.Companies.Add(company);
         result.CompanyId = company.Id;
         result.CompanyName = company.CompanyName;
@@ -78,7 +78,7 @@ public sealed class UpdateCompanyCommandHandler : IRequestHandler<UpdateCompanyC
     // Function summary: Updates a company name after validating uniqueness.
     public async Task<CompanyCommandResult> Handle(UpdateCompanyCommand request, CancellationToken cancellationToken)
     {
-        CompanyCommandResult result = new CompanyCommandResult { CompanyId = request.CompanyId };
+        CompanyCommandResult result = new() { CompanyId = request.CompanyId };
         Company? company = await domainContext.Companies.SingleOrDefaultAsync(item => item.Id == request.CompanyId, cancellationToken);
         if (company == null)
         {
@@ -118,7 +118,7 @@ public sealed class DeleteCompanyCommandHandler : IRequestHandler<DeleteCompanyC
     // Function summary: Deletes a company and removes its company-user account data in one transaction.
     public async Task<CompanyCommandResult> Handle(DeleteCompanyCommand request, CancellationToken cancellationToken)
     {
-        CompanyCommandResult result = new CompanyCommandResult { CompanyId = request.CompanyId };
+        CompanyCommandResult result = new() { CompanyId = request.CompanyId };
         Company? company = await domainContext.Companies.SingleOrDefaultAsync(item => item.Id == request.CompanyId, cancellationToken);
         if (company == null)
         {
@@ -129,11 +129,10 @@ public sealed class DeleteCompanyCommandHandler : IRequestHandler<DeleteCompanyC
         List<ApplicationUser> companyUsers = await userManager.Users
             .Where(user => user.CompanyId == request.CompanyId)
             .ToListAsync(cancellationToken);
-        List<Guid> userIds = companyUsers
+        List<Guid> userIds = [.. companyUsers
             .Select(user => Guid.TryParse(user.Id, out Guid userId) ? userId : (Guid?)null)
             .Where(userId => userId.HasValue)
-            .Select(userId => userId!.Value)
-            .ToList();
+            .Select(userId => userId!.Value)];
         if (userIds.Count > 0)
         {
             List<SiteUsers> siteUsers = await domainContext.SiteUsers

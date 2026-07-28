@@ -8,7 +8,7 @@ public sealed class SiteArchiveWorkspaceFactoryTests
     public async Task Create_UsesUniqueWorkspacesAndOneStableBlobKeyPerSite()
     {
         Guid siteId = Guid.NewGuid();
-        SiteArchiveWorkspaceFactory factory = new SiteArchiveWorkspaceFactory();
+        SiteArchiveWorkspaceFactory factory = new();
         await using SiteArchiveWorkspace first = factory.Create(siteId);
         await using SiteArchiveWorkspace second = factory.Create(siteId);
 

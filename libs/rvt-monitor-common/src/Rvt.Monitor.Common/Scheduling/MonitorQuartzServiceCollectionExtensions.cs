@@ -32,7 +32,7 @@ public static class MonitorQuartzServiceCollectionExtensions
             TimeZoneInfo timeZone = ResolveTimeZone(options.TimeZoneId);
             foreach (MonitorJobSchedule schedule in options.GetEnabledJobs())
             {
-                JobKey jobKey = new JobKey(schedule.Name, monitorName);
+                JobKey jobKey = new(schedule.Name, monitorName);
                 quartz.AddJob<MonitorQuartzJob>(job => job
                     .WithIdentity(jobKey)
                     .UsingJobData(MonitorQuartzJob.JobNameDataKey, schedule.Name));

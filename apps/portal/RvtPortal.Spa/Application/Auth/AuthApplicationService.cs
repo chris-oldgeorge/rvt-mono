@@ -10,9 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
-using RVT.BusinessLogic;
 using RVT.BusinessLogic.Notifications;
 using RVT.BusinessLogic.Ports.Notifications;
 using RvtPortal.Spa.Api;
@@ -189,7 +187,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
         }
 
         SignInResult result = user == null
-            ? Microsoft.AspNetCore.Identity.SignInResult.Failed
+            ? SignInResult.Failed
             : await signInManager.PasswordSignInAsync(user, request.Password, request.RememberMe, lockoutOnFailure: true);
         if (result.Succeeded && user is not null)
         {
@@ -583,7 +581,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
             PhoneNumber = user.PhoneNumber,
             CompanyId = user.CompanyId,
             CompanyRole = user.CompanyRole,
-            Roles = roles.ToList()
+            Roles = [.. roles]
         };
     }
 
@@ -650,7 +648,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
         AuthWorkflowResult<T> result = AuthWorkflowResult<T>.Failure(status);
         foreach (IGrouping<string, IdentityError> group in errors.GroupBy(error => error.Code))
         {
-            result.Errors[group.Key] = group.Select(error => error.Description).ToArray();
+            result.Errors[group.Key] = [.. group.Select(error => error.Description)];
         }
 
         return result;

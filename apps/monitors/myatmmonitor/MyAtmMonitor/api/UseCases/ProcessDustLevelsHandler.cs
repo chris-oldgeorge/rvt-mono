@@ -2,7 +2,6 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Rules;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 
@@ -41,8 +40,8 @@ public sealed class ProcessDustLevelsHandler
         where T : BaseDeviceMeasurement
     {
         DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(period).OrderBy(rule => rule.AlertType).ToList();
-        MyAtmFailureCollector failures = new MyAtmFailureCollector(operationalCommands);
+        List<RvtAlertRuleDto> rules = [.. ruleQueries.ReadRules(period).OrderBy(rule => rule.AlertType)];
+        MyAtmFailureCollector failures = new(operationalCommands);
         foreach (RvtAlertRuleDto rule in rules)
         {
             try

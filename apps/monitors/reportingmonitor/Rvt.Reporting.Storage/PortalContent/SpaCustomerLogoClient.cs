@@ -35,7 +35,7 @@ public sealed class SpaCustomerLogoClient : ICustomerLogoProvider
 
         try
         {
-            using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, logoUri);
+            using HttpRequestMessage request = new(HttpMethod.Get, logoUri);
             request.Headers.TryAddWithoutValidation(InternalKeyHeader, _options.InternalApiKey);
             using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)

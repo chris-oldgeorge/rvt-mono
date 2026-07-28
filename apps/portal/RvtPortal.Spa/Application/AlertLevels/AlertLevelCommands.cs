@@ -5,10 +5,7 @@
 
 using System.Globalization;
 using MediatR;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
-using RVT.BusinessLogic;
 using RVT.BusinessLogic.Ports.Vendors;
 using RVT.DataAccess.Context;
 using RVT.Entities;
@@ -60,7 +57,7 @@ public sealed class CreateAlertLevelCommandHandler : IRequestHandler<CreateAlert
     // Function summary: Creates a non-vibration alert level after validating monitor-specific rules.
     public async Task<AlertLevelCommandResult> Handle(CreateAlertLevelCommand request, CancellationToken cancellationToken)
     {
-        AlertLevelCommandResult result = new AlertLevelCommandResult();
+        AlertLevelCommandResult result = new();
         MonitorEntity? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(item => item.Id == request.Request.MonitorId, cancellationToken);
         if (monitor == null)
         {
@@ -79,7 +76,7 @@ public sealed class CreateAlertLevelCommandHandler : IRequestHandler<CreateAlert
             return result;
         }
 
-        Alertlevel level = new Alertlevel
+        Alertlevel level = new()
         {
             MonitorId = monitor.Id,
             SerialId = monitor.SerialId,
@@ -120,7 +117,7 @@ public sealed class UpdateAlertLevelCommandHandler : IRequestHandler<UpdateAlert
     // Function summary: Updates a non-vibration alert level after validating monitor-specific rules.
     public async Task<AlertLevelCommandResult> Handle(UpdateAlertLevelCommand request, CancellationToken cancellationToken)
     {
-        AlertLevelCommandResult result = new AlertLevelCommandResult { AlertLevelId = request.AlertLevelId };
+        AlertLevelCommandResult result = new() { AlertLevelId = request.AlertLevelId };
         Alertlevel? level = await domainContext.RvtAlertRules.SingleOrDefaultAsync(
             item => item.Id == request.AlertLevelId && !item.IsDeleted,
             cancellationToken);
@@ -182,7 +179,7 @@ public sealed class UpdateVibrationAlertLevelsCommandHandler
         UpdateVibrationAlertLevelsCommand request,
         CancellationToken cancellationToken)
     {
-        VibrationAlertLevelCommandResult result = new VibrationAlertLevelCommandResult();
+        VibrationAlertLevelCommandResult result = new();
         MonitorEntity? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(item => item.Id == request.MonitorId, cancellationToken);
         if (monitor == null)
         {
@@ -253,9 +250,7 @@ public sealed class UpdateVibrationAlertLevelsCommandHandler
             CautionLevel = request.Request.CautionLevel,
             ExternalSyncAttempted = externalAttempted,
             ExternalSyncSucceeded = externalSucceeded,
-            AlertLevels = levels.OrderBy(level => level.AlertType)
-                .Select(level => AlertLevelWorkflow.BuildAlertLevelItem(level, monitor.TypeOfMonitor))
-                .ToList()
+            AlertLevels = [.. levels.OrderBy(level => level.AlertType).Select(level => AlertLevelWorkflow.BuildAlertLevelItem(level, monitor.TypeOfMonitor))]
         };
         return result;
     }
@@ -274,7 +269,7 @@ public sealed class DeleteAlertLevelCommandHandler : IRequestHandler<DeleteAlert
     // Function summary: Soft-deletes an alert level and disables it.
     public async Task<AlertLevelCommandResult> Handle(DeleteAlertLevelCommand request, CancellationToken cancellationToken)
     {
-        AlertLevelCommandResult result = new AlertLevelCommandResult { AlertLevelId = request.AlertLevelId };
+        AlertLevelCommandResult result = new() { AlertLevelId = request.AlertLevelId };
         Alertlevel? level = await domainContext.RvtAlertRules.SingleOrDefaultAsync(
             item => item.Id == request.AlertLevelId && !item.IsDeleted,
             cancellationToken);
@@ -376,9 +371,7 @@ internal static class AlertLevelCommandWorkflow
 
     private static bool ValidateAveragingPeriod(MonitorEntity monitor, AlertLevelMutationRequest request, Dictionary<string, string[]> errors)
     {
-        HashSet<int> validPeriods = AlertLevelWorkflow.BuildAveragingPeriodOptions(monitor.TypeOfMonitor)
-            .Select(item => int.Parse(item.Value, CultureInfo.InvariantCulture))
-            .ToHashSet();
+        HashSet<int> validPeriods = [.. AlertLevelWorkflow.BuildAveragingPeriodOptions(monitor.TypeOfMonitor).Select(item => int.Parse(item.Value, CultureInfo.InvariantCulture))];
         if (validPeriods.Contains(request.AveragingPeriod))
         {
             return true;

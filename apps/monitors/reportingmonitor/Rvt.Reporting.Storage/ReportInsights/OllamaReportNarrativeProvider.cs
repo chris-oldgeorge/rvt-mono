@@ -34,7 +34,7 @@ public sealed class OllamaReportNarrativeProvider : IReportNarrativeProvider
         {
             using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, _options.TimeoutSeconds)));
-            Uri endpoint = new Uri(new Uri(_options.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute), "api/generate");
+            Uri endpoint = new(new Uri(_options.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute), "api/generate");
             HttpResponseMessage response = await _httpClient.PostAsJsonAsync(endpoint, BuildRequest(context), timeout.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {

@@ -32,7 +32,7 @@ public static partial class SvantekDbMapper
 
     public static MonitorEntity ToMonitorEntity(NoiseMonitorDto dto)
     {
-        MonitorEntity entity = new MonitorEntity { Id = dto.Id };
+        MonitorEntity entity = new() { Id = dto.Id };
         UpdateMonitorEntity(entity, dto);
         return entity;
     }
@@ -68,7 +68,7 @@ public static partial class SvantekDbMapper
 
     public static SvantekMonitorStatusEntity ToStatusEntity(NoiseMonitorDto dto)
     {
-        SvantekMonitorStatusEntity entity = new SvantekMonitorStatusEntity
+        SvantekMonitorStatusEntity entity = new()
         {
             SerialId = dto.SerialId,
             UpdateTime = DateTime.UtcNow,

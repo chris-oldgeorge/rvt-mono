@@ -2,7 +2,6 @@ using System.Data;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using NpgsqlTypes;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
@@ -13,7 +12,6 @@ using Svantek.Api.Db;
 using Svantek.Model.Dto;
 using Svantek.Model.Http;
 using SvantekMonitor.model.dto;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
@@ -46,7 +44,7 @@ namespace SvantekMonitorTests
         {
             using NpgsqlConnection connection = database!.OpenConnection();
             connection.Open();
-            using NpgsqlCommand command = new NpgsqlCommand("SELECT current_schema();", connection);
+            using NpgsqlCommand command = new("SELECT current_schema();", connection);
 
             Assert.AreEqual(database.SchemaName, command.ExecuteScalar());
         }
@@ -109,7 +107,7 @@ namespace SvantekMonitorTests
         public void TestReadGlobalRules()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             List<RvtAlertRuleDto> rules = testObj!.ReadRules(null);
@@ -169,7 +167,7 @@ namespace SvantekMonitorTests
                 "SvantekMonitorTests",
                 "1.0");
 
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string sql = @"SELECT variables, message, logged_at FROM error_log";
@@ -200,10 +198,10 @@ namespace SvantekMonitorTests
             DateTime actualDt = PostgreSqlFixtureDateTime.ParseUtc(actual);
             List<SampleResponse> samples = SvantekFixture.SamplesResponseObjects(actualDt);
             string serialId = "E1234";
-            testObj!.InsertNoiseDtos(serialId, new List<NoiseDto> { new NoiseDto(samples[0]) });
+            testObj!.InsertNoiseDtos(serialId, [new NoiseDto(samples[0])]);
 
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<NoiseDto> dtos = ReadNoiseDtos(connection, out string lastSerialId);
             Assert.HasCount(1, dtos);
@@ -228,14 +226,14 @@ namespace SvantekMonitorTests
         {
             string serialId = "E4321";
             DateTime sampleTime = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T14:35:42Z");
-            NoiseDto dto = new NoiseDto(sampleTime: sampleTime, lAeq: 44.75, lAmax: 61.28, lA90: 43.00,
+            NoiseDto dto = new(sampleTime: sampleTime, lAeq: 44.75, lAmax: 61.28, lA90: 43.00,
                 lA10: 44.47, lCeq: 54.19, lCmax: 82.81, lC90: 47.56, lC10: 51.22);
 
-            testObj!.InsertNoiseDtos(serialId, new List<NoiseDto> { dto });
+            testObj!.InsertNoiseDtos(serialId, [dto]);
 
             await using NpgsqlConnection connection = database!.OpenConnection();
             await connection.OpenAsync();
-            await using NpgsqlCommand command = new NpgsqlCommand(
+            await using NpgsqlCommand command = new(
                 "SELECT serial_id, sample_time, laeq FROM svantek_noise_level ORDER BY sample_time;", connection);
             await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
 
@@ -252,14 +250,14 @@ namespace SvantekMonitorTests
         {
             string serialId = "E5678";
             DateTime sampleTime = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T14:35:42Z");
-            NoiseDto dto = new NoiseDto(sampleTime: sampleTime, lAeq: 1, lAmax: 2, lA90: 3,
+            NoiseDto dto = new(sampleTime: sampleTime, lAeq: 1, lAmax: 2, lA90: 3,
                 lA10: 4, lCeq: 5, lCmax: 6, lC90: 7, lC10: 8);
 
-            testObj!.InsertNoiseDtos(serialId, new List<NoiseDto> { dto, dto });
-            testObj.InsertNoiseDtos(serialId, new List<NoiseDto> { dto });
+            testObj!.InsertNoiseDtos(serialId, [dto, dto]);
+            testObj.InsertNoiseDtos(serialId, [dto]);
 
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<NoiseDto> dtos = ReadNoiseDtos(connection, out string lastSerialId);
 
@@ -273,7 +271,7 @@ namespace SvantekMonitorTests
         public void TestReadAlertRules()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E2345";
@@ -284,8 +282,8 @@ namespace SvantekMonitorTests
             Guid monitorId = monitorsOut[0].Id;
 
             int NUM_RULES = 10;
-            TimeSpan startTime = new TimeSpan(9, 0, 0);
-            TimeSpan endTime = new TimeSpan(17, 0, 0);
+            TimeSpan startTime = new(9, 0, 0);
+            TimeSpan endTime = new(17, 0, 0);
             for (int i = 0; i < NUM_RULES; i++)
             {
                 InsertAlertRule(connection, i, serialId, monitorId);
@@ -300,7 +298,7 @@ namespace SvantekMonitorTests
             List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
             Assert.HasCount(NUM_RULES, rules);
 
-            List<RvtAlertRuleDto> orderedRules = rules.OrderBy(o => o.Field).ToList();
+            List<RvtAlertRuleDto> orderedRules = [.. rules.OrderBy(o => o.Field)];
 
             for (int i = 0; i < NUM_RULES; i++)
             {
@@ -327,7 +325,7 @@ namespace SvantekMonitorTests
         public void TestReadAlertContacts()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             int numMonitors = 2;
@@ -385,7 +383,7 @@ namespace SvantekMonitorTests
         public void TestWriteNotification()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E8271";
@@ -418,7 +416,7 @@ namespace SvantekMonitorTests
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             DateTime dt = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T11:19:00Z");
-            NotificationDto notifyCaution = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto notifyCaution = new(id: Guid.NewGuid(),
                                               notificationTime: dt,
                                               limitOn: rules[0].LimitOn,
                                               averagingPeriod: rules[0].AveragingPeriod,
@@ -450,7 +448,7 @@ namespace SvantekMonitorTests
             }
 
 
-            NotificationDto notifyAlert = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto notifyAlert = new(id: Guid.NewGuid(),
                                               notificationTime: dt,
                                               limitOn: rules[0].LimitOn,
                                               averagingPeriod: rules[0].AveragingPeriod,
@@ -477,7 +475,7 @@ namespace SvantekMonitorTests
         public void TestHasOpenNotification(AlertType existing, AlertType alertType, bool expectedResult)
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E8271";
@@ -511,7 +509,7 @@ namespace SvantekMonitorTests
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             DateTime dt = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T11:19:00Z");
-            NotificationDto existingNotification = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto existingNotification = new(id: Guid.NewGuid(),
                                               notificationTime: dt,
                                               limitOn: rules[0].LimitOn,
                                               averagingPeriod: rules[0].AveragingPeriod,
@@ -532,7 +530,7 @@ namespace SvantekMonitorTests
         public void UpdateAlertRule()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
@@ -562,7 +560,7 @@ namespace SvantekMonitorTests
         public void TestSetMonitorOffline()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
@@ -585,13 +583,13 @@ namespace SvantekMonitorTests
         public void TestCatalogueRefreshPreservesRuntimeOwnedMonitorAndDeploymentState()
         {
             NoiseMonitorDto monitor = CreateMonitorsList(1, "catalogue-refresh-")[0];
-            testObj!.WriteMonitorList(new List<NoiseMonitorDto> { monitor });
+            testObj!.WriteMonitorList([monitor]);
 
             Guid ReadPersistedMonitorId()
             {
                 using NpgsqlConnection connection = database!.OpenConnection();
                 connection.Open();
-                using NpgsqlCommand command = new NpgsqlCommand(
+                using NpgsqlCommand command = new(
                     "SELECT id FROM monitor WHERE serial_id = @SerialId;",
                     connection);
                 command.Parameters.AddWithValue("@SerialId", monitor.SerialId);
@@ -611,7 +609,7 @@ namespace SvantekMonitorTests
             using (NpgsqlConnection connection = database!.OpenConnection())
             {
                 connection.Open();
-                using NpgsqlCommand command = new NpgsqlCommand(
+                using NpgsqlCommand command = new(
                     """
                     UPDATE monitor
                     SET customer_id = @CustomerId,
@@ -664,19 +662,19 @@ namespace SvantekMonitorTests
             Guid firstRefreshMonitorId = Guid.NewGuid();
             Assert.AreNotEqual(initialMonitorId, firstRefreshMonitorId);
             monitor.Id = firstRefreshMonitorId;
-            testObj.WriteMonitorList(new List<NoiseMonitorDto> { monitor });
+            testObj.WriteMonitorList([monitor]);
             Assert.AreEqual(initialMonitorId, ReadPersistedMonitorId());
 
             Guid secondRefreshMonitorId = Guid.NewGuid();
             Assert.AreNotEqual(initialMonitorId, secondRefreshMonitorId);
             Assert.AreNotEqual(firstRefreshMonitorId, secondRefreshMonitorId);
             monitor.Id = secondRefreshMonitorId;
-            testObj.WriteMonitorList(new List<NoiseMonitorDto> { monitor });
+            testObj.WriteMonitorList([monitor]);
             Assert.AreEqual(initialMonitorId, ReadPersistedMonitorId());
 
             using NpgsqlConnection verifyConnection = database!.OpenConnection();
             verifyConnection.Open();
-            using NpgsqlCommand verifyCommand = new NpgsqlCommand(
+            using NpgsqlCommand verifyCommand = new(
                 """
                 SELECT m.customer_id,
                        m.location_id,
@@ -773,10 +771,10 @@ namespace SvantekMonitorTests
                 expectedLAMax = Math.Max(expectedLAMax, LAMax);
                 expectedLCMax = Math.Max(expectedLCMax, LCMax);
 
-                NoiseDto dto = new NoiseDto(sampleTime: startTime.AddMinutes(i).AddSeconds(1), lAeq: LAeq, lAmax: LAMax, lA90: LA90,
+                NoiseDto dto = new(sampleTime: startTime.AddMinutes(i).AddSeconds(1), lAeq: LAeq, lAmax: LAMax, lA90: LA90,
                             lA10: LA10, lCeq: LCeq, lCmax: LCMax, lC90: LC90, lC10: LC10);
 
-                testObj!.InsertNoiseDtos(serialId, new List<NoiseDto> { dto });
+                testObj!.InsertNoiseDtos(serialId, [dto]);
             }
 
             double avgLAeq = testObj!.GetAverageNoiseLevel(serialId, "LAeq", startTime, startTime.AddMinutes(15));
@@ -804,17 +802,17 @@ namespace SvantekMonitorTests
         {
             string serialId = "E8765";
             DateTime sampleTime = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T16:00:00Z");
-            testObj!.InsertNoiseDtos(serialId, new List<NoiseDto>
-            {
+            testObj!.InsertNoiseDtos(serialId,
+            [
                 new(sampleTime.AddHours(-7), 10, 20, 30, 40, 50, 60, 70, 80),
                 new(sampleTime, 30, 40, 50, 60, 70, 80, 90, 100)
-            });
+            ]);
 
             testObj.Create8hourAverage(serialId, sampleTime);
 
             await using NpgsqlConnection connection = database!.OpenConnection();
             await connection.OpenAsync();
-            await using NpgsqlCommand command = new NpgsqlCommand(
+            await using NpgsqlCommand command = new(
                 @"SELECT serial_id, sample_time, laeq, number_of_samples
                   FROM svantek_noise_8_hour_average;", connection);
             await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
@@ -840,7 +838,7 @@ namespace SvantekMonitorTests
         {
 
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             Guid siteId = Guid.NewGuid();
 
@@ -874,11 +872,11 @@ namespace SvantekMonitorTests
 
         private static List<NoiseMonitorDto> CreateMonitorsList(int numMonitors, string serialId = "monitor")
         {
-            List<NoiseMonitorDto> monitors = new List<NoiseMonitorDto>();
+            List<NoiseMonitorDto> monitors = [];
             for (int i = 0; i < numMonitors; i++)
             {
                 DateTime dt = DateTime.UtcNow.AddMinutes(i);
-                NoiseMonitorDto monitor = new NoiseMonitorDto(id: Guid.NewGuid(),
+                NoiseMonitorDto monitor = new(id: Guid.NewGuid(),
                                                 listedAtTime: dt,
                                                 lastDataTime: null,
                                                 serialId: serialId + i,
@@ -941,7 +939,7 @@ namespace SvantekMonitorTests
         public void TestWriteNotificationAudit()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string serialId = "82731";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
@@ -966,7 +964,7 @@ namespace SvantekMonitorTests
             List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
             Assert.HasCount(1, contacts);
             DateTime dt = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T11:19:00Z");
-            NotificationDto notificationIn = new NotificationDto(//rules[0], 99.876, dt, monitorId);
+            NotificationDto notificationIn = new(//rules[0], 99.876, dt, monitorId);
 
                                                    id: Guid.NewGuid(),
                                                    notificationTime: dt,
@@ -1100,7 +1098,7 @@ namespace SvantekMonitorTests
             // update Contracts with SiteId
             {
                 string sql = @"UPDATE contract SET site_id = @SiteId WHERE id = @ContractId;";
-                using NpgsqlCommand cmd = new NpgsqlCommand(sql, connection);
+                using NpgsqlCommand cmd = new(sql, connection);
                 cmd.Parameters.AddWithValue("@SiteId", siteId);
                 cmd.Parameters.AddWithValue("@ContractId", contractId);
                 cmd.ExecuteNonQuery();
@@ -1257,7 +1255,7 @@ namespace SvantekMonitorTests
         {
 
 
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string sql = @"SELECT id, site_id, monitor_id, level, field, collection_time FROM site_average";
 
@@ -1265,17 +1263,19 @@ namespace SvantekMonitorTests
 
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
-            List<SiteAverage> siteAverages = new List<SiteAverage>();
+            List<SiteAverage> siteAverages = [];
             while (reader.Read())
             {
 
-                SiteAverage sa = new SiteAverage();
-                sa.Id = reader.GetGuid(0);
-                sa.SiteId = reader.GetGuid(1);
-                sa.MonitorId = reader.GetGuid(2);
-                sa.Level = reader.GetDouble(3);
-                sa.Field = reader.GetString(4);
-                sa.CollectionTime = reader.GetDateTime(5);
+                SiteAverage sa = new()
+                {
+                    Id = reader.GetGuid(0),
+                    SiteId = reader.GetGuid(1),
+                    MonitorId = reader.GetGuid(2),
+                    Level = reader.GetDouble(3),
+                    Field = reader.GetString(4),
+                    CollectionTime = reader.GetDateTime(5)
+                };
 
                 siteAverages.Add(sa);
             }
@@ -1286,7 +1286,7 @@ namespace SvantekMonitorTests
         private static ContactMethod ReadContactMethod(string connectionString, Guid siteUserId)
         {
 
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string sql = @"SELECT email, sms FROM notification_setting WHERE site_user_id = @SiteUserId";
 
@@ -1307,7 +1307,7 @@ namespace SvantekMonitorTests
         {
             string sql = @"SELECT ""Email"", ""PhoneNumber"", ""Id"" FROM ""AspNetUsers""";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<RvtContactDto> contacts = new List<RvtContactDto>();
+            List<RvtContactDto> contacts = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -1332,7 +1332,7 @@ namespace SvantekMonitorTests
                                closed_by_user, alert_type, alert_field, monitor_id
                         FROM notification";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<NotificationDto> alerts = new List<NotificationDto>();
+            List<NotificationDto> alerts = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -1348,7 +1348,7 @@ namespace SvantekMonitorTests
                 string alertField = reader.GetString(8);
                 Guid monitorId = reader.GetGuid(9);
 
-                NotificationDto alert = new NotificationDto(id: id,
+                NotificationDto alert = new(id: id,
                                                 notificationTime: notificationTime,
                                                 limitOn: limitOn,
                                                 averagingPeriod: averagingPeriod,
@@ -1369,18 +1369,19 @@ namespace SvantekMonitorTests
             string sql = @"SELECT id, send_time, address, error_message, notification_id
                         FROM notification_sent";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<Dictionary<string, object>> audits = new List<Dictionary<string, object>>();
+            List<Dictionary<string, object>> audits = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
             {
-                Dictionary<string, object> dict = new Dictionary<string, object>();
-
-                dict["Id"] = reader.GetGuid(0);
-                dict["SendTime"] = reader.GetDateTime(1);
-                dict["Address"] = reader.GetString(2);
-                dict["ErrorMessage"] = reader.GetString(3);
-                dict["NotificationId"] = reader.GetGuid(4);
+                Dictionary<string, object> dict = new()
+                {
+                    ["Id"] = reader.GetGuid(0),
+                    ["SendTime"] = reader.GetDateTime(1),
+                    ["Address"] = reader.GetString(2),
+                    ["ErrorMessage"] = reader.GetString(3),
+                    ["NotificationId"] = reader.GetGuid(4)
+                };
                 audits.Add(dict);
             }
             return audits;
@@ -1392,7 +1393,7 @@ namespace SvantekMonitorTests
             string sql = @"SELECT serial_id, sample_time, laeq, lamax, la_90, la_10, lceq, lcmax, lc_90, lc_10
                         FROM svantek_noise_level";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<NoiseDto> dtos = new List<NoiseDto>();
+            List<NoiseDto> dtos = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -1408,7 +1409,7 @@ namespace SvantekMonitorTests
                 double lC90 = reader.GetDouble(8);
                 double lC10 = reader.GetDouble(9);
 
-                NoiseDto dto = new NoiseDto(sampleTime: sampleTime, lAeq: lAeq, lAmax: lAmax, lA90: lA90,
+                NoiseDto dto = new(sampleTime: sampleTime, lAeq: lAeq, lAmax: lAmax, lA90: lA90,
                         lA10: lA10, lCeq: lCeq, lCmax: lCmax, lC90: lC90, lC10: lC10);
                 dtos.Add(dto);
             }

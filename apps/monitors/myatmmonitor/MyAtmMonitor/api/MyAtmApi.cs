@@ -7,7 +7,6 @@ using MyAtm.Model.Json;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Delivery;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 
@@ -78,13 +77,13 @@ namespace MyAtm.Api
             MonitorDeliveryDispatcher outboxDispatcher)
         {
             options.Validate();
-            MyAtmHttpGateway gateway = new MyAtmHttpGateway(
+            MyAtmHttpGateway gateway = new(
                 httpClient,
                 options.DevicePageSize,
                 options.MeasurementPageSize,
                 options.AccessoryPageSize);
-            MyAtmMonitorReader monitorReader = new MyAtmMonitorReader(dbClient, dbClient, testLocal);
-            MyAtmRuleProcessor ruleProcessor = new MyAtmRuleProcessor(dbClient, options.PortalBaseUrl);
+            MyAtmMonitorReader monitorReader = new(dbClient, dbClient, testLocal);
+            MyAtmRuleProcessor ruleProcessor = new(dbClient, options.PortalBaseUrl);
 
             this.outboxDispatcher = outboxDispatcher ?? throw new ArgumentNullException(nameof(outboxDispatcher));
             storeMonitors = new StoreMonitorsHandler(

@@ -254,7 +254,7 @@ public partial class CutoverReadinessTests
         Assert.True(File.Exists(indexScriptPath), $"Missing PostgreSQL index cleanup post-load script: {indexScriptPath}");
 
         string indexSql = StripSqlComments(File.ReadAllText(indexScriptPath));
-        Dictionary<string, string> expectedIndexPairs = new Dictionary<string, string>(StringComparer.Ordinal)
+        Dictionary<string, string> expectedIndexPairs = new(StringComparer.Ordinal)
         {
             ["heater_reading_sample_time_idx"] = "ix_heater_reading_sample_time",
             ["my_atm_accessory_info_sample_time_idx"] = "ix_my_atm_accessory_info_sample_time",
@@ -274,7 +274,7 @@ public partial class CutoverReadinessTests
     public void ApplicationCode_DoesNotReferenceLegacyCompatibilitySchema()
     {
         string root = FindRepositoryRoot();
-        HashSet<string> scannedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        HashSet<string> scannedExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".cs",
             ".ts",
@@ -293,7 +293,7 @@ public partial class CutoverReadinessTests
             $"{Path.DirectorySeparatorChar}TestResults{Path.DirectorySeparatorChar}",
             $"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}"
         };
-        string[] hits = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+        string[] hits = [.. Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
             .Where(path => scannedExtensions.Contains(Path.GetExtension(path)))
             .Where(path => !excludedSegments.Any(segment => path.Contains(segment, StringComparison.OrdinalIgnoreCase)))
             .SelectMany(path =>
@@ -301,8 +301,7 @@ public partial class CutoverReadinessTests
                 string content = File.ReadAllText(path);
                 return LegacySchemaPattern().Matches(content)
                     .Select(match => $"{Path.GetRelativePath(root, path)} contains {match.Value}");
-            })
-            .ToArray();
+            })];
 
         Assert.Empty(hits);
     }
@@ -313,7 +312,7 @@ public partial class CutoverReadinessTests
     {
         string root = FindRepositoryRoot();
         string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
-        HashSet<string> allowedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        HashSet<string> allowedFiles = new(StringComparer.OrdinalIgnoreCase)
         {
             "RVTDbContextModelSnapshot.cs"
         };
@@ -356,7 +355,7 @@ public partial class CutoverReadinessTests
             "FK_HelpAssets_HelpArticles_HelpArticleId"
         };
 
-        string[] hits = Directory.EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
+        string[] hits = [.. Directory.EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
             .Where(path => !allowedFiles.Contains(Path.GetFileName(path)))
             .Where(path => !IsGeneratedModelSnapshot(path))
             .Where(path => string.CompareOrdinal(Path.GetFileName(path), "20260608") >= 0)
@@ -366,8 +365,7 @@ public partial class CutoverReadinessTests
                 return retiredTokens
                     .Where(token => source.Contains(token, StringComparison.Ordinal))
                     .Select(token => $"{Path.GetRelativePath(root, path)} contains {token}");
-            })
-            .ToArray();
+            })];
 
         Assert.Empty(hits);
     }
@@ -380,11 +378,10 @@ public partial class CutoverReadinessTests
         string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
         // Resolved rather than hard-coded: the migration chain was squashed onto a generated baseline, and
         // naming the old files here would silently stop inspecting anything.
-        string[] inspectedFiles = Directory
+        string[] inspectedFiles = [.. Directory
             .EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
             .Where(path => !Path.GetFileName(path).StartsWith("._", StringComparison.Ordinal))
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
+            .OrderBy(path => path, StringComparer.Ordinal)];
 
         Assert.NotEmpty(inspectedFiles);
         string[] retiredTokens = new[]
@@ -425,15 +422,14 @@ public partial class CutoverReadinessTests
             "b.ToTable(\"SiteUsers\""
         };
 
-        string[] hits = inspectedFiles
+        string[] hits = [.. inspectedFiles
             .SelectMany(path =>
             {
                 string source = File.ReadAllText(path);
                 return retiredTokens
                     .Where(token => source.Contains(token, StringComparison.Ordinal))
                     .Select(token => $"{Path.GetRelativePath(root, path)} contains {token}");
-            })
-            .ToArray();
+            })];
 
         Assert.Empty(hits);
     }
@@ -445,12 +441,11 @@ public partial class CutoverReadinessTests
         string root = FindRepositoryRoot();
         string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
 
-        string[] migrations = Directory.EnumerateFiles(migrationDirectory, "*_*.cs", SearchOption.TopDirectoryOnly)
+        string[] migrations = [.. Directory.EnumerateFiles(migrationDirectory, "*_*.cs", SearchOption.TopDirectoryOnly)
             .Where(path => !Path.GetFileName(path).EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase))
             // macOS AppleDouble sidecars ("._Name.cs") match the glob and sort ahead of the real files.
             .Where(path => !Path.GetFileName(path).StartsWith("._", StringComparison.Ordinal))
-            .OrderBy(path => Path.GetFileName(path), StringComparer.Ordinal)
-            .ToArray();
+            .OrderBy(path => Path.GetFileName(path), StringComparer.Ordinal)];
 
         // The chain is squashed onto a generated baseline, so the baseline is the earliest migration and it
         // legitimately creates everything. The rule applies to whatever comes after it.
@@ -459,7 +454,7 @@ public partial class CutoverReadinessTests
         Assert.EndsWith("_CanonicalBaseline.cs", baseline, StringComparison.Ordinal);
 
         // The baseline itself is exempt: its Down() necessarily drops everything its Up() creates.
-        string[] afterBaseline = migrations.Skip(1).ToArray();
+        string[] afterBaseline = [.. migrations.Skip(1)];
 
         string[] destructiveTokens = new[]
         {
@@ -468,15 +463,14 @@ public partial class CutoverReadinessTests
             "DROP COLUMN",
             "DROP TABLE"
         };
-        string[] hits = afterBaseline
+        string[] hits = [.. afterBaseline
             .SelectMany(path =>
             {
                 string source = File.ReadAllText(path);
                 return destructiveTokens
                     .Where(token => source.Contains(token, StringComparison.OrdinalIgnoreCase))
                     .Select(token => $"{Path.GetRelativePath(root, path)} contains {token}");
-            })
-            .ToArray();
+            })];
 
         Assert.Empty(hits);
     }
@@ -487,17 +481,14 @@ public partial class CutoverReadinessTests
     {
         string root = FindRepositoryRoot();
         string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
-        string[] migrationFiles = Directory.EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
+        string[] migrationFiles = [.. Directory.EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
             .Where(path => !Path.GetFileName(path).EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase))
             .Where(path => !Path.GetFileName(path).Equals("RVTDbContextModelSnapshot.cs", StringComparison.OrdinalIgnoreCase))
-            .Where(path => string.CompareOrdinal(Path.GetFileName(path), "20260608") >= 0)
-            .ToArray();
+            .Where(path => string.CompareOrdinal(Path.GetFileName(path), "20260608") >= 0)];
 
         Assert.NotEmpty(migrationFiles);
 
-        string[] violations = migrationFiles
-            .SelectMany(path => FindCanonicalMigrationIdentifierViolations(root, path))
-            .ToArray();
+        string[] violations = [.. migrationFiles.SelectMany(path => FindCanonicalMigrationIdentifierViolations(root, path))];
 
         Assert.Empty(violations);
     }
@@ -507,7 +498,7 @@ public partial class CutoverReadinessTests
     {
         string source = File.ReadAllText(path);
         string relativePath = Path.GetRelativePath(root, path);
-        List<string> violations = new List<string>();
+        List<string> violations = new();
 
         foreach (string identifier in ExtractRegexMatches(source, @"\b(?:table|principalTable):\s*""([^""]+)"""))
         {
@@ -542,7 +533,7 @@ public partial class CutoverReadinessTests
     // Function summary: Extracts regex capture values for migration identifier validation.
     private static IEnumerable<string> ExtractRegexMatches(string source, string pattern, string groupName = "1")
     {
-        return System.Text.RegularExpressions.Regex.Matches(source, pattern)
+        return Regex.Matches(source, pattern)
             .Select(match => match.Groups[groupName].Value)
             .Where(value => !string.IsNullOrWhiteSpace(value));
     }
@@ -550,7 +541,7 @@ public partial class CutoverReadinessTests
     // Function summary: Handles the find repository root workflow for this module.
     private static string FindRepositoryRoot()
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "RvtPortal.Spa.sln")))

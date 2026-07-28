@@ -16,7 +16,6 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RVT.BusinessLogic.Application;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Application.Installers;
@@ -48,7 +47,7 @@ public class InstallerApiController : ControllerBase
     // Function summary: Queries installer-visible monitors through the installer application service.
     public async Task<ActionResult<QueryMonitorsResponse>> Monitors([FromQuery] QueryMonitorsRequest request)
     {
-        InstallerMonitorQuery query = new InstallerMonitorQuery(
+        InstallerMonitorQuery query = new(
             request.MonitorType,
             request.SearchText,
             request.GetNormalizedSortDir(),
@@ -100,7 +99,7 @@ public class InstallerApiController : ControllerBase
 
         return new EntityResponse<MonitorDetailResponse>
         {
-            Item = result.Detail!
+            Item = result.Detail
         };
     }
 

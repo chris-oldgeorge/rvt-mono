@@ -14,12 +14,11 @@ public sealed class MyAtmServiceCompositionTests
     [TestMethod]
     public void Constructor_DependsOnFocusedHandlersInsteadOfCompatibilityFacades()
     {
-        Type[] parameterTypes = typeof(MyAtmService)
+        Type[] parameterTypes = [.. typeof(MyAtmService)
             .GetConstructors(BindingFlags.Public | BindingFlags.Instance)
             .Single()
             .GetParameters()
-            .Select(parameter => parameter.ParameterType)
-            .ToArray();
+            .Select(parameter => parameter.ParameterType)];
 
         CollectionAssert.AreEquivalent(
             new[]

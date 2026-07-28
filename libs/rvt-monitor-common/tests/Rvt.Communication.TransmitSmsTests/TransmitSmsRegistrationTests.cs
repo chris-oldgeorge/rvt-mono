@@ -14,8 +14,8 @@ public sealed class TransmitSmsRegistrationTests
     [TestMethod]
     public void AddTransmitSms_RegistersOneSmsPortOptionsAndValidationService()
     {
-        ServiceCollection services = new ServiceCollection();
-        TransmitSmsOptions options = new TransmitSmsOptions { Enabled = false };
+        ServiceCollection services = new();
+        TransmitSmsOptions options = new() { Enabled = false };
 
         services.AddTransmitSms(options);
 
@@ -30,7 +30,7 @@ public sealed class TransmitSmsRegistrationTests
     [TestMethod]
     public void AddTransmitSms_LoadsProviderOptionsFromConfiguration()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -53,7 +53,7 @@ public sealed class TransmitSmsRegistrationTests
     [TestMethod]
     public void AddTransmitSms_RejectsAnExistingSmsDeliveryProvider()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<ISmsDeliveryPort, ExistingSmsDeliveryPort>();
 
         InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
@@ -65,8 +65,8 @@ public sealed class TransmitSmsRegistrationTests
     [TestMethod]
     public async Task AddTransmitSms_SingletonPortUsesFactoryManagedClientPerDelivery()
     {
-        ServiceCollection services = new ServiceCollection();
-        RecordingHttpClientFactory clientFactory = new RecordingHttpClientFactory();
+        ServiceCollection services = new();
+        RecordingHttpClientFactory clientFactory = new();
         services.AddTransmitSms(new TransmitSmsOptions
         {
             Enabled = true,
@@ -78,7 +78,7 @@ public sealed class TransmitSmsRegistrationTests
 
         using ServiceProvider provider = services.BuildServiceProvider();
         ISmsDeliveryPort port = provider.GetRequiredService<ISmsDeliveryPort>();
-        SmsDeliveryRequest request = new SmsDeliveryRequest("447700900123", "Threshold breached");
+        SmsDeliveryRequest request = new("447700900123", "Threshold breached");
 
         await port.SendAsync(request);
         await port.SendAsync(request);

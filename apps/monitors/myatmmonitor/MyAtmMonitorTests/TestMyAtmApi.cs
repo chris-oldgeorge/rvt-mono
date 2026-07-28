@@ -9,15 +9,9 @@ using MyAtm.Model.Config;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Rules;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace MyAtmMonitorTests
 {
 
@@ -52,7 +46,7 @@ namespace MyAtmMonitorTests
                     Returns(monitors);
 
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
-                Returns(new List<RvtAlertRuleDto>());
+                Returns([]);
 
             testObj.StoreDustLevels<DeviceMeasurement>(customerId, Period.Minutes1);
 
@@ -88,18 +82,18 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public async Task TestStoreDustLevels_ImportsEveryMeasurementPageAndAdvancesFinalWatermark()
         {
-            Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
-            Mock<IDBClient> dbClient = new Mock<IDBClient>();
-            Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
-            Mock<IMessageService> messageClient = new Mock<IMessageService>();
-            MyAtmMonitorOptions options = new MyAtmMonitorOptions
+            Mock<IHttpClient> httpClient = new();
+            Mock<IDBClient> dbClient = new();
+            Mock<IMqttClient> mqttClient = new();
+            Mock<IMessageService> messageClient = new();
+            MyAtmMonitorOptions options = new()
             {
                 MeasurementPageSize = 2,
                 MaxPagesPerMonitorPerRun = 2
             };
-            MyAtmApi testObj = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, false, options);
+            MyAtmApi testObj = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, false, options);
             int customerId = 656;
-            DateTime startTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateTime startTime = new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             string firstPage = MyAtmFixture.MeasurementsResponseJson(2, startTime);
             string secondPage = MyAtmFixture.MeasurementsResponseJson(1, startTime.AddMinutes(2));
             string firstRequest = "/api/customers/656/devices/11111/measurements" + TestUtil.MEASUREMENT_SELECT +
@@ -113,7 +107,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(client => client.ReadMonitorList(customerId, null))
                 .Returns(MyAtmFixture.CustomerDeviceDtos(null, singleItem: true));
             dbClient.Setup(client => client.ReadRules(It.IsAny<string>(), It.IsAny<Period>()))
-                .Returns(new List<RvtAlertRuleDto>());
+                .Returns([]);
             dbClient.Setup(client => client.CommitDustImportAsync(It.IsAny<MyAtmDustImportCommit>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
             dbClient.Setup(client => client.ClaimNextDueAsync(
@@ -134,15 +128,15 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public async Task TestStoreDustLevels_SuccessfulCommitDoesNotDispatchOutbox()
         {
-            Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
-            Mock<IDBClient> dbClient = new Mock<IDBClient>();
-            Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
-            Mock<IMessageService> messageClient = new Mock<IMessageService>();
-            MyAtmMonitorOptions options = new MyAtmMonitorOptions
+            Mock<IHttpClient> httpClient = new();
+            Mock<IDBClient> dbClient = new();
+            Mock<IMqttClient> mqttClient = new();
+            Mock<IMessageService> messageClient = new();
+            MyAtmMonitorOptions options = new()
             {
                 OutboxBatchSize = 2
             };
-            MyAtmApi testObj = new MyAtmApi(
+            MyAtmApi testObj = new(
                 httpClient.Object,
                 dbClient.Object,
                 mqttClient.Object,
@@ -156,7 +150,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(client => client.ReadMonitorList(656, null))
                 .Returns(MyAtmFixture.CustomerDeviceDtos(null, singleItem: true));
             dbClient.Setup(client => client.ReadRules("11111", Period.Minutes1))
-                .Returns(new List<RvtAlertRuleDto>());
+                .Returns([]);
             dbClient.Setup(client => client.CommitDustImportAsync(
                     It.IsAny<MyAtmDustImportCommit>(),
                     It.IsAny<CancellationToken>()))
@@ -193,7 +187,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(client => client.ReadMonitorList(656, null))
                 .Returns(MyAtmFixture.CustomerDeviceDtos(null, singleItem: true));
             dbClient.Setup(client => client.ReadRules("11111", Period.Minutes1))
-                .Returns(new List<RvtAlertRuleDto>());
+                .Returns([]);
             dbClient.Setup(client => client.CommitDustImportAsync(
                     It.IsAny<MyAtmDustImportCommit>(),
                     It.IsAny<CancellationToken>()))
@@ -298,7 +292,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(MyAtmFixture.CustomerDeviceDtos(expectedDateTime));
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
-                    Returns(new List<RvtAlertRuleDto>());
+                    Returns([]);
 
             testObj.StoreDustLevels<DeviceMeasurement>(customerId, Period.Minutes1);
 
@@ -348,7 +342,7 @@ namespace MyAtmMonitorTests
         }
         private static MonitorDeliveryMessage CreateDataInsertedDelivery()
         {
-            MonitorDeliveryPayloadV1 payload = new MonitorDeliveryPayloadV1(
+            MonitorDeliveryPayloadV1 payload = new(
                 Guid.Empty,
                 new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc),
                 "11111",

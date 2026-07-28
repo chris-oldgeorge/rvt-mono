@@ -23,7 +23,7 @@ internal static class TestData
     private static int sequence;
 
     // Function summary: Returns a process-unique, monotonically increasing counter for unique names/serials/ids.
-    private static int Next() => System.Threading.Interlocked.Increment(ref sequence);
+    private static int Next() => Interlocked.Increment(ref sequence);
 
     // Function summary: Rotates deterministically through a set of realistic sample values.
     private static T Pick<T>(IReadOnlyList<T> options) => options[Next() % options.Count];
@@ -92,14 +92,14 @@ internal static class TestData
         DateTime? createDate = null,
         bool archived = false)
     {
-        (string Postcode, string City, string Location) place = Pick(SitePlaces);
+        (string postcode, string city, string location) = Pick(SitePlaces);
         return new Site
         {
             Id = id ?? Guid.NewGuid(),
-            SiteName = siteName ?? $"{place.Postcode} - {place.Location}",
-            AddressLine1 = place.Location,
-            City = place.City,
-            Postcode = place.Postcode,
+            SiteName = siteName ?? $"{postcode} - {location}",
+            AddressLine1 = location,
+            City = city,
+            Postcode = postcode,
             StartTime = new TimeSpan(8, 0, 0),
             EndTime = new TimeSpan(18, 0, 0),
             CreateDate = createDate ?? DateTime.UtcNow,
@@ -120,16 +120,16 @@ internal static class TestData
         DateTime? listedAtTime = null,
         DateTime? lastDataTime15Min = null)
     {
-        (string Manufacturer, string Model, string Firmware) hardware = Pick(MonitorHardware);
+        (string manufacturerName, string modelName, string firmware) = Pick(MonitorHardware);
         int index = Next();
         return new MonitorEntity
         {
             Id = id ?? Guid.NewGuid(),
             SerialId = serialId ?? (16000 + index).ToString(System.Globalization.CultureInfo.InvariantCulture),
             FleetNr = fleetNr ?? $"R{index}V",
-            Manufacturer = manufacturer ?? hardware.Manufacturer,
-            Model = model ?? hardware.Model,
-            FirmwareVersion = hardware.Firmware,
+            Manufacturer = manufacturer ?? manufacturerName,
+            Model = model ?? modelName,
+            FirmwareVersion = firmware,
             TypeOfMonitor = type,
             ListedAtTime = listedAtTime ?? DateTime.UtcNow.AddDays(-30),
             LastDataTime15Min = lastDataTime15Min ?? DateTime.UtcNow.AddMinutes(-5)

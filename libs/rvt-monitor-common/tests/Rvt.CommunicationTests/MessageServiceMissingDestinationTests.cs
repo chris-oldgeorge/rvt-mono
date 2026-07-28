@@ -17,8 +17,8 @@ public sealed class MessageServiceMissingDestinationTests
     [TestMethod]
     public async Task SendMessageAsync_WhenSmsContactHasNoPhoneNumber_ThrowsCommsExceptionWithoutCallingDelivery()
     {
-        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
-        MessageService service = new MessageService(delivery.Object);
+        Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
+        MessageService service = new(delivery.Object);
 
         CommsException exception = await Assert.ThrowsExactlyAsync<CommsException>(
             () => service.SendMessageAsync(
@@ -36,8 +36,8 @@ public sealed class MessageServiceMissingDestinationTests
     [TestMethod]
     public async Task SendMessageAsync_WhenSmsContactHasBlankPhoneNumber_ThrowsCommsException()
     {
-        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
-        MessageService service = new MessageService(delivery.Object);
+        Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
+        MessageService service = new(delivery.Object);
 
         await Assert.ThrowsExactlyAsync<CommsException>(
             () => service.SendMessageAsync(
@@ -54,8 +54,8 @@ public sealed class MessageServiceMissingDestinationTests
     [TestMethod]
     public async Task SendMessageAsync_WhenEmailContactHasNoEmailAddress_ThrowsCommsException()
     {
-        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
-        MessageService service = new MessageService(delivery.Object);
+        Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
+        MessageService service = new(delivery.Object);
 
         CommsException exception = await Assert.ThrowsExactlyAsync<CommsException>(
             () => service.SendMessageAsync(
@@ -75,8 +75,8 @@ public sealed class MessageServiceMissingDestinationTests
     {
         // The legacy synchronous entry point is what the AirQ and Svantek rule
         // processors still call; it must raise the same catchable contract.
-        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
-        MessageService service = new MessageService(delivery.Object);
+        Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
+        MessageService service = new(delivery.Object);
 
 #pragma warning disable CS0618 // Legacy synchronous path retained for existing callers.
         Assert.ThrowsExactly<CommsException>(() => service.Sendmessage(

@@ -34,11 +34,11 @@ public class TestLocalMonitorFilterTests
     public void ApplyCatalog_WhenEnabled_ReturnsOnlyConfiguredInstrument()
     {
         AirQTestLocalMonitorFilter filter = AirQTestLocalMonitorFilter.Create(enabled: true, targetSerialId: "Device2");
-        List<InstrumentResponse> instruments = new List<InstrumentResponse>
-        {
+        List<InstrumentResponse> instruments =
+        [
             new() { InstrumentID = "Device1" },
             new() { InstrumentID = "Device2" }
-        };
+        ];
 
         List<InstrumentResponse> filtered = filter.ApplyCatalog(instruments);
 

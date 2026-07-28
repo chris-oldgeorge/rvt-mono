@@ -14,7 +14,7 @@ public sealed class OmnidotsDbMapperTests
     public void ToVibrationMonitorDto_MapsMonitorStatusAndSensor()
     {
         Guid id = Guid.NewGuid();
-        MonitorEntity monitor = new MonitorEntity
+        MonitorEntity monitor = new()
         {
             Id = id,
             ListedAtTime = DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
@@ -33,7 +33,7 @@ public sealed class OmnidotsDbMapperTests
             BatteryStatus = 2,
             TypeOfMonitor = VibrationMonitorDto.MONITOR_TYPE_VIBRATION
         };
-        OmnidotsMonitorStatusEntity status = new OmnidotsMonitorStatusEntity
+        OmnidotsMonitorStatusEntity status = new()
         {
             SerialId = "14768",
             MeasurementDuration = 60,
@@ -43,7 +43,7 @@ public sealed class OmnidotsDbMapperTests
             BuildingLevel = "DIN",
             LogFlushInterval = 10
         };
-        OmnidotsSensorEntity sensor = new OmnidotsSensorEntity
+        OmnidotsSensorEntity sensor = new()
         {
             SerialId = "14768",
             Name = "S1",
@@ -73,14 +73,14 @@ public sealed class OmnidotsDbMapperTests
     public void UpdateMonitorEntity_DoesNotOverwriteLatestTimestampOrBatteryStatus()
     {
         DateTime lastDataTime = DateTime.Parse("2026-07-06T08:01:00Z").ToUniversalTime();
-        MonitorEntity entity = new MonitorEntity
+        MonitorEntity entity = new()
         {
             Id = Guid.NewGuid(),
             SerialId = "14768",
             LastDataTime1Min = lastDataTime,
             BatteryStatus = 2
         };
-        VibrationMonitorDto dto = new VibrationMonitorDto(
+        VibrationMonitorDto dto = new(
             id: entity.Id,
             listedAtTime: DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
             lastDataTime: DateTime.Parse("2030-01-01T00:00:00Z").ToUniversalTime(),
@@ -112,7 +112,7 @@ public sealed class OmnidotsDbMapperTests
     [TestMethod]
     public void ToPeakLevelEntity_MapsPeakRecordDto()
     {
-        PeakRecordDto dto = new PeakRecordDto(
+        PeakRecordDto dto = new(
             new FDomVtopOverflow(1.1, 1.2, 1.3),
             new FDomVtopOverflow(2.1, 2.2, 2.3),
             new FDomVtopOverflow(3.1, 3.2, 3.3),

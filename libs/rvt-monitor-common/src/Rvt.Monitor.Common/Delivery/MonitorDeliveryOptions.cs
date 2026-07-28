@@ -16,7 +16,7 @@ public sealed record MonitorDeliveryOptions
 
     public void Validate()
     {
-        List<string> failures = new List<string>();
+        List<string> failures = [];
 
         if (!MonitorDeliveryProducers.IsKnown(Producer))
         {

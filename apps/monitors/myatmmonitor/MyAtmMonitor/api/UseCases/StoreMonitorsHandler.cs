@@ -34,8 +34,8 @@ public sealed class StoreMonitorsHandler
 
     public async Task RunAsync(int customerId, CancellationToken cancellationToken = default)
     {
-        MyAtmFailureCollector failures = new MyAtmFailureCollector(operationalCommands);
-        HashSet<string> fullPageFingerprints = new HashSet<string>(StringComparer.Ordinal);
+        MyAtmFailureCollector failures = new(operationalCommands);
+        HashSet<string> fullPageFingerprints = new(StringComparer.Ordinal);
         int skip = 0;
 
         for (int pageNumber = 1; pageNumber <= maxDevicePagesPerRun; pageNumber++)
@@ -62,7 +62,7 @@ public sealed class StoreMonitorsHandler
                 break;
             }
 
-            List<DustMonitorDto> dtos = new List<DustMonitorDto>(devices.Count);
+            List<DustMonitorDto> dtos = new(devices.Count);
             foreach (DustMonitor device in devices)
             {
                 cancellationToken.ThrowIfCancellationRequested();

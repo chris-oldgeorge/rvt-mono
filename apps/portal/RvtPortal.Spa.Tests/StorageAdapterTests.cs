@@ -36,10 +36,10 @@ public sealed class StorageAdapterTests
     [Fact]
     public async Task SiteLogoAdapter_MapsStorageContractsAndValidation()
     {
-        RecordingCustomerLogoStorage storage = new RecordingCustomerLogoStorage();
-        SiteLogoAdapter adapter = new SiteLogoAdapter(storage);
+        RecordingCustomerLogoStorage storage = new();
+        SiteLogoAdapter adapter = new(storage);
         Guid siteId = Guid.NewGuid();
-        await using MemoryStream content = new MemoryStream(PngPayload(1, 2, 3));
+        await using MemoryStream content = new(PngPayload(1, 2, 3));
 
         SiteLogoSaveResult invalid = await adapter.SaveAsync(
             siteId,
@@ -73,7 +73,7 @@ public sealed class StorageAdapterTests
         try
         {
             Guid siteId = Guid.NewGuid();
-            CustomerLogoStorage storage = new CustomerLogoStorage(new TestWebHostEnvironment(contentRoot));
+            CustomerLogoStorage storage = new(new TestWebHostEnvironment(contentRoot));
             byte[] originalBytes = PngPayload(1, 2, 3, 4);
             await storage.SaveAsync(
                 siteId,
@@ -88,7 +88,7 @@ public sealed class StorageAdapterTests
             StoredContentFile? stored = await storage.OpenReadAsync(siteId, CancellationToken.None);
             Assert.NotNull(stored);
             await using Stream storedStream = stored.Stream;
-            using MemoryStream buffer = new MemoryStream();
+            using MemoryStream buffer = new();
             await storedStream.CopyToAsync(buffer);
             Assert.Equal(originalBytes, buffer.ToArray());
         }

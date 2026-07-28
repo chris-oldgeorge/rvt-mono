@@ -9,7 +9,7 @@ public sealed class RvtConfigTests
     [TestMethod]
     public void RuntimeDefaultsResolver_UsesTheExplicitMonitorKind()
     {
-        MonitorRuntimeDefaultsResolver resolver = new MonitorRuntimeDefaultsResolver("SvantekMonitor");
+        MonitorRuntimeDefaultsResolver resolver = new("SvantekMonitor");
 
         Assert.AreEqual("svantek", resolver.Defaults.Kind);
         Assert.AreEqual("https://svannet.com/api/v2.3/", resolver.Defaults.BaseUrl);
@@ -50,7 +50,7 @@ public sealed class RvtConfigTests
     [TestMethod]
     public void ResolveCredentialSettingsPrefersOmnidotsNamesWhenRunningAsOmnidots()
     {
-        Dictionary<string, string?> values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["RVT__AIRQ_USER_ID"] = "airq-user",
             ["RVT__AIRQ_USER_AUTH"] = "airq-auth",
@@ -70,7 +70,7 @@ public sealed class RvtConfigTests
     [TestMethod]
     public void ResolveCredentialSettingsPreservesAirQAndMyAtmNamesForTheirMonitorKinds()
     {
-        Dictionary<string, string?> values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["RVT__AIRQ_USER_ID"] = "airq-user",
             ["RVT__AIRQ_USER_AUTH"] = "airq-auth",
@@ -94,7 +94,7 @@ public sealed class RvtConfigTests
     [TestMethod]
     public void ResolveCredentialSettingsFailsClosedWhenMonitorKindIsUnknown()
     {
-        Dictionary<string, string?> values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["RVT__AIRQ_USER_ID"] = "airq-user",
             ["RVT__AIRQ_USER_AUTH"] = "airq-auth",

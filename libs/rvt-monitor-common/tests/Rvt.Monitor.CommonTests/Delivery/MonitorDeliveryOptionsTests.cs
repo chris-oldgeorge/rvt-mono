@@ -44,7 +44,7 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Defaults_PreserveSharedDeliveryPolicy()
     {
-        MonitorDeliveryOptions options = new MonitorDeliveryOptions();
+        MonitorDeliveryOptions options = new();
 
         Assert.AreEqual(string.Empty, options.Producer);
         Assert.AreEqual(string.Empty, options.InsertTopic);
@@ -62,8 +62,8 @@ public sealed class MonitorDeliveryOptionsTests
     [TestMethod]
     public void Contracts_PreserveRequestAndAuditValues()
     {
-        DateTime createdAt = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
-        MonitorDeliveryRequest request = new MonitorDeliveryRequest(
+        DateTime createdAt = new(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
+        MonitorDeliveryRequest request = new(
             Guid.NewGuid(),
             MonitorDeliveryProducers.Svantek,
             DeliveryFixture.NotificationId,
@@ -74,7 +74,7 @@ public sealed class MonitorDeliveryOptionsTests
             1,
             "{}",
             createdAt);
-        MonitorDeliveryAudit audit = new MonitorDeliveryAudit(
+        MonitorDeliveryAudit audit = new(
             DeliveryFixture.NotificationId,
             "alerts@example.test",
             "Sent",

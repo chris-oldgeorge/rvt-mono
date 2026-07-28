@@ -21,7 +21,7 @@ public sealed class ApplicationDbContextDesignTimeFactory : IDesignTimeDbContext
     // Function summary: Creates the Identity context for EF tooling without relying on runtime appsettings files.
     public ApplicationDbContext CreateDbContext(string[] args)
     {
-        DbContextOptionsBuilder<ApplicationDbContext> optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+        DbContextOptionsBuilder<ApplicationDbContext> optionsBuilder = new();
         optionsBuilder.UseRvtDatabaseProvider(
             RvtDesignTimeDatabaseOptions.FromEnvironment(),
             RvtDatabaseServiceCollectionExtensions.IdentityMigrationsHistoryTable);

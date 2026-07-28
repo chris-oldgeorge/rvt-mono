@@ -1,7 +1,6 @@
 using AirQ.Api.Db.EntityFramework;
 using AirQ.Model.Dto;
 using Riok.Mapperly.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Diagnostics;
 
@@ -39,7 +38,7 @@ public static partial class AirQDbMapper
 
     public static MonitorEntity ToMonitorEntity(NoiseMonitorDto dto)
     {
-        MonitorEntity entity = new MonitorEntity { Id = dto.Id };
+        MonitorEntity entity = new() { Id = dto.Id };
         UpdateMonitorEntity(entity, dto);
         return entity;
     }

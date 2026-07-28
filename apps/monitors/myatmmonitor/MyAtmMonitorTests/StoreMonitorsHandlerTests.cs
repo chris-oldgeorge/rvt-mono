@@ -13,9 +13,9 @@ public sealed class StoreMonitorsHandlerTests
     [TestMethod]
     public async Task RunAsync_DeviceDetailFails_PersistsSuccessfulDeviceAndContinuesToNextPage()
     {
-        Mock<IHttpClient> http = new Mock<IHttpClient>(MockBehavior.Strict);
-        Mock<IMyAtmMonitorCommands> monitorCommands = new Mock<IMyAtmMonitorCommands>(MockBehavior.Strict);
-        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IMyAtmMonitorCommands> monitorCommands = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         http.Setup(client => client.GetAsync(
                 "/api/customers/123/devices?$skip=0&$top=2",
                 It.IsAny<CancellationToken>()))
@@ -53,9 +53,9 @@ public sealed class StoreMonitorsHandlerTests
     [TestMethod]
     public async Task RunAsync_RepeatedFullPage_StopsWithoutFetchingDetailsTwice()
     {
-        Mock<IHttpClient> http = new Mock<IHttpClient>(MockBehavior.Strict);
-        Mock<IMyAtmMonitorCommands> monitorCommands = new Mock<IMyAtmMonitorCommands>(MockBehavior.Strict);
-        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IMyAtmMonitorCommands> monitorCommands = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         string page = MyAtmFixture.DevicesResponseJson();
         http.Setup(client => client.GetAsync(
                 "/api/customers/123/devices?$skip=0&$top=2",
@@ -99,9 +99,9 @@ public sealed class StoreMonitorsHandlerTests
     [TestMethod]
     public async Task RunAsync_LastAllowedPageIsFull_FailsAsIncompleteAfterPersistingPage()
     {
-        Mock<IHttpClient> http = new Mock<IHttpClient>(MockBehavior.Strict);
-        Mock<IMyAtmMonitorCommands> monitorCommands = new Mock<IMyAtmMonitorCommands>(MockBehavior.Strict);
-        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        Mock<IMyAtmMonitorCommands> monitorCommands = new(MockBehavior.Strict);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         http.Setup(client => client.GetAsync(
                 "/api/customers/123/devices?$skip=0&$top=2",
                 It.IsAny<CancellationToken>()))
@@ -136,7 +136,7 @@ public sealed class StoreMonitorsHandlerTests
         Mock<IMyAtmOperationalCommands> operational,
         int maxPages)
     {
-        MyAtmHttpGateway gateway = new MyAtmHttpGateway(
+        MyAtmHttpGateway gateway = new(
             http.Object,
             devicePageSize: 2,
             measurementPageSize: 2,

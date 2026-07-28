@@ -1,6 +1,5 @@
 using System.Net;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace Svantek.Api.Http
@@ -28,7 +27,7 @@ namespace Svantek.Api.Http
         public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
-            using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, path);
+            using HttpRequestMessage request = new(HttpMethod.Get, path);
             using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             string reply = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (response.StatusCode != HttpStatusCode.OK)
@@ -45,7 +44,7 @@ namespace Svantek.Api.Http
         {
             RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
 
-            using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, path);
+            using HttpRequestMessage request = new(HttpMethod.Post, path);
             request.Content = content;
 
             using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -63,7 +62,7 @@ namespace Svantek.Api.Http
             MultipartFormDataContent content,
             CancellationToken cancellationToken = default)
         {
-            using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, path);
+            using HttpRequestMessage request = new(HttpMethod.Post, path);
             request.Content = content;
 
             using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);

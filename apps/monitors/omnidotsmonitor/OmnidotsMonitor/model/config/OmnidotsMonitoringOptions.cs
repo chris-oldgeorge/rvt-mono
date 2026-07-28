@@ -24,7 +24,7 @@ public sealed class OmnidotsMonitoringOptions
 
     internal IReadOnlyList<string> GetValidationFailures()
     {
-        List<string> failures = new List<string>();
+        List<string> failures = [];
 
         if (string.IsNullOrWhiteSpace(Recipient) || !MailAddress.TryCreate(Recipient, out _))
         {

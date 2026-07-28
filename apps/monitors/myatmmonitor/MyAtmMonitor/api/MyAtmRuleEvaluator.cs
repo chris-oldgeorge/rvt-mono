@@ -30,21 +30,21 @@ public sealed class MyAtmRuleEvaluator
     {
         Dictionary<Guid, (bool IsActive, DateTime? Accessed)> originalStates = rules.ToDictionary(rule => rule.RuleId, rule => (rule.IsActive, rule.Accessed));
         Dictionary<Guid, (bool IsActive, DateTime? Accessed)> states = originalStates.ToDictionary(pair => pair.Key, pair => pair.Value);
-        List<AlertOccurrenceProposal> occurrences = new List<AlertOccurrenceProposal>();
+        List<AlertOccurrenceProposal> occurrences = [];
 
         foreach (DustDto? sample in samples.OrderBy(sample => sample.SampleTime))
         {
             foreach (RvtAlertRuleDto? rule in rules.OrderBy(rule => rule.AlertType))
             {
-                (bool IsActive, DateTime? Accessed) state = states[rule.RuleId];
+                (bool IsActive, DateTime? Accessed) = states[rule.RuleId];
                 bool alertForFieldIsActive = rule.AlertType == AlertType.Caution && rules.Any(otherRule =>
                     otherRule.AlertType == AlertType.Alert &&
                     MyAtmAlertTransitionEvaluator.NormalizeField(otherRule.Field) == MyAtmAlertTransitionEvaluator.NormalizeField(rule.Field) &&
                     states[otherRule.RuleId].IsActive);
-                MyAtmAlertTransition transition = transitionEvaluator.Evaluate(rule, state.IsActive, sample, alertForFieldIsActive);
-                if (transition.IsActive != state.IsActive)
+                MyAtmAlertTransition transition = transitionEvaluator.Evaluate(rule, IsActive, sample, alertForFieldIsActive);
+                if (transition.IsActive != IsActive)
                 {
-                    states[rule.RuleId] = (transition.IsActive, transition.Activated ? utcNow : state.Accessed);
+                    states[rule.RuleId] = (transition.IsActive, transition.Activated ? utcNow : Accessed);
                 }
 
                 if (!transition.Activated)
@@ -66,15 +66,14 @@ public sealed class MyAtmRuleEvaluator
             }
         }
 
-        List<RuleStateMutation> mutations = rules
+        List<RuleStateMutation> mutations = [.. rules
             .Where(rule => states[rule.RuleId] != originalStates[rule.RuleId])
             .Select(rule => new RuleStateMutation(
                 rule.RuleId,
                 originalStates[rule.RuleId].IsActive,
                 originalStates[rule.RuleId].Accessed,
                 states[rule.RuleId].IsActive,
-                states[rule.RuleId].Accessed))
-            .ToList();
+                states[rule.RuleId].Accessed))];
 
         return new MyAtmRuleEvaluation(mutations, occurrences);
     }

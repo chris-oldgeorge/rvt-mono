@@ -47,8 +47,8 @@ public sealed class MonitorListReaderSqlTests
         DbContextOptionsBuilder<RVTDbContext> builder = new DbContextOptionsBuilder<RVTDbContext>()
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused");
 
-        using RVTDbContext context = new RVTDbContext(builder.Options);
-        MonitorListReader reader = new MonitorListReader(context);
+        using RVTDbContext context = new(builder.Options);
+        MonitorListReader reader = new(context);
 
         // ToQueryString() throws InvalidOperationException if any part of the projection cannot be translated.
         return reader.BuildBaseRows(null).ToQueryString();

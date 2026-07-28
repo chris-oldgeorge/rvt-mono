@@ -38,7 +38,7 @@ public sealed class UpdateInstallerDeploymentLocationCommandHandler
         UpdateInstallerDeploymentLocationCommand request,
         CancellationToken cancellationToken)
     {
-        InstallerDeploymentCommandResult result = new InstallerDeploymentCommandResult();
+        InstallerDeploymentCommandResult result = new();
         Validate(request.Request, result.Errors);
         if (result.Errors.Count > 0)
         {

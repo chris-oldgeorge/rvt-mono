@@ -20,14 +20,14 @@ public sealed class HttpWebClientCancellationTests
     [TestMethod]
     public async Task PostAsync_DisposesRequestAndResponse()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
-        TrackingContent requestContent = new TrackingContent("request");
-        TrackingContent responseContent = new TrackingContent("response");
-        using HttpClient client = new HttpClient(new ResponseHandler(responseContent))
+        using CancellationTokenSource cancellation = new();
+        TrackingContent requestContent = new("request");
+        TrackingContent responseContent = new("response");
+        using HttpClient client = new(new ResponseHandler(responseContent))
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new HttpWebClient<object>("https://vendor.example/", client);
+        HttpWebClient<object> subject = new("https://vendor.example/", client);
 
         string result = await subject.PostAsync("stations-get-list.php", requestContent, cancellation.Token);
 
@@ -39,14 +39,14 @@ public sealed class HttpWebClientCancellationTests
     [TestMethod]
     public async Task GetByteArrayAsync_DisposesRequestAndResponse()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
-        TrackingMultipartFormDataContent requestContent = new TrackingMultipartFormDataContent();
-        TrackingContent responseContent = new TrackingContent([82, 73, 70, 70]);
-        using HttpClient client = new HttpClient(new ResponseHandler(responseContent))
+        using CancellationTokenSource cancellation = new();
+        TrackingMultipartFormDataContent requestContent = new();
+        TrackingContent responseContent = new([82, 73, 70, 70]);
+        using HttpClient client = new(new ResponseHandler(responseContent))
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new HttpWebClient<object>("https://vendor.example/", client);
+        HttpWebClient<object> subject = new("https://vendor.example/", client);
 
         byte[] result = await subject.GetByteArrayAsync(
             "projects-get-data.php",
@@ -61,13 +61,13 @@ public sealed class HttpWebClientCancellationTests
     [TestMethod]
     public async Task GetAsync_CallerCancellationStopsResponseRead_AndDisposesResponse()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
-        BlockingContent responseContent = new BlockingContent();
-        using HttpClient client = new HttpClient(new ResponseHandler(responseContent))
+        using CancellationTokenSource cancellation = new();
+        BlockingContent responseContent = new();
+        using HttpClient client = new(new ResponseHandler(responseContent))
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new HttpWebClient<object>("https://vendor.example/", client);
+        HttpWebClient<object> subject = new("https://vendor.example/", client);
 
         Task<string> operation = subject.GetAsync("projects-get-data.php", cancellation.Token);
         await responseContent.ReadStarted.Task;
@@ -81,14 +81,14 @@ public sealed class HttpWebClientCancellationTests
     [TestMethod]
     public async Task GetAsync_CallerCancellationStopsSend_AndDisposesRequest()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
-        TrackingContent requestDisposalMarker = new TrackingContent("unused");
-        CancellationHandler handler = new CancellationHandler(requestDisposalMarker);
-        using HttpClient client = new HttpClient(handler)
+        using CancellationTokenSource cancellation = new();
+        TrackingContent requestDisposalMarker = new("unused");
+        CancellationHandler handler = new(requestDisposalMarker);
+        using HttpClient client = new(handler)
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new HttpWebClient<object>("https://vendor.example/", client);
+        HttpWebClient<object> subject = new("https://vendor.example/", client);
 
         Task<string> operation = subject.GetAsync("projects-get-data.php", cancellation.Token);
         await handler.RequestStarted.Task;

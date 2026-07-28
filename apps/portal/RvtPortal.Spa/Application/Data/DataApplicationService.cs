@@ -7,7 +7,6 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
@@ -90,7 +89,7 @@ public sealed record DataWorkflowFailure(
     // Function summary: Creates an unsupported sort failure.
     public static DataWorkflowFailure InvalidSort(string requestedSort, IEnumerable<string> allowedFields)
     {
-        return new DataWorkflowFailure(DataWorkflowFailureKind.InvalidSort, RequestedSort: requestedSort, AllowedFields: allowedFields.ToArray());
+        return new DataWorkflowFailure(DataWorkflowFailureKind.InvalidSort, RequestedSort: requestedSort, AllowedFields: [.. allowedFields]);
     }
 
     // Function summary: Creates a failure for request timestamps that are not explicit UTC instants.
@@ -98,7 +97,7 @@ public sealed record DataWorkflowFailure(
     {
         return new DataWorkflowFailure(
             DataWorkflowFailureKind.InvalidTimestamp,
-            InvalidFields: invalidFields.ToArray());
+            InvalidFields: [.. invalidFields]);
     }
 
     // Function summary: Creates a trace visibility failure.
@@ -388,7 +387,7 @@ public sealed class DataApplicationService : IDataApplicationService
             MonitorId = deployment.MonitorId,
             MonitorName = MonitorData.GetMonitorName(deployment.Monitor, traces: true),
             MonitorType = TypeName(deployment.Monitor.TypeOfMonitor),
-            Traces = traceIndexes
+            Traces = [.. traceIndexes
                 .OrderByDescending(trace => trace.StartTime)
                 .Select(trace => new TraceSummaryItem
                 {
@@ -396,8 +395,7 @@ public sealed class DataApplicationService : IDataApplicationService
                     StartTime = SearchTimestampPolicy.FromDatabase(trace.StartTime)!.Value,
                     EndTime = SearchTimestampPolicy.FromDatabase(trace.EndTime)!.Value,
                     DurationSeconds = Math.Max(0, (int)(trace.EndTime - trace.StartTime).TotalSeconds)
-                })
-                .ToList()
+                })]
         });
     }
 
@@ -547,7 +545,7 @@ public sealed class DataApplicationService : IDataApplicationService
         Guid? traceId,
         CancellationToken cancellationToken)
     {
-        MonitorGraphResponse response = new MonitorGraphResponse
+        MonitorGraphResponse response = new()
         {
             DeploymentId = deployment.Id,
             MonitorId = deployment.MonitorId,
@@ -608,9 +606,7 @@ public sealed class DataApplicationService : IDataApplicationService
             MonitorName = MonitorData.GetMonitorName(deployment.Monitor, traces: true),
             FromDate = SearchTimestampPolicy.FromDatabase(monitorData.FromDate)!.Value,
             ToDate = SearchTimestampPolicy.FromDatabase(monitorData.ToDate)!.Value,
-            Samples = samples
-                .Select((sample, index) => new TraceSampleItem { Index = index, X = sample.X, Y = sample.Y, Z = sample.Z })
-                .ToList()
+            Samples = [.. samples.Select((sample, index) => new TraceSampleItem { Index = index, X = sample.X, Y = sample.Y, Z = sample.Z })]
         };
     }
 
@@ -649,7 +645,7 @@ public sealed class DataApplicationService : IDataApplicationService
     // Function summary: Returns data-grid columns for the monitor type.
     private static List<MonitorDataColumn> DataColumns(MonitorTypeEnum type)
     {
-        List<MonitorDataColumn> columns = new List<MonitorDataColumn> { new() { Key = SampleTimeKey, Label = "Date" } };
+        List<MonitorDataColumn> columns = new() { new() { Key = SampleTimeKey, Label = "Date" } };
         if (type == MonitorTypeEnum.Dust)
         {
             columns.AddRange([
@@ -689,7 +685,7 @@ public sealed class DataApplicationService : IDataApplicationService
     {
         if (data.DustLevels is not null)
         {
-            return data.DustLevels.Value.Select(row => new MonitorDataRow
+            return [.. data.DustLevels.Value.Select(row => new MonitorDataRow
             {
                 SampleTime = SearchTimestampPolicy.FromDatabase(row.SampleTime),
                 Values = new Dictionary<string, double?>
@@ -699,12 +695,12 @@ public sealed class DataApplicationService : IDataApplicationService
                     [Pm10Key] = row.Pm10,
                     [PmTotalKey] = row.PmTotal
                 }
-            }).ToList();
+            })];
         }
 
         if (data.NoiseLevels is not null)
         {
-            return data.NoiseLevels.Value.Select(row => new MonitorDataRow
+            return [.. data.NoiseLevels.Value.Select(row => new MonitorDataRow
             {
                 SampleTime = SearchTimestampPolicy.FromDatabase(row.SampleTime),
                 Values = new Dictionary<string, double?>
@@ -718,12 +714,12 @@ public sealed class DataApplicationService : IDataApplicationService
                     [Lc90Key] = row.Lc90,
                     [Lc10Key] = row.Lc10
                 }
-            }).ToList();
+            })];
         }
 
         if (data.VibrationLevels is not null)
         {
-            return data.VibrationLevels.Value.Select(row => new MonitorDataRow
+            return [.. data.VibrationLevels.Value.Select(row => new MonitorDataRow
             {
                 SampleTime = SearchTimestampPolicy.FromDatabase(row.SampleTime),
                 Values = new Dictionary<string, double?>
@@ -732,7 +728,7 @@ public sealed class DataApplicationService : IDataApplicationService
                     [YvtopKey] = row.Yvtop,
                     [ZvtopKey] = row.Zvtop
                 }
-            }).ToList();
+            })];
         }
 
         return [];
@@ -787,12 +783,12 @@ public sealed class DataApplicationService : IDataApplicationService
         IReadOnlyList<MonitorDataRow> rows,
         IReadOnlyList<(string Key, string Label)> fields)
     {
-        return fields.Select(field => new MonitorGraphDataset
+        return [.. fields.Select(field => new MonitorGraphDataset
         {
             Key = field.Key,
             Label = field.Label,
-            Points = rows.Select(row => new MonitorGraphPoint { Time = row.SampleTime, Y = row.Values.GetValueOrDefault(field.Key) }).ToList()
-        }).ToList();
+            Points = [.. rows.Select(row => new MonitorGraphPoint { Time = row.SampleTime, Y = row.Values.GetValueOrDefault(field.Key) })]
+        })];
     }
 
     // Function summary: Builds frequency graph datasets for vibration monitors.
@@ -804,19 +800,19 @@ public sealed class DataApplicationService : IDataApplicationService
             {
                 Key = XvtopKey,
                 Label = XvtopLabel,
-                Points = magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.XVtop }).ToList()
+                Points = [.. magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.XVtop })]
             },
             new MonitorGraphDataset
             {
                 Key = YvtopKey,
                 Label = YvtopLabel,
-                Points = magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.YVtop }).ToList()
+                Points = [.. magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.YVtop })]
             },
             new MonitorGraphDataset
             {
                 Key = ZvtopKey,
                 Label = ZvtopLabel,
-                Points = magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.ZVtop }).ToList()
+                Points = [.. magnitudes.Select(row => new MonitorGraphPoint { X = row.Frequency, Y = row.ZVtop })]
             }
         ];
     }
@@ -830,19 +826,19 @@ public sealed class DataApplicationService : IDataApplicationService
             {
                 Key = "x",
                 Label = "X",
-                Points = traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.X }).ToList()
+                Points = [.. traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.X })]
             },
             new MonitorGraphDataset
             {
                 Key = "y",
                 Label = "Y",
-                Points = traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.Y }).ToList()
+                Points = [.. traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.Y })]
             },
             new MonitorGraphDataset
             {
                 Key = "z",
                 Label = "Z",
-                Points = traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.Z }).ToList()
+                Points = [.. traces.Select((row, index) => new MonitorGraphPoint { X = index, Y = row.Z })]
             }
         ];
     }
@@ -850,11 +846,11 @@ public sealed class DataApplicationService : IDataApplicationService
     // Function summary: Builds monitor grid CSV content.
     private static string BuildDataCsv(MonitorDataGridResponse response)
     {
-        StringBuilder builder = new StringBuilder();
+        StringBuilder builder = new();
         builder.AppendLine(string.Join(",", response.Columns.Select(column => CsvCell(CsvHeaderLabel(column.Key, column.Label)))));
         foreach (MonitorDataRow row in response.Rows)
         {
-            List<string> cells = new List<string> { CsvCell(FormatCsvDate(row.SampleTime, response.FilterOption)) };
+            List<string> cells = new() { CsvCell(FormatCsvDate(row.SampleTime, response.FilterOption)) };
             cells.AddRange(response.Columns.Skip(1).Select(column => CsvCell(FormatNumber(row.Values.GetValueOrDefault(column.Key), response.MonitorType))));
             builder.AppendLine(string.Join(",", cells));
         }
@@ -865,7 +861,7 @@ public sealed class DataApplicationService : IDataApplicationService
     // Function summary: Builds vibration trace CSV content.
     private static string BuildTraceCsv(TraceDetailResponse response)
     {
-        StringBuilder builder = new StringBuilder();
+        StringBuilder builder = new();
         builder.AppendLine("Index,X,Y,Z");
         foreach (TraceSampleItem sample in response.Samples)
         {
@@ -935,7 +931,7 @@ public sealed class DataApplicationService : IDataApplicationService
             return "";
         }
 
-        string format = filterOption == SiteOption || filterOption == DailyOption ? "dd/MM/yyyy" : "dd/MM/yyyy HH:mm:ss";
+        string format = filterOption is SiteOption or DailyOption ? "dd/MM/yyyy" : "dd/MM/yyyy HH:mm:ss";
         return value.Value.ToString(format, CultureInfo.InvariantCulture);
     }
 
@@ -989,7 +985,7 @@ public sealed class DataApplicationService : IDataApplicationService
             return [];
         }
 
-        return options.Select(option => new OptionItem { Value = option.Key, Label = option.Value }).ToList();
+        return [.. options.Select(option => new OptionItem { Value = option.Key, Label = option.Value })];
     }
 
     // Function summary: Formats an optional duration for API output.
@@ -1007,10 +1003,9 @@ public sealed class DataApplicationService : IDataApplicationService
     // Function summary: Rejects ambiguous server timestamps instead of relabeling their ticks as UTC.
     private static DataWorkflowFailure? ValidateUtcTimestamps(params (string Field, DateTime? Value)[] timestamps)
     {
-        string[] invalidFields = timestamps
+        string[] invalidFields = [.. timestamps
             .Where(timestamp => timestamp.Value.HasValue && timestamp.Value.Value.Kind != DateTimeKind.Utc)
-            .Select(timestamp => timestamp.Field)
-            .ToArray();
+            .Select(timestamp => timestamp.Field)];
 
         return invalidFields.Length == 0
             ? null

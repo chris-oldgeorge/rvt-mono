@@ -1,4 +1,4 @@
-﻿// File summary: Provides company list, detail, and lifecycle workflows for the portal API.
+// File summary: Provides company list, detail, and lifecycle workflows for the portal API.
 // Major updates:
 // - 2026-07-09 pending Moved company create/update/delete orchestration out of the API controller.
 // - 2026-07-09 pending Moved company list/detail composition out of the API controller.
@@ -6,7 +6,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
@@ -92,11 +91,10 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         ["Contracts"] = "Contracts"
     };
 
-    internal static readonly IReadOnlyCollection<string> AllowedSortFields = SortFields.Keys
+    internal static readonly IReadOnlyCollection<string> AllowedSortFields = [.. SortFields.Keys
         .Where(key => key[0] == char.ToLowerInvariant(key[0]))
         .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
-        .ToArray();
+        .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)];
 
     private readonly ICompanyService companyService;
     private readonly UserManager<ApplicationUser> userManager;
@@ -149,14 +147,14 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         {
             Response = new QueryCompaniesResponse
             {
-                Results = result.Value.Select(company => new CompanyListItem
+                Results = [.. result.Value.Select(company => new CompanyListItem
                 {
                     Id = company.Id,
                     CompanyName = company.CompanyName,
                     UserCount = company.NrUsers,
                     Sites = company.Sites,
                     Contracts = company.Contracts
-                }).ToList(),
+                })],
                 Total = result.RecordCount,
                 Page = request.Page,
                 PageSize = request.PageSize,
@@ -216,11 +214,10 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
             .AsNoTracking()
             .Where(contract => contract.CompanyId == company.Id)
             .ToListAsync(cancellationToken);
-        List<Guid> siteIds = contracts
+        List<Guid> siteIds = [.. contracts
             .Where(contract => contract.SiteiD.HasValue)
             .Select(contract => contract.SiteiD!.Value)
-            .Distinct()
-            .ToList();
+            .Distinct()];
         List<string> sites = siteIds.Count == 0
             ? []
             : await domainContext.Sites
@@ -246,12 +243,11 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
     // Function summary: Builds a compact comma-separated summary from distinct non-empty values.
     private static string? JoinSummary(IEnumerable<string?> values)
     {
-        List<string> list = values
+        List<string> list = [.. values
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(5)
-            .ToList();
+            .Take(5)];
         return list.Count == 0 ? null : string.Join(", ", list);
     }
 }

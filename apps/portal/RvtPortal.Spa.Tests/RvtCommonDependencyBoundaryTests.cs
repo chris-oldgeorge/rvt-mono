@@ -60,11 +60,10 @@ public sealed class RvtCommonDependencyBoundaryTests
     // The business core reaches email through its own IEmailDelivery port, so the hexagonal boundary still holds.
     public void RvtCommon_IsConfinedToTheHostAdapterProject()
     {
-        string[] offenders = RepositoryDependencyScanner.FindCommonReferences(RepositoryLayout.Root)
+        string[] offenders = [.. RepositoryDependencyScanner.FindCommonReferences(RepositoryLayout.Root)
             .Select(finding => finding.Replace('\\', '/'))
             .Where(finding => !finding.StartsWith("RvtPortal.Spa/", StringComparison.Ordinal))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         Assert.Empty(offenders);
     }
@@ -73,10 +72,9 @@ public sealed class RvtCommonDependencyBoundaryTests
     // Strongest form of the same boundary: the compiled business core must not reference RVT common at all.
     public void BusinessLogicCore_DoesNotReferenceRvtCommon()
     {
-        string?[] referenced = typeof(RVT.BusinessLogic.IRvtDateTimeProvider).Assembly
+        string?[] referenced = [.. typeof(RVT.BusinessLogic.IRvtDateTimeProvider).Assembly
             .GetReferencedAssemblies()
-            .Select(assembly => assembly.Name)
-            .ToArray();
+            .Select(assembly => assembly.Name)];
 
         Assert.DoesNotContain(referenced, name => name?.StartsWith("Rvt.Monitor.", StringComparison.Ordinal) == true);
     }
@@ -85,22 +83,20 @@ public sealed class RvtCommonDependencyBoundaryTests
     public void HostAdapter_UsesOnlyApprovedCommunicationAdapterProjects()
     {
         string projectPath = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa", "RvtPortal.Spa.csproj");
-        XDocument project = System.Xml.Linq.XDocument.Load(projectPath);
-        string?[] packageReferences = project.Descendants()
+        XDocument project = XDocument.Load(projectPath);
+        string?[] packageReferences = [.. project.Descendants()
             .Where(element => element.Name.LocalName == "PackageReference")
             .Select(element => (string?)element.Attribute("Include"))
-            .Where(package => package?.StartsWith("Rvt.", StringComparison.OrdinalIgnoreCase) == true)
-            .ToArray();
-        string[] sourceReferences = project.Descendants()
+            .Where(package => package?.StartsWith("Rvt.", StringComparison.OrdinalIgnoreCase) == true)];
+        string[] sourceReferences = [.. project.Descendants()
             .Where(element => element.Name.LocalName == "ProjectReference")
             .Select(element => (string?)element.Attribute("Include"))
             .Where(reference => reference?.Contains(
                 "libs/rvt-monitor-common/src/",
                 StringComparison.OrdinalIgnoreCase) == true)
-            .Select(reference => Path.GetFileNameWithoutExtension(reference!)
+            .Select(reference => Path.GetFileNameWithoutExtension(reference)
                 ?? throw new InvalidOperationException("Project reference did not have a file name."))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         Assert.Empty(packageReferences);
         Assert.Equal(
@@ -122,7 +118,7 @@ public sealed class RvtCommonDependencyBoundaryTests
             "Rvt.Storage.S3"
         ];
 
-        string[] offenders = Directory.EnumerateFiles(hostRoot, "*.cs", SearchOption.AllDirectories)
+        string[] offenders = [.. Directory.EnumerateFiles(hostRoot, "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Where(path => !Path.GetFileName(path).Contains(" 2.", StringComparison.Ordinal))
@@ -132,8 +128,7 @@ public sealed class RvtCommonDependencyBoundaryTests
                     candidate.line.Contains(marker, StringComparison.Ordinal)))
                 .Select(candidate =>
                     $"{Path.GetRelativePath(hostRoot, path)}:{candidate.index + 1}:{candidate.line.Trim()}"))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         Assert.Empty(offenders);
     }
@@ -183,18 +178,17 @@ public sealed class RvtCommonDependencyBoundaryTests
                 string.Concat("rvt", "-reporting")
             ];
 
-            return EnumerateSourceFiles(root)
+            return [.. EnumerateSourceFiles(root)
                 .Where(path => !Path.GetFileName(path).Equals(
                     "RvtCommonDependencyBoundaryTests.cs",
                     StringComparison.Ordinal))
                 .SelectMany(path => FindMatches(root, path, markers))
-                .Order(StringComparer.Ordinal)
-                .ToArray();
+                .Order(StringComparer.Ordinal)];
         }
 
         private static IEnumerable<string> EnumerateSourceFiles(string root)
         {
-            Stack<string> pending = new Stack<string>();
+            Stack<string> pending = new();
             pending.Push(root);
 
             while (pending.TryPop(out string? current))
@@ -242,7 +236,7 @@ public sealed class RvtCommonDependencyBoundaryTests
 
         private static string StripCSharpComments(string line, ref bool isInBlockComment)
         {
-            StringBuilder code = new System.Text.StringBuilder(line.Length);
+            StringBuilder code = new(line.Length);
             int position = 0;
 
             while (position < line.Length)

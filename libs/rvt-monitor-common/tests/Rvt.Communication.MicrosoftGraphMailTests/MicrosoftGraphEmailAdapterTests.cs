@@ -13,11 +13,11 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_PostsAuthenticatedSmallMessageWithAttachment()
     {
-        using RecordingHandler handler = new RecordingHandler(HttpStatusCode.Accepted);
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        RecordingTokenProvider tokens = new RecordingTokenProvider("token-value");
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(httpClient, tokens, Options());
-        EmailAttachment attachment = new EmailAttachment("report.pdf", "application/pdf", new byte[] { 1, 2, 3 });
+        using RecordingHandler handler = new(HttpStatusCode.Accepted);
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        RecordingTokenProvider tokens = new("token-value");
+        MicrosoftGraphEmailAdapter adapter = new(httpClient, tokens, Options());
+        EmailAttachment attachment = new("report.pdf", "application/pdf", [1, 2, 3]);
 
         await adapter.SendAsync(new EmailDeliveryRequest(
             "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]));
@@ -48,9 +48,9 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_NoAttachmentsOmitsAttachmentArray()
     {
-        using RecordingHandler handler = new RecordingHandler(HttpStatusCode.Accepted);
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(httpClient, new RecordingTokenProvider("token"), Options());
+        using RecordingHandler handler = new(HttpStatusCode.Accepted);
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(httpClient, new RecordingTokenProvider("token"), Options());
 
         await adapter.SendAsync(Request());
 
@@ -67,9 +67,9 @@ public sealed class MicrosoftGraphEmailAdapterTests
         HttpStatusCode status,
         DeliveryFailureKind expectedKind)
     {
-        using RecordingHandler handler = new RecordingHandler(status, "raw provider secret");
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(httpClient, new RecordingTokenProvider("token"), Options());
+        using RecordingHandler handler = new(status, "raw provider secret");
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(httpClient, new RecordingTokenProvider("token"), Options());
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
             adapter.SendAsync(Request()));
@@ -82,12 +82,12 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_CallerCancellationPropagatesBeforeTokenOrNetwork()
     {
-        using CancellationTokenSource source = new CancellationTokenSource();
+        using CancellationTokenSource source = new();
         source.Cancel();
-        using RecordingHandler handler = new RecordingHandler(HttpStatusCode.Accepted);
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        RecordingTokenProvider tokens = new RecordingTokenProvider("token");
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(httpClient, tokens, Options());
+        using RecordingHandler handler = new(HttpStatusCode.Accepted);
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        RecordingTokenProvider tokens = new("token");
+        MicrosoftGraphEmailAdapter adapter = new(httpClient, tokens, Options());
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             adapter.SendAsync(Request(), source.Token));
@@ -99,9 +99,9 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_TextOnlyUsesTextBodyAndMultipleSmallAttachments()
     {
-        using RecordingHandler handler = new RecordingHandler(HttpStatusCode.Accepted);
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using RecordingHandler handler = new(HttpStatusCode.Accepted);
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
@@ -112,8 +112,8 @@ public sealed class MicrosoftGraphEmailAdapterTests
             "plain only",
             string.Empty,
             [
-                new EmailAttachment("first.txt", "text/plain", new byte[] { 1 }),
-                new EmailAttachment("second.pdf", "application/pdf", new byte[] { 2, 3 })
+                new EmailAttachment("first.txt", "text/plain", [1]),
+                new EmailAttachment("second.pdf", "application/pdf", [2, 3])
             ]));
 
         using JsonDocument json = JsonDocument.Parse(handler.Requests.Single().Body!);
@@ -129,12 +129,12 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_ThrottleResponseCarriesRetryAfter()
     {
-        using RecordingHandler handler = new RecordingHandler(
+        using RecordingHandler handler = new(
             (HttpStatusCode)429,
             configureHeaders: headers => headers.RetryAfter = new RetryConditionHeaderValue(
                 TimeSpan.FromSeconds(90)));
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
@@ -148,12 +148,12 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_NetworkFailureIsTransientAndSafe()
     {
-        using HttpClient httpClient = new HttpClient(new ThrowingHandler(
+        using HttpClient httpClient = new(new ThrowingHandler(
             new HttpRequestException("raw network secret")))
         {
             BaseAddress = new Uri("https://graph.microsoft.com/v1.0/")
         };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
@@ -168,12 +168,12 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_HttpTimeoutIsTransientAndSafe()
     {
-        using HttpClient httpClient = new HttpClient(new ThrowingHandler(
+        using HttpClient httpClient = new(new ThrowingHandler(
             new OperationCanceledException("raw timeout secret")))
         {
             BaseAddress = new Uri("https://graph.microsoft.com/v1.0/")
         };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
@@ -189,9 +189,9 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_TokenFailureIsPermanentAndSafe()
     {
-        using RecordingHandler handler = new RecordingHandler(HttpStatusCode.Accepted);
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using RecordingHandler handler = new(HttpStatusCode.Accepted);
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new ThrowingTokenProvider(new InvalidOperationException("raw credential secret")),
             Options());
@@ -207,10 +207,10 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_MissingConfigurationFailsBeforeTokenOrNetwork()
     {
-        using RecordingHandler handler = new RecordingHandler(HttpStatusCode.Accepted);
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        RecordingTokenProvider tokens = new RecordingTokenProvider("token");
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using RecordingHandler handler = new(HttpStatusCode.Accepted);
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        RecordingTokenProvider tokens = new("token");
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             tokens,
             new MicrosoftGraphMailOptions());
@@ -226,10 +226,10 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_DisposesProviderResponse()
     {
-        TrackingContent content = new TrackingContent();
-        using RecordingHandler handler = new RecordingHandler(HttpStatusCode.Accepted, content: content);
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        TrackingContent content = new();
+        using RecordingHandler handler = new(HttpStatusCode.Accepted, content: content);
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
@@ -242,13 +242,13 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_AttachmentBelowThreeMiBUsesSingleSendMailRequest()
     {
-        using RecordingHandler handler = new RecordingHandler(HttpStatusCode.Accepted);
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using RecordingHandler handler = new(HttpStatusCode.Accepted);
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
-        EmailAttachment attachment = new EmailAttachment(
+        EmailAttachment attachment = new(
             "small.bin",
             "application/octet-stream",
             new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit - 1]);
@@ -263,13 +263,13 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_ExactlyThreeMiBUsesDraftUploadAndSendWithoutUploadAuthorization()
     {
-        using LargeFlowHandler handler = new LargeFlowHandler();
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using LargeFlowHandler handler = new();
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
-        EmailAttachment attachment = new EmailAttachment(
+        EmailAttachment attachment = new(
             "large.bin",
             "application/octet-stream",
             new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit]);
@@ -296,15 +296,15 @@ public sealed class MicrosoftGraphEmailAdapterTests
     public async Task SendAsync_UploadChunkTimeoutIsTransientAndSafe()
     {
         const string providerMessage = "raw upload timeout secret";
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
-        using UploadChunkCancellationHandler handler = new UploadChunkCancellationHandler(
+        using CancellationTokenSource cancellation = new();
+        using UploadChunkCancellationHandler handler = new(
             _ => new OperationCanceledException(providerMessage));
-        using HttpClient httpClient = new HttpClient(handler);
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using HttpClient httpClient = new(handler);
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
-        EmailAttachment attachment = new EmailAttachment(
+        EmailAttachment attachment = new(
             "large.bin",
             "application/octet-stream",
             new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit]);
@@ -330,18 +330,18 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_UploadChunkCallerCancellationPropagates()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
-        using UploadChunkCancellationHandler handler = new UploadChunkCancellationHandler(token =>
+        using CancellationTokenSource cancellation = new();
+        using UploadChunkCancellationHandler handler = new(token =>
         {
             cancellation.Cancel();
             return new OperationCanceledException(token);
         });
-        using HttpClient httpClient = new HttpClient(handler);
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using HttpClient httpClient = new(handler);
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
-        EmailAttachment attachment = new EmailAttachment(
+        EmailAttachment attachment = new(
             "large.bin",
             "application/octet-stream",
             new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit]);
@@ -364,9 +364,9 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_MixedSmallAndLargeAttachmentsUsesBothAttachmentPaths()
     {
-        using LargeFlowHandler handler = new LargeFlowHandler();
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using LargeFlowHandler handler = new();
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
@@ -377,7 +377,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
             "plain",
             "<p>html</p>",
             [
-                new EmailAttachment("small.txt", "text/plain", new byte[] { 1, 2 }),
+                new EmailAttachment("small.txt", "text/plain", [1, 2]),
                 new EmailAttachment(
                     "large.bin",
                     "application/octet-stream",
@@ -394,13 +394,13 @@ public sealed class MicrosoftGraphEmailAdapterTests
     [TestMethod]
     public async Task SendAsync_SevenMiBAttachmentUsesOrderedBoundedInclusiveChunks()
     {
-        using LargeFlowHandler handler = new LargeFlowHandler();
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using LargeFlowHandler handler = new();
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
-        EmailAttachment attachment = new EmailAttachment(
+        EmailAttachment attachment = new(
             "seven.bin",
             "application/octet-stream",
             new byte[7 * 1024 * 1024]);
@@ -408,7 +408,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
         await adapter.SendAsync(new EmailDeliveryRequest(
             "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]));
 
-        FlowRecordedRequest[] chunks = handler.Requests.Where(request => request.Method == HttpMethod.Put).ToArray();
+        FlowRecordedRequest[] chunks = [.. handler.Requests.Where(request => request.Method == HttpMethod.Put)];
         CollectionAssert.AreEqual(
             new[]
             {
@@ -425,13 +425,13 @@ public sealed class MicrosoftGraphEmailAdapterTests
     public async Task SendAsync_InvalidUploadUrlIsPermanentAndNeverExposed()
     {
         const string invalidUploadUrl = "http://upload.example/session-secret";
-        using LargeFlowHandler handler = new LargeFlowHandler(invalidUploadUrl);
-        using HttpClient httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using LargeFlowHandler handler = new(invalidUploadUrl);
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("https://graph.microsoft.com/v1.0/") };
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
-        EmailAttachment attachment = new EmailAttachment(
+        EmailAttachment attachment = new(
             "large.bin",
             "application/octet-stream",
             new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit]);
@@ -449,9 +449,9 @@ public sealed class MicrosoftGraphEmailAdapterTests
     public async Task SendAsync_MalformedDraftResponseIsSafeTypedFailure()
     {
         const string malformedResponse = "{\"id\":\"raw-draft-secret\"";
-        using SequenceHandler handler = new SequenceHandler((HttpStatusCode.Created, malformedResponse));
-        using HttpClient httpClient = new HttpClient(handler);
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using SequenceHandler handler = new((HttpStatusCode.Created, malformedResponse));
+        using HttpClient httpClient = new(handler);
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
@@ -476,11 +476,11 @@ public sealed class MicrosoftGraphEmailAdapterTests
     public async Task SendAsync_MalformedUploadSessionResponseIsSafeTypedFailure()
     {
         const string malformedResponse = "{\"uploadUrl\":\"raw-session-secret\"";
-        using SequenceHandler handler = new SequenceHandler(
+        using SequenceHandler handler = new(
             (HttpStatusCode.Created, """{"id":"draft-id"}"""),
             (HttpStatusCode.OK, malformedResponse));
-        using HttpClient httpClient = new HttpClient(handler);
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using HttpClient httpClient = new(handler);
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
@@ -512,17 +512,17 @@ public sealed class MicrosoftGraphEmailAdapterTests
     public async Task SendAsync_SevenMiBAttachmentUsesOrderedUnauthenticatedThreeMiBChunks()
     {
         const int total = 7 * 1024 * 1024;
-        using SequenceHandler handler = new SequenceHandler(
+        using SequenceHandler handler = new(
             (HttpStatusCode.Created, "{\"id\":\"draft-id\"}"),
             (HttpStatusCode.OK, "{\"uploadUrl\":\"https://upload.example/session-token\"}"),
             (HttpStatusCode.Accepted, string.Empty),
             (HttpStatusCode.Accepted, string.Empty),
             (HttpStatusCode.Created, string.Empty),
             (HttpStatusCode.Accepted, string.Empty));
-        using HttpClient httpClient = new HttpClient(handler);
-        RecordingTokenProvider tokens = new RecordingTokenProvider("token");
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(httpClient, tokens, Options());
-        EmailAttachment attachment = new EmailAttachment(
+        using HttpClient httpClient = new(handler);
+        RecordingTokenProvider tokens = new("token");
+        MicrosoftGraphEmailAdapter adapter = new(httpClient, tokens, Options());
+        EmailAttachment attachment = new(
             "large.pdf",
             "application/pdf",
             new byte[total]);
@@ -536,7 +536,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
         Assert.AreEqual(
             "https://graph.microsoft.com/v1.0/users/sender%40example.test/messages/draft-id/attachments/createUploadSession",
             handler.Requests[1].Uri.ToString());
-        LargeRecordedRequest[] uploads = handler.Requests.Where(request => request.Method == HttpMethod.Put).ToArray();
+        LargeRecordedRequest[] uploads = [.. handler.Requests.Where(request => request.Method == HttpMethod.Put)];
         Assert.HasCount(3, uploads);
         Assert.AreEqual($"bytes 0-3145727/{total}", uploads[0].ContentRange);
         Assert.AreEqual($"bytes 3145728-6291455/{total}", uploads[1].ContentRange);
@@ -553,13 +553,13 @@ public sealed class MicrosoftGraphEmailAdapterTests
     public async Task SendAsync_ExactlyThreeMiBUsesDraftUploadFlow()
     {
         const int total = 3 * 1024 * 1024;
-        using SequenceHandler handler = new SequenceHandler(
+        using SequenceHandler handler = new(
             (HttpStatusCode.Created, "{\"id\":\"draft-id\"}"),
             (HttpStatusCode.OK, "{\"uploadUrl\":\"https://upload.example/session-token\"}"),
             (HttpStatusCode.Created, string.Empty),
             (HttpStatusCode.Accepted, string.Empty));
-        using HttpClient httpClient = new HttpClient(handler);
-        MicrosoftGraphEmailAdapter adapter = new MicrosoftGraphEmailAdapter(
+        using HttpClient httpClient = new(handler);
+        MicrosoftGraphEmailAdapter adapter = new(
             httpClient,
             new RecordingTokenProvider("token"),
             Options());
@@ -624,7 +624,7 @@ public sealed class MicrosoftGraphEmailAdapterTests
                 request.Content is null
                     ? null
                     : await request.Content.ReadAsStringAsync(cancellationToken)));
-            HttpResponseMessage response = new HttpResponseMessage(status)
+            HttpResponseMessage response = new(status)
             {
                 Content = content ?? new StringContent(responseBody, Encoding.UTF8, "application/json")
             };
@@ -770,10 +770,10 @@ public sealed class MicrosoftGraphEmailAdapterTests
                 request.Headers.Authorization?.ToString(),
                 request.Content?.Headers.ContentRange?.ToString(),
                 bytes.LongLength));
-            (HttpStatusCode Status, string Body) response = pending.Dequeue();
-            return new HttpResponseMessage(response.Status)
+            (HttpStatusCode Status, string Body) = pending.Dequeue();
+            return new HttpResponseMessage(Status)
             {
-                Content = new StringContent(response.Body, Encoding.UTF8, "application/json")
+                Content = new StringContent(Body, Encoding.UTF8, "application/json")
             };
         }
     }

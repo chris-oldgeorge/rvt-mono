@@ -18,7 +18,7 @@ public sealed class MyAtmMonitorServiceRegistrationTests
     [TestMethod]
     public void AddMyAtmMonitor_RegistersSharedDeliveryCompositionAsSingletons()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddLogging();
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -29,7 +29,7 @@ public sealed class MyAtmMonitorServiceRegistrationTests
             .Build();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddMyAtmMonitor(configuration);
-        Mock<IDBClient> dbClient = new Mock<IDBClient>();
+        Mock<IDBClient> dbClient = new();
         services.AddSingleton(dbClient.Object);
         services.AddSingleton(new Mock<IMqttClient>().Object);
         services.AddSingleton(new Mock<IMessageService>().Object);

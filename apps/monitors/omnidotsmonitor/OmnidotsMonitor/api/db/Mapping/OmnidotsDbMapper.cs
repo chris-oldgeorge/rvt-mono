@@ -1,9 +1,7 @@
 using Omnidots.Api.Db.EntityFramework;
 using Omnidots.Model.Dto;
-using Omnidots.Model.Json;
 using Riok.Mapperly.Abstractions;
 using Rvt.Monitor.Common.Data.Entities;
-using Rvt.Monitor.Common.Utilities;
 using static Omnidots.Api.OmnidotsApi;
 
 namespace Omnidots.Api.Db.Mapping;
@@ -42,7 +40,7 @@ public static partial class OmnidotsDbMapper
 
     public static MonitorEntity ToMonitorEntity(VibrationMonitorDto dto)
     {
-        MonitorEntity entity = new MonitorEntity { Id = dto.Id };
+        MonitorEntity entity = new() { Id = dto.Id };
         UpdateMonitorEntity(entity, dto);
         return entity;
     }

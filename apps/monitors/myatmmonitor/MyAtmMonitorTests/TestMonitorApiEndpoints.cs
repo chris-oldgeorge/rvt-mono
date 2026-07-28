@@ -1,11 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using MyAtm.Api;
-
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace MyAtmMonitorTests;
 
 [TestClass]
@@ -22,11 +17,10 @@ public class TestMonitorApiEndpoints
 
         app.MapMyAtmMonitorApi();
 
-        List<string?> routes = ((IEndpointRouteBuilder)app).DataSources
+        List<string?> routes = [.. ((IEndpointRouteBuilder)app).DataSources
             .SelectMany(dataSource => dataSource.Endpoints)
             .OfType<RouteEndpoint>()
-            .Select(endpoint => endpoint.RoutePattern.RawText)
-            .ToList();
+            .Select(endpoint => endpoint.RoutePattern.RawText)];
 
         CollectionAssert.AreEquivalent(new[]
         {

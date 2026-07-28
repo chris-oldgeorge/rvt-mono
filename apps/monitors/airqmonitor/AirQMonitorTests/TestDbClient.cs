@@ -6,14 +6,12 @@ using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using NpgsqlTypes;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using Rvt.Monitor.IntegrationTesting;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
@@ -46,7 +44,7 @@ namespace AirQMonitorTests
         {
             using NpgsqlConnection connection = database!.OpenConnection();
             connection.Open();
-            using NpgsqlCommand command = new NpgsqlCommand("SELECT current_schema();", connection);
+            using NpgsqlCommand command = new("SELECT current_schema();", connection);
 
             Assert.AreEqual(database.SchemaName, command.ExecuteScalar());
         }
@@ -109,7 +107,7 @@ namespace AirQMonitorTests
         public void TestReadGlobalRules()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             List<RvtAlertRuleDto> rules = testObj!.ReadRules(null);
@@ -167,7 +165,7 @@ namespace AirQMonitorTests
                 "AirQMonitorTests",
                 "1.0");
 
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string sql = "SELECT variables, message, logged_at FROM error_log;";
@@ -197,11 +195,11 @@ namespace AirQMonitorTests
             DateTime actualDt = ParseUtc(actual);
             List<SampleResponse> samples = AirQFixture.SamplesResponseObjects(actualDt);
             string serialId = "E1234";
-            testObj!.InsertNoiseDtos(serialId, new List<NoiseDto> { new NoiseDto(samples[0]) });
+            testObj!.InsertNoiseDtos(serialId, [new NoiseDto(samples[0])]);
 
             await using NpgsqlConnection connection = database!.OpenConnection();
             await connection.OpenAsync();
-            await using NpgsqlCommand command = new NpgsqlCommand(
+            await using NpgsqlCommand command = new(
                 "SELECT serial_id, sample_time, laeq, lamax, la_90, la_10, lceq, lcmax, lc_90, lc_10 " +
                 "FROM air_q_noise_level ORDER BY sample_time;", connection);
             await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
@@ -225,7 +223,7 @@ namespace AirQMonitorTests
         public void TestInsertNoiseDtos_IgnoresDuplicateSerialAndSampleTime()
         {
             DateTime sampleTime = ParseUtc("2023-10-18T14:35:42");
-            NoiseDto dto = new NoiseDto(
+            NoiseDto dto = new(
                 sampleTime: sampleTime,
                 lAeq: 44.75,
                 lAmax: 61.28,
@@ -237,10 +235,10 @@ namespace AirQMonitorTests
                 lC10: 51.22);
             string serialId = "E1234";
 
-            testObj!.InsertNoiseDtos(serialId, new List<NoiseDto> { dto, dto });
-            testObj.InsertNoiseDtos(serialId, new List<NoiseDto> { dto });
+            testObj!.InsertNoiseDtos(serialId, [dto, dto]);
+            testObj.InsertNoiseDtos(serialId, [dto]);
 
-            using NpgsqlConnection connection = new NpgsqlConnection(database!.ConnectionString);
+            using NpgsqlConnection connection = new(database!.ConnectionString);
             connection.Open();
             List<NoiseDto> dtos = ReadNoiseDtos(connection, out string lastSerialId);
 
@@ -252,7 +250,7 @@ namespace AirQMonitorTests
         public void TestReadAlertRules()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E2345";
@@ -263,8 +261,8 @@ namespace AirQMonitorTests
             Guid monitorId = monitorsOut[0].Id;
 
             int NUM_RULES = 10;
-            TimeSpan startTime = new TimeSpan(9, 0, 0);
-            TimeSpan endTime = new TimeSpan(17, 0, 0);
+            TimeSpan startTime = new(9, 0, 0);
+            TimeSpan endTime = new(17, 0, 0);
             for (int i = 0; i < NUM_RULES; i++)
             {
                 InsertAlertRule(connection, i, serialId, monitorId);
@@ -279,7 +277,7 @@ namespace AirQMonitorTests
             List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
             Assert.HasCount(NUM_RULES, rules);
 
-            List<RvtAlertRuleDto> orderedRules = rules.OrderBy(o => o.Field).ToList();
+            List<RvtAlertRuleDto> orderedRules = [.. rules.OrderBy(o => o.Field)];
 
             for (int i = 0; i < NUM_RULES; i++)
             {
@@ -306,7 +304,7 @@ namespace AirQMonitorTests
         public void TestReadAlertContacts()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             int numMonitors = 2;
@@ -364,7 +362,7 @@ namespace AirQMonitorTests
         public void TestWriteNotification()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E8271";
@@ -397,7 +395,7 @@ namespace AirQMonitorTests
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             DateTime dt = ParseUtc("2023-10-18T11:19:00");
-            NotificationDto notifyCaution = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto notifyCaution = new(id: Guid.NewGuid(),
                                               notificationTime: dt,
                                               limitOn: rules[0].LimitOn,
                                               averagingPeriod: rules[0].AveragingPeriod,
@@ -429,7 +427,7 @@ namespace AirQMonitorTests
             }
 
 
-            NotificationDto notifyAlert = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto notifyAlert = new(id: Guid.NewGuid(),
                                               notificationTime: dt,
                                               limitOn: rules[0].LimitOn,
                                               averagingPeriod: rules[0].AveragingPeriod,
@@ -456,7 +454,7 @@ namespace AirQMonitorTests
         public void TestHasOpenNotification(AlertType existing, AlertType alertType, bool expectedResult)
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E8271";
@@ -490,7 +488,7 @@ namespace AirQMonitorTests
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             DateTime dt = ParseUtc("2023-10-18T11:19:00");
-            NotificationDto existingNotification = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto existingNotification = new(id: Guid.NewGuid(),
                                               notificationTime: dt,
                                               limitOn: rules[0].LimitOn,
                                               averagingPeriod: rules[0].AveragingPeriod,
@@ -511,7 +509,7 @@ namespace AirQMonitorTests
         public void UpdateAlertRule()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
@@ -541,7 +539,7 @@ namespace AirQMonitorTests
         public void TestSetMonitorOffline()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
             testObj!.WriteMonitorList(monitorsIn);
@@ -600,10 +598,10 @@ namespace AirQMonitorTests
                 LC90Total += LC90;
                 LC10Total += LC10;
 
-                NoiseDto dto = new NoiseDto(sampleTime: startTime.AddMinutes(i).AddSeconds(1), lAeq: LAeq, lAmax: LAMax, lA90: LA90,
+                NoiseDto dto = new(sampleTime: startTime.AddMinutes(i).AddSeconds(1), lAeq: LAeq, lAmax: LAMax, lA90: LA90,
                             lA10: LA10, lCeq: LCeq, lCmax: LCMax, lC90: LC90, lC10: LC10);
 
-                testObj!.InsertNoiseDtos(serialId, new List<NoiseDto> { dto });
+                testObj!.InsertNoiseDtos(serialId, [dto]);
             }
 
             double avgLAeq = testObj!.GetAverageNoiseLevel(serialId, "LAeq", startTime, startTime.AddMinutes(15));
@@ -632,17 +630,17 @@ namespace AirQMonitorTests
             string serialId = "98231";
             DateTime sampleTime = ParseUtc("2023-10-17T16:00:00");
 
-            testObj!.InsertNoiseDtos(serialId, new List<NoiseDto>
-            {
+            testObj!.InsertNoiseDtos(serialId,
+            [
                 new(sampleTime.AddHours(-2), lAeq: 10, lAmax: 20, lA90: 30, lA10: 40, lCeq: 50, lCmax: 60, lC90: 70, lC10: 80),
                 new(sampleTime.AddHours(-1), lAeq: 30, lAmax: 40, lA90: 50, lA10: 60, lCeq: 70, lCmax: 80, lC90: 90, lC10: 100)
-            });
+            ]);
             testObj.Create8hourAverage(serialId, sampleTime);
 
-            testObj.InsertNoiseDtos(serialId, new List<NoiseDto>
-            {
+            testObj.InsertNoiseDtos(serialId,
+            [
                 new(sampleTime.AddMinutes(-30), lAeq: 50, lAmax: 60, lA90: 70, lA10: 80, lCeq: 90, lCmax: 100, lC90: 110, lC10: 120)
-            });
+            ]);
             testObj.Create8hourAverage(serialId, sampleTime);
 
             List<Noise8HourAverage> averages = ReadNoise8HourAverages(database!.ConnectionString);
@@ -666,7 +664,7 @@ namespace AirQMonitorTests
         {
 
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             Guid siteId = Guid.NewGuid();
 
@@ -703,11 +701,11 @@ namespace AirQMonitorTests
 
         private static List<NoiseMonitorDto> CreateMonitorsList(int numMonitors, string serialId = "monitor")
         {
-            List<NoiseMonitorDto> monitors = new List<NoiseMonitorDto>();
+            List<NoiseMonitorDto> monitors = [];
             for (int i = 0; i < numMonitors; i++)
             {
                 DateTime dt = DateTime.UtcNow.AddMinutes(i);
-                NoiseMonitorDto monitor = new NoiseMonitorDto(id: Guid.NewGuid(),
+                NoiseMonitorDto monitor = new(id: Guid.NewGuid(),
                                                 listedAtTime: dt,
                                                 lastDataTime: null,
                                                 serialId: serialId + i,
@@ -775,7 +773,7 @@ namespace AirQMonitorTests
         public void TestWriteNotificationAudit()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string serialId = "82731";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
@@ -800,7 +798,7 @@ namespace AirQMonitorTests
             List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
             Assert.HasCount(1, contacts);
             DateTime dt = ParseUtc("2023-10-18T11:19:00");
-            NotificationDto notificationIn = new NotificationDto(//rules[0], 99.876, dt, monitorId);
+            NotificationDto notificationIn = new(//rules[0], 99.876, dt, monitorId);
 
                                                    id: Guid.NewGuid(),
                                                    notificationTime: dt,
@@ -934,7 +932,7 @@ namespace AirQMonitorTests
             // Link the contract to the test site before reading contacts.
             {
                 string sql = @"UPDATE contract SET site_id = @SiteId WHERE id = @ContractId;";
-                using NpgsqlCommand cmd = new NpgsqlCommand(sql, connection);
+                using NpgsqlCommand cmd = new(sql, connection);
                 cmd.Parameters.AddWithValue("@SiteId", siteId);
                 cmd.Parameters.AddWithValue("@ContractId", contractId);
                 cmd.ExecuteNonQuery();
@@ -1099,7 +1097,7 @@ namespace AirQMonitorTests
         {
 
 
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string sql = @"SELECT id, site_id, monitor_id, level, field, collection_time FROM site_average;";
 
@@ -1107,17 +1105,19 @@ namespace AirQMonitorTests
 
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
-            List<SiteAverage> siteAverages = new List<SiteAverage>();
+            List<SiteAverage> siteAverages = [];
             while (reader.Read())
             {
 
-                SiteAverage sa = new SiteAverage();
-                sa.Id = reader.GetGuid(0);
-                sa.SiteId = reader.GetGuid(1);
-                sa.MonitorId = reader.GetGuid(2);
-                sa.Level = reader.GetDouble(3);
-                sa.Field = reader.GetString(4);
-                sa.CollectionTime = reader.GetDateTime(5);
+                SiteAverage sa = new()
+                {
+                    Id = reader.GetGuid(0),
+                    SiteId = reader.GetGuid(1),
+                    MonitorId = reader.GetGuid(2),
+                    Level = reader.GetDouble(3),
+                    Field = reader.GetString(4),
+                    CollectionTime = reader.GetDateTime(5)
+                };
 
                 siteAverages.Add(sa);
             }
@@ -1126,7 +1126,7 @@ namespace AirQMonitorTests
 
         private static List<Noise8HourAverage> ReadNoise8HourAverages(string connectionString)
         {
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string sql = @"SELECT serial_id, sample_time, laeq, number_of_samples
                         FROM air_q_noise_8_hour_average;";
@@ -1134,7 +1134,7 @@ namespace AirQMonitorTests
             using NpgsqlCommand cmd = new(sql, connection);
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
-            List<Noise8HourAverage> averages = new List<Noise8HourAverage>();
+            List<Noise8HourAverage> averages = [];
             while (reader.Read())
             {
                 averages.Add(new Noise8HourAverage
@@ -1153,7 +1153,7 @@ namespace AirQMonitorTests
         private static ContactMethod ReadContactMethod(string connectionString, Guid siteUserId)
         {
 
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string sql = @"SELECT email, sms FROM notification_setting WHERE site_user_id = @SiteUserId;";
 
@@ -1174,7 +1174,7 @@ namespace AirQMonitorTests
         {
             string sql = @"SELECT ""Email"", ""PhoneNumber"", ""Id"" FROM ""AspNetUsers"";";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<RvtContactDto> contacts = new List<RvtContactDto>();
+            List<RvtContactDto> contacts = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -1199,7 +1199,7 @@ namespace AirQMonitorTests
                                closed_by_user, alert_type, alert_field, monitor_id
                         FROM notification;";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<NotificationDto> alerts = new List<NotificationDto>();
+            List<NotificationDto> alerts = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -1215,7 +1215,7 @@ namespace AirQMonitorTests
                 string alertField = reader.GetString(8);
                 Guid monitorId = reader.GetGuid(9);
 
-                NotificationDto alert = new NotificationDto(id: id,
+                NotificationDto alert = new(id: id,
                                                 notificationTime: notificationTime,
                                                 limitOn: limitOn,
                                                 averagingPeriod: averagingPeriod,
@@ -1236,18 +1236,19 @@ namespace AirQMonitorTests
             string sql = @"SELECT id, send_time, address, error_message, notification_id
                         FROM notification_sent;";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<Dictionary<string, object>> audits = new List<Dictionary<string, object>>();
+            List<Dictionary<string, object>> audits = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
             {
-                Dictionary<string, object> dict = new Dictionary<string, object>();
-
-                dict["Id"] = reader.GetGuid(0);
-                dict["SendTime"] = reader.GetDateTime(1);
-                dict["Address"] = reader.GetString(2);
-                dict["ErrorMessage"] = reader.GetString(3);
-                dict["NotificationId"] = reader.GetGuid(4);
+                Dictionary<string, object> dict = new()
+                {
+                    ["Id"] = reader.GetGuid(0),
+                    ["SendTime"] = reader.GetDateTime(1),
+                    ["Address"] = reader.GetString(2),
+                    ["ErrorMessage"] = reader.GetString(3),
+                    ["NotificationId"] = reader.GetGuid(4)
+                };
                 audits.Add(dict);
             }
             return audits;
@@ -1259,7 +1260,7 @@ namespace AirQMonitorTests
             string sql = @"SELECT serial_id, sample_time, laeq, lamax, la_90, la_10, lceq, lcmax, lc_90, lc_10
                         FROM air_q_noise_level;";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<NoiseDto> dtos = new List<NoiseDto>();
+            List<NoiseDto> dtos = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -1275,7 +1276,7 @@ namespace AirQMonitorTests
                 double lC90 = reader.GetDouble(8);
                 double lC10 = reader.GetDouble(9);
 
-                NoiseDto dto = new NoiseDto(sampleTime: sampleTime, lAeq: lAeq, lAmax: lAmax, lA90: lA90,
+                NoiseDto dto = new(sampleTime: sampleTime, lAeq: lAeq, lAmax: lAmax, lA90: lA90,
                         lA10: lA10, lCeq: lCeq, lCmax: lCmax, lC90: lC90, lC10: lC10);
                 dtos.Add(dto);
             }

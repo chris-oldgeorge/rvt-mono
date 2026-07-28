@@ -31,7 +31,7 @@ public sealed class ScriptRunner
             return scripts.Count;
         }
 
-        await using NpgsqlConnection connection = new NpgsqlConnection(options.ConnectionString);
+        await using NpgsqlConnection connection = new(options.ConnectionString);
         try
         {
             await connection.OpenAsync(cancellationToken);
@@ -102,7 +102,7 @@ public sealed class ScriptRunner
     /// </summary>
     private List<string> ResolveScripts()
     {
-        List<string> scripts = new List<string>();
+        List<string> scripts = new();
 
         string unmapped = Path.Combine(options.ScriptRoot, "create_unmapped_schema.sql");
         if (!File.Exists(unmapped))
@@ -125,10 +125,9 @@ public sealed class ScriptRunner
 
         string postLoad = Path.Combine(options.ScriptRoot, "post-load");
         string[] postLoadScripts = Directory.Exists(postLoad)
-            ? Directory.GetFiles(postLoad, "*.sql")
+            ? [.. Directory.GetFiles(postLoad, "*.sql")
                 .Where(IsRealScript)
-                .OrderBy(path => path, StringComparer.Ordinal)
-                .ToArray()
+                .OrderBy(path => path, StringComparer.Ordinal)]
             : [];
         if (postLoadScripts.Length == 0)
         {
@@ -161,7 +160,7 @@ public sealed class ScriptRunner
         NpgsqlTransaction? transaction,
         CancellationToken cancellationToken)
     {
-        await using NpgsqlCommand command = new NpgsqlCommand(
+        await using NpgsqlCommand command = new(
             "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'timescaledb')",
             connection,
             transaction);
@@ -193,7 +192,7 @@ public sealed class ScriptRunner
 
         string sql = await File.ReadAllTextAsync(path, cancellationToken);
 
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection, transaction);
+        await using NpgsqlCommand command = new(sql, connection, transaction);
         command.CommandTimeout = 0;
 
         try

@@ -201,7 +201,7 @@ public static partial class DatabaseNamingRules
             return string.Empty;
         }
 
-        StringBuilder builder = new StringBuilder(identifier.Length * 2);
+        StringBuilder builder = new(identifier.Length * 2);
         for (int index = 0; index < identifier.Length; index++)
         {
             char current = identifier[index];

@@ -1,5 +1,4 @@
 using MyAtm.Model.Json;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace MyAtm.Model.Dto
@@ -52,10 +51,8 @@ namespace MyAtm.Model.Dto
 
 
             }
-            else if (measurement is AvgDeviceMeasurement)
+            else if (measurement is AvgDeviceMeasurement m)
             {
-
-                AvgDeviceMeasurement m = (AvgDeviceMeasurement)measurement;
                 Pm1 = m.Pm1?.Avg;
                 Pm2_5 = m.Pm2_5?.Avg;
                 Pm10 = m.Pm10?.Avg;

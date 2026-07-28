@@ -15,7 +15,7 @@ public sealed class SvantekDbMapperTests
     {
         Guid id = Guid.NewGuid();
         DateTime deployedStart = DateTime.Parse("2026-07-06T07:30:00Z").ToUniversalTime();
-        MonitorEntity entity = new MonitorEntity
+        MonitorEntity entity = new()
         {
             Id = id,
             ListedAtTime = DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
@@ -26,7 +26,7 @@ public sealed class SvantekDbMapperTests
             BatteryStatus = 2,
             TypeOfMonitor = NoiseMonitorDto.MONITOR_TYPE_NOISE
         };
-        SvantekMonitorStatusEntity status = new SvantekMonitorStatusEntity
+        SvantekMonitorStatusEntity status = new()
         {
             SerialId = "157206",
             ProjectId = 123,
@@ -34,7 +34,7 @@ public sealed class SvantekDbMapperTests
             LastStatusTimestamp = "2026-07-06T08:20:00",
             BatteryCharge = 77
         };
-        DeploymentEntity deployment = new DeploymentEntity
+        DeploymentEntity deployment = new()
         {
             MonitorId = id,
             StartDate = deployedStart
@@ -66,7 +66,7 @@ public sealed class SvantekDbMapperTests
         DateTime lastDataTime15Min = DateTime.Parse("2026-07-06T08:15:00Z").ToUniversalTime();
         DateTime lastDataTime1Hour = DateTime.Parse("2026-07-06T09:00:00Z").ToUniversalTime();
         DateTime lastDataTime24Hour = DateTime.Parse("2026-07-07T00:00:00Z").ToUniversalTime();
-        MonitorEntity entity = new MonitorEntity
+        MonitorEntity entity = new()
         {
             Id = monitorId,
             SerialId = "157206",
@@ -81,7 +81,7 @@ public sealed class SvantekDbMapperTests
             Model = "Original model",
             FirmwareVersion = "1.0.0"
         };
-        NoiseMonitorDto dto = new NoiseMonitorDto(
+        NoiseMonitorDto dto = new(
             id: catalogueMonitorId,
             listedAtTime: DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
             lastDataTime: DateTime.Parse("2030-01-01T00:00:00Z").ToUniversalTime(),
@@ -119,7 +119,7 @@ public sealed class SvantekDbMapperTests
     public void ToNoiseLevelEntity_MapsNoiseDtoWithSerialId()
     {
         DateTime sampleTime = DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime();
-        NoiseDto dto = new NoiseDto(sampleTime, 1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8);
+        NoiseDto dto = new(sampleTime, 1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8);
 
         SvantekNoiseLevelEntity entity = SvantekDbMapper.ToNoiseLevelEntity("157206", dto);
 
@@ -151,9 +151,9 @@ public sealed class SvantekDbMapperTests
     [TestMethod]
     public void UpdateMonitorStatusEntity_MapsStatusFields()
     {
-        SvantekMonitorStatusEntity entity = new SvantekMonitorStatusEntity { SerialId = "157206" };
+        SvantekMonitorStatusEntity entity = new() { SerialId = "157206" };
         DateTime updateTime = DateTime.Parse("2026-07-06T08:05:00Z").ToUniversalTime();
-        NoiseMonitorStatus dto = new NoiseMonitorStatus(updateTime, NoiseMonitorStatus.ACTIVE, 3, "12.4",
+        NoiseMonitorStatus dto = new(updateTime, NoiseMonitorStatus.ACTIVE, 3, "12.4",
             DateTime.Parse("2026-01-01T00:00:00Z").ToUniversalTime(),
             DateTime.Parse("2026-02-01T00:00:00Z").ToUniversalTime(),
             "84");

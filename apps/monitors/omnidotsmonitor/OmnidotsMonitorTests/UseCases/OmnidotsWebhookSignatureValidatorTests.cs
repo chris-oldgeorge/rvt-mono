@@ -21,7 +21,7 @@ public sealed class OmnidotsWebhookSignatureValidatorTests
     public void IsValid_AcceptsSignatureOverExactBodyBytes()
     {
         byte[] jsonBytes = Encoding.UTF8.GetBytes(Body);
-        byte[] body = Encoding.UTF8.GetPreamble().Concat(jsonBytes).ToArray();
+        byte[] body = [.. Encoding.UTF8.GetPreamble(), .. jsonBytes];
 
         Assert.IsTrue(validator.IsValid(body, ComputeSignature(body, Secret), Secret));
     }

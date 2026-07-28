@@ -12,7 +12,7 @@ public sealed class MyAtmDbMapperTests
     public void ToDustMonitorDto_MapsMonitorEntityDefaults()
     {
         Guid id = Guid.NewGuid();
-        MonitorEntity entity = new MonitorEntity
+        MonitorEntity entity = new()
         {
             Id = id,
             CustomerId = 42,
@@ -57,7 +57,7 @@ public sealed class MyAtmDbMapperTests
     [TestMethod]
     public void UpdateMonitorEntity_DoesNotOverwriteFleetOrLatestTimestamps()
     {
-        MonitorEntity entity = new MonitorEntity
+        MonitorEntity entity = new()
         {
             Id = Guid.NewGuid(),
             SerialId = "21972",
@@ -66,8 +66,8 @@ public sealed class MyAtmDbMapperTests
             LastDataTime1Min = DateTime.Parse("2026-07-06T08:01:00Z").ToUniversalTime()
         };
 
-        DateTime unspecifiedListedAt = new DateTime(2026, 7, 6, 7, 0, 0, DateTimeKind.Unspecified);
-        DustMonitorDto dto = new DustMonitorDto(
+        DateTime unspecifiedListedAt = new(2026, 7, 6, 7, 0, 0, DateTimeKind.Unspecified);
+        DustMonitorDto dto = new(
             id: entity.Id,
             customerId: 99,
             listedAtTime: unspecifiedListedAt,
@@ -103,7 +103,7 @@ public sealed class MyAtmDbMapperTests
     [TestMethod]
     public void ToDustLevelEntity_MapsMeasurementDto()
     {
-        DustDto dto = new DustDto("21972", 60, DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
+        DustDto dto = new("21972", 60, DateTime.Parse("2026-07-06T08:00:00Z").ToUniversalTime(),
             pm1: 1.1, pm2_5: 2.2, pm10: 10.1, pmTotal: 13.4, weather_t: 20.5, weather_p: 1012.1, weather_rh: 80.2);
 
         MyAtmDustLevelEntity entity = MyAtmDbMapper.ToDustLevelEntity(dto);

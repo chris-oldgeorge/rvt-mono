@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 using System.Web;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace Omnidots.Api

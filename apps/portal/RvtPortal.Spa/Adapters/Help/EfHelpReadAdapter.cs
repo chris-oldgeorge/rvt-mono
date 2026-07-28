@@ -36,10 +36,9 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
             .ThenBy(article => article.Title)
             .Select(articleSummaryProjection)
             .ToListAsync(cancellationToken);
-        List<Guid> sectionIds = articles
+        List<Guid> sectionIds = [.. articles
             .Select(article => article.SectionId)
-            .Distinct()
-            .ToList();
+            .Distinct()];
         List<HelpSectionRow> sections = await domainContext.HelpSections
             .AsNoTracking()
             .Where(section => section.IsPublished && sectionIds.Contains(section.Id))

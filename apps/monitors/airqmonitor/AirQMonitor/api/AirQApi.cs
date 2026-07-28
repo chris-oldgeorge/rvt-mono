@@ -38,9 +38,9 @@ namespace AirQ.Api
         {
             IAirQVendorGateway gateway = new AirQHttpGateway(httpClient);
             AirQTestLocalMonitorFilter testLocalFilter = AirQTestLocalMonitorFilter.Create(testLocal, testLocalSerialId);
-            AirQMonitorReader monitorReader = new AirQMonitorReader(dbClient, testLocalFilter);
-            MonitorEventPublisher eventPublisher = new MonitorEventPublisher(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
-            AirQRuleProcessor ruleProcessor = new AirQRuleProcessor(dbClient, dbClient, messageService, eventPublisher);
+            AirQMonitorReader monitorReader = new(dbClient, testLocalFilter);
+            MonitorEventPublisher eventPublisher = new(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
+            AirQRuleProcessor ruleProcessor = new(dbClient, dbClient, messageService, eventPublisher);
 
             storeMonitors = new StoreMonitorsHandler(gateway, dbClient, dbClient, testLocalFilter);
             checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(dbClient, monitorReader, dbClient, ruleProcessor);

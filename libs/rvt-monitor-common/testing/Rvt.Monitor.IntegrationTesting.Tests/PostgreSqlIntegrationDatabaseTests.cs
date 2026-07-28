@@ -35,7 +35,7 @@ public sealed class PostgreSqlIntegrationDatabaseTests
 
         await using NpgsqlConnection connection = database.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand("SHOW search_path;", connection);
+        await using NpgsqlCommand command = new("SHOW search_path;", connection);
 
         Assert.AreEqual(database.SchemaName, (string?)await command.ExecuteScalarAsync());
     }
@@ -50,10 +50,10 @@ public sealed class PostgreSqlIntegrationDatabaseTests
             schemaName = database.SchemaName;
         }
 
-        await using NpgsqlConnection connection = new NpgsqlConnection(
+        await using NpgsqlConnection connection = new(
             PostgreSqlIntegrationDatabase.GetAdminConnectionString());
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(
+        await using NpgsqlCommand command = new(
             "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = @schema);", connection);
         command.Parameters.AddWithValue("schema", schemaName);
 
@@ -70,10 +70,10 @@ public sealed class PostgreSqlIntegrationDatabaseTests
             schemaName = database.SchemaName;
         }
 
-        await using NpgsqlConnection connection = new NpgsqlConnection(
+        await using NpgsqlConnection connection = new(
             PostgreSqlIntegrationDatabase.GetAdminConnectionString());
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(
+        await using NpgsqlCommand command = new(
             "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = @schema);", connection);
         command.Parameters.AddWithValue("schema", schemaName);
 
@@ -85,7 +85,7 @@ public sealed class PostgreSqlIntegrationDatabaseTests
     {
         string schemaName = "rvt_integration_dispose_retry";
         int attempts = 0;
-        PostgreSqlIntegrationDatabase database = new PostgreSqlIntegrationDatabase(
+        PostgreSqlIntegrationDatabase database = new(
             "Host=unused", "Host=unused", schemaName, _ =>
             {
                 attempts++;

@@ -26,10 +26,10 @@ public sealed class OfflineAlertCommitTests
     [TestMethod]
     public async Task ScheduledOfflineTransition_CommitsMonitorStateOccurrenceAndEmailDeliveryAtomically()
     {
-        Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
-        Mock<IDBClient> dbClient = new Mock<IDBClient>();
-        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
-        Mock<IMessageService> messageService = new Mock<IMessageService>();
+        Mock<IHttpClient> httpClient = new();
+        Mock<IDBClient> dbClient = new();
+        Mock<IMqttClient> mqttClient = new();
+        Mock<IMessageService> messageService = new();
         int customerId = 765;
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow.AddHours(-25), singleItem: true).Single();
         Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule = MyAtmFixture.OfflineRules().Single();
@@ -52,7 +52,7 @@ public sealed class OfflineAlertCommitTests
             .Callback<MyAtmAlertCommit, CancellationToken>((value, _) => commit = value)
             .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
 
-        MyAtmApi api = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
+        MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
         await api.CheckForOfflineMonitorsAsync(customerId);
 
@@ -98,10 +98,10 @@ public sealed class OfflineAlertCommitTests
     [TestMethod]
     public async Task ScheduledOnlineRecovery_CommitsOnlyTheExpectedOfflineStateChange()
     {
-        Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
-        Mock<IDBClient> dbClient = new Mock<IDBClient>();
-        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
-        Mock<IMessageService> messageService = new Mock<IMessageService>();
+        Mock<IHttpClient> httpClient = new();
+        Mock<IDBClient> dbClient = new();
+        Mock<IMqttClient> mqttClient = new();
+        Mock<IMessageService> messageService = new();
         int customerId = 765;
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow, singleItem: true).Single();
         monitor.Offline = true;
@@ -114,7 +114,7 @@ public sealed class OfflineAlertCommitTests
             .Callback<MyAtmAlertCommit, CancellationToken>((value, _) => commit = value)
             .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
 
-        MyAtmApi api = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
+        MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
         await api.CheckForOfflineMonitorsAsync(customerId);
 

@@ -85,7 +85,7 @@ namespace Omnidots.Api.UseCases
             Action<string, Exception, List<OmnidotsMonitorFailure>> recordFailure,
             CancellationToken cancellationToken)
         {
-            List<OmnidotsMonitorFailure> failures = new List<OmnidotsMonitorFailure>();
+            List<OmnidotsMonitorFailure> failures = [];
             foreach (VibrationMonitorDto monitor in monitors)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -123,8 +123,10 @@ namespace Omnidots.Api.UseCases
             PeakRecords records = await _gateway.GetPeakRecordsAsync(token: token, startTime: startTime, endTime: endTime,
                                                  measuringPointId: monitor.SerialId, cancellationToken: cancellationToken);
 
-            DataTable table = new DataTable();
-            table.TableName = "Results";
+            DataTable table = new()
+            {
+                TableName = "Results"
+            };
 
             table.Columns.Add("SerialId", typeof(string));
             table.Columns.Add("SampleTime", typeof(DateTime));

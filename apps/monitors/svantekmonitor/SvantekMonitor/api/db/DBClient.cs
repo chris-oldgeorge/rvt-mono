@@ -1,7 +1,6 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
@@ -97,9 +96,7 @@ namespace Svantek.Api.Db
                             Deployment = deployment
                         }).ToList();
 
-            return rows
-                .Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))
-                .ToList();
+            return [.. rows.Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))];
         }
 
         public async Task<List<NoiseMonitorReadDto>> ReadMonitorListAsync(
@@ -125,9 +122,7 @@ namespace Svantek.Api.Db
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return rows
-                .Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))
-                .ToList();
+            return [.. rows.Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))];
         }
 
         public void WriteMonitorList(List<NoiseMonitorDto> monitors)
@@ -284,10 +279,9 @@ namespace Svantek.Api.Db
                         select rule;
             }
 
-            return query
+            return [.. query
                 .AsEnumerable()
-                .Select(rule => ToRuleDto(rule, serialNumber))
-                .ToList();
+                .Select(rule => ToRuleDto(rule, serialNumber))];
         }
 
         public List<RvtContactDto> ReadAlertContacts(Guid monitorId, out Guid siteId)
@@ -321,7 +315,7 @@ namespace Svantek.Api.Db
                 .Where(user => userIds.Contains(user.Id))
                 .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
 
-            return contactRows
+            return [.. contactRows
                 .Where(row => usersById.ContainsKey(row.UserId.ToString()))
                 .Select(row =>
                 {
@@ -333,8 +327,7 @@ namespace Svantek.Api.Db
                         phoneNumber: user.PhoneNumber,
                         sendStartTime: row.StartTime,
                         sendEndTime: row.EndTime);
-                })
-                .ToList();
+                })];
         }
 
         public void WriteNotification(NotificationDto dto)
@@ -446,9 +439,7 @@ namespace Svantek.Api.Db
         public void ClearErrorMessages(DateTime before)
         {
             using SvantekMonitorContext context = CreateContext();
-            List<SvantekErrorMessageEntity> messages = context.SvantekErrorMessages
-                .Where(row => row.ErrorTime < before)
-                .ToList();
+            List<SvantekErrorMessageEntity> messages = [.. context.SvantekErrorMessages.Where(row => row.ErrorTime < before)];
 
             context.SvantekErrorMessages.RemoveRange(messages);
             context.SaveChanges();
@@ -498,7 +489,7 @@ namespace Svantek.Api.Db
                 _ => query.Where(row => row.Site.StartTime != null && row.Site.EndTime != null)
             };
 
-            return query
+            return [.. query
                 .AsEnumerable()
                 .Select(row =>
                 {
@@ -525,8 +516,7 @@ namespace Svantek.Api.Db
                         siteName: row.Site.SiteName ?? string.Empty,
                         startTime: startTime,
                         endTime: endTime);
-                })
-                .ToList();
+                })];
         }
 
         public async Task<List<SiteMonitorsWithSiteHoursDto>> ReadSiteMonitorsWithSiteHoursAsync(
@@ -556,7 +546,7 @@ namespace Svantek.Api.Db
             };
 
             var rows = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
-            return rows.Select(row =>
+            return [.. rows.Select(row =>
             {
                 TimeSpan startTime = day.DayOfWeek switch
                 {
@@ -581,7 +571,7 @@ namespace Svantek.Api.Db
                     siteName: row.Site.SiteName ?? string.Empty,
                     startTime: startTime,
                     endTime: endTime);
-            }).ToList();
+            })];
         }
 
         public void WriteDailyAverage(Guid siteId, Guid monitorId, string field, double level, DateTime timestamp)
@@ -633,11 +623,10 @@ namespace Svantek.Api.Db
                 return;
             }
 
-            List<SvantekNoiseLevelEntity> rows = context.NoiseLevels
+            List<SvantekNoiseLevelEntity> rows = [.. context.NoiseLevels
                 .AsNoTracking()
                 .Where(row => row.SerialId == serialId)
-                .Where(row => row.SampleTime > normalizedSampleTime.AddHours(-8) && row.SampleTime <= normalizedSampleTime)
-                .ToList();
+                .Where(row => row.SampleTime > normalizedSampleTime.AddHours(-8) && row.SampleTime <= normalizedSampleTime)];
             if (rows.Count == 0)
             {
                 return;
@@ -755,7 +744,7 @@ namespace Svantek.Api.Db
                             Status = status
                         }).ToList();
 
-            return rows
+            return [.. rows
                 .Select(row => new NoiseNotificationLatest(
                     NotificationId: row.Notification.Id,
                     MonitorId: row.Monitor.Id,
@@ -764,8 +753,7 @@ namespace Svantek.Api.Db
                     ProjectId: row.Status.ProjectId ?? 0,
                     PointId: row.Status.PointId ?? 0,
                     NotificationTime: row.Notification.NotificationTime,
-                    AvgPeriod: row.Notification.AveragingPeriod))
-                .ToList();
+                    AvgPeriod: row.Notification.AveragingPeriod))];
         }
 
         public async Task<List<NoiseNotificationLatest>> ReadLatestNotificationAsync(
@@ -790,7 +778,7 @@ namespace Svantek.Api.Db
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return rows.Select(row => new NoiseNotificationLatest(
+            return [.. rows.Select(row => new NoiseNotificationLatest(
                 NotificationId: row.Notification.Id,
                 MonitorId: row.Monitor.Id,
                 FleetNr: row.Monitor.FleetNr ?? string.Empty,
@@ -798,7 +786,7 @@ namespace Svantek.Api.Db
                 ProjectId: row.Status.ProjectId ?? 0,
                 PointId: row.Status.PointId ?? 0,
                 NotificationTime: row.Notification.NotificationTime,
-                AvgPeriod: row.Notification.AveragingPeriod)).ToList();
+                AvgPeriod: row.Notification.AveragingPeriod))];
         }
 
         public bool WriteSoundFile(Guid notificationId, string fileName)
@@ -842,7 +830,7 @@ namespace Svantek.Api.Db
         }
 
         private static List<NoiseDto> ToNoiseDtos(DataTable table) =>
-            table.Rows
+            [.. table.Rows
                 .Cast<DataRow>()
                 .Select(row => new NoiseDto
                 {
@@ -856,12 +844,11 @@ namespace Svantek.Api.Db
                     LCmax = Convert.ToDouble(row["LCmax"]),
                     LC90 = Convert.ToDouble(row["LC90"]),
                     LC10 = Convert.ToDouble(row["LC10"])
-                })
-                .ToList();
+                })];
 
         private static void InsertNoiseDtos(SvantekMonitorContext context, IEnumerable<NoiseDto> dtos)
         {
-            HashSet<(string SerialId, DateTime SampleTime)> seen = new HashSet<(string SerialId, DateTime SampleTime)>();
+            HashSet<(string SerialId, DateTime SampleTime)> seen = [];
 
             foreach (NoiseDto dto in dtos)
             {
@@ -890,7 +877,7 @@ namespace Svantek.Api.Db
             IEnumerable<NoiseDto> dtos,
             CancellationToken cancellationToken)
         {
-            HashSet<(string SerialId, DateTime SampleTime)> seen = new HashSet<(string SerialId, DateTime SampleTime)>();
+            HashSet<(string SerialId, DateTime SampleTime)> seen = [];
 
             foreach (NoiseDto dto in dtos)
             {

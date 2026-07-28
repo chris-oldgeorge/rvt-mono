@@ -24,11 +24,10 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void MigrationDirectory_ContainsOnlyOrderedPostgreSqlAssets()
     {
-        string?[] migrationFiles = Directory
+        string?[] migrationFiles = [.. Directory
             .GetFiles(MigrationDirectory(), "*.sql", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileName)
-            .OrderBy(file => file, StringComparer.Ordinal)
-            .ToArray();
+            .OrderBy(file => file, StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(SupportedMigrations, migrationFiles);
     }
@@ -36,11 +35,10 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     [TestMethod]
     public void MigrationDirectory_RejectsRetiredProviderFilenames()
     {
-        string?[] retiredProviderFiles = Directory
+        string?[] retiredProviderFiles = [.. Directory
             .GetFiles(MigrationDirectory(), "*.sql", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileName)
-            .Where(file => file!.Contains(".sql" + "server.", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
+            .Where(file => file!.Contains(".sql" + "server.", StringComparison.OrdinalIgnoreCase))];
 
         Assert.HasCount(0, retiredProviderFiles);
     }

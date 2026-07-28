@@ -49,7 +49,7 @@ public sealed class SchemaValidatorTests
 
         // Exactly the failure this guards: the model maps Monitor.FleetNr to fleet_nr, but the database still
         // has the old mangled column, so every query touching it would fail at runtime.
-        HashSet<string> columns = new HashSet<string>(schema[relation], StringComparer.OrdinalIgnoreCase);
+        HashSet<string> columns = new(schema[relation], StringComparer.OrdinalIgnoreCase);
         columns.Remove("fleet_nr");
         columns.Add("fleet_row_count");
         schema[relation] = columns;
@@ -64,7 +64,7 @@ public sealed class SchemaValidatorTests
     // Function summary: Builds the schema the model expects, as the shape the validator compares against.
     private static Dictionary<string, IReadOnlySet<string>> SchemaFromModel(DbContext context)
     {
-        Dictionary<string, IReadOnlySet<string>> schema = new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, IReadOnlySet<string>> schema = new(StringComparer.OrdinalIgnoreCase);
         foreach (IEntityType entityType in context.Model.GetEntityTypes())
         {
             StoreObjectIdentifier? store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)

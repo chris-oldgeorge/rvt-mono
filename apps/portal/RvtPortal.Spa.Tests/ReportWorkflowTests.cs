@@ -1,4 +1,4 @@
-﻿// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
+// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
 // - 2026-07-08 pending Updated report-generation override to target the reporting adapter port.
 // - 2026-07-09 pending Added report-recipient query and performance-index guardrails.
@@ -37,7 +37,7 @@ public class ReportWorkflowTests
     // Function summary: Handles the report rules create update delete validate and persist workflow for this module.
     public async Task ReportRules_CreateUpdateDelete_ValidateAndPersist()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         ReportWorkflowIds ids = await SeedReportSiteAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -50,7 +50,7 @@ public class ReportWorkflowTests
             ReportName = "Invalid weekly report"
         });
         // The create/update requests are the fixtures; read-backs assert against their own fields.
-        ReportRuleMutationRequest createRequest = new ReportRuleMutationRequest
+        ReportRuleMutationRequest createRequest = new()
         {
             SiteId = ids.SiteId,
             Frequency = ReportFrequencyType.Weekly,
@@ -60,7 +60,7 @@ public class ReportWorkflowTests
         HttpResponseMessage create = await client.PostAsJsonAsync("/api/report-rules", createRequest);
         EntityResponse<ReportRuleDetailResponse>? created = await create.Content.ReadFromJsonAsync<EntityResponse<ReportRuleDetailResponse>>();
         QueryReportRulesResponse? list = await client.GetFromJsonAsync<QueryReportRulesResponse>("/api/report-rules?searchText=weekly&sort=siteName");
-        ReportRuleMutationRequest updateRequest = new ReportRuleMutationRequest
+        ReportRuleMutationRequest updateRequest = new()
         {
             SiteId = ids.SiteId,
             Frequency = ReportFrequencyType.WeeklyAndMonthly,
@@ -90,7 +90,7 @@ public class ReportWorkflowTests
     // Function summary: Verifies daily report rules are exposed and accepted without weekly or monthly schedule fields.
     public async Task ReportRules_DailyFrequency_IsAvailableAndDoesNotRequireScheduleFields()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         ReportWorkflowIds ids = await SeedReportSiteAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -116,7 +116,7 @@ public class ReportWorkflowTests
     // Function summary: Verifies edit details keep the current site option even after that site is archived.
     public async Task ReportRules_EditDetailIncludesArchivedCurrentSiteOption()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         ReportWorkflowIds ids = await SeedArchivedReportSiteAsync(factory);
         ApplicationUser admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         Guid reportRuleId = Guid.NewGuid();
@@ -151,7 +151,7 @@ public class ReportWorkflowTests
     // Function summary: Verifies report-rule mutations reject archived site targets with a clear validation message.
     public async Task ReportRules_CreateUpdateRejectArchivedSiteTargets()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         ReportWorkflowIds archivedIds = await SeedArchivedReportSiteAsync(factory);
         ReportWorkflowIds activeIds = await SeedReportSiteAsync(factory);
         ApplicationUser admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
@@ -191,7 +191,7 @@ public class ReportWorkflowTests
     // Function summary: Handles the report rule users add and remove site assignments workflow for this module.
     public async Task ReportRuleUsers_AddAndRemoveSiteAssignments()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         ReportWorkflowIds ids = await SeedReportSiteAsync(factory);
         ApplicationUser admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         ApplicationUser companyUser = await factory.SeedUserAsync(
@@ -278,7 +278,7 @@ public class ReportWorkflowTests
         const string queuedStatus = "Queued";
         const string queuedMessage = "Manual generation queued.";
 
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         using WebApplicationFactory<Program> app = factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
@@ -327,7 +327,7 @@ public class ReportWorkflowTests
     // Function summary: Verifies report recipient queries page assigned and available users separately.
     public async Task ReportRuleUsers_QueryAssignedAndAvailableRecipients()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         ReportWorkflowIds ids = await SeedReportSiteAsync(factory);
         ApplicationUser admin = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         ApplicationUser assignedUser = await factory.SeedUserAsync(
@@ -385,7 +385,7 @@ public class ReportWorkflowTests
     // Function summary: Handles the reports list contract rejects unsupported sort workflow for this module.
     public async Task Reports_ListContractRejectsUnsupportedSort()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);

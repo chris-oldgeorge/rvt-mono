@@ -2,11 +2,6 @@
 using Svantek.Api;
 using Svantek.Model.Dto;
 using SvantekMonitor.model.dto;
-
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace SvantekMonitorTests;
 
 [TestClass]
@@ -15,11 +10,11 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyReadMonitorFilter_WhenDisabled_ReturnsAllMonitors()
     {
-        List<NoiseMonitorReadDto> monitors = new List<NoiseMonitorReadDto>
-        {
+        List<NoiseMonitorReadDto> monitors =
+        [
             ReadMonitor("E125V", "157206"),
             ReadMonitor("Other", "999999")
-        };
+        ];
 
         List<NoiseMonitorReadDto> filtered = SvantekTestLocalMonitorFilter.Apply(monitors, enabled: false);
 
@@ -32,12 +27,12 @@ public class TestLocalMonitorFilterTests
         NoiseMonitorReadDto target = ReadMonitor("E125V", "157206");
         NoiseMonitorReadDto sameSerialWrongFleet = ReadMonitor("Other", "157206");
         NoiseMonitorReadDto sameFleetWrongSerial = ReadMonitor("E125V", "999999");
-        List<NoiseMonitorReadDto> monitors = new List<NoiseMonitorReadDto>
-        {
+        List<NoiseMonitorReadDto> monitors =
+        [
             sameSerialWrongFleet,
             target,
             sameFleetWrongSerial
-        };
+        ];
 
         List<NoiseMonitorReadDto> filtered = SvantekTestLocalMonitorFilter.Apply(monitors, enabled: true);
 
@@ -49,7 +44,7 @@ public class TestLocalMonitorFilterTests
     {
         NoiseMonitorDto target = CatalogMonitor("157206");
         NoiseMonitorDto other = CatalogMonitor("999999");
-        List<NoiseMonitorDto> monitors = new List<NoiseMonitorDto> { other, target };
+        List<NoiseMonitorDto> monitors = [other, target];
 
         List<NoiseMonitorDto> filtered = SvantekTestLocalMonitorFilter.Apply(monitors, enabled: true);
 

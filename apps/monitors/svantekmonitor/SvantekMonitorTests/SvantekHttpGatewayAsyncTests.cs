@@ -27,9 +27,9 @@ public sealed class SvantekHttpGatewayAsyncTests
     [TestMethod]
     public async Task AsyncOperations_PassTheExactCancellationToken()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         CancellationToken token = cancellation.Token;
-        Mock<IHttpClient> http = new Mock<IHttpClient>(MockBehavior.Strict);
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
         http.SetupSequence(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
@@ -51,7 +51,7 @@ public sealed class SvantekHttpGatewayAsyncTests
                 It.IsAny<MultipartFormDataContent>(),
                 token))
             .ReturnsAsync([82, 73, 70, 70]);
-        SvantekHttpGateway gateway = new SvantekHttpGateway(http.Object, "test-api-key");
+        SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
         List<Project> projects = await gateway.GetProjectsAsync(token);
         List<ProjectFile> files = await gateway.GetProjectFilesAsync("7", "3", "20260713", cancellationToken: token);
@@ -70,14 +70,14 @@ public sealed class SvantekHttpGatewayAsyncTests
     [TestMethod]
     public async Task GetStationsAsync_AwaitsTheAdapterResponse()
     {
-        TaskCompletionSource<string> response = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Mock<IHttpClient> http = new Mock<IHttpClient>();
+        TaskCompletionSource<string> response = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Mock<IHttpClient> http = new();
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
                 CancellationToken.None))
             .Returns(response.Task);
-        SvantekHttpGateway gateway = new SvantekHttpGateway(http.Object, "test-api-key");
+        SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
         Task<List<Station>> stationsTask = gateway.GetStationsAsync();
 
@@ -90,14 +90,14 @@ public sealed class SvantekHttpGatewayAsyncTests
     [TestMethod]
     public async Task GetStationsAsync_WrapsNonCancellationAdapterFailure()
     {
-        IOException adapterFailure = new IOException("vendor unavailable");
-        Mock<IHttpClient> http = new Mock<IHttpClient>();
+        IOException adapterFailure = new("vendor unavailable");
+        Mock<IHttpClient> http = new();
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
                 CancellationToken.None))
             .ThrowsAsync(adapterFailure);
-        SvantekHttpGateway gateway = new SvantekHttpGateway(http.Object, "test-api-key");
+        SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
         AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => gateway.GetStationsAsync());
 
@@ -108,16 +108,16 @@ public sealed class SvantekHttpGatewayAsyncTests
     [TestMethod]
     public async Task GetStationsAsync_PreservesCallerCancellationException()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
-        OperationCanceledException expected = new OperationCanceledException(cancellation.Token);
-        Mock<IHttpClient> http = new Mock<IHttpClient>();
+        OperationCanceledException expected = new(cancellation.Token);
+        Mock<IHttpClient> http = new();
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
                 cancellation.Token))
             .ThrowsAsync(expected);
-        SvantekHttpGateway gateway = new SvantekHttpGateway(http.Object, "test-api-key");
+        SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
         OperationCanceledException exception = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
             () => gateway.GetStationsAsync(cancellation.Token));

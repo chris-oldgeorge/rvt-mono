@@ -29,7 +29,7 @@ public sealed class SharedRuntimeCompatibilityTests
         AlertType alertType,
         LegacyMessageKind expectedMessage)
     {
-        RuleNotificationRequest request = new RuleNotificationRequest(
+        RuleNotificationRequest request = new(
             FleetNr: "SV-1",
             SerialId: "SV-157206",
             AlertTime: new DateTime(2026, 7, 15, 10, 0, 0, DateTimeKind.Utc),
@@ -39,13 +39,13 @@ public sealed class SharedRuntimeCompatibilityTests
             alertType,
             Field: "LAeq",
             MonitorId: Guid.Parse("11111111-2222-3333-4444-555555555555"));
-        List<Common.Rules.RvtContactDto> contacts = new List<Rvt.Monitor.Common.Rules.RvtContactDto>
-        {
+        List<Common.Rules.RvtContactDto> contacts =
+        [
             new(true, false, "alerts@example.test", null, null, null)
-        };
-        RecordingMessageService messages = new RecordingMessageService();
+        ];
+        RecordingMessageService messages = new();
         Rvt.Monitor.Common.Rules.NotificationDto? legacyNotification = null;
-        RuleAlertNotificationDispatcher legacyDispatcher = new RuleAlertNotificationDispatcher(
+        RuleAlertNotificationDispatcher legacyDispatcher = new(
             messages,
             notification => legacyNotification = notification,
             (_, _, _) => { });
@@ -70,7 +70,7 @@ public sealed class SharedRuntimeCompatibilityTests
         Assert.HasCount(1, messages.Messages);
         Assert.AreEqual(expectedMessage, messages.Messages[0]);
 
-        List<MonitorDeliveryRequest> emails = plan.Deliveries.Where(delivery => delivery.Kind == MonitorDeliveryKind.Email).ToList();
+        List<MonitorDeliveryRequest> emails = [.. plan.Deliveries.Where(delivery => delivery.Kind == MonitorDeliveryKind.Email)];
         Assert.HasCount(1, emails);
         MonitorDeliveryRequest email = emails[0];
         MonitorDeliveryPayloadV1 payload = MonitorDeliveryPayloadCodec.Decode(new MonitorDeliveryMessage(
@@ -91,7 +91,7 @@ public sealed class SharedRuntimeCompatibilityTests
     [TestMethod]
     public void MaintainsRulesContactDtoCompatibilitySurface()
     {
-        Common.Rules.RvtContactDto contact = new Rvt.Monitor.Common.Rules.RvtContactDto(
+        Common.Rules.RvtContactDto contact = new(
             Rvt.Monitor.Common.Rules.ContactMethod.SMSAndEmail,
             "alerts@example.test",
             "441234567890",
@@ -115,23 +115,21 @@ public sealed class SharedRuntimeCompatibilityTests
     [TestMethod]
     public void RulesContactDtoDoesNotHideDuplicateReflectedOrSerializedContactMethodProperties()
     {
-        Common.Rules.RvtContactDto contact = new Rvt.Monitor.Common.Rules.RvtContactDto(
+        Common.Rules.RvtContactDto contact = new(
             Rvt.Monitor.Common.Rules.ContactMethod.Email,
             "alerts@example.test",
             null,
             sendStartTime: null,
             sendEndTime: null);
 
-        List<PropertyInfo> reflectedContactMethodProperties = typeof(Rvt.Monitor.Common.Rules.RvtContactDto)
+        List<PropertyInfo> reflectedContactMethodProperties = [.. typeof(Rvt.Monitor.Common.Rules.RvtContactDto)
             .GetProperties()
-            .Where(property => property.Name == nameof(Rvt.Monitor.Common.Rules.RvtContactDto.ContactMethod))
-            .ToList();
+            .Where(property => property.Name == nameof(Rvt.Monitor.Common.Rules.RvtContactDto.ContactMethod))];
 
         using JsonDocument json = JsonDocument.Parse(JsonSerializer.Serialize(contact));
-        List<JsonProperty> serializedContactMethodProperties = json.RootElement
+        List<JsonProperty> serializedContactMethodProperties = [.. json.RootElement
             .EnumerateObject()
-            .Where(property => property.Name == nameof(Rvt.Monitor.Common.Rules.RvtContactDto.ContactMethod))
-            .ToList();
+            .Where(property => property.Name == nameof(Rvt.Monitor.Common.Rules.RvtContactDto.ContactMethod))];
 
         Assert.HasCount(1, reflectedContactMethodProperties);
         Assert.HasCount(1, serializedContactMethodProperties);
@@ -140,7 +138,7 @@ public sealed class SharedRuntimeCompatibilityTests
     [TestMethod]
     public void MaintainsRulesNotificationDtoCompatibilitySurface()
     {
-        Common.Rules.NotificationDto notification = new Rvt.Monitor.Common.Rules.NotificationDto(
+        Common.Rules.NotificationDto notification = new(
             Guid.NewGuid(),
             DateTime.UtcNow,
             limitOn: 10,
@@ -158,7 +156,7 @@ public sealed class SharedRuntimeCompatibilityTests
     [TestMethod]
     public void MaintainsNotificationAlertActivityTimeDtoCompatibilitySurface()
     {
-        Common.Notifications.AlertActivityTimeDto activity = new Rvt.Monitor.Common.Notifications.AlertActivityTimeDto
+        Common.Notifications.AlertActivityTimeDto activity = new()
         {
             Weekdays = true,
             Saturdays = true,

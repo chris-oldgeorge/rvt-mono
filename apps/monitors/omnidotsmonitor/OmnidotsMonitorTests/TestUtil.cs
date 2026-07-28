@@ -15,12 +15,8 @@ using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Notifications.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Notifications.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace OmnidotsAdapterTests
 {
 
@@ -100,7 +96,7 @@ namespace OmnidotsAdapterTests
         {
             try
             {
-                using StreamReader sr = new StreamReader(fileName);
+                using StreamReader sr = new(fileName);
                 string txt = sr.ReadToEnd();
                 Console.WriteLine(txt);
                 return txt;
@@ -121,9 +117,8 @@ namespace OmnidotsAdapterTests
         public static bool VerifyAuthenticateForm(HttpContent httpContent)
         {
 
-            if (httpContent is MultipartFormDataContent)
+            if (httpContent is MultipartFormDataContent mfc)
             {
-                MultipartFormDataContent mfc = (MultipartFormDataContent)httpContent;
                 string s = ReadContent(mfc).Result;
 
                 if (!s.Contains(
@@ -267,7 +262,9 @@ namespace OmnidotsAdapterTests
         public static bool AreEqual(List<VibrationMonitorDto> expected, List<VibrationMonitorDto> actual)
         {
             if (expected.Count != actual.Count)
+            {
                 return false;
+            }
 
             for (int i = 0; i < expected.Count; i++)
             {

@@ -58,7 +58,7 @@ public sealed class HelpApplicationService(
             return UseCaseResult<HelpAdminOverviewModel>.Forbidden();
         }
 
-        HelpAdminQuery normalized = new HelpAdminQuery(
+        HelpAdminQuery normalized = new(
             EmptyToNull(query.SearchText),
             DefaultFilter(query.Status),
             DefaultFilter(query.ContentType));

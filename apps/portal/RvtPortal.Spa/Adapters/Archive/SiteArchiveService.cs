@@ -19,7 +19,6 @@ using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Blobs.Specialized;
-using Microsoft.Extensions.Configuration;
 using RvtPortal.Spa.Adapters.Storage;
 
 namespace RvtPortal.Spa.Adapters.Archive
@@ -156,7 +155,7 @@ namespace RvtPortal.Spa.Adapters.Archive
             BlobContainerClient archiveContainer = RequiredContainer(config.ArchiveContainer);
             BlobClient candidateBlob = archiveContainer.GetBlobClient(
                 $"{siteId:N}/site-archive.zip");
-            BlobUriBuilder candidateArchive = new BlobUriBuilder(candidateBlob.Uri);
+            BlobUriBuilder candidateArchive = new(candidateBlob.Uri);
             if (!IdentifiesConfiguredContainer(
                     durableUri,
                     durableArchive,
@@ -176,7 +175,7 @@ namespace RvtPortal.Spa.Adapters.Archive
             }
 
             await candidateBlob.DeleteIfExistsAsync(
-                Azure.Storage.Blobs.Models.DeleteSnapshotsOption.IncludeSnapshots,
+                DeleteSnapshotsOption.IncludeSnapshots,
                 cancellationToken: cancellationToken);
         }
 
@@ -230,7 +229,7 @@ namespace RvtPortal.Spa.Adapters.Archive
         }
 
         // Function summary: Resolves a required archive container through the shared blob-client factory.
-        private Azure.Storage.Blobs.BlobContainerClient RequiredContainer(string containerName)
+        private BlobContainerClient RequiredContainer(string containerName)
         {
             return blobStorageClientFactory.CreateContainerClient(containerName)
                 ?? throw new InvalidOperationException("Blob storage is not configured for site archives.");

@@ -50,7 +50,7 @@ namespace AirQ.Api.UseCases
                 List<RvtAlertRuleDto> allRules = ruleQueries.ReadRules(monitor.SerialId);
                 if (allRules != null && allRules.Count > 0)
                 {
-                    List<RvtAlertRuleDto> rules = allRules.Where(x => x.AveragingPeriod == 0 && x.Field == "LAeq").OrderBy(x => x.AlertType).ToList();
+                    List<RvtAlertRuleDto> rules = [.. allRules.Where(x => x.AveragingPeriod == 0 && x.Field == "LAeq").OrderBy(x => x.AlertType)];
                     AlertType previousAlert = AlertType.Ignore;
                     foreach (RvtAlertRuleDto? rule in rules)
                     {
@@ -84,8 +84,9 @@ namespace AirQ.Api.UseCases
                             operationalCommands.UpdateAlertRule(rule);
                         }
                         else if (rule.IsActive)
+                        {
                             previousAlert = rule.AlertType;
-
+                        }
                     }
                 }
             }

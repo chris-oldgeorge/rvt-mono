@@ -54,7 +54,7 @@ public class SecurityHardeningTests
     // Function summary: Handles the API controller endpoints have explicit authorization decision workflow for this module.
     public void ApiControllerEndpoints_HaveExplicitAuthorizationDecision()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         factory.CreateClient();
 
         var endpoints = factory.Services
@@ -69,14 +69,12 @@ public class SecurityHardeningTests
             .Where(item => item.Action is not null && IsApiRoute(item.Endpoint))
             .ToList();
 
-        List<string> missingDecision = endpoints
+        List<string> missingDecision = [.. endpoints
             .Where(item => !HasAuthorizationDecision(item.Endpoint))
-            .Select(item => $"{item.Action!.ControllerName}.{item.Action.ActionName} => {item.Endpoint.RoutePattern.RawText}")
-            .ToList();
-        List<string> undocumentedAnonymous = endpoints
+            .Select(item => $"{item.Action!.ControllerName}.{item.Action.ActionName} => {item.Endpoint.RoutePattern.RawText}")];
+        List<string> undocumentedAnonymous = [.. endpoints
             .Where(item => HasAnonymousDecision(item.Endpoint) && !IsDocumentedAnonymousApiRoute(item.Endpoint))
-            .Select(item => $"{item.Action!.ControllerName}.{item.Action.ActionName} => {item.Endpoint.RoutePattern.RawText}")
-            .ToList();
+            .Select(item => $"{item.Action!.ControllerName}.{item.Action.ActionName} => {item.Endpoint.RoutePattern.RawText}")];
 
         Assert.NotEmpty(endpoints);
         Assert.Empty(missingDecision);
@@ -87,7 +85,7 @@ public class SecurityHardeningTests
     // Function summary: Handles the cookie auth session uses strict same site cookie workflow for this module.
     public async Task CookieAuthSession_UsesStrictSameSiteCookie()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
 
@@ -103,11 +101,11 @@ public class SecurityHardeningTests
     // Function summary: Handles the unsafe API mutation with cross site origin is blocked before controller workflow for this module.
     public async Task UnsafeApiMutation_WithCrossSiteOrigin_IsBlockedBeforeController()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
         await LoginAsync(client);
-        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Put, "/api/auth/profile")
+        HttpRequestMessage request = new(HttpMethod.Put, "/api/auth/profile")
         {
             Content = JsonContent.Create(new UpdateProfileRequest
             {
@@ -132,7 +130,7 @@ public class SecurityHardeningTests
     // Function summary: Handles the API responses include server timing header workflow for this module.
     public async Task ApiResponses_IncludeServerTimingHeader()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = CreateClient(factory);
 
         using HttpResponseMessage response = await client.GetAsync("/api/health");
@@ -145,7 +143,7 @@ public class SecurityHardeningTests
     // Function summary: Handles the representative read endpoints include server timing for performance tracking workflow for this module.
     public async Task RepresentativeReadEndpoints_IncludeServerTimingForPerformanceTracking()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainCompaniesAsync(new Company
         {
@@ -170,8 +168,8 @@ public class SecurityHardeningTests
     // Function summary: Handles the mutation requests create safe audit log without payload values workflow for this module.
     public async Task MutationRequests_CreateSafeAuditLogWithoutPayloadValues()
     {
-        ListLoggerProvider logs = new ListLoggerProvider();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        ListLoggerProvider logs = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         using WebApplicationFactory<Program> app = factory.WithWebHostBuilder(builder =>
         {
@@ -203,13 +201,12 @@ public class SecurityHardeningTests
     // Function summary: Handles the request DTO value type properties are nullable or explicitly required workflow for this module.
     public void RequestDtoValueTypeProperties_AreNullableOrExplicitlyRequired()
     {
-        List<string> violations = typeof(Program).Assembly
+        List<string> violations = [.. typeof(Program).Assembly
             .GetTypes()
             .Where(type => type.Namespace == "RvtPortal.Spa.Api" && type.Name.EndsWith("Request", StringComparison.Ordinal))
             .SelectMany(type => type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Where(property => IsNonNullableValueType(property) && !IsRequired(property))
-                .Select(property => $"{type.Name}.{property.Name}"))
-            .ToList();
+                .Select(property => $"{type.Name}.{property.Name}"))];
 
         Assert.Empty(violations);
     }
@@ -218,11 +215,11 @@ public class SecurityHardeningTests
     // Function summary: Handles the unsafe API mutation with same site fetch metadata is blocked workflow for this module.
     public async Task UnsafeApiMutation_WithSameSiteFetchMetadata_IsBlockedBeforeController()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
         await LoginAsync(client);
-        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Put, "/api/auth/profile")
+        HttpRequestMessage request = new(HttpMethod.Put, "/api/auth/profile")
         {
             Content = JsonContent.Create(new UpdateProfileRequest
             {
@@ -247,7 +244,7 @@ public class SecurityHardeningTests
     public async Task LookupsEndpoint_RequiresAdminRole()
     {
         const string companyUserEmail = "company.lookup@rvt.test";
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(companyUserEmail, Password, RoleNames.CompanyUser);
         HttpClient client = CreateClient(factory);
         await client.PostAsJsonAsync("/api/auth/login", new LoginRequest
@@ -266,7 +263,7 @@ public class SecurityHardeningTests
     // Function summary: Handles the lookups endpoint allows admin role workflow for this module.
     public async Task LookupsEndpoint_AllowsAdminRole()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
         await LoginAsync(client);
@@ -280,7 +277,7 @@ public class SecurityHardeningTests
     // Function summary: Handles the API responses include hardening security headers workflow for this module.
     public async Task ApiResponses_IncludeHardeningSecurityHeaders()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = CreateClient(factory);
 
         using HttpResponseMessage response = await client.GetAsync("/api/health");
@@ -298,10 +295,10 @@ public class SecurityHardeningTests
     // Function summary: Handles the auth login endpoint is rate limited after configured attempts workflow for this module.
     public async Task AuthLoginEndpoint_IsRateLimited_AfterConfiguredAttempts()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory(authRatePermitLimit: 3);
+        using SpaTestApplicationFactory factory = new(authRatePermitLimit: 3);
         HttpClient client = CreateClient(factory);
 
-        List<HttpStatusCode> statuses = new List<HttpStatusCode>();
+        List<HttpStatusCode> statuses = new();
         for (int attempt = 0; attempt < 6; attempt++)
         {
             using HttpResponseMessage response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest
@@ -321,12 +318,12 @@ public class SecurityHardeningTests
     // Function summary: Verifies a disallowed Host is rejected before any password-reset email can be delivered.
     public async Task ForgotPassword_WithDisallowedHost_IsRejectedBeforeDelivery()
     {
-        RecordingAccountMessenger messenger = new RecordingAccountMessenger();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
         HttpClient client = CreateClient(app);
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+        using HttpRequestMessage request = new(HttpMethod.Post, "/api/auth/forgot-password")
         {
             Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
         };
@@ -342,12 +339,12 @@ public class SecurityHardeningTests
     // Function summary: Verifies missing public-origin configuration keeps the anonymous response generic and suppresses delivery.
     public async Task ForgotPassword_WithoutPublicBaseUrl_ReturnsGenericSuccessWithoutDelivery()
     {
-        RecordingAccountMessenger messenger = new RecordingAccountMessenger();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, publicBaseUrl: "");
         HttpClient client = CreateClient(app);
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+        using HttpRequestMessage request = new(HttpMethod.Post, "/api/auth/forgot-password")
         {
             Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
         };
@@ -361,12 +358,12 @@ public class SecurityHardeningTests
     // Function summary: Verifies configured public origin controls password-reset links for an allowed request host.
     public async Task ForgotPassword_WithPublicBaseUrl_SendsConfiguredHostLink()
     {
-        RecordingAccountMessenger messenger = new RecordingAccountMessenger();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
         HttpClient client = CreateClient(app);
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+        using HttpRequestMessage request = new(HttpMethod.Post, "/api/auth/forgot-password")
         {
             Content = JsonContent.Create(new ForgotPasswordRequest { Email = AdminEmail })
         };
@@ -382,8 +379,8 @@ public class SecurityHardeningTests
     // Function summary: Verifies the sibling admin notification workflow cannot fall back to an attacker-controlled request origin.
     public async Task AdminAccountNotification_WithoutPublicBaseUrl_DoesNotSendHostDerivedLink()
     {
-        RecordingAccountMessenger messenger = new RecordingAccountMessenger();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         ApplicationUser user = await factory.SeedUserAsync("admin-created.user@rvt.test", null, RoleNames.CompanyUser, emailConfirmed: false);
         using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, publicBaseUrl: "");
         using IServiceScope scope = app.Services.CreateScope();
@@ -401,8 +398,8 @@ public class SecurityHardeningTests
     public async Task ProfileEmailChange_RemainsPendingUntilConfirmation()
     {
         const string newEmail = "security.changed@rvt.test";
-        RecordingAccountMessenger messenger = new RecordingAccountMessenger();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         ApplicationUser seededUser = await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
         HttpClient client = CreateClient(app);
@@ -427,7 +424,7 @@ public class SecurityHardeningTests
         Assert.Equal(newEmail, messenger.EmailChangeRecipient);
         Assert.NotNull(messenger.EmailChangeCallbackUrl);
 
-        Uri confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
+        Uri confirmationUri = new(messenger.EmailChangeCallbackUrl);
         using HttpResponseMessage confirmation = await client.GetAsync(confirmationUri.PathAndQuery);
         ApplicationUser confirmedUser = await FindUserByIdAsync(app, seededUser.Id);
 
@@ -443,8 +440,8 @@ public class SecurityHardeningTests
     {
         const string originalEmail = "admin.target@rvt.test";
         const string requestedEmail = "admin.requested@rvt.test";
-        RecordingAccountMessenger messenger = new RecordingAccountMessenger();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTMasterAdmin);
         ApplicationUser target = await factory.SeedUserAsync(originalEmail, Password, RoleNames.RVTAdmin);
         using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test");
@@ -472,7 +469,7 @@ public class SecurityHardeningTests
         Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
         Assert.Equal(originalEmail, messenger.PasswordResetRecipient);
 
-        Uri confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
+        Uri confirmationUri = new(messenger.EmailChangeCallbackUrl);
         using HttpResponseMessage confirmation = await client.GetAsync(confirmationUri.PathAndQuery);
         ApplicationUser confirmedUser = await FindUserByIdAsync(app, target.Id);
 
@@ -487,10 +484,10 @@ public class SecurityHardeningTests
     public async Task EmailChangeConfirmation_WhenUserNameUpdateFails_RollsBackAndTokenCanRetry()
     {
         const string requestedEmail = "reserved.username@rvt.test";
-        RecordingAccountMessenger messenger = new RecordingAccountMessenger();
-        await using SqliteConnection identityConnection = new SqliteConnection("Data Source=:memory:");
+        RecordingAccountMessenger messenger = new();
+        await using SqliteConnection identityConnection = new("Data Source=:memory:");
         await identityConnection.OpenAsync();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         using WebApplicationFactory<Program> app = ConfigureAuthDelivery(
             factory,
             messenger,
@@ -509,7 +506,7 @@ public class SecurityHardeningTests
             MobilePhone = "07222222222",
             CompanyRole = "Operations"
         });
-        Uri confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
+        Uri confirmationUri = new(messenger.EmailChangeCallbackUrl!);
 
         using HttpResponseMessage firstConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
         ApplicationUser rolledBackUser = await FindUserByIdAsync(app, target.Id);
@@ -534,11 +531,11 @@ public class SecurityHardeningTests
     public async Task EmailChangeConfirmation_WhenUserNameUpdateThrows_RollsBackTransactionAndTokenCanRetry()
     {
         const string requestedEmail = "exception.retry@rvt.test";
-        RecordingAccountMessenger messenger = new RecordingAccountMessenger();
-        ThrowWhenEmailAndUserNameAlignValidator throwingValidator = new ThrowWhenEmailAndUserNameAlignValidator(requestedEmail);
-        await using SqliteConnection identityConnection = new SqliteConnection("Data Source=:memory:");
+        RecordingAccountMessenger messenger = new();
+        ThrowWhenEmailAndUserNameAlignValidator throwingValidator = new(requestedEmail);
+        await using SqliteConnection identityConnection = new("Data Source=:memory:");
         await identityConnection.OpenAsync();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         using WebApplicationFactory<Program> app = ConfigureAuthDelivery(
             factory,
             messenger,
@@ -562,7 +559,7 @@ public class SecurityHardeningTests
             MobilePhone = "07333333333",
             CompanyRole = "Operations"
         });
-        Uri confirmationUri = new Uri(messenger.EmailChangeCallbackUrl!);
+        Uri confirmationUri = new(messenger.EmailChangeCallbackUrl!);
 
         using HttpResponseMessage failedConfirmation = await client.GetAsync(confirmationUri.PathAndQuery);
         ApplicationUser rolledBackUser = await FindUserByIdAsync(app, target.Id);
@@ -589,8 +586,8 @@ public class SecurityHardeningTests
         const string originalEmail = "invited.original@rvt.test";
         const string requestedEmail = "invited.replacement@rvt.test";
         const string initialPassword = "N3wInvitedPass!";
-        RecordingAccountMessenger messenger = new RecordingAccountMessenger();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        RecordingAccountMessenger messenger = new();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTMasterAdmin);
         ApplicationUser target = await factory.SeedUserAsync(originalEmail, null, RoleNames.RVTAdmin, emailConfirmed: false);
         string oldToken = await factory.GenerateEmailConfirmationTokenAsync(originalEmail);
@@ -642,7 +639,7 @@ public class SecurityHardeningTests
         Assert.Null(messenger.PasswordResetRecipient);
         Assert.Equal(HttpStatusCode.NotFound, oldConfirmation.StatusCode);
 
-        Uri newConfirmationUri = new Uri(messenger.PasswordSetCallbackUrl!);
+        Uri newConfirmationUri = new(messenger.PasswordSetCallbackUrl);
         Dictionary<string, StringValues> newConfirmationQuery = QueryHelpers.ParseQuery(newConfirmationUri.Query);
         string newConfirmationCode = newConfirmationQuery["code"].ToString();
         string newConfirmationPath = $"/api/auth/confirm-email?userId={Uri.EscapeDataString(target.Id)}&code={Uri.EscapeDataString(newConfirmationCode)}";
@@ -671,9 +668,9 @@ public class SecurityHardeningTests
     public async Task ForgotPassword_EmailProviderFailure_MatchesUnknownAccountResponse()
     {
         const string providerDetail = "sendgrid-private-diagnostic";
-        ListLoggerProvider logs = new ListLoggerProvider();
-        RecordingAccountMessenger messenger = new RecordingAccountMessenger(EmailDeliveryResult.Failure(providerDetail));
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        ListLoggerProvider logs = new();
+        RecordingAccountMessenger messenger = new(EmailDeliveryResult.Failure(providerDetail));
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedUserAsync("unconfirmed@rvt.test", Password, RoleNames.RVTAdmin, emailConfirmed: false);
         using WebApplicationFactory<Program> app = ConfigureAuthDelivery(factory, messenger, "https://portal.example.test", logs);
@@ -703,7 +700,7 @@ public class SecurityHardeningTests
     // Function summary: Verifies explicitly trusted proxy addresses and networks can supply the original HTTPS scheme.
     public async Task ForwardedProto_FromConfiguredProxyOrNetwork_IsHonored(string settingKey, string settingValue)
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         using WebApplicationFactory<Program> app = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting(settingKey, settingValue);
@@ -719,7 +716,7 @@ public class SecurityHardeningTests
     // Function summary: Verifies forwarded headers are ignored when the immediate proxy is not explicitly trusted.
     public async Task ForwardedProto_FromUntrustedProxy_IsIgnored()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory(authRatePermitLimit: 1);
+        using SpaTestApplicationFactory factory = new(authRatePermitLimit: 1);
         using WebApplicationFactory<Program> app = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("ForwardedHeaders:KnownProxies:0", "198.51.100.10");
@@ -735,7 +732,7 @@ public class SecurityHardeningTests
     // Function summary: Verifies forwarded-host trust remains disabled and framework loopback defaults are cleared.
     public void ForwardedHeaders_TrustOnlyConfiguredSources_AndNeverForwardedHost()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         using WebApplicationFactory<Program> app = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("ForwardedHeaders:KnownProxies:0", "198.51.100.10");
@@ -755,10 +752,10 @@ public class SecurityHardeningTests
     // Function summary: Handles the supplied correlation id with unsafe characters is not reflected workflow for this module.
     public async Task SuppliedCorrelationId_WithUnsafeCharacters_IsNotReflected()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = CreateClient(factory);
         const string malicious = "forged value <script> with spaces";
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, "/api/health");
+        using HttpRequestMessage request = new(HttpMethod.Get, "/api/health");
         request.Headers.TryAddWithoutValidation(ApiDiagnostics.CorrelationIdHeader, malicious);
 
         using HttpResponseMessage response = await client.SendAsync(request);
@@ -879,7 +876,7 @@ public class SecurityHardeningTests
                 }
                 if (userValidator is not null)
                 {
-                    services.AddSingleton<IUserValidator<ApplicationUser>>(userValidator);
+                    services.AddSingleton(userValidator);
                 }
             });
             if (loggerProvider is not null)
@@ -921,7 +918,7 @@ public class SecurityHardeningTests
             }
         }
 
-        ApplicationUser user = new ApplicationUser
+        ApplicationUser user = new()
         {
             Email = email,
             UserName = email,
@@ -941,7 +938,7 @@ public class SecurityHardeningTests
     private static async Task<ApplicationUser> FindUserByIdAsync(WebApplicationFactory<Program> factory, string userId)
     {
         using IServiceScope scope = factory.Services.CreateScope();
-        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
+        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         return await userManager.FindByIdAsync(userId) ?? throw new InvalidOperationException($"User {userId} was not found.");
     }
 
@@ -949,7 +946,7 @@ public class SecurityHardeningTests
     private static async Task SetUserNameAsync(WebApplicationFactory<Program> factory, string userId, string userName)
     {
         using IServiceScope scope = factory.Services.CreateScope();
-        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
+        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         ApplicationUser user = await userManager.FindByIdAsync(userId) ?? throw new InvalidOperationException($"User {userId} was not found.");
         IdentityResult result = await userManager.SetUserNameAsync(user, userName);
         if (!result.Succeeded)
@@ -1026,7 +1023,7 @@ public class SecurityHardeningTests
         private readonly ConcurrentQueue<string> messages = new();
 
         // Function summary: Maps list into the shape required by callers.
-        public IReadOnlyCollection<string> Messages => messages.ToList();
+        public IReadOnlyCollection<string> Messages => [.. messages];
 
         // Function summary: Creates logger data for the current workflow.
         public ILogger CreateLogger(string categoryName)

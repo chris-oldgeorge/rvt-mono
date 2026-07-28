@@ -27,7 +27,7 @@ public sealed class SiteWriteAdapterTests
             Contracts = []
         });
         await fixture.DomainContext.SaveChangesAsync();
-        DateTime archivedUtc = new DateTime(
+        DateTime archivedUtc = new(
             2026,
             7,
             23,
@@ -71,7 +71,7 @@ public sealed class SiteWriteAdapterTests
         Guid contractId = Guid.NewGuid();
         await fixture.SeedContractAsync(companyId, contractId);
         ValidatedSiteMutation mutation = ValidatedMutation(companyId, contractId);
-        DateTime createDateUtc = new DateTime(
+        DateTime createDateUtc = new(
             2026,
             7,
             23,
@@ -181,7 +181,7 @@ public sealed class SiteWriteAdapterTests
             CancellationToken.None);
 
         await Assert.ThrowsAsync<StaleContractClaimException>(
-            () => fixture.UnitOfWork.ExecuteInTransactionAsync<bool>(
+            () => fixture.UnitOfWork.ExecuteInTransactionAsync(
                 async token =>
                 {
                     Guid siteId = await fixture.Adapter.CreateAsync(
@@ -215,7 +215,7 @@ public sealed class SiteWriteAdapterTests
         Guid companyId,
         Guid contractId)
     {
-        SiteMutation request = new SiteMutation(
+        SiteMutation request = new(
             "Adapter Site",
             companyId,
             contractId,
@@ -279,7 +279,7 @@ public sealed class SiteWriteAdapterTests
 
         public static async Task<SiteWriteAdapterFixture> CreateAsync()
         {
-            SqliteConnection connection = new SqliteConnection(
+            SqliteConnection connection = new(
                 "Data Source=:memory:;Foreign Keys=True");
             await connection.OpenAsync();
 

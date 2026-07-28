@@ -4,7 +4,6 @@ using AirQ.Model.Dto;
 using AirQMonitor.model.dto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
@@ -42,7 +41,7 @@ namespace AirQ.Api.Db
             }
 
             using AirQMonitorContext context = CreateContext();
-            HashSet<DateTime> seen = new HashSet<DateTime>();
+            HashSet<DateTime> seen = [];
             foreach (NoiseDto dto in dtos)
             {
                 if (!seen.Add(dto.SampleTime))
@@ -69,13 +68,12 @@ namespace AirQ.Api.Db
             DateTime cutoff = lastDataTime ?? AirQApi.JAN1_1970;
             using AirQMonitorContext context = CreateContext();
 
-            List<MonitorEntity> monitors = context.Monitors
+            List<MonitorEntity> monitors = [.. context.Monitors
                 .AsNoTracking()
                 .Where(row => row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE)
                 .Where(row => row.Manufacturer == "Turnkey")
                 .Where(row => row.FleetNr != null)
-                .Where(row => row.LastDataTime15Min == null || row.LastDataTime15Min >= cutoff)
-                .ToList();
+                .Where(row => row.LastDataTime15Min == null || row.LastDataTime15Min >= cutoff)];
 
             HashSet<string> serialIds = monitors
                 .Select(row => row.SerialId)
@@ -85,9 +83,7 @@ namespace AirQ.Api.Db
                 .Where(row => serialIds.Contains(row.SerialId))
                 .ToDictionary(row => row.SerialId, StringComparer.Ordinal);
 
-            return monitors
-                .Select(row => AirQDbMapper.ToNoiseMonitorDto(row, statuses))
-                .ToList();
+            return [.. monitors.Select(row => AirQDbMapper.ToNoiseMonitorDto(row, statuses))];
         }
 
         public void WriteMonitorList(List<NoiseMonitorDto> monitors)
@@ -175,10 +171,9 @@ namespace AirQ.Api.Db
                         select rule;
             }
 
-            return query
+            return [.. query
                 .AsEnumerable()
-                .Select(rule => ToRuleDto(rule, serialNumber))
-                .ToList();
+                .Select(rule => ToRuleDto(rule, serialNumber))];
         }
 
         public List<RvtContactDto> ReadAlertContacts(Guid monitorId, out Guid siteId)
@@ -213,7 +208,7 @@ namespace AirQ.Api.Db
                 .Where(user => userIds.Contains(user.Id))
                 .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
 
-            return contactRows
+            return [.. contactRows
                 .Where(row => usersById.ContainsKey(row.UserId.ToString()))
                 .Select(row =>
                 {
@@ -225,8 +220,7 @@ namespace AirQ.Api.Db
                         phoneNumber: user.PhoneNumber,
                         sendStartTime: row.StartTime,
                         sendEndTime: row.EndTime);
-                })
-                .ToList();
+                })];
         }
 
         public List<RvtContactDto> ReadAlertContacts(string serialId, out Guid siteId)
@@ -325,9 +319,7 @@ namespace AirQ.Api.Db
         public void ClearErrorMessages(DateTime before)
         {
             using AirQMonitorContext context = CreateContext();
-            List<AirQErrorMessageEntity> messages = context.AirQErrorMessages
-                .Where(row => row.ErrorTime < before)
-                .ToList();
+            List<AirQErrorMessageEntity> messages = [.. context.AirQErrorMessages.Where(row => row.ErrorTime < before)];
 
             context.AirQErrorMessages.RemoveRange(messages);
             context.SaveChanges();
@@ -374,26 +366,23 @@ namespace AirQ.Api.Db
             if (Day.DayOfWeek == DayOfWeek.Saturday)
             {
                 query = query.Where(row => row.Site.SatStartTime != null && row.Site.SatEndTime != null);
-                return query
+                return [.. query
                     .AsEnumerable()
-                    .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.SatStartTime!.Value, row.Site.SatEndTime!.Value))
-                    .ToList();
+                    .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.SatStartTime!.Value, row.Site.SatEndTime!.Value))];
             }
 
             if (Day.DayOfWeek == DayOfWeek.Sunday)
             {
                 query = query.Where(row => row.Site.SunStartTime != null && row.Site.SunEndTime != null);
-                return query
+                return [.. query
                     .AsEnumerable()
-                    .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.SunStartTime!.Value, row.Site.SunEndTime!.Value))
-                    .ToList();
+                    .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.SunStartTime!.Value, row.Site.SunEndTime!.Value))];
             }
 
             query = query.Where(row => row.Site.StartTime != null && row.Site.EndTime != null);
-            return query
+            return [.. query
                 .AsEnumerable()
-                .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.StartTime!.Value, row.Site.EndTime!.Value))
-                .ToList();
+                .Select(row => ToSiteMonitorDto(row.Monitor, row.Site, row.Site.StartTime!.Value, row.Site.EndTime!.Value))];
         }
 
         public void WriteDailyAverage(Guid siteId, Guid monitorId, string field, double level, DateTime timestamp)
@@ -427,7 +416,7 @@ namespace AirQ.Api.Db
                 return;
             }
 
-            AirQNoise8HourAverageEntity average = new AirQNoise8HourAverageEntity
+            AirQNoise8HourAverageEntity average = new()
             {
                 SerialId = serialId,
                 SampleTime = SampleTime,

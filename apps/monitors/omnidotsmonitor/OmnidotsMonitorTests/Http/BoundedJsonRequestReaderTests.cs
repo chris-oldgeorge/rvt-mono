@@ -82,7 +82,7 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public async Task ReadAsync_ExactlyAtLimit_ReturnsEntireBody()
     {
-        byte[] body = Enumerable.Repeat((byte)'x', BoundedJsonRequestReader.MaxBodyBytes).ToArray();
+        byte[] body = [.. Enumerable.Repeat((byte)'x', BoundedJsonRequestReader.MaxBodyBytes)];
         HttpRequest request = CreateRequest(body, "application/json");
 
         byte[] result = await BoundedJsonRequestReader.ReadAsync(request, CancellationToken.None);
@@ -94,7 +94,7 @@ public sealed class BoundedJsonRequestReaderTests
     [TestMethod]
     public async Task ReadAsync_ChunkedBodyWithExtraByte_ThrowsBodyTooLarge()
     {
-        byte[] body = Enumerable.Repeat((byte)'x', BoundedJsonRequestReader.MaxBodyBytes + 1).ToArray();
+        byte[] body = [.. Enumerable.Repeat((byte)'x', BoundedJsonRequestReader.MaxBodyBytes + 1)];
         HttpRequest request = CreateRequest([], "application/json");
         request.ContentLength = null;
         request.Body = new ChunkedReadStream(body, chunkSize: 997);
@@ -108,7 +108,7 @@ public sealed class BoundedJsonRequestReaderTests
     {
         HttpRequest request = CreateRequest([], "application/json");
         request.Body = new CancellationOnlyStream();
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         OperationCanceledException exception = await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -136,7 +136,7 @@ public sealed class BoundedJsonRequestReaderTests
 
     private static HttpRequest CreateRequest(byte[] body, string? contentType)
     {
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Request.Body = new MemoryStream(body);
         context.Request.ContentType = contentType;
         context.Request.ContentLength = body.Length;
@@ -145,7 +145,7 @@ public sealed class BoundedJsonRequestReaderTests
 
     private static string FindRepositoryRoot()
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null &&
                !File.Exists(Path.Combine(directory.FullName, "rvt-monitors.sln")))
         {

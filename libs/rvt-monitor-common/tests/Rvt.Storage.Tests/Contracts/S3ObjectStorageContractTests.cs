@@ -16,7 +16,7 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
     [TestMethod]
     public async Task OpenReadAsync_DisposesProviderResponseLease()
     {
-        await using S3Fixture fixture = new S3Fixture();
+        await using S3Fixture fixture = new();
         StorageObjectKey key = StorageObjectKey.Parse("lease/sample.bin");
         await fixture.Client.WriteAsync(
             new StorageWriteRequest(
@@ -96,7 +96,7 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using MemoryStream buffer = new MemoryStream();
+            using MemoryStream buffer = new();
             await request.InputStream.CopyToAsync(buffer, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             objects[GetObjectIdentity(request.BucketName, request.Key)] =
@@ -117,7 +117,7 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
             }
 
             lastResponseStream = new DisposeCountingStream(storedObject.Content);
-            GetObjectResponse response = new GetObjectResponse
+            GetObjectResponse response = new()
             {
                 ResponseStream = lastResponseStream,
             };

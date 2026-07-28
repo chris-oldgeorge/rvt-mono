@@ -17,10 +17,10 @@ public sealed class AlertDeliveryAdapterTests
     [TestMethod]
     public async Task MqttAdapter_DeliversVersionOneEnvelopeAndReturnsNoAudit()
     {
-        Mock<IMonitorEventPublisher> publisher = new Mock<IMonitorEventPublisher>();
+        Mock<IMonitorEventPublisher> publisher = new();
         AlertDeliveryEnvelope envelope = CreateEnvelope();
         ClaimedAlertDelivery delivery = CreateDelivery("MqttAlert", "alert", envelope);
-        MqttAlertDeliveryAdapter adapter = new MqttAlertDeliveryAdapter(publisher.Object);
+        MqttAlertDeliveryAdapter adapter = new(publisher.Object);
 
         AlertDeliveryAudit? audit = await adapter.DeliverAsync(delivery, CancellationToken.None);
 
@@ -35,10 +35,10 @@ public sealed class AlertDeliveryAdapterTests
     [TestMethod]
     public async Task EmailAdapter_DeliversVersionOneEnvelopeAndReturnsSuccessAudit()
     {
-        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        Mock<INotificationDeliveryService> notificationDelivery = new();
         AlertDeliveryEnvelope envelope = CreateEnvelope();
         ClaimedAlertDelivery delivery = CreateDelivery("Email", "ops@example.test", envelope);
-        EmailAlertDeliveryAdapter adapter = new EmailAlertDeliveryAdapter(
+        EmailAlertDeliveryAdapter adapter = new(
             notificationDelivery.Object,
             Options.Create(new DurableAlertOptions { PortalBaseUrl = "https://portal.example/" }),
             CreateTimeProvider());
@@ -65,10 +65,10 @@ public sealed class AlertDeliveryAdapterTests
     [TestMethod]
     public async Task SmsAdapter_DeliversVersionOneEnvelopeAndReturnsSuccessAudit()
     {
-        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        Mock<INotificationDeliveryService> notificationDelivery = new();
         AlertDeliveryEnvelope envelope = CreateEnvelope() with { AlertType = AlertType.Caution };
         ClaimedAlertDelivery delivery = CreateDelivery("Sms", "+441234567890", envelope);
-        SmsAlertDeliveryAdapter adapter = new SmsAlertDeliveryAdapter(
+        SmsAlertDeliveryAdapter adapter = new(
             notificationDelivery.Object,
             Options.Create(new DurableAlertOptions { PortalBaseUrl = "https://portal.example" }),
             CreateTimeProvider());
@@ -93,8 +93,8 @@ public sealed class AlertDeliveryAdapterTests
     [DataRow("sms")]
     public async Task Adapters_RejectEnvelopeVersionsOtherThanOneBeforeExternalDelivery(string adapterKind)
     {
-        Mock<IMonitorEventPublisher> publisher = new Mock<IMonitorEventPublisher>();
-        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        Mock<IMonitorEventPublisher> publisher = new();
+        Mock<INotificationDeliveryService> notificationDelivery = new();
         IAlertDeliveryAdapter adapter = CreateAdapter(adapterKind, publisher.Object, notificationDelivery.Object);
         (string? kind, string? destination) = DeliveryIdentity(adapterKind);
         foreach (int version in new[] { 0, 2 })
@@ -115,8 +115,8 @@ public sealed class AlertDeliveryAdapterTests
     [DataRow("sms")]
     public async Task Adapters_RejectEmptyNotificationIdBeforeExternalDelivery(string adapterKind)
     {
-        Mock<IMonitorEventPublisher> publisher = new Mock<IMonitorEventPublisher>();
-        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        Mock<IMonitorEventPublisher> publisher = new();
+        Mock<INotificationDeliveryService> notificationDelivery = new();
         IAlertDeliveryAdapter adapter = CreateAdapter(adapterKind, publisher.Object, notificationDelivery.Object);
         (string? kind, string? destination) = DeliveryIdentity(adapterKind);
         ClaimedAlertDelivery delivery = CreateDelivery(
@@ -138,8 +138,8 @@ public sealed class AlertDeliveryAdapterTests
     public async Task Adapters_RejectEnvelopeNotificationIdThatDiffersFromAuthoritativeClaim(
         string adapterKind)
     {
-        Mock<IMonitorEventPublisher> publisher = new Mock<IMonitorEventPublisher>();
-        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        Mock<IMonitorEventPublisher> publisher = new();
+        Mock<INotificationDeliveryService> notificationDelivery = new();
         IAlertDeliveryAdapter adapter = CreateAdapter(adapterKind, publisher.Object, notificationDelivery.Object);
         (string? kind, string? destination) = DeliveryIdentity(adapterKind);
         ClaimedAlertDelivery delivery = CreateDelivery(kind, destination, CreateEnvelope()) with
@@ -163,8 +163,8 @@ public sealed class AlertDeliveryAdapterTests
         string deliveryKind,
         string destination)
     {
-        Mock<IMonitorEventPublisher> publisher = new Mock<IMonitorEventPublisher>();
-        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        Mock<IMonitorEventPublisher> publisher = new();
+        Mock<INotificationDeliveryService> notificationDelivery = new();
         IAlertDeliveryAdapter adapter = CreateAdapter(adapterKind, publisher.Object, notificationDelivery.Object);
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => adapter.DeliverAsync(
@@ -184,8 +184,8 @@ public sealed class AlertDeliveryAdapterTests
         string deliveryKind,
         string destination)
     {
-        Mock<IMonitorEventPublisher> publisher = new Mock<IMonitorEventPublisher>();
-        Mock<INotificationDeliveryService> notificationDelivery = new Mock<INotificationDeliveryService>();
+        Mock<IMonitorEventPublisher> publisher = new();
+        Mock<INotificationDeliveryService> notificationDelivery = new();
         IAlertDeliveryAdapter adapter = CreateAdapter(adapterKind, publisher.Object, notificationDelivery.Object);
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => adapter.DeliverAsync(
@@ -201,7 +201,7 @@ public sealed class AlertDeliveryAdapterTests
     {
         string? capturedTopic = null;
         string? capturedJson = null;
-        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
+        Mock<IMqttClient> mqttClient = new();
         mqttClient.Setup(x => x.PublishAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
@@ -212,8 +212,8 @@ public sealed class AlertDeliveryAdapterTests
                 capturedJson = json;
             })
             .Returns(Task.CompletedTask);
-        MonitorEventPublisher publisher = new MonitorEventPublisher(mqttClient.Object, "insert/topic", "configured/alert/topic");
-        MqttAlertDeliveryAdapter adapter = new MqttAlertDeliveryAdapter(publisher);
+        MonitorEventPublisher publisher = new(mqttClient.Object, "insert/topic", "configured/alert/topic");
+        MqttAlertDeliveryAdapter adapter = new(publisher);
         AlertDeliveryEnvelope envelope = CreateEnvelope();
 
         await adapter.DeliverAsync(
@@ -288,7 +288,7 @@ public sealed class AlertDeliveryAdapterTests
 
     private static TimeProvider CreateTimeProvider()
     {
-        Mock<TimeProvider> timeProvider = new Mock<TimeProvider>();
+        Mock<TimeProvider> timeProvider = new();
         timeProvider.Setup(x => x.GetUtcNow()).Returns(new DateTimeOffset(SentAt));
         return timeProvider.Object;
     }

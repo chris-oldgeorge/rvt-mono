@@ -11,7 +11,7 @@ public sealed class OmnidotsTraceCollectionOptionsTests
     [DataRow(-1)]
     public void Validate_NonPositiveLimit_Throws(int limit)
     {
-        OmnidotsTraceCollectionOptions options = new OmnidotsTraceCollectionOptions { MaxMonitorsPerRun = limit };
+        OmnidotsTraceCollectionOptions options = new() { MaxMonitorsPerRun = limit };
 
         OptionsValidationException exception = Assert.ThrowsExactly<OptionsValidationException>(options.Validate);
 
@@ -21,7 +21,7 @@ public sealed class OmnidotsTraceCollectionOptionsTests
     [TestMethod]
     public void AllowedSerialIds_NullValue_NormalizesToEmpty()
     {
-        OmnidotsTraceCollectionOptions options = new OmnidotsTraceCollectionOptions { AllowedSerialIds = null! };
+        OmnidotsTraceCollectionOptions options = new() { AllowedSerialIds = null! };
 
         options.Validate();
 
@@ -33,7 +33,7 @@ public sealed class OmnidotsTraceCollectionOptionsTests
     [DataRow(" ")]
     public void Validate_BlankSerial_Throws(string serialId)
     {
-        OmnidotsTraceCollectionOptions options = new OmnidotsTraceCollectionOptions { AllowedSerialIds = [serialId] };
+        OmnidotsTraceCollectionOptions options = new() { AllowedSerialIds = [serialId] };
 
         Assert.ThrowsExactly<OptionsValidationException>(options.Validate);
     }
@@ -41,7 +41,7 @@ public sealed class OmnidotsTraceCollectionOptionsTests
     [TestMethod]
     public void Validate_CaseInsensitiveDuplicateSerial_Throws()
     {
-        OmnidotsTraceCollectionOptions options = new OmnidotsTraceCollectionOptions
+        OmnidotsTraceCollectionOptions options = new()
         {
             AllowedSerialIds = ["monitor-a", "MONITOR-A"]
         };

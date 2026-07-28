@@ -5,7 +5,6 @@
 
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic.Application;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Identity;
@@ -235,11 +234,10 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             OpenCautions = openNotifications.Count(notification => notification.AlertType == AlertTypeEnum.Caution),
             Sites = await BuildVisibleSiteOptionsAsync(actor, cancellationToken),
             CalendarDeployments = BuildCalendarDeploymentOptions(rows),
-            RecentNotifications = openNotifications
+            RecentNotifications = [.. openNotifications
                 .OrderByDescending(notification => notification.NotificationTime)
                 .Take(5)
-                .Select(BuildNotificationModel)
-                .ToList()
+                .Select(BuildNotificationModel)]
         };
     }
 
@@ -260,7 +258,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
                 return null;
             }
 
-            rows = rows.Where(row => row.SiteId == siteId.Value).ToList();
+            rows = [.. rows.Where(row => row.SiteId == siteId.Value)];
         }
 
         return new DashboardMapMarkersModel
@@ -268,7 +266,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             SiteId = siteId,
             SiteName = selectedSite?.Label,
             IsScopedToCurrentUser = actor.IsScopedCompanyUser,
-            Markers = rows
+            Markers = [.. rows
                 .Where(row => row.DeploymentId.HasValue && row.Lat.HasValue && row.Lng.HasValue && !IsNullIsland(row.Lat.Value, row.Lng.Value))
                 .OrderBy(row => row.SiteName)
                 .ThenBy(row => row.FleetNumber ?? row.SerialId)
@@ -287,8 +285,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
                     SerialId = row.SerialId,
                     LastDataTime = row.LastDataTime,
                     What3words = row.What3words
-                })
-                .ToList()
+                })]
         };
     }
 
@@ -361,7 +358,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             EndDate = CalendarMaxDate(deployment).Date,
             Unit = Unit(deployment.Monitor.TypeOfMonitor),
             Deployments = BuildCalendarDeploymentOptions(rows),
-            Days = CalendarDates(calendarStart, calendarEnd)
+            Days = [.. CalendarDates(calendarStart, calendarEnd)
                 .Select(day =>
                 {
                     notificationsByDate.TryGetValue(day.Date, out List<Notification>? dayNotifications);
@@ -374,8 +371,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
                         Average = dayNotifications.Count == 0 ? null : dayNotifications.Average(notification => notification.Level),
                         NotificationCount = dayNotifications.Count
                     };
-                })
-                .ToList()
+                })]
         };
     }
 
@@ -424,17 +420,16 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             FleetNumber = monitor.FleetNr ?? "",
             TypeOfMonitor = monitor.TypeOfMonitor.ToString(),
             Unit = Unit(monitor.TypeOfMonitor),
-            Values = notifications
+            Values = [.. notifications
                 .GroupBy(notification => notification.AlertField)
                 .OrderBy(group => group.Key)
                 .Select(group => new DashboardCalendarMeasurementModel
                 {
                     Label = group.Key,
                     Value = group.Max(notification => notification.Level)
-                })
-                .ToList(),
-            AlertLevels = alertLevels.Select(level => BuildAlertLevelModel(level, monitor.TypeOfMonitor)).ToList(),
-            Notifications = notifications.Select(BuildNotificationModel).ToList()
+                })],
+            AlertLevels = [.. alertLevels.Select(level => BuildAlertLevelModel(level, monitor.TypeOfMonitor))],
+            Notifications = [.. notifications.Select(BuildNotificationModel)]
         };
     }
 
@@ -470,7 +465,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
 
         // Only monitors with a current deployment can contribute notifications: the lookup below drops anything
         // else. Asking for just those monitors avoids loading open notifications that would be discarded.
-        List<Guid> deployedMonitorIds = currentByMonitor.Keys.ToList();
+        List<Guid> deployedMonitorIds = [.. currentByMonitor.Keys];
         List<Notification> notifications = await domainContext.Notifications
             .AsNoTracking()
             .Where(notification => deployedMonitorIds.Contains(notification.MonitorId) && notification.ClosedTime == null)
@@ -482,12 +477,12 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             .GroupBy(notification => notification.MonitorId)
             .ToDictionary(group => group.Key, group => group.ToList());
 
-        return monitors.Select(monitor =>
+        return [.. monitors.Select(monitor =>
         {
             currentByMonitor.TryGetValue(monitor.Id, out Deployment? deployment);
             notificationLookup.TryGetValue(monitor.Id, out List<Notification>? monitorNotifications);
             return BuildMonitorRow(monitor, deployment, monitorNotifications ?? [], now);
-        }).ToList();
+        })];
     }
 
     // Function summary: Applies the current user's dashboard visibility rules to monitor rows.
@@ -503,11 +498,11 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
 
         if (actor.IsInstaller)
         {
-            return rows.Where(row => row.IsAssigned).ToList();
+            return [.. rows.Where(row => row.IsAssigned)];
         }
 
         HashSet<Guid> visibleSiteIds = await VisibleSiteIdsAsync(actor, cancellationToken);
-        return rows.Where(row => row.SiteId.HasValue && visibleSiteIds.Contains(row.SiteId.Value)).ToList();
+        return [.. rows.Where(row => row.SiteId.HasValue && visibleSiteIds.Contains(row.SiteId.Value))];
     }
 
     // Function summary: Builds notification entities visible through the current monitor rows.
@@ -516,16 +511,15 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         bool openOnly,
         CancellationToken cancellationToken)
     {
-        HashSet<Guid> monitorIds = rows.Select(row => row.MonitorId).ToHashSet();
+        HashSet<Guid> monitorIds = [.. rows.Select(row => row.MonitorId)];
         if (monitorIds.Count == 0)
         {
             return [];
         }
 
-        List<Guid> deploymentIds = rows
+        List<Guid> deploymentIds = [.. rows
             .Where(row => row.DeploymentId.HasValue)
-            .Select(row => row.DeploymentId!.Value)
-            .ToList();
+            .Select(row => row.DeploymentId!.Value)];
         List<Deployment> deployments = await domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
@@ -540,11 +534,10 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
                 monitorIds.Contains(notification.MonitorId) &&
                 (!openOnly || notification.ClosedTime == null))
             .ToListAsync(cancellationToken);
-        return notifications
+        return [.. notifications
             .Where(notification =>
                 currentByMonitor.TryGetValue(notification.MonitorId, out Deployment? deployment) &&
-                MonitorOwnershipWindowResolver.ForDeployment(deployment).Contains(notification.NotificationTime))
-            .ToList();
+                MonitorOwnershipWindowResolver.ForDeployment(deployment).Contains(notification.NotificationTime))];
     }
 
     // Function summary: Builds role-scoped site options for dashboard filters.
@@ -580,7 +573,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
     // Function summary: Builds calendar deployment option labels from visible monitor rows.
     private static List<DashboardOptionModel> BuildCalendarDeploymentOptions(IEnumerable<DashboardMonitorRow> rows)
     {
-        return rows
+        return [.. rows
             .Where(row => row.DeploymentId.HasValue)
             .OrderBy(row => row.FleetNumber ?? row.SerialId)
             .Select(row => new DashboardOptionModel
@@ -589,8 +582,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
                 Label = string.IsNullOrWhiteSpace(row.SiteName)
                     ? $"{row.FleetNumber ?? row.SerialId}"
                     : $"{row.FleetNumber ?? row.SerialId} - {row.SiteName}"
-            })
-            .ToList();
+            })];
     }
 
     // Function summary: Converts one monitor plus optional current deployment into a dashboard row.
@@ -689,7 +681,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             .ToListAsync(cancellationToken);
 
         visibleSiteIdsCacheUserId = actor.UserId.Value;
-        visibleSiteIdsCache = siteIds.ToHashSet();
+        visibleSiteIdsCache = [.. siteIds];
         return visibleSiteIdsCache;
     }
 

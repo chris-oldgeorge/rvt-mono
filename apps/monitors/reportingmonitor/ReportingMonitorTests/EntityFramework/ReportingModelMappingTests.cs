@@ -80,7 +80,7 @@ internal static class ReportingContextFactory
 {
     public static ReportingMonitorContext CreatePostgreSqlContext()
     {
-        MonitorDbOptions monitorOptions = new MonitorDbOptions(new Dictionary<string, string>());
+        MonitorDbOptions monitorOptions = new(new Dictionary<string, string>());
         DbContextOptions<ReportingMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(
             "Host=localhost;Database=reporting_mapping_tests;Username=reporting;Password=reporting");
 

@@ -12,7 +12,7 @@ public sealed class TestReportingDispatcher
     [Fact]
     public async Task RunAsync_GenerateScheduledReports_FromSingletonComposition_InvokesScopedGenerationService()
     {
-        RecordingReportGenerationService service = new RecordingReportGenerationService();
+        RecordingReportGenerationService service = new();
         using ServiceProvider provider = ReportingServiceProviderFactory.Create(services =>
         {
             services.RemoveAll<IReportGenerationService>();
@@ -30,8 +30,8 @@ public sealed class TestReportingDispatcher
     [Fact]
     public async Task RunAsync_GenerateScheduledReports_UsesCurrentUtcTimeAndReturnsZero()
     {
-        RecordingReportGenerationService service = new RecordingReportGenerationService();
-        ReportingMonitorJobDispatcher dispatcher = new ReportingMonitorJobDispatcher(new GenerateScheduledReportsHandler(service));
+        RecordingReportGenerationService service = new();
+        ReportingMonitorJobDispatcher dispatcher = new(new GenerateScheduledReportsHandler(service));
 
         int result = await dispatcher.RunAsync("GenerateScheduledReports", CancellationToken.None);
 

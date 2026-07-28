@@ -1,4 +1,3 @@
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Svantek.Api.Db;
 using SvantekMonitor.model.dto;

@@ -31,11 +31,11 @@ public sealed class CheckForSoundRecordingsHandler
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        Dictionary<string, List<ProjectFile>> filesCache = new Dictionary<string, List<ProjectFile>>();
+        Dictionary<string, List<ProjectFile>> filesCache = [];
         List<NoiseNotificationLatest> alerts = await notificationQueries
             .ReadLatestNotificationAsync(cancellationToken)
             .ConfigureAwait(false);
-        SvantekFailureCollector failures = new SvantekFailureCollector(operationalCommands);
+        SvantekFailureCollector failures = new(operationalCommands);
 
         foreach (NoiseNotificationLatest alert in alerts)
         {
@@ -68,7 +68,7 @@ public sealed class CheckForSoundRecordingsHandler
                     audioFile.filename,
                     cancellationToken).ConfigureAwait(false);
                 string fileName = $"{alert.NotificationId}.wav";
-                await using MemoryStream stream = new MemoryStream(content, writable: false);
+                await using MemoryStream stream = new(content, writable: false);
                 await storage.WriteAsync(
                     new StorageWriteRequest(
                         StorageObjectKey.Parse(fileName),
@@ -106,10 +106,9 @@ public sealed class CheckForSoundRecordingsHandler
             projectId,
             pointId,
             cancellationToken).ConfigureAwait(false);
-        return files
+        return [.. files
             .Where(file => file.triggerDate >= alertTime.AddSeconds(-averagePeriod) &&
-                           file.triggerDate <= alertTime)
-            .ToList();
+                           file.triggerDate <= alertTime)];
     }
 
     private async Task<List<ProjectFile>> FetchFilesAsync(
@@ -135,9 +134,7 @@ public sealed class CheckForSoundRecordingsHandler
             ValidateFileRow(file);
         }
 
-        List<ProjectFile> soundFiles = files
-            .Where(file => file.filename.Contains(".WAV", StringComparison.Ordinal))
-            .ToList();
+        List<ProjectFile> soundFiles = [.. files.Where(file => file.filename.Contains(".WAV", StringComparison.Ordinal))];
         filesCache.Add(listId, soundFiles);
         return soundFiles;
     }

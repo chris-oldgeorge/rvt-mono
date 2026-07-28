@@ -30,7 +30,7 @@ public sealed class ReportMessageSender(
             !string.IsNullOrWhiteSpace(options.TestReportToEmail)
                 ? options.TestReportToEmail
                 : recipientEmail;
-        EmailDeliveryRequest request = new EmailDeliveryRequest(
+        EmailDeliveryRequest request = new(
             effectiveRecipient,
             $"RVT Cloud report for {sitePostcode}",
             PlainTextBody,

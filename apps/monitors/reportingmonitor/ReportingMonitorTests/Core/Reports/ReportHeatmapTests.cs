@@ -64,8 +64,8 @@ public sealed class ReportHeatmapTests
     [Fact]
     public void BuildHeatmapSvg_RendersCountsForPopulatedCells()
     {
-        DateOnly day = new DateOnly(2026, 3, 1);
-        ReportAlertHeatmap heatmap = new ReportAlertHeatmap(
+        DateOnly day = new(2026, 3, 1);
+        ReportAlertHeatmap heatmap = new(
             MonitorType.Noise,
             [new ReportAlertHeatmapCell(day, 5, 2, 1, 78m)]);
 
@@ -76,7 +76,7 @@ public sealed class ReportHeatmapTests
 
     private static ReportAlertHeatmap CreateHeatmap(int dayCount)
     {
-        DateOnly start = new DateOnly(2026, 3, 1);
+        DateOnly start = new(2026, 3, 1);
         ReportAlertHeatmapCell[] cells =
         [
             .. Enumerable.Range(0, dayCount)

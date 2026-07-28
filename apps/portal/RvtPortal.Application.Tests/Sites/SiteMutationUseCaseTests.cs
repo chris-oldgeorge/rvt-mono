@@ -51,7 +51,7 @@ public sealed class SiteMutationUseCaseTests
     public async Task CreateAsync_UserWhoCannotManage_ReturnsForbiddenBeforeBusinessReads()
     {
         SiteMutationFixture fixture = SiteMutationFixture.Valid();
-        PortalUserContext companyUser = new PortalUserContext(
+        PortalUserContext companyUser = new(
             Guid.NewGuid(),
             "company",
             fixture.Mutation.CompanyId,
@@ -175,7 +175,7 @@ public sealed class SiteMutationUseCaseTests
     public async Task UpdateAsync_MalformedRequest_UserWhoCannotManage_ReturnsForbiddenBeforeValidation()
     {
         SiteMutationFixture fixture = SiteMutationFixture.Valid();
-        PortalUserContext companyUser = new PortalUserContext(
+        PortalUserContext companyUser = new(
             Guid.NewGuid(),
             "company",
             fixture.Mutation.CompanyId,
@@ -303,7 +303,7 @@ public sealed class SiteMutationUseCaseTests
     public async Task UpdateNotificationSettingAsync_InvalidTime_CompanyUserCannotUpdateAnotherUsersSetting()
     {
         SiteMutationFixture fixture = SiteMutationFixture.Valid();
-        PortalUserContext companyUser = new PortalUserContext(
+        PortalUserContext companyUser = new(
             Guid.NewGuid(),
             "company",
             Guid.NewGuid(),
@@ -335,7 +335,7 @@ public sealed class SiteMutationUseCaseTests
     {
         SiteMutationFixture fixture = SiteMutationFixture.Valid();
         Guid userId = Guid.NewGuid();
-        PortalUserContext companyUser = new PortalUserContext(
+        PortalUserContext companyUser = new(
             userId,
             "company",
             Guid.NewGuid(),
@@ -482,7 +482,7 @@ public sealed class SiteMutationUseCaseTests
     {
         SiteMutationFixture fixture = SiteMutationFixture.Valid();
         Guid userId = Guid.NewGuid();
-        PortalUserContext companyUser = new PortalUserContext(
+        PortalUserContext companyUser = new(
             userId,
             "company",
             fixture.Mutation.CompanyId,
@@ -521,7 +521,7 @@ public sealed class SiteMutationUseCaseTests
     {
         SiteMutationFixture fixture = SiteMutationFixture.Valid();
         Guid userId = Guid.NewGuid();
-        PortalUserContext companyUser = new PortalUserContext(
+        PortalUserContext companyUser = new(
             userId,
             "company",
             fixture.Mutation.CompanyId,
@@ -562,7 +562,7 @@ public sealed class SiteMutationUseCaseTests
     {
         public static SiteMutationFixture Valid()
         {
-            DateTimeOffset now = new DateTimeOffset(
+            DateTimeOffset now = new(
                 2026,
                 7,
                 23,
@@ -571,12 +571,12 @@ public sealed class SiteMutationUseCaseTests
                 0,
                 TimeSpan.Zero);
             Guid siteUserId = Guid.NewGuid();
-            SiteDetailModel detail = new SiteDetailModel
+            SiteDetailModel detail = new()
             {
                 Id = Guid.NewGuid(),
                 SiteName = "Valid Site"
             };
-            MutationSiteReadPort reads = new MutationSiteReadPort
+            MutationSiteReadPort reads = new()
             {
                 Exists = true,
                 MutationData = new SiteMutationValidationData(
@@ -595,11 +595,11 @@ public sealed class SiteMutationUseCaseTests
                     detail.SiteName,
                     [])
             };
-            RecordingSiteWritePort writes = new RecordingSiteWritePort(detail.Id);
-            RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+            RecordingSiteWritePort writes = new(detail.Id);
+            RecordingUnitOfWork unitOfWork = new();
             reads.IsTransactionActive = () => unitOfWork.IsTransactionActive;
-            RecordingPortalUserDirectory users = new RecordingPortalUserDirectory();
-            SiteApplicationService service = new SiteApplicationService(
+            RecordingPortalUserDirectory users = new();
+            SiteApplicationService service = new(
                 reads,
                 writes,
                 unitOfWork,

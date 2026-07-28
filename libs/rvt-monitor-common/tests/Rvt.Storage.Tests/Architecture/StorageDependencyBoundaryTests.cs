@@ -118,12 +118,11 @@ public sealed class StorageDependencyBoundaryTests
             IReadOnlyCollection<string> packageReferences = ProjectDependencyReader.ReadActiveIdentities(
                 project,
                 "PackageReference");
-            string[] projectReferences = ProjectDependencyReader
+            string[] projectReferences = [.. ProjectDependencyReader
                 .ReadActiveIdentities(project, "ProjectReference")
                 .Select(value => Path.GetFileNameWithoutExtension(
                     value.Replace('\\', Path.DirectorySeparatorChar)))
-                .OrderBy(value => value, StringComparer.Ordinal)
-                .ToArray();
+                .OrderBy(value => value, StringComparer.Ordinal)];
             Dictionary<string, string> sourceFiles = Directory
                 .EnumerateFiles(projectDirectory, "*.cs", SearchOption.AllDirectories)
                 .Where(path => !IsGeneratedPath(projectDirectory, path))
@@ -151,11 +150,10 @@ public sealed class StorageDependencyBoundaryTests
         {
             foreach (string forbiddenPrefix in forbiddenPrefixes)
             {
-                string[] matches = PackageReferences
+                string[] matches = [.. PackageReferences
                     .Where(package => package.StartsWith(
                         forbiddenPrefix,
-                        StringComparison.OrdinalIgnoreCase))
-                    .ToArray();
+                        StringComparison.OrdinalIgnoreCase))];
                 Assert.IsEmpty(
                     matches,
                     $"Forbidden package prefix '{forbiddenPrefix}' matched: "
@@ -193,7 +191,7 @@ public sealed class StorageDependencyBoundaryTests
                          AppContext.BaseDirectory,
                      })
             {
-                for (DirectoryInfo? directory = new DirectoryInfo(startingPath);
+                for (DirectoryInfo? directory = new(startingPath);
                      directory is not null;
                      directory = directory.Parent)
                 {

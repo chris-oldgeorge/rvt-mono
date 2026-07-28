@@ -12,8 +12,8 @@ public sealed class SendGridMailRegistrationTests
     [TestMethod]
     public void AddSendGridMail_RegistersOneEmailPortFactoryOptionsAndValidationService()
     {
-        ServiceCollection services = new ServiceCollection();
-        SendGridMailOptions options = new SendGridMailOptions
+        ServiceCollection services = new();
+        SendGridMailOptions options = new()
         {
             Enabled = false,
             ApiKey = "api-key"
@@ -34,7 +34,7 @@ public sealed class SendGridMailRegistrationTests
     [TestMethod]
     public void AddSendGridMail_LoadsProviderOptionsFromConfiguration()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -52,7 +52,7 @@ public sealed class SendGridMailRegistrationTests
     [TestMethod]
     public void AddSendGridMail_RejectsAnExistingEmailDeliveryProvider()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IEmailDeliveryPort, ExistingEmailDeliveryPort>();
 
         InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>

@@ -5,7 +5,6 @@ using Svantek.Api.Db;
 using Svantek.Api.Http;
 using Svantek.Api.Storage;
 using Svantek.Api.UseCases;
-using SvantekMonitor.model.dto;
 
 namespace SvantekMonitorTests;
 
@@ -16,7 +15,7 @@ public sealed class TestCheckForSoundRecordingStorage
     public async Task RunAsync_MatchingWav_DownloadsAndWritesThroughStoragePort()
     {
         Guid notificationId = Guid.Parse("4cb38822-3497-4650-bac0-82da974c1d28");
-        DateTime notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
+        DateTime notificationTime = new(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
         byte[] soundContent = [82, 73, 70, 70, 1, 2, 3, 4];
         string filesResponse = """
             {
@@ -28,16 +27,15 @@ public sealed class TestCheckForSoundRecordingStorage
             }
             """;
 
-        Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
-        Mock<IDBClient> dbClient = new Mock<IDBClient>();
-        RecordingObjectStorageClient storage = new RecordingObjectStorageClient();
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        Mock<IHttpClient> httpClient = new();
+        Mock<IDBClient> dbClient = new();
+        RecordingObjectStorageClient storage = new();
+        using CancellationTokenSource cancellation = new();
 
         dbClient.Setup(client => client.ReadLatestNotificationAsync(cancellation.Token)).ReturnsAsync(
-            new List<NoiseNotificationLatest>
-            {
+            [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
-            });
+            ]);
         dbClient.Setup(client => client.WriteSoundFileAsync(
                 notificationId,
                 $"{notificationId}.wav",
@@ -54,7 +52,7 @@ public sealed class TestCheckForSoundRecordingStorage
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(soundContent);
 
-        CheckForSoundRecordingsHandler handler = new CheckForSoundRecordingsHandler(
+        CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
             dbClient.Object,
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
@@ -81,19 +79,18 @@ public sealed class TestCheckForSoundRecordingStorage
     public async Task RunAsync_EmptyVendorRow_RecordsCompactNotificationIdentifier_AndThrowsAggregate()
     {
         Guid notificationId = Guid.Parse("4cb38822-3497-4650-bac0-82da974c1d28");
-        DateTime notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
+        DateTime notificationTime = new(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
         string identifier = $"sound:{notificationId}";
         const string filesResponse = """
             {"status":"ok","files":[[]],"files_size":1}
             """;
-        Mock<IHttpClient> httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
-        Mock<IDBClient> dbClient = new Mock<IDBClient>(MockBehavior.Strict);
-        RecordingObjectStorageClient storage = new RecordingObjectStorageClient();
+        Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
+        Mock<IDBClient> dbClient = new(MockBehavior.Strict);
+        RecordingObjectStorageClient storage = new();
         dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
-            new List<NoiseNotificationLatest>
-            {
+            [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
-            });
+            ]);
         dbClient.Setup(client => client.HandleException(
             identifier,
             It.IsAny<InvalidDataException>()));
@@ -102,7 +99,7 @@ public sealed class TestCheckForSoundRecordingStorage
                 It.IsAny<HttpContent>(),
                 CancellationToken.None))
             .ReturnsAsync(filesResponse);
-        CheckForSoundRecordingsHandler handler = new CheckForSoundRecordingsHandler(
+        CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
             dbClient.Object,
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
@@ -125,7 +122,7 @@ public sealed class TestCheckForSoundRecordingStorage
     public async Task RunAsync_MalformedNonWavRow_IsValidatedBeforeFileTypeFiltering()
     {
         Guid notificationId = Guid.Parse("4cb38822-3497-4650-bac0-82da974c1d28");
-        DateTime notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
+        DateTime notificationTime = new(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
         string identifier = $"sound:{notificationId}";
         const string filesResponse = """
             {
@@ -136,14 +133,13 @@ public sealed class TestCheckForSoundRecordingStorage
               "files_size":1
             }
             """;
-        Mock<IHttpClient> httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
-        Mock<IDBClient> dbClient = new Mock<IDBClient>(MockBehavior.Strict);
-        RecordingObjectStorageClient storage = new RecordingObjectStorageClient();
+        Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
+        Mock<IDBClient> dbClient = new(MockBehavior.Strict);
+        RecordingObjectStorageClient storage = new();
         dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
-            new List<NoiseNotificationLatest>
-            {
+            [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
-            });
+            ]);
         dbClient.Setup(client => client.HandleException(
             identifier,
             It.IsAny<InvalidDataException>()));
@@ -152,7 +148,7 @@ public sealed class TestCheckForSoundRecordingStorage
                 It.IsAny<HttpContent>(),
                 CancellationToken.None))
             .ReturnsAsync(filesResponse);
-        CheckForSoundRecordingsHandler handler = new CheckForSoundRecordingsHandler(
+        CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
             dbClient.Object,
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
@@ -173,7 +169,7 @@ public sealed class TestCheckForSoundRecordingStorage
     public async Task RunAsync_LowercaseWav_IsExcludedByOrdinalCaseSensitiveFilter()
     {
         Guid notificationId = Guid.Parse("4cb38822-3497-4650-bac0-82da974c1d28");
-        DateTime notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
+        DateTime notificationTime = new(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
         const string filesResponse = """
             {
               "status": "ok",
@@ -183,20 +179,19 @@ public sealed class TestCheckForSoundRecordingStorage
               "files_size": 1
             }
             """;
-        Mock<IHttpClient> httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
-        Mock<IDBClient> dbClient = new Mock<IDBClient>(MockBehavior.Strict);
-        RecordingObjectStorageClient storage = new RecordingObjectStorageClient();
+        Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
+        Mock<IDBClient> dbClient = new(MockBehavior.Strict);
+        RecordingObjectStorageClient storage = new();
         dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
-            new List<NoiseNotificationLatest>
-            {
+            [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
-            });
+            ]);
         httpClient.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
                 CancellationToken.None))
             .ReturnsAsync(filesResponse);
-        CheckForSoundRecordingsHandler handler = new CheckForSoundRecordingsHandler(
+        CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
             dbClient.Object,
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
@@ -221,7 +216,7 @@ internal sealed class RecordingObjectStorageClient : IObjectStorageClient
         StorageWriteRequest request,
         CancellationToken cancellationToken = default)
     {
-        using MemoryStream buffer = new MemoryStream();
+        using MemoryStream buffer = new();
         await request.Content.CopyToAsync(buffer, cancellationToken);
         Writes.Add(new(
             request.Key,

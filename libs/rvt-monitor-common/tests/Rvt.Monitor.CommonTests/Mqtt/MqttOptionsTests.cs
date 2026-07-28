@@ -39,7 +39,7 @@ public sealed class MqttOptionsTests
     [TestMethod]
     public void Defaults_AreDisabledAndUseTheBrokerTlsPort()
     {
-        MqttOptions options = new MqttOptions();
+        MqttOptions options = new();
 
         Assert.IsFalse(options.Enabled);
         Assert.AreEqual(8883, options.Port);
@@ -58,9 +58,9 @@ public sealed class MqttOptionsTests
     [TestMethod]
     public void Client_AcceptsExplicitOptionsWithoutTouchingStaticConfiguration()
     {
-        MqttOptions options = new MqttOptions { Enabled = false, Hostname = "broker.example.test" };
+        MqttOptions options = new() { Enabled = false, Hostname = "broker.example.test" };
 
-        using RvtMqttClient client = new RvtMqttClient(options);
+        using RvtMqttClient client = new(options);
 
         Assert.IsNotNull(client);
     }
@@ -68,7 +68,7 @@ public sealed class MqttOptionsTests
     [TestMethod]
     public async Task PublishAsync_WhenDisabled_IsANoOp()
     {
-        using RvtMqttClient client = new RvtMqttClient(new MqttOptions { Enabled = false });
+        using RvtMqttClient client = new(new MqttOptions { Enabled = false });
 
         await client.PublishAsync("rvt/noise/inserted", "{}");
     }
@@ -76,7 +76,7 @@ public sealed class MqttOptionsTests
     [TestMethod]
     public async Task ConnectAsync_WhenDisabled_ReportsSuccessWithoutConnecting()
     {
-        using RvtMqttClient client = new RvtMqttClient(new MqttOptions { Enabled = false });
+        using RvtMqttClient client = new(new MqttOptions { Enabled = false });
 
         Assert.IsTrue(await client.ConnectAsync());
     }

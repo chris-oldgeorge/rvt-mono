@@ -103,7 +103,7 @@ public static class ServiceCollectionExtensions
         });
         services.AddOptions<PortalEmailOptions>().BindConfiguration("EmailConfiguration");
         bool emailEnabled = configuration.GetValue("RVT:EMAIL_ENABLED", true);
-        SendGridMailOptions sendGridMailOptions = new SendGridMailOptions
+        SendGridMailOptions sendGridMailOptions = new()
         {
             Enabled = emailEnabled,
             ApiKey = configuration["EmailConfiguration:SENDGRID_API_KEY"] ?? string.Empty,

@@ -32,7 +32,7 @@ public abstract class ObjectStorageClientContractTests
     {
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         StorageObjectKey key = StorageObjectKey.Parse(" project\\source//sample.bin ");
-        await using NonSeekableReadStream content = new NonSeekableReadStream([1, 2, 3]);
+        await using NonSeekableReadStream content = new([1, 2, 3]);
 
         StorageWriteResult result = await fixture.Client.WriteAsync(
             new StorageWriteRequest(key, content, "application/octet-stream"));
@@ -110,7 +110,7 @@ public abstract class ObjectStorageClientContractTests
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "original/type");
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -134,7 +134,7 @@ public abstract class ObjectStorageClientContractTests
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "original/type");
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -153,7 +153,7 @@ public abstract class ObjectStorageClientContractTests
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
         StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "original/type");
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -192,7 +192,7 @@ public abstract class ObjectStorageClientContractTests
 
     private static async Task<byte[]> ReadAllBytesAsync(Stream content)
     {
-        using MemoryStream buffer = new MemoryStream();
+        using MemoryStream buffer = new();
         await content.CopyToAsync(buffer);
         return buffer.ToArray();
     }

@@ -3,6 +3,37 @@
 ## Authoritative checkpoint: explicit local types ready for publication — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
+- **PR remediation resumed.** PR
+  `https://github.com/chris-oldgeorge/rvt-mono/pull/17` is open. Commit
+  `7456ffd6` is pushed; local follow-up commit `2b8fb80` is not pushed.
+- The first CI run (`30394803605`) passed setup, restore, policy,
+  configuration, and workflow checks, then failed the changed-range ratchet.
+  Explicit local types made adjacent target-typed construction and collection
+  rules applicable on the same changed lines.
+- Local remediation applied repository whitespace formatting and targeted
+  Roslyn fixes for the reported style rules. It also lower-cased one changed
+  lambda variable and initialized 39 EF `DbSet` properties with `null!` to
+  clear the newly surfaced CS8618 file-level increase.
+- The first targeted formatter sequence mistakenly omitted `--severity info`,
+  so its 16-file fixed point did not match the ratchet's invocation. After
+  reproducing that mismatch, the exact info-severity rule set was applied. Two
+  passes changed 287 already-migrated C# files; a third identical pass left the
+  diff hash unchanged at
+  `1b6d71018b18fd37614de84a0521a31d361d9ba7`.
+- The exact-severity result still passes strict `IDE0008` verification, and
+  the complete solution builds with 0 warnings and 0 errors. No remediation
+  commit has been pushed.
+- The next exact ratchet run reduced the remaining scope to 15 findings: one
+  `IDE0047` expression and 14 `IDE1006` tuple-element names in four Portal
+  files. The expression was formatted and the tuple elements were renamed to
+  lower camel case without changing tuple order or values. The solution still
+  builds with 0 warnings and 0 errors.
+- Final local verification:
+  `scripts/verify-engineering-standards.sh --base origin/main --head HEAD`
+  passes with only baseline decreases and no violations or increases; strict
+  `IDE0008` passes; the full solution builds with 0 warnings and 0 errors.
+- Next: push the local follow-up commit to PR #17, wait for green CI, then
+  merge and verify `origin/main`.
 - Working branch `codex/explicit-local-types-main` is based directly on
   `origin/main` at `6be9c90a`; it supersedes the preserved stale-base commit
   `fd45166` on `codex/explicit-local-types`.

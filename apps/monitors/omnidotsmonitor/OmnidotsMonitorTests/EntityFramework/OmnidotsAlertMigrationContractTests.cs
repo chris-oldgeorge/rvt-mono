@@ -64,7 +64,7 @@ public sealed class OmnidotsAlertMigrationContractTests
             );
             """;
 
-        using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
         await using PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(prerequisiteSchema, "SELECT 1;", timeout.Token);
 
         string forward = ReadScript("postgres", ForwardScript);
@@ -116,7 +116,7 @@ public sealed class OmnidotsAlertMigrationContractTests
     {
         await using NpgsqlConnection connection = database.OpenConnection();
         await connection.OpenAsync(cancellationToken);
-        await using NpgsqlCommand command = new NpgsqlCommand(script, connection) { CommandTimeout = 30 };
+        await using NpgsqlCommand command = new(script, connection) { CommandTimeout = 30 };
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -124,7 +124,7 @@ public sealed class OmnidotsAlertMigrationContractTests
     {
         await using NpgsqlConnection connection = database.OpenConnection();
         await connection.OpenAsync(cancellationToken);
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection) { CommandTimeout = 30 };
+        await using NpgsqlCommand command = new(sql, connection) { CommandTimeout = 30 };
         object? result = await command.ExecuteScalarAsync(cancellationToken);
         Assert.IsNotNull(result);
         return (T)Convert.ChangeType(result, typeof(T), CultureInfo.InvariantCulture);

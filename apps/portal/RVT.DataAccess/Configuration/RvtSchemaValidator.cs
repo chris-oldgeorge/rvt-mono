@@ -2,11 +2,7 @@
 // Major updates:
 // - 2026-07-14 pending Added so mapping drift fails at startup instead of on the first query that touches it.
 
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -54,7 +50,7 @@ namespace RVT.DataAccess.Configuration
             IModel model,
             IReadOnlyDictionary<string, IReadOnlySet<string>> actualColumnsByRelation)
         {
-            List<SchemaMismatch> mismatches = new List<SchemaMismatch>();
+            List<SchemaMismatch> mismatches = new();
 
             foreach (IEntityType entityType in model.GetEntityTypes())
             {
@@ -110,7 +106,7 @@ namespace RVT.DataAccess.Configuration
                 command.CommandText =
                     "SELECT table_name, column_name FROM information_schema.columns";
 
-                Dictionary<string, IReadOnlySet<string>> result = new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase);
+                Dictionary<string, IReadOnlySet<string>> result = new(StringComparer.OrdinalIgnoreCase);
                 await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
                 while (await reader.ReadAsync(cancellationToken))
                 {

@@ -200,7 +200,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     public void AddOmnidotsMonitor_InvalidLegacyDelay_FailsWithoutExposingValue()
     {
         const string invalidDelay = "invalid-delay-value-marker";
-        Dictionary<string, string?> configurationValues = new Dictionary<string, string?>
+        Dictionary<string, string?> configurationValues = new()
         {
             ["MonitorApi:Enabled"] = "true",
             ["RVT__OMNIDOTS_WEBHOOK_URL"] = WebhookUrl,
@@ -244,7 +244,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
     [TestMethod]
     public void AddOmnidotsMonitor_BlankSectionValueFallsBackToLegacyAlias()
     {
-        Dictionary<string, string?> configurationValues = new Dictionary<string, string?>
+        Dictionary<string, string?> configurationValues = new()
         {
             ["MonitorApi:Enabled"] = "true",
             [$"{OmnidotsApiSecurityOptions.SectionName}:WebhookUrl"] = WebhookUrl,
@@ -418,7 +418,7 @@ public sealed class OmnidotsApiSecurityOptionsTests
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configurationValues)
             .Build();
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.Api));
         services.AddLogging();

@@ -11,7 +11,7 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
     [TestMethod]
     public void AddMonitorQuartzScheduler_DoesNotRegisterHostedSchedulerWhenDisabled()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddMonitorQuartzScheduler<TestDispatcher>(CreateConfiguration(enabled: false), "TestMonitor");
 
@@ -21,7 +21,7 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
     [TestMethod]
     public void AddMonitorQuartzScheduler_ThrowsForUnsupportedConfiguredJob()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         IConfiguration configuration = CreateConfiguration(enabled: true, jobName: "MissingJob");
 
         InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
@@ -33,7 +33,7 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
     [TestMethod]
     public void AddMonitorQuartzScheduler_RegistersHostedSchedulerWhenEnabled()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddMonitorQuartzScheduler<TestDispatcher>(CreateConfiguration(enabled: true), "TestMonitor");
 
@@ -44,7 +44,7 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
     [TestMethod]
     public void AddMonitorQuartzScheduler_DoesNotRegisterHostedSchedulerWhenInfrastructureIsAzure()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddMonitorQuartzScheduler<TestDispatcher>(
             CreateConfiguration(enabled: true, infrastructure: "azure"),

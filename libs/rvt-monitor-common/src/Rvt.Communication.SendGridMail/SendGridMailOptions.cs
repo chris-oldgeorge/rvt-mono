@@ -32,7 +32,7 @@ public sealed record SendGridMailOptions
             return;
         }
 
-        List<string> missing = new List<string>();
+        List<string> missing = [];
         Require(ApiKey, "RVT__SENDGRID_API_KEY", missing);
         Require(FromEmail, "RVT__EMAIL_ALERT_FROM_EMAIL", missing);
         Require(FromName, "RVT__EMAIL_ALERT_FROM_NAME", missing);

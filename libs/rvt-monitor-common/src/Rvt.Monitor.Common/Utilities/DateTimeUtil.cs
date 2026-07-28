@@ -67,7 +67,11 @@ namespace Rvt.Monitor.Common.Utilities
 
         public static DateTime? UtcToLocal(DateTime? utc)
         {
-            if (utc == null) return null;
+            if (utc == null)
+            {
+                return null;
+            }
+
             return UtcToLocal((DateTime)utc);
         }
 

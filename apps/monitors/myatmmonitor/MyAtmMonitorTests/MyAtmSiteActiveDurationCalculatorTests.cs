@@ -93,8 +93,8 @@ public sealed class MyAtmSiteActiveDurationCalculatorTests
     public void Between_NonUtcInput_RejectsConversionGuessing()
     {
         MyAtmSiteSchedule schedule = WeekdaySchedule(TimeSpan.Zero, TimeSpan.FromHours(24));
-        DateTime from = new DateTime(2026, 7, 16, 8, 0, 0, DateTimeKind.Unspecified);
-        DateTime to = new DateTime(2026, 7, 16, 9, 0, 0, DateTimeKind.Utc);
+        DateTime from = new(2026, 7, 16, 8, 0, 0, DateTimeKind.Unspecified);
+        DateTime to = new(2026, 7, 16, 9, 0, 0, DateTimeKind.Utc);
 
         Assert.ThrowsExactly<ArgumentException>(() =>
             MyAtmSiteActiveDurationCalculator.Between(schedule, from, to, TimeZoneInfo.Utc));
@@ -103,7 +103,7 @@ public sealed class MyAtmSiteActiveDurationCalculatorTests
     [TestMethod]
     public void Between_IncompleteDailySchedule_RejectsConfiguration()
     {
-        MyAtmSiteSchedule schedule = new MyAtmSiteSchedule { WeekdayStart = TimeSpan.FromHours(8) };
+        MyAtmSiteSchedule schedule = new() { WeekdayStart = TimeSpan.FromHours(8) };
 
         Assert.ThrowsExactly<MyAtmSiteScheduleConfigurationException>(() =>
             MyAtmSiteActiveDurationCalculator.Between(

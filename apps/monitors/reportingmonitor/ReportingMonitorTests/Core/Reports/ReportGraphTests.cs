@@ -15,8 +15,8 @@ public sealed class ReportGraphTests
     [Fact]
     public void BuildReportGraphs_GroupsNoiseDailyAveragesAcrossMonitors()
     {
-        DateTimeOffset measuredAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        SiteReportData site = new SiteReportData
+        DateTimeOffset measuredAt = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        SiteReportData site = new()
         {
             Monitors =
             [
@@ -49,8 +49,8 @@ public sealed class ReportGraphTests
     [Fact]
     public void BuildReportGraphs_AddsMatchingAlertLimitLines()
     {
-        DateTimeOffset measuredAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        MonitorReportData monitor = new MonitorReportData
+        DateTimeOffset measuredAt = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        MonitorReportData monitor = new()
         {
             SerialId = "N1",
             TypeOfMonitor = MonitorType.Noise,
@@ -79,8 +79,8 @@ public sealed class ReportGraphTests
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("el-GR");
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("el-GR");
 
-            DateTimeOffset measuredAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-            ReportGraph graph = new ReportGraph(
+            DateTimeOffset measuredAt = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+            ReportGraph graph = new(
                 "Noise Hourly Averages",
                 MonitorType.Noise,
                 "Hourly",

@@ -104,7 +104,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             .AsNoTracking()
             .Where(item => item.ReportRuleId == reportRuleId)
             .ToListAsync(cancellationToken);
-        HashSet<Guid> assignedUserIds = assignments.Select(item => item.UserId).ToHashSet();
+        HashSet<Guid> assignedUserIds = [.. assignments.Select(item => item.UserId)];
         List<ApplicationUser> candidates = await BuildReportCandidateUsersAsync(rule, assignedUserIds, cancellationToken);
         List<UserListItem> candidateItems = await BuildUserItemsAsync(candidates, cancellationToken);
 
@@ -115,8 +115,8 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             SiteName = site.SiteName,
             CompanyId = company?.Id,
             CompanyName = company?.CompanyName,
-            AvailableUsers = candidateItems.Where(user => !assignedUserIds.Contains(Guid.Parse(user.Id))).ToList(),
-            AssignedUsers = candidateItems.Where(user => assignedUserIds.Contains(Guid.Parse(user.Id))).ToList()
+            AvailableUsers = [.. candidateItems.Where(user => !assignedUserIds.Contains(Guid.Parse(user.Id)))],
+            AssignedUsers = [.. candidateItems.Where(user => assignedUserIds.Contains(Guid.Parse(user.Id)))]
         };
     }
 
@@ -202,7 +202,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             .Where(item => item.ReportRuleId == reportRuleId)
             .Select(item => item.UserId)
             .ToListAsync(cancellationToken);
-        return assignedUserIds.Select(id => id.ToString()).ToList();
+        return [.. assignedUserIds.Select(id => id.ToString())];
     }
 
     // Function summary: Loads active site and assigned user IDs that are visible to a report-recipient picker.
@@ -216,11 +216,10 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             .Where(siteUser => siteUser.SiteId == siteId && siteUser.EndDate == null)
             .Select(siteUser => siteUser.UserId)
             .ToListAsync(cancellationToken);
-        return activeSiteUserIds
+        return [.. activeSiteUserIds
             .Select(id => id.ToString())
             .Concat(assignedUserIds)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+            .Distinct(StringComparer.Ordinal)];
     }
 
     // Function summary: Builds the bounded user-search query for assigned or available report recipients.
@@ -288,11 +287,10 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
         IReadOnlyList<UserSearch> users,
         CancellationToken cancellationToken)
     {
-        List<Guid> userIds = users
+        List<Guid> userIds = [.. users
             .Select(user => Guid.TryParse(user.Id, out Guid parsedId) ? parsedId : (Guid?)null)
             .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToList();
+            .Select(id => id!.Value)];
         Dictionary<Guid, int> siteCounts = userIds.Count == 0
             ? []
             : await domainContext.SiteUsers
@@ -302,9 +300,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
                 .Select(group => new { UserId = group.Key, Count = group.Count() })
                 .ToDictionaryAsync(item => item.UserId, item => item.Count, cancellationToken);
 
-        return users
-            .Select(user => BuildUserItem(user, siteCounts))
-            .ToList();
+        return [.. users.Select(user => BuildUserItem(user, siteCounts))];
     }
 
     // Function summary: Converts a paged recipient query row into the API user list contract.
@@ -347,17 +343,15 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             .Where(siteUser => siteUser.SiteId == rule.SiteId && siteUser.EndDate == null)
             .Select(siteUser => siteUser.UserId)
             .ToListAsync(cancellationToken);
-        HashSet<Guid> visibleUserIds = activeSiteUserIds.Concat(assignedUserIds).ToHashSet();
+        HashSet<Guid> visibleUserIds = [.. activeSiteUserIds, .. assignedUserIds];
 
         // Candidates are the site-visible/assigned users plus every admin. Both sets are resolved in SQL, so
         // the whole users table is no longer materialized and no per-user role round trip is issued.
-        List<string> visibleUserIdStrings = visibleUserIds
-            .Select(id => id.ToString())
-            .ToList();
+        List<string> visibleUserIdStrings = [.. visibleUserIds.Select(id => id.ToString())];
         List<string> adminUserIds = await applicationContext.UserRoles
             .AsNoTracking()
             .Join(
-                applicationContext.Roles.AsNoTracking().Where(role => AdminRoleNames.Contains(role.Name!)),
+                applicationContext.Roles.AsNoTracking().Where(role => AdminRoleNames.Contains(role.Name)),
                 userRole => userRole.RoleId,
                 role => role.Id,
                 (userRole, _) => userRole.UserId)
@@ -377,31 +371,27 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             .Where(user => candidateIds.Contains(user.Id))
             .ToListAsync(cancellationToken);
 
-        return candidates
-            .OrderBy(user => user.Email)
-            .ToList();
+        return [.. candidates.OrderBy(user => user.Email)];
     }
 
     private async Task<List<UserListItem>> BuildUserItemsAsync(
         IReadOnlyList<ApplicationUser> users,
         CancellationToken cancellationToken)
     {
-        List<Guid> companyIds = users
+        List<Guid> companyIds = [.. users
             .Where(user => user.CompanyId.HasValue)
             .Select(user => user.CompanyId!.Value)
-            .Distinct()
-            .ToList();
+            .Distinct()];
         Dictionary<Guid, string> companies = companyIds.Count == 0
             ? []
             : await domainContext.Companies
                 .AsNoTracking()
                 .Where(company => companyIds.Contains(company.Id))
                 .ToDictionaryAsync(company => company.Id, company => company.CompanyName, cancellationToken);
-        List<Guid> userIds = users
+        List<Guid> userIds = [.. users
             .Select(user => Guid.TryParse(user.Id, out Guid parsedId) ? parsedId : (Guid?)null)
             .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToList();
+            .Select(id => id!.Value)];
         Dictionary<Guid, int> siteCounts = userIds.Count == 0
             ? []
             : await domainContext.SiteUsers
@@ -413,10 +403,10 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
 
         // One join for every user's roles, instead of a UserManager round trip inside the loop below.
         Dictionary<string, List<string>> rolesByUser = await LoadRolesByUserAsync(
-            users.Select(user => user.Id).ToList(),
+            [.. users.Select(user => user.Id)],
             cancellationToken);
 
-        List<UserListItem> items = new List<UserListItem>();
+        List<UserListItem> items = new();
         foreach (ApplicationUser user in users)
         {
             string role = rolesByUser.TryGetValue(user.Id, out List<string>? userRoles)

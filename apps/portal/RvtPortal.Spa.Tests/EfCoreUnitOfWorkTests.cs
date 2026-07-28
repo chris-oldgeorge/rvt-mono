@@ -178,8 +178,8 @@ public sealed class EfCoreUnitOfWorkTests
                 // knows the writes are transactional rather than relying on shared-connection side effects.
                 Assert.NotNull(fixture.SearchContext.Database.CurrentTransaction);
                 Assert.NotNull(fixture.ApplicationContext.Database.CurrentTransaction);
-                Assert.Same(callerDbTransaction, fixture.SearchContext.Database.CurrentTransaction!.GetDbTransaction());
-                Assert.Same(callerDbTransaction, fixture.ApplicationContext.Database.CurrentTransaction!.GetDbTransaction());
+                Assert.Same(callerDbTransaction, fixture.SearchContext.Database.CurrentTransaction.GetDbTransaction());
+                Assert.Same(callerDbTransaction, fixture.ApplicationContext.Database.CurrentTransaction.GetDbTransaction());
 
                 fixture.SearchContext.ReportRules.Add(new ReportRule
                 {
@@ -205,18 +205,18 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies the Unit of Work rejects contexts that do not share one connection instead of failing obscurely.
     public async Task ExecuteInTransactionAsync_ThrowsWhenContextsDoNotShareOneConnection()
     {
-        await using SqliteConnection domainConnection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection domainConnection = new("Data Source=:memory:");
         await domainConnection.OpenAsync();
-        await using SqliteConnection otherConnection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection otherConnection = new("Data Source=:memory:");
         await otherConnection.OpenAsync();
 
-        await using RVTDbContext domainContext = new RVTDbContext(
+        await using RVTDbContext domainContext = new(
             new DbContextOptionsBuilder<RVTDbContext>().UseSqlite(domainConnection).Options);
-        await using RVTSearchContext searchContext = new RVTSearchContext(
+        await using RVTSearchContext searchContext = new(
             new DbContextOptionsBuilder<RVTSearchContext>().UseSqlite(otherConnection).Options);
-        await using ApplicationDbContext applicationContext = new ApplicationDbContext(
+        await using ApplicationDbContext applicationContext = new(
             new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(otherConnection).Options);
-        EfCoreUnitOfWork unitOfWork = new EfCoreUnitOfWork(domainContext, searchContext, applicationContext);
+        EfCoreUnitOfWork unitOfWork = new(domainContext, searchContext, applicationContext);
 
         InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.ExecuteInTransactionAsync(
             _ => Task.FromResult(true),
@@ -229,12 +229,12 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies a rollback fault cannot replace the commit fault that caused cleanup to begin.
     public async Task ExecuteInTransactionAsync_CommitFailureRemainsPrimaryWhenRollbackAlsoFails()
     {
-        await using SqliteConnection connection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection connection = new("Data Source=:memory:");
         await connection.OpenAsync();
-        CommitFailureException commitFailure = new CommitFailureException();
-        RollbackFailureException rollbackFailure = new RollbackFailureException();
-        using CancellationTokenSource requestCancellation = new CancellationTokenSource();
-        FailingCommitAndRollbackInterceptor interceptor = new FailingCommitAndRollbackInterceptor(
+        CommitFailureException commitFailure = new();
+        RollbackFailureException rollbackFailure = new();
+        using CancellationTokenSource requestCancellation = new();
+        FailingCommitAndRollbackInterceptor interceptor = new(
             commitFailure,
             rollbackFailure,
             requestCancellation);
@@ -250,11 +250,11 @@ public sealed class EfCoreUnitOfWorkTests
                 .UseSqlite(connection)
                 .Options;
 
-        await using RVTDbContext domainContext = new RVTDbContext(domainOptions);
-        await using RVTSearchContext searchContext = new RVTSearchContext(searchOptions);
+        await using RVTDbContext domainContext = new(domainOptions);
+        await using RVTSearchContext searchContext = new(searchOptions);
         await using ApplicationDbContext applicationContext =
-            new ApplicationDbContext(applicationOptions);
-        EfCoreUnitOfWork unitOfWork = new EfCoreUnitOfWork(
+            new(applicationOptions);
+        EfCoreUnitOfWork unitOfWork = new(
             domainContext,
             searchContext,
             applicationContext);
@@ -285,12 +285,12 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies best-effort secondary diagnostics cannot mask a primary exception with unusable Data.
     public async Task ExecuteInTransactionAsync_CommitFailureRemainsPrimaryWhenDiagnosticsCannotBeAttached()
     {
-        await using SqliteConnection connection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection connection = new("Data Source=:memory:");
         await connection.OpenAsync();
         CommitFailureWithThrowingDataException commitFailure =
-            new CommitFailureWithThrowingDataException();
-        RollbackFailureException rollbackFailure = new RollbackFailureException();
-        FailingCommitAndRollbackInterceptor interceptor = new FailingCommitAndRollbackInterceptor(
+            new();
+        RollbackFailureException rollbackFailure = new();
+        FailingCommitAndRollbackInterceptor interceptor = new(
             commitFailure,
             rollbackFailure);
         DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
@@ -305,11 +305,11 @@ public sealed class EfCoreUnitOfWorkTests
                 .UseSqlite(connection)
                 .Options;
 
-        await using RVTDbContext domainContext = new RVTDbContext(domainOptions);
-        await using RVTSearchContext searchContext = new RVTSearchContext(searchOptions);
+        await using RVTDbContext domainContext = new(domainOptions);
+        await using RVTSearchContext searchContext = new(searchOptions);
         await using ApplicationDbContext applicationContext =
-            new ApplicationDbContext(applicationOptions);
-        EfCoreUnitOfWork unitOfWork = new EfCoreUnitOfWork(
+            new(applicationOptions);
+        EfCoreUnitOfWork unitOfWork = new(
             domainContext,
             searchContext,
             applicationContext);
@@ -329,12 +329,12 @@ public sealed class EfCoreUnitOfWorkTests
     // Function summary: Verifies a retried operation does not re-stage the previous attempt's writes as duplicates.
     public async Task ExecuteInTransactionAsync_ClearsChangeTrackerBetweenRetries()
     {
-        await using SqliteConnection connection = new SqliteConnection("Data Source=:memory:");
+        await using SqliteConnection connection = new("Data Source=:memory:");
         await connection.OpenAsync();
 
         // A retrying execution strategy plus an interceptor that fails the first company INSERT: the strategy
         // retries the whole begin/save/commit block, which re-runs the operation below.
-        FailFirstCompanyInsertInterceptor interceptor = new FailFirstCompanyInsertInterceptor();
+        FailFirstCompanyInsertInterceptor interceptor = new();
         DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
             .UseSqlite(connection, sqlite => sqlite.ExecutionStrategy(dependencies => new RetryOnMarkerStrategy(dependencies)))
             .AddInterceptors(interceptor)
@@ -342,12 +342,12 @@ public sealed class EfCoreUnitOfWorkTests
         DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>().UseSqlite(connection).Options;
         DbContextOptions<ApplicationDbContext> applicationOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options;
 
-        await using RVTDbContext domainContext = new RVTDbContext(domainOptions);
-        await using RVTSearchContext searchContext = new RVTSearchContext(searchOptions);
-        await using ApplicationDbContext applicationContext = new ApplicationDbContext(applicationOptions);
+        await using RVTDbContext domainContext = new(domainOptions);
+        await using RVTSearchContext searchContext = new(searchOptions);
+        await using ApplicationDbContext applicationContext = new(applicationOptions);
         await domainContext.Database.GetService<IRelationalDatabaseCreator>().CreateTablesAsync();
 
-        EfCoreUnitOfWork unitOfWork = new EfCoreUnitOfWork(domainContext, searchContext, applicationContext);
+        EfCoreUnitOfWork unitOfWork = new(domainContext, searchContext, applicationContext);
 
         // The operation adds one company per invocation, mirroring a create handler. If the retry re-runs it
         // without clearing the tracker, the first attempt's still-tracked company is inserted alongside the
@@ -395,7 +395,7 @@ public sealed class EfCoreUnitOfWorkTests
         public override ValueTask<
             Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult>
             TransactionCommittingAsync(
-                System.Data.Common.DbTransaction transaction,
+                DbTransaction transaction,
                 Microsoft.EntityFrameworkCore.Diagnostics.TransactionEventData eventData,
                 Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult result,
                 CancellationToken cancellationToken = default)
@@ -408,7 +408,7 @@ public sealed class EfCoreUnitOfWorkTests
         public override ValueTask<
             Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult>
             TransactionRollingBackAsync(
-                System.Data.Common.DbTransaction transaction,
+                DbTransaction transaction,
                 Microsoft.EntityFrameworkCore.Diagnostics.TransactionEventData eventData,
                 Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult result,
                 CancellationToken cancellationToken = default)
@@ -423,9 +423,9 @@ public sealed class EfCoreUnitOfWorkTests
     private sealed class TransientMarkerException : Exception;
 
     // Retries only the marker exception (unwrapping the DbUpdateException EF wraps it in), with no delay.
-    private sealed class RetryOnMarkerStrategy : Microsoft.EntityFrameworkCore.Storage.ExecutionStrategy
+    private sealed class RetryOnMarkerStrategy : ExecutionStrategy
     {
-        public RetryOnMarkerStrategy(Microsoft.EntityFrameworkCore.Storage.ExecutionStrategyDependencies dependencies)
+        public RetryOnMarkerStrategy(ExecutionStrategyDependencies dependencies)
             : base(dependencies, maxRetryCount: 3, maxRetryDelay: TimeSpan.Zero)
         {
         }
@@ -450,7 +450,7 @@ public sealed class EfCoreUnitOfWorkTests
     {
         public bool Failed { get; private set; }
 
-        private bool ShouldFail(System.Data.Common.DbCommand command)
+        private bool ShouldFail(DbCommand command)
         {
             if (Failed)
             {
@@ -469,7 +469,7 @@ public sealed class EfCoreUnitOfWorkTests
         }
 
         public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>> NonQueryExecutingAsync(
-            System.Data.Common.DbCommand command,
+            DbCommand command,
             Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData eventData,
             Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
             CancellationToken cancellationToken = default)
@@ -482,10 +482,10 @@ public sealed class EfCoreUnitOfWorkTests
             return base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
         }
 
-        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader>> ReaderExecutingAsync(
-            System.Data.Common.DbCommand command,
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
             Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData eventData,
-            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<DbDataReader> result,
             CancellationToken cancellationToken = default)
         {
             if (ShouldFail(command))
@@ -543,7 +543,7 @@ public sealed class EfCoreUnitOfWorkTests
         // Function summary: Creates one in-memory relational database shared by all EF contexts.
         public static async Task<RelationalUnitOfWorkFixture> CreateAsync()
         {
-            SqliteConnection connection = new SqliteConnection("Data Source=:memory:;Foreign Keys=True");
+            SqliteConnection connection = new("Data Source=:memory:;Foreign Keys=True");
             await connection.OpenAsync();
             await EnableForeignKeysAsync(connection);
 

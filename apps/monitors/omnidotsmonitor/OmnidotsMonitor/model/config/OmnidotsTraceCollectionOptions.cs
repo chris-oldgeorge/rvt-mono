@@ -29,7 +29,7 @@ public sealed class OmnidotsTraceCollectionOptions
 
     internal IReadOnlyList<string> GetValidationFailures()
     {
-        List<string> failures = new List<string>();
+        List<string> failures = [];
 
         if (MaxMonitorsPerRun <= 0)
         {

@@ -1,4 +1,4 @@
-﻿// File summary: Defines reusable query, filter, ordering, and result models for searchable grids.
+// File summary: Defines reusable query, filter, ordering, and result models for searchable grids.
 // Major updates:
 // - 2026-06-25 pending Returned concrete string-call expressions for CA1859 analyzer cleanup.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
@@ -87,7 +87,7 @@ public static class FilterExpression
         {
             Expression stringMember = member.Type == typeof(string)
                 ? member
-                : Expression.Call(member, nameof(object.ToString), Type.EmptyTypes);
+                : Expression.Call(member, nameof(ToString), Type.EmptyTypes);
             BinaryExpression notNull = Expression.NotEqual(stringMember, Expression.Constant(null, typeof(string)));
             MethodInfo method = typeof(string).GetMethod(methodName, [typeof(string)])!;
             MethodCallExpression call = Expression.Call(stringMember, method, Expression.Constant(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty));

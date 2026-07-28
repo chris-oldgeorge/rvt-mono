@@ -89,7 +89,7 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
                 options.UseInMemoryDatabase($"{databaseName}-domain").UseInternalServiceProvider(databaseProvider));
             services.AddDbContext<RVTSearchContext>(options =>
                 options.UseInMemoryDatabase($"{databaseName}-search").UseInternalServiceProvider(databaseProvider));
-            services.AddSingleton<IOptions<RvtDatabaseOptions>>(Options.Create(new RvtDatabaseOptions
+            services.AddSingleton(Options.Create(new RvtDatabaseOptions
             {
                 ConnectionString = "Testing"
             }));
@@ -159,7 +159,7 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
         await EnsureRoleAsync(roleManager, RoleNames.RVTInstaller);
         await EnsureRoleAsync(roleManager, RoleNames.CompanyUser);
 
-        ApplicationUser user = new ApplicationUser
+        ApplicationUser user = new()
         {
             UserName = email,
             Email = email,

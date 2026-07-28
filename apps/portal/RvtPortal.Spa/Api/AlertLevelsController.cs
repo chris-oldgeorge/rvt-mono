@@ -11,7 +11,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RVT.BusinessLogic.Application;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Application.AlertLevels;
 using RvtPortal.Spa.Data;
@@ -113,7 +112,7 @@ public class AlertLevelsController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        EntityResponse<AlertLevelItem> response = new EntityResponse<AlertLevelItem> { Item = result.Item };
+        EntityResponse<AlertLevelItem> response = new() { Item = result.Item };
         return CreatedAtAction(nameof(Get), new { id = result.AlertLevelId.Value }, response);
     }
 

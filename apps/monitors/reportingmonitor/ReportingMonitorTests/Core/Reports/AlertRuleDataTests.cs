@@ -11,7 +11,7 @@ public sealed class AlertRuleDataTests
     [Fact]
     public void AveragingPeriodLabel_ReturnsMinutesForNonVibrationRules()
     {
-        AlertRuleData rule = new AlertRuleData(AlertType.Alert, "PM10", 150m, 900, "ug/m3", "PM10", 3);
+        AlertRuleData rule = new(AlertType.Alert, "PM10", 150m, 900, "ug/m3", "PM10", 3);
 
         Assert.Equal("15 mins", rule.AveragingPeriodLabel);
     }
@@ -19,7 +19,7 @@ public sealed class AlertRuleDataTests
     [Fact]
     public void AveragingPeriodLabel_IsBlankWhenVibrationRepositoryClearsAveragingPeriod()
     {
-        AlertRuleData rule = new AlertRuleData(AlertType.Alert, "Peak", 8m, null, "mm/s", "Peak", 4);
+        AlertRuleData rule = new(AlertType.Alert, "Peak", 8m, null, "mm/s", "Peak", 4);
 
         Assert.Null(rule.AveragingPeriodLabel);
     }
@@ -27,7 +27,7 @@ public sealed class AlertRuleDataTests
     [Fact]
     public void LatestClosedNote_UsesNewestMatchingNotificationNote()
     {
-        AlertRuleData rule = new AlertRuleData(AlertType.Alert, "PM10", 150m, 900, "ug/m3", "PM10", 3, "Investigated by site team");
+        AlertRuleData rule = new(AlertType.Alert, "PM10", 150m, 900, "ug/m3", "PM10", 3, "Investigated by site team");
 
         Assert.Equal("Investigated by site team", rule.LatestClosedNote);
     }

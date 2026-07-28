@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
@@ -40,7 +39,7 @@ public sealed class NotifyBatteryLevelsHandler
         List<NoiseMonitorReadDto> monitors = await monitorReader.ReadMonitorsAsync(
             lastDataTime: null,
             cancellationToken).ConfigureAwait(false);
-        SvantekFailureCollector failures = new SvantekFailureCollector(operationalCommands);
+        SvantekFailureCollector failures = new(operationalCommands);
 
         foreach (NoiseMonitorReadDto monitor in monitors)
         {

@@ -25,7 +25,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RVT.BusinessLogic.Application;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Adapters.Storage;
 using RvtPortal.Spa.Api.Mappers;

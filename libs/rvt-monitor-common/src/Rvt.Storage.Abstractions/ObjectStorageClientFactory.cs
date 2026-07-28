@@ -9,7 +9,7 @@ public sealed class ObjectStorageClientFactory : IObjectStorageClientFactory
     {
         ArgumentNullException.ThrowIfNull(registrations);
 
-        Dictionary<string, IObjectStorageClient> registeredClients = new Dictionary<string, IObjectStorageClient>(StringComparer.Ordinal);
+        Dictionary<string, IObjectStorageClient> registeredClients = new(StringComparer.Ordinal);
         foreach (ObjectStorageClientRegistration registration in registrations)
         {
             ArgumentNullException.ThrowIfNull(registration);

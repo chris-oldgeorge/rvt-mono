@@ -18,10 +18,9 @@ public sealed class CommunicationDependencyBoundaryTests
         Assert.DoesNotContain("AWSSDK.S3", project, StringComparison.Ordinal);
         Assert.DoesNotContain("Microsoft.AspNetCore.App", project, StringComparison.Ordinal);
 
-        string[] productionSource = Directory
+        string[] productionSource = [.. Directory
             .EnumerateFiles(Path.Combine(FindRepositoryRoot(), "libs/rvt-monitor-common/src/Rvt.Communication"), "*.cs")
-            .Select(File.ReadAllText)
-            .ToArray();
+            .Select(File.ReadAllText)];
 
         Assert.IsFalse(productionSource.Any(source => source.Contains("Rvt.Monitor.Common.Infrastructure", StringComparison.Ordinal)));
         Assert.IsFalse(productionSource.Any(source => source.Contains("Rvt.Monitor.Common.Communications", StringComparison.Ordinal)));
@@ -32,7 +31,7 @@ public sealed class CommunicationDependencyBoundaryTests
 
     private static string FindRepositoryRoot()
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
             string gitPath = Path.Combine(directory.FullName, ".git");

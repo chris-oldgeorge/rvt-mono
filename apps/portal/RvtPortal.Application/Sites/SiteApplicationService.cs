@@ -611,7 +611,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
         {
             SiteId = data.SiteId,
             SiteName = data.SiteName,
-            Settings = assignments.Select(assignment =>
+            Settings = [.. assignments.Select(assignment =>
             {
                 profiles.TryGetValue(assignment.UserId, out PortalUserProfile? profile);
                 return new SiteNotificationSettingModel(
@@ -625,7 +625,7 @@ public sealed class SiteApplicationService : ISiteApplicationService
                     assignment.Sms,
                     assignment.StartTime,
                     assignment.EndTime);
-            }).ToList()
+            })]
         };
     }
 

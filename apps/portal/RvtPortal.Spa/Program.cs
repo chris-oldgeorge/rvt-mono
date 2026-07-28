@@ -114,9 +114,9 @@ static void ConfigurePublicHosting(WebApplicationBuilder builder)
 static void ConfigureForwardedHeaders(WebApplicationBuilder builder)
 {
     string[] knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
-    IPAddress[] parsedProxies = knownProxies.Select(ParseKnownProxy).ToArray();
+    IPAddress[] parsedProxies = [.. knownProxies.Select(ParseKnownProxy)];
     string[] knownNetworks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [];
-    System.Net.IPNetwork[] parsedNetworks = knownNetworks.Select(ParseKnownNetwork).ToArray();
+    System.Net.IPNetwork[] parsedNetworks = [.. knownNetworks.Select(ParseKnownNetwork)];
 
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
@@ -258,7 +258,7 @@ static void ConfigureDatabases(IServiceCollection services, RvtDatabaseOptions d
     // asserts it. Two consequences follow and are accepted:
     //   * the contexts cannot be pooled (AddDbContextPool), because the options close over a scoped connection;
     //   * queries on different contexts cannot run concurrently within a request - never Task.WhenAll them.
-    services.AddScoped<DbConnection>(_ => databaseOptions.CreateDbConnection());
+    services.AddScoped(_ => databaseOptions.CreateDbConnection());
     services.AddDbContext<ApplicationDbContext>((provider, options) =>
         options.UseRvtDatabaseProvider(
             databaseOptions,
@@ -338,7 +338,7 @@ static void ConfigureDataProtection(WebApplicationBuilder builder)
         return;
     }
 
-    DefaultAzureCredential credential = new DefaultAzureCredential();
+    DefaultAzureCredential credential = new();
     dataProtection.PersistKeysToAzureBlobStorage(new Uri(dataProtectionBlobUri), credential);
     string? dataProtectionKeyIdentifier = builder.Configuration["RvtProduction:DataProtectionKeyIdentifier"];
     if (!string.IsNullOrWhiteSpace(dataProtectionKeyIdentifier))

@@ -120,7 +120,7 @@ public static class RvtCanonicalModelBuilderExtensions
     {
         EntityTypeBuilder entityBuilder = modelBuilder.Entity(entityType.ClrType);
         IMutableKey? primaryKey = entityType.FindPrimaryKey();
-        IMutableForeignKey[] foreignKeys = entityType.GetForeignKeys().ToArray();
+        IMutableForeignKey[] foreignKeys = [.. entityType.GetForeignKeys()];
 
         foreach (IMutableProperty property in entityType.GetProperties())
         {

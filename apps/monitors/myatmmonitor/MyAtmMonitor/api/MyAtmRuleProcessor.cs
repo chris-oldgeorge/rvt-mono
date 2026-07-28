@@ -56,12 +56,12 @@ public sealed class MyAtmRuleProcessor
     {
         DustDto sample = AggregateSample(monitor.SerialId, end, rule.Field, level);
         MyAtmAlertTransition transition = transitionEvaluator.Evaluate(rule, rule.IsActive, sample, alertForFieldIsActive);
-        RuleStateMutation[] mutations = new[]
-        {
+        RuleStateMutation[] mutations =
+        [
             new RuleStateMutation(rule.RuleId, rule.IsActive, rule.Accessed, transition.IsActive, end)
-        };
+        ];
         MyAtmAlertOccurrenceInput[] occurrences = transition.Activated
-            ? new[] { CreateOccurrence(monitor, rule, transition.Level!.Value, end, rule.AlertType, includeMqtt: true, utcNow) }
+            ? [CreateOccurrence(monitor, rule, transition.Level!.Value, end, rule.AlertType, includeMqtt: true, utcNow)]
             : Array.Empty<MyAtmAlertOccurrenceInput>();
         return new MyAtmAlertCommit(mutations, null, occurrences, utcNow);
     }
@@ -86,7 +86,7 @@ public sealed class MyAtmRuleProcessor
         return new MyAtmAlertCommit(
             Array.Empty<RuleStateMutation>(),
             new MyAtmMonitorStateMutation(monitor.Id, ExpectedOffline: false, Offline: true),
-            new[] { occurrence },
+            [occurrence],
             utcNow);
     }
 
@@ -135,7 +135,7 @@ public sealed class MyAtmRuleProcessor
     public void ProcessAlertForContacts(RvtAlertRuleDto ruleDto, double level, DateTime alertTime, DustMonitorDto monitor)
     {
         RequireLegacyDependencies();
-        NotificationDto notification = new NotificationDto(ruleDto, level, alertTime, monitor.Id);
+        NotificationDto notification = new(ruleDto, level, alertTime, monitor.Id);
         legacyOperationalCommands!.WriteNotification(notification);
         foreach (Rvt.Monitor.Common.Rules.RvtContactDto? contact in (ruleQueries.ReadAlertContacts(monitor.Id) ?? []).Where(contact => contact.ShouldSendAtTime(alertTime)))
         {
@@ -160,7 +160,7 @@ public sealed class MyAtmRuleProcessor
         RequireLegacyDependencies();
         foreach (DustDto dust in dtos)
         {
-            List<string> previousAlert = new List<string>();
+            List<string> previousAlert = [];
             foreach (RvtAlertRuleDto? rule in allRules.OrderBy(rule => rule.AlertType))
             {
                 if (rule.IsDeleted)
@@ -225,9 +225,7 @@ public sealed class MyAtmRuleProcessor
         {
             deliveryPlan = deliveryPlan with
             {
-                Deliveries = deliveryPlan.Deliveries
-                    .Where(delivery => delivery.Kind != MonitorDeliveryKind.MqttAlert)
-                    .ToList()
+                Deliveries = [.. deliveryPlan.Deliveries.Where(delivery => delivery.Kind != MonitorDeliveryKind.MqttAlert)]
             };
         }
 

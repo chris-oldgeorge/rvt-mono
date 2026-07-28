@@ -195,13 +195,13 @@ public sealed class OmnidotsModelMappingTests
     {
         using OmnidotsMonitorContext context = CreateContext();
 
-        DateTime utcValue = new DateTime(2026, 7, 14, 9, 30, 0, DateTimeKind.Utc);
-        DateTime[] values = new[]
-        {
+        DateTime utcValue = new(2026, 7, 14, 9, 30, 0, DateTimeKind.Utc);
+        DateTime[] values =
+        [
             utcValue,
             DateTime.SpecifyKind(utcValue, DateTimeKind.Local),
             DateTime.SpecifyKind(utcValue, DateTimeKind.Unspecified)
-        };
+        ];
 
         IEntityType? cursor = context.Model.FindEntityType(typeof(OmnidotsImportCursorEntity));
         Assert.IsNotNull(cursor);
@@ -346,12 +346,12 @@ public sealed class OmnidotsModelMappingTests
         params (string Property, string Column)[] expectedColumns)
     {
         Assert.HasCount(expectedColumns.Length, entityType.GetProperties());
-        foreach ((string Property, string Column) expected in expectedColumns)
+        foreach ((string Property, string Column) in expectedColumns)
         {
             Assert.AreEqual(
-                expected.Column,
-                entityType.FindProperty(expected.Property)!.GetColumnName(),
-                expected.Property);
+                Column,
+                entityType.FindProperty(Property)!.GetColumnName(),
+                Property);
         }
     }
 
@@ -370,12 +370,11 @@ public sealed class OmnidotsModelMappingTests
         Type entityClrType,
         params string[] expectedProperties)
     {
-        string[] keyProperties = context.Model
+        string[] keyProperties = [.. context.Model
             .FindEntityType(entityClrType)!
             .FindPrimaryKey()!
             .Properties
-            .Select(property => property.Name)
-            .ToArray();
+            .Select(property => property.Name)];
         CollectionAssert.AreEqual(expectedProperties, keyProperties);
     }
 
@@ -414,7 +413,7 @@ public sealed class OmnidotsModelMappingTests
 
     private static void AssertSeriesConstraint(IEntityType entity, string name, string sql)
     {
-        ICheckConstraint[] constraints = entity.GetCheckConstraints().ToArray();
+        ICheckConstraint[] constraints = [.. entity.GetCheckConstraints()];
 
         Assert.HasCount(1, constraints);
         Assert.AreEqual(name, constraints[0].Name);
@@ -448,7 +447,7 @@ public sealed class OmnidotsModelMappingTests
 
     private static OmnidotsMonitorContext CreateContext()
     {
-        MonitorDbOptions options = new MonitorDbOptions(new Dictionary<string, string>());
+        MonitorDbOptions options = new(new Dictionary<string, string>());
         DbContextOptions<OmnidotsMonitorContext> dbOptions = new DbContextOptionsBuilder<OmnidotsMonitorContext>()
             .UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata")
             .Options;

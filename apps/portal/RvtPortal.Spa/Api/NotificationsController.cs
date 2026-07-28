@@ -11,7 +11,6 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RVT.BusinessLogic.Application;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Application.Notifications;
@@ -48,7 +47,7 @@ public class NotificationsController : ControllerBase
             return InvalidSort(requestedSort, NotificationApplicationService.SortFields.Keys);
         }
 
-        NotificationQuery query = new NotificationQuery(
+        NotificationQuery query = new(
             request.SearchText,
             request.GetNormalizedPage(),
             request.GetNormalizedPageSize(),
@@ -113,7 +112,7 @@ public class NotificationsController : ControllerBase
     // Function summary: Dispatches transactional batch close after validating the transport request shape.
     public async Task<ActionResult<NotificationBatchCloseResponse>> BatchClose(NotificationBatchCloseRequest request)
     {
-        List<Guid> ids = request.NotificationIds.Distinct().ToList();
+        List<Guid> ids = [.. request.NotificationIds.Distinct()];
         if (ids.Count == 0)
         {
             ModelState.AddModelError(nameof(NotificationBatchCloseRequest.NotificationIds), "Select at least one notification to close.");

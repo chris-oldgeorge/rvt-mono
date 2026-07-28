@@ -4,7 +4,6 @@ using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using MyAtm.Model.Json.Customer;
 using MyAtm.Model.Json.DeviceInfo;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -12,7 +11,6 @@ using Rvt.Monitor.Common.Rules;
 
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace MyAtmMonitorTests
 {
@@ -39,22 +37,22 @@ namespace MyAtmMonitorTests
 
         public static List<RvtContactDto> AlertContacts(TimeSpan? sendStartTime = null, TimeSpan? sendEndTime = null)
         {
-            return new List<RvtContactDto>()
-            {
+            return
+            [
                 new RvtContactDto(ContactMethod.Email, "baz@bob.org", (string?)null,true,false, sendStartTime, sendEndTime)
-            };
+            ];
         }
 
         public static List<DustMonitorDto> CustomerDeviceDtos(DateTime? lastDataTime, bool singleItem = false)
         {
             string json = DevicesResponseJson();
             List<DustMonitor> devices = JsonSerializer.Deserialize<List<DustMonitor>>(json)!;
-            List<DustMonitorDto> dtos = new List<DustMonitorDto>();
+            List<DustMonitorDto> dtos = [];
             foreach (DustMonitor device in devices)
             {
                 string deviceJson = DeviceInfoResponseJson(device.SerialNumber!);
                 DustMonitorInfo deviceInfo = JsonSerializer.Deserialize<DustMonitorInfo>(deviceJson)!;
-                DustMonitorDto dto = new DustMonitorDto(deviceInfo)
+                DustMonitorDto dto = new(deviceInfo)
                 {
                     LastDataTime1Min = lastDataTime,
                     FleetNr = "Fnr" + device.SerialNumber!.ToString(), //Instead fo fleetNr using the serial
@@ -145,7 +143,7 @@ namespace MyAtmMonitorTests
         public static string MeasurementsResponseJson(int numMeasuements, DateTime startTime, double startLevel = 1.0, double levelInc = 0.5)
         {
 
-            List<DeviceMeasurement> measurements = new List<DeviceMeasurement>();
+            List<DeviceMeasurement> measurements = [];
             for (int i = 0; i < numMeasuements; i++)
             {
                 double level = startLevel + (levelInc * i);
@@ -180,8 +178,8 @@ namespace MyAtmMonitorTests
         internal static List<RvtAlertRuleDto> OfflineRules()
         {
 
-            List<RvtAlertRuleDto> rules = new List<RvtAlertRuleDto>
-            {
+            List<RvtAlertRuleDto> rules =
+            [
                 new(ruleId: Guid.NewGuid(),
                           serialId: null,
                           field: "offline-rule",
@@ -201,7 +199,7 @@ namespace MyAtmMonitorTests
                         isDeleted: false,
                         created: DateTime.UtcNow,
                         accessed: null)
-            };
+            ];
 
             return rules;
         }

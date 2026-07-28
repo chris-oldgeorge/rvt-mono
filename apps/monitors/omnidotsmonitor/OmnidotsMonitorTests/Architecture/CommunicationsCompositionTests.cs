@@ -67,7 +67,7 @@ public sealed class CommunicationsCompositionTests
     private static (ServiceCollection Services, IConfiguration Configuration) CreateServices(
         IReadOnlyDictionary<string, string?>? settings = null)
     {
-        Dictionary<string, string?> values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["RVT:EMAIL_ENABLED"] = "false",
             ["RVT:SMS_ENABLED"] = "false"
@@ -83,7 +83,7 @@ public sealed class CommunicationsCompositionTests
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(values)
             .Build();
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddLogging();
         services.AddSingleton<IConfiguration>(configuration);
         return (services, configuration);
@@ -93,12 +93,11 @@ public sealed class CommunicationsCompositionTests
         IServiceCollection services,
         IServiceProvider provider)
     {
-        Type[] validatorTypes = services
+        Type[] validatorTypes = [.. services
             .Where(descriptor => descriptor.ServiceType == typeof(IHostedService))
             .Select(descriptor => descriptor.ImplementationType)
             .Where(type => type?.Namespace?.StartsWith("Rvt.Communication.", StringComparison.Ordinal) == true)
-            .Cast<Type>()
-            .ToArray();
+            .Cast<Type>()];
         Assert.IsTrue(validatorTypes.Any(type => type.FullName ==
             "Rvt.Communication.SendGridMail.SendGridMailStartupValidationService"));
         Assert.IsTrue(validatorTypes.Any(type => type.FullName ==

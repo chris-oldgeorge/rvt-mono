@@ -148,15 +148,14 @@ public sealed class ReportingDependencyBoundaryTests
             "Rvt.Reporting.Messaging.csproj"));
         Assert.DoesNotContain("SendGrid", messagingProject, StringComparison.OrdinalIgnoreCase);
 
-        string[] messagingSource = Directory
+        string[] messagingSource = [.. Directory
             .EnumerateFiles(
                 Path.Combine(FindMonitorsRoot(), "reportingmonitor", "Rvt.Reporting.Messaging"),
                 "*.cs",
                 SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-            .Select(File.ReadAllText)
-            .ToArray();
+            .Select(File.ReadAllText)];
 
         Assert.DoesNotContain(messagingSource, text =>
             text.Contains("using " + "SendGrid", StringComparison.Ordinal) ||
@@ -167,7 +166,7 @@ public sealed class ReportingDependencyBoundaryTests
 
     private static string FindMonitorsRoot()
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
             string gitPath = Path.Combine(directory.FullName, ".git");

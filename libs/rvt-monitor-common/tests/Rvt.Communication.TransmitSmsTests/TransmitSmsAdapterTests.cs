@@ -13,8 +13,8 @@ public sealed class TransmitSmsAdapterTests
     public async Task SendAsync_MapsPortRequestAndConfiguredCredentials()
     {
         using CapturingHandler handler = SuccessHandler();
-        using HttpClient httpClient = new HttpClient(handler);
-        TransmitSmsAdapter adapter = new TransmitSmsAdapter(httpClient, EnabledOptions());
+        using HttpClient httpClient = new(handler);
+        TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         await adapter.SendAsync(
             new SmsDeliveryRequest("447700900123", "Threshold breached"),
@@ -29,8 +29,8 @@ public sealed class TransmitSmsAdapterTests
     public async Task SendAsync_DisabledSmsIsConfigurationFailureBeforeNetworkCall()
     {
         using CapturingHandler handler = SuccessHandler();
-        using HttpClient httpClient = new HttpClient(handler);
-        TransmitSmsAdapter adapter = new TransmitSmsAdapter(httpClient, new TransmitSmsOptions
+        using HttpClient httpClient = new(handler);
+        TransmitSmsAdapter adapter = new(httpClient, new TransmitSmsOptions
         {
             Enabled = false
         });
@@ -48,9 +48,9 @@ public sealed class TransmitSmsAdapterTests
     [DataRow(HttpStatusCode.InternalServerError)]
     public async Task SendAsync_TransientHttpStatusIsClassified(HttpStatusCode statusCode)
     {
-        using CapturingHandler handler = new CapturingHandler(statusCode, "raw-private-response");
-        using HttpClient httpClient = new HttpClient(handler);
-        TransmitSmsAdapter adapter = new TransmitSmsAdapter(httpClient, EnabledOptions());
+        using CapturingHandler handler = new(statusCode, "raw-private-response");
+        using HttpClient httpClient = new(handler);
+        TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
             adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
@@ -68,9 +68,9 @@ public sealed class TransmitSmsAdapterTests
     [DataRow(HttpStatusCode.Forbidden)]
     public async Task SendAsync_OtherHttpClientFailuresArePermanent(HttpStatusCode statusCode)
     {
-        using CapturingHandler handler = new CapturingHandler(statusCode, "raw-private-response");
-        using HttpClient httpClient = new HttpClient(handler);
-        TransmitSmsAdapter adapter = new TransmitSmsAdapter(httpClient, EnabledOptions());
+        using CapturingHandler handler = new(statusCode, "raw-private-response");
+        using HttpClient httpClient = new(handler);
+        TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
             adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
@@ -81,11 +81,11 @@ public sealed class TransmitSmsAdapterTests
     [TestMethod]
     public async Task SendAsync_ApiLevelFailureIsPermanentAndKeepsOnlyCode()
     {
-        using CapturingHandler handler = new CapturingHandler(
+        using CapturingHandler handler = new(
             HttpStatusCode.OK,
             """{"error":{"code":"FIELD_INVALID","description":"raw private recipient"}}""");
-        using HttpClient httpClient = new HttpClient(handler);
-        TransmitSmsAdapter adapter = new TransmitSmsAdapter(httpClient, EnabledOptions());
+        using HttpClient httpClient = new(handler);
+        TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
             adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
@@ -98,9 +98,9 @@ public sealed class TransmitSmsAdapterTests
     [TestMethod]
     public async Task SendAsync_NetworkFailureIsTransient()
     {
-        using ThrowingHandler handler = new ThrowingHandler(new HttpRequestException("raw network secret"));
-        using HttpClient httpClient = new HttpClient(handler);
-        TransmitSmsAdapter adapter = new TransmitSmsAdapter(httpClient, EnabledOptions());
+        using ThrowingHandler handler = new(new HttpRequestException("raw network secret"));
+        using HttpClient httpClient = new(handler);
+        TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
             adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
@@ -112,12 +112,12 @@ public sealed class TransmitSmsAdapterTests
     [TestMethod]
     public async Task SendAsync_TransientHttpFailureRetainsRetryAfter()
     {
-        using CapturingHandler handler = new CapturingHandler(
+        using CapturingHandler handler = new(
             (HttpStatusCode)429,
             "raw-private-response",
             TimeSpan.FromSeconds(30));
-        using HttpClient httpClient = new HttpClient(handler);
-        TransmitSmsAdapter adapter = new TransmitSmsAdapter(httpClient, EnabledOptions());
+        using HttpClient httpClient = new(handler);
+        TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
             adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body")));
@@ -130,12 +130,12 @@ public sealed class TransmitSmsAdapterTests
     [TestMethod]
     public async Task SendAsync_CallerCancellationPropagates()
     {
-        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
+        using CancellationTokenSource cancellationSource = new();
         cancellationSource.Cancel();
-        using ThrowingHandler handler = new ThrowingHandler(
+        using ThrowingHandler handler = new(
             new OperationCanceledException(cancellationSource.Token));
-        using HttpClient httpClient = new HttpClient(handler);
-        TransmitSmsAdapter adapter = new TransmitSmsAdapter(httpClient, EnabledOptions());
+        using HttpClient httpClient = new(handler);
+        TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
 
         OperationCanceledException exception = await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             adapter.SendAsync(

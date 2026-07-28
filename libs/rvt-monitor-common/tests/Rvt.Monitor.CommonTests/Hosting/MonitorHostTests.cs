@@ -38,7 +38,7 @@ public sealed class MonitorHostTests
     [TestMethod]
     public async Task RunAsync_ReturnsOneAndWritesExceptionMessageWhenJobRunnerThrows()
     {
-        using StringWriter error = new StringWriter();
+        using StringWriter error = new();
         TextWriter originalError = Console.Error;
         Console.SetError(error);
 
@@ -63,7 +63,7 @@ public sealed class MonitorHostTests
     [TestMethod]
     public async Task RunAsync_ReturnsTwoAndWritesErrorWhenNoExecutionModeIsConfigured()
     {
-        using StringWriter error = new StringWriter();
+        using StringWriter error = new();
         TextWriter originalError = Console.Error;
         Console.SetError(error);
 

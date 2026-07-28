@@ -23,9 +23,9 @@ public sealed class NoiseRuleEvaluatorTests
         int updateCount = 0;
         bool contactsWereRead = false;
         bool notificationWasProcessed = false;
-        FakeEventPublisher eventPublisher = new FakeEventPublisher();
+        FakeEventPublisher eventPublisher = new();
 
-        NoiseRuleEvaluator evaluator = new NoiseRuleEvaluator(
+        NoiseRuleEvaluator evaluator = new(
             _ => updateCount++,
             _ =>
             {

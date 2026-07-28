@@ -6,7 +6,6 @@
 
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic.Application;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Identity;
@@ -69,7 +68,7 @@ public sealed class AlertLevelQueryResult
     public bool MissingMonitor { get; init; }
     public bool NotFound { get; init; }
     public string? InvalidSort { get; init; }
-    public IReadOnlyCollection<string> ValidSorts { get; init; } = AlertLevelApplicationService.SortFields.Keys.ToArray();
+    public IReadOnlyCollection<string> ValidSorts { get; init; } = [.. AlertLevelApplicationService.SortFields.Keys];
     public QueryAlertLevelsResponse? Response { get; init; }
 }
 
@@ -165,7 +164,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
             return new AlertLevelQueryResult
             {
                 InvalidSort = requestedSort,
-                ValidSorts = SortFields.Keys.ToArray()
+                ValidSorts = [.. SortFields.Keys]
             };
         }
 
@@ -173,17 +172,17 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
             .AsNoTracking()
             .Where(level => level.MonitorId == monitorId && !level.IsDeleted)
             .ToListAsync(cancellationToken);
-        List<AlertLevelItem> rows = ApplySort(
+        List<AlertLevelItem> rows = [.. ApplySort(
             levels.Select(level => AlertLevelWorkflow.BuildAlertLevelItem(level, monitor.TypeOfMonitor)),
             requestedSort,
-            query.SortDir).ToList();
+            query.SortDir)];
         int total = rows.Count;
 
         return new AlertLevelQueryResult
         {
             Response = new QueryAlertLevelsResponse
             {
-                Results = rows.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToList(),
+                Results = [.. rows.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)],
                 Total = total,
                 Page = query.Page,
                 PageSize = query.PageSize,

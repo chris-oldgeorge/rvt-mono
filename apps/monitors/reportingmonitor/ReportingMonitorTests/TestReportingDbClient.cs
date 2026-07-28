@@ -234,7 +234,7 @@ public sealed class ReportingMonitorCompositionTests
                 ["RVT:EMAIL_ENABLED"] = "false"
             })
             .Build();
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
         services.AddReportingMonitor(configuration);
@@ -265,7 +265,7 @@ public sealed class ReportingDbFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         database = await PostgreSqlIntegrationDatabase.CreateAsync(ReadTestData(CreateScript), ReadTestData(ResetScript));
-        MonitorDbOptions monitorOptions = new MonitorDbOptions(new Dictionary<string, string>());
+        MonitorDbOptions monitorOptions = new(new Dictionary<string, string>());
         DbContextOptions<ReportingMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<ReportingMonitorContext>(database.ConnectionString);
         context = new ReportingMonitorContext(options, monitorOptions);
         secondContext = new ReportingMonitorContext(options, monitorOptions);
@@ -487,7 +487,7 @@ public sealed class ReportingDbFixture : IAsyncLifetime
     {
         await using NpgsqlConnection connection = (database ?? throw new InvalidOperationException("Fixture has not been initialized.")).OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         configure(command);
         await command.ExecuteNonQueryAsync();
     }

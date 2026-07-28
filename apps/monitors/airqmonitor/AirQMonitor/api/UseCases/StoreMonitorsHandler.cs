@@ -44,8 +44,8 @@ namespace AirQ.Api.UseCases
                 throw;
             }
 
-            List<NoiseMonitorDto> dtos = new List<NoiseMonitorDto>();
-            List<Exception> failures = new List<Exception>();
+            List<NoiseMonitorDto> dtos = [];
+            List<Exception> failures = [];
             foreach (InstrumentResponse monitor in monitors)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -103,10 +103,10 @@ namespace AirQ.Api.UseCases
 
         private static List<MetaDataResponse> EmptyMetaData()
         {
-            return new List<MetaDataResponse>
-                {
+            return
+                [
                     new MetaDataResponse()
-                };
+                ];
         }
     }
 }

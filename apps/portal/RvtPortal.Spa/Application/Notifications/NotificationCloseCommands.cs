@@ -47,7 +47,7 @@ public sealed class CloseNotificationCommandHandler
         CloseNotificationCommand request,
         CancellationToken cancellationToken)
     {
-        CloseNotificationResult result = new CloseNotificationResult();
+        CloseNotificationResult result = new();
         Notification? notification = await NotificationCloseWorkflow.LoadNotificationAsync(domainContext, request.NotificationId, cancellationToken);
         if (notification == null)
         {
@@ -120,8 +120,8 @@ public sealed class BatchCloseNotificationsCommandHandler
         BatchCloseNotificationsCommand request,
         CancellationToken cancellationToken)
     {
-        List<Guid> ids = request.NotificationIds.Distinct().ToList();
-        NotificationBatchCloseResponse response = new NotificationBatchCloseResponse { Requested = ids.Count };
+        List<Guid> ids = [.. request.NotificationIds.Distinct()];
+        NotificationBatchCloseResponse response = new() { Requested = ids.Count };
         if (ids.Count == 0)
         {
             return response;
@@ -185,8 +185,8 @@ internal static class NotificationCloseWorkflow
         IReadOnlyCollection<Notification> notifications,
         CancellationToken cancellationToken)
     {
-        List<Guid> monitorIds = notifications.Select(notification => notification.MonitorId).Distinct().ToList();
-        List<Deployment> deployments = new List<Deployment>();
+        List<Guid> monitorIds = [.. notifications.Select(notification => notification.MonitorId).Distinct()];
+        List<Deployment> deployments = new();
         if (monitorIds.Count > 0)
         {
             deployments = await domainContext.Deployments

@@ -14,8 +14,8 @@ public class TransactionPipelineBehaviorTests
     // Function summary: Verifies non-transactional requests bypass Unit of Work persistence.
     public async Task NonTransactionalRequest_BypassesUnitOfWork()
     {
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
-        TransactionPipelineBehavior<QueryRequest, string> behavior = new TransactionPipelineBehavior<QueryRequest, string>(unitOfWork);
+        RecordingUnitOfWork unitOfWork = new();
+        TransactionPipelineBehavior<QueryRequest, string> behavior = new(unitOfWork);
 
         string response = await behavior.Handle(new QueryRequest(), _ => Task.FromResult("query"), CancellationToken.None);
 
@@ -30,8 +30,8 @@ public class TransactionPipelineBehaviorTests
     // Function summary: Verifies transactional requests save and commit exactly once.
     public async Task TransactionalRequest_SavesAndCommitsOnce()
     {
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
-        TransactionPipelineBehavior<CommandRequest, string> behavior = new TransactionPipelineBehavior<CommandRequest, string>(unitOfWork);
+        RecordingUnitOfWork unitOfWork = new();
+        TransactionPipelineBehavior<CommandRequest, string> behavior = new(unitOfWork);
 
         string response = await behavior.Handle(new CommandRequest(), _ => Task.FromResult("command"), CancellationToken.None);
 
@@ -46,8 +46,8 @@ public class TransactionPipelineBehaviorTests
     // Function summary: Verifies handler failures roll back and skip save.
     public async Task TransactionalRequest_RollsBackWhenHandlerFails()
     {
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
-        TransactionPipelineBehavior<CommandRequest, string> behavior = new TransactionPipelineBehavior<CommandRequest, string>(unitOfWork);
+        RecordingUnitOfWork unitOfWork = new();
+        TransactionPipelineBehavior<CommandRequest, string> behavior = new(unitOfWork);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => behavior.Handle(
             new CommandRequest(),
@@ -64,8 +64,8 @@ public class TransactionPipelineBehaviorTests
     // Function summary: Verifies save failures roll back the transaction.
     public async Task TransactionalRequest_RollsBackWhenSaveFails()
     {
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork { ThrowOnSave = true };
-        TransactionPipelineBehavior<CommandRequest, string> behavior = new TransactionPipelineBehavior<CommandRequest, string>(unitOfWork);
+        RecordingUnitOfWork unitOfWork = new() { ThrowOnSave = true };
+        TransactionPipelineBehavior<CommandRequest, string> behavior = new(unitOfWork);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => behavior.Handle(
             new CommandRequest(),

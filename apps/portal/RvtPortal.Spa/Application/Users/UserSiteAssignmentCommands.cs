@@ -51,7 +51,7 @@ public sealed class AddUserToSiteCommandHandler
     // Function summary: Adds a user to a site and creates the default notification settings atomically.
     public async Task<UserSiteAssignmentCommandResult> Handle(AddUserToSiteCommand request, CancellationToken cancellationToken)
     {
-        UserSiteAssignmentCommandResult result = new UserSiteAssignmentCommandResult();
+        UserSiteAssignmentCommandResult result = new();
         if (await userManager.FindByIdAsync(request.UserId.ToString()) == null)
         {
             result.UserNotFound = true;
@@ -71,7 +71,7 @@ public sealed class AddUserToSiteCommandHandler
             return result;
         }
 
-        SiteUsers siteUser = new SiteUsers
+        SiteUsers siteUser = new()
         {
             Id = Guid.NewGuid(),
             StartDate = DateTime.UtcNow,
@@ -107,7 +107,7 @@ public sealed class SetSiteContactCommandHandler
     // Function summary: Sets one assigned user as the site's contact and clears other contacts atomically.
     public async Task<UserSiteAssignmentCommandResult> Handle(SetSiteContactCommand request, CancellationToken cancellationToken)
     {
-        UserSiteAssignmentCommandResult result = new UserSiteAssignmentCommandResult();
+        UserSiteAssignmentCommandResult result = new();
         List<SiteUsers> siteUsers = await domainContext.SiteUsers
             .Where(siteUser => siteUser.SiteId == request.SiteId)
             .ToListAsync(cancellationToken);
@@ -141,7 +141,7 @@ public sealed class RemoveSiteContactCommandHandler
     // Function summary: Clears the site contact flag for all assignments on the requested site.
     public async Task<UserSiteAssignmentCommandResult> Handle(RemoveSiteContactCommand request, CancellationToken cancellationToken)
     {
-        UserSiteAssignmentCommandResult result = new UserSiteAssignmentCommandResult();
+        UserSiteAssignmentCommandResult result = new();
         if (!await domainContext.SiteUsers.AnyAsync(
             siteUser => siteUser.SiteId == request.SiteId && siteUser.UserId == request.UserId,
             cancellationToken))
@@ -176,7 +176,7 @@ public sealed class RemoveUserFromSiteCommandHandler
     // Function summary: Removes a user's site assignment through the shared transaction pipeline.
     public async Task<UserSiteAssignmentCommandResult> Handle(RemoveUserFromSiteCommand request, CancellationToken cancellationToken)
     {
-        UserSiteAssignmentCommandResult result = new UserSiteAssignmentCommandResult();
+        UserSiteAssignmentCommandResult result = new();
         SiteUsers? siteUser = await domainContext.SiteUsers.SingleOrDefaultAsync(
             assignment => assignment.SiteId == request.SiteId && assignment.UserId == request.UserId,
             cancellationToken);

@@ -20,8 +20,8 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
         Assert.IsTrue(File.Exists(fixturePath), $"Missing PostgreSQL fixture: {fixturePath}");
 
         string sql = File.ReadAllText(fixturePath);
-        string[] expectedTables = new[]
-        {
+        string[] expectedTables =
+        [
             "monitor",
             "svantek_monitor_status",
             "svantek_noise_level",
@@ -37,7 +37,7 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
             "site",
             "site_average",
             "error_log"
-        };
+        ];
 
         foreach (string? table in expectedTables)
         {

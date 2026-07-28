@@ -8,9 +8,9 @@ public sealed class ObjectStorageClientFactoryTests
     [TestMethod]
     public void GetRequiredClient_ReturnsOrdinalNamedRegistration()
     {
-        FakeObjectStorageClient lowercaseClient = new FakeObjectStorageClient();
-        FakeObjectStorageClient titlecaseClient = new FakeObjectStorageClient();
-        ObjectStorageClientFactory factory = new ObjectStorageClientFactory(
+        FakeObjectStorageClient lowercaseClient = new();
+        FakeObjectStorageClient titlecaseClient = new();
+        ObjectStorageClientFactory factory = new(
         [
             new("reports", lowercaseClient),
             new("Reports", titlecaseClient),
@@ -35,7 +35,7 @@ public sealed class ObjectStorageClientFactoryTests
     [TestMethod]
     public void GetRequiredClient_RejectsUnknownResourceWithoutListingOtherResources()
     {
-        ObjectStorageClientFactory factory = new ObjectStorageClientFactory(
+        ObjectStorageClientFactory factory = new(
         [
             new("customer-secrets", new FakeObjectStorageClient()),
             new("archive-secrets", new FakeObjectStorageClient()),

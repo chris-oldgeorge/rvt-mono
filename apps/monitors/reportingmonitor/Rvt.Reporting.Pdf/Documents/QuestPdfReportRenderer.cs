@@ -104,7 +104,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
     {
         ArgumentNullException.ThrowIfNull(site);
 
-        List<ReportGraph> graphs = new List<ReportGraph>();
+        List<ReportGraph> graphs = [];
         AddGraph(graphs, site.Monitors, MonitorType.Dust, "Dust Hourly Averages", "Hourly", "ug/m3", "DustHourlyAverage", 3600, static monitor => monitor.DustHourlyAverage);
         AddGraph(graphs, site.Monitors, MonitorType.Dust, "Dust Daily Averages", "Daily", "ug/m3", "DustDailyAverage", 86400, static monitor => monitor.DustDailyAverage);
         AddGraph(graphs, site.Monitors, MonitorType.Noise, "Noise Hourly Averages", "Hourly", "dB", "NoiseHourlyAverage", 3600, static monitor => monitor.NoiseHourlyAverage);
@@ -127,7 +127,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
 
     private static string? FindRvtLogoPath()
     {
-        DirectoryInfo? currentDirectory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? currentDirectory = new(AppContext.BaseDirectory);
         while (currentDirectory is not null)
         {
             string candidatePath = Path.Combine(currentDirectory.FullName, "Assets", RvtLogoAssetName);
@@ -155,7 +155,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
     {
         MonitorReportData[] typeMonitors = [.. monitors.Where(monitor => monitor.TypeOfMonitor == monitorType)];
         ReportGraphSeries[] series = [.. typeMonitors
-            .Select(monitor => new ReportGraphSeries(MonitorLabel(monitor), selectPoints(monitor).OrderBy(static point => point.MeasuredAt).ToArray()))
+            .Select(monitor => new ReportGraphSeries(MonitorLabel(monitor), [.. selectPoints(monitor).OrderBy(static point => point.MeasuredAt)]))
             .Where(static item => item.Points.Count > 0)];
 
         if (series.Length == 0)
@@ -301,8 +301,8 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
 
         decimal xRangeSeconds = Math.Max(1, (decimal)(maxTime - minTime).TotalSeconds);
         decimal yRange = maxValue - minValue;
-        List<string> lines = new List<string>
-        {
+        List<string> lines =
+        [
             $"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:0} {height:0}">""",
             """<rect width="640" height="210" fill="#ffffff"/>""",
             $"""<line x1="{left:0}" y1="{top:0}" x2="{left:0}" y2="{height - bottom:0}" stroke="#6b7280" stroke-width="1"/>""",
@@ -311,7 +311,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
             $"""<text x="8" y="{height - bottom:0}" font-family="Arial" font-size="10" fill="#374151">{XmlEscape(minValue.ToString("0.##", CultureInfo.InvariantCulture))}</text>""",
             $"""<text x="{left:0}" y="{height - 20:0}" font-family="Arial" font-size="10" fill="#374151">{XmlEscape(minTime.ToString("dd/MM", CultureInfo.InvariantCulture))}</text>""",
             $"""<text x="{width - 70:0}" y="{height - 20:0}" font-family="Arial" font-size="10" fill="#374151">{XmlEscape(maxTime.ToString("dd/MM", CultureInfo.InvariantCulture))}</text>"""
-        };
+        ];
 
         for (int index = 0; index < graph.Limits.Count; index++)
         {
@@ -359,11 +359,11 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
         decimal height = top + (days.Length * cellHeight) + bottomPadding;
         int maxCount = Math.Max(1, heatmap.Cells.Max(static cell => cell.AlertCount + cell.CautionCount));
         Dictionary<(DateOnly Day, int Hour), ReportAlertHeatmapCell> cellsByDayHour = heatmap.Cells.ToDictionary(static cell => (cell.Day, cell.Hour));
-        List<string> lines = new List<string>
-        {
+        List<string> lines =
+        [
             $"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:0} {height:0}">""",
             $"""<rect width="{width:0}" height="{height:0}" fill="#ffffff"/>"""
-        };
+        ];
 
         for (int hour = 0; hour < 24; hour += 3)
         {

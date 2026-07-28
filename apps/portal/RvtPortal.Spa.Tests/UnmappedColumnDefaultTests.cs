@@ -34,10 +34,9 @@ public sealed class UnmappedColumnDefaultTests
         string schemaSql = File.ReadAllText(
             Path.Combine(FindRepositoryRoot(), "database", "postgres", "create_unmapped_schema.sql"));
 
-        string[] offenders = ParseAddedColumns(StripSqlComments(schemaSql))
+        string[] offenders = [.. ParseAddedColumns(StripSqlComments(schemaSql))
             .Where(column => column.IsNotNull && !column.HasDefault)
-            .Select(column => column.Name)
-            .ToArray();
+            .Select(column => column.Name)];
 
         Assert.True(
             offenders.Length == 0,
@@ -82,12 +81,12 @@ public sealed class UnmappedColumnDefaultTests
         string? connectionString =
             Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
         DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>().UseNpgsql(connectionString).Options;
-        await using RVTDbContext context = new RVTDbContext(options);
+        await using RVTDbContext context = new(options);
 
         // Rolled back: this proves the schema accepts EF's INSERTs without leaving rows behind.
         await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync();
 
-        MonitorEntity monitor = new MonitorEntity
+        MonitorEntity monitor = new()
         {
             SerialId = "TEST-UNMAPPED-DEFAULTS",
             Manufacturer = "Test",
@@ -125,14 +124,14 @@ public sealed class UnmappedColumnDefaultTests
     {
         string connectionString =
             Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!;
-        ScriptRunner runner = new ScriptRunner(new DeployOptions
+        ScriptRunner runner = new(new DeployOptions
         {
             ConnectionString = connectionString,
             ScriptRoot = Path.Combine(FindRepositoryRoot(), "database", "postgres"),
             DryRun = false
         });
 
-        await using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+        await using NpgsqlConnection connection = new(connectionString);
         await connection.OpenAsync();
         await using NpgsqlTransaction transaction = await connection.BeginTransactionAsync();
 
@@ -234,7 +233,7 @@ public sealed class UnmappedColumnDefaultTests
     // Function summary: Walks up from the test output directory to the repository root.
     private static string FindRepositoryRoot()
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "RvtPortal.Spa.sln")))
@@ -271,8 +270,8 @@ public sealed class UnmappedColumnDefaultTests
             ORDER BY table_name, column_name;
             """;
 
-        Dictionary<string, string> defaults = new Dictionary<string, string>(StringComparer.Ordinal);
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        Dictionary<string, string> defaults = new(StringComparer.Ordinal);
+        await using NpgsqlCommand command = new(sql, connection);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
@@ -291,10 +290,10 @@ public sealed class UnmappedColumnDefaultTests
         DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseNpgsql(connection)
             .Options;
-        await using RVTDbContext context = new RVTDbContext(options);
+        await using RVTDbContext context = new(options);
         await context.Database.UseTransactionAsync(transaction);
 
-        MonitorEntity monitor = new MonitorEntity
+        MonitorEntity monitor = new()
         {
             SerialId = serialId,
             Manufacturer = "Test",
@@ -341,7 +340,7 @@ public sealed class UnmappedColumnDefaultTests
                     '')) FROM public.rvt_alert_rule AS row_data WHERE serial_id = @serial_id);
             """;
 
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("serial_id", serialId);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());

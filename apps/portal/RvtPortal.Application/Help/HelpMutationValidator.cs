@@ -39,7 +39,7 @@ public static partial class HelpMutationValidator
     public static HelpMutationValidationResult ValidateShape(
         HelpArticleMutation mutation)
     {
-        List<UseCaseError> errors = new List<UseCaseError>();
+        List<UseCaseError> errors = new();
         string sectionTitle = Required(
             nameof(HelpArticleMutation.SectionTitle),
             mutation.SectionTitle,
@@ -86,8 +86,8 @@ public static partial class HelpMutationValidator
             mutation.SortOrder,
             errors);
 
-        List<HelpAssetMutation> assets = new List<HelpAssetMutation>();
-        HashSet<Guid> seenAssetIds = new HashSet<Guid>();
+        List<HelpAssetMutation> assets = new();
+        HashSet<Guid> seenAssetIds = new();
         for (int index = 0; index < mutation.Assets.Count; index++)
         {
             HelpAssetMutation asset = mutation.Assets[index];
@@ -172,7 +172,7 @@ public static partial class HelpMutationValidator
             return shape;
         }
 
-        List<UseCaseError> errors = new List<UseCaseError>();
+        List<UseCaseError> errors = new();
         if (requireExistingArticle && !data.ArticleExists)
         {
             errors.Add(new UseCaseError(

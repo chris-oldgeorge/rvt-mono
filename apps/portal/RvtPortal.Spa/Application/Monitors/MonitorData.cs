@@ -1,4 +1,4 @@
-﻿// File summary: Supports RVT business-layer coordination and shared workflow helpers.
+// File summary: Supports RVT business-layer coordination and shared workflow helpers.
 // Major updates:
 // - 2026-07-22 Represented vibration traces with the mapped OmnidotsTrace entity.
 // - 2026-07-09 pending Routed local/UTC conversion through the injected date-time provider.
@@ -8,7 +8,6 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
 using System.Globalization;
-using System.Threading;
 using AForge.Math;
 using RVT.BusinessLogic;
 using RVT.DataAccess.EntityModels.Models;
@@ -37,7 +36,7 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Retrieves frequency data for callers.
         public double GetFrequency(int Index, int MeasurementDuration)
         {
-            return (double)Index / (double)MeasurementDuration / (double)DataLength;
+            return Index / (double)MeasurementDuration / DataLength;
         }
 
         // Function summary: Retrieves magnitude data for callers.
@@ -130,7 +129,7 @@ namespace RvtPortal.Spa.Application.Monitors
         {
             int numEntries = CalculateFourierEntryCount(OmnidotsPeakLevels, MeasurementDuration, UseFastTransform);
 
-            OmnidotsFourierData fourierData = new OmnidotsFourierData
+            OmnidotsFourierData fourierData = new()
             {
                 DataLength = numEntries,
                 XVtopData = new Complex[numEntries],
@@ -475,7 +474,7 @@ namespace RvtPortal.Spa.Application.Monitors
         // Function summary: Converts Fourier data into chart-ready magnitudes.
         private static List<OmnidotsFrequencyMagnitudes> BuildFrequencyMagnitudes(OmnidotsFourierData fourierData, int measurementDuration)
         {
-            List<OmnidotsFrequencyMagnitudes> frequencyMagnitudes = new List<OmnidotsFrequencyMagnitudes>();
+            List<OmnidotsFrequencyMagnitudes> frequencyMagnitudes = new();
             for (int i = 0; i < fourierData.DataLength / 2; i++)
             {
                 frequencyMagnitudes.Add(new OmnidotsFrequencyMagnitudes

@@ -59,10 +59,9 @@ public static class MonitorDb
         DataTable table,
         MonitorDbOptions options)
     {
-        string[] columns = table.Columns
+        string[] columns = [.. table.Columns
             .Cast<DataColumn>()
-            .Select(column => RequireSafeSqlIdentifier(column.ColumnName, "bulk insert column"))
-            .ToArray();
+            .Select(column => RequireSafeSqlIdentifier(column.ColumnName, "bulk insert column"))];
         string mappedTable = options.IdentifierMap.TryGetValue(tableName, out string? mapped)
             ? mapped
             : tableName;

@@ -24,7 +24,7 @@ public sealed class RuleAlertNotificationDispatcher
 
     public void ProcessAlertForContacts(RuleNotificationRequest request, List<RvtContactDto> contacts)
     {
-        NotificationDto notification = new NotificationDto(
+        NotificationDto notification = new(
             id: Guid.NewGuid(),
             notificationTime: request.AlertTime,
             limitOn: request.LimitOn,

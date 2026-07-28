@@ -24,14 +24,13 @@ public class SchemaDeployTests
         string root = FindRepositoryRoot();
         string projectPath = Path.Combine(root, "RVT.SchemaDeploy", "RVT.SchemaDeploy.csproj");
         XDocument project = XDocument.Load(projectPath);
-        XElement[] publishedRepairScripts = project
+        XElement[] publishedRepairScripts = [.. project
             .Descendants("Content")
             .Where(element =>
                 string.Equals(
                     (string?)element.Attribute("Include"),
                     @"..\database\postgres\restore_unmapped_column_defaults.sql",
-                    StringComparison.Ordinal))
-            .ToArray();
+                    StringComparison.Ordinal))];
 
         string projectText = File.ReadAllText(projectPath);
         Assert.Contains(@"post-load\*.sql", projectText, StringComparison.Ordinal);
@@ -52,7 +51,7 @@ public class SchemaDeployTests
         File.WriteAllText(Path.Combine(postLoad, "02_second.sql"), "-- second");
         File.WriteAllText(Path.Combine(postLoad, "01_first.sql"), "-- first");
 
-        ScriptRunner runner = new ScriptRunner(new DeployOptions
+        ScriptRunner runner = new(new DeployOptions
         {
             ConnectionString = "not-used-by-dry-run",
             ScriptRoot = fixture.Path,
@@ -60,7 +59,7 @@ public class SchemaDeployTests
         });
 
         TextWriter originalOutput = Console.Out;
-        await using StringWriter output = new StringWriter();
+        await using StringWriter output = new();
         try
         {
             Console.SetOut(output);
@@ -72,12 +71,11 @@ public class SchemaDeployTests
             Console.SetOut(originalOutput);
         }
 
-        string[] resolved = output.ToString()
+        string[] resolved = [.. output.ToString()
             .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries)
             .Select(line => line.Trim())
             .Where(line => line.StartsWith("would apply", StringComparison.Ordinal))
-            .Select(line => line["would apply".Length..].Trim())
-            .ToArray();
+            .Select(line => line["would apply".Length..].Trim())];
 
         Assert.Equal(
             [
@@ -109,7 +107,7 @@ public class SchemaDeployTests
             Path.Combine(postLoad, "01_lock.sql"),
             "LOCK TABLE pg_temp.schema_deploy_lock_target IN SHARE ROW EXCLUSIVE MODE;");
 
-        ScriptRunner runner = new ScriptRunner(new DeployOptions
+        ScriptRunner runner = new(new DeployOptions
         {
             ConnectionString =
                 Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!,
@@ -251,10 +249,9 @@ public class SchemaDeployTests
         string root = FindRepositoryRoot();
         string directory = Path.Combine(root, "database", "postgres", "post-load");
 
-        string[] scripts = Directory.GetFiles(directory, "*.sql")
+        string[] scripts = [.. Directory.GetFiles(directory, "*.sql")
             .Select(Path.GetFileName)
-            .OfType<string>()
-            .ToArray();
+            .OfType<string>()];
 
         Assert.NotEmpty(scripts);
 
@@ -344,7 +341,7 @@ public class SchemaDeployTests
     // Function summary: Walks up from the test assembly to the repository root.
     private static string FindRepositoryRoot()
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "RvtPortal.Spa.sln")))
         {
             directory = directory.Parent;
@@ -360,7 +357,7 @@ public class SchemaDeployTests
         bool dryRun,
         string expectedStage)
     {
-        ScriptRunner runner = new ScriptRunner(new DeployOptions
+        ScriptRunner runner = new(new DeployOptions
         {
             ConnectionString = "Host=invalid.test;Database=not-used",
             ScriptRoot = scriptRoot,
@@ -411,7 +408,7 @@ public class SchemaDeployTests
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
         string script = Path.Combine(FindRepositoryRoot(), "docs", "deploy", "share-dev-database.sh");
-        ProcessStartInfo startInfo = new ProcessStartInfo("/usr/bin/env")
+        ProcessStartInfo startInfo = new("/usr/bin/env")
         {
             RedirectStandardError = true,
             RedirectStandardOutput = true,

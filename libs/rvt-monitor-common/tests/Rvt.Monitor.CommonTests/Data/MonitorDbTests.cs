@@ -50,7 +50,7 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void MonitorDbOptions_StoresOnlyIdentifierMap()
     {
-        MonitorDbOptions options = new MonitorDbOptions(EmptyIdentifierMap);
+        MonitorDbOptions options = new(EmptyIdentifierMap);
 
         Assert.AreSame(EmptyIdentifierMap, options.IdentifierMap);
         CollectionAssert.AreEquivalent(
@@ -69,7 +69,7 @@ public sealed class MonitorDbTests
         const string fallbackKey = "DatabaseProvider";
         string? previousPrimary = Environment.GetEnvironmentVariable(primaryKey);
         string? previousFallback = Environment.GetEnvironmentVariable(fallbackKey);
-        Dictionary<string, string> identifierMap = new Dictionary<string, string>(StringComparer.Ordinal)
+        Dictionary<string, string> identifierMap = new(StringComparer.Ordinal)
         {
             ["measurements"] = "air_q_noise_level"
         };
@@ -130,11 +130,11 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void BulkInsert_RejectsUnsafeMappedTableBeforeOpeningConnection()
     {
-        MonitorDbOptions options = new MonitorDbOptions(new Dictionary<string, string>(StringComparer.Ordinal)
+        MonitorDbOptions options = new(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["measurements"] = "air_q_noise_level; DROP TABLE monitor;--"
         });
-        DataTable table = new DataTable();
+        DataTable table = new();
         table.Columns.Add("serial_id", typeof(string));
 
         Assert.ThrowsExactly<InvalidOperationException>(() =>
@@ -144,11 +144,11 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void BulkInsert_RejectsUnsafeColumnBeforeOpeningConnection()
     {
-        MonitorDbOptions options = new MonitorDbOptions(new Dictionary<string, string>(StringComparer.Ordinal)
+        MonitorDbOptions options = new(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["measurements"] = "air_q_noise_level"
         });
-        DataTable table = new DataTable();
+        DataTable table = new();
         table.Columns.Add("serial_id; DROP TABLE monitor;--", typeof(string));
 
         Assert.ThrowsExactly<InvalidOperationException>(() =>
@@ -158,7 +158,7 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void RequireMappedSqlIdentifier_ReturnsMappedIdentifierForAllowedKey()
     {
-        Dictionary<string, string> allowed = new Dictionary<string, string>(StringComparer.Ordinal)
+        Dictionary<string, string> allowed = new(StringComparer.Ordinal)
         {
             ["noise"] = "air_q_noise_level",
             ["identity"] = "\"AspNetUsers\""
@@ -175,7 +175,7 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void RequireMappedSqlIdentifier_RejectsUnknownOrUnsafeMappedIdentifier()
     {
-        Dictionary<string, string> allowed = new Dictionary<string, string>(StringComparer.Ordinal)
+        Dictionary<string, string> allowed = new(StringComparer.Ordinal)
         {
             ["noise"] = "air_q_noise_level",
             ["unsafe"] = "air_q_noise_level; DROP TABLE monitor;--"
@@ -213,10 +213,9 @@ public sealed class MonitorDbTests
     [TestMethod]
     public void MonitorDb_ExposesNoRuntimeSqlRewriteEntryPoints()
     {
-        string[] publicMethods = typeof(MonitorDb)
+        string[] publicMethods = [.. typeof(MonitorDb)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Select(method => method.Name)
-            .ToArray();
+            .Select(method => method.Name)];
 
         CollectionAssert.DoesNotContain(publicMethods, "ResolveProvider");
         CollectionAssert.DoesNotContain(publicMethods, "SelectProviderSql");

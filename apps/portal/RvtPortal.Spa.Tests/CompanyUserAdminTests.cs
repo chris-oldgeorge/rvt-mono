@@ -27,7 +27,7 @@ public class CompanyUserAdminTests
     // Function summary: Handles the company crud validates unique names and deletes company users workflow for this module.
     public async Task CompanyCrud_ValidatesUniqueNamesAndDeletesCompanyUsers()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         Guid companyId = Guid.NewGuid();
         ApplicationUser companyUser = await factory.SeedUserAsync(
             "company.member@rvt.test",
@@ -59,7 +59,7 @@ public class CompanyUserAdminTests
     // Function summary: Applies r administration enforces role rules and supports status and link actions to the current configuration.
     public async Task UserAdministration_EnforcesRoleRulesAndSupportsStatusAndLinkActions()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         Guid companyId = Guid.NewGuid();
         await factory.SeedDomainCompaniesAsync(new Company { Id = companyId, CompanyName = "RVT Customer", Contracts = [] });
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
@@ -114,7 +114,7 @@ public class CompanyUserAdminTests
     // Function summary: Verifies admin user validation rejects duplicate emails and company users without a company.
     public async Task UserAdministration_RejectsDuplicateEmailAndMissingCompany()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         Guid companyId = Guid.NewGuid();
         await factory.SeedDomainCompaniesAsync(new Company { Id = companyId, CompanyName = "Validation Customer", Contracts = [] });
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
@@ -150,7 +150,7 @@ public class CompanyUserAdminTests
     // Function summary: Handles the site assignments add contact and remove company users workflow for this module.
     public async Task SiteAssignments_AddContactAndRemoveCompanyUsers()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         Guid companyId = Guid.NewGuid();
         Guid siteId = Guid.NewGuid();
         ApplicationUser user = await factory.SeedUserAsync(

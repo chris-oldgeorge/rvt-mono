@@ -1,4 +1,4 @@
-﻿// File summary: Coordinates business-layer operations for company service workflows.
+// File summary: Coordinates business-layer operations for company service workflows.
 // Major updates:
 // - 2026-06-25 pending Narrowed local order-by builders to concrete lists for CA1859 cleanup.
 // - 2026-06-25 pending Aligned nullable repository results and paging defaults with non-nullable contracts.
@@ -6,14 +6,7 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-10 pending Removed redundant async/await from repository pass-through service methods.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using RVT.DataAccess;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
@@ -61,13 +54,14 @@ namespace RvtPortal.Spa.Application.Companies
         // Function summary: Handles the company exist workflow for this module.
         public async Task<bool> CompanyExist(string CompanyName, CancellationToken cancellationToken = default)
         {
-            List<OrderByProperty> orderBy = new List<OrderByProperty>();
+            List<OrderByProperty> orderBy = new();
             orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "CompanyName" });
 
-            List<Filter> query = new List<Filter> {
+            List<Filter> query = new()
+            {
                 new SingleFilter{ Operation = Op.Equals, PropertyName = "CompanyName", Value = CompanyName }
         };
-            SearchQueryResult<Company> res = await companyRepository.ReadFilteredAsync(query, orderBy.ToArray(), 100, new Paging { paged = true, page = (int)1, pageSize = 200 }, cancellationToken);
+            SearchQueryResult<Company> res = await companyRepository.ReadFilteredAsync(query, [.. orderBy], 100, new Paging { paged = true, page = 1, pageSize = 200 }, cancellationToken);
             return res.RecordCount > 0;
         }
 

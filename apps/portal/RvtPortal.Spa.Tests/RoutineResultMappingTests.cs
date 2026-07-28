@@ -1,4 +1,4 @@
-﻿// File summary: Covers data-access mapping of canonical PostgreSQL routine result aliases.
+// File summary: Covers data-access mapping of canonical PostgreSQL routine result aliases.
 // Major updates:
 // - 2026-07-09 pending Added public repository coverage for canonical result aliases with legacy fallback.
 
@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess;
 using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
-using RVT.Entities;
 using RVT.Entities.DTO;
 
 namespace RvtPortal.Spa.Tests;
@@ -19,10 +18,10 @@ public sealed class RoutineResultMappingTests
     // Function summary: Verifies monitor status routines prefer canonical PostgreSQL result aliases.
     public async Task MonitorStatusTimeCheckMapsCanonicalAliases()
     {
-        DateTime monitorDate = new DateTime(2026, 7, 9, 10, 0, 0);
-        DateTime utcDate = new DateTime(2026, 7, 9, 10, 5, 0);
+        DateTime monitorDate = new(2026, 7, 9, 10, 0, 0);
+        DateTime utcDate = new(2026, 7, 9, 10, 5, 0);
         using RVTDbContext context = CreateContext();
-        MonitorRepository repository = new MonitorRepository(
+        MonitorRepository repository = new(
             context,
             FakeRoutineExecutor.FromRow(("monitor_date", monitorDate), ("utc_date", utcDate)));
 
@@ -36,10 +35,10 @@ public sealed class RoutineResultMappingTests
     // Function summary: Verifies monitor status routines still tolerate legacy result aliases during cutover.
     public async Task MonitorStatusTimeCheckFallsBackToLegacyAliases()
     {
-        DateTime monitorDate = new DateTime(2025, 1, 1, 12, 0, 0);
-        DateTime utcDate = new DateTime(2025, 1, 1, 12, 5, 0);
+        DateTime monitorDate = new(2025, 1, 1, 12, 0, 0);
+        DateTime utcDate = new(2025, 1, 1, 12, 5, 0);
         using RVTDbContext context = CreateContext();
-        MonitorRepository repository = new MonitorRepository(
+        MonitorRepository repository = new(
             context,
             FakeRoutineExecutor.FromRow(("MonitorDate", monitorDate), ("UtcDate", utcDate)));
 
@@ -62,8 +61,8 @@ public sealed class RoutineResultMappingTests
         const double zVtop = 3.3d;
         Guid monitorId = Guid.NewGuid();
         Guid notificationId = Guid.NewGuid();
-        DateTime sampleTime = new DateTime(2026, 7, 9, 9, 0, 0);
-        OmnidotsBreachesAndAlertsRepository repository = new OmnidotsBreachesAndAlertsRepository(
+        DateTime sampleTime = new(2026, 7, 9, 9, 0, 0);
+        OmnidotsBreachesAndAlertsRepository repository = new(
             FakeRoutineExecutor.FromRow(
                 ("serial_id", serialId),
                 ("fleet_nr", fleetNumber),
@@ -121,7 +120,7 @@ public sealed class RoutineResultMappingTests
             CancellationToken cancellationToken = default)
         {
             using DbDataReader reader = CreateReader(columns);
-            List<T> rows = new List<T>();
+            List<T> rows = new();
             while (reader.Read())
             {
                 rows.Add(map(reader));
@@ -131,18 +130,18 @@ public sealed class RoutineResultMappingTests
         }
 
         // Function summary: Builds a data reader with predictable routine result-column names and values.
-        private static DbDataReader CreateReader(params (string ColumnName, object? Value)[] columns)
+        private static DbDataReader CreateReader(params (string columnName, object? value)[] columns)
         {
-            DataTable table = new DataTable();
-            foreach ((string ColumnName, object? Value) column in columns)
+            DataTable table = new();
+            foreach ((string columnName, object? value) in columns)
             {
-                table.Columns.Add(column.ColumnName, column.Value?.GetType() ?? typeof(object));
+                table.Columns.Add(columnName, value?.GetType() ?? typeof(object));
             }
 
             DataRow row = table.NewRow();
-            foreach ((string ColumnName, object? Value) column in columns)
+            foreach ((string columnName, object? value) in columns)
             {
-                row[column.ColumnName] = column.Value ?? DBNull.Value;
+                row[columnName] = value ?? DBNull.Value;
             }
 
             table.Rows.Add(row);

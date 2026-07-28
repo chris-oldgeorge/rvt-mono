@@ -12,8 +12,8 @@ public sealed class ReportChromeTests
     [Fact]
     public void BuildReportChrome_KeepsHeaderMinimalAndMovesReportDateToBody()
     {
-        DateTimeOffset generatedAtUtc = new DateTimeOffset(2026, 6, 25, 7, 30, 0, TimeSpan.Zero);
-        SiteReportData site = new SiteReportData
+        DateTimeOffset generatedAtUtc = new(2026, 6, 25, 7, 30, 0, TimeSpan.Zero);
+        SiteReportData site = new()
         {
             SiteName = "North Site",
             AddressLine1 = "1 Boundary Road",
@@ -39,8 +39,8 @@ public sealed class ReportChromeTests
     [Fact]
     public async Task RenderAsync_GeneratesPdfWithHeaderLogoAsset()
     {
-        DateTimeOffset generatedAtUtc = new DateTimeOffset(2026, 6, 25, 7, 30, 0, TimeSpan.Zero);
-        SiteReportData site = new SiteReportData
+        DateTimeOffset generatedAtUtc = new(2026, 6, 25, 7, 30, 0, TimeSpan.Zero);
+        SiteReportData site = new()
         {
             Id = Guid.NewGuid(),
             SiteName = "North Site",
@@ -48,7 +48,7 @@ public sealed class ReportChromeTests
             Contracts = "Boundary"
         };
 
-        QuestPdfReportRenderer renderer = new QuestPdfReportRenderer();
+        QuestPdfReportRenderer renderer = new();
         RenderedReport report = await renderer.RenderAsync(
             "Weekly North Boundary",
             generatedAtUtc,
@@ -66,9 +66,9 @@ public sealed class ReportChromeTests
     [Fact]
     public async Task RenderAsync_GeneratesPdfWithExecutiveSummaryClosedNotesAndHeatmapData()
     {
-        DateTimeOffset generatedAtUtc = new DateTimeOffset(2026, 6, 25, 7, 30, 0, TimeSpan.Zero);
-        DateTimeOffset sampleTime = new DateTimeOffset(2026, 6, 24, 10, 0, 0, TimeSpan.Zero);
-        SiteReportData site = new SiteReportData
+        DateTimeOffset generatedAtUtc = new(2026, 6, 25, 7, 30, 0, TimeSpan.Zero);
+        DateTimeOffset sampleTime = new(2026, 6, 24, 10, 0, 0, TimeSpan.Zero);
+        SiteReportData site = new()
         {
             Id = Guid.NewGuid(),
             SiteName = "North Site",
@@ -97,7 +97,7 @@ public sealed class ReportChromeTests
             ]
         };
 
-        QuestPdfReportRenderer renderer = new QuestPdfReportRenderer();
+        QuestPdfReportRenderer renderer = new();
         RenderedReport report = await renderer.RenderAsync("Daily North", generatedAtUtc, sampleTime.AddDays(-1), sampleTime.AddDays(1), site, null, CancellationToken.None);
 
         Assert.Equal("application/pdf", report.ContentType);

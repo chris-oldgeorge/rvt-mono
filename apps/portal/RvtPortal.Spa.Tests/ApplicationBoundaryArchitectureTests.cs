@@ -46,14 +46,13 @@ public sealed class ApplicationBoundaryArchitectureTests
             "IFormFile",
             "ClaimsPrincipal"
         };
-        string[] violations = Directory
+        string[] violations = [.. Directory
             .EnumerateFiles(ApplicationRoot, "*.cs", SearchOption.AllDirectories)
             .SelectMany(path => File.ReadLines(path)
                 .Select((line, index) => new { path, line, number = index + 1 }))
             .Where(row => forbidden.Any(value =>
                 row.line.Contains(value, StringComparison.Ordinal)))
-            .Select(row => $"{Path.GetRelativePath(ApplicationRoot, row.path)}:{row.number}: {row.line.Trim()}")
-            .ToArray();
+            .Select(row => $"{Path.GetRelativePath(ApplicationRoot, row.path)}:{row.number}: {row.line.Trim()}")];
 
         Assert.Empty(violations);
     }

@@ -1,8 +1,6 @@
 using System.Data;
 using System.Globalization;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Rules;
 using Svantek.Api.Db;
@@ -57,7 +55,7 @@ public sealed class StoreNoiseLevelsHandler
             lastDataTime: null,
             cancellationToken).ConfigureAwait(false);
         DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        SvantekFailureCollector failures = new SvantekFailureCollector(operationalCommands);
+        SvantekFailureCollector failures = new(operationalCommands);
 
         foreach (IGrouping<int, NoiseMonitorReadDto> projectMonitors in monitors.GroupBy(monitor => monitor.ProjectId))
         {
@@ -67,7 +65,7 @@ public sealed class StoreNoiseLevelsHandler
             {
                 await StoreProjectAsync(
                     projectId,
-                    projectMonitors.ToList(),
+                    [.. projectMonitors],
                     utcNow,
                     cancellationToken).ConfigureAwait(false);
             }
@@ -104,7 +102,7 @@ public sealed class StoreNoiseLevelsHandler
             Dictionary<int, NoiseMonitorReadDto> requestedMonitors = monitors
                 .Where(monitor => windowsByMonitor[monitor.PointId].Count > requestIndex)
                 .ToDictionary(monitor => monitor.PointId);
-            List<MultiDataArgument> arguments = requestedMonitors.Values.Select(monitor =>
+            List<MultiDataArgument> arguments = [.. requestedMonitors.Values.Select(monitor =>
             {
                 NoiseRequestWindow window = windowsByMonitor[monitor.PointId][requestIndex];
                 RvtLogger.Logger.LogDebug(
@@ -118,7 +116,7 @@ public sealed class StoreNoiseLevelsHandler
                     time_from = window.Start.ToString(VendorDateFormat, CultureInfo.InvariantCulture),
                     time_to = window.End.ToString(VendorDateFormat, CultureInfo.InvariantCulture)
                 };
-            }).ToList();
+            })];
 
             List<MultiData> response = await gateway.GetDataMultiAsync(
                 projectId.ToString(CultureInfo.InvariantCulture),
@@ -236,7 +234,7 @@ public sealed class StoreNoiseLevelsHandler
 
     private static DataTable CreateResultsTable()
     {
-        DataTable table = new DataTable { TableName = "Results" };
+        DataTable table = new() { TableName = "Results" };
         table.Columns.Add("SerialId", typeof(string));
         table.Columns.Add("SampleTime", typeof(DateTime));
         foreach (string? field in new[] { "LAeq", "LAmax", "LA90", "LA10", "LCeq", "LCmax", "LC90", "LC10" })

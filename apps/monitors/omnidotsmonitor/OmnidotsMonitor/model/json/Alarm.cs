@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
@@ -121,7 +120,7 @@ namespace Omnidots.Model.Json
             RvtLogger.Logger.LogInformation("Creating notification alertType={Value1} level={Value2} limit={Value3}",
                                              alertType, level, limit);
 
-            NotificationDto notification = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto notification = new(id: Guid.NewGuid(),
                  notificationTime: createdTime,
                  limitOn: limit,
                  averagingPeriod: Data!.MeasurementDuration,
@@ -130,9 +129,10 @@ namespace Omnidots.Model.Json
                  closedByUser: null,
                  alertType: alertType,
                  alertField: string.Format(fieldStr, axis),
-                 monitorId: monitorId);
-
-            notification.ApiMessage = Text;
+                 monitorId: monitorId)
+            {
+                ApiMessage = Text
+            };
 
             return notification;
         }

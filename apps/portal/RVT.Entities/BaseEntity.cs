@@ -1,11 +1,9 @@
-﻿// File summary: Defines RVT domain entities shared across data access, business logic, and API layers.
+// File summary: Defines RVT domain entities shared across data access, business logic, and API layers.
 // Major updates:
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
-using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Newtonsoft.Json;
 
 namespace RVT.Entities
 {

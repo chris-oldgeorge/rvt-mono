@@ -7,12 +7,10 @@
 using System.Globalization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic.Application;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.Monitors;
 
 namespace RvtPortal.Spa.Application.Notifications;
 
@@ -209,52 +207,51 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         NotificationCloseActor actor = BuildCloseActor(user);
         List<NotificationListModel> rows = await BuildNotificationRowsAsync(cancellationToken);
         HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, timeProvider, cancellationToken);
-        rows = ApplyRoleVisibility(rows, actor, visibleSiteIds).ToList();
-        rows = ApplyState(rows, query.State).ToList();
+        rows = [.. ApplyRoleVisibility(rows, actor, visibleSiteIds)];
+        rows = [.. ApplyState(rows, query.State)];
 
         if (query.SiteId.HasValue)
         {
-            rows = rows.Where(row => row.SiteId == query.SiteId.Value).ToList();
+            rows = [.. rows.Where(row => row.SiteId == query.SiteId.Value)];
         }
 
         if (query.MonitorType.HasValue)
         {
-            rows = rows.Where(row => string.Equals(row.TypeOfMonitor, query.MonitorType.Value.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
+            rows = [.. rows.Where(row => string.Equals(row.TypeOfMonitor, query.MonitorType.Value.ToString(), StringComparison.OrdinalIgnoreCase))];
         }
 
         if (query.AlertType.HasValue)
         {
-            rows = rows.Where(row => string.Equals(row.AlertType, query.AlertType.Value.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
+            rows = [.. rows.Where(row => string.Equals(row.AlertType, query.AlertType.Value.ToString(), StringComparison.OrdinalIgnoreCase))];
         }
 
         if (query.OpenAlerts == true)
         {
-            rows = rows.Where(row => row.ClosedTime == null && string.Equals(row.AlertType, AlertTypeEnum.Alert.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
+            rows = [.. rows.Where(row => row.ClosedTime == null && string.Equals(row.AlertType, AlertTypeEnum.Alert.ToString(), StringComparison.OrdinalIgnoreCase))];
         }
         else if (query.OpenAlerts == false)
         {
-            rows = rows.Where(row => row.ClosedTime != null).ToList();
+            rows = [.. rows.Where(row => row.ClosedTime != null)];
         }
 
         if (!string.IsNullOrWhiteSpace(query.SearchText))
         {
             string search = query.SearchText.Trim();
-            rows = rows.Where(row =>
+            rows = [.. rows.Where(row =>
                 Contains(row.FleetNumber, search) ||
                 Contains(row.SerialId, search) ||
                 Contains(row.TypeOfMonitor, search) ||
                 Contains(row.ContractNumber, search) ||
                 Contains(row.SiteName, search) ||
                 Contains(row.AlertField, search) ||
-                Contains(row.LimitName, search))
-                .ToList();
+                Contains(row.LimitName, search))];
         }
 
-        rows = ApplySort(rows, query.Sort, query.SortDir).ToList();
+        rows = [.. ApplySort(rows, query.Sort, query.SortDir)];
         int total = rows.Count;
         return new NotificationQueryResult
         {
-            Results = rows.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToList(),
+            Results = [.. rows.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)],
             Total = total,
             Page = query.Page,
             PageSize = query.PageSize,
@@ -361,14 +358,13 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
             .ToListAsync(cancellationToken);
         Dictionary<Guid, Deployment?> deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(domainContext, notifications, cancellationToken);
 
-        return notifications
+        return [.. notifications
             .Where(notification => !string.IsNullOrWhiteSpace(notification.Monitor?.FleetNr))
             .Select(notification =>
             {
                 deploymentLookup.TryGetValue(notification.Id, out Deployment? deployment);
                 return BuildNotificationListModel(notification, deployment);
-            })
-            .ToList();
+            })];
     }
 
     // Function summary: Builds the frontend-facing notification row model.
@@ -414,12 +410,11 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         CancellationToken cancellationToken)
     {
         int graphWindowMinutes = row.TypeOfMonitor == MonitorTypeEnum.Noise.ToString() ? 30 : 5;
-        List<NotificationListModel> related = (await BuildNotificationRowsAsync(cancellationToken))
+        List<NotificationListModel> related = [.. (await BuildNotificationRowsAsync(cancellationToken))
             .Where(item => item.MonitorId == notification.MonitorId && item.Id != notification.Id)
             .Where(item => item.DeploymentId == row.DeploymentId)
             .OrderByDescending(item => item.NotificationTime)
-            .Take(10)
-            .ToList();
+            .Take(10)];
         List<Alertlevel> alertLevelEntities = await domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(level => level.MonitorId == notification.MonitorId && !level.IsDeleted)
@@ -427,9 +422,9 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
             .ThenBy(level => level.AlertField)
             .ToListAsync(cancellationToken);
 
-        MonitorTypeEnum? monitorType = Enum.TryParse<MonitorTypeEnum>(row.TypeOfMonitor, out MonitorTypeEnum parsedMonitorType)
+        MonitorTypeEnum? monitorType = Enum.TryParse(row.TypeOfMonitor, out MonitorTypeEnum parsedMonitorType)
             ? parsedMonitorType
-            : (MonitorTypeEnum?)null;
+            : null;
 
         return new NotificationDetailModel
         {
@@ -468,7 +463,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
             GraphFromUtc = notification.NotificationTime.AddMinutes(-graphWindowMinutes),
             GraphToUtc = notification.NotificationTime.AddMinutes(graphWindowMinutes),
             RelatedNotifications = related,
-            AlertLevels = alertLevelEntities.Select(level => BuildAlertLevelModel(level, monitorType)).ToList()
+            AlertLevels = [.. alertLevelEntities.Select(level => BuildAlertLevelModel(level, monitorType))]
         };
     }
 

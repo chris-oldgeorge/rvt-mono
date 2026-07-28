@@ -7,7 +7,6 @@ using Rvt.Monitor.Common.Utilities;
 
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests
 {
@@ -36,7 +35,7 @@ namespace AirQMonitorTests
 
         public static List<InstrumentResponse> ResponseObjects()
         {
-            return new List<InstrumentResponse>(){
+            return [
                 new() {
                     InstrumentID = "E1012",
                     Name = "iDB",
@@ -64,7 +63,7 @@ namespace AirQMonitorTests
                     Port = 9999,
                     TimeZone =  "Some/TimeZone",
                     Status = "SomeStatus"
-                }};
+                }];
         }
 
         public static string SamplesResponseJson()
@@ -99,7 +98,7 @@ namespace AirQMonitorTests
         {
             DateTime caiibrationDate = DateTime.UtcNow.AddDays(-7);
             DateTime filterChangeDate = DateTime.UtcNow;
-            return new List<NoiseMonitorDto>(){
+            return [
                 new NoiseMonitorDto (
                       id: Guid.NewGuid(),
                       listedAtTime: DateTime.UtcNow,
@@ -154,12 +153,12 @@ namespace AirQMonitorTests
                       monitorStatus: new NoiseMonitorStatus(DateTime.UtcNow, status:activityStatus, errorCount:errorCount,
                                                             batteryVoltage: "3.33 volts" , calibrationDate:caiibrationDate,
                                                             filterChangeDate:filterChangeDate, pumpHours:"3 hours"))
-            };
+            ];
         }
 
         public static List<NoiseMonitorDto> SingleActiveMonitorDto(string serialId, DateTime? lastDataTime)
         {
-            return new List<NoiseMonitorDto>(){
+            return [
                 new NoiseMonitorDto (
                       id: Guid.NewGuid(),
                       listedAtTime: DateTime.UtcNow,
@@ -179,7 +178,7 @@ namespace AirQMonitorTests
                                                             batteryVoltage:"1.23 Volts", calibrationDate:DateTime.UtcNow,
                                                             filterChangeDate:DateTime.UtcNow, pumpHours:"1 hours"))
 
-            };
+            ];
         }
 
         public static SampleResponse CreateSampleResponse(DateTime timestamp, string serialId, double value)
@@ -193,8 +192,8 @@ namespace AirQMonitorTests
                 InstrumentID = serialId,
                 Location = "Initial Configuration",
                 GpsCoordinates = "51.2500, 0.75000",
-                Data = new List<SampleData>
-                {
+                Data =
+                [
                     new SampleData
                     {
                         Unit = "dB",
@@ -244,14 +243,14 @@ namespace AirQMonitorTests
                         Value = val
                     }
 
-                }
+                ]
             };
         }
 
         public static List<RvtContactDto> AlertContacts(TimeSpan? sendStartTime = null, TimeSpan? sendEndTime = null)
         {
-            return new List<RvtContactDto>()
-            {
+            return
+            [
                 new RvtContactDto( contactMethod: ContactMethod.Email,
                                    emailAddress: "baz@bob.org",
                                    phoneNumber: (string?)null,
@@ -259,7 +258,7 @@ namespace AirQMonitorTests
                                    sms:false,
                                    sendStartTime: sendStartTime,
                                    sendEndTime: sendEndTime)
-            };
+            ];
         }
 
         public static AlertActivityTimeDto CreateActiveRuleActivity(DateTime? start, DateTime? end)
@@ -285,8 +284,8 @@ namespace AirQMonitorTests
 
         internal static List<RvtAlertRuleDto> OfflineRules()
         {
-            List<RvtAlertRuleDto> rules = new List<RvtAlertRuleDto>
-            {
+            List<RvtAlertRuleDto> rules =
+            [
                 new(ruleId: Guid.NewGuid(),
                           serialId: null,
                           field: "offline-rule",
@@ -306,7 +305,7 @@ namespace AirQMonitorTests
                         isDeleted: false,
                         created: DateTime.UtcNow,
                         accessed: null)
-            };
+            ];
 
             return rules;
         }
@@ -314,8 +313,8 @@ namespace AirQMonitorTests
         internal static List<RvtAlertRuleDto> NotifyRules(string serialId, string field,
                                                           double limitOn)
         {
-            List<RvtAlertRuleDto> rules = new List<RvtAlertRuleDto>
-            {
+            List<RvtAlertRuleDto> rules =
+            [
                 new(ruleId: Guid.NewGuid(),
                           serialId: serialId,
                           field: field,
@@ -335,7 +334,7 @@ namespace AirQMonitorTests
                         isDeleted: false,
                         created: DateTime.UtcNow,
                         accessed: null)
-            };
+            ];
 
             return rules;
         }

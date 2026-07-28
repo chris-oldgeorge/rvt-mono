@@ -10,14 +10,8 @@
 // - 2026-06-26 pending Awaited EF Core save operations in async repository methods for Sonar reliability.
 // - 2026-06-26 pending Removed repository disposal of DI-owned DbContext instances.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using RVT.Entities;
 using RVT.Entities.Querying;
 
 namespace RVT.DataAccess
@@ -67,7 +61,7 @@ namespace RVT.DataAccess
         // Function summary: Retrieves by ID data for callers.
         public virtual async Task<TEntity?> GetByIdAsync(Guid id, string includeProperties)
         {
-            List<Filter> query = new List<Filter> { new SingleFilter { Operation = Op.Equals, PropertyName = "Id", Value = id } };
+            List<Filter> query = new() { new SingleFilter { Operation = Op.Equals, PropertyName = "Id", Value = id } };
 
             Expression<Func<TEntity, bool>> filt = FilterExpression.ExpressionBuilder.GetExpression<TEntity>(query);
 

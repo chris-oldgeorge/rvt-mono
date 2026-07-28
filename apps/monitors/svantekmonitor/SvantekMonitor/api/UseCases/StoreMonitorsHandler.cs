@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
@@ -36,7 +35,7 @@ namespace Svantek.Api.UseCases
             List<Project> projects = await gateway.GetProjectsAsync(cancellationToken).ConfigureAwait(false);
             RvtLogger.Logger.LogDebug("StoreMonitors reading stations API");
             List<Station> stations = await gateway.GetStationsAsync(cancellationToken).ConfigureAwait(false);
-            SvantekFailureCollector failures = new SvantekFailureCollector(operationalCommands);
+            SvantekFailureCollector failures = new(operationalCommands);
 
             foreach (Project project in projects)
             {
@@ -44,7 +43,7 @@ namespace Svantek.Api.UseCases
                 string identifier = $"StoreMonitors project {project.id}";
                 try
                 {
-                    List<NoiseMonitorDto> dtos = new List<NoiseMonitorDto>();
+                    List<NoiseMonitorDto> dtos = [];
                     foreach (ProjectStation projectStation in project.stations)
                     {
                         Station? station = stations.FirstOrDefault(x => x.serial.ToString() == projectStation.serial);

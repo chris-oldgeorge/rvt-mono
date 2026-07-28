@@ -46,15 +46,15 @@ public sealed record LocalStorageOptions
         string? legacyEnvironmentKey = null,
         string defaultValue = "")
     {
-        string?[] values = new[]
-        {
+        string?[] values =
+        [
             configuration[providerNeutralKey],
             configuration[$"RVT:{environmentKey}"],
             configuration[$"RVT__{environmentKey}"],
             legacyEnvironmentKey is null ? null : configuration[$"RVT:{legacyEnvironmentKey}"],
             legacyEnvironmentKey is null ? null : configuration[$"RVT__{legacyEnvironmentKey}"],
             defaultValue,
-        };
+        ];
 
         return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
     }

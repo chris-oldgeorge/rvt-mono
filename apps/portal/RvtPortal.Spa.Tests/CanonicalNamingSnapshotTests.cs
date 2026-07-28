@@ -30,13 +30,11 @@ public sealed class CanonicalNamingSnapshotTests
     // Function summary: Verifies the model's relation and column names still match the approved schema mapping.
     public void CanonicalNames_MatchTheApprovedSnapshot()
     {
-        string[] approved = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, ApprovedFileName))
-            .Where(line => !string.IsNullOrWhiteSpace(line))
-            .ToArray();
+        string[] approved = [.. File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, ApprovedFileName)).Where(line => !string.IsNullOrWhiteSpace(line))];
         string[] actual = BuildCanonicalNames();
 
-        string[] missing = approved.Except(actual, StringComparer.Ordinal).ToArray();
-        string[] unexpected = actual.Except(approved, StringComparer.Ordinal).ToArray();
+        string[] missing = [.. approved.Except(actual, StringComparer.Ordinal)];
+        string[] unexpected = [.. actual.Except(approved, StringComparer.Ordinal)];
 
         Assert.True(
             missing.Length == 0 && unexpected.Length == 0,
@@ -67,12 +65,12 @@ public sealed class CanonicalNamingSnapshotTests
     // Function summary: Builds "Entity|Member|name" lines for every mapped relation and column.
     private static string[] BuildCanonicalNames()
     {
-        SortedSet<string> lines = new SortedSet<string>(StringComparer.Ordinal);
+        SortedSet<string> lines = new(StringComparer.Ordinal);
 
         // A relational provider is required to resolve table/column names; no connection is ever opened.
-        using RVTDbContext domain = new RVTDbContext(new DbContextOptionsBuilder<RVTDbContext>()
+        using RVTDbContext domain = new(new DbContextOptionsBuilder<RVTDbContext>()
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused").Options);
-        using RVTSearchContext search = new RVTSearchContext(new DbContextOptionsBuilder<RVTSearchContext>()
+        using RVTSearchContext search = new(new DbContextOptionsBuilder<RVTSearchContext>()
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused").Options);
 
         foreach (DbContext context in new DbContext[] { domain, search })

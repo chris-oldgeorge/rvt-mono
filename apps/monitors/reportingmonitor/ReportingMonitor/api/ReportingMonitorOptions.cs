@@ -38,7 +38,7 @@ public sealed class ReportingMonitorOptions
 
     public void Validate()
     {
-        List<string> failures = new List<string>();
+        List<string> failures = [];
         if (AiSummaryTimeoutSeconds <= 0)
         {
             failures.Add("AiSummaryTimeoutSeconds must be positive.");

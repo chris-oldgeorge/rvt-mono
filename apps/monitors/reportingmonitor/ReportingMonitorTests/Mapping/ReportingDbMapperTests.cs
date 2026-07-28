@@ -8,7 +8,7 @@ public sealed class ReportingDbMapperTests
     [Fact]
     public void ToReportRule_MapsScalarRuleValuesAndRecipients()
     {
-        ReportRuleEntity entity = new ReportRuleEntity
+        ReportRuleEntity entity = new()
         {
             Id = Guid.NewGuid(),
             SiteId = Guid.NewGuid(),

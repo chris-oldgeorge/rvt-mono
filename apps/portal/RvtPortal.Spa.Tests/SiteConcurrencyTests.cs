@@ -25,7 +25,7 @@ public sealed class SiteConcurrencyTests
         await using RelationalSiteFixture fixture = await RelationalSiteFixture.CreateAsync();
         await using RelationalSiteScope firstScope = await fixture.CreateScopeAsync();
         await using RelationalSiteScope secondScope = await fixture.CreateScopeAsync();
-        CoordinatedArchivePort archives = new CoordinatedArchivePort();
+        CoordinatedArchivePort archives = new();
         SiteApplicationService firstService = CreateArchiveService(firstScope, archives);
         SiteApplicationService secondService = CreateArchiveService(secondScope, archives);
         PortalUserContext admin = Admin();
@@ -86,7 +86,7 @@ public sealed class SiteConcurrencyTests
         }
 
         await using RelationalSiteScope scope = await fixture.CreateScopeAsync();
-        CoordinatedArchivePort archives = new CoordinatedArchivePort();
+        CoordinatedArchivePort archives = new();
         archives.TrackActive(fixture.SiteId, legacyArchiveUrl);
         SiteApplicationService service = CreateArchiveService(scope, archives);
 
@@ -113,12 +113,12 @@ public sealed class SiteConcurrencyTests
         await using RelationalSiteFixture fixture = await RelationalSiteFixture.CreateAsync();
         await using RelationalSiteScope firstScope = await fixture.CreateScopeAsync();
         await using RelationalSiteScope secondScope = await fixture.CreateScopeAsync();
-        SiteNotificationSettingMutation firstRequest = new SiteNotificationSettingMutation(
+        SiteNotificationSettingMutation firstRequest = new(
             Email: true,
             Sms: false,
             StartTime: "08:00",
             EndTime: "12:00");
-        SiteNotificationSettingMutation secondRequest = new SiteNotificationSettingMutation(
+        SiteNotificationSettingMutation secondRequest = new(
             Email: false,
             Sms: true,
             StartTime: "13:00",
@@ -148,24 +148,24 @@ public sealed class SiteConcurrencyTests
             .Where(item => item.SiteUserId == fixture.SiteUserId)
             .ToListAsync();
         NotificationSettings row = Assert.Single(rows);
-        NotificationValue firstValue = new NotificationValue(
+        NotificationValue firstValue = new(
             true,
             false,
             new TimeSpan(8, 0, 0),
             new TimeSpan(12, 0, 0));
-        NotificationValue secondValue = new NotificationValue(
+        NotificationValue secondValue = new(
             false,
             true,
             new TimeSpan(13, 0, 0),
             new TimeSpan(17, 0, 0));
-        NotificationValue persisted = new NotificationValue(
+        NotificationValue persisted = new(
             row.Email,
             row.SMS,
             row.StartTime,
             row.EndTime);
         Assert.Contains(persisted, new[] { firstValue, secondValue });
 
-        EfSiteReadAdapter reader = new EfSiteReadAdapter(verification);
+        EfSiteReadAdapter reader = new(verification);
         SiteNotificationSettingsData? firstRead = await reader.GetNotificationSettingsAsync(
             fixture.SiteId,
             CancellationToken.None);
@@ -187,7 +187,7 @@ public sealed class SiteConcurrencyTests
         DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseSqlite("Data Source=:memory:")
             .Options;
-        using RVTDbContext context = new RVTDbContext(options);
+        using RVTDbContext context = new(options);
 
         IIndex archiveIndex = Assert.Single(
             context.Model.FindEntityType(typeof(SiteArchived))!.GetIndexes(),
@@ -208,7 +208,7 @@ public sealed class SiteConcurrencyTests
         DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseNpgsql("Host=localhost;Database=rvt_migration_script;Username=rvt")
             .Options;
-        using RVTDbContext context = new RVTDbContext(options);
+        using RVTDbContext context = new(options);
         string script = context.Database.GetService<IMigrator>().GenerateScript(
             "20260714132042_CanonicalBaseline",
             "20260723234806_EnforceSiteWriteUniqueness");
@@ -494,7 +494,7 @@ public sealed class SiteConcurrencyTests
                 $"rvt-site-concurrency-{Guid.NewGuid():N}.db");
             Guid siteId = Guid.NewGuid();
             Guid siteUserId = Guid.NewGuid();
-            RelationalSiteFixture fixture = new RelationalSiteFixture(
+            RelationalSiteFixture fixture = new(
                 databasePath,
                 siteId,
                 siteUserId);
@@ -525,18 +525,18 @@ public sealed class SiteConcurrencyTests
 
         public async Task<RelationalSiteScope> CreateScopeAsync()
         {
-            SqliteConnection connection = new SqliteConnection(
+            SqliteConnection connection = new(
                 $"Data Source={databasePath};Foreign Keys=True;Default Timeout=30;Pooling=False");
             await connection.OpenAsync();
-            RVTDbContext domainContext = new RVTDbContext(
+            RVTDbContext domainContext = new(
                 new DbContextOptionsBuilder<RVTDbContext>()
                     .UseSqlite(connection)
                     .Options);
-            RVTSearchContext searchContext = new RVTSearchContext(
+            RVTSearchContext searchContext = new(
                 new DbContextOptionsBuilder<RVTSearchContext>()
                     .UseSqlite(connection)
                     .Options);
-            ApplicationDbContext applicationContext = new ApplicationDbContext(
+            ApplicationDbContext applicationContext = new(
                 new DbContextOptionsBuilder<ApplicationDbContext>()
                     .UseSqlite(connection)
                     .Options);
@@ -549,7 +549,7 @@ public sealed class SiteConcurrencyTests
 
         public async Task<RVTDbContext> CreateDomainContextAsync()
         {
-            SqliteConnection connection = new SqliteConnection(
+            SqliteConnection connection = new(
                 $"Data Source={databasePath};Foreign Keys=True;Default Timeout=30;Pooling=False");
             await connection.OpenAsync();
             DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()

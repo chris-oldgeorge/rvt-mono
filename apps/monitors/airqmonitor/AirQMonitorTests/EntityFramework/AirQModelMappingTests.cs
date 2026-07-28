@@ -106,12 +106,12 @@ public sealed class AirQModelMappingTests
         params (string Property, string Column)[] expectedColumns)
     {
         Assert.HasCount(expectedColumns.Length, entityType.GetProperties());
-        foreach ((string Property, string Column) expected in expectedColumns)
+        foreach ((string Property, string Column) in expectedColumns)
         {
             Assert.AreEqual(
-                expected.Column,
-                entityType.FindProperty(expected.Property)!.GetColumnName(),
-                expected.Property);
+                Column,
+                entityType.FindProperty(Property)!.GetColumnName(),
+                Property);
         }
     }
 
@@ -130,18 +130,17 @@ public sealed class AirQModelMappingTests
         Type entityClrType,
         params string[] expectedProperties)
     {
-        string[] keyProperties = context.Model
+        string[] keyProperties = [.. context.Model
             .FindEntityType(entityClrType)!
             .FindPrimaryKey()!
             .Properties
-            .Select(property => property.Name)
-            .ToArray();
+            .Select(property => property.Name)];
         CollectionAssert.AreEqual(expectedProperties, keyProperties);
     }
 
     private static AirQMonitorContext CreateContext()
     {
-        MonitorDbOptions options = new MonitorDbOptions(new Dictionary<string, string>());
+        MonitorDbOptions options = new(new Dictionary<string, string>());
         DbContextOptions<AirQMonitorContext> dbOptions = new DbContextOptionsBuilder<AirQMonitorContext>()
             .UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata")
             .Options;

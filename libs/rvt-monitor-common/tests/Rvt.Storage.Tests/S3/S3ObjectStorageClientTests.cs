@@ -13,10 +13,10 @@ public sealed class S3ObjectStorageClientTests
     [TestMethod]
     public async Task WriteAsync_StreamsOriginalContentWithPrefixAndContentType()
     {
-        MemoryStream content = new MemoryStream([1, 2, 3], writable: false);
+        MemoryStream content = new([1, 2, 3], writable: false);
         StorageObjectKey key = StorageObjectKey.Parse("clips/sample.wav");
         CancellationToken cancellationToken = new CancellationTokenSource().Token;
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         PutObjectRequest? capturedRequest = null;
         s3.Setup(client => client.PutObjectAsync(
                 It.IsAny<PutObjectRequest>(),
@@ -45,10 +45,10 @@ public sealed class S3ObjectStorageClientTests
     public async Task WriteAsync_WhenProviderCancelsWithoutCallerCancellation_TranslatesUnavailable()
     {
         const string providerMessage = "configured-provider-timeout";
-        MemoryStream content = new MemoryStream([1], writable: false);
+        MemoryStream content = new([1], writable: false);
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        using CancellationTokenSource cancellation = new();
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.PutObjectAsync(
                 It.IsAny<PutObjectRequest>(),
                 cancellation.Token))
@@ -68,15 +68,15 @@ public sealed class S3ObjectStorageClientTests
     [TestMethod]
     public async Task OpenReadAsync_ReturnsStreamingContentMetadataAndResponseLease()
     {
-        DisposeCountingStream content = new DisposeCountingStream([4, 5, 6]);
+        DisposeCountingStream content = new([4, 5, 6]);
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
-        GetObjectResponse response = new GetObjectResponse
+        GetObjectResponse response = new()
         {
             ResponseStream = content,
         };
         response.Headers.ContentType = "audio/wav";
         response.Headers.ContentLength = 3;
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.GetObjectAsync(
                 It.Is<GetObjectRequest>(request =>
                     request.BucketName == "recordings"
@@ -100,7 +100,7 @@ public sealed class S3ObjectStorageClientTests
     public async Task OpenReadAsync_WhenS3ReturnsNoSuchKey_ReturnsNull()
     {
         StorageObjectKey key = StorageObjectKey.Parse("missing.wav");
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.GetObjectAsync(
                 It.IsAny<GetObjectRequest>(),
                 CancellationToken.None))
@@ -119,7 +119,7 @@ public sealed class S3ObjectStorageClientTests
     public async Task OpenReadAsync_WhenS3Returns404_ReturnsNull()
     {
         StorageObjectKey key = StorageObjectKey.Parse("missing.wav");
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.GetObjectAsync(
                 It.IsAny<GetObjectRequest>(),
                 CancellationToken.None))
@@ -139,8 +139,8 @@ public sealed class S3ObjectStorageClientTests
     {
         const string providerMessage = "configured-provider-timeout";
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        using CancellationTokenSource cancellation = new();
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.GetObjectAsync(
                 It.IsAny<GetObjectRequest>(),
                 cancellation.Token))
@@ -159,7 +159,7 @@ public sealed class S3ObjectStorageClientTests
     public async Task DeleteIfExistsAsync_WhenMetadataIsMissing_ReturnsFalseWithoutDelete()
     {
         StorageObjectKey key = StorageObjectKey.Parse("missing.wav");
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.GetObjectMetadataAsync(
                 It.Is<GetObjectMetadataRequest>(request =>
                     request.BucketName == "recordings"
@@ -181,8 +181,8 @@ public sealed class S3ObjectStorageClientTests
     {
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
         CancellationToken cancellationToken = new CancellationTokenSource().Token;
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
-        MockSequence sequence = new MockSequence();
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
+        MockSequence sequence = new();
         s3.InSequence(sequence)
             .Setup(client => client.GetObjectMetadataAsync(
                 It.Is<GetObjectMetadataRequest>(request =>
@@ -210,9 +210,9 @@ public sealed class S3ObjectStorageClientTests
     {
         const string providerMessage = "configured-provider-timeout";
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
-        MockSequence sequence = new MockSequence();
+        using CancellationTokenSource cancellation = new();
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
+        MockSequence sequence = new();
         s3.InSequence(sequence)
             .Setup(client => client.GetObjectMetadataAsync(
                 It.IsAny<GetObjectMetadataRequest>(),
@@ -247,7 +247,7 @@ public sealed class S3ObjectStorageClientTests
         const string providerBody = "configured-provider-response-body";
         const string innerText = "configured-inner-exception-text";
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.GetObjectMetadataAsync(
                 It.IsAny<GetObjectMetadataRequest>(),
                 CancellationToken.None))
@@ -272,9 +272,9 @@ public sealed class S3ObjectStorageClientTests
     public async Task DeleteIfExistsAsync_WhenCallerCancels_PropagatesOperationCanceledException()
     {
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.GetObjectMetadataAsync(
                 It.IsAny<GetObjectMetadataRequest>(),
                 cancellation.Token))
@@ -291,7 +291,7 @@ public sealed class S3ObjectStorageClientTests
     [TestMethod]
     public void GetObjectUri_ReturnsS3UriWithSeparatelyEscapedPathSegments()
     {
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         S3ObjectStorageClient client = CreateClient(s3, prefix: "prefix");
 
         Uri uri = client.GetObjectUri(
@@ -305,7 +305,7 @@ public sealed class S3ObjectStorageClientTests
     [TestMethod]
     public void Dispose_DisposesAmazonS3Client()
     {
-        Mock<IAmazonS3> s3 = new Mock<IAmazonS3>(MockBehavior.Strict);
+        Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.Dispose());
         S3ObjectStorageClient client = CreateClient(s3);
 

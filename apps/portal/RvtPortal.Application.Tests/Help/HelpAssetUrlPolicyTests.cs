@@ -13,7 +13,7 @@ public sealed class HelpAssetUrlPolicyTests
     {
         get
         {
-            TheoryData<string, string?, string?, string?, string?, string?> cases = new TheoryData<string, string?, string?, string?, string?, string?>();
+            TheoryData<string, string?, string?, string?, string?, string?> cases = new();
             foreach (HelpAssetUrlCase @case in HelpAssetUrlPolicyCases.All)
             {
                 cases.Add(
@@ -53,13 +53,12 @@ public sealed class HelpAssetUrlPolicyTests
     [Fact]
     public void ValidationResults_ExposeCanonicalValueOnlyForValidInputs()
     {
-        HelpAssetUrlValidationResult[] results = HelpAssetUrlPolicyCases.All
+        HelpAssetUrlValidationResult[] results = [.. HelpAssetUrlPolicyCases.All
             .SelectMany(@case => new[]
             {
                 HelpAssetUrlPolicy.ValidateMutationValue(@case.Input),
                 HelpAssetUrlPolicy.ValidatePersistedValue(@case.Input)
-            })
-            .ToArray();
+            })];
 
         IEnumerable<HelpAssetUrlValidationResult> validResults = results.Where(result => result.IsValid);
         IEnumerable<HelpAssetUrlValidationResult> invalidResults = results.Where(result => !result.IsValid);

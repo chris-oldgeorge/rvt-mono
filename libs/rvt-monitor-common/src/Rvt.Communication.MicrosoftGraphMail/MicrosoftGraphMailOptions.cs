@@ -25,9 +25,12 @@ public sealed record MicrosoftGraphMailOptions
 
     public void Validate()
     {
-        if (!Enabled) return;
+        if (!Enabled)
+        {
+            return;
+        }
 
-        List<string> missing = new List<string>();
+        List<string> missing = [];
         Require(TenantId, "RVT__MICROSOFT_TENANT_ID", missing);
         Require(ClientId, "RVT__MICROSOFT_CLIENT_ID", missing);
         Require(ClientSecret, "RVT__MICROSOFT_CLIENT_SECRET", missing);
@@ -45,13 +48,24 @@ public sealed record MicrosoftGraphMailOptions
     private static bool ParseBoolean(IConfiguration configuration, string name, bool defaultValue)
     {
         string? configured = Get(configuration, name);
-        if (configured is null) return defaultValue;
-        if (bool.TryParse(configured, out bool value)) return value;
+        if (configured is null)
+        {
+            return defaultValue;
+        }
+
+        if (bool.TryParse(configured, out bool value))
+        {
+            return value;
+        }
+
         throw new InvalidOperationException($"RVT__{name} must be true or false.");
     }
 
     private static void Require(string value, string settingName, ICollection<string> missing)
     {
-        if (string.IsNullOrWhiteSpace(value)) missing.Add(settingName);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            missing.Add(settingName);
+        }
     }
 }

@@ -15,7 +15,7 @@ public sealed class ReportNarrativeProviderTests
     [Fact]
     public async Task OllamaProvider_ReturnsAiParagraphWhenEnabledAndServiceResponds()
     {
-        OllamaReportNarrativeProvider provider = new OllamaReportNarrativeProvider(
+        OllamaReportNarrativeProvider provider = new(
             new HttpClient(new StubHandler("""{"response":"AI summary paragraph."}""", HttpStatusCode.OK)),
             new OllamaReportNarrativeOptions { Enabled = true, BaseUrl = "http://ollama.test", Model = "dev-model" });
         ReportNarrativeContext context = Context();
@@ -28,7 +28,7 @@ public sealed class ReportNarrativeProviderTests
     [Fact]
     public async Task OllamaProvider_ReturnsDeterministicParagraphWhenDisabled()
     {
-        OllamaReportNarrativeProvider provider = new OllamaReportNarrativeProvider(
+        OllamaReportNarrativeProvider provider = new(
             new HttpClient(new StubHandler("""{"response":"unused"}""", HttpStatusCode.OK)),
             new OllamaReportNarrativeOptions { Enabled = false });
         ReportNarrativeContext context = Context();
@@ -42,7 +42,7 @@ public sealed class ReportNarrativeProviderTests
     [Fact]
     public async Task OllamaProvider_ReturnsDeterministicParagraphWhenServiceFails()
     {
-        OllamaReportNarrativeProvider provider = new OllamaReportNarrativeProvider(
+        OllamaReportNarrativeProvider provider = new(
             new HttpClient(new StubHandler("{}", HttpStatusCode.InternalServerError)),
             new OllamaReportNarrativeOptions { Enabled = true, BaseUrl = "http://ollama.test", Model = "dev-model" });
         ReportNarrativeContext context = Context();
@@ -55,8 +55,8 @@ public sealed class ReportNarrativeProviderTests
 
     private static ReportNarrativeContext Context()
     {
-        DateTimeOffset fromUtc = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        ReportExecutiveSummary summary = new ReportExecutiveSummary(
+        DateTimeOffset fromUtc = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        ReportExecutiveSummary summary = new(
             fromUtc,
             fromUtc.AddDays(1),
             [

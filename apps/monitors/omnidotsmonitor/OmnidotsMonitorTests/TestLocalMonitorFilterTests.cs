@@ -1,10 +1,5 @@
 using Omnidots.Api;
 using Omnidots.Model.Dto;
-
-using AlertActivityTimeDto = Rvt.Monitor.Common.Notifications.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Notifications.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace OmnidotsAdapterTests;
 
 [TestClass]
@@ -13,11 +8,11 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyReadMonitorFilter_WhenDisabled_ReturnsAllMonitors()
     {
-        List<VibrationMonitorDto> monitors = new List<VibrationMonitorDto>
-        {
+        List<VibrationMonitorDto> monitors =
+        [
             Monitor("R17222V-QUCILO", "14768"),
             Monitor("Other", "99999")
-        };
+        ];
 
         List<VibrationMonitorDto> filtered = OmnidotsTestLocalMonitorFilter.Apply(monitors, enabled: false);
 
@@ -30,12 +25,12 @@ public class TestLocalMonitorFilterTests
         VibrationMonitorDto target = Monitor("R17222V-QUCILO", "14768");
         VibrationMonitorDto sameSerialWrongFleet = Monitor("Other", "14768");
         VibrationMonitorDto sameFleetWrongSerial = Monitor("R17222V-QUCILO", "99999");
-        List<VibrationMonitorDto> monitors = new List<VibrationMonitorDto>
-        {
+        List<VibrationMonitorDto> monitors =
+        [
             sameSerialWrongFleet,
             target,
             sameFleetWrongSerial
-        };
+        ];
 
         List<VibrationMonitorDto> filtered = OmnidotsTestLocalMonitorFilter.Apply(monitors, enabled: true);
 
@@ -47,7 +42,7 @@ public class TestLocalMonitorFilterTests
     {
         VibrationMonitorDto target = Monitor("unknown", "14768");
         VibrationMonitorDto other = Monitor("R17222V-QUCILO", "99999");
-        List<VibrationMonitorDto> monitors = new List<VibrationMonitorDto> { other, target };
+        List<VibrationMonitorDto> monitors = [other, target];
 
         List<VibrationMonitorDto> filtered = OmnidotsTestLocalMonitorFilter.ApplyCatalog(monitors, enabled: true);
 
@@ -56,7 +51,7 @@ public class TestLocalMonitorFilterTests
 
     private static VibrationMonitorDto Monitor(string fleetNr, string serialId)
     {
-        VibrationMonitorStatusDto status = new VibrationMonitorStatusDto(
+        VibrationMonitorStatusDto status = new(
             serialId: serialId,
             measurementDuration: 60,
             dataSaveLevel: 1,

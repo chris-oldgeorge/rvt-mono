@@ -15,9 +15,9 @@ public sealed class SiteReadUseCaseTests
     {
         Guid userId = Guid.NewGuid();
         Guid siteId = Guid.NewGuid();
-        FakeSiteReadPort reads = new FakeSiteReadPort { Exists = false };
+        FakeSiteReadPort reads = new() { Exists = false };
         SiteApplicationService service = CreateService(reads);
-        PortalUserContext user = new PortalUserContext(userId, "user", Guid.NewGuid(), false, false, true);
+        PortalUserContext user = new(userId, "user", Guid.NewGuid(), false, false, true);
 
         UseCaseResult<SiteDetailModel> result = await service.GetAsync(user, siteId, CancellationToken.None);
 
@@ -30,7 +30,7 @@ public sealed class SiteReadUseCaseTests
     [Fact]
     public async Task QueryAsync_ForwardsMaterializedPagingRequest()
     {
-        FakeSiteReadPort reads = new FakeSiteReadPort
+        FakeSiteReadPort reads = new()
         {
             QueryResult = new PagedResult<SiteListModel>
             {
@@ -43,7 +43,7 @@ public sealed class SiteReadUseCaseTests
             }
         };
         SiteApplicationService service = CreateService(reads);
-        SiteQuery request = new SiteQuery(
+        SiteQuery request = new(
             null,
             false,
             new PageRequest(

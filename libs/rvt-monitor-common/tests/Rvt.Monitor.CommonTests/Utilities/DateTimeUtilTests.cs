@@ -8,7 +8,7 @@ public sealed class DateTimeUtilTests
     [TestMethod]
     public void AsUtc_UtcValue_ReturnsValueUnchanged()
     {
-        DateTime value = new DateTime(2026, 7, 16, 10, 30, 0, DateTimeKind.Utc);
+        DateTime value = new(2026, 7, 16, 10, 30, 0, DateTimeKind.Utc);
 
         DateTime result = DateTimeUtil.AsUtc(value);
 
@@ -20,7 +20,7 @@ public sealed class DateTimeUtilTests
     [TestMethod]
     public void AsUtc_LocalValue_ConvertsTheRepresentedInstant()
     {
-        DateTime value = new DateTime(2026, 7, 16, 10, 30, 0, DateTimeKind.Local);
+        DateTime value = new(2026, 7, 16, 10, 30, 0, DateTimeKind.Local);
 
         DateTime result = DateTimeUtil.AsUtc(value);
 
@@ -31,7 +31,7 @@ public sealed class DateTimeUtilTests
     [TestMethod]
     public void AsUtc_UnspecifiedValue_PreservesTicksAndMarksUtc()
     {
-        DateTime value = new DateTime(2026, 7, 16, 10, 30, 0, DateTimeKind.Unspecified);
+        DateTime value = new(2026, 7, 16, 10, 30, 0, DateTimeKind.Unspecified);
 
         DateTime result = DateTimeUtil.AsUtc(value);
 

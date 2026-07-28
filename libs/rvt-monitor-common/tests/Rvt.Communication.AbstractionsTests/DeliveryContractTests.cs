@@ -8,8 +8,8 @@ public sealed class DeliveryContractTests
     [TestMethod]
     public void EmailAttachment_DefensivelyCopiesContent()
     {
-        byte[] content = new byte[] { 1, 2, 3 };
-        EmailAttachment attachment = new EmailAttachment("report.pdf", "application/pdf", content);
+        byte[] content = [1, 2, 3];
+        EmailAttachment attachment = new("report.pdf", "application/pdf", content);
 
         content[0] = 9;
 
@@ -27,7 +27,7 @@ public sealed class DeliveryContractTests
     public void EmailAttachment_InvalidMetadata_Throws(string fileName, string contentType)
     {
         Assert.ThrowsExactly<ArgumentException>(() =>
-            new EmailAttachment(fileName, contentType, new byte[] { 1 }));
+            new EmailAttachment(fileName, contentType, [1]));
     }
 
     [TestMethod]
@@ -60,7 +60,7 @@ public sealed class DeliveryContractTests
     [TestMethod]
     public void EmailDeliveryRequest_HtmlOnlyBody_IsAccepted()
     {
-        EmailDeliveryRequest request = new EmailDeliveryRequest(
+        EmailDeliveryRequest request = new(
             "recipient@example.test",
             "subject",
             string.Empty,
@@ -83,7 +83,7 @@ public sealed class DeliveryContractTests
     [TestMethod]
     public void EmailDeliveryException_ContainsOnlySafeMetadata()
     {
-        EmailDeliveryException exception = new EmailDeliveryException(
+        EmailDeliveryException exception = new(
             "MicrosoftGraph",
             DeliveryFailureKind.Transient,
             "429",
@@ -101,7 +101,7 @@ public sealed class DeliveryContractTests
     [TestMethod]
     public void SmsDeliveryException_WithoutCode_ContainsOnlySafeMetadata()
     {
-        SmsDeliveryException exception = new SmsDeliveryException(
+        SmsDeliveryException exception = new(
             "TransmitSMS",
             DeliveryFailureKind.Configuration);
 

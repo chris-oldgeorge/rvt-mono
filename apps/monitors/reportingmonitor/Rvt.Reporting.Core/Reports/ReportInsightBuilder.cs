@@ -13,11 +13,10 @@ public static class ReportInsightBuilder
     {
         ArgumentNullException.ThrowIfNull(site);
 
-        MonitorTypeExecutiveSummary[] summaries = site.Monitors
+        MonitorTypeExecutiveSummary[] summaries = [.. site.Monitors
             .GroupBy(static monitor => monitor.TypeOfMonitor)
             .OrderBy(static group => group.Key)
-            .Select(group => BuildMonitorTypeSummary(group.Key, group.ToArray()))
-            .ToArray();
+            .Select(group => BuildMonitorTypeSummary(group.Key, [.. group]))];
 
         return new ReportExecutiveSummary(fromUtc, toUtc, summaries);
     }
@@ -26,11 +25,11 @@ public static class ReportInsightBuilder
     {
         ArgumentNullException.ThrowIfNull(site);
 
-        return site.Monitors
+        return [.. site.Monitors
             .GroupBy(static monitor => monitor.TypeOfMonitor)
             .Select(group =>
             {
-                ReportAlertHeatmapCell[] cells = group
+                ReportAlertHeatmapCell[] cells = [.. group
                     .SelectMany(static monitor => monitor.Notifications)
                     .GroupBy(static notification => new
                     {
@@ -44,14 +43,12 @@ public static class ReportInsightBuilder
                         cell.Count(static notification => notification.AlertType == AlertType.Caution),
                         cell.Max(static notification => notification.Level)))
                     .OrderBy(static cell => cell.Day)
-                    .ThenBy(static cell => cell.Hour)
-                    .ToArray();
+                    .ThenBy(static cell => cell.Hour)];
 
                 return new ReportAlertHeatmap(group.Key, cells);
             })
             .Where(static heatmap => heatmap.Cells.Count > 0)
-            .OrderBy(static heatmap => heatmap.MonitorType)
-            .ToArray();
+            .OrderBy(static heatmap => heatmap.MonitorType)];
     }
 
     public static string BuildDefaultNarrative(string siteName, ReportExecutiveSummary summary)
@@ -87,7 +84,7 @@ public static class ReportInsightBuilder
 
     private static MonitorTypeExecutiveSummary BuildMonitorTypeSummary(MonitorType monitorType, MonitorReportData[] monitors)
     {
-        NotificationData[] notifications = monitors.SelectMany(static monitor => monitor.Notifications).ToArray();
+        NotificationData[] notifications = [.. monitors.SelectMany(static monitor => monitor.Notifications)];
         int alertBreaches = notifications.Count(static notification => notification.AlertType == AlertType.Alert);
         int cautionBreaches = notifications.Count(static notification => notification.AlertType == AlertType.Caution);
         var worstDay = notifications

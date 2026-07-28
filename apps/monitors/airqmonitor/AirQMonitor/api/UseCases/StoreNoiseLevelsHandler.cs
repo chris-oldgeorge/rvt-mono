@@ -48,7 +48,7 @@ namespace AirQ.Api.UseCases
             try
             {
                 List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
-                List<Exception> failures = new List<Exception>();
+                List<Exception> failures = [];
                 foreach (NoiseMonitorDto monitor in monitors)
                 {
 
@@ -69,7 +69,7 @@ namespace AirQ.Api.UseCases
                         List<SampleResponse> samples = latest.Samples;
                         lastDataTime = latest.LatestDateTime;
                         RvtLogger.Logger.LogInformation("GetLatestSamples SerialId={Value1} number of samples={Value2} lastDataTime={Value3}", monitor.SerialId, samples.Count, lastDataTime);
-                        List<NoiseDto> dtos = new List<NoiseDto>();
+                        List<NoiseDto> dtos = [];
                         foreach (SampleResponse sample in samples)
                         {
                             dtos.Add(new NoiseDto(sample));
@@ -84,7 +84,10 @@ namespace AirQ.Api.UseCases
                             int starthour = (start.Hour / 8) * 8;
                             start = new DateTime(start.Year, start.Month, start.Day, starthour, 0, 0);//This should now be 00:00, 08:00 or 16:00, start time for an averge
                             if (start == dtos.First().SampleTime)//special case! in case you get a sample time of exactly 00:00:00 then that should be the end time for the period
+                            {
                                 start = start.AddHours(-8);
+                            }
+
                             DateTime endperiod = start.AddHours(8); //end time for the averaging period.
                             while (endperiod <= end) // end of a period exist within the samples.
                             {
@@ -96,7 +99,10 @@ namespace AirQ.Api.UseCases
 
                             monitorCommands.WriteLatestTimestamp(monitor.SerialId, lastDataTime);
                             if (monitor.Offline)
+                            {
                                 monitorCommands.SetMonitorOffline(monitor.Id, false);
+                            }
+
                             await eventPublisher.PublishDataInsertedAsync((DateTime)lastDataTime!, monitor.SerialId, cancellationToken: cancellationToken);
 
                             List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId);

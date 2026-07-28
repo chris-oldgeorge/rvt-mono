@@ -9,13 +9,13 @@ public sealed class MonitorBlobReportStorageTests
     [Fact]
     public async Task StoreAsync_WritesRenderedReportThroughNamedStreamingClientAndReturnsResolverUri()
     {
-        RecordingObjectStorageClient client = new RecordingObjectStorageClient();
-        RecordingObjectStorageClientFactory factory = new RecordingObjectStorageClientFactory(client);
-        Uri resolvedUri = new Uri("s3://report-bucket/rvtreports/report.pdf");
-        RecordingReportObjectUriResolver resolver = new RecordingReportObjectUriResolver(resolvedUri);
-        MonitorBlobReportStorage storage = new MonitorBlobReportStorage(factory, resolver);
-        RenderedReport report = new RenderedReport("report.pdf", "application/pdf", [1, 2, 3]);
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        RecordingObjectStorageClient client = new();
+        RecordingObjectStorageClientFactory factory = new(client);
+        Uri resolvedUri = new("s3://report-bucket/rvtreports/report.pdf");
+        RecordingReportObjectUriResolver resolver = new(resolvedUri);
+        MonitorBlobReportStorage storage = new(factory, resolver);
+        RenderedReport report = new("report.pdf", "application/pdf", [1, 2, 3]);
+        using CancellationTokenSource cancellation = new();
 
         Uri uri = await storage.StoreAsync(report, cancellation.Token);
 
@@ -31,13 +31,13 @@ public sealed class MonitorBlobReportStorageTests
     [Fact]
     public async Task StoreAsync_ResolvesTheProviderResultKeyWithoutAProviderUriSurface()
     {
-        RecordingObjectStorageClient client = new RecordingObjectStorageClient
+        RecordingObjectStorageClient client = new()
         {
             Result = new StorageWriteResult(StorageObjectKey.Parse("provider-result.pdf")),
         };
-        Uri resolvedUri = new Uri("https://storage.example.test/rvtreports/provider-result.pdf");
-        RecordingReportObjectUriResolver resolver = new RecordingReportObjectUriResolver(resolvedUri);
-        MonitorBlobReportStorage storage = new MonitorBlobReportStorage(
+        Uri resolvedUri = new("https://storage.example.test/rvtreports/provider-result.pdf");
+        RecordingReportObjectUriResolver resolver = new(resolvedUri);
+        MonitorBlobReportStorage storage = new(
             new RecordingObjectStorageClientFactory(client),
             resolver);
 
@@ -87,7 +87,7 @@ public sealed class MonitorBlobReportStorageTests
         {
             Request = request;
             CancellationToken = cancellationToken;
-            using MemoryStream buffer = new MemoryStream();
+            using MemoryStream buffer = new();
             await request.Content.CopyToAsync(buffer, cancellationToken);
             Content = buffer.ToArray();
             return Result;

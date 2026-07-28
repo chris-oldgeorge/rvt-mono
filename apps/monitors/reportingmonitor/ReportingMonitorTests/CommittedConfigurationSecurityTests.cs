@@ -62,7 +62,7 @@ public sealed class CommittedConfigurationSecurityTests
 
         try
         {
-            NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder(connectionString);
+            NpgsqlConnectionStringBuilder builder = new(connectionString);
             return !string.IsNullOrEmpty(builder.Username) ||
                    !string.IsNullOrEmpty(builder.Password) ||
                    !string.IsNullOrEmpty(builder.SslPassword);
@@ -76,7 +76,7 @@ public sealed class CommittedConfigurationSecurityTests
 
     private static string FindRepositoryFile(string relativePath)
     {
-        for (DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        for (DirectoryInfo? directory = new(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {
             string candidate = Path.Combine(directory.FullName, relativePath);
             if (File.Exists(candidate))

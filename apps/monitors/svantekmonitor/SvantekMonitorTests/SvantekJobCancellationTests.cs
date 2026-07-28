@@ -38,7 +38,7 @@ public sealed class SvantekJobCancellationTests
     [TestMethod]
     public async Task MonitorJobRunner_PassesTheExactTokenToEveryScheduledServiceMethod()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         CancellationToken token = cancellation.Token;
         Mock<ISvantekMonitorJobs> service = CreateStrictJobsMock(token);
 
@@ -54,9 +54,9 @@ public sealed class SvantekJobCancellationTests
     [TestMethod]
     public async Task MonitorJobDispatcher_PassesTheExactTokenThroughTheRunner()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         CancellationToken token = cancellation.Token;
-        Mock<ISvantekMonitorJobs> service = new Mock<ISvantekMonitorJobs>(MockBehavior.Strict);
+        Mock<ISvantekMonitorJobs> service = new(MockBehavior.Strict);
         service.Setup(jobs => jobs.StoreMonitorsAsync(token)).Returns(Task.CompletedTask);
         Type? dispatcherType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.SvantekMonitorJobDispatcher");
         Assert.IsNotNull(dispatcherType);
@@ -80,7 +80,7 @@ public sealed class SvantekJobCancellationTests
     [TestMethod]
     public void AddSvantekMonitor_RegistersJobsAsSingletonAlias_AndDispatcherDependsOnInterface()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddLogging();
         IConfigurationRoot configuration = new ConfigurationBuilder().Build();
         services.AddSingleton<IConfiguration>(configuration);
@@ -121,10 +121,10 @@ public sealed class SvantekJobCancellationTests
     [TestMethod]
     public async Task StoreNoiseLevelsAsync_UsesBoundedPastOnlyWindows_AndPassesTokenToGatewayAndDatabase()
     {
-        DateTime utcNow = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        DateTime utcNow = new(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
+        using CancellationTokenSource cancellation = new();
         CancellationToken token = cancellation.Token;
-        NoiseMonitorReadDto monitor = new NoiseMonitorReadDto(
+        NoiseMonitorReadDto monitor = new(
             Guid.NewGuid(),
             "fleet-1",
             "1001",
@@ -137,11 +137,11 @@ public sealed class SvantekJobCancellationTests
             false,
             SvantekApi.BatteryAlertType.Off,
             100);
-        Mock<ISvantekMonitorQueries> monitorQueries = new Mock<ISvantekMonitorQueries>(MockBehavior.Strict);
+        Mock<ISvantekMonitorQueries> monitorQueries = new(MockBehavior.Strict);
         monitorQueries.Setup(queries => queries.ReadMonitorListAsync(null, token))
             .ReturnsAsync([monitor]);
-        Mock<IHttpClient> http = new Mock<IHttpClient>(MockBehavior.Strict);
-        List<(DateTime Start, DateTime End)> requestedWindows = new List<(DateTime Start, DateTime End)>();
+        Mock<IHttpClient> http = new(MockBehavior.Strict);
+        List<(DateTime Start, DateTime End)> requestedWindows = [];
         http.Setup(client => client.PostAsync(
                 "projects-get-result-data-multi-point.php",
                 It.IsAny<HttpContent>(),
@@ -161,8 +161,8 @@ public sealed class SvantekJobCancellationTests
             .ReturnsAsync("""
                 {"status":"ok","data":[{"point":3,"data":{"status":"no_data","results":[]}}]}
                 """);
-        Mock<ISvantekOperationalCommands> operational = new Mock<ISvantekOperationalCommands>(MockBehavior.Strict);
-        StoreNoiseLevelsHandler handler = new StoreNoiseLevelsHandler(
+        Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
+        StoreNoiseLevelsHandler handler = new(
             new SvantekHttpGateway(http.Object, "key"),
             new SvantekMonitorReader(monitorQueries.Object, testLocal: false),
             Mock.Of<ISvantekRuleQueries>(),
@@ -190,7 +190,7 @@ public sealed class SvantekJobCancellationTests
 
     private static Mock<ISvantekMonitorJobs> CreateStrictJobsMock(CancellationToken token)
     {
-        Mock<ISvantekMonitorJobs> service = new Mock<ISvantekMonitorJobs>(MockBehavior.Strict);
+        Mock<ISvantekMonitorJobs> service = new(MockBehavior.Strict);
         service.Setup(jobs => jobs.StoreMonitorsAsync(token)).Returns(Task.CompletedTask);
         service.Setup(jobs => jobs.StoreNoiseLevelsAsync(token)).Returns(Task.CompletedTask);
         service.Setup(jobs => jobs.NotifySiteAveragesAsync(token)).Returns(Task.CompletedTask);

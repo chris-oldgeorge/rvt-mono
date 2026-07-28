@@ -82,7 +82,7 @@ public class CompaniesController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        EntityResponse<CompanyDetailResponse> response = new EntityResponse<CompanyDetailResponse>
+        EntityResponse<CompanyDetailResponse> response = new()
         {
             Item = result.Company
         };
@@ -111,7 +111,7 @@ public class CompaniesController : ControllerBase
 
         return new EntityResponse<CompanyDetailResponse>
         {
-            Item = result.Company!
+            Item = result.Company
         };
     }
 

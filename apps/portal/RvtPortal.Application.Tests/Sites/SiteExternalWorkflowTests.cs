@@ -11,7 +11,7 @@ public sealed class SiteExternalWorkflowTests
     public async Task ArchiveAsync_UserWhoCannotManage_ReturnsForbiddenBeforeExternalOrDatabaseWork()
     {
         SiteExternalFixture fixture = SiteExternalFixture.ReadableAdmin();
-        PortalUserContext companyUser = new PortalUserContext(
+        PortalUserContext companyUser = new(
             Guid.NewGuid(),
             "company",
             Guid.NewGuid(),
@@ -135,7 +135,7 @@ public sealed class SiteExternalWorkflowTests
     public async Task ArchiveAsync_UnknownCommitWithDurableSameUrlReturnsSuccessWithoutCleanup()
     {
         SiteExternalFixture fixture = SiteExternalFixture.ReadableAdmin();
-        using CancellationTokenSource requestCancellation = new CancellationTokenSource();
+        using CancellationTokenSource requestCancellation = new();
         fixture.UnitOfWork.TransactionExceptionAfterOperation =
             new IOException("connection dropped during commit");
         fixture.Reads.ArchiveStates.Enqueue(
@@ -193,7 +193,7 @@ public sealed class SiteExternalWorkflowTests
     public async Task ArchiveAsync_UnknownCancellationWithoutCanonicalMetadataRetainsCandidateAndRethrowsOriginal()
     {
         SiteExternalFixture fixture = SiteExternalFixture.ReadableAdmin();
-        OperationCanceledException persistenceException = new OperationCanceledException("commit cancelled");
+        OperationCanceledException persistenceException = new("commit cancelled");
         fixture.UnitOfWork.TransactionException = persistenceException;
 
         OperationCanceledException actual = await Assert.ThrowsAsync<OperationCanceledException>(
@@ -213,7 +213,7 @@ public sealed class SiteExternalWorkflowTests
     public async Task ArchiveAsync_UnknownCancellationVerificationFailureRetainsCandidateAndRethrowsOriginal()
     {
         SiteExternalFixture fixture = SiteExternalFixture.ReadableAdmin();
-        OperationCanceledException persistenceException = new OperationCanceledException("metadata cancelled");
+        OperationCanceledException persistenceException = new("metadata cancelled");
         fixture.UnitOfWork.TransactionException = persistenceException;
         fixture.Reads.ArchiveStateExceptionAfterFirstRead =
             new IOException("verification unavailable");
@@ -304,7 +304,7 @@ public sealed class SiteExternalWorkflowTests
     public async Task SaveLogoAsync_UnauthorizedSiteDoesNotCallStorage()
     {
         SiteExternalFixture fixture = SiteExternalFixture.InvisibleCompanyUser();
-        await using MemoryStream stream = new MemoryStream([1, 2, 3]);
+        await using MemoryStream stream = new([1, 2, 3]);
 
         UseCaseResult<SiteDetailModel> result = await fixture.Service.SaveCustomerLogoAsync(
             fixture.User,
@@ -323,7 +323,7 @@ public sealed class SiteExternalWorkflowTests
         fixture.Logos.SaveResult = new SiteLogoSaveResult(
             SiteLogoSaveOutcome.Invalid,
             "Customer logos must be PNG, JPEG, or WebP images.");
-        await using MemoryStream stream = new MemoryStream([1, 2, 3]);
+        await using MemoryStream stream = new([1, 2, 3]);
 
         UseCaseResult<SiteDetailModel> result = await fixture.Service.SaveCustomerLogoAsync(
             fixture.Admin,
@@ -381,20 +381,20 @@ public sealed class SiteExternalWorkflowTests
         public static SiteExternalFixture ReadableAdmin()
         {
             Guid siteId = Guid.NewGuid();
-            List<string> events = new List<string>();
-            ExternalReadPort reads = new ExternalReadPort
+            List<string> events = new();
+            ExternalReadPort reads = new()
             {
                 Exists = true,
                 ArchiveState = new SiteArchiveState(siteId, false, null),
                 Detail = new SiteDetailModel { Id = siteId, SiteName = "Site" }
             };
-            ExternalWritePort writes = new ExternalWritePort(events);
-            ExternalUnitOfWork unitOfWork = new ExternalUnitOfWork(events);
-            FakeArchivePort archive = new FakeArchivePort(events);
-            FakeLogoPort logos = new FakeLogoPort();
-            PortalUserContext admin = new PortalUserContext(
+            ExternalWritePort writes = new(events);
+            ExternalUnitOfWork unitOfWork = new(events);
+            FakeArchivePort archive = new(events);
+            FakeLogoPort logos = new();
+            PortalUserContext admin = new(
                 Guid.NewGuid(), "admin", null, true, false, false);
-            SiteApplicationService service = new SiteApplicationService(
+            SiteApplicationService service = new(
                 reads,
                 writes,
                 unitOfWork,
@@ -419,7 +419,7 @@ public sealed class SiteExternalWorkflowTests
         public static SiteExternalFixture InvisibleCompanyUser()
         {
             SiteExternalFixture fixture = ReadableAdmin();
-            PortalUserContext user = new PortalUserContext(
+            PortalUserContext user = new(
                 Guid.NewGuid(), "user", Guid.NewGuid(), false, false, true);
             fixture.Reads.Exists = false;
             return fixture with { User = user };

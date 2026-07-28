@@ -41,8 +41,8 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
     [TestMethod]
     public async Task CommitAsync_DuplicateRecoveryCancellation_PreservesOperationCanceledException()
     {
-        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
-        OperationCanceledException cancellation = new OperationCanceledException(cancellationSource.Token);
+        using CancellationTokenSource cancellationSource = new();
+        OperationCanceledException cancellation = new(cancellationSource.Token);
 
         OperationCanceledException thrown = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
             () => CreateStore(cancellation).CommitAsync(
@@ -56,12 +56,12 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
     private static EfAlertCommitStore<TestMonitorContext> CreateStore(
         Exception duplicateRecoveryFailure)
     {
-        MonitorDbOptions options = new MonitorDbOptions(new Dictionary<string, string>());
+        MonitorDbOptions options = new(new Dictionary<string, string>());
         DbContextOptions<TestMonitorContext> contextOptions = new DbContextOptionsBuilder<TestMonitorContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
-        TestMonitorContext context = new TestMonitorContext(contextOptions, options);
+        TestMonitorContext context = new(contextOptions, options);
         context.Monitors.Add(new MonitorEntity
         {
             Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
@@ -82,7 +82,7 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
 
     private static AlertCommitRequest CommitRequest()
     {
-        byte[] sourceKeyHash = Enumerable.Repeat((byte)0x2a, 32).ToArray();
+        byte[] sourceKeyHash = [.. Enumerable.Repeat((byte)0x2a, 32)];
         return new AlertCommitRequest(
             new AlertSignal(
                 "omnidots.webhook",

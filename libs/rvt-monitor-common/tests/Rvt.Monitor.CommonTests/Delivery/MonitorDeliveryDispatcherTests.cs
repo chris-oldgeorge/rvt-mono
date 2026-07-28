@@ -16,7 +16,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_WhenNoRowIsDue_ClaimsOnceWithoutMutatingOrDelivering()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
 
         await harness.Dispatcher.DispatchDueAsync();
 
@@ -32,8 +32,8 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_ClaimsImmediatelyBeforeEachDeliveryAndFormatsMyAtmAlertMqtt()
     {
-        List<string> events = new List<string>();
-        DispatcherHarness harness = new DispatcherHarness(ValidOptions() with
+        List<string> events = [];
+        DispatcherHarness harness = new(ValidOptions() with
         {
             Producer = MonitorDeliveryProducers.MyAtm
         });
@@ -73,7 +73,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_FormatsSvantekAlertMqttWithNoisePrefixAndCustomerId()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with { CustomerId = 41 };
         harness.Queries.Enqueue(Message(payload: payload));
         string? json = null;
@@ -92,7 +92,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_PublishesDataInsertedWithoutNotificationOrAudit()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with { NotificationId = Guid.Empty };
         MonitorDeliveryMessage message = Message(MonitorDeliveryKind.MqttDataInserted, payload: payload) with
         {
@@ -116,7 +116,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_CompletesEmailWithMatchingAuditAndMyAtmOfflineUrl()
     {
-        DispatcherHarness harness = new DispatcherHarness(ValidOptions() with
+        DispatcherHarness harness = new(ValidOptions() with
         {
             Producer = MonitorDeliveryProducers.MyAtm,
             PortalBaseUrl = "https://portal.example.test/root"
@@ -156,7 +156,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_CompletesSmsWithMatchingAuditAndSvantekAlertUrl()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         MonitorDeliveryMessage message = Message(MonitorDeliveryKind.Sms, destination: "447700900000");
         harness.Queries.Enqueue(message);
         NotificationDeliveryRequest? request = null;
@@ -182,7 +182,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_SvantekOfflineContactHasNoNotificationUrlOrAuditWhenRowReferenceIsMissing()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with { AlertType = AlertType.Offline };
         MonitorDeliveryMessage message = Message(MonitorDeliveryKind.Email, payload: payload) with { NotificationId = null };
         harness.Queries.Enqueue(message);
@@ -203,7 +203,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_StopsAfterDefaultBatchOfFifty()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         for (int index = 0; index < 51; index++)
         {
             harness.Queries.Enqueue(Message(MonitorDeliveryKind.MqttDataInserted) with
@@ -226,7 +226,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_DeliveryTimeoutBecomesFencedRetry()
     {
-        DispatcherHarness harness = new DispatcherHarness(ValidOptions() with
+        DispatcherHarness harness = new(ValidOptions() with
         {
             DeliveryTimeout = TimeSpan.FromMilliseconds(20),
             LeaseDuration = TimeSpan.FromSeconds(1)
@@ -253,7 +253,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_RetryDelayIsExponentialAndCapped()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         harness.Queries.Enqueue(Message(attemptCount: 1) with { Id = Guid.NewGuid() });
         harness.Queries.Enqueue(Message(attemptCount: 2) with { Id = Guid.NewGuid() });
         harness.Queries.Enqueue(Message(attemptCount: 7) with { Id = Guid.NewGuid() });
@@ -277,7 +277,7 @@ public sealed class MonitorDeliveryDispatcherTests
     public async Task DispatchDueAsync_NonTransientTypedFailureDeadLettersImmediately(
         DeliveryFailureKind failureKind)
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         MonitorDeliveryMessage message = Message(MonitorDeliveryKind.Email, attemptCount: 1);
         harness.Queries.Enqueue(message);
         harness.Messages.Setup(service => service.SendAsync(
@@ -297,7 +297,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_TransientRetryAfterRaisesDelayWithinConfiguredCap()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         harness.Queries.Enqueue(Message(MonitorDeliveryKind.Email, attemptCount: 1));
         harness.Messages.Setup(service => service.SendAsync(
                 It.IsAny<NotificationDeliveryRequest>(),
@@ -322,7 +322,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_TransientRetryAfterIsCapped()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         harness.Queries.Enqueue(Message(MonitorDeliveryKind.Email, attemptCount: 1));
         harness.Messages.Setup(service => service.SendAsync(
                 It.IsAny<NotificationDeliveryRequest>(),
@@ -344,7 +344,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_TransientTypedFailureAtMaxAttemptsDeadLetters()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         harness.Queries.Enqueue(Message(MonitorDeliveryKind.Email, attemptCount: 8));
         harness.Messages.Setup(service => service.SendAsync(
                 It.IsAny<NotificationDeliveryRequest>(),
@@ -366,7 +366,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_AttemptEightDeadLettersContactWithFailureAuditAndFailsPass()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         MonitorDeliveryMessage message = Message(MonitorDeliveryKind.Email, attemptCount: 8, destination: "person@example.test");
         harness.Queries.Enqueue(message);
         harness.Messages.Setup(service => service.SendAsync(
@@ -389,7 +389,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_MalformedPayloadDeadLettersImmediatelyWithoutContactAudit()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         MonitorDeliveryMessage message = Message(MonitorDeliveryKind.Email, attemptCount: 1) with { Payload = "{ secret malformed" };
         harness.Queries.Enqueue(message);
 
@@ -407,7 +407,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_ContinuesWithLaterRowsBeforeThrowingAggregateFailure()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         MonitorDeliveryMessage malformed = Message() with { Id = Guid.NewGuid(), Payload = "not-json" };
         MonitorDeliveryMessage valid = Message(MonitorDeliveryKind.MqttDataInserted) with { Id = Guid.NewGuid() };
         harness.Queries.Enqueue(malformed);
@@ -428,7 +428,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_WhenCompletionLosesOwnership_LogsAndMakesNoSecondMutation()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         MonitorDeliveryMessage message = Message(MonitorDeliveryKind.MqttDataInserted);
         harness.Queries.Enqueue(message);
         harness.Mqtt.Setup(client => client.PublishAsync(
@@ -449,7 +449,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_WhenRetryLosesOwnership_MakesNoSecondMutationOrFailureReport()
     {
-        DispatcherHarness harness = new DispatcherHarness(ValidOptions() with
+        DispatcherHarness harness = new(ValidOptions() with
         {
             FailureMode = MonitorDeliveryFailureMode.AnyDeliveryFailure
         });
@@ -469,8 +469,8 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_CallerCancellationLeavesClaimedLeaseUntouched()
     {
-        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
-        DispatcherHarness harness = new DispatcherHarness();
+        using CancellationTokenSource cancellationSource = new();
+        DispatcherHarness harness = new();
         harness.Queries.Enqueue(Message());
         harness.Mqtt.Setup(client => client.PublishAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -491,7 +491,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_ProducerMismatchDeadLettersImmediately()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         harness.Queries.Enqueue(Message(producer: MonitorDeliveryProducers.MyAtm));
 
         await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
@@ -505,7 +505,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_UnsupportedVersionDeadLettersImmediately()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         harness.Queries.Enqueue(Message() with { PayloadVersion = 2 });
 
         await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
@@ -518,7 +518,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_UnknownKindDeadLettersImmediately()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         harness.Queries.Enqueue(Message((MonitorDeliveryKind)99));
 
         await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
@@ -531,7 +531,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_PersistedErrorRedactsExceptionMessageDestinationAndPayload()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         string secret = "secret destination token";
         MonitorDeliveryMessage message = Message(payload: DeliveryFixture.ValidPayload with { Field = secret }) with
         {
@@ -555,7 +555,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_DeadLetterOnlyModeRetriesWithoutFailingPass()
     {
-        DispatcherHarness harness = new DispatcherHarness();
+        DispatcherHarness harness = new();
         harness.Queries.Enqueue(Message());
         harness.Mqtt.Setup(client => client.PublishAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -570,7 +570,7 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_AnyFailureMode_RetriesThenFailsPass()
     {
-        DispatcherHarness harness = new DispatcherHarness(ValidOptions() with
+        DispatcherHarness harness = new(ValidOptions() with
         {
             FailureMode = MonitorDeliveryFailureMode.AnyDeliveryFailure
         });
@@ -590,8 +590,8 @@ public sealed class MonitorDeliveryDispatcherTests
     [TestMethod]
     public async Task DispatchDueAsync_FailureSinkRunsOnlyAfterFencedOutcomeAndCannotMaskIt()
     {
-        DispatcherHarness harness = new DispatcherHarness();
-        List<string> events = new List<string>();
+        DispatcherHarness harness = new();
+        List<string> events = [];
         harness.Queries.Enqueue(Message());
         harness.Mqtt.Setup(client => client.PublishAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -702,7 +702,7 @@ public sealed class MonitorDeliveryDispatcherTests
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            CompletionCall call = new CompletionCall(id, leaseId, completedAt, audit, cancellationToken);
+            CompletionCall call = new(id, leaseId, completedAt, audit, cancellationToken);
             Completions.Add(call);
             OnOutcome?.Invoke(call);
             return Task.FromResult(OutcomeResult);
@@ -716,7 +716,7 @@ public sealed class MonitorDeliveryDispatcherTests
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            RetryCall call = new RetryCall(id, leaseId, nextAttemptAt, error, cancellationToken);
+            RetryCall call = new(id, leaseId, nextAttemptAt, error, cancellationToken);
             Retries.Add(call);
             OnOutcome?.Invoke(call);
             return Task.FromResult(OutcomeResult);
@@ -731,7 +731,7 @@ public sealed class MonitorDeliveryDispatcherTests
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            DeadLetterCall call = new DeadLetterCall(id, leaseId, failedAt, error, audit, cancellationToken);
+            DeadLetterCall call = new(id, leaseId, failedAt, error, audit, cancellationToken);
             DeadLetters.Add(call);
             OnOutcome?.Invoke(call);
             return Task.FromResult(OutcomeResult);
@@ -750,7 +750,7 @@ public sealed class MonitorDeliveryDispatcherTests
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            FailureCall call = new FailureCall(message, error, terminal, cancellationToken);
+            FailureCall call = new(message, error, terminal, cancellationToken);
             Failures.Add(call);
             OnFailure?.Invoke(call);
             return Task.CompletedTask;

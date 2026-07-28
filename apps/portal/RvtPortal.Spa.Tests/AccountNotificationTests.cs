@@ -52,8 +52,8 @@ public sealed class AccountNotificationTests
     // Function summary: Verifies the messenger sends the catalog subject with the callback URL substituted and HTML-encoded.
     public async Task SendPasswordSetAsync_SubstitutesEncodedCallbackAndSendsSubject()
     {
-        RecordingEmailDelivery delivery = new RecordingEmailDelivery(EmailDeliveryResult.Success());
-        AccountMessenger messenger = new AccountMessenger(delivery);
+        RecordingEmailDelivery delivery = new(EmailDeliveryResult.Success());
+        AccountMessenger messenger = new(delivery);
 
         EmailDeliveryResult result = await messenger.SendPasswordSetAsync("user@example.test", "https://portal.test/set?code=a&b=c", CancellationToken.None);
 
@@ -69,8 +69,8 @@ public sealed class AccountNotificationTests
     // Function summary: Verifies a delivery failure is propagated to the caller with the provider response.
     public async Task SendPasswordResetAsync_PropagatesDeliveryFailure()
     {
-        RecordingEmailDelivery delivery = new RecordingEmailDelivery(EmailDeliveryResult.Failure("503"));
-        AccountMessenger messenger = new AccountMessenger(delivery);
+        RecordingEmailDelivery delivery = new(EmailDeliveryResult.Failure("503"));
+        AccountMessenger messenger = new(delivery);
 
         EmailDeliveryResult result = await messenger.SendPasswordResetAsync("user@example.test", "https://portal.test/reset", CancellationToken.None);
 

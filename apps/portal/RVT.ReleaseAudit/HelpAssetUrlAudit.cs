@@ -71,8 +71,8 @@ internal static class HelpAssetUrlAudit
         string revision,
         string auditVersion)
     {
-        HelpAssetUrlAuditRow[] scannedRows = rows.ToArray();
-        List<HelpAssetUrlViolation> violations = new List<HelpAssetUrlViolation>();
+        HelpAssetUrlAuditRow[] scannedRows = [.. rows];
+        List<HelpAssetUrlViolation> violations = new();
 
         foreach (HelpAssetUrlAuditRow? row in scannedRows)
         {
@@ -88,11 +88,10 @@ internal static class HelpAssetUrlAudit
                 violationCode));
         }
 
-        HelpAssetUrlViolation[] orderedViolations = violations
+        HelpAssetUrlViolation[] orderedViolations = [.. violations
             .OrderBy(violation => violation.HelpArticleId)
             .ThenBy(violation => violation.AssetId)
-            .ThenBy(violation => violation.ViolationCode, StringComparer.Ordinal)
-            .ToArray();
+            .ThenBy(violation => violation.ViolationCode, StringComparer.Ordinal)];
 
         return new HelpAssetUrlAuditReceipt(
             environment,
@@ -113,7 +112,7 @@ internal static class HelpAssetUrlAudit
         string connectionString,
         CancellationToken cancellationToken)
     {
-        await using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+        await using NpgsqlConnection connection = new(connectionString);
         await connection.OpenAsync(cancellationToken);
         string database = connection.Database;
 
@@ -140,7 +139,7 @@ internal static class HelpAssetUrlAudit
 
         try
         {
-            await using NpgsqlCommand command = new NpgsqlCommand(
+            await using NpgsqlCommand command = new(
                 "SET TRANSACTION READ ONLY;",
                 openConnection,
                 transaction);
@@ -160,8 +159,8 @@ internal static class HelpAssetUrlAudit
         HelpAssetRelation relation,
         CancellationToken cancellationToken)
     {
-        List<HelpAssetUrlAuditRow> rows = new List<HelpAssetUrlAuditRow>();
-        await using NpgsqlCommand command = new NpgsqlCommand(
+        List<HelpAssetUrlAuditRow> rows = new();
+        await using NpgsqlCommand command = new(
             GetReadRowsQuery(relation),
             openConnection,
             transaction);
@@ -200,7 +199,7 @@ internal static class HelpAssetUrlAudit
                 Directory.CreateDirectory(parentDirectory);
             }
 
-            await using (FileStream stream = new FileStream(
+            await using (FileStream stream = new(
                 temporaryPath,
                 FileMode.CreateNew,
                 FileAccess.Write,
@@ -208,7 +207,7 @@ internal static class HelpAssetUrlAudit
                 bufferSize: 4096,
                 FileOptions.Asynchronous))
             {
-                await using (StreamWriter writer = new StreamWriter(
+                await using (StreamWriter writer = new(
                     stream,
                     new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
                     bufferSize: 4096,

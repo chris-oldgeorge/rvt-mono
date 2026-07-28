@@ -12,7 +12,7 @@ public sealed class ReportPeriodCalculatorTests
     [Fact]
     public void CreatePeriods_Daily_UsesPreviousDay()
     {
-        ReportRule rule = new ReportRule { Frequency = FrequencyType.Daily };
+        ReportRule rule = new() { Frequency = FrequencyType.Daily };
         IReadOnlyList<ReportPeriod> periods = ReportPeriodCalculator.CreatePeriods(rule, new DateTimeOffset(2026, 6, 24, 4, 0, 0, TimeSpan.Zero));
 
         Assert.Single(periods);
@@ -23,7 +23,7 @@ public sealed class ReportPeriodCalculatorTests
     [Fact]
     public void CreatePeriods_Weekly_ReturnsNothingWhenTriggerDayDoesNotMatch()
     {
-        ReportRule rule = new ReportRule { Frequency = FrequencyType.Weekly, DayOfWeek = DayOfWeek.Monday };
+        ReportRule rule = new() { Frequency = FrequencyType.Weekly, DayOfWeek = DayOfWeek.Monday };
         IReadOnlyList<ReportPeriod> periods = ReportPeriodCalculator.CreatePeriods(rule, new DateTimeOffset(2026, 6, 24, 4, 0, 0, TimeSpan.Zero));
 
         Assert.Empty(periods);
@@ -32,7 +32,7 @@ public sealed class ReportPeriodCalculatorTests
     [Fact]
     public void CreatePeriods_Weekly_ReturnsPreviousSevenDaysWhenTriggerDayMatches()
     {
-        ReportRule rule = new ReportRule { Frequency = FrequencyType.Weekly, DayOfWeek = DayOfWeek.Wednesday };
+        ReportRule rule = new() { Frequency = FrequencyType.Weekly, DayOfWeek = DayOfWeek.Wednesday };
         IReadOnlyList<ReportPeriod> periods = ReportPeriodCalculator.CreatePeriods(rule, new DateTimeOffset(2026, 6, 24, 4, 0, 0, TimeSpan.Zero));
 
         Assert.Single(periods);
@@ -43,7 +43,7 @@ public sealed class ReportPeriodCalculatorTests
     [Fact]
     public void CreatePeriods_Monthly_UsesLastDayForShortMonth()
     {
-        ReportRule rule = new ReportRule { Frequency = FrequencyType.Monthly, DayOfMonth = 31 };
+        ReportRule rule = new() { Frequency = FrequencyType.Monthly, DayOfMonth = 31 };
         IReadOnlyList<ReportPeriod> periods = ReportPeriodCalculator.CreatePeriods(rule, new DateTimeOffset(2026, 4, 30, 4, 0, 0, TimeSpan.Zero));
 
         Assert.Single(periods);
@@ -53,7 +53,7 @@ public sealed class ReportPeriodCalculatorTests
     [Fact]
     public void CreatePeriods_WeeklyAndMonthly_CanCreateBothCandidatePeriods()
     {
-        ReportRule rule = new ReportRule
+        ReportRule rule = new()
         {
             Frequency = FrequencyType.WeeklyAndMonthly,
             DayOfWeek = DayOfWeek.Wednesday,

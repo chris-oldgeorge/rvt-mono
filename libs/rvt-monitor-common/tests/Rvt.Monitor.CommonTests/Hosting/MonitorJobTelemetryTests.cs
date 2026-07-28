@@ -9,7 +9,7 @@ public sealed class MonitorJobTelemetryTests
     [TestMethod]
     public async Task ExecuteAsync_LogsJobStartAndCompletion()
     {
-        using CapturingLoggerProvider loggerProvider = new CapturingLoggerProvider();
+        using CapturingLoggerProvider loggerProvider = new();
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
         ILogger logger = loggerFactory.CreateLogger("test");
 
@@ -28,7 +28,7 @@ public sealed class MonitorJobTelemetryTests
     [TestMethod]
     public async Task ExecuteAsync_LogsJobFailureWhenExitCodeIsNonZero()
     {
-        using CapturingLoggerProvider loggerProvider = new CapturingLoggerProvider();
+        using CapturingLoggerProvider loggerProvider = new();
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
         ILogger logger = loggerFactory.CreateLogger("test");
 
@@ -45,7 +45,7 @@ public sealed class MonitorJobTelemetryTests
 
     private sealed class CapturingLoggerProvider : ILoggerProvider
     {
-        public List<string> Messages { get; } = new();
+        public List<string> Messages { get; } = [];
 
         public ILogger CreateLogger(string categoryName)
         {

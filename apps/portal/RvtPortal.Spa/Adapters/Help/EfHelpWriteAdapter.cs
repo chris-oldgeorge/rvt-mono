@@ -19,7 +19,7 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
     {
         HelpArticleMutation source = mutation.Source;
         HelpSection section = await GetOrCreateSectionAsync(source, cancellationToken);
-        HelpArticle article = new HelpArticle
+        HelpArticle article = new()
         {
             Id = Guid.NewGuid(),
             SectionId = section.Id,
@@ -145,7 +145,7 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
         IReadOnlyList<HelpAssetMutation> mutations,
         IReadOnlyDictionary<Guid, HelpAsset> existingAssets)
     {
-        HashSet<Guid> retainedIds = new HashSet<Guid>();
+        HashSet<Guid> retainedIds = new();
         foreach (HelpAssetMutation mutation in mutations)
         {
             if (mutation.Id.HasValue)
@@ -163,9 +163,7 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
             }
         }
 
-        List<HelpAsset> removedAssets = existingAssets.Values
-            .Where(asset => !retainedIds.Contains(asset.Id))
-            .ToList();
+        List<HelpAsset> removedAssets = [.. existingAssets.Values.Where(asset => !retainedIds.Contains(asset.Id))];
         domainContext.HelpAssets.RemoveRange(removedAssets);
     }
 
@@ -173,7 +171,7 @@ public sealed class EfHelpWriteAdapter(RVTDbContext domainContext) : IHelpWriteP
         HelpArticle article,
         HelpAssetMutation mutation)
     {
-        HelpAsset asset = new HelpAsset
+        HelpAsset asset = new()
         {
             Id = Guid.NewGuid(),
             HelpArticleId = article.Id,

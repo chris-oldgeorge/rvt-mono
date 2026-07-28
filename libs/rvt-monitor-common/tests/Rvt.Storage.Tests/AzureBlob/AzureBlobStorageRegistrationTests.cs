@@ -16,7 +16,7 @@ public sealed class AzureBlobStorageRegistrationTests
                 "recordings",
                 _ => ConnectionStringOptions()));
 
-        ObjectStorageClientRegistration[] registrations = provider.GetServices<ObjectStorageClientRegistration>().ToArray();
+        ObjectStorageClientRegistration[] registrations = [.. provider.GetServices<ObjectStorageClientRegistration>()];
 
         Assert.HasCount(1, registrations);
         Assert.AreEqual("recordings", registrations[0].ResourceName);
@@ -142,7 +142,7 @@ public sealed class AzureBlobStorageRegistrationTests
     public void AddRvtAzureBlobStorage_WhenResourceNameIsBlank_ThrowsAtRegistration(
         string resourceName)
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         ArgumentException exception = Assert.ThrowsExactly<ArgumentException>(() =>
             services.AddRvtAzureBlobStorage(resourceName, ConnectionStringOptions()));
@@ -160,7 +160,7 @@ public sealed class AzureBlobStorageRegistrationTests
     private static ServiceProvider CreateProvider(
         Action<IServiceCollection> configureServices)
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         configureServices(services);
         return services.BuildServiceProvider();

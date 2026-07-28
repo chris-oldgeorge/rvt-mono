@@ -14,12 +14,12 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateOneTimeReportAsync_PersistsReportWithHiddenOneTimeRuleWithoutUpdatingLastGenerated()
     {
-        FakeRuleQueries rules = new FakeRuleQueries();
-        FakeDataQueries data = new FakeDataQueries();
-        FakeGenerationLocks locks = new FakeGenerationLocks();
-        FakeGenerationCommands commands = new FakeGenerationCommands();
+        FakeRuleQueries rules = new();
+        FakeDataQueries data = new();
+        FakeGenerationLocks locks = new();
+        FakeGenerationCommands commands = new();
         ReportGenerationService service = CreateService(rules, data, locks, commands);
-        OneTimeReportRequest request = new OneTimeReportRequest
+        OneTimeReportRequest request = new()
         {
             SiteId = data.Site.Id,
             RequestedByUserId = Guid.NewGuid(),
@@ -55,7 +55,7 @@ public sealed class ReportGenerationServiceTests
         Guid ruleId = Guid.NewGuid();
         Guid siteId = Guid.NewGuid();
         Guid recipientId = Guid.NewGuid();
-        FakeRuleQueries rules = new FakeRuleQueries
+        FakeRuleQueries rules = new()
         {
             Rule = new ReportRule
             {
@@ -66,11 +66,11 @@ public sealed class ReportGenerationServiceTests
                 Recipients = [new ReportRecipient(recipientId, "daily@example.com")]
             }
         };
-        FakeDataQueries data = new FakeDataQueries();
-        FakeGenerationLocks locks = new FakeGenerationLocks();
-        FakeGenerationCommands commands = new FakeGenerationCommands();
+        FakeDataQueries data = new();
+        FakeGenerationLocks locks = new();
+        FakeGenerationCommands commands = new();
         ReportGenerationService service = CreateService(rules, data, locks, commands);
-        DateTimeOffset triggerUtc = new DateTimeOffset(2026, 6, 30, 8, 15, 0, TimeSpan.Zero);
+        DateTimeOffset triggerUtc = new(2026, 6, 30, 8, 15, 0, TimeSpan.Zero);
 
         IReadOnlyList<GeneratedReport> reports = await service.GenerateRuleAsync(ruleId, triggerUtc, CancellationToken.None);
 
@@ -92,13 +92,13 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateOneTimeReportAsync_PersistsThrownFailureAndContinuesRemainingRecipients()
     {
-        FakeRuleQueries rules = new FakeRuleQueries();
-        FakeDataQueries data = new FakeDataQueries();
-        FakeGenerationLocks locks = new FakeGenerationLocks();
-        FakeGenerationCommands commands = new FakeGenerationCommands();
-        ThrowingThenSuccessfulSender sender = new ThrowingThenSuccessfulSender();
+        FakeRuleQueries rules = new();
+        FakeDataQueries data = new();
+        FakeGenerationLocks locks = new();
+        FakeGenerationCommands commands = new();
+        ThrowingThenSuccessfulSender sender = new();
         ReportGenerationService service = CreateService(rules, data, locks, commands, sender);
-        OneTimeReportRequest request = new OneTimeReportRequest
+        OneTimeReportRequest request = new()
         {
             SiteId = data.Site.Id,
             RequestedByUserId = Guid.NewGuid(),
@@ -120,16 +120,16 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateOneTimeReportAsync_BoundsReturnedDeliveryFailure()
     {
-        FakeRuleQueries rules = new FakeRuleQueries();
-        FakeDataQueries data = new FakeDataQueries();
-        FakeGenerationCommands commands = new FakeGenerationCommands();
+        FakeRuleQueries rules = new();
+        FakeDataQueries data = new();
+        FakeGenerationCommands commands = new();
         ReportGenerationService service = CreateService(
             rules,
             data,
             new FakeGenerationLocks(),
             commands,
             new FailedSender(new string('x', 1200)));
-        OneTimeReportRequest request = new OneTimeReportRequest
+        OneTimeReportRequest request = new()
         {
             SiteId = data.Site.Id,
             RequestedByUserId = Guid.NewGuid(),
@@ -148,15 +148,15 @@ public sealed class ReportGenerationServiceTests
     [Fact]
     public async Task GenerateOneTimeReportAsync_PropagatesRequestedDeliveryCancellation()
     {
-        FakeDataQueries data = new FakeDataQueries();
-        FakeGenerationCommands commands = new FakeGenerationCommands();
+        FakeDataQueries data = new();
+        FakeGenerationCommands commands = new();
         ReportGenerationService service = CreateService(
             new FakeRuleQueries(),
             data,
             new FakeGenerationLocks(),
             commands,
             new CancellingSender());
-        OneTimeReportRequest request = new OneTimeReportRequest
+        OneTimeReportRequest request = new()
         {
             SiteId = data.Site.Id,
             RequestedByUserId = Guid.NewGuid(),
@@ -164,7 +164,7 @@ public sealed class ReportGenerationServiceTests
             ToUtc = new DateTimeOffset(2026, 6, 30, 0, 0, 0, TimeSpan.Zero),
             RecipientEmails = ["cancelled@example.com"]
         };
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
@@ -177,10 +177,10 @@ public sealed class ReportGenerationServiceTests
     public async Task GenerateRuleAsync_UsesSeparateRuleDataLockAndCommandPorts()
     {
         SiteReportData site = Site();
-        FakeRuleQueries rules = new FakeRuleQueries { Rule = DailyRule(site.Id) };
-        FakeDataQueries data = new FakeDataQueries { Site = site };
-        FakeGenerationLocks locks = new FakeGenerationLocks();
-        FakeGenerationCommands commands = new FakeGenerationCommands();
+        FakeRuleQueries rules = new() { Rule = DailyRule(site.Id) };
+        FakeDataQueries data = new() { Site = site };
+        FakeGenerationLocks locks = new();
+        FakeGenerationCommands commands = new();
         ReportGenerationService service = CreateService(rules, data, locks, commands);
 
         await service.GenerateRuleAsync(rules.Rule!.Id, new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero), CancellationToken.None);
@@ -198,10 +198,10 @@ public sealed class ReportGenerationServiceTests
         Guid successfulSiteId = Guid.NewGuid();
         ReportRule failedRule = DailyRule(failedSiteId);
         ReportRule successfulRule = DailyRule(successfulSiteId);
-        FakeRuleQueries rules = new FakeRuleQueries { DueRules = [failedRule, successfulRule] };
-        FakeDataQueries data = new FakeDataQueries();
+        FakeRuleQueries rules = new() { DueRules = [failedRule, successfulRule] };
+        FakeDataQueries data = new();
         data.FailingSiteIds.Add(failedSiteId);
-        FakeGenerationCommands commands = new FakeGenerationCommands();
+        FakeGenerationCommands commands = new();
         ReportGenerationService service = CreateService(rules, data, new FakeGenerationLocks(), commands);
 
         IReadOnlyList<GeneratedReport> reports = await service.GenerateScheduledReportsAsync(
@@ -216,15 +216,15 @@ public sealed class ReportGenerationServiceTests
     public async Task GenerateScheduledReportsAsync_PropagatesRequestedCancellation()
     {
         Guid cancelledSiteId = Guid.NewGuid();
-        FakeRuleQueries rules = new FakeRuleQueries { DueRules = [DailyRule(cancelledSiteId)] };
-        FakeDataQueries data = new FakeDataQueries();
+        FakeRuleQueries rules = new() { DueRules = [DailyRule(cancelledSiteId)] };
+        FakeDataQueries data = new();
         data.CancelledSiteIds.Add(cancelledSiteId);
         ReportGenerationService service = CreateService(
             rules,
             data,
             new FakeGenerationLocks(),
             new FakeGenerationCommands());
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
@@ -354,7 +354,7 @@ public sealed class ReportGenerationServiceTests
                 HiddenRuleUpserts++;
             }
 
-            GeneratedReport report = new GeneratedReport(Guid.NewGuid(), reportRuleId, request.ReportUri, request.PeriodStartUtc, request.PeriodEndUtc);
+            GeneratedReport report = new(Guid.NewGuid(), reportRuleId, request.ReportUri, request.PeriodStartUtc, request.PeriodEndUtc);
             InsertedReports.Add(report);
             SentRows.AddRange(request.Deliveries.Select(delivery => (report.ReportId, delivery.RecipientEmail)));
             if (request.UpdateLastGenerated)

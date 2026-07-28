@@ -25,7 +25,7 @@ public sealed class SearchQueryExecutorTests
         await using RVTDbContext context = CreateContext();
         SeedCompanies(context, seededCompanies);
         await context.SaveChangesAsync();
-        CompanyRepository repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
@@ -49,7 +49,7 @@ public sealed class SearchQueryExecutorTests
         await using RVTDbContext context = CreateContext();
         SeedCompanies(context, 5);
         await context.SaveChangesAsync();
-        CompanyRepository repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
@@ -71,7 +71,7 @@ public sealed class SearchQueryExecutorTests
         await using RVTDbContext context = CreateContext();
         SeedCompanies(context, seededCompanies);
         await context.SaveChangesAsync();
-        CompanyRepository repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
@@ -93,7 +93,7 @@ public sealed class SearchQueryExecutorTests
         await using RVTDbContext context = CreateContext();
         SeedCompanies(context, 4);
         await context.SaveChangesAsync();
-        CompanyRepository repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [new SingleFilter { Operation = Op.Equals, PropertyName = "CompanyName", Value = "Company 2" }],

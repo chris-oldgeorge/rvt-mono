@@ -66,7 +66,7 @@ namespace MyAtm.Api.Http
             for (int attempt = 1; ; attempt++)
             {
                 await requestPolicy.WaitForPermitAsync(cancellationToken);
-                using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, path);
+                using HttpRequestMessage request = new(HttpMethod.Get, path);
                 using HttpResponseMessage response = await httpClient.SendAsync(
                     request,
                     HttpCompletionOption.ResponseHeadersRead,
@@ -97,7 +97,7 @@ namespace MyAtm.Api.Http
             }
 
             await using Stream source = await content.ReadAsStreamAsync(cancellationToken);
-            using MemoryStream destination = new MemoryStream();
+            using MemoryStream destination = new();
             byte[] buffer = new byte[Math.Min(81920, maxResponseBytes)];
             while (true)
             {

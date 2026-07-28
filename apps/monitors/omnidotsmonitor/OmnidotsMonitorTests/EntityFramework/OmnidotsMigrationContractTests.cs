@@ -22,11 +22,10 @@ public sealed class OmnidotsMigrationContractTests
     [TestMethod]
     public void MigrationAssets_ContainOnlyTheSupportedPostgreSqlScripts()
     {
-        string?[] migrationFiles = Directory
+        string?[] migrationFiles = [.. Directory
             .GetFiles(Path.Combine(MonitorProjectDirectory(), "postgres"), "*.sql", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileName)
-            .OrderBy(file => file, StringComparer.Ordinal)
-            .ToArray();
+            .OrderBy(file => file, StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(SupportedMigrations, migrationFiles);
         Assert.IsFalse(
@@ -110,7 +109,7 @@ public sealed class OmnidotsMigrationContractTests
                 ('11111111-1111-1111-1111-111111111111', 4, 5, 6);
             """;
 
-        using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
         await using PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(
             legacySchema,
             "SELECT 1;",
@@ -204,7 +203,7 @@ public sealed class OmnidotsMigrationContractTests
     {
         await using NpgsqlConnection connection = database.OpenConnection();
         await connection.OpenAsync(cancellationToken);
-        await using NpgsqlCommand command = new NpgsqlCommand(script, connection) { CommandTimeout = 30 };
+        await using NpgsqlCommand command = new(script, connection) { CommandTimeout = 30 };
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -215,7 +214,7 @@ public sealed class OmnidotsMigrationContractTests
     {
         await using NpgsqlConnection connection = database.OpenConnection();
         await connection.OpenAsync(cancellationToken);
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection) { CommandTimeout = 30 };
+        await using NpgsqlCommand command = new(sql, connection) { CommandTimeout = 30 };
         object? result = await command.ExecuteScalarAsync(cancellationToken);
         Assert.IsNotNull(result);
         return (T)Convert.ChangeType(result, typeof(T), CultureInfo.InvariantCulture);
@@ -237,7 +236,7 @@ public sealed class OmnidotsMigrationContractTests
 
     private static string MonitorProjectDirectory()
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)
         {
             string gitPath = Path.Combine(directory.FullName, ".git");

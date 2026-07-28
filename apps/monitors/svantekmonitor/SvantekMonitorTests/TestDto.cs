@@ -1,12 +1,7 @@
 using System.Text.Json;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Svantek.Model.Dto;
 using Svantek.Model.Http;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace SvantekMonitorTests
 {
 
@@ -28,7 +23,7 @@ namespace SvantekMonitorTests
             Assert.IsNotNull(samples);
             Assert.HasCount(1, samples);
 
-            NoiseDto noiseDto = new NoiseDto(samples[0]);
+            NoiseDto noiseDto = new(samples[0]);
             Assert.IsNotNull(samples);
             Assert.AreEqual(samples[0].Timestamp, noiseDto.SampleTime);
 

@@ -13,8 +13,8 @@ public sealed class MicrosoftGraphMailRegistrationTests
     [TestMethod]
     public void AddMicrosoftGraphMail_RegistersOneGraphPortTokenProviderOptionsAndValidationService()
     {
-        ServiceCollection services = new ServiceCollection();
-        MicrosoftGraphMailOptions options = new MicrosoftGraphMailOptions { Enabled = false };
+        ServiceCollection services = new();
+        MicrosoftGraphMailOptions options = new() { Enabled = false };
 
         services.AddMicrosoftGraphMail(options);
 
@@ -32,7 +32,7 @@ public sealed class MicrosoftGraphMailRegistrationTests
     [TestMethod]
     public void AddMicrosoftGraphMail_LoadsProviderOptionsFromConfiguration()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -53,7 +53,7 @@ public sealed class MicrosoftGraphMailRegistrationTests
     [TestMethod]
     public void AddMicrosoftGraphMail_RejectsAnExistingEmailDeliveryProvider()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IEmailDeliveryPort, ExistingEmailDeliveryPort>();
 
         InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
@@ -65,8 +65,8 @@ public sealed class MicrosoftGraphMailRegistrationTests
     [TestMethod]
     public async Task AddMicrosoftGraphMail_SingletonPortUsesFactoryManagedClientPerDelivery()
     {
-        ServiceCollection services = new ServiceCollection();
-        RecordingHttpClientFactory clientFactory = new RecordingHttpClientFactory(_ =>
+        ServiceCollection services = new();
+        RecordingHttpClientFactory clientFactory = new(_ =>
             new HttpResponseMessage(HttpStatusCode.Accepted));
         services.AddMicrosoftGraphMail(new MicrosoftGraphMailOptions
         {
@@ -82,7 +82,7 @@ public sealed class MicrosoftGraphMailRegistrationTests
 
         using ServiceProvider provider = services.BuildServiceProvider();
         IEmailDeliveryPort port = provider.GetRequiredService<IEmailDeliveryPort>();
-        EmailDeliveryRequest request = new EmailDeliveryRequest(
+        EmailDeliveryRequest request = new(
             "ops@example.test", "subject", "plain", "<p>html</p>", []);
 
         await port.SendAsync(request);

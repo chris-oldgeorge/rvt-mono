@@ -34,7 +34,7 @@ namespace AirQ.Api.UseCases
             try
             {
                 List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
-                List<Exception> failures = new List<Exception>();
+                List<Exception> failures = [];
                 foreach (NoiseMonitorDto monitor in monitors)
                 {
                     if (!monitor.MonitorStatus.IsMonitorActive())
@@ -51,7 +51,7 @@ namespace AirQ.Api.UseCases
                     {
                         List<SampleResponse> samples = await _gateway.GetSamplesForDateAsync(userId, userAuth, serialId, dateStr, cancellationToken);
 
-                        List<NoiseDto> dtos = new List<NoiseDto>();
+                        List<NoiseDto> dtos = [];
                         foreach (SampleResponse sample in samples)
                         {
                             dtos.Add(new NoiseDto(sample));

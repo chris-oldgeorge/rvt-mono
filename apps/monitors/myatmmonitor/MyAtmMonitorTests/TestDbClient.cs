@@ -9,7 +9,6 @@ using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Npgsql;
 using NpgsqlTypes;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
@@ -17,7 +16,6 @@ using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using Rvt.Monitor.IntegrationTesting;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
@@ -50,7 +48,7 @@ namespace MyAtmMonitorTests
         {
             using NpgsqlConnection connection = database!.OpenConnection();
             connection.Open();
-            using NpgsqlCommand command = new NpgsqlCommand("SELECT current_schema();", connection);
+            using NpgsqlCommand command = new("SELECT current_schema();", connection);
 
             Assert.AreEqual(database.SchemaName, command.ExecuteScalar());
         }
@@ -63,7 +61,7 @@ namespace MyAtmMonitorTests
             Guid contractId = Guid.NewGuid();
             using NpgsqlConnection connection = database!.OpenConnection();
             connection.Open();
-            using NpgsqlCommand command = new NpgsqlCommand(
+            using NpgsqlCommand command = new(
                 """
                 INSERT INTO monitor
                   (id, serial_id, customer_id, listed_at_time, model, manufacturer, firmware_version, type_of_monitor)
@@ -133,30 +131,30 @@ namespace MyAtmMonitorTests
         {
             DateTime firstTimestamp = ParseUtc("2026-07-14T12:00:00Z");
             DateTime secondTimestamp = firstTimestamp.AddMinutes(1);
-            AccessoryInfoDto first = new AccessoryInfoDto("accessory-1", new AccessoryInfo { Timestamp = firstTimestamp });
-            AccessoryInfoDto duplicate = new AccessoryInfoDto("accessory-1", new AccessoryInfo { Timestamp = firstTimestamp });
+            AccessoryInfoDto first = new("accessory-1", new AccessoryInfo { Timestamp = firstTimestamp });
+            AccessoryInfoDto duplicate = new("accessory-1", new AccessoryInfo { Timestamp = firstTimestamp });
             await testObj!.InsertAccessoryPageAsync([first, duplicate]);
 
             using NpgsqlConnection connection = database!.OpenConnection();
             connection.Open();
-            using (NpgsqlCommand countCommand = new NpgsqlCommand("SELECT COUNT(*) FROM my_atm_accessory_info WHERE serial_id = 'accessory-1';", connection))
+            using (NpgsqlCommand countCommand = new("SELECT COUNT(*) FROM my_atm_accessory_info WHERE serial_id = 'accessory-1';", connection))
             {
                 Assert.AreEqual(1L, countCommand.ExecuteScalar());
             }
 
-            using (NpgsqlCommand constraintCommand = new NpgsqlCommand(
+            using (NpgsqlCommand constraintCommand = new(
                 "ALTER TABLE my_atm_accessory_info ADD CONSTRAINT task6_accessory_t_led_nonnegative CHECK (operating_t_led IS NULL OR operating_t_led >= 0);",
                 connection))
             {
                 constraintCommand.ExecuteNonQuery();
             }
 
-            AccessoryInfoDto valid = new AccessoryInfoDto("accessory-2", new AccessoryInfo { Timestamp = firstTimestamp });
-            AccessoryInfoDto invalid = new AccessoryInfoDto("accessory-2", new AccessoryInfo { Timestamp = secondTimestamp, OperatingTLed = -1 });
+            AccessoryInfoDto valid = new("accessory-2", new AccessoryInfo { Timestamp = firstTimestamp });
+            AccessoryInfoDto invalid = new("accessory-2", new AccessoryInfo { Timestamp = secondTimestamp, OperatingTLed = -1 });
             await Assert.ThrowsExactlyAsync<Microsoft.EntityFrameworkCore.DbUpdateException>(
                 () => testObj.InsertAccessoryPageAsync([valid, invalid]));
 
-            using NpgsqlCommand rollbackCountCommand = new NpgsqlCommand(
+            using NpgsqlCommand rollbackCountCommand = new(
                 "SELECT COUNT(*) FROM my_atm_accessory_info WHERE serial_id = 'accessory-2';",
                 connection);
             Assert.AreEqual(0L, rollbackCountCommand.ExecuteScalar());
@@ -202,7 +200,7 @@ namespace MyAtmMonitorTests
         public void TestReadGlobalRules()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             List<RvtAlertRuleDto> rules = testObj!.ReadRules(null);
@@ -234,7 +232,7 @@ namespace MyAtmMonitorTests
         public void TestReadAlertRules()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "12345";
@@ -252,8 +250,8 @@ namespace MyAtmMonitorTests
             Guid monitorId = monitorsOut[0].Id;
 
             int NUM_RULES = 10;
-            TimeSpan startTime = new TimeSpan(9, 0, 0);
-            TimeSpan endTime = new TimeSpan(17, 0, 0);
+            TimeSpan startTime = new(9, 0, 0);
+            TimeSpan endTime = new(17, 0, 0);
             for (int i = 0; i < NUM_RULES; i++)
             {
                 InsertAlertRule(connection, i, serialId, monitorId);
@@ -268,7 +266,7 @@ namespace MyAtmMonitorTests
             List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
             Assert.HasCount(NUM_RULES, rules);
 
-            List<RvtAlertRuleDto> orderedRules = rules.OrderBy(o => o.Field).ToList();
+            List<RvtAlertRuleDto> orderedRules = [.. rules.OrderBy(o => o.Field)];
 
             for (int i = 0; i < NUM_RULES; i++)
             {
@@ -296,7 +294,7 @@ namespace MyAtmMonitorTests
         public void TestReadAlertContacts()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             int customerId = 443;
@@ -359,7 +357,7 @@ namespace MyAtmMonitorTests
                 "1.0");
             DateTime afterWrite = DateTime.UtcNow;
 
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string sql = @"SELECT variables, message, logged_at FROM error_log";
@@ -422,7 +420,7 @@ namespace MyAtmMonitorTests
         public void TestWriteNotification()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "82731";
@@ -452,7 +450,7 @@ namespace MyAtmMonitorTests
             Assert.HasCount(1, contacts);
 
             DateTime dt = ParseUtc("2023-10-18T11:19:00");
-            NotificationDto alertIn = new NotificationDto(rules[0], 99.876, dt, monitorId);
+            NotificationDto alertIn = new(rules[0], 99.876, dt, monitorId);
 
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
@@ -477,7 +475,7 @@ namespace MyAtmMonitorTests
                 Assert.AreEqual(alertIn.MonitorId, alertOut.MonitorId);
             }
 
-            NotificationDto notifyAlert = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto notifyAlert = new(id: Guid.NewGuid(),
                                              notificationTime: dt,
                                              limitOn: rules[0].LimitOn,
                                              averagingPeriod: rules[0].AveragingPeriod,
@@ -499,15 +497,15 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestReadNotificationsMapsClosedFields()
         {
-            using NpgsqlConnection connection = new NpgsqlConnection(database!.ConnectionString);
+            using NpgsqlConnection connection = new(database!.ConnectionString);
             connection.Open();
 
             DustMonitorDto monitor = CreateMonitorsList(1, 332)[0];
-            testObj!.WriteMonitorList(new List<DustMonitorDto> { monitor });
+            testObj!.WriteMonitorList([monitor]);
             Guid monitorId = testObj.ReadMonitor(monitor.SerialId)!.Id;
             DateTime closedTime = ParseUtc("2023-10-18T12:34:56Z");
             Guid closedByUser = Guid.NewGuid();
-            NotificationDto notification = new NotificationDto(
+            NotificationDto notification = new(
                 id: Guid.NewGuid(),
                 notificationTime: ParseUtc("2023-10-18T11:19:00Z"),
                 limitOn: 99.876,
@@ -536,7 +534,7 @@ namespace MyAtmMonitorTests
         public void TestHasOpenNotification(AlertType existing, AlertType alertType, bool expectedResult)
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "82731";
@@ -568,7 +566,7 @@ namespace MyAtmMonitorTests
             Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             DateTime dt = ParseUtc("2023-10-18T11:19:00");
-            NotificationDto existingNotification = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto existingNotification = new(id: Guid.NewGuid(),
                                               notificationTime: dt,
                                               limitOn: rules[0].LimitOn,
                                               averagingPeriod: rules[0].AveragingPeriod,
@@ -588,7 +586,7 @@ namespace MyAtmMonitorTests
         public void TestUpdateAlertRule()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string serialId = "67731";
             int customerId = 861;
@@ -632,8 +630,8 @@ namespace MyAtmMonitorTests
             RvtAlertRuleDto rule = testObj.ReadRules(monitor.SerialId).Single();
             DateTime sampleTime = ParseUtc("2026-07-14T12:00:00Z");
             DateTime commitTime = sampleTime.AddMinutes(1);
-            DustDto measurement = new DustDto(monitor.SerialId, 60, sampleTime, 11, 12, 13, 14, 15, 16, 17);
-            AlertOccurrenceProposal occurrence = new AlertOccurrenceProposal(
+            DustDto measurement = new(monitor.SerialId, 60, sampleTime, 11, 12, 13, 14, 15, 16, 17);
+            AlertOccurrenceProposal occurrence = new(
                 "occurrence:myatm-atomic-commit",
                 monitor.Id,
                 rule.RuleId,
@@ -644,7 +642,7 @@ namespace MyAtmMonitorTests
                 13,
                 sampleTime,
                 Array.Empty<RvtContactDto>());
-            MyAtmDustImportCommit commit = new MyAtmDustImportCommit(
+            MyAtmDustImportCommit commit = new(
                 monitor,
                 Period.Minutes1,
                 [measurement],
@@ -716,11 +714,11 @@ namespace MyAtmMonitorTests
             IMonitorDeliveryOutboxQueries queries = (IMonitorDeliveryOutboxQueries)testObj;
             IMonitorDeliveryOutboxCommands commands = (IMonitorDeliveryOutboxCommands)testObj!;
             DateTime unspecifiedCommitTime = DateTime.SpecifyKind(commitTime, DateTimeKind.Unspecified);
-            MonitorDeliveryMessage?[] claimed = new[]
-            {
+            MonitorDeliveryMessage?[] claimed =
+            [
                 await queries.ClaimNextDueAsync(MonitorDeliveryProducers.MyAtm, unspecifiedCommitTime, TimeSpan.FromMinutes(1)),
                 await queries.ClaimNextDueAsync(MonitorDeliveryProducers.MyAtm, unspecifiedCommitTime, TimeSpan.FromMinutes(1))
-            };
+            ];
             Assert.IsTrue(claimed.All(message => message is { Producer: MonitorDeliveryProducers.MyAtm, AttemptCount: 1 }));
             Assert.AreEqual(claimed.Length, claimed.Select(message => message!.LeaseId).Distinct().Count());
             CollectionAssert.AreEquivalent(
@@ -764,7 +762,7 @@ namespace MyAtmMonitorTests
             RvtAlertRuleDto rule = testObj.ReadRules(monitor.SerialId).Single();
             DateTime triggeredAt = ParseUtc("2026-07-14T12:00:00Z");
             string key = "occurrence:offline-conflict";
-            MyAtmAlertCommit commit = new MyAtmAlertCommit(
+            MyAtmAlertCommit commit = new(
                 Array.Empty<RuleStateMutation>(),
                 new MyAtmMonitorStateMutation(monitor.Id, ExpectedOffline: false, Offline: true),
                 [new MyAtmAlertOccurrenceInput(
@@ -978,10 +976,9 @@ namespace MyAtmMonitorTests
             Guid messageId = Guid.NewGuid();
             InsertOutboxMessage(connection, messageId, "Pending", utcNow, 0, null, null);
 
-            Task<MonitorDeliveryMessage?>[] claimers = Enumerable.Range(0, 4)
+            Task<MonitorDeliveryMessage?>[] claimers = [.. Enumerable.Range(0, 4)
                 .Select(_ => ((IMonitorDeliveryOutboxQueries)new DBClient(database.ConnectionString))
-                    .ClaimNextDueAsync(MonitorDeliveryProducers.MyAtm, utcNow, TimeSpan.FromMinutes(2)))
-                .ToArray();
+                    .ClaimNextDueAsync(MonitorDeliveryProducers.MyAtm, utcNow, TimeSpan.FromMinutes(2)))];
 
             MonitorDeliveryMessage?[] claims = await Task.WhenAll(claimers);
 
@@ -1004,7 +1001,7 @@ namespace MyAtmMonitorTests
             InsertOutboxMessage(connection, firstId, "Pending", utcNow.AddMinutes(-3), 0, null, null);
             InsertOutboxMessage(connection, secondId, "Pending", utcNow.AddMinutes(-2), 0, null, null);
             InsertOutboxMessage(connection, thirdId, "Pending", utcNow.AddMinutes(-1), 0, null, null);
-            ForcedContentionDbClient claimant = new ForcedContentionDbClient(database.ConnectionString, lostConditionalClaims: 1);
+            ForcedContentionDbClient claimant = new(database.ConnectionString, lostConditionalClaims: 1);
 
             MonitorDeliveryMessage? claim = await ((IMonitorDeliveryOutboxQueries)(DBClient)claimant).ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
@@ -1025,13 +1022,13 @@ namespace MyAtmMonitorTests
             using NpgsqlConnection connection = database!.OpenConnection();
             connection.Open();
             DateTime utcNow = ParseUtc("2026-07-14T12:00:00Z");
-            Guid[] messageIds = Enumerable.Range(0, 4).Select(_ => Guid.NewGuid()).ToArray();
+            Guid[] messageIds = [.. Enumerable.Range(0, 4).Select(_ => Guid.NewGuid())];
             for (int index = 0; index < messageIds.Length; index++)
             {
                 InsertOutboxMessage(connection, messageIds[index], "Pending", utcNow.AddMinutes(-4 + index), 0, null, null);
             }
 
-            ForcedContentionDbClient claimant = new ForcedContentionDbClient(database.ConnectionString, lostConditionalClaims: 3);
+            ForcedContentionDbClient claimant = new(database.ConnectionString, lostConditionalClaims: 3);
             MonitorDeliveryMessage? claim = await ((IMonitorDeliveryOutboxQueries)(DBClient)claimant).ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 utcNow,
@@ -1072,7 +1069,7 @@ namespace MyAtmMonitorTests
 
             Assert.IsNotNull(claim);
             Guid staleLeaseId = Guid.NewGuid();
-            MonitorDeliveryAudit audit = new MonitorDeliveryAudit(Guid.NewGuid(), "stale@example.test", "Sent ok", utcNow.AddSeconds(1));
+            MonitorDeliveryAudit audit = new(Guid.NewGuid(), "stale@example.test", "Sent ok", utcNow.AddSeconds(1));
 
             bool completed = await commands.CompleteAsync(messageId, staleLeaseId, utcNow.AddSeconds(1), audit);
             bool retried = await commands.RetryAsync(
@@ -1162,7 +1159,7 @@ namespace MyAtmMonitorTests
         public void TestSetMonitorOffline()
         {
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             int customerId = 861;
             List<DustMonitorDto> monitorsIn = CreateMonitorsList(1, customerId);
@@ -1189,13 +1186,13 @@ namespace MyAtmMonitorTests
             string serialId = "17239";
             DateTime sampleTime = ParseUtc("2023-10-17T14:37:42");
 
-            testObj!.InsertDustDtos(new List<DustDto> { new DustDto(serialId: serialId, avrg: 60, sampleTime: sampleTime,
+            testObj!.InsertDustDtos([ new DustDto(serialId: serialId, avrg: 60, sampleTime: sampleTime,
                                                pm1: 1.0, pm2_5: 2.5, pm10: 10, pmTotal: 13.5,
-                                               weather_t: 3.1234, weather_p: 5.5678, weather_rh: 99.87654) });
+                                               weather_t: 3.1234, weather_p: 5.5678, weather_rh: 99.87654) ]);
 
             await using NpgsqlConnection connection = database!.OpenConnection();
             await connection.OpenAsync();
-            await using NpgsqlCommand command = new NpgsqlCommand(
+            await using NpgsqlCommand command = new(
                 "SELECT serial_id, sample_time, pm_2_5 FROM my_atm_dust_level ORDER BY sample_time;", connection);
             await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
             Assert.IsTrue(await reader.ReadAsync());
@@ -1210,14 +1207,14 @@ namespace MyAtmMonitorTests
         {
             string serialId = "17239";
             DateTime sampleTime = ParseUtc("2023-10-17T14:37:42");
-            DustDto dto = new DustDto(serialId: serialId, avrg: 60, sampleTime: sampleTime,
+            DustDto dto = new(serialId: serialId, avrg: 60, sampleTime: sampleTime,
                 pm1: 1.0, pm2_5: 2.5, pm10: 10, pmTotal: 13.5,
                 weather_t: 3.1234, weather_p: 5.5678, weather_rh: 99.87654);
 
-            testObj!.InsertDustDtos(new List<DustDto> { dto, dto });
+            testObj!.InsertDustDtos([dto, dto]);
 
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<DustDto> dtos = ReadDustDtos(connection);
             Assert.HasCount(1, dtos);
@@ -1228,15 +1225,15 @@ namespace MyAtmMonitorTests
         {
             string serialId = "17239";
             DateTime sampleTime = ParseUtc("2023-10-17T14:37:42");
-            DustDto dto = new DustDto(serialId: serialId, avrg: 60, sampleTime: sampleTime,
+            DustDto dto = new(serialId: serialId, avrg: 60, sampleTime: sampleTime,
                 pm1: 1.0, pm2_5: 2.5, pm10: 10, pmTotal: 13.5,
                 weather_t: 3.1234, weather_p: 5.5678, weather_rh: 99.87654);
 
-            testObj!.InsertDustDtos(new List<DustDto> { dto });
-            testObj.InsertDustDtos(new List<DustDto> { dto });
+            testObj!.InsertDustDtos([dto]);
+            testObj.InsertDustDtos([dto]);
 
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<DustDto> dtos = ReadDustDtos(connection);
 
@@ -1260,9 +1257,9 @@ namespace MyAtmMonitorTests
                 int pm10 = 10 * i;
                 double pmTotal = 13.5 * i;
 
-                testObj!.InsertDustDtos(new List<DustDto> { new DustDto(serialId: serialId, avrg: 60, sampleTime: startTime.AddMinutes(i).AddSeconds(1),
+                testObj!.InsertDustDtos([ new DustDto(serialId: serialId, avrg: 60, sampleTime: startTime.AddMinutes(i).AddSeconds(1),
                                    pm1: pm1, pm2_5: pm2_5, pm10: pm10, pmTotal: pmTotal,
-                                   weather_t: .0, weather_p: .0, weather_rh: .0) });
+                                   weather_t: .0, weather_p: .0, weather_rh: .0) ]);
                 pm1Total += pm1;
                 pm2_5Total += pm2_5;
                 pm10Total += pm10;
@@ -1287,7 +1284,7 @@ namespace MyAtmMonitorTests
         {
 
             string connectionString = database!.ConnectionString;
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "82731";
@@ -1317,7 +1314,7 @@ namespace MyAtmMonitorTests
             Assert.HasCount(1, contacts);
 
             DateTime dt = ParseUtc("2023-10-18T11:19:00");
-            NotificationDto notificationIn = new NotificationDto(rules[0], 99.876, dt, monitorId);
+            NotificationDto notificationIn = new(rules[0], 99.876, dt, monitorId);
 
             // need to write a alert because NotificationsSent table has foreign key constraint
             testObj.WriteNotification(notificationIn);
@@ -1356,11 +1353,11 @@ namespace MyAtmMonitorTests
         private static List<DustMonitorDto> CreateMonitorsList(int numMonitors, int customerId,
                                                                string serialId = "monitor")
         {
-            List<DustMonitorDto> monitors = new List<DustMonitorDto>();
+            List<DustMonitorDto> monitors = [];
             for (int i = 0; i < numMonitors; i++)
             {
                 DateTime dt = DateTime.UtcNow.AddMinutes(i);
-                DustMonitorDto monitor = new DustMonitorDto(id: Guid.NewGuid(), customerId: customerId, listedAtTime: dt, serialId: serialId + i,
+                DustMonitorDto monitor = new(id: Guid.NewGuid(), customerId: customerId, listedAtTime: dt, serialId: serialId + i,
                                  model: "model" + i, i, latitude: 44.4f + i, longitude: 55.5f + i, address: "address" + i,
                                  timeZone: "timezone" + i, customerDisplayName: "customerDisplayName" + i, lastDataTime1Min: dt,
                                  lastDataTime15Min: null, lastDataTime1Hour: null, lastDataTime24Hour: null,
@@ -1428,7 +1425,7 @@ namespace MyAtmMonitorTests
             new(
                 Array.Empty<RuleStateMutation>(),
                 null,
-                occurrences.Select(occurrence => new MyAtmAlertOccurrenceInput(
+                [.. occurrences.Select(occurrence => new MyAtmAlertOccurrenceInput(
                     occurrence.Key,
                     occurrence.MonitorId,
                     occurrence.RuleId,
@@ -1438,7 +1435,7 @@ namespace MyAtmMonitorTests
                     occurrence.LimitOn,
                     occurrence.Level,
                     occurrence.TriggeredAt,
-                    CreateDeliveryPlan(occurrence, utcNow))).ToList(),
+                    CreateDeliveryPlan(occurrence, utcNow)))],
                 utcNow);
 
         private static RuleAlertDeliveryPlan CreateDeliveryPlan(
@@ -1446,7 +1443,7 @@ namespace MyAtmMonitorTests
             DateTime createdAt)
         {
             Guid notificationId = MonitorDeliveryIdentity.CreateGuid($"notification:{occurrence.Key}");
-            NotificationDto notification = new NotificationDto(
+            NotificationDto notification = new(
                 notificationId,
                 occurrence.TriggeredAt,
                 occurrence.LimitOn,
@@ -1493,10 +1490,10 @@ namespace MyAtmMonitorTests
             DateTime createdAt,
             bool includeMqtt)
         {
-            List<RvtContactDto> contacts = new List<RvtContactDto>
-            {
+            List<RvtContactDto> contacts =
+            [
                 new(true, false, "alert@example.test", null, null, null)
-            };
+            ];
             RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
                 new RuleNotificationRequest(
                     monitor.FleetNr ?? string.Empty,
@@ -1517,9 +1514,7 @@ namespace MyAtmMonitorTests
                 ? plan
                 : plan with
                 {
-                    Deliveries = plan.Deliveries
-                        .Where(delivery => delivery.Kind != MonitorDeliveryKind.MqttAlert)
-                        .ToList()
+                    Deliveries = [.. plan.Deliveries.Where(delivery => delivery.Kind != MonitorDeliveryKind.MqttAlert)]
                 };
         }
 
@@ -1539,19 +1534,19 @@ namespace MyAtmMonitorTests
 
         private static int ReadScalarInt(NpgsqlConnection connection, string sql)
         {
-            using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+            using NpgsqlCommand command = new(sql, connection);
             return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
 
         private static string ReadScalarString(NpgsqlConnection connection, string sql)
         {
-            using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+            using NpgsqlCommand command = new(sql, connection);
             return Convert.ToString(command.ExecuteScalar(), CultureInfo.InvariantCulture)!;
         }
 
         private static DateTime ReadScalarDateTime(NpgsqlConnection connection, string sql)
         {
-            using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+            using NpgsqlCommand command = new(sql, connection);
             return (DateTime)command.ExecuteScalar()!;
         }
 
@@ -1565,7 +1560,7 @@ namespace MyAtmMonitorTests
             DateTime? leaseUntil,
             string producer = MonitorDeliveryProducers.MyAtm)
         {
-            using NpgsqlCommand command = new NpgsqlCommand(
+            using NpgsqlCommand command = new(
                 @"INSERT INTO monitor_delivery_outbox
                     (id, producer, notification_id, correlation_key, delivery_key, kind, destination,
                      payload_version, payload, status, attempt_count, next_attempt_at, lease_id,
@@ -1626,11 +1621,11 @@ namespace MyAtmMonitorTests
 
         private static IReadOnlyList<Guid> ReadOutboxLeaseIds(NpgsqlConnection connection)
         {
-            using NpgsqlCommand command = new NpgsqlCommand(
+            using NpgsqlCommand command = new(
                 "SELECT lease_id FROM monitor_delivery_outbox WHERE producer = 'MyAtm' AND lease_id IS NOT NULL;",
                 connection);
             using NpgsqlDataReader reader = command.ExecuteReader();
-            List<Guid> leaseIds = new List<Guid>();
+            List<Guid> leaseIds = [];
             while (reader.Read())
             {
                 leaseIds.Add(reader.GetGuid(0));
@@ -1740,7 +1735,7 @@ namespace MyAtmMonitorTests
             // update Contracts with SiteId
             {
                 string sql = @"UPDATE contract SET site_id = @SiteId WHERE id = @ContractId;";
-                using NpgsqlCommand cmd = new NpgsqlCommand(sql, connection);
+                using NpgsqlCommand cmd = new(sql, connection);
                 cmd.Parameters.AddWithValue("@SiteId", siteId);
                 cmd.Parameters.AddWithValue("@ContractId", contractId);
                 cmd.ExecuteNonQuery();
@@ -1834,7 +1829,7 @@ namespace MyAtmMonitorTests
         private static ContactMethod ReadContactMethod(string connectionString, Guid siteUserId)
         {
 
-            using NpgsqlConnection connection = new NpgsqlConnection(connectionString);
+            using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string sql = @"SELECT email, sms FROM notification_setting WHERE site_user_id = @SiteUserId;";
 
@@ -1855,7 +1850,7 @@ namespace MyAtmMonitorTests
         {
             string sql = @"SELECT ""Email"", ""PhoneNumber"", ""Id"" FROM ""AspNetUsers"";";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<RvtContactDto> contacts = new List<RvtContactDto>();
+            List<RvtContactDto> contacts = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -1880,7 +1875,7 @@ namespace MyAtmMonitorTests
                                closed_by_user, alert_type, alert_field, monitor_id
                         FROM notification;";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<NotificationDto> alerts = new List<NotificationDto>();
+            List<NotificationDto> alerts = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -1896,7 +1891,7 @@ namespace MyAtmMonitorTests
                 string alertField = reader.GetString(8);
                 Guid monitorId = reader.GetGuid(9);
 
-                NotificationDto alert = new NotificationDto(id: id,
+                NotificationDto alert = new(id: id,
                                                 notificationTime: notificationTime,
                                                 limitOn: limitOn,
                                                 averagingPeriod: averagingPeriod,
@@ -1917,18 +1912,19 @@ namespace MyAtmMonitorTests
             string sql = @"SELECT id, send_time, address, error_message, notification_id
                         FROM notification_sent;";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<Dictionary<string, object>> audits = new List<Dictionary<string, object>>();
+            List<Dictionary<string, object>> audits = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
             {
-                Dictionary<string, object> dict = new Dictionary<string, object>();
-
-                dict["Id"] = reader.GetGuid(0);
-                dict["SendTime"] = reader.GetDateTime(1);
-                dict["Address"] = reader.GetString(2);
-                dict["ErrorMessage"] = reader.GetString(3);
-                dict["NotificationId"] = reader.GetGuid(4);
+                Dictionary<string, object> dict = new()
+                {
+                    ["Id"] = reader.GetGuid(0),
+                    ["SendTime"] = reader.GetDateTime(1),
+                    ["Address"] = reader.GetString(2),
+                    ["ErrorMessage"] = reader.GetString(3),
+                    ["NotificationId"] = reader.GetGuid(4)
+                };
                 audits.Add(dict);
             }
             return audits;
@@ -1941,7 +1937,7 @@ namespace MyAtmMonitorTests
                                weather_t, weather_p, weather_rh
                         FROM my_atm_dust_level;";
             using NpgsqlCommand cmd = new(sql, connection);
-            List<DustDto> dtos = new List<DustDto>();
+            List<DustDto> dtos = [];
             using NpgsqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())

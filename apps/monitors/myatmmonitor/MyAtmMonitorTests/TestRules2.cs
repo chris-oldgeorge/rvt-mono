@@ -21,11 +21,11 @@ public sealed class TestRules2
     [TestMethod]
     public async Task DeletedActiveAggregateRule_UsesAtomicCommitWithoutReadingTheMonitor()
     {
-        Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
-        Mock<IDBClient> dbClient = new Mock<IDBClient>();
-        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
-        Mock<IMessageService> messageService = new Mock<IMessageService>();
-        RvtAlertRuleDto rule = new RvtAlertRuleDto(
+        Mock<IHttpClient> httpClient = new();
+        Mock<IDBClient> dbClient = new();
+        Mock<IMqttClient> mqttClient = new();
+        Mock<IMessageService> messageService = new();
+        RvtAlertRuleDto rule = new(
             Guid.NewGuid(), "11111", "Pm10", 19, 15, 8 * 60 * 60,
             new AlertActivityTimeDto { Weekdays = true, Saturdays = true, Sundays = true },
             AlertType.Alert, true, true, DateTime.UtcNow, null);
@@ -34,7 +34,7 @@ public sealed class TestRules2
         dbClient.Setup(client => client.CommitAlertAsync(It.IsAny<MyAtmAlertCommit>(), It.IsAny<CancellationToken>()))
             .Callback<MyAtmAlertCommit, CancellationToken>((value, _) => commit = value)
             .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
-        MyAtmApi api = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
+        MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
         await api.ProcessDustLevelsAsync<AvgDeviceMeasurement>(656, Period.Hours8);
 
@@ -52,16 +52,16 @@ public sealed class TestRules2
     [TestMethod]
     public async Task DeletedInactiveAggregateRule_DoesNotNeedACommit()
     {
-        Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
-        Mock<IDBClient> dbClient = new Mock<IDBClient>();
-        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
-        Mock<IMessageService> messageService = new Mock<IMessageService>();
-        RvtAlertRuleDto rule = new RvtAlertRuleDto(
+        Mock<IHttpClient> httpClient = new();
+        Mock<IDBClient> dbClient = new();
+        Mock<IMqttClient> mqttClient = new();
+        Mock<IMessageService> messageService = new();
+        RvtAlertRuleDto rule = new(
             Guid.NewGuid(), "11111", "Pm10", 19, 15, 8 * 60 * 60,
             new AlertActivityTimeDto { Weekdays = true, Saturdays = true, Sundays = true },
             AlertType.Alert, false, true, DateTime.UtcNow, null);
         dbClient.Setup(client => client.ReadRules(Period.Hours8)).Returns([rule]);
-        MyAtmApi api = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
+        MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
         await api.ProcessDustLevelsAsync<AvgDeviceMeasurement>(656, Period.Hours8);
 

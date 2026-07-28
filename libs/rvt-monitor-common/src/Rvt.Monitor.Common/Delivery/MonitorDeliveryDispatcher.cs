@@ -39,7 +39,7 @@ public sealed class MonitorDeliveryDispatcher
 
     public async Task DispatchDueAsync(CancellationToken cancellationToken = default)
     {
-        List<Exception> failures = new List<Exception>();
+        List<Exception> failures = [];
         for (int index = 0; index < options.BatchSize; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();

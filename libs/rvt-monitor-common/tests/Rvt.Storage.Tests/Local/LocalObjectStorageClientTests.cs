@@ -9,9 +9,9 @@ public sealed class LocalObjectStorageClientTests
     [TestMethod]
     public async Task WriteAndOpenReadAsync_StreamContentAndMetadataUnderConfiguredPath()
     {
-        using TemporaryDirectory temporaryDirectory = new TemporaryDirectory();
+        using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", "tenant-a/audio");
-        MemoryStream content = new MemoryStream(
+        MemoryStream content = new(
             Encoding.UTF8.GetBytes("recording-data"),
             writable: false);
 
@@ -27,7 +27,7 @@ public sealed class LocalObjectStorageClientTests
         Assert.AreEqual("audio/wav", read.ContentType);
         Assert.AreEqual(content.Length, read.Length);
 
-        using MemoryStream copiedContent = new MemoryStream();
+        using MemoryStream copiedContent = new();
         await read.Content.CopyToAsync(copiedContent);
         CollectionAssert.AreEqual(
             Encoding.UTF8.GetBytes("recording-data"),
@@ -46,7 +46,7 @@ public sealed class LocalObjectStorageClientTests
     [TestMethod]
     public async Task WriteAsync_CreatesMissingParentDirectories()
     {
-        using TemporaryDirectory temporaryDirectory = new TemporaryDirectory();
+        using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", "tenant-a");
 
         await client.WriteAsync(CreateRequest("nested/levels/sample.wav", [1, 2, 3]));
@@ -62,7 +62,7 @@ public sealed class LocalObjectStorageClientTests
     [TestMethod]
     public async Task WriteAsync_OverwritesObjectAndRemovesTemporaryFiles()
     {
-        using TemporaryDirectory temporaryDirectory = new TemporaryDirectory();
+        using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", "tenant-a");
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
         await client.WriteAsync(new StorageWriteRequest(
@@ -77,7 +77,7 @@ public sealed class LocalObjectStorageClientTests
         await using StorageReadResult? read = await client.OpenReadAsync(key);
         Assert.IsNotNull(read);
         Assert.IsNull(read.ContentType);
-        using MemoryStream copiedContent = new MemoryStream();
+        using MemoryStream copiedContent = new();
         await read.Content.CopyToAsync(copiedContent);
         CollectionAssert.AreEqual(
             Encoding.UTF8.GetBytes("replacement"),
@@ -91,7 +91,7 @@ public sealed class LocalObjectStorageClientTests
     [TestMethod]
     public async Task WriteAsync_WhenContentCopyFails_PreservesObjectAndRemovesTemporaryFile()
     {
-        using TemporaryDirectory temporaryDirectory = new TemporaryDirectory();
+        using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
         await client.WriteAsync(new StorageWriteRequest(
@@ -112,7 +112,7 @@ public sealed class LocalObjectStorageClientTests
         await using StorageReadResult? read = await client.OpenReadAsync(key);
         Assert.IsNotNull(read);
         Assert.AreEqual("audio/wav", read.ContentType);
-        using MemoryStream copiedContent = new MemoryStream();
+        using MemoryStream copiedContent = new();
         await read.Content.CopyToAsync(copiedContent);
         CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("original"), copiedContent.ToArray());
 
@@ -123,7 +123,7 @@ public sealed class LocalObjectStorageClientTests
     [TestMethod]
     public async Task OpenReadAsync_WhenObjectIsMissing_ReturnsNull()
     {
-        using TemporaryDirectory temporaryDirectory = new TemporaryDirectory();
+        using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
 
         StorageReadResult? result = await client.OpenReadAsync(StorageObjectKey.Parse("missing.wav"));
@@ -134,7 +134,7 @@ public sealed class LocalObjectStorageClientTests
     [TestMethod]
     public async Task DeleteIfExistsAsync_ReturnsExistenceAndDeletesContentTypeMetadata()
     {
-        using TemporaryDirectory temporaryDirectory = new TemporaryDirectory();
+        using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
         await client.WriteAsync(new StorageWriteRequest(
@@ -160,7 +160,7 @@ public sealed class LocalObjectStorageClientTests
     [DataRow("")]
     public async Task Operations_RejectUnsafeConfiguredContainer(string container)
     {
-        using TemporaryDirectory temporaryDirectory = new TemporaryDirectory();
+        using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, container, "tenant-a");
         StorageObjectKey key = StorageObjectKey.Parse("escape.wav");
 
@@ -177,7 +177,7 @@ public sealed class LocalObjectStorageClientTests
     [DataRow("\\\\server\\share")]
     public async Task Operations_RejectUnsafeConfiguredPrefix(string prefix)
     {
-        using TemporaryDirectory temporaryDirectory = new TemporaryDirectory();
+        using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", prefix);
         StorageObjectKey key = StorageObjectKey.Parse("escape.wav");
 
@@ -192,7 +192,7 @@ public sealed class LocalObjectStorageClientTests
     [DataRow("nested/../../escape.wav")]
     public void StorageObjectKey_RejectsTraversalBeforeLocalFilesystemAccess(string value)
     {
-        using TemporaryDirectory temporaryDirectory = new TemporaryDirectory();
+        using TemporaryDirectory temporaryDirectory = new();
 
         Assert.ThrowsExactly<ArgumentException>(() => StorageObjectKey.Parse(value));
         Assert.IsFalse(Directory.Exists(temporaryDirectory.Path));
@@ -201,8 +201,8 @@ public sealed class LocalObjectStorageClientTests
     [TestMethod]
     public async Task Operations_RejectDirectorySymlinkUnderRoot()
     {
-        using TemporaryDirectory localRoot = new TemporaryDirectory();
-        using TemporaryDirectory outsideDirectory = new TemporaryDirectory();
+        using TemporaryDirectory localRoot = new();
+        using TemporaryDirectory outsideDirectory = new();
         Directory.CreateDirectory(localRoot.Path);
         Directory.CreateDirectory(outsideDirectory.Path);
 
@@ -242,8 +242,8 @@ public sealed class LocalObjectStorageClientTests
     [TestMethod]
     public async Task Operations_RejectTargetFileSymlink()
     {
-        using TemporaryDirectory localRoot = new TemporaryDirectory();
-        using TemporaryDirectory outsideDirectory = new TemporaryDirectory();
+        using TemporaryDirectory localRoot = new();
+        using TemporaryDirectory outsideDirectory = new();
         Directory.CreateDirectory(Path.Combine(localRoot.Path, "recordings"));
         Directory.CreateDirectory(outsideDirectory.Path);
         string outsideTargetPath = Path.Combine(outsideDirectory.Path, "escape.wav");
@@ -285,10 +285,10 @@ public sealed class LocalObjectStorageClientTests
     [TestMethod]
     public async Task MutatingOperations_WhenAlreadyCancelled_DoNotMutateFilesystem()
     {
-        using TemporaryDirectory temporaryDirectory = new TemporaryDirectory();
+        using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
         StorageObjectKey key = StorageObjectKey.Parse("sample.wav");
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>

@@ -295,7 +295,7 @@ public class AuthController : ControllerBase
     // Function summary: Builds a validation problem response from grouped Identity errors.
     private static BadRequestObjectResult IdentityErrors(string title, IReadOnlyDictionary<string, string[]> errors)
     {
-        ValidationProblemDetails details = new ValidationProblemDetails(errors.ToDictionary(error => error.Key, error => error.Value))
+        ValidationProblemDetails details = new(errors.ToDictionary(error => error.Key, error => error.Value))
         {
             Title = title,
             Status = StatusCodes.Status400BadRequest

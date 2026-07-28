@@ -11,7 +11,7 @@ public sealed class SiteAuthorizationPolicyTests
     [Fact]
     public void ReadScope_AdminCanReadAllSites()
     {
-        PortalUserContext user = new PortalUserContext(Guid.NewGuid(), "admin", null, true, false, false);
+        PortalUserContext user = new(Guid.NewGuid(), "admin", null, true, false, false);
 
         SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(user, NowUtc);
 
@@ -22,7 +22,7 @@ public sealed class SiteAuthorizationPolicyTests
     public void ReadScope_CompanyUserCarriesUserAndUtcInstant()
     {
         Guid userId = Guid.NewGuid();
-        PortalUserContext user = new PortalUserContext(userId, "user", Guid.NewGuid(), false, false, true);
+        PortalUserContext user = new(userId, "user", Guid.NewGuid(), false, false, true);
 
         SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(user, NowUtc);
 
@@ -35,7 +35,7 @@ public sealed class SiteAuthorizationPolicyTests
     public void AssignmentWindow_IsInclusiveAtBothBounds()
     {
         Guid userId = Guid.NewGuid();
-        SiteAssignmentWindow assignment = new SiteAssignmentWindow(userId, NowUtc, NowUtc);
+        SiteAssignmentWindow assignment = new(userId, NowUtc, NowUtc);
 
         Assert.True(ActiveSiteAssignment.IsActive(assignment, userId, NowUtc));
         Assert.False(ActiveSiteAssignment.IsActive(
@@ -47,7 +47,7 @@ public sealed class SiteAuthorizationPolicyTests
     [Fact]
     public void ReadScope_RejectsNonUtcClockValues()
     {
-        PortalUserContext user = new PortalUserContext(Guid.NewGuid(), "user", null, false, false, true);
+        PortalUserContext user = new(Guid.NewGuid(), "user", null, false, false, true);
 
         Assert.Throws<ArgumentException>(() =>
             SiteAuthorizationPolicy.ReadScope(

@@ -7,7 +7,6 @@
 
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -24,7 +23,7 @@ public static class RvtDatabaseServiceCollectionExtensions
     {
         RvtDatabaseOptions options = RvtDatabaseOptions.FromConfiguration(configuration);
 
-        services.TryAddSingleton<IOptions<RvtDatabaseOptions>>(Options.Create(options));
+        services.TryAddSingleton(Options.Create(options));
         services.TryAddSingleton<IRvtDatabaseConnectionFactory, RvtDatabaseConnectionFactory>();
         services.TryAddSingleton<IRvtStoredRoutineExecutor, RvtStoredRoutineExecutor>();
 

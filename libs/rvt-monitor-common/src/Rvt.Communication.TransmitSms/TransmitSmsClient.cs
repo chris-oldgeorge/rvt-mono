@@ -30,7 +30,7 @@ internal sealed class TransmitSmsClient
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        using HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        using HttpRequestMessage message = new(HttpMethod.Post, endpoint);
         message.Headers.Authorization = new AuthenticationHeaderValue(
             "Basic",
             Convert.ToBase64String(Encoding.ASCII.GetBytes($"{request.ApiKey}:{request.ApiSecret}")));

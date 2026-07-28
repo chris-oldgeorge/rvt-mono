@@ -22,7 +22,7 @@ public sealed class PortalUserDirectory : IPortalUserDirectory
     public async Task<IReadOnlyList<PortalUserProfile>> ListUsersAsync(CancellationToken cancellationToken)
     {
         List<ApplicationUser> users = await userManager.Users.AsNoTracking().ToListAsync(cancellationToken);
-        List<PortalUserProfile> profiles = new List<PortalUserProfile>();
+        List<PortalUserProfile> profiles = new();
         foreach (ApplicationUser? user in users)
         {
             PortalUserProfile? profile = await BuildProfileAsync(user);
@@ -60,6 +60,6 @@ public sealed class PortalUserDirectory : IPortalUserDirectory
             user.PhoneNumber,
             user.CompanyRole,
             user.EmailConfirmed,
-            roles.ToList());
+            [.. roles]);
     }
 }

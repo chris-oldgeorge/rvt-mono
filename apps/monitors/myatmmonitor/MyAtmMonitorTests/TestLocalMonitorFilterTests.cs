@@ -1,10 +1,5 @@
 using MyAtm.Api;
 using MyAtm.Model.Dto;
-
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace MyAtmMonitorTests;
 
 [TestClass]
@@ -13,11 +8,11 @@ public class TestLocalMonitorFilterTests
     [TestMethod]
     public void ApplyReadMonitorFilter_WhenDisabled_ReturnsAllMonitors()
     {
-        List<DustMonitorDto> monitors = new List<DustMonitorDto>
-        {
+        List<DustMonitorDto> monitors =
+        [
             Monitor("R6025V", "21972"),
             Monitor("Other", "99999")
-        };
+        ];
 
         List<DustMonitorDto> filtered = MyAtmTestLocalMonitorFilter.Apply(monitors, enabled: false);
 
@@ -30,12 +25,12 @@ public class TestLocalMonitorFilterTests
         DustMonitorDto target = Monitor("R6025V", "21972");
         DustMonitorDto sameSerialWrongFleet = Monitor("Other", "21972");
         DustMonitorDto sameFleetWrongSerial = Monitor("R6025V", "99999");
-        List<DustMonitorDto> monitors = new List<DustMonitorDto>
-        {
+        List<DustMonitorDto> monitors =
+        [
             sameSerialWrongFleet,
             target,
             sameFleetWrongSerial
-        };
+        ];
 
         List<DustMonitorDto> filtered = MyAtmTestLocalMonitorFilter.Apply(monitors, enabled: true);
 
@@ -47,7 +42,7 @@ public class TestLocalMonitorFilterTests
     {
         DustMonitorDto target = Monitor(null, "21972");
         DustMonitorDto other = Monitor("R6025V", "99999");
-        List<DustMonitorDto> monitors = new List<DustMonitorDto> { other, target };
+        List<DustMonitorDto> monitors = [other, target];
 
         List<DustMonitorDto> filtered = MyAtmTestLocalMonitorFilter.ApplyCatalog(monitors, enabled: true);
 

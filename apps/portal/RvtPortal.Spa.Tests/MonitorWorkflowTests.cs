@@ -1,4 +1,4 @@
-﻿// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
+// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
 // - 2026-07-22 pending Covered shared-site contract isolation in installer monitor options.
 // - 2026-06-26 pending Added moved-monitor monitor list/detail ownership-window regressions.
@@ -16,11 +16,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using RVT.BusinessLogic;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
@@ -53,7 +51,7 @@ public class MonitorWorkflowTests
     // Function summary: Handles the monitor inventory states are filtered by state and role workflow for this module.
     public async Task MonitorInventoryStates_AreFilteredByStateAndRole()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
@@ -94,7 +92,7 @@ public class MonitorWorkflowTests
     // Function summary: Handles the fleet and monitor edit validate duplicates and create default alert levels workflow for this module.
     public async Task FleetAndMonitorEdit_ValidateDuplicatesAndCreateDefaultAlertLevels()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -114,7 +112,7 @@ public class MonitorWorkflowTests
         });
         EntityResponse<MonitorDetailResponse>? assignedFleet = await assignFleet.Content.ReadFromJsonAsync<EntityResponse<MonitorDetailResponse>>();
 
-        MonitorMutationRequest editRequest = new MonitorMutationRequest
+        MonitorMutationRequest editRequest = new()
         {
             FleetNumber = editedFleetNumber,
             CalibrationDate = new DateTime(2026, 5, 1),
@@ -142,7 +140,7 @@ public class MonitorWorkflowTests
     // Function summary: Verifies monitor detail exposes legacy summary data used by the React detail page.
     public async Task MonitorDetail_ExposesLegacySummaryData()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -166,7 +164,7 @@ public class MonitorWorkflowTests
     // Function summary: Verifies current monitor list and detail ignore notifications outside the active ownership window.
     public async Task MonitorListAndDetail_IgnoreMovedMonitorGapNotifications()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MovedMonitorDetailIds ids = await SeedMovedMonitorDetailScenarioAsync(factory);
         ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.NewCompanyId);
         await factory.SeedDomainEntitiesAsync(TestData.SiteUser(siteId: ids.NewSiteId, userId: Guid.Parse(companyUser.Id), startDate: ids.NewDeploymentStart));
@@ -188,13 +186,13 @@ public class MonitorWorkflowTests
     // Function summary: Verifies monitor picture upload rejects monitors without a current deployment.
     public async Task MonitorPictureUpload_RequiresCurrentDeployment()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
-        using MultipartFormDataContent form = new MultipartFormDataContent();
-        using ByteArrayContent image = new ByteArrayContent([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        using MultipartFormDataContent form = new();
+        using ByteArrayContent image = new([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
         image.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
         form.Add(image, "picture", "monitor.png");
 
@@ -207,7 +205,7 @@ public class MonitorWorkflowTests
     // Function summary: Verifies blank monitor coordinate edits keep existing deployment coordinates.
     public async Task MonitorEdit_BlankCoordinatesKeepExistingValues()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -234,7 +232,7 @@ public class MonitorWorkflowTests
     // Function summary: Verifies monitor coordinate edits reject out-of-range deployment coordinates.
     public async Task MonitorEdit_RejectsOutOfRangeCoordinates()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -256,12 +254,12 @@ public class MonitorWorkflowTests
     // Function summary: Verifies monitor detail exposes latest average data from the monitor data source.
     public async Task MonitorDetail_ExposesLatestAverageFromDataSource()
     {
-        FakeMonitorDataSource dataSource = new FakeMonitorDataSource();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
         using WebApplicationFactory<Program> clientFactory = WithMonitorDataSource(factory, dataSource);
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         RVT.Entities.Monitor monitor = Monitor(ids.OnlineMonitorId, "MON-ONLINE", "SER-ONLINE", MonitorTypeEnum.Dust, DateTime.UtcNow, DateTime.UtcNow);
-        DateTime databaseTimestamp = new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Unspecified);
+        DateTime databaseTimestamp = new(2026, 7, 1, 8, 0, 0, DateTimeKind.Unspecified);
         dataSource.AddDustData(ids.OnlineDeploymentId, monitor, databaseTimestamp);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(clientFactory);
@@ -282,8 +280,8 @@ public class MonitorWorkflowTests
     // Function summary: Verifies latest reading prefers live measurement data over notification fallback data.
     public async Task MonitorDetail_ExposesLatestReadingFromDataSourceWhenAvailable()
     {
-        FakeMonitorDataSource dataSource = new FakeMonitorDataSource();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
         using WebApplicationFactory<Program> clientFactory = WithMonitorDataSource(factory, dataSource);
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         RVT.Entities.Monitor monitor = Monitor(ids.OnlineMonitorId, "MON-ONLINE", "SER-ONLINE", MonitorTypeEnum.Dust, DateTime.UtcNow, DateTime.UtcNow);
@@ -305,7 +303,7 @@ public class MonitorWorkflowTests
     public async Task MonitorDetail_ExposesLatestBatteryStatus()
     {
         const int batteryCharge = 87;
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedSearchEntitiesAsync(new OmnidotsSensor
         {
@@ -334,8 +332,8 @@ public class MonitorWorkflowTests
     public async Task InstallerMonitorDetail_ExposesLegacyMetricSummaries()
     {
         const int batteryCharge = 91;
-        FakeMonitorDataSource dataSource = new FakeMonitorDataSource();
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
         using WebApplicationFactory<Program> clientFactory = WithMonitorDataSource(factory, dataSource);
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         RVT.Entities.Monitor monitor = Monitor(ids.OnlineMonitorId, "MON-ONLINE", "SER-ONLINE", MonitorTypeEnum.Dust, DateTime.UtcNow, DateTime.UtcNow);
@@ -369,7 +367,7 @@ public class MonitorWorkflowTests
     // Function summary: Verifies legacy monitor picture paths are not exposed through unauthenticated static file fallback routes.
     public async Task LegacyMonitorPicturePath_IsNotPubliclyServed()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = CreateClient(factory);
 
         HttpResponseMessage response = await client.GetAsync("/monitor-pictures/online-monitor.jpg");
@@ -381,7 +379,7 @@ public class MonitorWorkflowTests
     // Function summary: Handles the contract assignment adds and removes current deployment workflow for this module.
     public async Task ContractAssignment_AddsAndRemovesCurrentDeployment()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -413,7 +411,7 @@ public class MonitorWorkflowTests
     // Function summary: Handles the installer can update deployment and read status workflow for this module.
     public async Task InstallerCanUpdateDeploymentAndReadStatus()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller, companyId: ids.CompanyId);
         HttpClient client = CreateClient(factory);
@@ -441,7 +439,7 @@ public class MonitorWorkflowTests
     // Function summary: Verifies installers cannot address monitors or deployments outside their assigned company.
     public async Task InstallerEndpoints_AreScopedToInstallerCompany()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller, companyId: ids.CompanyId);
         HttpClient client = CreateClient(factory);
@@ -466,7 +464,7 @@ public class MonitorWorkflowTests
     // Function summary: Verifies protected monitor pictures enforce the same installer-company boundary as installer detail reads.
     public async Task InstallerMonitorPicture_IsScopedToInstallerCompany()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller, companyId: ids.CompanyId);
@@ -492,7 +490,7 @@ public class MonitorWorkflowTests
     // Function summary: Verifies monitor option metadata is restricted to each non-admin actor's authorized tenant graph.
     public async Task MonitorOptions_AreScopedToInstallerCompanyAndCompanyUserSites()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
         ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
         await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller, companyId: ids.CompanyId);
@@ -519,7 +517,7 @@ public class MonitorWorkflowTests
     // Function summary: Verifies an installer sees only its own company's contract when multiple companies share a site.
     public async Task InstallerMonitorOptions_DoNotLeakAnotherCompanyContractOnVisibleSite()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         Guid installerCompanyId = Guid.NewGuid();
         Guid otherCompanyId = Guid.NewGuid();
         Guid sharedSiteId = Guid.NewGuid();
@@ -558,7 +556,7 @@ public class MonitorWorkflowTests
     // Function summary: Verifies the installer what3words endpoint returns a service problem when the API key is not configured.
     public async Task InstallerWhat3WordsConvert_ReturnsServiceUnavailableWhenApiKeyMissing()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller);
         HttpClient client = CreateClient(factory);
         await LoginAsync(client, InstallerEmail, Password);
@@ -574,7 +572,7 @@ public class MonitorWorkflowTests
     // Function summary: Handles the default monitors adds default levels where missing workflow for this module.
     public async Task DefaultMonitors_AddsDefaultLevelsWhereMissing()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         Guid monitorId = Guid.NewGuid();
         await factory.SeedDomainEntitiesAsync(
@@ -674,7 +672,7 @@ public class MonitorWorkflowTests
         Guid oldContractId = Guid.NewGuid();
         Guid newContractId = Guid.NewGuid();
         Guid monitorId = Guid.NewGuid();
-        DateTime baseTime = new DateTime(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc);
+        DateTime baseTime = new(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc);
         DateTime oldDeploymentEnd = baseTime.AddDays(-10);
         DateTime newDeploymentStart = baseTime.AddDays(-4);
 
@@ -781,8 +779,8 @@ public class MonitorWorkflowTests
     // Function summary: Uploads a minimal valid PNG to a monitor's current deployment.
     private static async Task<HttpResponseMessage> UploadPictureAsync(HttpClient client, Guid monitorId)
     {
-        using MultipartFormDataContent form = new MultipartFormDataContent();
-        using ByteArrayContent image = new ByteArrayContent(Convert.FromBase64String(
+        using MultipartFormDataContent form = new();
+        using ByteArrayContent image = new(Convert.FromBase64String(
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lwGfVwAAAABJRU5ErkJggg=="));
         image.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
         form.Add(image, "picture", "monitor.png");

@@ -38,7 +38,7 @@ public sealed class OmnidotsAlertCommitStoreTests
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext _)
     {
-        using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
         database = await PostgreSqlIntegrationDatabase.CreateAsync(
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/create.postgres.sql"),
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
@@ -61,7 +61,7 @@ public sealed class OmnidotsAlertCommitStoreTests
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"));
         await SeedContactGraphAsync();
 
-        MonitorDbOptions monitorOptions = new MonitorDbOptions(
+        MonitorDbOptions monitorOptions = new(
             new Dictionary<string, string>());
         store = new EfAlertCommitStore<OmnidotsMonitorContext>(
             new OmnidotsMonitorContextFactory(database.ConnectionString, monitorOptions),
@@ -342,16 +342,16 @@ public sealed class OmnidotsAlertCommitStoreTests
         {
             ApplicationName = applicationName
         }.ConnectionString;
-        MonitorDbOptions monitorOptions = new MonitorDbOptions(
+        MonitorDbOptions monitorOptions = new(
             new Dictionary<string, string>());
-        EfAlertCommitStore<OmnidotsMonitorContext> concurrentStore = new EfAlertCommitStore<OmnidotsMonitorContext>(
+        EfAlertCommitStore<OmnidotsMonitorContext> concurrentStore = new(
             new OmnidotsMonitorContextFactory(connectionString, monitorOptions),
             new CautionAlertAcceptancePolicy());
 
         await using NpgsqlConnection blockingConnection = database.OpenConnection();
         await blockingConnection.OpenAsync();
         await using NpgsqlTransaction blockingTransaction = await blockingConnection.BeginTransactionAsync();
-        await using (NpgsqlCommand insert = new NpgsqlCommand(
+        await using (NpgsqlCommand insert = new(
             """
             INSERT INTO alert_occurrence
                 (id, source, source_key_hash, notification_id, monitor_id, serial_id,
@@ -440,7 +440,7 @@ public sealed class OmnidotsAlertCommitStoreTests
         DateTime? eventTime = null,
         byte hashSeed = 1)
     {
-        byte[] sourceKeyHash = Enumerable.Repeat(hashSeed, 32).ToArray();
+        byte[] sourceKeyHash = [.. Enumerable.Repeat(hashSeed, 32)];
         return new AlertCommitRequest(
             new AlertSignal(
                 "omnidots.webhook",
@@ -571,7 +571,7 @@ public sealed class OmnidotsAlertCommitStoreTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
@@ -588,17 +588,17 @@ public sealed class OmnidotsAlertCommitStoreTests
             _ => throw new ArgumentOutOfRangeException(nameof(query))
         };
 
-        List<string> values = new List<string>();
+        List<string> values = [];
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
             values.Add(reader.GetString(0));
         }
 
-        return values.ToArray();
+        return [.. values];
     }
 
     private static async Task ExecuteAsync(
@@ -607,20 +607,20 @@ public sealed class OmnidotsAlertCommitStoreTests
     {
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         addParameters?.Invoke(command);
         await command.ExecuteNonQueryAsync();
     }
 
     private static async Task WaitForDatabaseLockAsync(string applicationName)
     {
-        using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
         while (true)
         {
             timeout.Token.ThrowIfCancellationRequested();
             await using NpgsqlConnection connection = database!.OpenConnection();
             await connection.OpenAsync(timeout.Token);
-            await using NpgsqlCommand command = new NpgsqlCommand(
+            await using NpgsqlCommand command = new(
                 """
                 SELECT EXISTS (
                     SELECT 1

@@ -40,7 +40,7 @@ public sealed class AssignMonitorToContractCommandHandler
         AssignMonitorToContractCommand request,
         CancellationToken cancellationToken)
     {
-        AssignMonitorToContractResult result = new AssignMonitorToContractResult();
+        AssignMonitorToContractResult result = new();
         MonitorEntity? monitor = await domainContext.MonitorsList
             .SingleOrDefaultAsync(item => item.Id == request.MonitorId && !item.Archived, cancellationToken);
         if (monitor == null)
@@ -77,7 +77,7 @@ public sealed class AssignMonitorToContractCommandHandler
             return result;
         }
 
-        Deployment deployment = new Deployment
+        Deployment deployment = new()
         {
             Id = Guid.NewGuid(),
             ContractId = request.ContractId,
@@ -123,7 +123,7 @@ public sealed class RemoveMonitorFromContractCommandHandler
         RemoveMonitorFromContractCommand request,
         CancellationToken cancellationToken)
     {
-        RemoveMonitorFromContractResult result = new RemoveMonitorFromContractResult();
+        RemoveMonitorFromContractResult result = new();
         Deployment? deployment = await domainContext.Deployments.SingleOrDefaultAsync(
             item => item.MonitorId == request.MonitorId && item.EndDate == null,
             cancellationToken);

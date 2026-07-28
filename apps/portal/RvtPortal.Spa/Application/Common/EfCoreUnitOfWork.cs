@@ -90,7 +90,7 @@ public sealed class EfCoreUnitOfWork :
                 IDbContextTransaction? applicationTransaction = null;
                 ExceptionDispatchInfo? primaryFailure = null;
                 List<Exception>? secondaryFailures = null;
-                TResponse? response = default(TResponse)!;
+                TResponse? response = default!;
 
                 try
                 {
@@ -219,7 +219,7 @@ public sealed class EfCoreUnitOfWork :
         IDbContextTransaction? applicationEnlistment = null;
         ExceptionDispatchInfo? primaryFailure = null;
         List<Exception>? secondaryFailures = null;
-        TResponse? response = default(TResponse)!;
+        TResponse? response = default!;
 
         try
         {

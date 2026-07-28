@@ -15,7 +15,7 @@ public class HttpWebClientTests
             HttpStatusCode.TooManyRequests,
             "ignored",
             TimeSpan.FromMinutes(20));
-        MyAtmRequestPolicy policy = new MyAtmRequestPolicy(
+        MyAtmRequestPolicy policy = new(
             new MyAtmVendorOptions
             {
                 BaseUrl = "https://vendor.example/",
@@ -31,12 +31,12 @@ public class HttpWebClientTests
     [TestMethod]
     public async Task GetAsync_OversizedSuccessBody_FailsBeforeReturningContent()
     {
-        Queue<HttpResponseMessage> responses = new Queue<HttpResponseMessage>(new[]
-        {
+        Queue<HttpResponseMessage> responses = new(
+        [
             CreateResponse(HttpStatusCode.OK, "12345", null)
-        });
-        using HttpClient client = new HttpClient(new QueueHttpMessageHandler(responses));
-        HttpWebClient<object> subject = new HttpWebClient<object>(
+        ]);
+        using HttpClient client = new(new QueueHttpMessageHandler(responses));
+        HttpWebClient<object> subject = new(
             "https://vendor.example/",
             "test-key",
             client,
@@ -52,13 +52,13 @@ public class HttpWebClientTests
     public async Task GetAsync_PermanentFailure_DoesNotReadOrExposeVendorBody()
     {
         const string sentinel = "sensitive-vendor-body-sentinel";
-        TrackingStringContent content = new TrackingStringContent(sentinel);
-        Queue<HttpResponseMessage> responses = new Queue<HttpResponseMessage>(new[]
-        {
+        TrackingStringContent content = new(sentinel);
+        Queue<HttpResponseMessage> responses = new(
+        [
             new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = content }
-        });
-        using HttpClient client = new HttpClient(new QueueHttpMessageHandler(responses));
-        HttpWebClient<object> subject = new HttpWebClient<object>(
+        ]);
+        using HttpClient client = new(new QueueHttpMessageHandler(responses));
+        HttpWebClient<object> subject = new(
             "https://vendor.example/",
             "test-key",
             client,
@@ -73,21 +73,21 @@ public class HttpWebClientTests
     [TestMethod]
     public async Task GetAsync_RetriesTooManyRequests_UsingRetryAfter()
     {
-        Queue<HttpResponseMessage> responses = new Queue<HttpResponseMessage>(new[]
-        {
+        Queue<HttpResponseMessage> responses = new(
+        [
             CreateResponse(HttpStatusCode.TooManyRequests, "slow down", TimeSpan.FromSeconds(3)),
             CreateResponse(HttpStatusCode.OK, "[]", null)
-        });
-        List<TimeSpan> delays = new List<TimeSpan>();
-        QueueHttpMessageHandler handler = new QueueHttpMessageHandler(responses);
-        MyAtmRequestPolicy policy = new MyAtmRequestPolicy(
+        ]);
+        List<TimeSpan> delays = [];
+        QueueHttpMessageHandler handler = new(responses);
+        MyAtmRequestPolicy policy = new(
             delayAsync: (delay, _) =>
             {
                 delays.Add(delay);
                 return Task.CompletedTask;
             });
-        using HttpClient client = new HttpClient(handler);
-        HttpWebClient<object> subject = new HttpWebClient<object>("https://vendor.example/", "test-key", client, policy);
+        using HttpClient client = new(handler);
+        HttpWebClient<object> subject = new("https://vendor.example/", "test-key", client, policy);
 
         string result = await subject.GetAsync("devices");
 
@@ -104,19 +104,19 @@ public class HttpWebClientTests
     [DataRow(HttpStatusCode.GatewayTimeout)]
     public async Task GetAsync_RetriesTransientVendorFailures(HttpStatusCode transientStatus)
     {
-        Queue<HttpResponseMessage> responses = new Queue<HttpResponseMessage>(new[]
-        {
+        Queue<HttpResponseMessage> responses = new(
+        [
             CreateResponse(transientStatus, "temporary", null),
             CreateResponse(HttpStatusCode.OK, "[]", null)
-        });
-        List<TimeSpan> delays = new List<TimeSpan>();
-        MyAtmRequestPolicy policy = new MyAtmRequestPolicy(delayAsync: (delay, _) =>
+        ]);
+        List<TimeSpan> delays = [];
+        MyAtmRequestPolicy policy = new(delayAsync: (delay, _) =>
         {
             delays.Add(delay);
             return Task.CompletedTask;
         });
-        using HttpClient client = new HttpClient(new QueueHttpMessageHandler(responses));
-        HttpWebClient<object> subject = new HttpWebClient<object>("https://vendor.example/", "test-key", client, policy);
+        using HttpClient client = new(new QueueHttpMessageHandler(responses));
+        HttpWebClient<object> subject = new("https://vendor.example/", "test-key", client, policy);
 
         string result = await subject.GetAsync("devices");
 
@@ -127,18 +127,18 @@ public class HttpWebClientTests
     [TestMethod]
     public async Task GetAsync_PropagatesCallerCancellation()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
-        MyAtmRequestPolicy policy = new MyAtmRequestPolicy();
-        using HttpClient client = new HttpClient(new QueueHttpMessageHandler(new Queue<HttpResponseMessage>()));
-        HttpWebClient<object> subject = new HttpWebClient<object>("https://vendor.example/", "test-key", client, policy);
+        MyAtmRequestPolicy policy = new();
+        using HttpClient client = new(new QueueHttpMessageHandler(new Queue<HttpResponseMessage>()));
+        HttpWebClient<object> subject = new("https://vendor.example/", "test-key", client, policy);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => subject.GetAsync("devices", cancellation.Token));
     }
 
     private static HttpResponseMessage CreateResponse(HttpStatusCode statusCode, string content, TimeSpan? retryAfter)
     {
-        HttpResponseMessage response = new HttpResponseMessage(statusCode)
+        HttpResponseMessage response = new(statusCode)
         {
             Content = new StringContent(content)
         };

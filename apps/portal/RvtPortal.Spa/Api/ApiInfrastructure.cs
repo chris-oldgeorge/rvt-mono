@@ -82,7 +82,7 @@ public static class ApiProblems
         string? detail = null,
         string? type = null)
     {
-        ProblemDetails problem = new ProblemDetails
+        ProblemDetails problem = new()
         {
             Status = statusCode,
             Title = title,

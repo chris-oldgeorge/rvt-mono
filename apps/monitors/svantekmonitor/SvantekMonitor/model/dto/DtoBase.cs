@@ -10,7 +10,7 @@ namespace SvantekMonitor.model.dto
     {
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new();
             foreach (PropertyInfo prop in this.GetType().GetProperties())
             {
                 string propName = prop.Name;

@@ -22,7 +22,7 @@ public sealed class QueryValidationTests
     public async Task ReadFilteredAsync_UnknownFilterField_Throws()
     {
         await using RVTDbContext context = CreateContext();
-        CompanyRepository repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
         QueryValidationException error = await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
             [new SingleFilter { Operation = Op.Equals, PropertyName = "NotAField", Value = "x" }],
@@ -42,7 +42,7 @@ public sealed class QueryValidationTests
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Alpha" });
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Beta" });
         await context.SaveChangesAsync();
-        CompanyRepository repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
         // The whole point: an entirely invalid filter used to build "WHERE true" and hand back the table.
         await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
@@ -58,7 +58,7 @@ public sealed class QueryValidationTests
     public async Task ReadFilteredAsync_UnknownSortField_Throws()
     {
         await using RVTDbContext context = CreateContext();
-        CompanyRepository repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
         QueryValidationException error = await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
             [],
@@ -78,7 +78,7 @@ public sealed class QueryValidationTests
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Alpha" });
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Beta" });
         await context.SaveChangesAsync();
-        CompanyRepository repository = new CompanyRepository(context);
+        CompanyRepository repository = new(context);
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],

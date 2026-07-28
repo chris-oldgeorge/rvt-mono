@@ -65,7 +65,7 @@ public sealed class UtcTimestampGuardTests
             .UseNpgsql(connectionString)
             .AddInterceptors(UtcTimestampGuardInterceptor.Instance)
             .Options;
-        await using RVTDbContext context = new RVTDbContext(options);
+        await using RVTDbContext context = new(options);
         await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync();
 
         // DateTime.Now (Kind=Local) - the guard must stop this before it reaches the database.

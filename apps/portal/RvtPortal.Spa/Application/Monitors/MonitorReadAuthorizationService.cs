@@ -77,7 +77,7 @@ public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationS
             .Where(ActiveSiteAssignment.ForUser(currentUserId.Value, timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
-        return siteIds.ToHashSet();
+        return [.. siteIds];
     }
 
     // Function summary: Evaluates whether the current user has RVT administrator privileges.

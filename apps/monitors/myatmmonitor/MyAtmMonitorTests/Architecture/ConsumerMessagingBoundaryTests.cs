@@ -15,7 +15,7 @@ public sealed class ConsumerMessagingBoundaryTests
     public void ObsoleteSynchronousMessageCallsAreLimitedToConsumerCompatibilityAllowlist()
     {
         string root = RepositoryLayout.Root;
-        string[] callers = new[]
+        string[] callers = [.. new[]
             {
                 "apps/monitors/myatmmonitor/MyAtmMonitor",
                 "apps/monitors/omnidotsmonitor/OmnidotsMonitor"
@@ -24,8 +24,7 @@ public sealed class ConsumerMessagingBoundaryTests
             .Where(file => file.Text.Contains(".Sendmessage(", StringComparison.Ordinal) ||
                 file.Text.Contains(".SendMessage(", StringComparison.Ordinal))
             .Select(file => file.RelativePath)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(
             SynchronousCompatibilityCallers.Order(StringComparer.Ordinal).ToArray(),

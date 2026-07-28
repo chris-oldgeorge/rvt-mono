@@ -1,13 +1,8 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests
 {
 
@@ -34,7 +29,7 @@ namespace AirQMonitorTests
         {
             DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
             TimeSpan localTime = DateTimeUtil.UtcToLocal(dt.TimeOfDay);
-            AlertActivityTimeDto testObj = new AlertActivityTimeDto
+            AlertActivityTimeDto testObj = new()
             {
                 Saturdays = false,
                 Sundays = false,
@@ -50,7 +45,7 @@ namespace AirQMonitorTests
         {
             DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
             TimeSpan localTime = DateTimeUtil.UtcToLocal(dt.TimeOfDay);
-            AlertActivityTimeDto testObj = new AlertActivityTimeDto
+            AlertActivityTimeDto testObj = new()
             {
                 Saturdays = false,
                 Sundays = false,
@@ -66,7 +61,7 @@ namespace AirQMonitorTests
         {
             DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
             TimeSpan localTime = DateTimeUtil.UtcToLocal(dt.TimeOfDay);
-            AlertActivityTimeDto testObj = new AlertActivityTimeDto
+            AlertActivityTimeDto testObj = new()
             {
                 Saturdays = false,
                 Sundays = false,
@@ -81,7 +76,7 @@ namespace AirQMonitorTests
         public void TestAlertRuleWeekdaysNullTime_Success()
         {
             DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            AlertActivityTimeDto testObj = new AlertActivityTimeDto
+            AlertActivityTimeDto testObj = new()
             {
                 Saturdays = false,
                 Sundays = false,
@@ -94,7 +89,7 @@ namespace AirQMonitorTests
         public void TestAlertRuleWeekdaysNullEndTime_Success()
         {
             DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            AlertActivityTimeDto testObj = new AlertActivityTimeDto
+            AlertActivityTimeDto testObj = new()
             {
                 Saturdays = false,
                 Sundays = false,
@@ -108,7 +103,7 @@ namespace AirQMonitorTests
         public void TestAlertRuleWeekdaysNullStartTime_Success()
         {
             DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            AlertActivityTimeDto testObj = new AlertActivityTimeDto
+            AlertActivityTimeDto testObj = new()
             {
                 Saturdays = false,
                 Sundays = false,
@@ -123,7 +118,7 @@ namespace AirQMonitorTests
         public void TestAlertRuleNotWeekday_Success()
         {
             DateTime dt = DateTime.Parse("Tue, 3 Oct 2023 07:22:16 GMT");
-            AlertActivityTimeDto testObj = new AlertActivityTimeDto
+            AlertActivityTimeDto testObj = new()
             {
                 Saturdays = true,
                 Sundays = true,
@@ -138,7 +133,7 @@ namespace AirQMonitorTests
         public void TestAlertRuleNotSunday_Success()
         {
             DateTime dt = DateTime.Parse("Sun, 1 Oct 2023 07:22:16 GMT");
-            AlertActivityTimeDto testObj = new AlertActivityTimeDto
+            AlertActivityTimeDto testObj = new()
             {
                 Saturdays = true,
                 Sundays = false,
@@ -153,7 +148,7 @@ namespace AirQMonitorTests
         public void TestAlertRuleNotSaturday_Success()
         {
             DateTime dt = DateTime.Parse("Sat, 30 Sep 2023 07:22:16 GMT");
-            AlertActivityTimeDto testObj = new AlertActivityTimeDto
+            AlertActivityTimeDto testObj = new()
             {
                 Saturdays = false,
                 Sundays = true,

@@ -97,7 +97,7 @@ public sealed class StorageCompositionTests
         {
             ["BlobStorage:Provider"] = "GoogleCloud",
         });
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
 
         InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(
@@ -112,7 +112,7 @@ public sealed class StorageCompositionTests
         IReadOnlyDictionary<string, string?>? settings = null)
     {
         IConfiguration configuration = BuildConfiguration(settings);
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSvantekMonitor(configuration);
         return services.BuildServiceProvider();

@@ -18,8 +18,8 @@ public sealed class MessageServiceCompatibilityTests
         LegacyMessageKind legacyKind,
         NotificationMessageKind expectedKind)
     {
-        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
-        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
+        using CancellationTokenSource cancellationSource = new();
+        Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
         delivery.Setup(x => x.SendAsync(
                 It.Is<NotificationDeliveryRequest>(request =>
                     request.Kind == expectedKind &&
@@ -29,7 +29,7 @@ public sealed class MessageServiceCompatibilityTests
                     request.CallbackUrl == "https://portal.example/1"),
                 cancellationSource.Token))
             .Returns(Task.CompletedTask);
-        MessageService service = new MessageService(delivery.Object);
+        MessageService service = new(delivery.Object);
 
         await service.SendMessageAsync(
             legacyKind,
@@ -45,7 +45,7 @@ public sealed class MessageServiceCompatibilityTests
     [TestMethod]
     public async Task SendMessageAsync_Sms_MapsPhoneDestination()
     {
-        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
+        Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
         delivery.Setup(x => x.SendAsync(
                 It.Is<NotificationDeliveryRequest>(request =>
                     request.Kind == NotificationMessageKind.Alert &&
@@ -53,7 +53,7 @@ public sealed class MessageServiceCompatibilityTests
                     request.Destination == "+441234567890"),
                 CancellationToken.None))
             .Returns(Task.CompletedTask);
-        MessageService service = new MessageService(delivery.Object);
+        MessageService service = new(delivery.Object);
 
         await service.SendMessageAsync(
             LegacyMessageKind.Alert,
@@ -67,7 +67,7 @@ public sealed class MessageServiceCompatibilityTests
     [TestMethod]
     public async Task SendMessageAsync_DeliveryFailure_TranslatesToCommsException()
     {
-        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
+        Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
         delivery.Setup(x => x.SendAsync(
                 It.IsAny<NotificationDeliveryRequest>(),
                 CancellationToken.None))
@@ -75,7 +75,7 @@ public sealed class MessageServiceCompatibilityTests
                 "SendGrid",
                 DeliveryFailureKind.Permanent,
                 "400"));
-        MessageService service = new MessageService(delivery.Object);
+        MessageService service = new(delivery.Object);
 
         CommsException exception = await Assert.ThrowsExactlyAsync<CommsException>(() =>
             service.SendMessageAsync(
@@ -91,8 +91,8 @@ public sealed class MessageServiceCompatibilityTests
     [TestMethod]
     public async Task SendMessageAsync_BothChannel_IsRejected()
     {
-        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
-        MessageService service = new MessageService(delivery.Object);
+        Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
+        MessageService service = new(delivery.Object);
 
         await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(() =>
             service.SendMessageAsync(
@@ -107,8 +107,8 @@ public sealed class MessageServiceCompatibilityTests
     [TestMethod]
     public async Task SendMessageAsync_UnsupportedLegacyMessage_IsRejected()
     {
-        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
-        MessageService service = new MessageService(delivery.Object);
+        Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
+        MessageService service = new(delivery.Object);
 
         await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(() =>
             service.SendMessageAsync(
@@ -124,13 +124,13 @@ public sealed class MessageServiceCompatibilityTests
     public void SendMessage_SynchronousCompatibilityWrapper_WaitsForDelivery()
     {
         bool delivered = false;
-        Mock<INotificationDeliveryService> delivery = new Mock<INotificationDeliveryService>(MockBehavior.Strict);
+        Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
         delivery.Setup(x => x.SendAsync(
                 It.IsAny<NotificationDeliveryRequest>(),
                 CancellationToken.None))
             .Callback(() => delivered = true)
             .Returns(Task.CompletedTask);
-        MessageService service = new MessageService(delivery.Object);
+        MessageService service = new(delivery.Object);
 
 #pragma warning disable CS0618
         service.SendMessage(

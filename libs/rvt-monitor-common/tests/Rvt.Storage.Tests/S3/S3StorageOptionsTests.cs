@@ -86,10 +86,9 @@ public sealed class S3StorageOptionsTests
     [TestMethod]
     public void OptionsSurface_DoesNotAcceptStaticCredentials()
     {
-        string[] propertyNames = typeof(S3StorageOptions)
+        string[] propertyNames = [.. typeof(S3StorageOptions)
             .GetProperties()
-            .Select(property => property.Name)
-            .ToArray();
+            .Select(property => property.Name)];
 
         Assert.IsFalse(propertyNames.Any(name =>
             name.Contains("Access", StringComparison.OrdinalIgnoreCase)

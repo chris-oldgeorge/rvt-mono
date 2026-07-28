@@ -9,9 +9,9 @@ public sealed class ObjectStorageExceptionTests
     public void ObjectStorageException_MessageDoesNotReflectInnerExceptionText()
     {
         StorageObjectKey key = StorageObjectKey.Parse("tenant/report.pdf");
-        InvalidOperationException innerException = new InvalidOperationException("AccountKey=not-for-output");
+        InvalidOperationException innerException = new("AccountKey=not-for-output");
 
-        ObjectStorageException exception = new ObjectStorageException(
+        ObjectStorageException exception = new(
             StorageFailureKind.AccessDenied,
             "reports",
             key,

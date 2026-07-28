@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using RVT.BusinessLogic;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Querying;
@@ -36,13 +35,13 @@ public class SharedInfrastructureTests
         // descending and paged 2-per-page, the first page is Bravo then Alpine.
         const string searchText = "a";
         const int pageSize = 2;
-        CompanySearch alpha = new CompanySearch { Id = Guid.NewGuid(), CompanyName = "Alpha Monitoring", NrUsers = 1, Sites = "Site A", Contracts = "A-001" };
-        CompanySearch bravo = new CompanySearch { Id = Guid.NewGuid(), CompanyName = "Bravo Monitoring", NrUsers = 4, Sites = "Site B", Contracts = "B-001" };
-        CompanySearch alpine = new CompanySearch { Id = Guid.NewGuid(), CompanyName = "Alpine Sensors", NrUsers = 2, Sites = null, Contracts = null };
+        CompanySearch alpha = new() { Id = Guid.NewGuid(), CompanyName = "Alpha Monitoring", NrUsers = 1, Sites = "Site A", Contracts = "A-001" };
+        CompanySearch bravo = new() { Id = Guid.NewGuid(), CompanyName = "Bravo Monitoring", NrUsers = 4, Sites = "Site B", Contracts = "B-001" };
+        CompanySearch alpine = new() { Id = Guid.NewGuid(), CompanyName = "Alpine Sensors", NrUsers = 2, Sites = null, Contracts = null };
         CompanySearch[] seededCompanies = new[] { alpha, bravo, alpine };
         string[] expectedFirstPageOrder = [bravo.CompanyName, alpine.CompanyName];
 
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         using WebApplicationFactory<Program> app = WithCompanyService(factory, seededCompanies);
         HttpClient client = CreateClient(app);
@@ -54,7 +53,7 @@ public class SharedInfrastructureTests
             $"/api/companies?searchText={searchText}&page=3&pageSize={pageSize}&sort=companyName&sortDir=Ascending");
 
         Assert.NotNull(firstPage);
-        Assert.Equal(seededCompanies.Length, firstPage!.Total);
+        Assert.Equal(seededCompanies.Length, firstPage.Total);
         Assert.Equal(pageSize, firstPage.PageSize);
         Assert.Equal(2, firstPage.TotalPages);
         Assert.True(firstPage.HasNextPage);
@@ -65,7 +64,7 @@ public class SharedInfrastructureTests
         Assert.Equal(expectedFirstPageOrder, firstPage.Results.Select(company => company.CompanyName));
 
         Assert.NotNull(emptyPage);
-        Assert.Empty(emptyPage!.Results);
+        Assert.Empty(emptyPage.Results);
         Assert.Equal(3, emptyPage.Page);
         Assert.False(emptyPage.HasNextPage);
         Assert.True(emptyPage.HasPreviousPage);
@@ -75,7 +74,7 @@ public class SharedInfrastructureTests
     // Function summary: Handles the companies query returns problem details for invalid sort field workflow for this module.
     public async Task Companies_Query_ReturnsProblemDetails_ForInvalidSortField()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         using WebApplicationFactory<Program> app = WithCompanyService(factory);
         HttpClient client = CreateClient(app);
@@ -105,7 +104,7 @@ public class SharedInfrastructureTests
         const string matchingCompany = "RVT Alpha";
         const string nonMatchingCompany = "Quiet Site";
 
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller);
         await factory.SeedDomainCompaniesAsync(
@@ -124,7 +123,7 @@ public class SharedInfrastructureTests
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, installerLookup.StatusCode);
         Assert.NotNull(lookup);
-        Assert.Equal("companies", lookup!.Kind);
+        Assert.Equal("companies", lookup.Kind);
         Assert.Equal(query, lookup.Query);
         Assert.Equal(take, lookup.Take);
         Assert.Equal(new[] { matchingCompany }, lookup.Results);
@@ -139,7 +138,7 @@ public class SharedInfrastructureTests
         const string query = "late";
         const string lateCompany = "Late Arrival";
 
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainCompaniesAsync(
             new Company { Id = Guid.NewGuid(), CompanyName = "RVT Alpha", Contracts = [] });
@@ -152,16 +151,16 @@ public class SharedInfrastructureTests
         SearchLookupResponse? secondLookup = await client.GetFromJsonAsync<SearchLookupResponse>($"/api/lookups/companies?query={query}&take=5");
 
         Assert.NotNull(firstLookup);
-        Assert.Empty(firstLookup!.Results);
+        Assert.Empty(firstLookup.Results);
         Assert.NotNull(secondLookup);
-        Assert.Equal(new[] { lateCompany }, secondLookup!.Results);
+        Assert.Equal(new[] { lateCompany }, secondLookup.Results);
     }
 
     [Fact]
     // Function summary: Handles the diagnostic download returns file headers for download helper smoke workflow for this module.
     public async Task DiagnosticDownload_ReturnsFileHeaders_ForDownloadHelperSmoke()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = CreateClient(factory);
 
         HttpResponseMessage response = await client.GetAsync("/api/health/diagnostics/download");
@@ -176,9 +175,9 @@ public class SharedInfrastructureTests
     // Function summary: Handles the API exceptions return friendly problem details with correlation ID workflow for this module.
     public async Task ApiExceptions_ReturnFriendlyProblemDetails_WithCorrelationId()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = CreateClient(factory);
-        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, "/api/health/diagnostics/fault");
+        HttpRequestMessage request = new(HttpMethod.Get, "/api/health/diagnostics/fault");
         request.Headers.Add(ApiDiagnostics.CorrelationIdHeader, "shared-correlation");
 
         HttpResponseMessage response = await client.SendAsync(request);
@@ -258,11 +257,11 @@ public class SharedInfrastructureTests
             };
 
             int pageValue = Math.Max(page ?? 1, 1);
-            List<CompanySearch> items = filtered.ToList();
+            List<CompanySearch> items = [.. filtered];
             return Task.FromResult(new SearchQueryResult<CompanySearch>(
                 true,
                 "",
-                items.Skip((pageValue - 1) * pageSize).Take(pageSize).ToList(),
+                [.. items.Skip((pageValue - 1) * pageSize).Take(pageSize)],
                 items.Count,
                 ""));
         }

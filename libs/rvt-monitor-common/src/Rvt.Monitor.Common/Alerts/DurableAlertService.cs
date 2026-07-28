@@ -33,7 +33,7 @@ public sealed class DurableAlertService : IAlertIngressPort
 
         byte[] sourceKeyHash = AlertIdentity.CreateSourceKeyHash(signal.SourceEventKey);
         Guid notificationId = AlertIdentity.CreateNotificationId(signal.Source, sourceKeyHash);
-        AlertCommitRequest request = new AlertCommitRequest(
+        AlertCommitRequest request = new(
             signal,
             sourceKeyHash,
             notificationId,

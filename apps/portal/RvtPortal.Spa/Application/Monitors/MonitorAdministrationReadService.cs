@@ -5,7 +5,6 @@
 
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic.Application;
 using RVT.BusinessLogic.Ports.Storage;
 using RVT.DataAccess.Context;
 using RVT.Entities;
@@ -265,9 +264,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
 
         return new MonitorOptionsModel
         {
-            MonitorTypes = Enum.GetValues<MonitorTypeEnum>()
-                .Select(value => new MonitorOptionModel { Value = value.ToString(), Label = value.ToString() })
-                .ToList(),
+            MonitorTypes = [.. Enum.GetValues<MonitorTypeEnum>().Select(value => new MonitorOptionModel { Value = value.ToString(), Label = value.ToString() })],
             Contracts = contracts,
             Sites = sites
         };
@@ -316,9 +313,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             SiteName = site.SiteName,
             ContractId = selectedContract?.Id,
             ContractNumber = selectedContract?.ContractNumber,
-            Contracts = contracts
-                .Select(contract => new MonitorOptionModel { Value = contract.Id.ToString(), Label = contract.ContractNumber })
-                .ToList(),
+            Contracts = [.. contracts.Select(contract => new MonitorOptionModel { Value = contract.Id.ToString(), Label = contract.ContractNumber })],
             AvailableMonitors = lists.AvailableMonitors,
             AssignedMonitors = lists.AssignedMonitors
         });
@@ -390,7 +385,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             request.Page,
             request.PageSize,
             BuildRoleContext(actor)), cancellationToken);
-        List<UnattachedMonitorListItem> enrichedRows = new List<UnattachedMonitorListItem>();
+        List<UnattachedMonitorListItem> enrichedRows = new();
         foreach (MonitorListItem row in result.Results)
         {
             MonitorRemovalImpactResponse impact = await impactReader.BuildAsync(row.Id, row.SerialId, cancellationToken);
@@ -525,7 +520,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
-        return siteIds.ToHashSet();
+        return [.. siteIds];
     }
 
     // Function summary: Builds the site-id graph visible to the actor for monitor option metadata.

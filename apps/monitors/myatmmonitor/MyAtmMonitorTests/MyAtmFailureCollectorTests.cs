@@ -10,10 +10,10 @@ public sealed class MyAtmFailureCollectorTests
     [TestMethod]
     public void Capture_OperationalRecordingSucceeds_PreservesPrimaryFailure()
     {
-        IOException primary = new IOException("vendor unavailable");
-        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        IOException primary = new("vendor unavailable");
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         operational.Setup(commands => commands.HandleException("monitor=11111", primary));
-        MyAtmFailureCollector collector = new MyAtmFailureCollector(operational.Object);
+        MyAtmFailureCollector collector = new(operational.Object);
 
         collector.Capture("monitor=11111", primary);
         MyAtmJobAggregateException aggregate = Assert.ThrowsExactly<MyAtmJobAggregateException>(() =>
@@ -30,13 +30,13 @@ public sealed class MyAtmFailureCollectorTests
     [TestMethod]
     public void Capture_OperationalRecordingFails_PreservesBothFailures()
     {
-        IOException primary = new IOException("vendor unavailable");
-        InvalidOperationException recording = new InvalidOperationException("database unavailable");
-        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
+        IOException primary = new("vendor unavailable");
+        InvalidOperationException recording = new("database unavailable");
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
         operational
             .Setup(commands => commands.HandleException("monitor=11111", primary))
             .Throws(recording);
-        MyAtmFailureCollector collector = new MyAtmFailureCollector(operational.Object);
+        MyAtmFailureCollector collector = new(operational.Object);
 
         collector.Capture("monitor=11111", primary);
         MyAtmJobAggregateException aggregate = Assert.ThrowsExactly<MyAtmJobAggregateException>(() =>
@@ -49,8 +49,8 @@ public sealed class MyAtmFailureCollectorTests
     [TestMethod]
     public void ThrowIfAny_NoFailures_DoesNotThrow()
     {
-        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        MyAtmFailureCollector collector = new MyAtmFailureCollector(operational.Object);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
+        MyAtmFailureCollector collector = new(operational.Object);
 
         collector.ThrowIfAny("StoreDustLevels");
 
@@ -60,11 +60,11 @@ public sealed class MyAtmFailureCollectorTests
     [TestMethod]
     public void Capture_CallerCancellation_RethrowsWithoutRecording()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
-        OperationCanceledException failure = new OperationCanceledException(cancellation.Token);
-        Mock<IMyAtmOperationalCommands> operational = new Mock<IMyAtmOperationalCommands>(MockBehavior.Strict);
-        MyAtmFailureCollector collector = new MyAtmFailureCollector(operational.Object);
+        OperationCanceledException failure = new(cancellation.Token);
+        Mock<IMyAtmOperationalCommands> operational = new(MockBehavior.Strict);
+        MyAtmFailureCollector collector = new(operational.Object);
 
         OperationCanceledException thrown = Assert.ThrowsExactly<OperationCanceledException>(() =>
             collector.Capture("monitor=11111", failure, cancellation.Token));

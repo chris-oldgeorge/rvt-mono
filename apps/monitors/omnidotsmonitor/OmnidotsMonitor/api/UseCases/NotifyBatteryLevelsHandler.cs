@@ -79,7 +79,9 @@ namespace Omnidots.Api.UseCases
                         RvtLogger.Logger.LogInformation("NotifyBatteryLevels Battery OK level={Value1} for serialId={Value2} is above caution level={Value3}",
                         batteryLevel, monitor.SerialId!, BATTERY_LEVEL_PERCENT_CAUTION);
                         if (monitor.BatteryStatus != OmnidotsApi.BatteryAlertType.Off)
+                        {
                             monitorCommands.SetMonitorBatteryStatus(monitor.Id, 0);
+                        }
                     }
                 }
                 else
@@ -97,7 +99,7 @@ namespace Omnidots.Api.UseCases
             monitorCommands.SetMonitorBatteryStatus(monitor.Id, (byte)(alertType == AlertType.BatteryAlert ? 1 : 2));  //1 for alert and 2 for Caution
             DateTime createdTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow);
 
-            NotificationDto notification = new NotificationDto(id: Guid.NewGuid(),
+            NotificationDto notification = new(id: Guid.NewGuid(),
                 notificationTime: createdTime,
                 limitOn: alertLevel,
                 averagingPeriod: 0,

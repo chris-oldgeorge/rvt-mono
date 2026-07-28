@@ -1,13 +1,6 @@
 using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
-using Moq;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
-
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests
 {
     [TestClass]
@@ -42,7 +35,7 @@ namespace AirQMonitorTests
             TimeSpan? sunStartTime = sunStart != null ? TimeSpan.Parse(sunStart!) : null;
             TimeSpan? sunEndTime = sunEnd != null ? TimeSpan.Parse(sunEnd!) : null;
 
-            SiteInfoDto testObj = new SiteInfoDto(siteId: Guid.NewGuid(),
+            SiteInfoDto testObj = new(siteId: Guid.NewGuid(),
                                           startTime: startTime,
                                           endTime: endTime,
                                           satStartTime: satStartTime,
@@ -65,7 +58,7 @@ namespace AirQMonitorTests
         public void TestSiteInfo_GetStartAndEndTimeForDate_Success(string dateStr)
         {
 
-            SiteInfoDto testObj = new SiteInfoDto(siteId: Guid.NewGuid(),
+            SiteInfoDto testObj = new(siteId: Guid.NewGuid(),
                                           startTime: TimeSpan.Parse("09:10:11"),
                                           endTime: TimeSpan.Parse("17:18:19"),
                                           satStartTime: TimeSpan.Parse("12:31:05"),

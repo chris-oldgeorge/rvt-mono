@@ -11,11 +11,11 @@ public sealed class TransmitSmsClientTests
     [TestMethod]
     public async Task SendAsync_PostsFormRequestWithBasicAuthentication()
     {
-        using CapturingHandler handler = new CapturingHandler(
+        using CapturingHandler handler = new(
             HttpStatusCode.OK,
             """{"error":{"code":"SUCCESS","description":"OK"}}""");
-        using HttpClient httpClient = new HttpClient(handler);
-        TransmitSmsClient client = new TransmitSmsClient(
+        using HttpClient httpClient = new(handler);
+        TransmitSmsClient client = new(
             httpClient,
             new Uri("https://api.transmitsms.com/send-sms.json"));
 
@@ -43,11 +43,11 @@ public sealed class TransmitSmsClientTests
     public async Task SendAsync_ApiFailureRetainsCodeButNotRawDescription()
     {
         const string rawDescription = "Invalid recipient raw-private-data";
-        using CapturingHandler handler = new CapturingHandler(
+        using CapturingHandler handler = new(
             HttpStatusCode.OK,
             "{\"error\":{\"code\":\"FIELD_INVALID\",\"description\":\"" + rawDescription + "\"}}");
-        using HttpClient httpClient = new HttpClient(handler);
-        TransmitSmsClient client = new TransmitSmsClient(httpClient);
+        using HttpClient httpClient = new(handler);
+        TransmitSmsClient client = new(httpClient);
 
         TransmitSmsException exception = await Assert.ThrowsExactlyAsync<TransmitSmsException>(() =>
             client.SendAsync(
@@ -78,7 +78,7 @@ public sealed class TransmitSmsClientTests
                 ? null
                 : await request.Content.ReadAsStringAsync(cancellationToken);
 
-            HttpResponseMessage response = new HttpResponseMessage(statusCode)
+            HttpResponseMessage response = new(statusCode)
             {
                 Content = new StringContent(responseBody, Encoding.UTF8, "application/json")
             };

@@ -16,7 +16,7 @@ public sealed class LocalStorageRegistrationTests
                 "recordings",
                 _ => new LocalStorageOptions { RootPath = "/tmp/rvt-tests" }));
 
-        ObjectStorageClientRegistration[] registrations = provider.GetServices<ObjectStorageClientRegistration>().ToArray();
+        ObjectStorageClientRegistration[] registrations = [.. provider.GetServices<ObjectStorageClientRegistration>()];
 
         Assert.HasCount(1, registrations);
         Assert.AreEqual("recordings", registrations[0].ResourceName);
@@ -62,7 +62,7 @@ public sealed class LocalStorageRegistrationTests
     [DataRow(" ")]
     public void AddRvtLocalStorage_WhenResourceNameIsBlank_ThrowsAtRegistration(string resourceName)
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         ArgumentException exception = Assert.ThrowsExactly<ArgumentException>(() =>
             services.AddRvtLocalStorage(resourceName, new LocalStorageOptions()));
@@ -73,7 +73,7 @@ public sealed class LocalStorageRegistrationTests
     private static ServiceProvider CreateProvider(
         Action<IServiceCollection> configureServices)
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         configureServices(services);
         return services.BuildServiceProvider();

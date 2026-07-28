@@ -1,4 +1,4 @@
-﻿// File summary: Configures PostgreSQL database access for repositories and EF Core contexts.
+// File summary: Configures PostgreSQL database access for repositories and EF Core contexts.
 // Major updates:
 // - 2026-07-26 pending Removed runtime provider selection while validating legacy provider settings.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -51,7 +51,7 @@ public sealed class RvtDatabaseOptions
             configuration[$"{SectionName}:Provider"] ??
             configuration["RvtDatabase:Provider"]);
 
-        RvtDatabaseOptions options = new RvtDatabaseOptions
+        RvtDatabaseOptions options = new()
         {
             ConnectionStringName = ReadValue(configuration, "ConnectionStringName", DefaultConnectionStringName),
             PostgresRoutineSchema = ReadValue(configuration, "PostgresRoutineSchema", "public"),

@@ -16,7 +16,7 @@ public sealed class MyAtmVendorOptions
 
     public void Validate()
     {
-        List<string> failures = new List<string>();
+        List<string> failures = [];
         if (!Uri.TryCreate(BaseUrl, UriKind.Absolute, out Uri? baseUri) ||
             (baseUri.Scheme != Uri.UriSchemeHttps && baseUri.Scheme != Uri.UriSchemeHttp))
         {

@@ -79,7 +79,7 @@ public class ContractsController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        EntityResponse<ContractDetailResponse> response = new EntityResponse<ContractDetailResponse>
+        EntityResponse<ContractDetailResponse> response = new()
         {
             Item = result.Contract
         };
@@ -107,7 +107,7 @@ public class ContractsController : ControllerBase
 
         return new EntityResponse<ContractDetailResponse>
         {
-            Item = result.Contract!
+            Item = result.Contract
         };
     }
 

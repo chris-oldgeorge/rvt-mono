@@ -98,8 +98,8 @@ public sealed class TestReportingApiEndpoints
     [Fact]
     public async Task GenerateRuleReportHandler_DelegatesRuleIdAndTriggerToService()
     {
-        RecordingReportGenerationService service = new RecordingReportGenerationService();
-        GenerateRuleReportHandler handler = new GenerateRuleReportHandler(service);
+        RecordingReportGenerationService service = new();
+        GenerateRuleReportHandler handler = new(service);
         Guid ruleId = Guid.NewGuid();
         DateTimeOffset triggerUtc = DateTimeOffset.UtcNow;
 
@@ -113,51 +113,51 @@ public sealed class TestReportingApiEndpoints
     public async Task GenerateScheduledAsync_SerializesTheEstablishedCountAndReportsEnvelope()
     {
         GeneratedReport expectedReport = GeneratedReport();
-        RecordingReportGenerationService service = new RecordingReportGenerationService { ScheduledReports = [expectedReport] };
+        RecordingReportGenerationService service = new() { ScheduledReports = [expectedReport] };
         IResult result = await ReportingMonitorApi.GenerateScheduledAsync(
             new GenerateScheduledReportsHandler(service),
             CancellationToken.None);
 
-        (int StatusCode, JsonDocument Body) response = await ExecuteJsonAsync(result);
+        (int StatusCode, JsonDocument Body) = await ExecuteJsonAsync(result);
 
-        Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
-        Assert.Equal(1, response.Body.RootElement.GetProperty("count").GetInt32());
-        Assert.Equal(expectedReport.ReportId, response.Body.RootElement.GetProperty("reports")[0].GetProperty("reportId").GetGuid());
+        Assert.Equal(StatusCodes.Status200OK, StatusCode);
+        Assert.Equal(1, Body.RootElement.GetProperty("count").GetInt32());
+        Assert.Equal(expectedReport.ReportId, Body.RootElement.GetProperty("reports")[0].GetProperty("reportId").GetGuid());
     }
 
     [Fact]
     public async Task GenerateRuleAsync_UsesOptionalBodyTriggerAndSerializesTheEstablishedEnvelope()
     {
         GeneratedReport expectedReport = GeneratedReport();
-        RecordingReportGenerationService service = new RecordingReportGenerationService { RuleReports = [expectedReport] };
-        GenerateRuleReportHandler handler = new GenerateRuleReportHandler(service);
+        RecordingReportGenerationService service = new() { RuleReports = [expectedReport] };
+        GenerateRuleReportHandler handler = new(service);
         Guid ruleId = Guid.NewGuid();
-        DateTimeOffset triggerUtc = new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
+        DateTimeOffset triggerUtc = new(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
 
         IResult result = await ReportingMonitorApi.GenerateRuleAsync(
             ruleId,
             new RuleGenerationRequest(triggerUtc),
             handler,
             CancellationToken.None);
-        (int StatusCode, JsonDocument Body) response = await ExecuteJsonAsync(result);
+        (int StatusCode, JsonDocument Body) = await ExecuteJsonAsync(result);
 
         Assert.Equal(ruleId, service.RuleId);
         Assert.Equal(triggerUtc, service.RuleTriggerUtc);
-        Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
-        Assert.Equal(1, response.Body.RootElement.GetProperty("count").GetInt32());
-        Assert.Equal(expectedReport.ReportId, response.Body.RootElement.GetProperty("reports")[0].GetProperty("reportId").GetGuid());
+        Assert.Equal(StatusCodes.Status200OK, StatusCode);
+        Assert.Equal(1, Body.RootElement.GetProperty("count").GetInt32());
+        Assert.Equal(expectedReport.ReportId, Body.RootElement.GetProperty("reports")[0].GetProperty("reportId").GetGuid());
     }
 
     [Fact]
     public async Task GenerateOneTimeReportHandler_PropagatesValidationException()
     {
-        RecordingReportGenerationService service = new RecordingReportGenerationService
+        RecordingReportGenerationService service = new()
         {
             OneTimeException = new OneTimeReportValidationException([
                 new ValidationError(nameof(OneTimeReportRequest.FromUtc), "Start time must be earlier than end time.")
             ])
         };
-        GenerateOneTimeReportHandler handler = new GenerateOneTimeReportHandler(service);
+        GenerateOneTimeReportHandler handler = new(service);
 
         OneTimeReportValidationException exception = await Assert.ThrowsAsync<OneTimeReportValidationException>(() =>
             handler.HandleAsync(new OneTimeReportRequest(), CancellationToken.None));
@@ -172,7 +172,7 @@ public sealed class TestReportingApiEndpoints
             new ValidationError(nameof(OneTimeReportRequest.RecipientEmails), "Invalid recipient email: first-invalid"),
             new ValidationError(nameof(OneTimeReportRequest.RecipientEmails), "Invalid recipient email: second-invalid")
         ]));
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Response.Body = new MemoryStream();
         context.RequestServices = new ServiceCollection()
             .AddLogging()
@@ -183,12 +183,11 @@ public sealed class TestReportingApiEndpoints
 
         context.Response.Body.Position = 0;
         using JsonDocument document = await JsonDocument.ParseAsync(context.Response.Body);
-        string[] messages = document.RootElement
+        string[] messages = [.. document.RootElement
             .GetProperty("errors")
             .GetProperty(nameof(OneTimeReportRequest.RecipientEmails))
             .EnumerateArray()
-            .Select(static message => message.GetString()!)
-            .ToArray();
+            .Select(static message => message.GetString()!)];
 
         Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
         Assert.Equal(["Invalid recipient email: first-invalid", "Invalid recipient email: second-invalid"], messages);
@@ -206,7 +205,7 @@ public sealed class TestReportingApiEndpoints
 
     private static async Task<(int StatusCode, JsonDocument Body)> ExecuteJsonAsync(IResult result)
     {
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Response.Body = new MemoryStream();
         context.RequestServices = new ServiceCollection()
             .AddLogging()
@@ -223,7 +222,7 @@ public sealed class TestReportingApiEndpoints
 
     private static EndpointFilterInvocationContext CreateInvocationContext(string? suppliedKey = null)
     {
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         if (suppliedKey is not null)
         {
             context.Request.Headers[InternalApiKeyFilter.HeaderName] = suppliedKey;

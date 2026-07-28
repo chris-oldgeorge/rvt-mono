@@ -30,13 +30,13 @@ public class AuthEndpointTests
     // Function summary: Handles the me returns anonymous state when user is not signed in workflow for this module.
     public async Task Me_ReturnsAnonymousState_WhenUserIsNotSignedIn()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = CreateClient(factory);
 
         AuthStateResponse? auth = await client.GetFromJsonAsync<AuthStateResponse>("/api/auth/me");
 
         Assert.NotNull(auth);
-        Assert.False(auth!.IsAuthenticated);
+        Assert.False(auth.IsAuthenticated);
         Assert.Null(auth.User);
     }
 
@@ -44,7 +44,7 @@ public class AuthEndpointTests
     // Function summary: Handles the login returns auth state and cookie for valid user workflow for this module.
     public async Task Login_ReturnsAuthStateAndCookie_ForValidUser()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
 
@@ -65,7 +65,7 @@ public class AuthEndpointTests
     // Function summary: Handles the login does not redirect to https in development API proxy path workflow for this module.
     public async Task Login_DoesNotRedirectToHttps_InDevelopmentApiProxyPath()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory("Development");
+        using SpaTestApplicationFactory factory = new("Development");
         await factory.SeedUserAsync("dev.proxy@rvt.test", Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
 
@@ -81,7 +81,7 @@ public class AuthEndpointTests
     // Function summary: Handles the login returns generic unauthorized message for invalid credentials workflow for this module.
     public async Task Login_ReturnsGenericUnauthorizedMessage_ForInvalidCredentials()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
 
@@ -96,7 +96,7 @@ public class AuthEndpointTests
     // Function summary: Verifies login accepts registered email only and does not fall back to a legacy username.
     public async Task Login_ReturnsUnauthorized_ForLegacyUsernameOnlyMatch()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         ApplicationUser user = await factory.SeedUserAsync("email.identity@rvt.test", Password, RoleNames.RVTAdmin);
         await SetUserNameAsync(factory, user, "legacy.username@rvt.test");
         HttpClient client = CreateClient(factory);
@@ -112,7 +112,7 @@ public class AuthEndpointTests
     // Function summary: Handles the login returns forbidden for disabled user workflow for this module.
     public async Task Login_ReturnsForbidden_ForDisabledUser()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(DisabledEmail, Password, RoleNames.RVTAdmin, isDisabled: true);
         HttpClient client = CreateClient(factory);
 
@@ -127,7 +127,7 @@ public class AuthEndpointTests
     // Function summary: Handles the logout clears signed in session workflow for this module.
     public async Task Logout_ClearsSignedInSession()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
@@ -143,7 +143,7 @@ public class AuthEndpointTests
     // Function summary: Handles the forgot password returns same message for known and unknown email workflow for this module.
     public async Task ForgotPassword_ReturnsSameMessage_ForKnownAndUnknownEmail()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
 
@@ -161,7 +161,7 @@ public class AuthEndpointTests
     // Function summary: Handles the reset password changes password with valid token workflow for this module.
     public async Task ResetPassword_ChangesPassword_WithValidToken()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         string token = await factory.GeneratePasswordResetTokenAsync(AdminEmail);
         HttpClient client = CreateClient(factory);
@@ -183,7 +183,7 @@ public class AuthEndpointTests
     // Function summary: Handles the reset password invalid token returns generic success not enumerable workflow for this module.
     public async Task ResetPassword_WithInvalidToken_ReturnsGenericSuccess_NotEnumerable()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
 
@@ -204,12 +204,12 @@ public class AuthEndpointTests
     // Function summary: Handles the confirm email unknown user returns same response as used link workflow for this module.
     public async Task ConfirmEmail_UnknownUser_ReturnsSameNotFoundAsUsedLink()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = CreateClient(factory);
 
         HttpResponseMessage response = await client.GetAsync($"/api/auth/confirm-email?userId={Guid.NewGuid()}&code=ZHVtbXk");
         string body = await response.Content.ReadAsStringAsync();
-        using JsonDocument document = System.Text.Json.JsonDocument.Parse(body);
+        using JsonDocument document = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("Confirmation failed", document.RootElement.GetProperty("title").GetString());
@@ -219,7 +219,7 @@ public class AuthEndpointTests
     // Function summary: Handles the confirm email confirms user and set initial password signs in workflow for this module.
     public async Task ConfirmEmail_ConfirmsUserAndSetInitialPasswordSignsIn()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         ApplicationUser user = await factory.SeedUserAsync("new.user@rvt.test", null, RoleNames.CompanyUser, emailConfirmed: false);
         string token = await factory.GenerateEmailConfirmationTokenAsync(user.Email!);
         string encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
@@ -247,7 +247,7 @@ public class AuthEndpointTests
     // Function summary: Handles the confirm email requires original code to set initial password workflow for this module.
     public async Task ConfirmEmail_RequiresOriginalCodeToSetInitialPassword()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         ApplicationUser user = await factory.SeedUserAsync("verified.link@rvt.test", null, RoleNames.CompanyUser, emailConfirmed: false);
         string token = await factory.GenerateEmailConfirmationTokenAsync(user.Email!);
         string encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
@@ -270,7 +270,7 @@ public class AuthEndpointTests
     // Function summary: Handles the confirm email returns not found when link is reused workflow for this module.
     public async Task ConfirmEmail_ReturnsNotFound_WhenLinkIsReused()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         ApplicationUser user = await factory.SeedUserAsync("single.use@rvt.test", null, RoleNames.CompanyUser, emailConfirmed: false);
         string token = await factory.GenerateEmailConfirmationTokenAsync(user.Email!);
         string encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
@@ -288,7 +288,7 @@ public class AuthEndpointTests
     // Function summary: Handles the profile and password endpoints update signed in user workflow for this module.
     public async Task ProfileAndPasswordEndpoints_UpdateSignedInUser()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
@@ -319,7 +319,7 @@ public class AuthEndpointTests
     // Function summary: Handles the protected endpoints return401 for anonymous and403 for wrong role workflow for this module.
     public async Task ProtectedEndpoints_Return401ForAnonymous_And403ForWrongRole()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller);
         HttpClient anonymousClient = CreateClient(factory);
         HttpClient installerClient = CreateClient(factory);

@@ -1,4 +1,4 @@
-﻿// File summary: Provides data access operations for monitor repository entities and search projections.
+// File summary: Provides data access operations for monitor repository entities and search projections.
 // Major updates:
 // - 2026-07-09 pending Read canonical PostgreSQL routine result aliases with legacy fallback.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -27,9 +27,9 @@ namespace RVT.DataAccess
         }
 
         // Function summary: Retrieves filtered data for callers.
-        public Task<SearchQueryResult<Monitor>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, RVT.Entities.Paging pagedata, CancellationToken cancellationToken = default)
+        public Task<SearchQueryResult<Monitor>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default)
         {
-            return base.ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.paged, pagedata.page, pagedata.pageSize, cancellationToken);
+            return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.paged, pagedata.page, pagedata.pageSize, cancellationToken);
         }
 
         // Function summary: Handles the monitor status time check workflow for this module.
@@ -66,7 +66,7 @@ namespace RVT.DataAccess
                     Status = (AlertTypeEnum)reader.GetRequiredValue<int>("status")
                 });
 
-            return rows.ToList();
+            return [.. rows];
         }
     }
 }

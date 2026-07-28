@@ -95,19 +95,19 @@ public static class MonitorJobTelemetry
         string executionMode,
         int? exitCode = null)
     {
-        List<KeyValuePair<string, object?>> tags = new List<KeyValuePair<string, object?>>
-        {
+        List<KeyValuePair<string, object?>> tags =
+        [
             new("rvt.monitor.name", monitorName),
             new("rvt.monitor.job.name", jobName),
             new("rvt.monitor.execution.mode", executionMode)
-        };
+        ];
 
         if (exitCode is not null)
         {
             tags.Add(new KeyValuePair<string, object?>("rvt.monitor.exit_code", exitCode));
         }
 
-        return tags.ToArray();
+        return [.. tags];
     }
 
     private static void SetActivityTags(Activity? activity, IEnumerable<KeyValuePair<string, object?>> tags)

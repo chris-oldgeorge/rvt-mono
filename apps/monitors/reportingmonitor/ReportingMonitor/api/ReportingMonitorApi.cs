@@ -17,7 +17,7 @@ public static class ReportingMonitorApi
     public static IEndpointRouteBuilder Map(IEndpointRouteBuilder endpoints)
     {
         IServiceProvider services = endpoints.ServiceProvider;
-        InternalApiKeyFilter filter = new InternalApiKeyFilter(
+        InternalApiKeyFilter filter = new(
             services.GetRequiredService<ReportingMonitorOptions>(),
             services.GetRequiredService<IHostEnvironment>());
 

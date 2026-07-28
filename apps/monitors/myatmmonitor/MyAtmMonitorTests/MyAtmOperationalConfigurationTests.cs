@@ -52,11 +52,10 @@ public sealed class MyAtmOperationalConfigurationTests
         string appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(appSettingsPath));
 
-        List<JsonElement> jobs = document.RootElement
+        List<JsonElement> jobs = [.. document.RootElement
             .GetProperty("MonitorScheduler")
             .GetProperty("Jobs")
-            .EnumerateArray()
-            .ToList();
+            .EnumerateArray()];
         JsonElement dustJob = jobs.Single(job => job.GetProperty("Name").GetString() == "StoreDustLevels");
         JsonElement dispatchJob = jobs.Single(job => job.GetProperty("Name").GetString() == "DispatchOutbox");
 
@@ -69,10 +68,10 @@ public sealed class MyAtmOperationalConfigurationTests
     [TestMethod]
     public async Task MonitorJobRunner_DispatchOutboxPropagatesCancellationTokenToSharedDispatcher()
     {
-        Mock<IDBClient> database = new Mock<IDBClient>();
-        Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
-        Mock<IMessageService> messageService = new Mock<IMessageService>();
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        Mock<IDBClient> database = new();
+        Mock<IMqttClient> mqttClient = new();
+        Mock<IMessageService> messageService = new();
+        using CancellationTokenSource cancellation = new();
         CancellationToken observedToken = default;
         database.Setup(query => query.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
@@ -81,7 +80,7 @@ public sealed class MyAtmOperationalConfigurationTests
                 It.IsAny<CancellationToken>()))
             .Callback((string _, DateTime _, TimeSpan _, CancellationToken token) => observedToken = token)
             .ReturnsAsync((MonitorDeliveryMessage?)null);
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddLogging();
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -115,10 +114,10 @@ public sealed class MyAtmOperationalConfigurationTests
             "RunAsync",
             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
             binder: null,
-            types: new[] { typeof(string), typeof(IMyAtmMonitorJobs), typeof(CancellationToken) },
+            types: [typeof(string), typeof(IMyAtmMonitorJobs), typeof(CancellationToken)],
             modifiers: null);
         Assert.IsNotNull(runMethod);
-        Task<int>? task = runMethod.Invoke(null, new object[] { jobName, service, cancellationToken }) as Task<int>;
+        Task<int>? task = runMethod.Invoke(null, [jobName, service, cancellationToken]) as Task<int>;
         Assert.IsNotNull(task);
         return await task;
     }

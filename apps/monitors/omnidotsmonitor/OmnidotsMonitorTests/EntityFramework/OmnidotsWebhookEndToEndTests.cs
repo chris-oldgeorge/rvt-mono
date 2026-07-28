@@ -3,12 +3,10 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using Npgsql;
 using Omnidots.Api;
 using Omnidots.Api.Db.EntityFramework;
@@ -42,7 +40,7 @@ public sealed class OmnidotsWebhookEndToEndTests
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext _)
     {
-        using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
         database = await PostgreSqlIntegrationDatabase.CreateAsync(
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/create.postgres.sql"),
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
@@ -139,7 +137,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         byte[] body,
         string signature)
     {
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "/webhook");
+        using HttpRequestMessage request = new(HttpMethod.Post, "/webhook");
         request.Headers.TryAddWithoutValidation(OmnidotsProtocol.SIGNATURE_HEADER, signature);
         request.Content = new ByteArrayContent(body);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -199,7 +197,7 @@ public sealed class OmnidotsWebhookEndToEndTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("site_id", SiteId);
         command.Parameters.AddWithValue("created_at", EventTime.AddYears(-1));
         command.Parameters.AddWithValue("monitor_id", MonitorId);
@@ -226,16 +224,16 @@ public sealed class OmnidotsWebhookEndToEndTests
         };
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand($"SELECT COUNT(*) FROM {allowedTable};", connection);
+        await using NpgsqlCommand command = new($"SELECT COUNT(*) FROM {allowedTable};", connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static async Task<string[]> ReadDeliveryDestinationsAsync()
     {
-        List<string> values = new List<string>();
+        List<string> values = [];
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(
+        await using NpgsqlCommand command = new(
             "SELECT kind || ':' || destination FROM alert_delivery_outbox ORDER BY kind, destination;",
             connection);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
@@ -244,6 +242,6 @@ public sealed class OmnidotsWebhookEndToEndTests
             values.Add(reader.GetString(0));
         }
 
-        return values.ToArray();
+        return [.. values];
     }
 }

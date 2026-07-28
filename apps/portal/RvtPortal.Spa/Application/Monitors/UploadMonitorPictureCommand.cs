@@ -49,7 +49,7 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
     // Function summary: Handles monitor picture upload validation, storage, and detail response rebuilding.
     public async Task<UploadMonitorPictureResult> Handle(UploadMonitorPictureCommand request, CancellationToken cancellationToken)
     {
-        UploadMonitorPictureResult result = new UploadMonitorPictureResult();
+        UploadMonitorPictureResult result = new();
         Deployment? deployment = await domainContext.Deployments
             .Include(item => item.Contract)
             .ThenInclude(contract => contract.Company)

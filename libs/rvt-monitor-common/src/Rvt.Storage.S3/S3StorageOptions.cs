@@ -55,13 +55,13 @@ public sealed record S3StorageOptions
         string environmentKey,
         string defaultValue = "")
     {
-        string?[] values = new[]
-        {
+        string?[] values =
+        [
             configuration[providerNeutralKey],
             configuration[$"RVT:{environmentKey}"],
             configuration[$"RVT__{environmentKey}"],
             defaultValue,
-        };
+        ];
 
         return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
             ?? string.Empty;

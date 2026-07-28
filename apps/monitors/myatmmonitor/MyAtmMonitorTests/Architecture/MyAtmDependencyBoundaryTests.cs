@@ -10,11 +10,10 @@ public sealed class MyAtmDependencyBoundaryTests
     public void MapperlyPackageReferences_FollowMonitorAppAnalyzerPolicy()
     {
         string repositoryRoot = RepositoryLayout.Root;
-        string[] violations = EnumeratePrimaryProjectFiles(repositoryRoot)
+        string[] violations = [.. EnumeratePrimaryProjectFiles(repositoryRoot)
             .SelectMany(projectPath => ReadMapperlyReferences(projectPath)
                 .SelectMany(reference => ValidateMapperlyReference(repositoryRoot, projectPath, reference)))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(
             Array.Empty<string>(),
@@ -67,14 +66,13 @@ public sealed class MyAtmDependencyBoundaryTests
     private static IEnumerable<XElement> ReadMapperlyReferences(string projectPath)
     {
         XDocument project = XDocument.Load(projectPath, LoadOptions.SetLineInfo);
-        return project
+        return [.. project
             .Descendants()
             .Where(element => element.Name.LocalName == "PackageReference")
             .Where(element => string.Equals(
                 element.Attribute("Include")?.Value ?? element.Attribute("Update")?.Value,
                 "Riok.Mapperly",
-                StringComparison.OrdinalIgnoreCase))
-            .ToArray();
+                StringComparison.OrdinalIgnoreCase))];
     }
 
     private static IEnumerable<string> EnumeratePrimaryProjectFiles(string repositoryRoot) =>
@@ -95,22 +93,21 @@ public sealed class MyAtmDependencyBoundaryTests
             "monitors",
             "myatmmonitor",
             "MyAtmMonitor");
-        string[] forbiddenReferences = new[]
-        {
+        string[] forbiddenReferences =
+        [
             "MyAtmOutboxMessageEntity",
             "IMyAtmOutbox",
             "MyAtmOutboxDispatcher",
             "context.OutboxMessages"
-        };
+        ];
 
-        string[] violations = Directory
+        string[] violations = [.. Directory
             .EnumerateFiles(productionRoot, "*.cs", SearchOption.AllDirectories)
             .Where(path => !IsGeneratedOutput(path, productionRoot))
             .SelectMany(path => forbiddenReferences
                 .Where(reference => File.ReadAllText(path).Contains(reference, StringComparison.Ordinal))
                 .Select(reference => $"{Path.GetRelativePath(repositoryRoot, path)}: {reference}"))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(Array.Empty<string>(), violations);
     }

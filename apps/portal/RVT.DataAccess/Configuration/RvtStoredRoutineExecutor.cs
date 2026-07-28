@@ -33,7 +33,7 @@ public sealed class RvtStoredRoutineExecutor : IRvtStoredRoutineExecutor
         Func<DbDataReader, T> map,
         CancellationToken cancellationToken = default)
     {
-        List<RvtRoutineParameter> parameterList = parameters.ToList();
+        List<RvtRoutineParameter> parameterList = [.. parameters];
         await using DbConnection connection = connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
@@ -49,7 +49,7 @@ public sealed class RvtStoredRoutineExecutor : IRvtStoredRoutineExecutor
             command.Parameters.Add(dbParameter);
         }
 
-        List<T> rows = new List<T>();
+        List<T> rows = new();
         await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {

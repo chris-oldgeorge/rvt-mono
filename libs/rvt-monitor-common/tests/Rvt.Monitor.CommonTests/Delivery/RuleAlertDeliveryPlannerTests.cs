@@ -22,15 +22,15 @@ public sealed class RuleAlertDeliveryPlannerTests
     public void Plan_PreservesNotificationSemanticsAndCreatesDeterministicOrderedDeliveries(AlertType alertType)
     {
         RuleNotificationRequest request = Request(alertType);
-        List<RulesContactDto> contacts = new List<RulesContactDto>
-        {
+        List<RulesContactDto> contacts =
+        [
             new(true, true, "first@example.test", "441111111111", TimeSpan.FromHours(9), TimeSpan.FromHours(11)),
             new(true, false, "second@example.test", null, null, null),
             new(true, true, "outside@example.test", "442222222222", TimeSpan.FromHours(11), TimeSpan.FromHours(12)),
             new(true, true, " ", " ", null, null)
-        };
+        ];
         string correlationKey = $"svantek:rule:monitor:rule:{alertType}:{AlertTime:O}";
-        RuleAlertDeliveryPlanner planner = new RuleAlertDeliveryPlanner();
+        RuleAlertDeliveryPlanner planner = new();
 
         RuleAlertDeliveryPlan plan = planner.Plan(
             request,
@@ -72,13 +72,13 @@ public sealed class RuleAlertDeliveryPlannerTests
             new[] { "alert", "first@example.test", "second@example.test", "441111111111" },
             plan.Deliveries.Select(delivery => delivery.Destination).ToArray());
 
-        string[] expectedKeys = new[]
-        {
+        string[] expectedKeys =
+        [
             $"{correlationKey}:MqttAlert:alert",
             $"{correlationKey}:Email:first@example.test",
             $"{correlationKey}:Email:second@example.test",
             $"{correlationKey}:Sms:441111111111"
-        };
+        ];
         CollectionAssert.AreEqual(expectedKeys, plan.Deliveries.Select(delivery => delivery.DeliveryKey).ToArray());
         CollectionAssert.AreEqual(
             expectedKeys.Select(key => MonitorDeliveryIdentity.CreateGuid($"outbox:{key}")).ToArray(),
@@ -133,12 +133,12 @@ public sealed class RuleAlertDeliveryPlannerTests
     [TestMethod]
     public void Plan_DeduplicatesEligibleEmailDestinationsUsingOrdinalComparison()
     {
-        List<RulesContactDto> contacts = new List<RulesContactDto>
-        {
+        List<RulesContactDto> contacts =
+        [
             new(true, false, "duplicate@example.test", null, null, null),
             new(true, false, "duplicate@example.test", null, null, null),
             new(true, false, "DUPLICATE@example.test", null, null, null)
-        };
+        ];
 
         RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
@@ -159,13 +159,13 @@ public sealed class RuleAlertDeliveryPlannerTests
     [TestMethod]
     public void Plan_DeduplicatesEligibleSmsDestinationsAndPreservesFirstEligibleOrder()
     {
-        List<RulesContactDto> contacts = new List<RulesContactDto>
-        {
+        List<RulesContactDto> contacts =
+        [
             new(false, true, string.Empty, "442222222222", null, null),
             new(false, true, string.Empty, "441111111111", null, null),
             new(false, true, string.Empty, "442222222222", null, null),
             new(false, true, string.Empty, "441111111111", null, null)
-        };
+        ];
 
         RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),

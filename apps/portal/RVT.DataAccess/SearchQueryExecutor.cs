@@ -3,14 +3,8 @@
 // - 2026-07-14 pending Made the shared read path async and no-tracking; replaced PagedList with SQL count+skip/take.
 // - 2026-07-09 pending Extracted the generic repository's ReadFiltered core so the time-series reader can reuse it.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using RVT.Entities;
 using RVT.Entities.Querying;
 
 

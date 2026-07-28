@@ -51,7 +51,7 @@ public sealed class ReportGenerationService : IReportGenerationService
     public async Task<IReadOnlyList<GeneratedReport>> GenerateScheduledReportsAsync(DateTimeOffset triggerUtc, CancellationToken cancellationToken)
     {
         IReadOnlyList<ReportRule> dueRules = await _ruleQueries.GetDueReportRulesAsync(triggerUtc.Date, cancellationToken).ConfigureAwait(false);
-        List<GeneratedReport> generatedReports = new List<GeneratedReport>();
+        List<GeneratedReport> generatedReports = [];
 
         foreach (ReportRule rule in dueRules)
         {
@@ -131,7 +131,7 @@ public sealed class ReportGenerationService : IReportGenerationService
             return [];
         }
 
-        List<GeneratedReport> generatedReports = new List<GeneratedReport>();
+        List<GeneratedReport> generatedReports = [];
         foreach (ReportPeriod period in ReportPeriodCalculator.CreatePeriods(rule, triggerUtc))
         {
             await using RuleGenerationLock? generationLock = await _generationLocks.TryAcquireAsync(rule.Id, period, cancellationToken).ConfigureAwait(false);
@@ -180,7 +180,7 @@ public sealed class ReportGenerationService : IReportGenerationService
         RenderedReport rendered,
         CancellationToken cancellationToken)
     {
-        List<ReportDeliverySaveRequest> deliveries = new List<ReportDeliverySaveRequest>(recipientEmails.Count);
+        List<ReportDeliverySaveRequest> deliveries = new(recipientEmails.Count);
         foreach (string recipientEmail in recipientEmails)
         {
             DateTimeOffset sentAtUtc = _timeProvider.GetUtcNow();

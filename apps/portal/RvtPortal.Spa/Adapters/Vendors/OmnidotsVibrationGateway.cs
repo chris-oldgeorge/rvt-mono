@@ -48,7 +48,7 @@ public sealed class OmnidotsVibrationGateway : IVibrationVendorGateway
             return VendorSyncResult.Failure("Omnidots adapter URL is invalid.");
         }
 
-        Dictionary<string, object> payload = new Dictionary<string, object>
+        Dictionary<string, object> payload = new()
         {
             ["secret"] = options.Secret,
             ["serialid"] = serialId,
@@ -57,7 +57,7 @@ public sealed class OmnidotsVibrationGateway : IVibrationVendorGateway
         };
 
         string json = JsonSerializer.Serialize(payload);
-        using StringContent content = new StringContent(json, Encoding.UTF8, ContentType);
+        using StringContent content = new(json, Encoding.UTF8, ContentType);
         HttpResponseMessage response;
         try
         {

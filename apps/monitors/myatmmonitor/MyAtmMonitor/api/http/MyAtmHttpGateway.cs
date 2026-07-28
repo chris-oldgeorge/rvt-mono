@@ -1,10 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
-using Microsoft.Extensions.Logging;
-using MyAtm.Api.Db;
 using MyAtm.Model.Json;
 using MyAtm.Model.Json.DeviceInfo;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Utilities;
 
@@ -85,7 +82,7 @@ namespace MyAtm.Api.Http
                 lastDataTime ?? MyAtmApi.JAN1_1970,
                 period,
                 cancellationToken);
-            return page.Measurements.ToList();
+            return [.. page.Measurements];
         }
 
         public async Task<MyAtmMeasurementPage<T>> HttpGetDeviceMeasurementPageAsync<T>(
@@ -108,7 +105,7 @@ namespace MyAtm.Api.Http
                     cancellationToken);
                 List<T> rawMeasurements = JsonSerializer.Deserialize<List<T>>(json)
                     ?? throw AdapterException.Of("HttpGetDeviceMeasurements returned null JSON array.");
-                List<T> measurements = rawMeasurements
+                List<T> measurements = [.. rawMeasurements
                     .Select(measurement =>
                     {
                         measurement.Timestamp = DateTimeUtil.AsUtc(measurement.Timestamp);
@@ -117,8 +114,7 @@ namespace MyAtm.Api.Http
                     .Where(measurement => measurement.Timestamp > normalizedCursor)
                     .GroupBy(measurement => measurement.Timestamp)
                     .Select(group => group.First())
-                    .OrderBy(measurement => measurement.Timestamp)
-                    .ToList();
+                    .OrderBy(measurement => measurement.Timestamp)];
                 DateTime? nextCursor = measurements.Count == 0 ? null : measurements[^1].Timestamp;
                 return new MyAtmMeasurementPage<T>(measurements, nextCursor, rawMeasurements.Count >= measurementPageSize);
             }
@@ -145,7 +141,7 @@ namespace MyAtm.Api.Http
                     serialNumber,
                     lastDataTime ?? MyAtmApi.JAN1_1970,
                     cancellationToken);
-                return page.Measurements.ToList();
+                return [.. page.Measurements];
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -169,7 +165,7 @@ namespace MyAtm.Api.Http
                 string json = await DoGetDeviceAccessoryInfoAsync(customerId, serialNumber, normalizedCursor, accessoryPageSize, cancellationToken);
                 List<AccessoryInfo> rawAccessoryInfo = JsonSerializer.Deserialize<List<AccessoryInfo>>(json)
                     ?? throw AdapterException.Of("HttpGetAccessoryInfos returned null JSON array.");
-                List<AccessoryInfo> accessoryInfo = rawAccessoryInfo
+                List<AccessoryInfo> accessoryInfo = [.. rawAccessoryInfo
                     .Select(info =>
                     {
                         info.Timestamp = DateTimeUtil.AsUtc(info.Timestamp);
@@ -178,8 +174,7 @@ namespace MyAtm.Api.Http
                     .Where(info => info.Timestamp > normalizedCursor)
                     .GroupBy(info => info.Timestamp)
                     .Select(group => group.First())
-                    .OrderBy(info => info.Timestamp)
-                    .ToList();
+                    .OrderBy(info => info.Timestamp)];
                 DateTime? nextCursor = accessoryInfo.Count == 0 ? null : accessoryInfo[^1].Timestamp;
                 return new MyAtmMeasurementPage<AccessoryInfo>(accessoryInfo, nextCursor, rawAccessoryInfo.Count >= accessoryPageSize);
             }

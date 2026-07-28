@@ -11,7 +11,7 @@ public sealed class RvtCommonEmailDeliveryTests
     [Fact]
     public async Task SendAsync_DeliversExistingPortalMessageThroughSharedPort()
     {
-        RecordingEmailPort port = new RecordingEmailPort();
+        RecordingEmailPort port = new();
         RvtCommonEmailDelivery adapter = CreateAdapter(port);
 
         EmailDeliveryResult result = await adapter.SendAsync(
@@ -33,7 +33,7 @@ public sealed class RvtCommonEmailDeliveryTests
     [Fact]
     public async Task SendAsync_DebugModeUsesConfiguredOverrideRecipient()
     {
-        RecordingEmailPort port = new RecordingEmailPort();
+        RecordingEmailPort port = new();
         RvtCommonEmailDelivery adapter = CreateAdapter(port, new PortalEmailOptions
         {
             UseDebugEmail = true,
@@ -52,7 +52,7 @@ public sealed class RvtCommonEmailDeliveryTests
     [Fact]
     public async Task SendAsync_EmailDeliveryFailureReturnsPortalFailure()
     {
-        EmailDeliveryException exception = new EmailDeliveryException(
+        EmailDeliveryException exception = new(
             "SendGrid",
             DeliveryFailureKind.Transient,
             "429",
@@ -72,7 +72,7 @@ public sealed class RvtCommonEmailDeliveryTests
     [Fact]
     public async Task SendAsync_CallerCancellationPropagates()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
         RvtCommonEmailDelivery adapter = CreateAdapter(
             new ThrowingEmailPort(new OperationCanceledException(cancellation.Token)));

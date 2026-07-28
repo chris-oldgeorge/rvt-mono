@@ -30,12 +30,12 @@ public sealed class SiteConcurrencyPostgresTests
                     "https://archive.example/second.zip"
                 }));
 
-        SiteNotificationSettingMutation firstRequest = new SiteNotificationSettingMutation(
+        SiteNotificationSettingMutation firstRequest = new(
             true,
             false,
             "08:00",
             "12:00");
-        SiteNotificationSettingMutation secondRequest = new SiteNotificationSettingMutation(
+        SiteNotificationSettingMutation secondRequest = new(
             false,
             true,
             "13:00",
@@ -119,13 +119,13 @@ public sealed class SiteConcurrencyPostgresTests
             string schema = $"site_concurrency_{Guid.NewGuid():N}";
             Guid siteId = Guid.NewGuid();
             Guid siteUserId = Guid.NewGuid();
-            PostgresSiteFixture fixture = new PostgresSiteFixture(
+            PostgresSiteFixture fixture = new(
                 baseConnectionString,
                 schema,
                 siteId,
                 siteUserId);
 
-            await using NpgsqlConnection connection = new NpgsqlConnection(
+            await using NpgsqlConnection connection = new(
                 baseConnectionString);
             await connection.OpenAsync();
             await using NpgsqlCommand command = connection.CreateCommand();
@@ -251,7 +251,7 @@ public sealed class SiteConcurrencyPostgresTests
 
         public async Task<SiteWriteState> ReadStateAsync()
         {
-            await using NpgsqlConnection connection = new NpgsqlConnection(
+            await using NpgsqlConnection connection = new(
                 ConnectionString());
             await connection.OpenAsync();
             await using NpgsqlCommand command = connection.CreateCommand();
@@ -286,7 +286,7 @@ public sealed class SiteConcurrencyPostgresTests
 
         public async Task<RVTDbContext> CreateDomainContextAsync()
         {
-            NpgsqlConnection connection = new NpgsqlConnection(ConnectionString());
+            NpgsqlConnection connection = new(ConnectionString());
             await connection.OpenAsync();
             DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
                 .UseNpgsql(connection)
@@ -296,7 +296,7 @@ public sealed class SiteConcurrencyPostgresTests
 
         public async ValueTask DisposeAsync()
         {
-            await using NpgsqlConnection connection = new NpgsqlConnection(
+            await using NpgsqlConnection connection = new(
                 baseConnectionString);
             await connection.OpenAsync();
             await using NpgsqlCommand command = connection.CreateCommand();
@@ -311,13 +311,13 @@ public sealed class SiteConcurrencyPostgresTests
                 CancellationToken,
                 Task<T>> operation)
         {
-            await using NpgsqlConnection connection = new NpgsqlConnection(
+            await using NpgsqlConnection connection = new(
                 ConnectionString());
             await connection.OpenAsync();
             DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
                 .UseNpgsql(connection)
                 .Options;
-            await using RVTDbContext context = new RVTDbContext(options);
+            await using RVTDbContext context = new(options);
             await using IDbContextTransaction transaction =
                 await context.Database.BeginTransactionAsync();
             T? result = await operation(
@@ -330,7 +330,7 @@ public sealed class SiteConcurrencyPostgresTests
 
         private string ConnectionString()
         {
-            NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder(
+            NpgsqlConnectionStringBuilder builder = new(
                 baseConnectionString)
             {
                 SearchPath = schema

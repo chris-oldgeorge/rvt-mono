@@ -22,8 +22,8 @@ internal sealed class SiteArchiveCsvWriter : ISiteArchiveCsvWriter
         where T : class
     {
         PropertyInfo[] properties = typeof(T).GetProperties(BindingFlags.Instance | BindingFlags.Public);
-        await using FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read);
-        await using StreamWriter writer = new StreamWriter(fileStream);
+        await using FileStream fileStream = new(filePath, FileMode.Create, FileAccess.Write, FileShare.Read);
+        await using StreamWriter writer = new(fileStream);
 
         await writer.WriteLineAsync(string.Join(Separator, properties.Select(property => EscapeCsvField(property.Name))));
         await foreach (T? row in rows.WithCancellation(cancellationToken))

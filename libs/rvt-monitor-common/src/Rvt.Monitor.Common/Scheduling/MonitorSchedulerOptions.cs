@@ -14,11 +14,11 @@ public sealed record MonitorSchedulerOptions
     public List<MonitorJobSchedule> Jobs { get; init; } = [];
 
     public IReadOnlyList<MonitorJobSchedule> GetEnabledJobs() =>
-        Jobs.Where(job => job.Enabled).ToArray();
+        [.. Jobs.Where(job => job.Enabled)];
 
     public static MonitorSchedulerOptions Bind(IConfiguration configuration)
     {
-        MonitorSchedulerOptions options = new MonitorSchedulerOptions();
+        MonitorSchedulerOptions options = new();
         configuration.GetSection("MonitorScheduler").Bind(options);
         return options;
     }

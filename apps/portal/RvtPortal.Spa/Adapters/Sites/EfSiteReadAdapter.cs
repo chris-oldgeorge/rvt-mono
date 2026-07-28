@@ -45,9 +45,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             .Skip((query.Page.Page - 1) * query.Page.PageSize)
             .Take(query.Page.PageSize)
             .ToListAsync(cancellationToken);
-        List<SiteListModel> pageItems = pageSites
-            .Select(BuildSiteListItem)
-            .ToList();
+        List<SiteListModel> pageItems = [.. pageSites.Select(BuildSiteListItem)];
         await PopulateSiteCountersAsync(pageItems, cancellationToken);
         return new PagedResult<SiteListModel>
         {
@@ -155,7 +153,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
                 "notificationTime");
         }
 
-        List<Guid> monitorIds = deploymentByMonitor.Keys.ToList();
+        List<Guid> monitorIds = [.. deploymentByMonitor.Keys];
         IQueryable<Notification> query = domainContext.Notifications
             .AsNoTracking()
             .Where(notification => monitorIds.Contains(notification.MonitorId)
@@ -169,11 +167,10 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             // Fleet number and contract number live on the deployment, not the notification. Resolve which
             // monitors match those fields from the small deployment map, then let SQL match either that monitor
             // set or the notification's own AlertField - the same OR the in-memory filter applied.
-            List<Guid> matchingMonitorIds = deploymentByMonitor
+            List<Guid> matchingMonitorIds = [.. deploymentByMonitor
                 .Where(entry => Contains(entry.Value.Monitor.FleetNr, search)
                     || Contains(entry.Value.Contract.ContractNumber, search))
-                .Select(entry => entry.Key)
-                .ToList();
+                .Select(entry => entry.Key)];
             string loweredSearch = search.ToLower();
             query = query.Where(notification =>
                 matchingMonitorIds.Contains(notification.MonitorId)
@@ -187,11 +184,10 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             .Take(pageRequest.PageSize)
             .ToListAsync(cancellationToken);
 
-        List<SiteNotificationModel> notifications = rows
+        List<SiteNotificationModel> notifications = [.. rows
             .Select(notification => BuildSiteNotification(
                 notification,
-                deploymentByMonitor[notification.MonitorId]))
-            .ToList();
+                deploymentByMonitor[notification.MonitorId]))];
         return BuildPagedResult(notifications, total, pageRequest, "notificationTime");
     }
 
@@ -212,12 +208,12 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             .Where(item => item.SiteId == siteId)
             .OrderByDescending(item => item.SiteContact)
             .ToListAsync(cancellationToken);
-        List<Guid> siteUserIds = siteUsers.Select(siteUser => siteUser.Id).ToList();
+        List<Guid> siteUserIds = [.. siteUsers.Select(siteUser => siteUser.Id)];
         Dictionary<Guid, NotificationSettings> settings = await domainContext.NotificationSettings
             .AsNoTracking()
             .Where(item => siteUserIds.Contains(item.SiteUserId))
             .ToDictionaryAsync(item => item.SiteUserId, item => item, cancellationToken);
-        List<SiteNotificationAssignment> assignments = siteUsers.Select(siteUser =>
+        List<SiteNotificationAssignment> assignments = [.. siteUsers.Select(siteUser =>
         {
             settings.TryGetValue(siteUser.Id, out NotificationSettings? setting);
             return new SiteNotificationAssignment(
@@ -229,7 +225,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
                 setting?.SMS ?? false,
                 FormatTime(setting?.StartTime),
                 FormatTime(setting?.EndTime));
-        }).ToList();
+        })];
         return new SiteNotificationSettingsData(siteId, site.SiteName, assignments);
     }
 
@@ -481,8 +477,8 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
     {
         // This used to issue about three queries per site on the page. It is now two queries for the whole
         // page, with the per-site tallies computed over the (page-bounded) rows they return.
-        IList<SiteListModel> rows = sites as IList<SiteListModel> ?? sites.ToList();
-        List<Guid> siteIds = rows.Select(site => site.Id).ToList();
+        IList<SiteListModel> rows = sites as IList<SiteListModel> ?? [.. sites];
+        List<Guid> siteIds = [.. rows.Select(site => site.Id)];
         if (siteIds.Count == 0)
         {
             return;
@@ -502,10 +498,9 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             })
             .ToListAsync(cancellationToken);
 
-        List<Guid> monitorIds = deployments
+        List<Guid> monitorIds = [.. deployments
             .Select(deployment => deployment.MonitorId)
-            .Distinct()
-            .ToList();
+            .Distinct()];
         Dictionary<Guid, int> openAlertsByMonitor = monitorIds.Count == 0
             ? []
             : await domainContext.Notifications
@@ -599,7 +594,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             return [];
         }
 
-        List<Guid> monitorIds = deploymentByMonitor.Keys.ToList();
+        List<Guid> monitorIds = [.. deploymentByMonitor.Keys];
 
         // The caller only shows the newest few rows, so the limit belongs in SQL rather than after loading
         // every open alert on the site.
@@ -612,11 +607,10 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             .Take(limit)
             .ToListAsync(cancellationToken);
 
-        return notifications
+        return [.. notifications
             .Select(notification => BuildSiteNotification(
                 notification,
-                deploymentByMonitor[notification.MonitorId]))
-            .ToList();
+                deploymentByMonitor[notification.MonitorId]))];
     }
 
     private async Task<Dictionary<Guid, Deployment>> LoadActiveDeploymentsByMonitorAsync(
@@ -664,7 +658,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
     {
         return new PagedResult<T>
         {
-            Results = pageItems.ToList(),
+            Results = [.. pageItems],
             Total = total,
             Page = page.Page,
             PageSize = page.PageSize,
@@ -731,7 +725,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
         Dictionary<int, SiteOperatingHours> persisted = site.OperatingHours
             .GroupBy(hours => hours.DayOfWeek)
             .ToDictionary(group => group.Key, group => group.First());
-        return Enumerable.Range(1, 7)
+        return [.. Enumerable.Range(1, 7)
             .Select(day =>
             {
                 if (persisted.TryGetValue(day, out SiteOperatingHours? hours))
@@ -745,15 +739,14 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
                             || (!hours.StartTime.HasValue && !hours.EndTime.HasValue));
                 }
 
-                (TimeSpan? StartTime, TimeSpan? EndTime) legacy = LegacyOperatingHoursForDay(site, day);
+                (TimeSpan? startTime, TimeSpan? endTime) = LegacyOperatingHoursForDay(site, day);
                 return new SiteOperatingHoursModel(
                     day,
                     DayNames[day - 1],
-                    FormatTime(legacy.StartTime),
-                    FormatTime(legacy.EndTime),
-                    !legacy.StartTime.HasValue && !legacy.EndTime.HasValue);
-            })
-            .ToList();
+                    FormatTime(startTime),
+                    FormatTime(endTime),
+                    !startTime.HasValue && !endTime.HasValue);
+            })];
     }
 
     private static string BuildAddress(Site site)
@@ -766,12 +759,11 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
 
     private static string? JoinSummary(IEnumerable<string?> values)
     {
-        List<string> list = values
+        List<string> list = [.. values
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(5)
-            .ToList();
+            .Take(5)];
         return list.Count == 0 ? null : string.Join(", ", list);
     }
 

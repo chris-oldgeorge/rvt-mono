@@ -1,4 +1,4 @@
-﻿// File summary: Builds monitor inventory read models with database-side filtering, sorting, counting, and paging.
+// File summary: Builds monitor inventory read models with database-side filtering, sorting, counting, and paging.
 // Major updates:
 // - 2026-06-26 pending Scoped monitor list alert/caution flags to active deployment/contract ownership windows.
 // - 2026-06-26 pending Scoped installer monitor inventory reads to the installer's assigned company.
@@ -111,8 +111,8 @@ public sealed class MonitorListReader : IMonitorListReader
 
         return new MonitorAssignmentLists
         {
-            AvailableMonitors = availableRows.Select(row => ToItem(row, roleContext, cutoff)).ToList(),
-            AssignedMonitors = assignedRows.Select(row => ToItem(row, roleContext, cutoff)).ToList()
+            AvailableMonitors = [.. availableRows.Select(row => ToItem(row, roleContext, cutoff))],
+            AssignedMonitors = [.. assignedRows.Select(row => ToItem(row, roleContext, cutoff))]
         };
     }
 
@@ -187,20 +187,20 @@ public sealed class MonitorListReader : IMonitorListReader
             (row, current) => new MonitorListRow
             {
                 Id = row.Monitor.Id,
-                DeploymentId = current == null ? null : (Guid?)current.Id,
+                DeploymentId = current == null ? null : current.Id,
                 FleetNumber = row.Monitor.FleetNr,
                 SerialId = row.Monitor.SerialId,
                 Manufacturer = row.Monitor.Manufacturer,
                 Model = row.Monitor.Model,
                 FirmwareVersion = row.Monitor.FirmwareVersion,
                 TypeOfMonitor = row.Monitor.TypeOfMonitor,
-                ContractId = current == null ? null : (Guid?)current.ContractId,
+                ContractId = current == null ? null : current.ContractId,
                 ContractNumber = current == null ? null : current.Contract.ContractNumber,
                 SiteId = current == null ? null : current.Contract.SiteiD,
                 SiteName = current == null || current.Contract.Site == null ? null : current.Contract.Site.SiteName,
-                CompanyId = current == null ? null : (Guid?)current.Contract.CompanyId,
+                CompanyId = current == null ? null : current.Contract.CompanyId,
                 CompanyName = current == null ? null : current.Contract.Company.CompanyName,
-                StartDate = current == null ? null : (DateTime?)current.StartDate,
+                StartDate = current == null ? null : current.StartDate,
                 EndDate = current == null ? null : current.EndDate,
                 LastDataTime = row.LastDataTime,
                 HasAlerts = false,
@@ -330,7 +330,7 @@ public sealed class MonitorListReader : IMonitorListReader
 
         return new MonitorListPage
         {
-            Results = pageRows.Select(row => ToItem(row, query.RoleContext, offlineCutoff)).ToList(),
+            Results = [.. pageRows.Select(row => ToItem(row, query.RoleContext, offlineCutoff))],
             Total = total
         };
     }
@@ -338,10 +338,9 @@ public sealed class MonitorListReader : IMonitorListReader
     // Function summary: Hydrates page-level alert flags using effective deployment/contract ownership windows.
     private async Task HydrateNotificationFlagsAsync(List<MonitorListRow> rows, CancellationToken cancellationToken)
     {
-        List<Guid> deploymentIds = rows
+        List<Guid> deploymentIds = [.. rows
             .Where(row => row.DeploymentId.HasValue)
-            .Select(row => row.DeploymentId!.Value)
-            .ToList();
+            .Select(row => row.DeploymentId!.Value)];
         if (deploymentIds.Count == 0)
         {
             return;
@@ -353,7 +352,7 @@ public sealed class MonitorListReader : IMonitorListReader
             .Where(deployment => deploymentIds.Contains(deployment.Id))
             .ToListAsync(cancellationToken);
         Dictionary<Guid, Deployment> deploymentByMonitor = deployments.ToDictionary(deployment => deployment.MonitorId);
-        List<Guid> monitorIds = deploymentByMonitor.Keys.ToList();
+        List<Guid> monitorIds = [.. deploymentByMonitor.Keys];
         List<Notification> notifications = await domainContext.Notifications
             .AsNoTracking()
             .Where(notification => monitorIds.Contains(notification.MonitorId) && notification.ClosedTime == null)
@@ -434,9 +433,7 @@ public sealed class MonitorListReader : IMonitorListReader
     // Function summary: Finds monitor enum values matching a text search.
     private static MonitorTypeEnum[] MatchingMonitorTypes(string search)
     {
-        return Enum.GetValues<MonitorTypeEnum>()
-            .Where(value => value.ToString().Contains(search, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
+        return [.. Enum.GetValues<MonitorTypeEnum>().Where(value => value.ToString().Contains(search, StringComparison.OrdinalIgnoreCase))];
     }
 
     internal sealed class MonitorListRow

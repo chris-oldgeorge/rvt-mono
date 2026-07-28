@@ -10,11 +10,11 @@ public sealed class NotificationDeliveryServiceTests
     [TestMethod]
     public async Task SendAsync_Email_ComposesAndUsesOnlyEmailPort()
     {
-        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
-        Mock<IEmailDeliveryPort> email = new Mock<IEmailDeliveryPort>(MockBehavior.Strict);
-        Mock<ISmsDeliveryPort> sms = new Mock<ISmsDeliveryPort>(MockBehavior.Strict);
-        Mock<INotificationMessageComposer> composer = new Mock<INotificationMessageComposer>(MockBehavior.Strict);
-        NotificationDeliveryRequest request = new NotificationDeliveryRequest(
+        using CancellationTokenSource cancellationSource = new();
+        Mock<IEmailDeliveryPort> email = new(MockBehavior.Strict);
+        Mock<ISmsDeliveryPort> sms = new(MockBehavior.Strict);
+        Mock<INotificationMessageComposer> composer = new(MockBehavior.Strict);
+        NotificationDeliveryRequest request = new(
             NotificationMessageKind.Alert,
             NotificationChannel.Email,
             "ops@example.test",
@@ -35,7 +35,7 @@ public sealed class NotificationDeliveryServiceTests
                     message.Attachments.Count == 0),
                 cancellationSource.Token))
             .Returns(Task.CompletedTask);
-        NotificationDeliveryService service = new NotificationDeliveryService(composer.Object, email.Object, sms.Object);
+        NotificationDeliveryService service = new(composer.Object, email.Object, sms.Object);
 
         await service.SendAsync(request, cancellationSource.Token);
 
@@ -47,10 +47,10 @@ public sealed class NotificationDeliveryServiceTests
     [TestMethod]
     public async Task SendAsync_Sms_ComposesAndUsesOnlySmsPort()
     {
-        Mock<IEmailDeliveryPort> email = new Mock<IEmailDeliveryPort>(MockBehavior.Strict);
-        Mock<ISmsDeliveryPort> sms = new Mock<ISmsDeliveryPort>(MockBehavior.Strict);
-        Mock<INotificationMessageComposer> composer = new Mock<INotificationMessageComposer>(MockBehavior.Strict);
-        NotificationDeliveryRequest request = new NotificationDeliveryRequest(
+        Mock<IEmailDeliveryPort> email = new(MockBehavior.Strict);
+        Mock<ISmsDeliveryPort> sms = new(MockBehavior.Strict);
+        Mock<INotificationMessageComposer> composer = new(MockBehavior.Strict);
+        NotificationDeliveryRequest request = new(
             NotificationMessageKind.Caution,
             NotificationChannel.Sms,
             "+441234567890",
@@ -68,7 +68,7 @@ public sealed class NotificationDeliveryServiceTests
                     message.Content == "sms body"),
                 CancellationToken.None))
             .Returns(Task.CompletedTask);
-        NotificationDeliveryService service = new NotificationDeliveryService(composer.Object, email.Object, sms.Object);
+        NotificationDeliveryService service = new(composer.Object, email.Object, sms.Object);
 
         await service.SendAsync(request);
 
@@ -80,10 +80,10 @@ public sealed class NotificationDeliveryServiceTests
     [TestMethod]
     public async Task SendAsync_BlankDestination_RejectsBeforeComposition()
     {
-        Mock<IEmailDeliveryPort> email = new Mock<IEmailDeliveryPort>(MockBehavior.Strict);
-        Mock<ISmsDeliveryPort> sms = new Mock<ISmsDeliveryPort>(MockBehavior.Strict);
-        Mock<INotificationMessageComposer> composer = new Mock<INotificationMessageComposer>(MockBehavior.Strict);
-        NotificationDeliveryService service = new NotificationDeliveryService(composer.Object, email.Object, sms.Object);
+        Mock<IEmailDeliveryPort> email = new(MockBehavior.Strict);
+        Mock<ISmsDeliveryPort> sms = new(MockBehavior.Strict);
+        Mock<INotificationMessageComposer> composer = new(MockBehavior.Strict);
+        NotificationDeliveryService service = new(composer.Object, email.Object, sms.Object);
 
         await Assert.ThrowsExactlyAsync<ArgumentException>(() => service.SendAsync(
             new NotificationDeliveryRequest(
@@ -101,11 +101,11 @@ public sealed class NotificationDeliveryServiceTests
     [TestMethod]
     public async Task SendAsync_RequestedCancellation_Propagates()
     {
-        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
-        Mock<IEmailDeliveryPort> email = new Mock<IEmailDeliveryPort>(MockBehavior.Strict);
-        Mock<ISmsDeliveryPort> sms = new Mock<ISmsDeliveryPort>(MockBehavior.Strict);
-        Mock<INotificationMessageComposer> composer = new Mock<INotificationMessageComposer>(MockBehavior.Strict);
-        NotificationDeliveryRequest request = new NotificationDeliveryRequest(
+        using CancellationTokenSource cancellationSource = new();
+        Mock<IEmailDeliveryPort> email = new(MockBehavior.Strict);
+        Mock<ISmsDeliveryPort> sms = new(MockBehavior.Strict);
+        Mock<INotificationMessageComposer> composer = new(MockBehavior.Strict);
+        NotificationDeliveryRequest request = new(
             NotificationMessageKind.Alert,
             NotificationChannel.Email,
             "ops@example.test",
@@ -119,7 +119,7 @@ public sealed class NotificationDeliveryServiceTests
             .Returns(new ComposedNotification("subject", string.Empty, "<p>html</p>"));
         email.Setup(x => x.SendAsync(It.IsAny<EmailDeliveryRequest>(), cancellationSource.Token))
             .ThrowsAsync(new OperationCanceledException(cancellationSource.Token));
-        NotificationDeliveryService service = new NotificationDeliveryService(composer.Object, email.Object, sms.Object);
+        NotificationDeliveryService service = new(composer.Object, email.Object, sms.Object);
 
         OperationCanceledException exception = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
             () => service.SendAsync(request, cancellationSource.Token));

@@ -4,15 +4,10 @@ using AirQ.Api.Http;
 using AirQ.Model.Dto;
 using Moq;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests
 {
 
@@ -45,7 +40,7 @@ namespace AirQMonitorTests
         {
             try
             {
-                using StreamReader sr = new StreamReader(fileName);
+                using StreamReader sr = new(fileName);
                 string txt = sr.ReadToEnd();
                 Console.WriteLine(txt);
                 return txt;
@@ -63,7 +58,9 @@ namespace AirQMonitorTests
         {
 
             if (expected.Count != actual.Count)
+            {
                 return false;
+            }
 
             for (int i = 0; i < expected.Count; i++)
             {

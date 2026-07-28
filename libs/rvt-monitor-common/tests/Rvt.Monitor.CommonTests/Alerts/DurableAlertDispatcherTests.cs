@@ -18,7 +18,7 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_WhenQueueIsEmpty_ClaimsOnceAndReturns()
     {
-        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>();
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(UtcNow, TimeSpan.FromSeconds(120), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ClaimedAlertDelivery?)null);
         DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, []);
@@ -36,7 +36,7 @@ public sealed class DurableAlertDispatcherTests
     public async Task DispatchAsync_StopsAtDefaultBatchCapOfFifty()
     {
         ClaimedAlertDelivery message = CreateDelivery("MqttAlert", "alert");
-        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>();
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(message);
         store.Setup(x => x.CompleteAsync(
@@ -69,8 +69,8 @@ public sealed class DurableAlertDispatcherTests
     {
         ClaimedAlertDelivery first = CreateDelivery("MqttAlert", "alert");
         ClaimedAlertDelivery second = CreateDelivery("MqttAlert", "alert");
-        Queue<ClaimedAlertDelivery?> claims = new Queue<ClaimedAlertDelivery?>([first, second, null]);
-        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>();
+        Queue<ClaimedAlertDelivery?> claims = new([first, second, null]);
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(
                 It.IsAny<DateTime>(),
                 TimeSpan.FromSeconds(120),
@@ -83,7 +83,7 @@ public sealed class DurableAlertDispatcherTests
                 null,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        ManualTimeProvider clock = new ManualTimeProvider(UtcNow);
+        ManualTimeProvider clock = new(UtcNow);
         Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("MqttAlert");
         adapter.Setup(x => x.DeliverAsync(It.IsAny<ClaimedAlertDelivery>(), It.IsAny<CancellationToken>()))
             .Callback<ClaimedAlertDelivery, CancellationToken>((message, _) =>
@@ -234,9 +234,9 @@ public sealed class DurableAlertDispatcherTests
     [TestMethod]
     public async Task DispatchAsync_WhenCallerCancels_PropagatesWithoutRetrying()
     {
-        using CancellationTokenSource cancellationSource = new CancellationTokenSource();
+        using CancellationTokenSource cancellationSource = new();
         ClaimedAlertDelivery message = CreateDelivery("MqttAlert", "alert");
-        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>();
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(message);
         Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("MqttAlert");
@@ -458,7 +458,7 @@ public sealed class DurableAlertDispatcherTests
     {
         ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test", attemptCount: 8);
         Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
-        ManualTimeProvider clock = new ManualTimeProvider(UtcNow);
+        ManualTimeProvider clock = new(UtcNow);
         Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .Callback(() => clock.Advance(TimeSpan.FromSeconds(20)))
@@ -489,7 +489,7 @@ public sealed class DurableAlertDispatcherTests
         ClaimedAlertDelivery message = CreateDelivery("MqttAlert", "alert");
         Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message, completeResult: false);
         Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("MqttAlert");
-        TestLogger<DurableAlertDispatcher> logger = new TestLogger<DurableAlertDispatcher>();
+        TestLogger<DurableAlertDispatcher> logger = new();
         DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object], logger: logger);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
@@ -523,7 +523,7 @@ public sealed class DurableAlertDispatcherTests
         Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
         adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("provider failure"));
-        TestLogger<DurableAlertDispatcher> logger = new TestLogger<DurableAlertDispatcher>();
+        TestLogger<DurableAlertDispatcher> logger = new();
         DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object], logger: logger);
 
         await dispatcher.DispatchAsync(CancellationToken.None);
@@ -541,8 +541,8 @@ public sealed class DurableAlertDispatcherTests
         const string rawFailure = "provider rejected alerts@example.test with secret-token";
         ClaimedAlertDelivery deadLetter = CreateDelivery("Email", destination, attemptCount: 8);
         ClaimedAlertDelivery successful = CreateDelivery("MqttAlert", "alert");
-        Queue<ClaimedAlertDelivery?> claims = new Queue<ClaimedAlertDelivery?>([deadLetter, successful, null]);
-        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>();
+        Queue<ClaimedAlertDelivery?> claims = new([deadLetter, successful, null]);
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => claims.Dequeue());
         store.Setup(x => x.RetryAsync(
@@ -565,7 +565,7 @@ public sealed class DurableAlertDispatcherTests
         emailAdapter.Setup(x => x.DeliverAsync(deadLetter, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException(rawFailure));
         Mock<IAlertDeliveryAdapter> mqttAdapter = CreateAdapter("MqttAlert");
-        TestLogger<DurableAlertDispatcher> logger = new TestLogger<DurableAlertDispatcher>();
+        TestLogger<DurableAlertDispatcher> logger = new();
         DurableAlertDispatcher dispatcher = CreateDispatcher(
             store.Object,
             [emailAdapter.Object, mqttAdapter.Object],
@@ -612,7 +612,7 @@ public sealed class DurableAlertDispatcherTests
 
     private static Mock<IAlertDeliveryAdapter> CreateAdapter(string kind)
     {
-        Mock<IAlertDeliveryAdapter> adapter = new Mock<IAlertDeliveryAdapter>();
+        Mock<IAlertDeliveryAdapter> adapter = new();
         adapter.SetupGet(x => x.Kind).Returns(kind);
         adapter.Setup(x => x.DeliverAsync(It.IsAny<ClaimedAlertDelivery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((AlertDeliveryAudit?)null);
@@ -623,8 +623,8 @@ public sealed class DurableAlertDispatcherTests
         ClaimedAlertDelivery message,
         bool completeResult = true)
     {
-        Queue<ClaimedAlertDelivery?> claims = new Queue<ClaimedAlertDelivery?>([message, null]);
-        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>();
+        Queue<ClaimedAlertDelivery?> claims = new([message, null]);
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => claims.Dequeue());
         store.Setup(x => x.CompleteAsync(

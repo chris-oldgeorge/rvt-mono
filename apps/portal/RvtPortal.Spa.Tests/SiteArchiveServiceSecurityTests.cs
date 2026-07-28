@@ -1,4 +1,4 @@
-﻿// File summary: Covers canonical PostgreSQL SQL and parameterization behavior for site archive exports.
+// File summary: Covers canonical PostgreSQL SQL and parameterization behavior for site archive exports.
 // Major updates:
 // - 2026-07-25 pending Replaced provider-dialect coverage with canonical PostgreSQL archive and site-write guards.
 // - 2026-07-25 pending Added stable URL canonicalization and effective-port cleanup coverage.
@@ -25,7 +25,7 @@ public sealed class SiteArchiveServiceSecurityTests
     [Fact]
     public async Task SiteArchiveAdapter_MapsExportFailureWithoutSwallowingCancellation()
     {
-        SiteArchiveAdapter failureAdapter = new SiteArchiveAdapter(
+        SiteArchiveAdapter failureAdapter = new(
             new ThrowingSiteArchiveService(new IOException("upload failed")));
 
         SiteArchiveExportResult failure = await failureAdapter.ExportAsync(
@@ -38,7 +38,7 @@ public sealed class SiteArchiveServiceSecurityTests
             "The site archive could not be created, so the site was not archived. Please try again.",
             failure.ErrorMessage);
 
-        SiteArchiveAdapter cancellationAdapter = new SiteArchiveAdapter(
+        SiteArchiveAdapter cancellationAdapter = new(
             new ThrowingSiteArchiveService(new OperationCanceledException()));
         await Assert.ThrowsAsync<OperationCanceledException>(
             () => cancellationAdapter.ExportAsync(
@@ -52,7 +52,7 @@ public sealed class SiteArchiveServiceSecurityTests
         Guid siteId = Guid.NewGuid();
         SiteArchiveService service = CreateArchiveService(
             BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
-        using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(250));
 
         await service.DeleteSupersededAsync(
             siteId,
@@ -66,7 +66,7 @@ public sealed class SiteArchiveServiceSecurityTests
         Guid siteId = Guid.NewGuid();
         SiteArchiveService service = CreateArchiveService(
             BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
-        using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(250));
 
         await service.DeleteSupersededAsync(
             siteId,
@@ -80,7 +80,7 @@ public sealed class SiteArchiveServiceSecurityTests
         Guid siteId = Guid.NewGuid();
         SiteArchiveService service = CreateArchiveService(
             BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
-        using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(250));
 
         await service.DeleteSupersededAsync(
             siteId,
@@ -92,11 +92,11 @@ public sealed class SiteArchiveServiceSecurityTests
     [Fact]
     public async Task DeleteSupersededAsync_SameAccountAndContainerWithWrongEffectivePortFailsClosedWithoutDeleting()
     {
-        using LoopbackBlobServer server = new LoopbackBlobServer();
+        using LoopbackBlobServer server = new();
         Guid siteId = Guid.NewGuid();
         SiteArchiveService service = CreateArchiveService(
             BlobConnectionString($"{server.Endpoint}/archiveaccount"));
-        Uri candidateUri = new Uri(
+        Uri candidateUri = new(
             $"{server.Endpoint}/archiveaccount/site-archives/{siteId:N}/site-archive.zip");
         int wrongPort = candidateUri.Port == 65535
             ? candidateUri.Port - 1
@@ -126,7 +126,7 @@ public sealed class SiteArchiveServiceSecurityTests
     public async Task SiteArchiveAdapter_MapsUnverifiableDurableUrlToCleanupFailure(
         string durableArchiveUrl)
     {
-        SiteArchiveAdapter adapter = new SiteArchiveAdapter(
+        SiteArchiveAdapter adapter = new(
             CreateArchiveService(BlobConnectionString()));
 
         SiteArchiveCleanupResult result = await adapter.CleanupSupersededAsync(
@@ -156,7 +156,7 @@ public sealed class SiteArchiveServiceSecurityTests
     [Fact]
     public async Task DeleteSupersededAsync_LegacyUrlDeletesOnlyDerivedStableCandidateWithSnapshots()
     {
-        using LoopbackBlobServer server = new LoopbackBlobServer();
+        using LoopbackBlobServer server = new();
         Guid siteId = Guid.NewGuid();
         SiteArchiveService service = CreateArchiveService(
             BlobConnectionString($"{server.Endpoint}/archiveaccount"));
@@ -210,7 +210,7 @@ public sealed class SiteArchiveServiceSecurityTests
     public void SiteArchiveService_CreatesNpgsqlSiteIdParameter()
     {
         Guid siteId = Guid.NewGuid();
-        SiteArchiveQueryExecutor service = new SiteArchiveQueryExecutor(NoOpDomainContext());
+        SiteArchiveQueryExecutor service = new(NoOpDomainContext());
 
         NpgsqlParameter parameter = service.CreateSiteIdParameter(siteId);
 
@@ -223,7 +223,7 @@ public sealed class SiteArchiveServiceSecurityTests
     // Function summary: Verifies the archive catalog supplies one canonical public-schema PostgreSQL SQL definition.
     public void SiteArchiveQueryCatalog_ProvidesCanonicalPostgresArchiveSql()
     {
-        SiteArchiveQueryCatalog catalog = new SiteArchiveQueryCatalog();
+        SiteArchiveQueryCatalog catalog = new();
 
         string sql = FirstExportSql(catalog);
         string allSql = AllExportSql(catalog);
@@ -350,7 +350,7 @@ public sealed class SiteArchiveServiceSecurityTests
         {
             using TcpClient client = await listener.AcceptTcpClientAsync();
             await using NetworkStream stream = client.GetStream();
-            using StreamReader reader = new StreamReader(
+            using StreamReader reader = new(
                 stream,
                 Encoding.ASCII,
                 detectEncodingFromByteOrderMarks: false,

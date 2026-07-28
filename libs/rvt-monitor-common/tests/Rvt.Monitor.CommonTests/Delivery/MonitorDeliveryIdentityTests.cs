@@ -11,7 +11,7 @@ public sealed class MonitorDeliveryIdentityTests
     public void CreateGuid_PreservesMyAtmSha256Identity()
     {
         Guid actual = MonitorDeliveryIdentity.CreateGuid("notification:fixture-key");
-        Guid expected = new Guid(SHA256.HashData(Encoding.UTF8.GetBytes("notification:fixture-key"))[..16]);
+        Guid expected = new(SHA256.HashData(Encoding.UTF8.GetBytes("notification:fixture-key"))[..16]);
 
         Assert.AreEqual(expected, actual);
     }

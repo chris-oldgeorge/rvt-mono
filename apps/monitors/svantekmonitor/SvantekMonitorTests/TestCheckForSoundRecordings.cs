@@ -19,12 +19,12 @@ namespace SvantekMonitorTests
         [TestMethod]
         public async Task TestCheckForSoundRecordings_FileListRefetchedEachRun_CachedWithinRun()
         {
-            Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
-            Mock<IDBClient> dbClient = new Mock<IDBClient>();
-            Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
-            Mock<IMessageService> emailClient = new Mock<IMessageService>();
-            RecordingObjectStorageClient storage = new RecordingObjectStorageClient();
-            SvantekApi testObj = new SvantekApi(
+            Mock<IHttpClient> httpClient = new();
+            Mock<IDBClient> dbClient = new();
+            Mock<IMqttClient> mqttClient = new();
+            Mock<IMessageService> emailClient = new();
+            RecordingObjectStorageClient storage = new();
+            SvantekApi testObj = new(
                 httpClient.Object,
                 dbClient.Object,
                 mqttClient.Object,
@@ -33,13 +33,13 @@ namespace SvantekMonitorTests
                 TestObjectStorageFactory.ForSoundRecordings(storage),
                 testLocal: false);
 
-            DateTime notificationTime = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
+            DateTime notificationTime = new(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
             // Two unresolved alerts on the same monitor and day - within one run they must share a single fetch.
-            List<NoiseNotificationLatest> alerts = new List<NoiseNotificationLatest>
-            {
+            List<NoiseNotificationLatest> alerts =
+            [
                 new(Guid.NewGuid(), Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900),
                 new(Guid.NewGuid(), Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime.AddHours(1), 900)
-            };
+            ];
             dbClient.Setup(c => c.ReadLatestNotificationAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(alerts);
             httpClient.Setup(c => c.PostAsync(

@@ -87,12 +87,8 @@ internal static class AlertLevelWorkflow
     {
         return monitorType switch
         {
-            MonitorTypeEnum.Dust => Enum.GetValues<AveragingPeriodsDustEnum>()
-                .Select(value => new OptionItem { Value = ((int)value).ToString(CultureInfo.InvariantCulture), Label = EnumLabel(value.ToString()) })
-                .ToList(),
-            MonitorTypeEnum.Noise => Enum.GetValues<AveragingPeriodsNoiseEnum>()
-                .Select(value => new OptionItem { Value = ((int)value).ToString(CultureInfo.InvariantCulture), Label = EnumLabel(value.ToString()) })
-                .ToList(),
+            MonitorTypeEnum.Dust => [.. Enum.GetValues<AveragingPeriodsDustEnum>().Select(value => new OptionItem { Value = ((int)value).ToString(CultureInfo.InvariantCulture), Label = EnumLabel(value.ToString()) })],
+            MonitorTypeEnum.Noise => [.. Enum.GetValues<AveragingPeriodsNoiseEnum>().Select(value => new OptionItem { Value = ((int)value).ToString(CultureInfo.InvariantCulture), Label = EnumLabel(value.ToString()) })],
             MonitorTypeEnum.Vibration => [],
             _ => []
         };

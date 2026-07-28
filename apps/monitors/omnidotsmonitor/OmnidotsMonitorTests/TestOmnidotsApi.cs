@@ -221,7 +221,7 @@ namespace OmnidotsAdapterTests
             List<RvtAlertRuleDto> rules = OmnidotsFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).
-                Returns(new List<VibrationMonitorDto>());
+                Returns([]);
 
             await testObj.CheckForOfflineMonitorsAsync();
 
@@ -321,7 +321,7 @@ namespace OmnidotsAdapterTests
 
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>()))
-                .Returns(new List<VibrationMonitorDto> { invalidMonitor, validMonitor });
+                .Returns([invalidMonitor, validMonitor]);
             dbClient.Setup(c => c.ReadSiteTimes(It.IsAny<Guid>()))
                 .Returns(OmnidotsFixture.AlwaysOpenSiteTimes());
             dbClient.Setup(c => c.ReadAlertContacts(validMonitor.Id))
@@ -373,8 +373,8 @@ namespace OmnidotsAdapterTests
                 DateTime.UtcNow.AddHours(-25),
                 serialIdIn: 1,
                 timeZone: "Europe/London")[0];
-            InvalidOperationException recordingException = new InvalidOperationException("secret recorder detail");
-            SiteTimes invalidSchedule = new SiteTimes
+            InvalidOperationException recordingException = new("secret recorder detail");
+            SiteTimes invalidSchedule = new()
             {
                 SundayStart = TimeSpan.FromMinutes(90),
                 SundayEnd = TimeSpan.FromHours(4)
@@ -382,7 +382,7 @@ namespace OmnidotsAdapterTests
 
             dbClient.Setup(c => c.ReadRules(null)).Returns(OmnidotsFixture.OfflineRules());
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>()))
-                .Returns(new List<VibrationMonitorDto> { invalidMonitor, validMonitor });
+                .Returns([invalidMonitor, validMonitor]);
             dbClient.Setup(c => c.ReadSiteTimes(invalidMonitor.Id)).Returns(invalidSchedule);
             dbClient.Setup(c => c.ReadSiteTimes(validMonitor.Id))
                 .Returns(OmnidotsFixture.AlwaysOpenSiteTimes());
@@ -438,7 +438,7 @@ namespace OmnidotsAdapterTests
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
-                Returns(new List<RvtAlertRuleDto>());
+                Returns([]);
 
             await testObj.StorePeakRecordsAsync();
 
@@ -481,7 +481,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IMessageService> messageClient,
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
-            DateTime cursor = new DateTime(2026, 7, 11, 8, 30, 0, DateTimeKind.Utc);
+            DateTime cursor = new(2026, 7, 11, 8, 30, 0, DateTimeKind.Utc);
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(1);
             string? requestedUrl = null;
 
@@ -566,7 +566,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IMessageService> messageClient,
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
-            DateTime storedMeasurement = new DateTime(2026, 7, 9, 4, 15, 0, DateTimeKind.Utc);
+            DateTime storedMeasurement = new(2026, 7, 9, 4, 15, 0, DateTimeKind.Utc);
             VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
             string? requestedUrl = null;
 
@@ -611,7 +611,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
-            InvalidOperationException importFailure = new InvalidOperationException("atomic import failed");
+            InvalidOperationException importFailure = new("atomic import failed");
 
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask("veff-token"));
@@ -668,7 +668,7 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.StringTask(modJson));
 
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
-                Returns(new List<RvtAlertRuleDto>());
+                Returns([]);
 
             await testObj.StorePeakRecordsLastDataTimeAsync();
 
@@ -722,7 +722,7 @@ namespace OmnidotsAdapterTests
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
-                Returns(new List<RvtAlertRuleDto>());
+                Returns([]);
 
             await testObj.StoreVdvRecordsAsync(TimeSpan.FromMinutes(10));
 
@@ -776,7 +776,7 @@ namespace OmnidotsAdapterTests
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
-                Returns(new List<RvtAlertRuleDto>());
+                Returns([]);
 
             await testObj.StoreVeffRecordsAsync(TimeSpan.FromMinutes(10));
 

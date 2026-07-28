@@ -53,7 +53,7 @@ public sealed class CreateReportRuleCommandHandler : IRequestHandler<CreateRepor
     // Function summary: Creates a report rule after validating site and schedule fields.
     public async Task<ReportRuleCommandResult> Handle(CreateReportRuleCommand request, CancellationToken cancellationToken)
     {
-        ReportRuleCommandResult result = new ReportRuleCommandResult();
+        ReportRuleCommandResult result = new();
         await ReportRuleCommandWorkflow.ValidateRuleRequestAsync(domainContext, request.Request, result.Errors, cancellationToken);
         if (result.Errors.Count > 0)
         {
@@ -82,7 +82,7 @@ public sealed class UpdateReportRuleCommandHandler : IRequestHandler<UpdateRepor
     // Function summary: Updates a report rule after validating site and schedule fields.
     public async Task<ReportRuleCommandResult> Handle(UpdateReportRuleCommand request, CancellationToken cancellationToken)
     {
-        ReportRuleCommandResult result = new ReportRuleCommandResult { ReportRuleId = request.ReportRuleId };
+        ReportRuleCommandResult result = new() { ReportRuleId = request.ReportRuleId };
         ReportRule? rule = await searchContext.ReportRules.SingleOrDefaultAsync(
             item => item.Id == request.ReportRuleId && !item.Deleted,
             cancellationToken);
@@ -116,7 +116,7 @@ public sealed class DeleteReportRuleCommandHandler : IRequestHandler<DeleteRepor
     // Function summary: Soft-deletes a report rule.
     public async Task<ReportRuleCommandResult> Handle(DeleteReportRuleCommand request, CancellationToken cancellationToken)
     {
-        ReportRuleCommandResult result = new ReportRuleCommandResult { ReportRuleId = request.ReportRuleId };
+        ReportRuleCommandResult result = new() { ReportRuleId = request.ReportRuleId };
         ReportRule? rule = await searchContext.ReportRules.SingleOrDefaultAsync(
             item => item.Id == request.ReportRuleId && !item.Deleted,
             cancellationToken);
@@ -148,7 +148,7 @@ public sealed class AddReportRuleUserCommandHandler : IRequestHandler<AddReportR
     // Function summary: Adds a user assignment to a report rule when the user is eligible.
     public async Task<ReportRuleCommandResult> Handle(AddReportRuleUserCommand request, CancellationToken cancellationToken)
     {
-        ReportRuleCommandResult result = new ReportRuleCommandResult { ReportRuleId = request.ReportRuleId };
+        ReportRuleCommandResult result = new() { ReportRuleId = request.ReportRuleId };
         ReportRule? rule = await searchContext.ReportRules.AsNoTracking().SingleOrDefaultAsync(
             item => item.Id == request.ReportRuleId && !item.Deleted,
             cancellationToken);
@@ -192,7 +192,7 @@ public sealed class RemoveReportRuleUserCommandHandler : IRequestHandler<RemoveR
     // Function summary: Removes matching user assignments from a report rule.
     public async Task<ReportRuleCommandResult> Handle(RemoveReportRuleUserCommand request, CancellationToken cancellationToken)
     {
-        ReportRuleCommandResult result = new ReportRuleCommandResult { ReportRuleId = request.ReportRuleId };
+        ReportRuleCommandResult result = new() { ReportRuleId = request.ReportRuleId };
         ReportRule? rule = await searchContext.ReportRules.AsNoTracking().SingleOrDefaultAsync(
             item => item.Id == request.ReportRuleId && !item.Deleted,
             cancellationToken);

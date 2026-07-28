@@ -1,4 +1,4 @@
-﻿// File summary: Covers canonical database naming rules used by the database refactor.
+// File summary: Covers canonical database naming rules used by the database refactor.
 // Major updates:
 // - 2026-07-25 pending Removed retired-provider metadata cases and retained canonical Npgsql model coverage.
 // - 2026-06-25 pending Returned concrete CSV field lists for CA1859 analyzer cleanup.
@@ -112,7 +112,7 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the opt-in EF convention maps entity tables and scalar columns to canonical names.
     public void EfCanonicalMappingConvention_MapsTablesAndScalarColumns()
     {
-        using CanonicalMappingProbeContext context = new CanonicalMappingProbeContext();
+        using CanonicalMappingProbeContext context = new();
 
         IEntityType company = context.Model.FindEntityType(typeof(Company)) ?? throw new InvalidOperationException("Company entity missing.");
         IEntityType site = context.Model.FindEntityType(typeof(Site)) ?? throw new InvalidOperationException("Site entity missing.");
@@ -127,7 +127,7 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the opt-in EF convention maps single-column primary keys to id.
     public void EfCanonicalMappingConvention_MapsSingleColumnPrimaryKeysToId()
     {
-        using CanonicalMappingProbeContext context = new CanonicalMappingProbeContext();
+        using CanonicalMappingProbeContext context = new();
 
         IEntityType contract = context.Model.FindEntityType(typeof(Contract)) ?? throw new InvalidOperationException("Contract entity missing.");
 
@@ -138,7 +138,7 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the opt-in EF convention maps foreign-key columns to referenced relation id names.
     public void EfCanonicalMappingConvention_MapsForeignKeysToReferencedRelationId()
     {
-        using CanonicalMappingProbeContext context = new CanonicalMappingProbeContext();
+        using CanonicalMappingProbeContext context = new();
 
         IEntityType contract = context.Model.FindEntityType(typeof(Contract)) ?? throw new InvalidOperationException("Contract entity missing.");
 
@@ -150,7 +150,7 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the opt-in EF convention leaves ASP.NET Identity entity mappings under framework-managed names.
     public void EfCanonicalMappingConvention_SkipsAspNetIdentityEntities()
     {
-        using CanonicalMappingProbeContext context = new CanonicalMappingProbeContext();
+        using CanonicalMappingProbeContext context = new();
 
         IEntityType role = context.Model.FindEntityType(typeof(IdentityRole)) ?? throw new InvalidOperationException("IdentityRole entity missing.");
 
@@ -163,12 +163,12 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the live Postgres context maps to the physically migrated canonical development schema.
     public void RvtDbContext_UsesCanonicalNamesForPostgresProvider()
     {
-        DbContextOptionsBuilder<RVTDbContext> optionsBuilder = new DbContextOptionsBuilder<RVTDbContext>();
+        DbContextOptionsBuilder<RVTDbContext> optionsBuilder = new();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
             ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
-        using RVTDbContext context = new RVTDbContext(optionsBuilder.Options);
+        using RVTDbContext context = new(optionsBuilder.Options);
 
         IEntityType company = context.Model.FindEntityType(typeof(Company)) ?? throw new InvalidOperationException("Company entity missing.");
         IEntityType monitor = context.Model.FindEntityType(typeof(RVT.Entities.Monitor)) ?? throw new InvalidOperationException("Monitor entity missing.");
@@ -183,12 +183,12 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies the live search context maps scaffolded search/data models to canonical schema objects.
     public void RvtSearchContext_UsesCanonicalNamesForSearchAndMeasurementModels()
     {
-        DbContextOptionsBuilder<RVTSearchContext> optionsBuilder = new DbContextOptionsBuilder<RVTSearchContext>();
+        DbContextOptionsBuilder<RVTSearchContext> optionsBuilder = new();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
             ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
-        using RVTSearchContext context = new RVTSearchContext(optionsBuilder.Options);
+        using RVTSearchContext context = new(optionsBuilder.Options);
 
         IEntityType sensor = context.Model.FindEntityType(typeof(RVT.DataAccess.EntityModels.Models.OmnidotsSensor)) ??
             throw new InvalidOperationException("OmnidotsSensor entity missing.");
@@ -210,12 +210,12 @@ public sealed class DatabaseNamingConventionTests
     // Function summary: Verifies every live search-context store mapping resolves to canonical identifiers.
     public void RvtSearchContext_AllStoreMappingsUseCanonicalNames()
     {
-        DbContextOptionsBuilder<RVTSearchContext> optionsBuilder = new DbContextOptionsBuilder<RVTSearchContext>();
+        DbContextOptionsBuilder<RVTSearchContext> optionsBuilder = new();
         optionsBuilder.UseRvtDatabaseProvider(new RvtDatabaseOptions
         {
             ConnectionString = "Host=localhost;Database=rvt;Username=postgres;Password=postgres"
         });
-        using RVTSearchContext context = new RVTSearchContext(optionsBuilder.Options);
+        using RVTSearchContext context = new(optionsBuilder.Options);
 
         foreach (IEntityType entityType in context.Model.GetEntityTypes())
         {

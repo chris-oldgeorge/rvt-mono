@@ -41,9 +41,12 @@ public sealed class SchemaValidationHostedService : IHostedService
             RVTDbContext domainContext = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
             RVTSearchContext searchContext = scope.ServiceProvider.GetRequiredService<RVTSearchContext>();
 
-            mismatches = (await RvtSchemaValidator.ValidateAsync(domainContext, cancellationToken))
-                .Concat(await RvtSchemaValidator.ValidateAsync(searchContext, cancellationToken))
-                .ToArray();
+            mismatches =
+            [
+                .. await RvtSchemaValidator.ValidateAsync(domainContext, cancellationToken)
+,
+                .. await RvtSchemaValidator.ValidateAsync(searchContext, cancellationToken),
+            ];
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

@@ -188,7 +188,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
             out Mock<IOmnidotsMonitorQueries>? monitorQueries,
             out ConfigRequestCapture? capture,
             siteTimes);
-        Dictionary<string, object?> request = new Dictionary<string, object?>
+        Dictionary<string, object?> request = new()
         {
             ["secret"] = ConfigSecret,
             ["serialid"] = SerialId,
@@ -294,10 +294,10 @@ public sealed class ConfigureMeasuringPointHandlerTests
     {
         ConfigureMeasuringPointHandler handler = CreateHandler(out Mock<IHttpClient>? httpClient, out Mock<IOmnidotsMonitorQueries>? monitorQueries);
         SetupMonitor(monitorQueries);
-        TaskCompletionSource<string> pendingResponse = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<string> pendingResponse = new(TaskCreationOptions.RunContinuationsAsynchronously);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Returns(pendingResponse.Task);
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         // The token now reaches the vendor call itself; an already-cancelled
@@ -337,7 +337,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
     {
         httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
         monitorQueries = new Mock<IOmnidotsMonitorQueries>(MockBehavior.Strict);
-        OmnidotsHttpGateway gateway = new OmnidotsHttpGateway(httpClient.Object, "vendor-user", "vendor-password");
+        OmnidotsHttpGateway gateway = new(httpClient.Object, "vendor-user", "vendor-password");
         return new ConfigureMeasuringPointHandler(gateway, monitorQueries.Object, options ?? ValidOptions());
     }
 
@@ -357,7 +357,7 @@ public sealed class ConfigureMeasuringPointHandlerTests
         string? startTime,
         string? endTime)
     {
-        SiteTimes siteTimes = new SiteTimes();
+        SiteTimes siteTimes = new();
         if (startTime is null || endTime is null)
         {
             return siteTimes;

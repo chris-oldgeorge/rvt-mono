@@ -38,7 +38,7 @@ namespace AirQ.Api
                 NoiseRuleEvaluator ruleEvaluator = CreateNoiseRuleEvaluator();
                 if (dtos != null && allrules.Any(x => x.AveragingPeriod == 900)) //15 min same as the data process from DTOs
                 {
-                    List<RvtAlertRuleDto> rules = allrules.Where(x => x.AveragingPeriod == 900).OrderBy(x => x.AlertType).ToList();
+                    List<RvtAlertRuleDto> rules = [.. allrules.Where(x => x.AveragingPeriod == 900).OrderBy(x => x.AlertType)];
                     foreach (NoiseDto sound in dtos)
                     {
                         //ensure alerts are first.
@@ -94,7 +94,7 @@ namespace AirQ.Api
                 TimeSpan timeDifference = end - start;
                 if (allrules.Where(x => x.AveragingPeriod == 3600).Count() > 0 && (start.Hour != end.Hour || timeDifference.TotalHours > 1))   //to do on the hour so has there been hour value change. The second test is for if the processing has been delayed 24 hours..
                 {
-                    List<RvtAlertRuleDto> rules = allrules.Where(x => x.AveragingPeriod == 3600).OrderBy(x => x.AlertType).ToList();
+                    List<RvtAlertRuleDto> rules = [.. allrules.Where(x => x.AveragingPeriod == 3600).OrderBy(x => x.AlertType)];
                     DateTime Starthour = (new DateTime(start.Year, start.Month, start.Day, start.Hour, 0, 0));
                     while (Starthour < end) // once for hour change in the period
                     {
@@ -117,7 +117,7 @@ namespace AirQ.Api
 
                 if (allrules.Where(x => x.AveragingPeriod == 86400).Count() > 0 && (start.Day != end.Day || timeDifference.TotalDays > 1))   //to do on the day change so has there been day value change. The second test is for if the processing has been delayed mopre than a month..
                 {
-                    List<RvtAlertRuleDto> rules = allrules.Where(x => x.AveragingPeriod == 86400).OrderBy(x => x.AlertType).ToList();
+                    List<RvtAlertRuleDto> rules = [.. allrules.Where(x => x.AveragingPeriod == 86400).OrderBy(x => x.AlertType)];
                     DateTime Startday = (new DateTime(start.Year, start.Month, start.Day, 0, 0, 0));
                     while (Startday < end) // once for every day change in the period
                     {
@@ -180,7 +180,7 @@ namespace AirQ.Api
                              List<RvtContactDto> contacts
             )
         {
-            RuleAlertNotificationDispatcher dispatcher = new RuleAlertNotificationDispatcher(
+            RuleAlertNotificationDispatcher dispatcher = new(
                 messageService,
                 operationalCommands.WriteNotification,
                 operationalCommands.WriteNotificationAudit);

@@ -1,4 +1,4 @@
-﻿// File summary: Provides data access operations for omnidots breaches and alerts repository entities and search projections.
+// File summary: Provides data access operations for omnidots breaches and alerts repository entities and search projections.
 // Major updates:
 // - 2026-07-09 pending Read canonical PostgreSQL routine result aliases with legacy fallback.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -7,7 +7,6 @@
 // - 2026-06-09 pending Documented PostgreSQL canonical routine-name mapping for breach/alert calls.
 
 using RVT.DataAccess.Configuration;
-using RVT.DataAccess.Context;
 using RVT.Entities.DTO;
 
 namespace RVT.DataAccess
@@ -45,7 +44,7 @@ namespace RVT.DataAccess
                     ZVtop = reader.GetNullableValue<double>("z_vtop", "ZVtop")
                 });
 
-            return rows.ToList();
+            return [.. rows];
         }
     }
 }

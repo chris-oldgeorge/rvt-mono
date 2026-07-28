@@ -26,7 +26,7 @@ if (options is null)
     return 2;
 }
 
-ScriptRunner runner = new ScriptRunner(options);
+ScriptRunner runner = new(options);
 
 try
 {

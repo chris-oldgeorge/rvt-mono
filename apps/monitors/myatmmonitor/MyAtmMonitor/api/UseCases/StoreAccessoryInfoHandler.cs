@@ -3,7 +3,6 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Utilities;
 
@@ -45,7 +44,7 @@ namespace MyAtm.Api.UseCases
                 return;
             }
 
-            MyAtmFailureCollector failures = new MyAtmFailureCollector(operationalCommands);
+            MyAtmFailureCollector failures = new(operationalCommands);
             foreach (DustMonitorDto customerDto in customerDtos)
             {
                 try
@@ -60,12 +59,11 @@ namespace MyAtm.Api.UseCases
                             customerDto.SerialId,
                             cursor,
                             cancellationToken);
-                        List<AccessoryInfoDto> dtos = page.Measurements
+                        List<AccessoryInfoDto> dtos = [.. page.Measurements
                             .Select(accessoryInfo => new AccessoryInfoDto(customerDto.SerialId, accessoryInfo))
                             .GroupBy(dto => DateTimeUtil.AsUtc(dto.SampleTime))
                             .Select(group => group.First())
-                            .OrderBy(dto => dto.SampleTime)
-                            .ToList();
+                            .OrderBy(dto => dto.SampleTime)];
 
                         RvtLogger.Logger.LogInformation(
                             "StoreAccessoryInfo page={PageNumber} number of dtos to insert={Count} serialId={SerialId} cursor={Cursor}",

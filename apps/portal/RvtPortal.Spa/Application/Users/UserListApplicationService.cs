@@ -7,7 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using RVT.BusinessLogic.Application.Paging;
 using RVT.DataAccess.Context;
-using RVT.Entities;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Application.Users;
@@ -117,10 +116,9 @@ public sealed class UserListApplicationService : IUserListApplicationService
             siteCounts = await LoadSiteCountsAsync(rows.Select(row => row.Id), cancellationToken);
             IEnumerable<UserListModel> sorted = SortProjectedRows(rows.Select(row => BuildModel(row, companies, siteCounts, request.Actor)), canonicalSort, request.Page.SortDir);
             pageRows = [];
-            List<UserListModel> pageItems = sorted
+            List<UserListModel> pageItems = [.. sorted
                 .Skip((request.Page.Page - 1) * request.Page.PageSize)
-                .Take(request.Page.PageSize)
-                .ToList();
+                .Take(request.Page.PageSize)];
             return BuildResult(request, companies, total, pageItems);
         }
 
@@ -133,7 +131,7 @@ public sealed class UserListApplicationService : IUserListApplicationService
             request,
             companies,
             total,
-            pageRows.Select(row => BuildModel(row, companies, siteCounts, request.Actor)).ToList());
+            [.. pageRows.Select(row => BuildModel(row, companies, siteCounts, request.Actor))]);
     }
 
     // Function summary: Builds the Identity user plus role query used for admin list filtering.
@@ -178,10 +176,9 @@ public sealed class UserListApplicationService : IUserListApplicationService
         }
 
         string search = searchText.Trim().ToLower();
-        List<Guid> matchingCompanyIds = companies
+        List<Guid> matchingCompanyIds = [.. companies
             .Where(company => company.Value.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .Select(company => company.Key)
-            .ToList();
+            .Select(company => company.Key)];
         return query.Where(user =>
             (user.Name != null && user.Name.ToLower().Contains(search)) ||
             user.Email.ToLower().Contains(search) ||
@@ -282,11 +279,10 @@ public sealed class UserListApplicationService : IUserListApplicationService
     // Function summary: Counts site assignments for the requested user ids.
     private async Task<Dictionary<Guid, int>> LoadSiteCountsAsync(IEnumerable<string> userIds, CancellationToken cancellationToken)
     {
-        List<Guid> parsedIds = userIds
+        List<Guid> parsedIds = [.. userIds
             .Select(id => Guid.TryParse(id, out Guid parsedId) ? parsedId : (Guid?)null)
             .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToList();
+            .Select(id => id!.Value)];
         return parsedIds.Count == 0
             ? []
             : await domainContext.SiteUsers

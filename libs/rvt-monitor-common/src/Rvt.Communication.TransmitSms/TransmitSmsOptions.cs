@@ -32,7 +32,7 @@ public sealed record TransmitSmsOptions
             return;
         }
 
-        List<string> missing = new List<string>();
+        List<string> missing = [];
         Require(ApiKey, "RVT__SMS_API_KEY", missing);
         Require(ApiSecret, "RVT__SMS_API_SECRET", missing);
         Require(Sender, "RVT__SMS_SENDER", missing);

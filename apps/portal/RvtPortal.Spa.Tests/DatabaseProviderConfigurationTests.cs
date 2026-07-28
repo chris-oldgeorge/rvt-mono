@@ -108,7 +108,7 @@ public sealed class DatabaseProviderConfigurationTests
     public void ConnectionFactories_CreateNpgsqlConnections()
     {
         RvtDatabaseOptions options = CreateOptions();
-        RvtDatabaseConnectionFactory factory = new RvtDatabaseConnectionFactory(options);
+        RvtDatabaseConnectionFactory factory = new(options);
 
         using DbConnection factoryConnection = factory.CreateConnection();
         using DbConnection extensionConnection = options.CreateDbConnection();
@@ -123,9 +123,9 @@ public sealed class DatabaseProviderConfigurationTests
     public void UseRvtDatabaseProvider_AlwaysConfiguresNpgsql()
     {
         RvtDatabaseOptions options = CreateOptions();
-        DbContextOptionsBuilder connectionStringBuilder = new DbContextOptionsBuilder();
-        DbContextOptionsBuilder sharedConnectionBuilder = new DbContextOptionsBuilder();
-        using NpgsqlConnection connection = new NpgsqlConnection(ConnectionString);
+        DbContextOptionsBuilder connectionStringBuilder = new();
+        DbContextOptionsBuilder sharedConnectionBuilder = new();
+        using NpgsqlConnection connection = new(ConnectionString);
 
         connectionStringBuilder.UseRvtDatabaseProvider(options);
         sharedConnectionBuilder.UseRvtDatabaseProvider(options, connection);
@@ -199,7 +199,7 @@ public sealed class DatabaseProviderConfigurationTests
         MethodInfo method = typeof(RvtStoredRoutineExecutor).GetMethod(
             "ConfigureCommand",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
-        using NpgsqlCommand command = new NpgsqlCommand();
+        using NpgsqlCommand command = new();
         IReadOnlyCollection<RvtRoutineParameter> parameters =
         [
             new("siteId", Guid.Empty),
@@ -266,7 +266,7 @@ public sealed class DatabaseProviderConfigurationTests
     // Function summary: Builds configuration with an optional legacy provider value.
     private static IConfiguration BuildConfiguration(string? provider)
     {
-        Dictionary<string, string?> values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["Database:ConnectionString"] = ConnectionString
         };

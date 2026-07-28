@@ -30,7 +30,7 @@ public sealed record ReportQuery(
 public sealed class ReportQueryResult
 {
     public string? InvalidSort { get; init; }
-    public IReadOnlyCollection<string> AllowedSortFields { get; init; } = ReportApplicationService.SortFields.ToArray();
+    public IReadOnlyCollection<string> AllowedSortFields { get; init; } = [.. ReportApplicationService.SortFields];
     public QueryReportsResponse? Response { get; init; }
 }
 
@@ -64,7 +64,7 @@ public sealed class ReportApplicationService : IReportApplicationService
             return new ReportQueryResult
             {
                 InvalidSort = requestedSort,
-                AllowedSortFields = SortFields.ToArray()
+                AllowedSortFields = [.. SortFields]
             };
         }
 
@@ -81,9 +81,7 @@ public sealed class ReportApplicationService : IReportApplicationService
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
-        List<ReportListItem> items = rows
-            .Select(BuildReportItem)
-            .ToList();
+        List<ReportListItem> items = [.. rows.Select(BuildReportItem)];
 
         return new ReportQueryResult
         {
@@ -139,9 +137,7 @@ public sealed class ReportApplicationService : IReportApplicationService
     private static IQueryable<ReportSearch> ApplySearch(IQueryable<ReportSearch> reports, string searchText)
     {
         string search = searchText.Trim().ToLower();
-        int[] frequencyMatches = MatchingFrequencies(search)
-            .Select(frequency => (int)frequency)
-            .ToArray();
+        int[] frequencyMatches = [.. MatchingFrequencies(search).Select(frequency => (int)frequency)];
         return reports.Where(report =>
             (report.ReportName != null && report.ReportName.ToLower().Contains(search)) ||
             report.SiteName.ToLower().Contains(search) ||

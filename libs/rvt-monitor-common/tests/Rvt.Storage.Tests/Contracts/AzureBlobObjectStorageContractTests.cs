@@ -15,7 +15,7 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
     [TestMethod]
     public async Task OpenReadAsync_DisposesProviderResponseLease()
     {
-        await using AzureBlobFixture fixture = new AzureBlobFixture();
+        await using AzureBlobFixture fixture = new();
         StorageObjectKey key = StorageObjectKey.Parse("lease/sample.bin");
         await fixture.Client.WriteAsync(
             new StorageWriteRequest(
@@ -71,7 +71,7 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
 
         private BlobClient CreateBlobClient(string providerKey)
         {
-            Mock<BlobClient> blob = new Mock<BlobClient>(MockBehavior.Strict);
+            Mock<BlobClient> blob = new(MockBehavior.Strict);
             blob
                 .SetupGet(client => client.Uri)
                 .Returns(new Uri($"https://account.blob.core.windows.net/container/{providerKey}"));
@@ -113,7 +113,7 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using MemoryStream buffer = new MemoryStream();
+            using MemoryStream buffer = new();
             await content.CopyToAsync(buffer, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             objects[providerKey] = new StoredObject(
@@ -133,12 +133,12 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
                     new RequestFailedException(404, "Object is missing."));
             }
 
-            MemoryStream content = new MemoryStream(storedObject.Content, writable: false);
+            MemoryStream content = new(storedObject.Content, writable: false);
             BlobDownloadDetails details = BlobsModelFactory.BlobDownloadDetails(
                 contentLength: storedObject.Content.Length,
                 contentType: storedObject.ContentType);
             BlobDownloadStreamingResult result = BlobsModelFactory.BlobDownloadStreamingResult(content, details);
-            Mock<Response> rawResponse = new Mock<Response>(MockBehavior.Strict);
+            Mock<Response> rawResponse = new(MockBehavior.Strict);
             rawResponse
                 .Setup(response => response.Dispose())
                 .Callback(() => Interlocked.Increment(ref providerLeaseDisposeCount));

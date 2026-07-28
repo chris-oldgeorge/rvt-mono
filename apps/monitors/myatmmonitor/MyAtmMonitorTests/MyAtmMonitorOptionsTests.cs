@@ -10,7 +10,7 @@ public sealed class MyAtmMonitorOptionsTests
     [TestMethod]
     public void Validate_UsesBoundedCataloguePageBudgetByDefault()
     {
-        MyAtmMonitorOptions options = new MyAtmMonitorOptions();
+        MyAtmMonitorOptions options = new();
 
         options.Validate();
 
@@ -20,7 +20,7 @@ public sealed class MyAtmMonitorOptionsTests
     [TestMethod]
     public void Validate_RejectsNonPositiveCataloguePageBudget()
     {
-        MyAtmMonitorOptions options = new MyAtmMonitorOptions { MaxDevicePagesPerRun = 0 };
+        MyAtmMonitorOptions options = new() { MaxDevicePagesPerRun = 0 };
 
         Assert.ThrowsExactly<OptionsValidationException>(options.Validate);
     }
@@ -28,7 +28,7 @@ public sealed class MyAtmMonitorOptionsTests
     [TestMethod]
     public void Validate_UsesDeliveryTimeoutShorterThanLeaseByDefault()
     {
-        MyAtmMonitorOptions options = new MyAtmMonitorOptions();
+        MyAtmMonitorOptions options = new();
 
         options.Validate();
 
@@ -42,7 +42,7 @@ public sealed class MyAtmMonitorOptionsTests
     [DataRow(121, 120)]
     public void Validate_RejectsInvalidDeliveryTimeoutAndLeaseCombinations(int timeout, int lease)
     {
-        MyAtmMonitorOptions options = new MyAtmMonitorOptions
+        MyAtmMonitorOptions options = new()
         {
             OutboxDeliveryTimeoutSeconds = timeout,
             OutboxLeaseSeconds = lease
@@ -54,7 +54,7 @@ public sealed class MyAtmMonitorOptionsTests
     [TestMethod]
     public void ToDeliveryOptions_MapsEveryMyAtmOutboxSettingAndValidatesTheCommonOptions()
     {
-        MyAtmMonitorOptions options = new MyAtmMonitorOptions
+        MyAtmMonitorOptions options = new()
         {
             OutboxBatchSize = 17,
             OutboxDeliveryTimeoutSeconds = 90,

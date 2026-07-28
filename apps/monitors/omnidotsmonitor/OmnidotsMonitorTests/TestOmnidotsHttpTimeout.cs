@@ -16,7 +16,7 @@ public class TestOmnidotsHttpTimeout
     [TestMethod]
     public void HttpWebClient_AppliesAnExplicitBoundedRequestTimeout()
     {
-        using HttpClient inner = new HttpClient();
+        using HttpClient inner = new();
 
         _ = new HttpWebClient("https://omnidots.example.test", inner);
 

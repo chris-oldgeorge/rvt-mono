@@ -44,7 +44,7 @@ namespace Omnidots.Api.UseCases
             string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
             List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
             DateTime utcNow = DateTime.UtcNow;
-            List<OmnidotsMonitorFailure> failures = new List<OmnidotsMonitorFailure>();
+            List<OmnidotsMonitorFailure> failures = [];
             foreach (VibrationMonitorDto monitor in monitors)
             {
                 if ("OmniDots guest".Equals(monitor.CustomerDisplayName))
@@ -57,10 +57,9 @@ namespace Omnidots.Api.UseCases
                 {
                     DateTime startTime = ResolveStart(monitor.SerialId, utcNow, lookback);
                     VdvRecords records = await _gateway.GetVdvRecordsAsync(token, startTime, utcNow, monitor.SerialId, cancellationToken);
-                    List<VdvRecordDto> dtos = records!.Samples!
+                    List<VdvRecordDto> dtos = [.. records!.Samples!
                         .Select(sample => new VdvRecordDto(sample))
-                        .OrderBy(dto => dto.SampleTime)
-                        .ToList();
+                        .OrderBy(dto => dto.SampleTime)];
 
                     if (dtos.Count > 0)
                     {

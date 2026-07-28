@@ -24,8 +24,8 @@ public sealed class MonitorPictureCommandTests
     {
         Guid monitorId = Guid.NewGuid();
         await using ThrowingSaveRVTDbContext context = await CreateCurrentDeploymentContextAsync(monitorId);
-        RecordingMonitorPictureStorage storage = new RecordingMonitorPictureStorage();
-        UploadMonitorPictureCommandHandler handler = new UploadMonitorPictureCommandHandler(
+        RecordingMonitorPictureStorage storage = new();
+        UploadMonitorPictureCommandHandler handler = new(
             context,
             new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity("test")) } },
             storage,
@@ -47,10 +47,10 @@ public sealed class MonitorPictureCommandTests
         DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseInMemoryDatabase($"monitor-picture-command-{Guid.NewGuid():N}")
             .Options;
-        ThrowingSaveRVTDbContext context = new ThrowingSaveRVTDbContext(options);
-        Company company = new Company { Id = Guid.NewGuid(), CompanyName = "Picture Company" };
-        Site site = new Site { Id = Guid.NewGuid(), SiteName = "Picture Site", CreateDate = DateTime.UtcNow };
-        Contract contract = new Contract
+        ThrowingSaveRVTDbContext context = new(options);
+        Company company = new() { Id = Guid.NewGuid(), CompanyName = "Picture Company" };
+        Site site = new() { Id = Guid.NewGuid(), SiteName = "Picture Site", CreateDate = DateTime.UtcNow };
+        Contract contract = new()
         {
             Id = Guid.NewGuid(),
             ContractNumber = "PIC-1",
@@ -60,7 +60,7 @@ public sealed class MonitorPictureCommandTests
             Site = site,
             OnHireDate = DateTime.UtcNow.AddDays(-1)
         };
-        MonitorEntity monitor = new MonitorEntity
+        MonitorEntity monitor = new()
         {
             Id = monitorId,
             SerialId = "PIC-001",
@@ -69,7 +69,7 @@ public sealed class MonitorPictureCommandTests
             FirmwareVersion = "1",
             ListedAtTime = DateTime.UtcNow
         };
-        Deployment deployment = new Deployment
+        Deployment deployment = new()
         {
             Id = Guid.NewGuid(),
             ContractId = contract.Id,

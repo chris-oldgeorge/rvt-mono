@@ -33,7 +33,7 @@ public sealed class NotifySiteAveragesHandler
         List<SiteMonitorsWithSiteHoursDto> monitors = await monitorQueries
             .ReadSiteMonitorsWithSiteHoursAsync(date, cancellationToken)
             .ConfigureAwait(false);
-        SvantekFailureCollector failures = new SvantekFailureCollector(operationalCommands);
+        SvantekFailureCollector failures = new(operationalCommands);
 
         foreach (SiteMonitorsWithSiteHoursDto monitor in monitors)
         {
@@ -78,10 +78,9 @@ public sealed class NotifySiteAveragesHandler
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId)
+        List<RvtAlertRuleDto> rules = [.. ruleQueries.ReadRules(monitor.SerialId)
             .Where(rule => rule.AveragingPeriod == 0 && rule.Field == "LAeq")
-            .OrderBy(rule => rule.AlertType)
-            .ToList();
+            .OrderBy(rule => rule.AlertType)];
         AlertType previousAlert = AlertType.Ignore;
 
         foreach (RvtAlertRuleDto rule in rules)

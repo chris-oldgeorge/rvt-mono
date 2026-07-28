@@ -12,7 +12,7 @@ public sealed class SvantekImportOptions
 
     public void Validate()
     {
-        List<string> failures = new List<string>();
+        List<string> failures = [];
         if (MaximumInitialBackfill <= TimeSpan.Zero)
         {
             failures.Add("MaximumInitialBackfill must be positive.");

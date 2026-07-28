@@ -85,13 +85,13 @@ public class SvantekApi
         NoiseRequestWindowCalculator? noiseRequestWindowCalculator = null,
         TimeProvider? timeProvider = null)
     {
-        SvantekHttpGateway gateway = new SvantekHttpGateway(httpClient, apiKey);
-        SvantekMonitorReader monitorReader = new SvantekMonitorReader(dbClient, testLocal);
-        MonitorEventPublisher eventPublisher = new MonitorEventPublisher(
+        SvantekHttpGateway gateway = new(httpClient, apiKey);
+        SvantekMonitorReader monitorReader = new(dbClient, testLocal);
+        MonitorEventPublisher eventPublisher = new(
             mqttClient,
             RvtConfig.INSERT_TOPIC,
             RvtConfig.ALERT_TOPIC);
-        SvantekRuleProcessor ruleProcessor = new SvantekRuleProcessor(
+        SvantekRuleProcessor ruleProcessor = new(
             dbClient,
             dbClient,
             messageService,

@@ -28,7 +28,7 @@ public sealed class OneTimeReportValidator
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        List<ValidationError> errors = new List<ValidationError>();
+        List<ValidationError> errors = [];
 
         if (request.SiteId == Guid.Empty)
         {

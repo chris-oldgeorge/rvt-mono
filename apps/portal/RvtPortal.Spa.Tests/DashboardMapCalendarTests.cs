@@ -1,4 +1,4 @@
-﻿// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
+// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
 // - 2026-07-22 pending Covered inactive and exact-boundary dashboard assignment authorization.
 // - 2026-06-26 pending Added moved-monitor dashboard and calendar ownership-window regressions.
@@ -8,7 +8,6 @@
 
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -36,7 +35,7 @@ public class DashboardMapCalendarTests
     // Function summary: Handles the dashboard summary returns role scoped counts and notifications workflow for this module.
     public async Task DashboardSummary_ReturnsRoleScopedCountsAndNotifications()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         DashboardScenarioIds ids = await SeedDashboardScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
@@ -70,7 +69,7 @@ public class DashboardMapCalendarTests
     // Function summary: Maps markers are scoped by visible sites into the shape required by callers.
     public async Task MapMarkers_AreScopedByVisibleSites()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         DashboardScenarioIds ids = await SeedDashboardScenarioAsync(factory);
         ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
         await AssignUserToSiteAsync(factory, companyUser.Id, ids.SiteId);
@@ -96,8 +95,8 @@ public class DashboardMapCalendarTests
     // Function summary: Verifies dashboard visibility rejects future assignments and accepts the exact inclusive assignment boundary.
     public async Task DashboardSummary_RequiresActiveAssignmentWindow()
     {
-        DateTimeOffset nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        DateTimeOffset nowUtc = new(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        using SpaTestApplicationFactory factory = new();
         DashboardScenarioIds ids = await SeedDashboardScenarioAsync(factory);
         ApplicationUser futureUser = await factory.SeedUserAsync(
             "dashboard.future@rvt.test",
@@ -132,7 +131,7 @@ public class DashboardMapCalendarTests
     // Function summary: Handles the calendar month and day return notifications and alert levels workflow for this module.
     public async Task CalendarMonthAndDay_ReturnNotificationsAndAlertLevels()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         DashboardScenarioIds ids = await SeedDashboardScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -160,7 +159,7 @@ public class DashboardMapCalendarTests
     // Function summary: Handles the master admin breaches alerts returns vibration rows for the requested day workflow for this module.
     public async Task MasterAdminBreachesAlerts_ReturnsVibrationRowsForTheRequestedDay()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         DashboardScenarioIds ids = await SeedDashboardScenarioAsync(factory);
         await factory.SeedUserAsync(MasterAdminEmail, Password, RoleNames.RVTMasterAdmin);
         HttpClient client = CreateClient(factory);
@@ -180,7 +179,7 @@ public class DashboardMapCalendarTests
     // Function summary: Verifies dashboard current rows ignore monitor notifications outside the active ownership window.
     public async Task DashboardCurrentRows_IgnoreMovedMonitorGapNotifications()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MovedMonitorDashboardIds ids = await SeedMovedMonitorDashboardScenarioAsync(factory);
         ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.NewCompanyId);
         await AssignUserToSiteAsync(factory, companyUser.Id, ids.NewSiteId);
@@ -217,7 +216,7 @@ public class DashboardMapCalendarTests
         Guid otherDeploymentId = Guid.NewGuid();
         Guid vibrationDeploymentId = Guid.NewGuid();
         Guid alertNotificationId = Guid.NewGuid();
-        DateTime today = new DateTime(2026, 5, 24);
+        DateTime today = new(2026, 5, 24);
 
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Dashboard Company", Contracts = [] },
@@ -333,7 +332,7 @@ public class DashboardMapCalendarTests
         Guid monitorId = Guid.NewGuid();
         Guid oldDeploymentId = Guid.NewGuid();
         Guid newDeploymentId = Guid.NewGuid();
-        DateTime baseTime = new DateTime(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc);
+        DateTime baseTime = new(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc);
         DateTime oldDeploymentEnd = baseTime.AddDays(-10);
         DateTime newDeploymentStart = baseTime.AddDays(-4);
         DateTime gapNotificationTime = baseTime.AddDays(-7).AddHours(1);

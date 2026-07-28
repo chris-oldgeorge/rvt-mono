@@ -44,7 +44,7 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
     public async Task<MonitorDetailResponse> BuildAsync(MonitorEntity monitor, Deployment? deployment, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         MonitorOwnershipWindow? ownershipWindow = deployment is null
-            ? (MonitorOwnershipWindow?)null
+            ? null
             : MonitorOwnershipWindowResolver.ForDeployment(deployment);
         List<Notification> notifications = ownershipWindow is null
             ? []
@@ -57,7 +57,7 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
                 .OrderByDescending(notification => notification.NotificationTime)
                 .Take(10)
                 .ToListAsync(cancellationToken);
-        MonitorListItem row = BuildListItem(monitor, deployment, notifications.Where(notification => notification.ClosedTime == null).ToList(), user);
+        MonitorListItem row = BuildListItem(monitor, deployment, [.. notifications.Where(notification => notification.ClosedTime == null)], user);
         List<Alertlevel> alertLevels = await domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(level => level.MonitorId == monitor.Id && !level.IsDeleted)
@@ -105,8 +105,8 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
             LatestAverage = await summaryService.BuildLatestAverageAsync(deployment),
             LatestBattery = await summaryService.BuildLatestBatteryAsync(monitor),
             DeploymentSummary = summaryService.BuildDeploymentSummary(deployment),
-            AlertLevels = alertLevels.Select(BuildAlertLevelItem).ToList(),
-            RecentNotifications = notifications.Select(BuildNotificationItem).ToList()
+            AlertLevels = [.. alertLevels.Select(BuildAlertLevelItem)],
+            RecentNotifications = [.. notifications.Select(BuildNotificationItem)]
         };
     }
 

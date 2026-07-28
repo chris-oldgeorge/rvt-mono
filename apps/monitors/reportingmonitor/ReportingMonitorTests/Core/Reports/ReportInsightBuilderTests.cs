@@ -12,9 +12,9 @@ public sealed class ReportInsightBuilderTests
     [Fact]
     public void BuildExecutiveSummary_GroupsBreachesWorstPeriodsAndTrafficLightsByMonitorType()
     {
-        DateTimeOffset firstDay = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
-        DateTimeOffset secondDay = new DateTimeOffset(2026, 6, 2, 14, 0, 0, TimeSpan.Zero);
-        SiteReportData site = new SiteReportData
+        DateTimeOffset firstDay = new(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        DateTimeOffset secondDay = new(2026, 6, 2, 14, 0, 0, TimeSpan.Zero);
+        SiteReportData site = new()
         {
             Monitors =
             [
@@ -58,8 +58,8 @@ public sealed class ReportInsightBuilderTests
     [Fact]
     public void BuildAlertHeatmaps_GroupsNotificationCountsByMonitorTypeDayAndHour()
     {
-        DateTimeOffset measuredAt = new DateTimeOffset(2026, 6, 3, 9, 15, 0, TimeSpan.Zero);
-        SiteReportData site = new SiteReportData
+        DateTimeOffset measuredAt = new(2026, 6, 3, 9, 15, 0, TimeSpan.Zero);
+        SiteReportData site = new()
         {
             Monitors =
             [
@@ -88,9 +88,9 @@ public sealed class ReportInsightBuilderTests
     [Fact]
     public void BuildDefaultNarrative_UsesAvailableSummaryDataWhenAiIsUnavailable()
     {
-        DateTimeOffset fromUtc = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        DateTimeOffset toUtc = new DateTimeOffset(2026, 6, 7, 23, 59, 59, TimeSpan.Zero);
-        ReportExecutiveSummary summary = new ReportExecutiveSummary(
+        DateTimeOffset fromUtc = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset toUtc = new(2026, 6, 7, 23, 59, 59, TimeSpan.Zero);
+        ReportExecutiveSummary summary = new(
             fromUtc,
             toUtc,
             [

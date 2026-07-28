@@ -38,7 +38,7 @@ public static class SiteMutationValidator
 {
     public static SiteMutationValidationResult ValidateShape(SiteMutation request)
     {
-        List<UseCaseError> errors = new List<UseCaseError>();
+        List<UseCaseError> errors = new();
         string? siteName = request.SiteName?.Trim();
         if (string.IsNullOrWhiteSpace(siteName))
         {
@@ -141,7 +141,7 @@ public static class SiteMutationValidator
             return shape;
         }
 
-        List<UseCaseError> errors = new List<UseCaseError>();
+        List<UseCaseError> errors = new();
         if (data.DuplicateSiteName)
         {
             errors.Add(new UseCaseError(
@@ -195,7 +195,7 @@ public static class SiteMutationValidator
         string startField,
         string endField)
     {
-        List<UseCaseError> errors = new List<UseCaseError>();
+        List<UseCaseError> errors = new();
         TimeSpan? start = ParseOptionalTime(startValue, startField, errors);
         TimeSpan? end = ParseOptionalTime(endValue, endField, errors);
         ValidateTimePair(startField, start, end, errors);
@@ -214,8 +214,8 @@ public static class SiteMutationValidator
             return LegacyOperatingHours(weekday, saturday, sunday);
         }
 
-        Dictionary<int, ValidatedSiteOperatingHours> parsedByDay = new Dictionary<int, ValidatedSiteOperatingHours>();
-        HashSet<int> seenDays = new HashSet<int>();
+        Dictionary<int, ValidatedSiteOperatingHours> parsedByDay = new();
+        HashSet<int> seenDays = new();
 
         foreach (SiteOperatingHoursMutation hours in request.OperatingHours)
         {
@@ -252,11 +252,10 @@ public static class SiteMutationValidator
                 !pair.StartTime.HasValue && !pair.EndTime.HasValue);
         }
 
-        return Enumerable.Range(1, 7)
+        return [.. Enumerable.Range(1, 7)
             .Select(day => parsedByDay.TryGetValue(day, out ValidatedSiteOperatingHours? hours)
                 ? hours
-                : new ValidatedSiteOperatingHours(day, null, null, true))
-            .ToList();
+                : new ValidatedSiteOperatingHours(day, null, null, true))];
     }
 
     private static IReadOnlyList<ValidatedSiteOperatingHours> LegacyOperatingHours(

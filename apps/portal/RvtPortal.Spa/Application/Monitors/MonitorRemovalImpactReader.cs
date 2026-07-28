@@ -33,15 +33,15 @@ public sealed class MonitorRemovalImpactReader : IMonitorRemovalImpactReader
         int deploymentCount = await domainContext.Deployments.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
         int notificationCount = await domainContext.Notifications.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
         int alertRuleCount = await domainContext.RvtAlertRules.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
-        (int TableCount, int RowCount) measurementCounts = await CountMeasurementRowsAsync(serialId, cancellationToken);
+        (int tableCount, int rowCount) = await CountMeasurementRowsAsync(serialId, cancellationToken);
 
         return new MonitorRemovalImpactResponse
         {
             DeploymentCount = deploymentCount,
             NotificationCount = notificationCount,
             AlertRuleCount = alertRuleCount,
-            MeasurementTableCount = measurementCounts.TableCount,
-            MeasurementRowCount = measurementCounts.RowCount
+            MeasurementTableCount = tableCount,
+            MeasurementRowCount = rowCount
         };
     }
 

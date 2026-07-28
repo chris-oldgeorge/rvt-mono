@@ -5,14 +5,10 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Model.Dto;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace MyAtmMonitorTests
@@ -78,7 +74,7 @@ namespace MyAtmMonitorTests
         {
             try
             {
-                using StreamReader sr = new StreamReader(fileName);
+                using StreamReader sr = new(fileName);
                 string txt = sr.ReadToEnd();
                 Console.WriteLine(txt);
                 return txt;
@@ -94,7 +90,9 @@ namespace MyAtmMonitorTests
         public static bool AreEqual(List<DustMonitorDto> expected, List<DustMonitorDto> actual)
         {
             if (expected.Count != actual.Count)
+            {
                 return false;
+            }
 
             for (int i = 0; i < expected.Count; i++)
             {

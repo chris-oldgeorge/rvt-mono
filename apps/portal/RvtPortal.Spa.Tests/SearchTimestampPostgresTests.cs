@@ -46,7 +46,7 @@ public sealed class SearchTimestampPostgresTests
         DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
             .Options;
-        using RVTSearchContext context = new RVTSearchContext(options);
+        using RVTSearchContext context = new(options);
 
         Dictionary<string, string> actual = context.Model.GetEntityTypes()
             .Select(entity => (Entity: entity, Property: entity.FindProperty("SampleTime")))
@@ -66,7 +66,7 @@ public sealed class SearchTimestampPostgresTests
         DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
             .Options;
-        using RVTSearchContext context = new RVTSearchContext(options);
+        using RVTSearchContext context = new(options);
         IEntityType? entity = context.Model.FindEntityType(typeof(OmnidotsTracesIndex));
         Assert.NotNull(entity);
         Assert.Equal("timestamp without time zone", entity.FindProperty(nameof(OmnidotsTracesIndex.StartTime))?.GetColumnType());
@@ -96,7 +96,7 @@ public sealed class SearchTimestampPostgresTests
         DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
             .Options;
-        using RVTSearchContext context = new RVTSearchContext(options);
+        using RVTSearchContext context = new(options);
         string sql = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
             "apps",
@@ -105,7 +105,7 @@ public sealed class SearchTimestampPostgresTests
             "postgres",
             "post-load",
             "03_views_and_routines.sql"));
-        Dictionary<string, Type> timestampViews = new Dictionary<string, Type>(StringComparer.Ordinal)
+        Dictionary<string, Type> timestampViews = new(StringComparer.Ordinal)
         {
             ["my_atm_dust_level_8_hour_avg"] = typeof(MyAtmDustLevel8hourAvg),
             ["noise_level_1_hour_avg"] = typeof(NoiseLevel1hourAvg),
@@ -176,7 +176,7 @@ public sealed class SearchTimestampPostgresTests
     // Function summary: Inspects and queries every timestamp view affected by the PostgreSQL UTC-naive aggregate contract.
     public async Task AggregateViews_HaveExpectedProviderTypesAndAcceptUtcNaiveBounds()
     {
-        Dictionary<string, string> expectedViewTypes = new Dictionary<string, string>(StringComparer.Ordinal)
+        Dictionary<string, string> expectedViewTypes = new(StringComparer.Ordinal)
         {
             ["air_q_noise_level_1_hour_avg"] = "timestamp without time zone",
             ["air_q_noise_level_site_avg"] = "timestamp without time zone",
@@ -194,7 +194,7 @@ public sealed class SearchTimestampPostgresTests
         DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseNpgsql(connectionString)
             .Options;
-        await using RVTSearchContext context = new RVTSearchContext(searchOptions);
+        await using RVTSearchContext context = new(searchOptions);
         DbConnection connection = context.Database.GetDbConnection();
         await connection.OpenAsync();
 
@@ -242,11 +242,11 @@ public sealed class SearchTimestampPostgresTests
         DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseNpgsql(connectionString)
             .Options;
-        await using RVTSearchContext searchContext = new RVTSearchContext(searchOptions);
+        await using RVTSearchContext searchContext = new(searchOptions);
         await using IDbContextTransaction transaction = await searchContext.Database.BeginTransactionAsync();
         string serialId = $"T5{Guid.NewGuid():N}"[..22];
-        DateTime databaseTimestamp = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
-        NpgsqlParameter databaseTimestampParameter = new NpgsqlParameter("sample_time", databaseTimestamp)
+        DateTime databaseTimestamp = new(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
+        NpgsqlParameter databaseTimestampParameter = new("sample_time", databaseTimestamp)
         {
             NpgsqlDbType = NpgsqlDbType.Timestamp
         };
@@ -257,7 +257,7 @@ public sealed class SearchTimestampPostgresTests
                 ({serialId}, {60}, {databaseTimestampParameter}, {1.0}, {2.0}, {3.0}, {4.0})
             """);
 
-        RVT.Entities.Monitor monitor = new RVT.Entities.Monitor
+        RVT.Entities.Monitor monitor = new()
         {
             Id = Guid.NewGuid(),
             SerialId = serialId,
@@ -268,14 +268,14 @@ public sealed class SearchTimestampPostgresTests
             TypeOfMonitor = MonitorTypeEnum.Dust,
             ListedAtTime = DateTime.UnixEpoch
         };
-        Contract contract = new Contract
+        Contract contract = new()
         {
             Id = Guid.NewGuid(),
             ContractNumber = "T5-UTC-CONTRACT",
             CompanyId = Guid.NewGuid(),
             OnHireDate = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc)
         };
-        Deployment deployment = new Deployment
+        Deployment deployment = new()
         {
             Id = Guid.NewGuid(),
             MonitorId = monitor.Id,
@@ -285,7 +285,7 @@ public sealed class SearchTimestampPostgresTests
             StartDate = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc)
         };
         await using RVTDbContext domainContext = CreateDomainContext(deployment);
-        MonitorService monitorService = new MonitorService(
+        MonitorService monitorService = new(
             null!,
             null!,
             null!,
@@ -294,8 +294,8 @@ public sealed class SearchTimestampPostgresTests
             null!,
             null!,
             null!);
-        PostgresDustDataSource dataSource = new PostgresDustDataSource(monitorService, monitor);
-        DataApplicationService application = new DataApplicationService(domainContext, dataSource);
+        PostgresDustDataSource dataSource = new(monitorService, monitor);
+        DataApplicationService application = new(domainContext, dataSource);
 
         DataWorkflowResult<MonitorDataGridResponse> result = await application.GetGridAsync(
             deployment.Id,
@@ -324,17 +324,17 @@ public sealed class SearchTimestampPostgresTests
         DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
             .UseNpgsql(connectionString)
             .Options;
-        await using RVTSearchContext searchContext = new RVTSearchContext(searchOptions);
+        await using RVTSearchContext searchContext = new(searchOptions);
         await using IDbContextTransaction transaction = await searchContext.Database.BeginTransactionAsync();
         Guid traceId = Guid.NewGuid();
         string serialId = $"T5{Guid.NewGuid():N}"[..22];
-        DateTime databaseStart = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
+        DateTime databaseStart = new(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
         DateTime databaseEnd = databaseStart.AddMinutes(1);
-        NpgsqlParameter databaseStartParameter = new NpgsqlParameter("start_time", databaseStart)
+        NpgsqlParameter databaseStartParameter = new("start_time", databaseStart)
         {
             NpgsqlDbType = NpgsqlDbType.Timestamp
         };
-        NpgsqlParameter databaseEndParameter = new NpgsqlParameter("end_time", databaseEnd)
+        NpgsqlParameter databaseEndParameter = new("end_time", databaseEnd)
         {
             NpgsqlDbType = NpgsqlDbType.Timestamp
         };
@@ -345,7 +345,7 @@ public sealed class SearchTimestampPostgresTests
                 ({traceId}, {serialId}, {databaseStartParameter}, {databaseEndParameter})
             """);
 
-        RVT.Entities.Monitor monitor = new RVT.Entities.Monitor
+        RVT.Entities.Monitor monitor = new()
         {
             Id = Guid.NewGuid(),
             SerialId = serialId,
@@ -356,14 +356,14 @@ public sealed class SearchTimestampPostgresTests
             TypeOfMonitor = MonitorTypeEnum.Vibration,
             ListedAtTime = DateTime.UnixEpoch
         };
-        Contract contract = new Contract
+        Contract contract = new()
         {
             Id = Guid.NewGuid(),
             ContractNumber = "T5-TRACE-UTC-CONTRACT",
             CompanyId = Guid.NewGuid(),
             OnHireDate = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc)
         };
-        Deployment deployment = new Deployment
+        Deployment deployment = new()
         {
             Id = Guid.NewGuid(),
             MonitorId = monitor.Id,
@@ -373,10 +373,10 @@ public sealed class SearchTimestampPostgresTests
             StartDate = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc)
         };
         await using RVTDbContext domainContext = CreateDomainContext(deployment);
-        MonitorDataSource realDataSource = new MonitorDataSource(null!, searchContext, null!);
-        PostgresTraceDataSource dataSource = new PostgresTraceDataSource(realDataSource, monitor);
-        DataApplicationService application = new DataApplicationService(domainContext, dataSource);
-        DataViewActor actor = new DataViewActor(null, IsAdmin: true, IsCompanyUser: false);
+        MonitorDataSource realDataSource = new(null!, searchContext, null!);
+        PostgresTraceDataSource dataSource = new(realDataSource, monitor);
+        DataApplicationService application = new(domainContext, dataSource);
+        DataViewActor actor = new(null, IsAdmin: true, IsCompanyUser: false);
 
         DataWorkflowResult<TraceListResponse> list = await application.GetTracesAsync(
             deployment.Id,
@@ -392,7 +392,7 @@ public sealed class SearchTimestampPostgresTests
             traceId,
             actor,
             CancellationToken.None);
-        JsonSerializerOptions jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web);
         string listJson = JsonSerializer.Serialize(list.Value, jsonOptions);
         string detailJson = JsonSerializer.Serialize(detail.Value, jsonOptions);
 
@@ -411,7 +411,7 @@ public sealed class SearchTimestampPostgresTests
         DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
             .UseInMemoryDatabase($"timestamp-contract-{Guid.NewGuid():N}")
             .Options;
-        RVTDbContext context = new RVTDbContext(options);
+        RVTDbContext context = new(options);
         context.Deployments.Add(deployment);
         context.SaveChanges();
         return context;
@@ -439,7 +439,7 @@ public sealed class SearchTimestampPostgresTests
 
     private static string FindRepositoryRoot()
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Rvt.Mono.slnx")))
         {
             directory = directory.Parent;
@@ -483,17 +483,17 @@ public sealed class SearchTimestampPostgresTests
             };
         }
 
-        public Task<IReadOnlyList<RVT.DataAccess.EntityModels.Models.OmnidotsTracesIndex>> GetTraceIndexesAsync(
+        public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
             string serialId,
             DateTime fromDate,
             DateTime toDate)
         {
-            return Task.FromResult<IReadOnlyList<RVT.DataAccess.EntityModels.Models.OmnidotsTracesIndex>>([]);
+            return Task.FromResult<IReadOnlyList<OmnidotsTracesIndex>>([]);
         }
 
-        public Task<RVT.DataAccess.EntityModels.Models.OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
+        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
         {
-            return Task.FromResult<RVT.DataAccess.EntityModels.Models.OmnidotsTracesIndex?>(null);
+            return Task.FromResult<OmnidotsTracesIndex?>(null);
         }
     }
 

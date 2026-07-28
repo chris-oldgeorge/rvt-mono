@@ -108,7 +108,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
     [TestMethod]
     public void SourceAnalyzer_ResolvesGlobalAliasesAcrossSourceFiles()
     {
-        Dictionary<string, string> sources = new Dictionary<string, string>(StringComparer.Ordinal)
+        Dictionary<string, string> sources = new(StringComparer.Ordinal)
         {
             ["GlobalUsings.cs"] = "global using IO = System.IO;",
             ["Consumer.cs"] =
@@ -157,7 +157,7 @@ internal static class ProjectDependencyReader
         XDocument project,
         string itemName)
     {
-        HashSet<string> activeIdentities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> activeIdentities = new(StringComparer.OrdinalIgnoreCase);
         foreach (XElement? element in project
                      .Descendants()
                      .Where(element => element.Name.LocalName == itemName))
@@ -168,9 +168,7 @@ internal static class ProjectDependencyReader
                 activeIdentities.Remove(identity));
         }
 
-        return activeIdentities
-            .OrderBy(identity => identity, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        return [.. activeIdentities.OrderBy(identity => identity, StringComparer.OrdinalIgnoreCase)];
     }
 
     private static void Apply(string? value, Func<string, bool> operation)
@@ -198,12 +196,11 @@ internal sealed class CSharpDependencyAnalysis(
             MatchesDependency(dependency, dependencyName));
 
     public IReadOnlyCollection<string> GetSourceFilesUsing(string dependencyName) =>
-        sourceFilesByDependency
+        [.. sourceFilesByDependency
             .Where(item => MatchesDependency(item.Key, dependencyName))
             .SelectMany(item => item.Value)
             .Distinct(StringComparer.Ordinal)
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
+            .OrderBy(path => path, StringComparer.Ordinal)];
 
     private static bool MatchesDependency(
         string dependency,
@@ -258,15 +255,14 @@ internal static class CSharpDependencyAnalyzer
                 source => source.Key,
                 source => Sanitize(source.Value),
                 StringComparer.Ordinal);
-        AliasDefinition[] aliases = sanitizedSources
+        AliasDefinition[] aliases = [.. sanitizedSources
             .SelectMany(source => AliasUsingPattern
                 .Matches(source.Value)
                 .Select(match => new AliasDefinition(
                     match.Groups["alias"].Value,
                     NormalizeName(match.Groups["target"].Value),
                     match.Groups["global"].Success,
-                    source.Key)))
-            .ToArray();
+                    source.Key)))];
         Dictionary<string, string> globalAliases = aliases
             .Where(alias => alias.IsGlobal)
             .ToDictionary(
@@ -278,12 +274,12 @@ internal static class CSharpDependencyAnalyzer
                 .Matches(source)
                 .Select(match => match.Groups["name"].Value))
             .ToHashSet(StringComparer.Ordinal);
-        Dictionary<string, HashSet<string>> filesByDependency = new Dictionary<string, HashSet<string>>(
+        Dictionary<string, HashSet<string>> filesByDependency = new(
             StringComparer.Ordinal);
 
         foreach (KeyValuePair<string, string> source in sanitizedSources)
         {
-            Dictionary<string, string> sourceAliases = new Dictionary<string, string>(
+            Dictionary<string, string> sourceAliases = new(
                 globalAliases,
                 StringComparer.Ordinal);
             foreach (AliasDefinition? alias in aliases.Where(alias =>
@@ -337,7 +333,7 @@ internal static class CSharpDependencyAnalyzer
         return new CSharpDependencyAnalysis(
             filesByDependency.ToDictionary(
                 item => item.Key,
-                item => (IReadOnlyCollection<string>)item.Value.ToArray(),
+                item => (IReadOnlyCollection<string>)[.. item.Value],
                 StringComparer.Ordinal));
     }
 
@@ -549,7 +545,7 @@ internal static class CSharpDependencyAnalyzer
     {
         if (quoteCount >= 3)
         {
-            string terminator = new string('"', quoteCount);
+            string terminator = new('"', quoteCount);
             int closing = source.IndexOf(
                 terminator,
                 quoteIndex + quoteCount,

@@ -9,9 +9,7 @@ using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
-using RVT.BusinessLogic;
 using RVT.BusinessLogic.Notifications;
 using RVT.BusinessLogic.Ports.Notifications;
 using RvtPortal.Spa.Api;
@@ -363,7 +361,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         }
         if (result.Errors.Count > 0)
         {
-            UserDeleteWorkflowResult workflowResult = new UserDeleteWorkflowResult { Email = result.Email };
+            UserDeleteWorkflowResult workflowResult = new() { Email = result.Email };
             CopyErrors(result.Errors, workflowResult.Errors);
             return workflowResult;
         }
@@ -429,7 +427,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         string? currentRole,
         CancellationToken cancellationToken)
     {
-        Dictionary<string, string[]> errors = new Dictionary<string, string[]>();
+        Dictionary<string, string[]> errors = new();
         AddRequired(errors, nameof(UserMutationRequest.Email), request.Email, "Email is required.");
         AddRequired(errors, nameof(UserMutationRequest.Role), request.Role, "Role is required.");
 
@@ -513,7 +511,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
             };
         }
 
-        SiteAssignmentWorkflowResult workflowResult = new SiteAssignmentWorkflowResult
+        SiteAssignmentWorkflowResult workflowResult = new()
         {
             Assignment = await userReads.GetSiteAssignmentsAsync(siteId, actor, cancellationToken)
         };
@@ -581,7 +579,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         IReadOnlyDictionary<string, string[]> errors,
         string? userId = null)
     {
-        UserAccountWorkflowResult result = new UserAccountWorkflowResult { UserId = userId };
+        UserAccountWorkflowResult result = new() { UserId = userId };
         CopyErrors(errors, result.Errors);
         return result;
     }

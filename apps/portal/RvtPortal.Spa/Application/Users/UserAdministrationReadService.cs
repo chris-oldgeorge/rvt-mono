@@ -164,8 +164,8 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
             SiteName = site.SiteName,
             CompanyId = companyId == Guid.Empty ? null : companyId,
             CompanyName = companyId.HasValue && companies.TryGetValue(companyId.Value, out string? companyName) ? companyName : null,
-            AvailableUsers = candidateItems.Where(user => !assignedUserIds.Contains(user.Id)).ToList(),
-            AssignedUsers = candidateItems
+            AvailableUsers = [.. candidateItems.Where(user => !assignedUserIds.Contains(user.Id))],
+            AssignedUsers = [.. candidateItems
                 .Where(user => assignedUserIds.Contains(user.Id))
                 .Select(user =>
                 {
@@ -193,8 +193,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
                         CanManageNotificationSettings = user.CanManageNotificationSettings,
                         SiteContact = assignment.SiteContact
                     };
-                })
-                .ToList()
+                })]
         };
     }
 
@@ -208,7 +207,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         Dictionary<string, string> roleByUser = await LoadRolesAsync(users.Select(user => user.Id), cancellationToken);
         Dictionary<Guid, int> siteCounts = await LoadSiteCountsAsync(users.Select(user => user.Id), cancellationToken);
 
-        return users.Select(user => BuildUserModel(user, roleByUser, companies, siteCounts, actor)).ToList();
+        return [.. users.Select(user => BuildUserModel(user, roleByUser, companies, siteCounts, actor))];
     }
 
     // Function summary: Converts one Identity user into the shared admin user model.
@@ -254,11 +253,10 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
             .AsNoTracking()
             .Select(role => role.Name)
             .ToListAsync(cancellationToken);
-        return RoleOrder
+        return [.. RoleOrder
             .Where(role => configuredRoles.Contains(role))
             .Where(role => CanAssignRole(role, actor))
-            .Select(role => new UserOptionModel { Value = role, Label = role })
-            .ToList();
+            .Select(role => new UserOptionModel { Value = role, Label = role })];
     }
 
     // Function summary: Builds company options for user edit forms.
@@ -284,7 +282,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         IEnumerable<string> userIds,
         CancellationToken cancellationToken)
     {
-        List<string> ids = userIds.ToList();
+        List<string> ids = [.. userIds];
         if (ids.Count == 0)
         {
             return [];
@@ -307,11 +305,10 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         IEnumerable<string> userIds,
         CancellationToken cancellationToken)
     {
-        List<Guid> parsedIds = userIds
+        List<Guid> parsedIds = [.. userIds
             .Select(id => Guid.TryParse(id, out Guid parsedId) ? parsedId : (Guid?)null)
             .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToList();
+            .Select(id => id!.Value)];
         return parsedIds.Count == 0
             ? []
             : await domainContext.SiteUsers

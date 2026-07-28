@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
-using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
 
@@ -146,7 +145,7 @@ public class ApiContractStabilityTests
     // Function summary: Verifies monitor list response JSON remains compatible with the handed-over React client.
     public void QueryMonitorsResponse_JsonShape_RemainsStable()
     {
-        QueryMonitorsResponse response = new QueryMonitorsResponse
+        QueryMonitorsResponse response = new()
         {
             Results =
             [
@@ -180,7 +179,7 @@ public class ApiContractStabilityTests
     // Function summary: Verifies site detail response JSON remains compatible with the handed-over React client.
     public void SiteDetailResponse_JsonShape_RemainsStable()
     {
-        EntityResponse<SiteDetailResponse> response = new EntityResponse<SiteDetailResponse>
+        EntityResponse<SiteDetailResponse> response = new()
         {
             Item = new SiteDetailResponse
             {
@@ -204,7 +203,7 @@ public class ApiContractStabilityTests
     // Function summary: Verifies report rule response JSON remains compatible with the handed-over React client.
     public void ReportRuleResponse_JsonShape_RemainsStable()
     {
-        EntityResponse<ReportRuleDetailResponse> response = new EntityResponse<ReportRuleDetailResponse>
+        EntityResponse<ReportRuleDetailResponse> response = new()
         {
             Item = new ReportRuleDetailResponse
             {
@@ -264,11 +263,10 @@ public class ApiContractStabilityTests
         {
             Type controllerType = typeof(TController);
             string controllerTemplate = controllerType.GetCustomAttribute<RouteAttribute>()?.Template ?? "";
-            return controllerType
+            return [.. controllerType
                 .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
                 .SelectMany(method => method.GetCustomAttributes<HttpMethodAttribute>(), (method, attribute) => new { method, attribute })
-                .SelectMany(item => item.attribute.HttpMethods.Select(httpMethod => new ApiRoute(httpMethod.ToUpperInvariant(), Combine(controllerTemplate, item.attribute.Template))))
-                .ToList();
+                .SelectMany(item => item.attribute.HttpMethods.Select(httpMethod => new ApiRoute(httpMethod.ToUpperInvariant(), Combine(controllerTemplate, item.attribute.Template))))];
         }
 
         private static string Combine(string controllerTemplate, string? actionTemplate)

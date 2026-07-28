@@ -5,7 +5,6 @@
 // - 2026-06-24 pending Wired manual report generation requests to the containerized reporting service.
 // - 2026-06-24 pending Added deferred report-generation request handling ahead of report-service integration.
 
-using System.Net.Http.Json;
 using Microsoft.Extensions.Options;
 using RvtPortal.Spa.Api;
 
@@ -78,7 +77,7 @@ public sealed class ReportingServiceReportGenerationClient : IReportGenerationCl
         DateTimeOffset triggerUtc = request.ReportDate.HasValue
             ? new DateTimeOffset(DateTime.SpecifyKind(request.ReportDate.Value, DateTimeKind.Utc))
             : timeProvider.GetUtcNow();
-        using HttpRequestMessage httpRequest = new HttpRequestMessage(
+        using HttpRequestMessage httpRequest = new(
             HttpMethod.Post,
             new Uri(baseUri, $"/internal/reports/rules/{reportRuleId}/generate"))
         {

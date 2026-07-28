@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -18,7 +17,7 @@ public sealed class SiteReadAdapterTests
     [Fact]
     public async Task GetArchiveStateAsync_ReturnsMaterializedArchiveState()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         Guid siteId = Guid.NewGuid();
         const string archiveUrl = "https://archive.example/canonical.zip";
         await factory.SeedDomainEntitiesAsync(
@@ -51,7 +50,7 @@ public sealed class SiteReadAdapterTests
     [Fact]
     public async Task GetArchiveStateAsync_ReturnsNullCanonicalUrlWhenMetadataIsAbsent()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         Guid siteId = Guid.NewGuid();
         await factory.SeedDomainEntitiesAsync(new Site
         {
@@ -74,7 +73,7 @@ public sealed class SiteReadAdapterTests
     [Fact]
     public async Task AssignedScope_UsesActiveWindowForExistenceAndPagedQuery()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         Guid companyId = Guid.NewGuid();
         Guid activeSiteId = Guid.NewGuid();
         Guid expiredSiteId = Guid.NewGuid();
@@ -142,7 +141,7 @@ public sealed class SiteReadAdapterTests
             .GetUtcNow()
             .UtcDateTime;
         SiteAccessScope assignedScope = SiteAccessScope.Assigned(userId, nowUtc);
-        SiteQuery query = new SiteQuery(
+        SiteQuery query = new(
             null,
             true,
             new PageRequest(

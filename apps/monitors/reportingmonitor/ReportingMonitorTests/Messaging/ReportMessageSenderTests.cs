@@ -21,12 +21,11 @@ public sealed class ReportMessageSenderTests
             "Rvt.Reporting.Messaging",
             "Rvt.Reporting.Messaging.csproj");
         XDocument project = System.Xml.Linq.XDocument.Load(projectPath);
-        string[] references = project.Descendants()
+        string[] references = [.. project.Descendants()
             .Where(element => element.Name.LocalName is "ProjectReference" or "PackageReference")
             .Select(element => (string?)element.Attribute("Include"))
             .Where(reference => reference is not null)
-            .Select(reference => reference!.Replace('\\', '/'))
-            .ToArray();
+            .Select(reference => reference!.Replace('\\', '/'))];
 
         Assert.Contains(references, reference =>
             reference.EndsWith(
@@ -41,7 +40,7 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public async Task SendAsync_MapsReportAndExistingMessageContentToEmailPort()
     {
-        RecordingEmailPort port = new RecordingEmailPort();
+        RecordingEmailPort port = new();
         ReportMessageSender sender = CreateSender(port);
         RenderedReport report = Report();
 
@@ -62,7 +61,7 @@ public sealed class ReportMessageSenderTests
         Assert.Equal(report.FileName, attachment.FileName);
         Assert.Equal(report.ContentType, attachment.ContentType);
         await using Stream stream = attachment.OpenRead();
-        using MemoryStream buffer = new MemoryStream();
+        using MemoryStream buffer = new();
         await stream.CopyToAsync(buffer, CancellationToken.None);
         Assert.Equal(report.Content, buffer.ToArray());
     }
@@ -70,7 +69,7 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public async Task SendAsync_DisabledReturnsSuccessWithoutCallingPort()
     {
-        RecordingEmailPort port = new RecordingEmailPort();
+        RecordingEmailPort port = new();
         ReportMessageSender sender = CreateSender(port, new ReportMessageSenderOptions { EmailEnabled = false });
 
         ReportSendResult result = await sender.SendAsync("recipient@example.test", "AB1", Report(), default);
@@ -83,7 +82,7 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public async Task SendAsync_TestModeUsesConfiguredOverrideRecipient()
     {
-        RecordingEmailPort port = new RecordingEmailPort();
+        RecordingEmailPort port = new();
         ReportMessageSender sender = CreateSender(port, new ReportMessageSenderOptions
         {
             EmailEnabled = true,
@@ -126,7 +125,7 @@ public sealed class ReportMessageSenderTests
     [Fact]
     public async Task SendAsync_RequestedCancellationPropagates()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
         ReportMessageSender sender = CreateSender(new ThrowingEmailPort(new OperationCanceledException(cancellation.Token)));
 
@@ -144,7 +143,7 @@ public sealed class ReportMessageSenderTests
 
     private static string FindRepositoryRoot()
     {
-        for (DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        for (DirectoryInfo? directory = new(AppContext.BaseDirectory);
              directory is not null;
              directory = directory.Parent)
         {

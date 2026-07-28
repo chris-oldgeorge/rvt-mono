@@ -19,7 +19,7 @@ public sealed class SvantekDependencyBoundaryTests
             "SvantekApi*.cs",
             SearchOption.TopDirectoryOnly);
 
-        List<string> directCalls = apiFiles
+        List<string> directCalls = [.. apiFiles
             .SelectMany(path => File.ReadLines(path)
                 .Select((line, index) => new
                 {
@@ -28,8 +28,7 @@ public sealed class SvantekDependencyBoundaryTests
                     Text = line
                 }))
             .Where(row => row.Text.Contains("dbClient.", StringComparison.Ordinal))
-            .Select(row => $"{row.Path}:{row.Line}: {row.Text.Trim()}")
-            .ToList();
+            .Select(row => $"{row.Path}:{row.Line}: {row.Text.Trim()}")];
 
         CollectionAssert.AreEqual(Array.Empty<string>(), directCalls);
     }

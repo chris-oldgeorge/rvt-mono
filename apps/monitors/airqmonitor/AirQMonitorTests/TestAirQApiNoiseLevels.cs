@@ -10,7 +10,6 @@ using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Rules;
 namespace AirQMonitorTests
 {
     [TestClass]
@@ -38,7 +37,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
-                Returns(new List<RvtAlertRuleDto>());
+                Returns([]);
 
             await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
@@ -149,9 +148,9 @@ namespace AirQMonitorTests
         [TestMethod]
         public async Task GetSamplesForDate_EncodesEveryDynamicQueryParameter()
         {
-            Mock<IHttpClient> httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
+            Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
             httpClient.Setup(client => client.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("[]");
-            AirQHttpGateway gateway = new AirQHttpGateway(httpClient.Object);
+            AirQHttpGateway gateway = new(httpClient.Object);
 
             await gateway.GetSamplesForDateAsync(
                 "vendor user&admin=true",

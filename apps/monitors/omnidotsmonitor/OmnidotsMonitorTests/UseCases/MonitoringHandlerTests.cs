@@ -19,8 +19,8 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_PreviousDateDataWithLaterClockTime_SendsWarning()
     {
-        DateTimeOffset utcNow = new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
-        DateTime previousDateWithLaterClockTime = new DateTime(2026, 7, 13, 17, 0, 0, DateTimeKind.Utc);
+        DateTimeOffset utcNow = new(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
+        DateTime previousDateWithLaterClockTime = new(2026, 7, 13, 17, 0, 0, DateTimeKind.Utc);
         (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(
             utcNow,
             OmnidotsFixture.MonitorsList(1, previousDateWithLaterClockTime));
@@ -45,8 +45,8 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_FreshDataAcrossUtcMidnight_DoesNotSendWarning()
     {
-        DateTimeOffset utcNow = new DateTimeOffset(2026, 7, 14, 0, 30, 0, TimeSpan.Zero);
-        DateTime freshPreviousDateData = new DateTime(2026, 7, 13, 23, 45, 0, DateTimeKind.Utc);
+        DateTimeOffset utcNow = new(2026, 7, 14, 0, 30, 0, TimeSpan.Zero);
+        DateTime freshPreviousDateData = new(2026, 7, 13, 23, 45, 0, DateTimeKind.Utc);
         OmnidotsMonitoringOptions options = ValidOptions(
             windowStart: TimeSpan.Zero,
             windowEnd: TimeSpan.FromHours(3));
@@ -65,7 +65,7 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_FreshUnspecifiedDatabaseTimestamp_TreatsValueAsUtc()
     {
-        DateTimeOffset clockNow = new DateTimeOffset(2026, 7, 14, 12, 30, 0, TimeSpan.FromHours(3));
+        DateTimeOffset clockNow = new(2026, 7, 14, 12, 30, 0, TimeSpan.FromHours(3));
         DateTime freshDatabaseTimestamp = DateTime.SpecifyKind(
             clockNow.UtcDateTime - TimeSpan.FromMinutes(30),
             DateTimeKind.Unspecified);
@@ -83,7 +83,7 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_StaleUnspecifiedDatabaseTimestamp_TreatsValueAsUtc()
     {
-        DateTimeOffset clockNow = new DateTimeOffset(2026, 7, 14, 12, 30, 0, TimeSpan.FromHours(3));
+        DateTimeOffset clockNow = new(2026, 7, 14, 12, 30, 0, TimeSpan.FromHours(3));
         DateTime staleDatabaseTimestamp = DateTime.SpecifyKind(
             clockNow.UtcDateTime - TimeSpan.FromHours(2),
             DateTimeKind.Unspecified);
@@ -111,7 +111,7 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_NullNewestTimestamp_SendsWarning()
     {
-        DateTimeOffset utcNow = new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
+        DateTimeOffset utcNow = new(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
         (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(
             utcNow,
             OmnidotsFixture.MonitorsList(1, lastDataTime: null));
@@ -136,10 +136,10 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_OutsideConfiguredWindow_DoesNotReadFleetOrSendWarning()
     {
-        DateTimeOffset utcNow = new DateTimeOffset(2026, 7, 14, 7, 0, 0, TimeSpan.Zero); // 08:00 BST
-        Mock<IOmnidotsMonitorQueries> monitorQueries = new Mock<IOmnidotsMonitorQueries>(MockBehavior.Strict);
-        Mock<IOmnidotsMonitoringNotifier> notifier = new Mock<IOmnidotsMonitoringNotifier>(MockBehavior.Strict);
-        MonitoringHandler handler = new MonitoringHandler(
+        DateTimeOffset utcNow = new(2026, 7, 14, 7, 0, 0, TimeSpan.Zero); // 08:00 BST
+        Mock<IOmnidotsMonitorQueries> monitorQueries = new(MockBehavior.Strict);
+        Mock<IOmnidotsMonitoringNotifier> notifier = new(MockBehavior.Strict);
+        MonitoringHandler handler = new(
             new OmnidotsMonitorReader(monitorQueries.Object, testLocal: false),
             ValidOptions(),
             notifier.Object,
@@ -182,7 +182,7 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_EmptyFleet_DoesNotSendWarning()
     {
-        DateTimeOffset utcNow = new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
+        DateTimeOffset utcNow = new(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
         (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(utcNow, []);
 
         await handler.RunAsync();
@@ -195,14 +195,14 @@ public sealed class MonitoringHandlerTests
     [TestMethod]
     public async Task RunAsync_RequestedCancellationStopsBeforeReadingFleet()
     {
-        Mock<IOmnidotsMonitorQueries> monitorQueries = new Mock<IOmnidotsMonitorQueries>(MockBehavior.Strict);
-        Mock<IOmnidotsMonitoringNotifier> notifier = new Mock<IOmnidotsMonitoringNotifier>(MockBehavior.Strict);
-        MonitoringHandler handler = new MonitoringHandler(
+        Mock<IOmnidotsMonitorQueries> monitorQueries = new(MockBehavior.Strict);
+        Mock<IOmnidotsMonitoringNotifier> notifier = new(MockBehavior.Strict);
+        MonitoringHandler handler = new(
             new OmnidotsMonitorReader(monitorQueries.Object, testLocal: false),
             ValidOptions(),
             notifier.Object,
             new FixedTimeProvider(new DateTimeOffset(2026, 7, 14, 9, 30, 0, TimeSpan.Zero)));
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
@@ -227,7 +227,7 @@ public sealed class MonitoringHandlerTests
                 [$"{OmnidotsMonitoringOptions.SectionName}:StaleAfter"] = "01:00:00"
             })
             .Build();
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
         services.AddOmnidotsMonitor(configuration);
@@ -267,7 +267,7 @@ public sealed class MonitoringHandlerTests
                 [$"{OmnidotsMonitoringOptions.SectionName}:StaleAfter"] = "01:00:00"
             })
             .Build();
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
         services.AddOmnidotsMonitor(configuration);
@@ -292,7 +292,7 @@ public sealed class MonitoringHandlerTests
                 [$"{OmnidotsMonitoringOptions.SectionName}:StaleAfter"] = "01:00:00"
             })
             .Build();
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
         services.AddOmnidotsMonitor(configuration);
@@ -339,12 +339,12 @@ public sealed class MonitoringHandlerTests
             List<VibrationMonitorDto> monitors,
             OmnidotsMonitoringOptions? options = null)
     {
-        Mock<IOmnidotsMonitorQueries> monitorQueries = new Mock<IOmnidotsMonitorQueries>(MockBehavior.Strict);
+        Mock<IOmnidotsMonitorQueries> monitorQueries = new(MockBehavior.Strict);
         monitorQueries
             .Setup(x => x.ReadMonitorList(null))
             .Returns(monitors);
-        Mock<IOmnidotsMonitoringNotifier> notifier = new Mock<IOmnidotsMonitoringNotifier>(MockBehavior.Strict);
-        MonitoringHandler handler = new MonitoringHandler(
+        Mock<IOmnidotsMonitoringNotifier> notifier = new(MockBehavior.Strict);
+        MonitoringHandler handler = new(
             new OmnidotsMonitorReader(monitorQueries.Object, testLocal: false),
             options ?? ValidOptions(),
             notifier.Object,

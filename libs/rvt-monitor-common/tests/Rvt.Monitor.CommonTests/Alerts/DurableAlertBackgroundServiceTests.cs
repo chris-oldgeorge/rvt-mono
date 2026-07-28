@@ -74,7 +74,7 @@ public sealed class DurableAlertBackgroundServiceTests
     public async Task RunIterationAsync_WhenDispatchFails_LogsSafeFailureAndRunsCleanupAndLaterIterations()
     {
         const string rawFailure = "provider leaked ops@example.test and secret-token";
-        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>();
+        Mock<IAlertOutboxStore> store = new();
         store.SetupSequence(x => x.ClaimNextDueAsync(
                 It.IsAny<DateTime>(),
                 It.IsAny<TimeSpan>(),
@@ -83,7 +83,7 @@ public sealed class DurableAlertBackgroundServiceTests
             .ReturnsAsync((ClaimedAlertDelivery?)null);
         store.Setup(x => x.DeleteCompletedBeforeAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
-        TestLogger<DurableAlertBackgroundService> logger = new TestLogger<DurableAlertBackgroundService>();
+        TestLogger<DurableAlertBackgroundService> logger = new();
         DurableAlertBackgroundService worker = CreateWorker(
             store.Object,
             MonitorExecutionMode.Api,
@@ -117,7 +117,7 @@ public sealed class DurableAlertBackgroundServiceTests
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException(rawFailure))
             .ReturnsAsync(0);
-        TestLogger<DurableAlertBackgroundService> logger = new TestLogger<DurableAlertBackgroundService>();
+        TestLogger<DurableAlertBackgroundService> logger = new();
         DurableAlertBackgroundService worker = CreateWorker(
             store.Object,
             MonitorExecutionMode.Api,
@@ -163,18 +163,18 @@ public sealed class DurableAlertBackgroundServiceTests
         bool apiEnabled = true,
         ILogger<DurableAlertBackgroundService>? logger = null)
     {
-        DurableAlertOptions options = new DurableAlertOptions();
-        Mock<TimeProvider> timeProvider = new Mock<TimeProvider>();
+        DurableAlertOptions options = new();
+        Mock<TimeProvider> timeProvider = new();
         timeProvider.Setup(x => x.GetUtcNow()).Returns(new DateTimeOffset(UtcNow));
-        Mock<IAlertDeliveryAdapter> adapter = new Mock<IAlertDeliveryAdapter>();
+        Mock<IAlertDeliveryAdapter> adapter = new();
         adapter.SetupGet(x => x.Kind).Returns("MqttAlert");
-        DurableAlertDispatcher dispatcher = new DurableAlertDispatcher(
+        DurableAlertDispatcher dispatcher = new(
             store,
             [adapter.Object],
             Options.Create(options),
             timeProvider.Object,
             new TestLogger<DurableAlertDispatcher>());
-        DurableAlertCleanupService cleanup = new DurableAlertCleanupService(store, Options.Create(options), timeProvider.Object);
+        DurableAlertCleanupService cleanup = new(store, Options.Create(options), timeProvider.Object);
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -195,7 +195,7 @@ public sealed class DurableAlertBackgroundServiceTests
 
     private static Mock<IAlertOutboxStore> EmptyStore()
     {
-        Mock<IAlertOutboxStore> store = new Mock<IAlertOutboxStore>();
+        Mock<IAlertOutboxStore> store = new();
         store.Setup(x => x.ClaimNextDueAsync(
                 It.IsAny<DateTime>(),
                 It.IsAny<TimeSpan>(),

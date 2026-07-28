@@ -111,7 +111,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
         return ApplicationResult<PagedResult<ReportRuleListModel>>.Success(new PagedResult<ReportRuleListModel>
         {
-            Results = rows.Select(BuildRuleItem).ToList(),
+            Results = [.. rows.Select(BuildRuleItem)],
             Total = total,
             Page = request.Page.Page,
             PageSize = request.Page.PageSize,
@@ -141,10 +141,10 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         List<ApplicationError> validationErrors = await ValidateRuleRequestAsync(request, cancellationToken);
         if (validationErrors.Count > 0)
         {
-            return ApplicationResult<ReportRuleDetailModel>.Validation(validationErrors.ToArray());
+            return ApplicationResult<ReportRuleDetailModel>.Validation([.. validationErrors]);
         }
 
-        ReportRule rule = new ReportRule
+        ReportRule rule = new()
         {
             SiteId = request.SiteId,
             UserId = user.UserId ?? Guid.Empty,
@@ -171,7 +171,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         List<ApplicationError> validationErrors = await ValidateRuleRequestAsync(request, cancellationToken);
         if (validationErrors.Count > 0)
         {
-            return ApplicationResult<ReportRuleDetailModel>.Validation(validationErrors.ToArray());
+            return ApplicationResult<ReportRuleDetailModel>.Validation([.. validationErrors]);
         }
 
         rule.SiteId = request.SiteId;
@@ -223,16 +223,15 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         if (!string.IsNullOrWhiteSpace(page.SearchText))
         {
             string search = page.SearchText.Trim();
-            users = users
+            users = [.. users
                 .Where(user =>
                     Contains(user.Email, search) ||
                     Contains(user.Name, search) ||
                     Contains(user.Role, search) ||
-                    Contains(user.CompanyName, search))
-                .ToList();
+                    Contains(user.CompanyName, search))];
         }
 
-        List<ReportUserListModel> sortedUsers = ApplyUserSort(users, page.Sort, page.SortDir).ToList();
+        List<ReportUserListModel> sortedUsers = [.. ApplyUserSort(users, page.Sort, page.SortDir)];
         int total = sortedUsers.Count;
         return ApplicationResult<ReportUserQueryResult>.Success(new ReportUserQueryResult
         {
@@ -244,7 +243,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             AssignedUserCount = assignments.AssignedUsers.Count,
             Page = new PagedResult<ReportUserListModel>
             {
-                Results = sortedUsers.Skip((page.Page - 1) * page.PageSize).Take(page.PageSize).ToList(),
+                Results = [.. sortedUsers.Skip((page.Page - 1) * page.PageSize).Take(page.PageSize)],
                 Total = total,
                 Page = page.Page,
                 PageSize = page.PageSize,
@@ -266,7 +265,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         List<ApplicationError> errors = await ValidateReportUserAsync(rule, userId, cancellationToken);
         if (errors.Count > 0)
         {
-            return ApplicationResult<ReportUserAssignmentModel>.Validation(errors.ToArray());
+            return ApplicationResult<ReportUserAssignmentModel>.Validation([.. errors]);
         }
 
         bool exists = await searchContext.ReportUsers.AnyAsync(item => item.ReportRuleId == id && item.UserId == userId, cancellationToken);
@@ -339,7 +338,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
                 .Where(site => site.SiteName.ToLower().Contains(search))
                 .Select(site => site.Id)
                 .ToListAsync(cancellationToken);
-            ReportFrequencyType[] frequencyMatches = MatchingFrequencies(search).ToArray();
+            ReportFrequencyType[] frequencyMatches = [.. MatchingFrequencies(search)];
             query = query.Where(rule =>
                 (rule.ReportName != null && rule.ReportName.ToLower().Contains(search)) ||
                 matchingSiteIds.Contains(rule.SiteId) ||
@@ -355,7 +354,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
         return new PagedResult<ReportRuleListModel>
         {
-            Results = pageRows.Select(rule => BuildRuleItem(rule, siteNames)).ToList(),
+            Results = [.. pageRows.Select(rule => BuildRuleItem(rule, siteNames))],
             Total = total,
             Page = request.Page.Page,
             PageSize = request.Page.PageSize,
@@ -417,12 +416,8 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         return new ReportRuleOptionsModel
         {
             Sites = sites,
-            Frequencies = SupportedFrequencies
-                .Select(frequency => new ReportRuleOptionModel(((int)frequency).ToString(CultureInfo.InvariantCulture), FrequencyLabel(frequency)))
-                .ToList(),
-            DaysOfWeek = SupportedDays
-                .Select(day => new ReportRuleOptionModel(((int)day).ToString(CultureInfo.InvariantCulture), day.ToString()))
-                .ToList(),
+            Frequencies = [.. SupportedFrequencies.Select(frequency => new ReportRuleOptionModel(((int)frequency).ToString(CultureInfo.InvariantCulture), FrequencyLabel(frequency)))],
+            DaysOfWeek = [.. SupportedDays.Select(day => new ReportRuleOptionModel(((int)day).ToString(CultureInfo.InvariantCulture), day.ToString()))],
             AlertRuleGuidelines = await BuildAlertRuleGuidelinesAsync(cancellationToken)
         };
     }
@@ -448,7 +443,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Validates report-rule mutations before persistence.
     private async Task<List<ApplicationError>> ValidateRuleRequestAsync(ReportRuleMutation request, CancellationToken cancellationToken)
     {
-        List<ApplicationError> errors = new List<ApplicationError>();
+        List<ApplicationError> errors = new();
         if (!SupportedFrequencies.Contains(request.Frequency))
         {
             errors.Add(new ApplicationError(nameof(ReportRuleMutation.Frequency), "Frequency is not valid for scheduled report rules."));
@@ -519,7 +514,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             .AsNoTracking()
             .Where(item => item.ReportRuleId == reportRuleId)
             .ToListAsync(cancellationToken);
-        HashSet<Guid> assignedUserIds = assignments.Select(item => item.UserId).ToHashSet();
+        HashSet<Guid> assignedUserIds = [.. assignments.Select(item => item.UserId)];
         List<PortalUserProfile> candidates = await BuildReportCandidateUsersAsync(rule, assignedUserIds, cancellationToken);
         List<ReportUserListModel> candidateItems = await BuildUserItemsAsync(candidates, cancellationToken);
 
@@ -530,8 +525,8 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             SiteName = site.SiteName,
             CompanyId = company?.Id,
             CompanyName = company?.CompanyName,
-            AvailableUsers = candidateItems.Where(user => !assignedUserIds.Contains(Guid.Parse(user.Id))).ToList(),
-            AssignedUsers = candidateItems.Where(user => assignedUserIds.Contains(Guid.Parse(user.Id))).ToList()
+            AvailableUsers = [.. candidateItems.Where(user => !assignedUserIds.Contains(Guid.Parse(user.Id)))],
+            AssignedUsers = [.. candidateItems.Where(user => assignedUserIds.Contains(Guid.Parse(user.Id)))]
         };
     }
 
@@ -546,9 +541,9 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             .Where(siteUser => siteUser.SiteId == rule.SiteId && siteUser.EndDate == null)
             .Select(siteUser => siteUser.UserId)
             .ToListAsync(cancellationToken);
-        HashSet<Guid> visibleUserIds = activeSiteUserIds.Concat(assignedUserIds).ToHashSet();
+        HashSet<Guid> visibleUserIds = [.. activeSiteUserIds, .. assignedUserIds];
         IReadOnlyList<PortalUserProfile> users = await userDirectory.ListUsersAsync(cancellationToken);
-        List<PortalUserProfile> candidates = new List<PortalUserProfile>();
+        List<PortalUserProfile> candidates = new();
 
         foreach (PortalUserProfile user in users)
         {
@@ -560,9 +555,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             }
         }
 
-        return candidates
-            .OrderBy(user => user.Email)
-            .ToList();
+        return [.. candidates.OrderBy(user => user.Email)];
     }
 
     // Function summary: Builds user list rows with company names and active site counts.
@@ -570,18 +563,17 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         IReadOnlyList<PortalUserProfile> users,
         CancellationToken cancellationToken)
     {
-        List<Guid> companyIds = users
+        List<Guid> companyIds = [.. users
             .Where(user => user.CompanyId.HasValue)
             .Select(user => user.CompanyId!.Value)
-            .Distinct()
-            .ToList();
+            .Distinct()];
         Dictionary<Guid, string> companies = companyIds.Count == 0
             ? []
             : await domainContext.Companies
                 .AsNoTracking()
                 .Where(company => companyIds.Contains(company.Id))
                 .ToDictionaryAsync(company => company.Id, company => company.CompanyName, cancellationToken);
-        List<Guid> userIds = users.Select(user => user.UserId).ToList();
+        List<Guid> userIds = [.. users.Select(user => user.UserId)];
         Dictionary<Guid, int> siteCounts = userIds.Count == 0
             ? []
             : await domainContext.SiteUsers
@@ -591,7 +583,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
                 .Select(group => new { UserId = group.Key, Count = group.Count() })
                 .ToDictionaryAsync(item => item.UserId, item => item.Count, cancellationToken);
 
-        List<ReportUserListModel> items = new List<ReportUserListModel>();
+        List<ReportUserListModel> items = new();
         foreach (PortalUserProfile user in users)
         {
             string role = user.PrimaryRole;
@@ -626,7 +618,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         Guid userId,
         CancellationToken cancellationToken)
     {
-        List<ApplicationError> errors = new List<ApplicationError>();
+        List<ApplicationError> errors = new();
         PortalUserProfile? user = await userDirectory.FindByIdAsync(userId, cancellationToken);
         if (user == null)
         {
@@ -688,7 +680,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Builds site display names keyed by id.
     private async Task<Dictionary<Guid, string>> BuildSiteNamesAsync(IEnumerable<Guid> siteIds, CancellationToken cancellationToken)
     {
-        List<Guid> ids = siteIds.Distinct().ToList();
+        List<Guid> ids = [.. siteIds.Distinct()];
         if (ids.Count == 0)
         {
             return [];
@@ -707,7 +699,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     private static IQueryable<ReportRuleSearch> ApplySearch(IQueryable<ReportRuleSearch> rules, string searchText)
     {
         string search = searchText.Trim().ToLower();
-        ReportFrequencyType[] frequencyMatches = MatchingFrequencies(search).ToArray();
+        ReportFrequencyType[] frequencyMatches = [.. MatchingFrequencies(search)];
         return rules.Where(rule =>
             (rule.ReportName != null && rule.ReportName.ToLower().Contains(search)) ||
             rule.SiteName.ToLower().Contains(search) ||

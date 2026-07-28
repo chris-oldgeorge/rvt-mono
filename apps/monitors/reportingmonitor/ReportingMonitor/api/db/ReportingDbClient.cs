@@ -100,7 +100,7 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
         try
         {
             Guid reportRuleId = await ResolveReportRuleIdAsync(request, reloadOneTimeRule, cancellationToken).ConfigureAwait(false);
-            ReportEntity report = new ReportEntity
+            ReportEntity report = new()
             {
                 Id = Guid.NewGuid(),
                 SiteId = request.SiteId,
@@ -212,7 +212,7 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        MonitorWindow[] monitorWindows = ownershipRows
+        MonitorWindow[] monitorWindows = [.. ownershipRows
             .Select(row => new MonitorWindow(
                 row.Monitor,
                 EffectiveFrom(row.Monitor.StartDate, row.Contract?.OnHireDate, fromUtc),
@@ -220,16 +220,15 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
             .Where(item => item.EffectiveFrom < item.EffectiveTo)
             .OrderBy(item => item.Row.TypeOfMonitor)
             .ThenBy(item => item.Row.FleetNumber)
-            .ThenBy(item => item.Row.SerialId, StringComparer.Ordinal)
-            .ToArray();
+            .ThenBy(item => item.Row.SerialId, StringComparer.Ordinal)];
 
         if (monitorWindows.Length == 0)
         {
             return MapSite(site, []);
         }
 
-        string[] serialIds = monitorWindows.Select(static item => item.Row.SerialId).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        Guid[] monitorIds = monitorWindows.Select(static item => item.Row.Id).ToArray();
+        string[] serialIds = [.. monitorWindows.Select(static item => item.Row.SerialId).Distinct(StringComparer.OrdinalIgnoreCase)];
+        Guid[] monitorIds = [.. monitorWindows.Select(static item => item.Row.Id)];
         Telemetry telemetry = await ReadTelemetryAsync(serialIds, fromUtc, toUtc, cancellationToken).ConfigureAwait(false);
         List<ReportingNotificationRow> notifications = await context.ReportingNotificationRows
             .AsNoTracking()
@@ -246,7 +245,7 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        MonitorReportData[] monitors = monitorWindows.Select(window => MapMonitor(window, telemetry, notifications, alertRules)).ToArray();
+        MonitorReportData[] monitors = [.. monitorWindows.Select(window => MapMonitor(window, telemetry, notifications, alertRules))];
         return MapSite(site, monitors);
     }
 
@@ -259,13 +258,13 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
             return [];
         }
 
-        Guid[] ruleIds = rules.Select(static rule => rule.Id).ToArray();
+        Guid[] ruleIds = [.. rules.Select(static rule => rule.Id)];
         List<ReportRecipientRow> recipientRows = await context.ReportRecipientRows
             .AsNoTracking()
             .Where(row => ruleIds.Contains(row.ReportRuleId))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        string[] recipientUserIds = recipientRows.Select(static row => row.UserId.ToString()).Distinct(StringComparer.Ordinal).ToArray();
+        string[] recipientUserIds = [.. recipientRows.Select(static row => row.UserId.ToString()).Distinct(StringComparer.Ordinal)];
         var users = await context.Users
             .AsNoTracking()
             .Where(user => recipientUserIds.Contains(user.Id))
@@ -278,15 +277,13 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
             .GroupBy(static row => row.ReportRuleId)
             .ToDictionary(
                 static group => group.Key,
-                group => (IReadOnlyList<ReportRecipient>)group
+                group => (IReadOnlyList<ReportRecipient>)[.. group
                     .OrderBy(static row => row.UserId)
-                    .Select(row => new ReportRecipient(row.UserId, emailByUserId[row.UserId.ToString()]))
-                    .ToArray());
+                    .Select(row => new ReportRecipient(row.UserId, emailByUserId[row.UserId.ToString()]))]);
 
-        return rules.Select(rule => ReportingDbMapper.ToReportRule(
+        return [.. rules.Select(rule => ReportingDbMapper.ToReportRule(
                 rule,
-                recipientsByRule.TryGetValue(rule.Id, out IReadOnlyList<ReportRecipient>? recipients) ? recipients : []))
-            .ToArray();
+                recipientsByRule.TryGetValue(rule.Id, out IReadOnlyList<ReportRecipient>? recipients) ? recipients : []))];
     }
 
     private async Task<Guid> ResolveReportRuleIdAsync(
@@ -400,7 +397,7 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
         IReadOnlyList<ReportingNotificationRow> notificationRows,
         IReadOnlyList<ReportingAlertRuleRow> alertRuleRows)
     {
-        NotificationData[] notifications = notificationRows
+        NotificationData[] notifications = [.. notificationRows
             .Where(row => row.MonitorId == monitor.Row.Id && IsWithinWindow(monitor, row.NotificationTime))
             .OrderBy(row => row.NotificationTime)
             .Select(row => new NotificationData(
@@ -412,10 +409,9 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
                 row.AveragingPeriod,
                 row.ClosedTime,
                 EmptyToNull(row.ClosedByNote),
-                null))
-            .ToArray();
-        MonitorReportData prototype = new MonitorReportData { TypeOfMonitor = (MonitorType)monitor.Row.TypeOfMonitor };
-        AlertRuleData[] alertRules = alertRuleRows
+                null))];
+        MonitorReportData prototype = new() { TypeOfMonitor = (MonitorType)monitor.Row.TypeOfMonitor };
+        AlertRuleData[] alertRules = [.. alertRuleRows
             .Where(row => row.MonitorId == monitor.Row.Id)
             .Select(row =>
             {
@@ -424,11 +420,11 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
                 int? displayAveragingPeriod = prototype.TypeOfMonitor == MonitorType.Vibration
                     ? null
                     : matchingAveragingPeriod;
-                NotificationData[] matchingNotifications = notifications.Where(notification =>
+                NotificationData[] matchingNotifications = [.. notifications.Where(notification =>
                     notification.AlertType == (AlertType)row.AlertType &&
                     string.Equals(notification.Field, row.AlertField, StringComparison.Ordinal) &&
                     notification.Threshold == threshold &&
-                    notification.AveragingPeriodSeconds == matchingAveragingPeriod).ToArray();
+                    notification.AveragingPeriodSeconds == matchingAveragingPeriod)];
                 return new AlertRuleData(
                     (AlertType)row.AlertType,
                     row.AlertField,
@@ -438,8 +434,7 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
                     FormatAlertField(row.AlertField),
                     matchingNotifications.Length,
                     LatestClosedNote(matchingNotifications));
-            })
-            .ToArray();
+            })];
 
         return new MonitorReportData
         {
@@ -525,10 +520,9 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
         return rows.GroupBy(serialId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 static group => group.Key,
-                group => (IReadOnlyList<MeasurementPoint>)group
+                group => (IReadOnlyList<MeasurementPoint>)[.. group
                     .OrderBy(measuredAt)
-                    .Select(row => new MeasurementPoint(measuredAt(row), ToDecimal(value(row))))
-                    .ToArray(),
+                    .Select(row => new MeasurementPoint(measuredAt(row), ToDecimal(value(row))))],
                 StringComparer.OrdinalIgnoreCase);
     }
 

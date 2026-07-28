@@ -71,7 +71,7 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
 
             if (request.ContentType is not null)
             {
-                await using MemoryStream metadataContent = new MemoryStream(
+                await using MemoryStream metadataContent = new(
                     Encoding.UTF8.GetBytes(request.ContentType),
                     writable: false);
                 metadataTemporaryPath = await WriteTemporaryFileAsync(
@@ -307,7 +307,7 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
 
         try
         {
-            await using FileStream stream = new FileStream(
+            await using FileStream stream = new(
                 temporaryPath,
                 FileMode.CreateNew,
                 FileAccess.Write,

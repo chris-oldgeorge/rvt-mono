@@ -68,7 +68,7 @@ public sealed class MonitorRulePolicyTests
     [TestMethod]
     public void IsActive_WithADayThatDoesNotApply_IsInactiveUnderEveryPolicy()
     {
-        AlertActivityTimeDto rule = new AlertActivityTimeDto
+        AlertActivityTimeDto rule = new()
         {
             Weekdays = true,
             Saturdays = false,
@@ -84,7 +84,7 @@ public sealed class MonitorRulePolicyTests
     [TestMethod]
     public void IsActive_UsesTheRulesOwnPolicyWhenNoneIsSupplied()
     {
-        AlertActivityTimeDto rule = new AlertActivityTimeDto
+        AlertActivityTimeDto rule = new()
         {
             Weekdays = true,
             Saturdays = true,

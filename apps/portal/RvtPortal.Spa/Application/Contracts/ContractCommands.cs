@@ -43,7 +43,7 @@ public sealed class CreateContractCommandHandler : IRequestHandler<CreateContrac
     // Function summary: Creates a contract after validating number, dates, company, and site.
     public async Task<ContractCommandResult> Handle(CreateContractCommand request, CancellationToken cancellationToken)
     {
-        ContractCommandResult result = new ContractCommandResult();
+        ContractCommandResult result = new();
         await ContractCommandWorkflow.ValidateContractAsync(domainContext, request.Request, null, result.Errors, cancellationToken);
         if (result.Errors.Count > 0)
         {
@@ -71,7 +71,7 @@ public sealed class UpdateContractCommandHandler : IRequestHandler<UpdateContrac
     // Function summary: Updates contract fields after validating number, dates, company, and site.
     public async Task<ContractCommandResult> Handle(UpdateContractCommand request, CancellationToken cancellationToken)
     {
-        ContractCommandResult result = new ContractCommandResult { ContractId = request.ContractId };
+        ContractCommandResult result = new() { ContractId = request.ContractId };
         Contract? contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
         if (contract == null)
         {
@@ -104,7 +104,7 @@ public sealed class DeleteContractCommandHandler : IRequestHandler<DeleteContrac
     // Function summary: Deletes a contract by id.
     public async Task<ContractCommandResult> Handle(DeleteContractCommand request, CancellationToken cancellationToken)
     {
-        ContractCommandResult result = new ContractCommandResult { ContractId = request.ContractId };
+        ContractCommandResult result = new() { ContractId = request.ContractId };
         Contract? contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
         if (contract == null)
         {

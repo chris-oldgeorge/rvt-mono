@@ -19,7 +19,7 @@ public sealed class HelpAdapterTests
         SeededHelpData seeded = await SeedAsync();
         using SpaTestApplicationFactory factory = seeded.Factory;
         using IServiceScope scope = seeded.Factory.Services.CreateScope();
-        EfHelpReadAdapter adapter = new EfHelpReadAdapter(
+        EfHelpReadAdapter adapter = new(
             scope.ServiceProvider.GetRequiredService<RVTDbContext>());
 
         HelpOverviewModel overview = await adapter.QueryPublishedAsync(
@@ -50,7 +50,7 @@ public sealed class HelpAdapterTests
         SeededHelpData seeded = await SeedAsync();
         using SpaTestApplicationFactory factory = seeded.Factory;
         using IServiceScope scope = seeded.Factory.Services.CreateScope();
-        EfHelpReadAdapter adapter = new EfHelpReadAdapter(
+        EfHelpReadAdapter adapter = new(
             scope.ServiceProvider.GetRequiredService<RVTDbContext>());
 
         HelpAdminOverviewModel overview = await adapter.QueryAdminAsync(
@@ -74,7 +74,7 @@ public sealed class HelpAdapterTests
         SeededHelpData seeded = await SeedAsync();
         using SpaTestApplicationFactory factory = seeded.Factory;
         using IServiceScope scope = seeded.Factory.Services.CreateScope();
-        EfHelpReadAdapter adapter = new EfHelpReadAdapter(
+        EfHelpReadAdapter adapter = new(
             scope.ServiceProvider.GetRequiredService<RVTDbContext>());
 
         HelpArticleModel? published = await adapter.GetPublishedArticleAsync(
@@ -101,7 +101,7 @@ public sealed class HelpAdapterTests
         SeededHelpData seeded = await SeedAsync();
         using SpaTestApplicationFactory factory = seeded.Factory;
         using IServiceScope scope = seeded.Factory.Services.CreateScope();
-        EfHelpReadAdapter adapter = new EfHelpReadAdapter(
+        EfHelpReadAdapter adapter = new(
             scope.ServiceProvider.GetRequiredService<RVTDbContext>());
 
         HelpMutationValidationData sameArticle = await adapter.GetMutationValidationDataAsync(
@@ -130,8 +130,8 @@ public sealed class HelpAdapterTests
         using SpaTestApplicationFactory factory = seeded.Factory;
         using IServiceScope scope = seeded.Factory.Services.CreateScope();
         RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        EfHelpWriteAdapter adapter = new EfHelpWriteAdapter(context);
-        DateTime now = new DateTime(2026, 7, 28, 10, 30, 0, DateTimeKind.Utc);
+        EfHelpWriteAdapter adapter = new(context);
+        DateTime now = new(2026, 7, 28, 10, 30, 0, DateTimeKind.Utc);
         ValidatedHelpArticleMutation mutation = ValidatedMutation(
             sectionTitle: "Data centre",
             sectionSlug: "data",
@@ -186,10 +186,10 @@ public sealed class HelpAdapterTests
     [Fact]
     public async Task WriteAdapter_CreateAddsCanonicalPublishedSectionWhenMissing()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         using IServiceScope scope = factory.Services.CreateScope();
         RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        EfHelpWriteAdapter adapter = new EfHelpWriteAdapter(context);
+        EfHelpWriteAdapter adapter = new(context);
         ValidatedHelpArticleMutation mutation = ValidatedMutation(
             sectionTitle: "Getting started",
             sectionSlug: "getting-started");
@@ -215,10 +215,10 @@ public sealed class HelpAdapterTests
         using SpaTestApplicationFactory factory = seeded.Factory;
         using IServiceScope scope = seeded.Factory.Services.CreateScope();
         RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        EfHelpWriteAdapter adapter = new EfHelpWriteAdapter(context);
+        EfHelpWriteAdapter adapter = new(context);
         Guid retainedAssetId = seeded.DustAssetIds[0];
         Guid omittedAssetId = seeded.DustAssetIds[1];
-        DateTime now = new DateTime(2026, 7, 28, 12, 0, 0, DateTimeKind.Utc);
+        DateTime now = new(2026, 7, 28, 12, 0, 0, DateTimeKind.Utc);
         ValidatedHelpArticleMutation mutation = ValidatedMutation(
             sectionTitle: "Alerts",
             sectionSlug: "alerts",
@@ -272,7 +272,7 @@ public sealed class HelpAdapterTests
         using SpaTestApplicationFactory factory = seeded.Factory;
         using IServiceScope scope = seeded.Factory.Services.CreateScope();
         RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        EfHelpWriteAdapter adapter = new EfHelpWriteAdapter(context);
+        EfHelpWriteAdapter adapter = new(context);
         ValidatedHelpArticleMutation mutation = ValidatedMutation(
             title: "Must not be staged",
             assets:
@@ -308,8 +308,8 @@ public sealed class HelpAdapterTests
         using SpaTestApplicationFactory factory = seeded.Factory;
         using IServiceScope scope = seeded.Factory.Services.CreateScope();
         RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
-        EfHelpWriteAdapter adapter = new EfHelpWriteAdapter(context);
-        DateTime now = new DateTime(2026, 7, 28, 14, 0, 0, DateTimeKind.Utc);
+        EfHelpWriteAdapter adapter = new(context);
+        DateTime now = new(2026, 7, 28, 14, 0, 0, DateTimeKind.Utc);
 
         bool published = await adapter.SetPublicationAsync(
             seeded.DraftArticleId,
@@ -367,7 +367,7 @@ public sealed class HelpAdapterTests
 
     private static async Task<SeededHelpData> SeedAsync()
     {
-        SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        SpaTestApplicationFactory factory = new();
         Guid alertsSectionId = Guid.NewGuid();
         Guid dataSectionId = Guid.NewGuid();
         Guid hiddenSectionId = Guid.NewGuid();
@@ -376,7 +376,7 @@ public sealed class HelpAdapterTests
         Guid draftArticleId = Guid.NewGuid();
         Guid hiddenArticleId = Guid.NewGuid();
         Guid[] dustAssetIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
-        DateTime now = new DateTime(2026, 7, 28, 8, 0, 0, DateTimeKind.Utc);
+        DateTime now = new(2026, 7, 28, 8, 0, 0, DateTimeKind.Utc);
 
         await factory.SeedDomainEntitiesAsync(
             new HelpSection

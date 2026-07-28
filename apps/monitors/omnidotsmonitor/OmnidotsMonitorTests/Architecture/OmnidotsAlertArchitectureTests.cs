@@ -26,7 +26,7 @@ public sealed class OmnidotsAlertArchitectureTests
     public void AddOmnidotsMonitor_ResolvesFocusedDurableAlertComposition()
     {
         IConfiguration configuration = Configuration(apiEnabled: true, validSecurity: true);
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = [];
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.Api));
         services.AddLogging();
@@ -93,20 +93,18 @@ public sealed class OmnidotsAlertArchitectureTests
     [TestMethod]
     public void WebhookBoundary_HasNoLegacyStringOrFacadeSurface()
     {
-        MethodInfo[] facadeMethods = typeof(OmnidotsApi).GetMethods()
+        MethodInfo[] facadeMethods = [.. typeof(OmnidotsApi).GetMethods()
             .Concat(typeof(OmnidotsService).GetMethods())
             .Where(method => method.Name.Contains("Webhook", StringComparison.OrdinalIgnoreCase) ||
-                method.Name.Contains("ConfigureMeasuringPoint", StringComparison.Ordinal))
-            .ToArray();
+                method.Name.Contains("ConfigureMeasuringPoint", StringComparison.Ordinal))];
 
         Assert.IsEmpty(facadeMethods);
         Assert.IsNull(typeof(OmnidotsApi).Assembly.GetType("Omnidots.Api.UseCases.LegacyProcessWebhookHandler"));
         Assert.IsNull(typeof(OmnidotsApi).Assembly.GetType("Omnidots.Model.Config.OmnidotsWebhookOptions"));
 
-        MethodInfo[] endpointMethods = typeof(MonitorApiEndpoints).GetMethods(
+        MethodInfo[] endpointMethods = [.. typeof(MonitorApiEndpoints).GetMethods(
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
-            .Where(method => method.Name is "Webhook" or "ConfigureMeasuringPoint")
-            .ToArray();
+            .Where(method => method.Name is "Webhook" or "ConfigureMeasuringPoint")];
         Assert.HasCount(2, endpointMethods);
         Assert.IsTrue(endpointMethods.All(method =>
             method.GetParameters().All(parameter => parameter.ParameterType != typeof(OmnidotsService))));
@@ -126,10 +124,9 @@ public sealed class OmnidotsAlertArchitectureTests
     [TestMethod]
     public void NewAlertSlice_DependsOnlyOnFocusedCommonPorts()
     {
-        Type[] constructorDependencies = typeof(ProcessWebhookHandler).GetConstructors().Single()
+        Type[] constructorDependencies = [.. typeof(ProcessWebhookHandler).GetConstructors().Single()
             .GetParameters()
-            .Select(parameter => parameter.ParameterType)
-            .ToArray();
+            .Select(parameter => parameter.ParameterType)];
 
         CollectionAssert.DoesNotContain(constructorDependencies, typeof(IDBClient));
         CollectionAssert.DoesNotContain(constructorDependencies, typeof(OmnidotsRuleProcessor));
@@ -171,7 +168,7 @@ public sealed class OmnidotsAlertArchitectureTests
 
     private static IConfiguration Configuration(bool apiEnabled, bool validSecurity)
     {
-        Dictionary<string, string?> values = new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["MonitorApi:Enabled"] = apiEnabled.ToString(),
             ["Infrastructure"] = "local",
@@ -202,7 +199,7 @@ public sealed class OmnidotsAlertArchitectureTests
 
     private static string ReadSource(string relativePath)
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "rvt-monitors.sln")))
         {
             directory = directory.Parent;

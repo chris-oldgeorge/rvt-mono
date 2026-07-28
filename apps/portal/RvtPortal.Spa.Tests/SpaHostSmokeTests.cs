@@ -7,7 +7,6 @@
 // - 2026-07-22 pending Covered fail-fast production validation for the public SPA origin.
 
 using System.Net;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -50,7 +49,7 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
     // Function summary: Verifies liveness and readiness expose their distinct probe contracts.
     public async Task HealthEndpoints_ExposeLivenessAndReadiness()
     {
-        using SpaTestApplicationFactory healthyFactory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory healthyFactory = new();
         HttpClient client = healthyFactory.CreateClient();
 
         using HttpResponseMessage liveness = await client.GetAsync("/api/health/live");
@@ -100,7 +99,7 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
     // Function summary: Verifies production startup rejects a missing configured public SPA origin before serving requests.
     public void ProductionHost_WithoutPublicBaseUrl_FailsConfigurationValidation()
     {
-        using SpaTestApplicationFactory productionFactory = new SpaTestApplicationFactory("Production");
+        using SpaTestApplicationFactory productionFactory = new("Production");
         using WebApplicationFactory<Program> invalidHost = productionFactory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("Spa:PublicBaseUrl", "");
@@ -108,7 +107,7 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
             builder.UseSetting("RvtProduction:DataProtectionBlobUri", "https://storage.example.test/keys/key.xml");
         });
 
-        Exception exception = Assert.ThrowsAny<Exception>(() => invalidHost.CreateClient());
+        Exception exception = Assert.ThrowsAny<Exception>(invalidHost.CreateClient);
 
         Assert.Contains("Spa:PublicBaseUrl", exception.ToString(), StringComparison.Ordinal);
     }

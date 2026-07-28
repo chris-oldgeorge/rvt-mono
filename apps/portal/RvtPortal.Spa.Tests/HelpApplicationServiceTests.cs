@@ -31,7 +31,7 @@ public sealed class HelpApplicationServiceTests
     {
         get
         {
-            TheoryData<string, string?, string?, string?> cases = new TheoryData<string, string?, string?, string?>();
+            TheoryData<string, string?, string?, string?> cases = new();
             foreach (HelpAssetUrlCase @case in HelpAssetUrlPolicyCases.All)
             {
                 cases.Add(
@@ -263,8 +263,8 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task PublishedReads_EnforceApplicationAuthorizationAndPreserveCancellation()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
-        RecordingHelpReadPort reads = new RecordingHelpReadPort
+        using CancellationTokenSource cancellation = new();
+        RecordingHelpReadPort reads = new()
         {
             PublishedOverview = new HelpOverviewModel { SearchText = "dust" }
         };
@@ -290,7 +290,7 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task AdminReads_RejectNonAdminsBeforeCallingThePort()
     {
-        RecordingHelpReadPort reads = new RecordingHelpReadPort();
+        RecordingHelpReadPort reads = new();
         HelpApplicationService service = CreateService(reads: reads);
 
         UseCaseResult<HelpAdminOverviewModel> result = await service.QueryAdminAsync(
@@ -306,7 +306,7 @@ public sealed class HelpApplicationServiceTests
     public async Task CreateAsync_UsesOneTransactionOneSaveAndInjectedUtc()
     {
         Guid articleId = Guid.NewGuid();
-        DateTimeOffset expectedTime = new DateTimeOffset(
+        DateTimeOffset expectedTime = new(
             2026,
             7,
             28,
@@ -314,13 +314,13 @@ public sealed class HelpApplicationServiceTests
             30,
             0,
             TimeSpan.Zero);
-        RecordingHelpReadPort reads = new RecordingHelpReadPort
+        RecordingHelpReadPort reads = new()
         {
             ValidationData = ValidCreateData(),
             AdminArticle = Article(articleId)
         };
-        RecordingHelpWritePort writes = new RecordingHelpWritePort { CreatedArticleId = articleId };
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        RecordingHelpWritePort writes = new() { CreatedArticleId = articleId };
+        RecordingUnitOfWork unitOfWork = new();
         HelpApplicationService service = CreateService(
             reads,
             writes,
@@ -345,8 +345,8 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task CreateAsync_RejectsInvalidInputBeforeStartingATransaction()
     {
-        RecordingHelpWritePort writes = new RecordingHelpWritePort();
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        RecordingHelpWritePort writes = new();
+        RecordingUnitOfWork unitOfWork = new();
         HelpApplicationService service = CreateService(
             writes: writes,
             unitOfWork: unitOfWork);
@@ -365,15 +365,15 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task UpdateAsync_ReturnsNotFoundWithoutWritingOrSaving()
     {
-        RecordingHelpReadPort reads = new RecordingHelpReadPort
+        RecordingHelpReadPort reads = new()
         {
             ValidationData = new HelpMutationValidationData(
                 ArticleExists: false,
                 SlugBelongsToAnotherArticle: false,
                 ExistingAssetIds: new HashSet<Guid>())
         };
-        RecordingHelpWritePort writes = new RecordingHelpWritePort();
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        RecordingHelpWritePort writes = new();
+        RecordingUnitOfWork unitOfWork = new();
         HelpApplicationService service = CreateService(reads, writes, unitOfWork);
 
         UseCaseResult<HelpArticleModel> result = await service.UpdateAsync(
@@ -392,15 +392,15 @@ public sealed class HelpApplicationServiceTests
     public async Task UpdateAsync_RejectsForeignAssetIdsInsideTheTransaction()
     {
         Guid foreignAssetId = Guid.NewGuid();
-        RecordingHelpReadPort reads = new RecordingHelpReadPort
+        RecordingHelpReadPort reads = new()
         {
             ValidationData = new HelpMutationValidationData(
                 ArticleExists: true,
                 SlugBelongsToAnotherArticle: false,
                 ExistingAssetIds: new HashSet<Guid>())
         };
-        RecordingHelpWritePort writes = new RecordingHelpWritePort();
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        RecordingHelpWritePort writes = new();
+        RecordingUnitOfWork unitOfWork = new();
         HelpApplicationService service = CreateService(reads, writes, unitOfWork);
 
         UseCaseResult<HelpArticleModel> result = await service.UpdateAsync(
@@ -432,12 +432,12 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task PublicationAndDelete_ReturnNotFoundWithoutSaving()
     {
-        RecordingHelpWritePort writes = new RecordingHelpWritePort
+        RecordingHelpWritePort writes = new()
         {
             PublicationResult = false,
             DeleteResult = false
         };
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        RecordingUnitOfWork unitOfWork = new();
         HelpApplicationService service = CreateService(
             writes: writes,
             unitOfWork: unitOfWork);
@@ -464,7 +464,7 @@ public sealed class HelpApplicationServiceTests
     public async Task SuccessfulMutations_SaveAndReturnRefreshedModels()
     {
         Guid articleId = Guid.NewGuid();
-        RecordingHelpReadPort reads = new RecordingHelpReadPort
+        RecordingHelpReadPort reads = new()
         {
             ValidationData = new HelpMutationValidationData(
                 ArticleExists: true,
@@ -472,13 +472,13 @@ public sealed class HelpApplicationServiceTests
                 ExistingAssetIds: new HashSet<Guid>()),
             AdminArticle = Article(articleId)
         };
-        RecordingHelpWritePort writes = new RecordingHelpWritePort
+        RecordingHelpWritePort writes = new()
         {
             UpdateResult = true,
             PublicationResult = true,
             DeleteResult = true
         };
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        RecordingUnitOfWork unitOfWork = new();
         HelpApplicationService service = CreateService(reads, writes, unitOfWork);
         PortalUserContext actor = Actor(isAdmin: true);
 
@@ -508,8 +508,8 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task AdminMutations_RejectNonAdminsBeforeStartingATransaction()
     {
-        RecordingHelpWritePort writes = new RecordingHelpWritePort();
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        RecordingHelpWritePort writes = new();
+        RecordingUnitOfWork unitOfWork = new();
         HelpApplicationService service = CreateService(
             writes: writes,
             unitOfWork: unitOfWork);
@@ -544,15 +544,15 @@ public sealed class HelpApplicationServiceTests
     [Fact]
     public async Task CreateAsync_PropagatesCancellationToPortsAndUnitOfWork()
     {
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         Guid articleId = Guid.NewGuid();
-        RecordingHelpReadPort reads = new RecordingHelpReadPort
+        RecordingHelpReadPort reads = new()
         {
             ValidationData = ValidCreateData(),
             AdminArticle = Article(articleId)
         };
-        RecordingHelpWritePort writes = new RecordingHelpWritePort { CreatedArticleId = articleId };
-        RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+        RecordingHelpWritePort writes = new() { CreatedArticleId = articleId };
+        RecordingUnitOfWork unitOfWork = new();
         HelpApplicationService service = CreateService(reads, writes, unitOfWork);
 
         await service.CreateAsync(

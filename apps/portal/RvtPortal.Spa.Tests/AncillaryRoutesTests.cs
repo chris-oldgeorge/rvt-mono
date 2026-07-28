@@ -23,7 +23,7 @@ public class AncillaryRoutesTests
     // Function summary: Handles the retired mvc utility routes return safe not found problem details workflow for this module.
     public async Task RetiredMvcUtilityRoutes_ReturnSafeNotFoundProblemDetails(string path)
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = factory.CreateClient();
 
         using HttpResponseMessage response = await client.GetAsync(path);
@@ -45,7 +45,7 @@ public class AncillaryRoutesTests
     // Function summary: Handles the unknown API routes return problem details instead of SPA fallback workflow for this module.
     public async Task UnknownApiRoutes_ReturnProblemDetailsInsteadOfSpaFallback(string path)
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = factory.CreateClient();
 
         using HttpResponseMessage response = await client.GetAsync(path);
@@ -63,7 +63,7 @@ public class AncillaryRoutesTests
     // Function summary: Handles the error endpoint returns safe problem details workflow for this module.
     public async Task ErrorEndpoint_ReturnsSafeProblemDetails()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         HttpClient client = factory.CreateClient();
 
         using HttpResponseMessage response = await client.GetAsync("/error");

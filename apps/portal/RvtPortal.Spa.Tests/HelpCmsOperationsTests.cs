@@ -22,7 +22,7 @@ public sealed class HelpCmsOperationsTests
     // Function summary: Verifies admins can create help content and normal users can browse published content.
     public async Task HelpCms_AllowsAdminPublishingAndUserBrowsing()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser);
 
@@ -31,7 +31,7 @@ public sealed class HelpCmsOperationsTests
 
         // The submitted article is the fixture: every read-back assertion compares against it, so the
         // published content is proven to round-trip rather than matching re-typed literals.
-        HelpArticleMutationRequest articleRequest = new HelpArticleMutationRequest
+        HelpArticleMutationRequest articleRequest = new()
         {
             SectionTitle = "Data Readings",
             SectionSlug = "data-readings",
@@ -69,7 +69,7 @@ public sealed class HelpCmsOperationsTests
     // Function summary: Verifies admins can manage draft FAQ content before publishing it to users.
     public async Task HelpCms_AllowsAdminDraftEditingAndPublication()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser);
 
@@ -94,7 +94,7 @@ public sealed class HelpCmsOperationsTests
 
         HelpAdminOverviewResponse? adminOverview = await adminClient.GetFromJsonAsync<HelpAdminOverviewResponse>("/api/help/admin?status=Draft");
         // The publish edit is the fixture: its title/slug/assets drive both the read-back and the URL.
-        HelpArticleMutationRequest publishRequest = new HelpArticleMutationRequest
+        HelpArticleMutationRequest publishRequest = new()
         {
             SectionTitle = "Platform",
             SectionSlug = "platform",
@@ -137,7 +137,7 @@ public sealed class HelpCmsOperationsTests
     [Fact]
     public async Task HelpCms_UsesCanonicalCreateRouteAndPreservesAssetIdentity()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient adminClient = CreateClient(factory);
         await LoginAsync(adminClient, AdminEmail, Password);
@@ -225,7 +225,7 @@ public sealed class HelpCmsOperationsTests
     public async Task HelpCms_AllowsBothAdministratorRolesToUseEveryAdminEndpoint(
         string role)
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         string email = $"help.{role.ToLowerInvariant()}@rvt.test";
         await factory.SeedUserAsync(email, Password, role);
         HttpClient client = CreateClient(factory);
@@ -262,7 +262,7 @@ public sealed class HelpCmsOperationsTests
     public async Task HelpCms_DeniesNonAdministratorsFromEveryAdminEndpoint(
         string role)
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         string deniedEmail = $"help.denied.{role.ToLowerInvariant()}@rvt.test";
         await factory.SeedUserAsync(deniedEmail, Password, role);
@@ -301,7 +301,7 @@ public sealed class HelpCmsOperationsTests
     [Fact]
     public async Task HelpCms_AdminNotFoundResultsRemain404()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);

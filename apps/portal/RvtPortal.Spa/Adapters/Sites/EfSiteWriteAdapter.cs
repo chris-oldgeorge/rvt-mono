@@ -19,7 +19,7 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         CancellationToken cancellationToken)
     {
         SiteMutation source = mutation.Source;
-        Site site = new Site
+        Site site = new()
         {
             SiteName = source.SiteName,
             AddressLine1 = source.AddressLine1,
@@ -35,15 +35,14 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
             SunEndTime = mutation.SundayEndTime,
             CreateDate = DateTime.SpecifyKind(createDateUtc, DateTimeKind.Utc),
             Contracts = [],
-            OperatingHours = mutation.OperatingHours
+            OperatingHours = [.. mutation.OperatingHours
                 .Select(hours => new SiteOperatingHours
                 {
                     DayOfWeek = hours.DayOfWeek,
                     StartTime = hours.StartTime,
                     EndTime = hours.EndTime,
                     IsClosed = hours.IsClosed
-                })
-                .ToList()
+                })]
         };
         domainContext.Sites.Add(site);
         return Task.FromResult(site.Id);

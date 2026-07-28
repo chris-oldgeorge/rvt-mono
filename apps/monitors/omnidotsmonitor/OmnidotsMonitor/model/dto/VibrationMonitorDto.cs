@@ -1,7 +1,4 @@
-using Omnidots.Api.Db;
 using Omnidots.Model.Json;
-using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Utilities;
 using static Omnidots.Api.OmnidotsApi;
 
@@ -109,12 +106,20 @@ namespace Omnidots.Model.Dto
         public DateTime GetLastDataTime()
         {
             if (LastDataTime == null)
+            {
                 if (DeployDate == null) // It should never be null but just to ensure it doesn't crash.
+                {
                     return DateTimeUtil.JAN1_1970;
+                }
                 else
+                {
                     return (DateTime)DeployDate!;
+                }
+            }
             else
+            {
                 return ((DateTime)DeployDate! > (DateTime)LastDataTime!) ? (DateTime)DeployDate! : (DateTime)LastDataTime!; //If last read is before deploy it is for a previous deployment do use deployment date
+            }
         }
 
         private static bool IsOnOff(string? field)

@@ -133,7 +133,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         string serialId,
         CancellationToken cancellationToken)
     {
-        AlertDeliveryEnvelope envelope = new AlertDeliveryEnvelope(
+        AlertDeliveryEnvelope envelope = new(
             Version: 1,
             request.NotificationId,
             request.Signal.EventTime,
@@ -143,7 +143,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             monitor.FleetNr?.Trim() is { Length: > 0 } fleetNr ? fleetNr : serialId,
             request.Signal.Message);
         string payload = JsonSerializer.Serialize(envelope);
-        HashSet<string> planned = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<string> planned = new(StringComparer.Ordinal);
 
         if (request.Signal.DeliveryChannels.HasFlag(AlertDeliveryChannels.Mqtt))
         {
@@ -186,10 +186,9 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
                 setting.EndTime))
             .ToListAsync(cancellationToken);
 
-        string[] userIds = contactRows
+        string[] userIds = [.. contactRows
             .Select(row => row.UserId.ToString("D").ToLowerInvariant())
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+            .Distinct(StringComparer.Ordinal)];
         List<AspNetUserEntity> users = await context.Users
             .AsNoTracking()
             .Where(user => userIds.Contains(user.Id.ToLower()))
@@ -307,7 +306,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         {
             Id = Guid.NewGuid(),
             Source = request.Signal.Source,
-            SourceKeyHash = request.SourceKeyHash.ToArray(),
+            SourceKeyHash = [.. request.SourceKeyHash],
             MonitorId = monitorId,
             SerialId = serialId,
             EventTime = request.Signal.EventTime,

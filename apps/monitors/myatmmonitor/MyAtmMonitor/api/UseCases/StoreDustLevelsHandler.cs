@@ -47,7 +47,7 @@ public sealed class StoreDustLevelsHandler
         CancellationToken cancellationToken = default) where T : BaseDeviceMeasurement
     {
         List<DustMonitorDto> monitors = monitorReader.ReadMonitors(customerId) ?? [];
-        MyAtmFailureCollector failures = new MyAtmFailureCollector(operationalCommands);
+        MyAtmFailureCollector failures = new(operationalCommands);
         foreach (DustMonitorDto monitor in monitors)
         {
             try
@@ -62,9 +62,7 @@ public sealed class StoreDustLevelsHandler
                         cursor,
                         period,
                         cancellationToken);
-                    List<DustDto> dtos = page.Measurements
-                        .Select(measurement => new DustDto(monitor.SerialId, measurement))
-                        .ToList();
+                    List<DustDto> dtos = [.. page.Measurements.Select(measurement => new DustDto(monitor.SerialId, measurement))];
                     RvtLogger.Logger.LogInformation(
                         "StoreDustLevels page={PageNumber} count={Count} serialId={SerialId} cursor={Cursor}",
                         pageNumber + 1,
@@ -82,9 +80,7 @@ public sealed class StoreDustLevelsHandler
                             evaluation.AlertOccurrences.Count == 0
                                 ? Array.Empty<Rvt.Monitor.Common.Rules.RvtContactDto>()
                                 : ruleQueries.ReadAlertContacts(monitor.Id);
-                        List<AlertOccurrenceProposal> occurrences = evaluation.AlertOccurrences
-                            .Select(proposal => proposal with { Contacts = contacts })
-                            .ToList();
+                        List<AlertOccurrenceProposal> occurrences = [.. evaluation.AlertOccurrences.Select(proposal => proposal with { Contacts = contacts })];
                         await dustImportCommands.CommitDustImportAsync(
                             new MyAtmDustImportCommit(
                                 monitor,

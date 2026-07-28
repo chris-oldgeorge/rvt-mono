@@ -8,7 +8,7 @@ public sealed class SampleFetchWindowTests
     [TestMethod]
     public void Start_SubtractsPositiveLookbackAndOverlap()
     {
-        DateTime now = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
+        DateTime now = new(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
 
         Assert.AreEqual(
             new DateTime(2026, 7, 14, 9, 55, 0, DateTimeKind.Utc),

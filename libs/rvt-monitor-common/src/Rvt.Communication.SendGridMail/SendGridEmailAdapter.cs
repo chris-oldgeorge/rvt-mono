@@ -37,7 +37,7 @@ public sealed class SendGridEmailAdapter : IEmailDeliveryPort
                 "Configuration");
         }
 
-        SendGridMessage message = new SendGridMessage
+        SendGridMessage message = new()
         {
             From = new EmailAddress(options.FromEmail, options.FromName),
             Subject = request.Subject
@@ -48,7 +48,7 @@ public sealed class SendGridEmailAdapter : IEmailDeliveryPort
         foreach (EmailAttachment attachment in request.Attachments)
         {
             using Stream stream = attachment.OpenRead();
-            using MemoryStream buffer = new MemoryStream();
+            using MemoryStream buffer = new();
             await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
             message.AddAttachment(
                 attachment.FileName,

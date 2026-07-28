@@ -21,7 +21,7 @@ public sealed class ReportGenerationClientTests
     // Function summary: Verifies malformed report-service configuration becomes a typed unavailable result without exposing credentials.
     public async Task RequestGenerationAsync_WithInvalidBaseUrl_ThrowsTypedConfigurationFailure()
     {
-        ReportingServiceReportGenerationClient client = new ReportingServiceReportGenerationClient(
+        ReportingServiceReportGenerationClient client = new(
             new HttpClient(new CapturingHandler(new { })),
             Options.Create(new ReportGenerationServiceOptions { BaseUrl = "not a url", InternalApiKey = "report-secret" }),
             TimeProvider.System);
@@ -37,7 +37,7 @@ public sealed class ReportGenerationClientTests
     // Function summary: Verifies a downstream timeout becomes a typed gateway-timeout failure when the caller did not cancel.
     public async Task RequestGenerationAsync_WhenDownstreamTimesOut_ThrowsGatewayTimeout()
     {
-        ReportingServiceReportGenerationClient client = new ReportingServiceReportGenerationClient(
+        ReportingServiceReportGenerationClient client = new(
             new HttpClient(new ThrowingHandler(new TaskCanceledException("downstream timeout"))),
             Options.Create(new ReportGenerationServiceOptions { BaseUrl = "https://reports.internal" }),
             TimeProvider.System);
@@ -54,14 +54,14 @@ public sealed class ReportGenerationClientTests
         const string baseUrl = "https://reports.internal";
         const string internalApiKey = "test-secret";
         const int reportCount = 1;
-        DateTime reportDate = new DateTime(2026, 6, 24);
+        DateTime reportDate = new(2026, 6, 24);
         // triggerUtc is the report date serialized at UTC midnight in ISO-8601.
         string expectedTrigger = new DateTimeOffset(reportDate, TimeSpan.Zero)
             .ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
 
         Guid reportRuleId = Guid.NewGuid();
         Guid generatedReportId = Guid.NewGuid();
-        using CapturingHandler handler = new CapturingHandler(new
+        using CapturingHandler handler = new(new
         {
             count = reportCount,
             reports = new[]
@@ -76,8 +76,8 @@ public sealed class ReportGenerationClientTests
                 }
             }
         });
-        HttpClient httpClient = new HttpClient(handler);
-        ReportingServiceReportGenerationClient client = new ReportingServiceReportGenerationClient(
+        HttpClient httpClient = new(handler);
+        ReportingServiceReportGenerationClient client = new(
             httpClient,
             Options.Create(new ReportGenerationServiceOptions
             {
@@ -113,7 +113,7 @@ public sealed class ReportGenerationClientTests
         const int reportRowCount = 1;
         Guid reportRuleId = Guid.NewGuid();
         Guid generatedReportId = Guid.NewGuid();
-        using CapturingHandler handler = new CapturingHandler(new
+        using CapturingHandler handler = new(new
         {
             reports = new[]
             {
@@ -123,8 +123,8 @@ public sealed class ReportGenerationClientTests
                 }
             }
         });
-        HttpClient httpClient = new HttpClient(handler);
-        ReportingServiceReportGenerationClient client = new ReportingServiceReportGenerationClient(
+        HttpClient httpClient = new(handler);
+        ReportingServiceReportGenerationClient client = new(
             httpClient,
             Options.Create(new ReportGenerationServiceOptions
             {

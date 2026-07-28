@@ -49,7 +49,7 @@ public sealed record ContractQuery(
 public sealed class ContractQueryResult
 {
     public string? InvalidSort { get; init; }
-    public IReadOnlyCollection<string> AllowedSortFields { get; init; } = ContractApplicationService.SortFields.Keys.ToArray();
+    public IReadOnlyCollection<string> AllowedSortFields { get; init; } = [.. ContractApplicationService.SortFields.Keys];
     public QueryContractsResponse? Response { get; init; }
 }
 
@@ -107,7 +107,7 @@ public sealed class ContractApplicationService : IContractApplicationService
             return new ContractQueryResult
             {
                 InvalidSort = requestedSort,
-                AllowedSortFields = SortFields.Keys.ToArray()
+                AllowedSortFields = [.. SortFields.Keys]
             };
         }
 
@@ -144,7 +144,7 @@ public sealed class ContractApplicationService : IContractApplicationService
         {
             Response = new QueryContractsResponse
             {
-                Results = items.Select(BuildListItem).ToList(),
+                Results = [.. items.Select(BuildListItem)],
                 Total = total,
                 Page = request.Page,
                 PageSize = request.PageSize,

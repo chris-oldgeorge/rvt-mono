@@ -40,7 +40,7 @@ public sealed class NoiseRequestWindowCalculator
             return [];
         }
 
-        List<NoiseRequestWindow> windows = new List<NoiseRequestWindow>();
+        List<NoiseRequestWindow> windows = [];
         for (DateTime cursor = start; cursor < end;)
         {
             DateTime windowEnd = EarlierOf(SaturatingAdd(cursor, options.MaximumRequestWindow), end);

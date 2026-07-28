@@ -32,7 +32,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext _)
     {
-        using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
         database = await PostgreSqlIntegrationDatabase.CreateAsync(
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/create.postgres.sql"),
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
@@ -55,7 +55,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"));
         await SeedAlertGraphAsync();
 
-        MonitorDbOptions monitorOptions = new MonitorDbOptions(
+        MonitorDbOptions monitorOptions = new(
             new Dictionary<string, string>());
         store = new EfAlertOutboxStore<OmnidotsMonitorContext>(
             new OmnidotsMonitorContextFactory(database.ConnectionString, monitorOptions));
@@ -118,7 +118,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
         await using NpgsqlConnection blockingConnection = database!.OpenConnection();
         await blockingConnection.OpenAsync();
         await using NpgsqlTransaction blockingTransaction = await blockingConnection.BeginTransactionAsync();
-        await using (NpgsqlCommand lockCommand = new NpgsqlCommand(
+        await using (NpgsqlCommand lockCommand = new(
             "SELECT id FROM alert_delivery_outbox WHERE id = @id FOR UPDATE;",
             blockingConnection,
             blockingTransaction))
@@ -171,7 +171,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
         ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
         Assert.IsNotNull(claim);
         Guid staleLeaseId = Guid.NewGuid();
-        AlertDeliveryAudit audit = new AlertDeliveryAudit(
+        AlertDeliveryAudit audit = new(
             NotificationId,
             "ops@example.test",
             "Sent ok",
@@ -292,13 +292,13 @@ public sealed class OmnidotsAlertOutboxStoreTests
             payload: rawPayload,
             nextAttemptAt: UtcNow,
             attemptCount: 7);
-        Mock<IAlertDeliveryAdapter> adapter = new Mock<IAlertDeliveryAdapter>();
+        Mock<IAlertDeliveryAdapter> adapter = new();
         adapter.SetupGet(candidate => candidate.Kind).Returns("Email");
         adapter.Setup(candidate => candidate.DeliverAsync(
                 It.IsAny<ClaimedAlertDelivery>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new JsonException(rawPayload));
-        DurableAlertDispatcher dispatcher = new DurableAlertDispatcher(
+        DurableAlertDispatcher dispatcher = new(
             store,
             [adapter.Object],
             Options.Create(new DurableAlertOptions { BatchSize = 1, MaxAttempts = 8 }),
@@ -361,7 +361,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
         ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2));
         Assert.IsNotNull(claim);
         DateTime nextAttemptAt = UtcNow.AddMinutes(1);
-        string oversizedSafeError = new string('x', 300);
+        string oversizedSafeError = new('x', 300);
 
         bool retried = await store.RetryAsync(
             id,
@@ -430,7 +430,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
     {
         Guid id = Guid.NewGuid();
         await InsertOutboxAsync(id, nextAttemptAt: UtcNow);
-        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         await cancellation.CancelAsync();
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
@@ -519,7 +519,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
     {
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         configure(command);
         await command.ExecuteNonQueryAsync();
     }
@@ -535,7 +535,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
@@ -551,7 +551,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
         return (string)(await command.ExecuteScalarAsync())!;
     }
@@ -565,7 +565,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(query, connection);
+        await using NpgsqlCommand command = new(query, connection);
         command.Parameters.AddWithValue("id", id);
         return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
@@ -574,7 +574,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
     {
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(
+        await using NpgsqlCommand command = new(
             "SELECT lease_id FROM alert_delivery_outbox WHERE id = @id;",
             connection);
         command.Parameters.AddWithValue("id", id);
@@ -593,7 +593,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
         return (DateTime)(await command.ExecuteScalarAsync())!;
     }
@@ -607,7 +607,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(query, connection);
+        await using NpgsqlCommand command = new(query, connection);
         command.Parameters.AddWithValue("address", address);
         return (Guid)(await command.ExecuteScalarAsync())!;
     }
@@ -622,7 +622,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
         object? value = await command.ExecuteScalarAsync();
         return value is DBNull ? null : (DateTime?)value;
@@ -638,7 +638,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
         object? value = await command.ExecuteScalarAsync();
         return value is DBNull ? null : (string?)value;
@@ -646,17 +646,17 @@ public sealed class OmnidotsAlertOutboxStoreTests
 
     private static async Task<Guid[]> ReadIdsAsync()
     {
-        List<Guid> ids = new List<Guid>();
+        List<Guid> ids = [];
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand("SELECT id FROM alert_delivery_outbox;", connection);
+        await using NpgsqlCommand command = new("SELECT id FROM alert_delivery_outbox;", connection);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
             ids.Add(reader.GetGuid(0));
         }
 
-        return ids.ToArray();
+        return [.. ids];
     }
 
     private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider

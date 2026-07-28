@@ -9,14 +9,11 @@ using MyAtm.Api.Http;
 using MyAtm.Model.Config;
 using MyAtm.Model.Dto;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace MyAtmMonitorTests
@@ -81,17 +78,17 @@ namespace MyAtmMonitorTests
         [TestMethod]
         public void TestStoreMonitors_UsesConfiguredPageSizeForPaging()
         {
-            Mock<IHttpClient> httpClient = new Mock<IHttpClient>();
-            Mock<IDBClient> dbClient = new Mock<IDBClient>();
-            Mock<IMqttClient> mqttClient = new Mock<IMqttClient>();
-            Mock<IMessageService> messageClient = new Mock<IMessageService>();
-            MyAtmMonitorOptions options = new MyAtmMonitorOptions
+            Mock<IHttpClient> httpClient = new();
+            Mock<IDBClient> dbClient = new();
+            Mock<IMqttClient> mqttClient = new();
+            Mock<IMessageService> messageClient = new();
+            MyAtmMonitorOptions options = new()
             {
                 CustomerId = 123,
                 DevicePageSize = 2,
                 PortalBaseUrl = "https://portal.example/"
             };
-            MyAtmApi testObj = new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, false, options);
+            MyAtmApi testObj = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, false, options);
 
             httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=2"))
                 .ReturnsAsync(MyAtmFixture.DevicesResponseJson());
@@ -270,7 +267,7 @@ namespace MyAtmMonitorTests
             List<RvtAlertRuleDto> rules = MyAtmFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), It.IsAny<DateTime?>())).
-                Returns(new List<DustMonitorDto>());
+                Returns([]);
 
             testObj.CheckForOfflineMonitors(customerId);
 
@@ -304,7 +301,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadSiteSchedule(It.IsAny<Guid>())).Returns(AlwaysOpenSiteSchedule());
             List<RvtContactDto> contacts = MyAtmFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(It.IsAny<Guid>())).Returns(contacts);
-            List<MyAtmAlertCommit> commits = new List<MyAtmAlertCommit>();
+            List<MyAtmAlertCommit> commits = [];
             dbClient.Setup(c => c.CommitAlertAsync(It.IsAny<MyAtmAlertCommit>(), It.IsAny<CancellationToken>()))
                 .Callback<MyAtmAlertCommit, CancellationToken>((commit, _) => commits.Add(commit))
                 .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));

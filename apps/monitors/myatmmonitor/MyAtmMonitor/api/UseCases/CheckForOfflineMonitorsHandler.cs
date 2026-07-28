@@ -39,11 +39,9 @@ public sealed class CheckForOfflineMonitorsHandler
     {
         cancellationToken.ThrowIfCancellationRequested();
         DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        List<RvtAlertRuleDto> rules = (ruleQueries.ReadRules(null) ?? [])
-            .Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))
-            .ToList();
+        List<RvtAlertRuleDto> rules = [.. (ruleQueries.ReadRules(null) ?? []).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
         List<DustMonitorDto> monitors = monitorReader.ReadMonitors(customerId) ?? [];
-        MyAtmFailureCollector failures = new MyAtmFailureCollector(operationalCommands);
+        MyAtmFailureCollector failures = new(operationalCommands);
 
         foreach (DustMonitorDto monitor in monitors)
         {

@@ -319,7 +319,7 @@ public sealed class MonitorModelMappingTests
     private static TestMonitorContext CreateContext(
         IReadOnlyDictionary<string, string>? identifierMap = null)
     {
-        MonitorDbOptions monitorOptions = new MonitorDbOptions(
+        MonitorDbOptions monitorOptions = new(
             identifierMap ?? new Dictionary<string, string>(StringComparer.Ordinal));
         DbContextOptions<TestMonitorContext> dbOptions = new DbContextOptionsBuilder<TestMonitorContext>()
             .UseNpgsql("Host=localhost;Database=metadata;Username=metadata;Password=metadata")

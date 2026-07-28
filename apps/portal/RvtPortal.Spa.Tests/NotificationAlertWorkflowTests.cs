@@ -1,4 +1,4 @@
-﻿// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
+// File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
 // - 2026-07-23 pending Seeded fixed-clock authorization scenarios from the same deterministic instant.
 // - 2026-07-22 pending Covered inactive and exact-boundary alert-level and notification-close authorization.
@@ -10,7 +10,6 @@
 
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -34,7 +33,7 @@ public class NotificationAlertWorkflowTests
     // Function summary: Handles the notification lists are filtered and scoped workflow for this module.
     public async Task NotificationLists_AreFilteredAndScoped()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         NotificationAlertIds ids = await SeedNotificationAlertScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
@@ -65,7 +64,7 @@ public class NotificationAlertWorkflowTests
     // Function summary: Handles the notification detail close and batch close update visible alerts only workflow for this module.
     public async Task NotificationDetailCloseAndBatchClose_UpdateVisibleAlertsOnly()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         NotificationAlertIds ids = await SeedNotificationAlertScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -102,7 +101,7 @@ public class NotificationAlertWorkflowTests
     // Function summary: Verifies company users can close their own site alerts but not another site's alert.
     public async Task CompanyUserCloseAlert_RecordsNoteAndRejectsOtherSiteAlerts()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         NotificationAlertIds ids = await SeedNotificationAlertScenarioAsync(factory);
         ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
         await factory.SeedDomainEntitiesAsync(TestData.SiteUser(siteId: ids.SiteId, userId: Guid.Parse(companyUser.Id), startDate: DateTime.UtcNow.AddDays(-10)));
@@ -135,8 +134,8 @@ public class NotificationAlertWorkflowTests
     // Function summary: Verifies alert-level reads reject inactive assignments and preserve the exact inclusive boundary.
     public async Task CompanyUserAlertLevels_RequireActiveAssignmentWindow()
     {
-        DateTimeOffset nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        DateTimeOffset nowUtc = new(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        using SpaTestApplicationFactory factory = new();
         NotificationAlertIds ids = await SeedNotificationAlertScenarioAsync(factory, nowUtc.UtcDateTime);
         ApplicationUser futureUser = await SeedCompanyUserAsync(factory, "alerts.future@rvt.test", ids.CompanyId);
         ApplicationUser expiredUser = await SeedCompanyUserAsync(factory, "alerts.expired@rvt.test", ids.CompanyId);
@@ -168,8 +167,8 @@ public class NotificationAlertWorkflowTests
     // Function summary: Verifies inactive assignments cannot close notifications while the exact boundary remains authorized.
     public async Task CompanyUserNotificationClose_RequiresActiveAssignmentWindow()
     {
-        DateTimeOffset nowUtc = new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        DateTimeOffset nowUtc = new(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        using SpaTestApplicationFactory factory = new();
         NotificationAlertIds ids = await SeedNotificationAlertScenarioAsync(factory, nowUtc.UtcDateTime);
         Guid futureNotificationId = ids.AlertNotificationId;
         Guid expiredNotificationId = Guid.NewGuid();
@@ -211,7 +210,7 @@ public class NotificationAlertWorkflowTests
     // Function summary: Verifies monitor notifications in a contract gap are not attributed to a later current deployment.
     public async Task MovedMonitorNotifications_DoNotFallBackToCurrentDeployment()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         MovedMonitorNotificationIds ids = await SeedMovedMonitorNotificationScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.NewCompanyId);
@@ -242,7 +241,7 @@ public class NotificationAlertWorkflowTests
     // Function summary: Handles the alert level crud validates creates updates and deletes dust noise levels workflow for this module.
     public async Task AlertLevelCrud_ValidatesCreatesUpdatesAndDeletesDustNoiseLevels()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         NotificationAlertIds ids = await SeedNotificationAlertScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -303,7 +302,7 @@ public class NotificationAlertWorkflowTests
     // Function summary: Handles the vibration alert level endpoint upserts alert and caution pair workflow for this module.
     public async Task VibrationAlertLevelEndpoint_UpsertsAlertAndCautionPair()
     {
-        using SpaTestApplicationFactory factory = new SpaTestApplicationFactory();
+        using SpaTestApplicationFactory factory = new();
         NotificationAlertIds ids = await SeedNotificationAlertScenarioAsync(factory);
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(factory);
@@ -438,7 +437,7 @@ public class NotificationAlertWorkflowTests
         Guid oldDeploymentId = Guid.NewGuid();
         Guid newDeploymentId = Guid.NewGuid();
         Guid gapNotificationId = Guid.NewGuid();
-        DateTime baseTime = new DateTime(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc);
+        DateTime baseTime = new(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc);
         DateTime oldDeploymentEnd = baseTime.AddDays(-10);
         DateTime newDeploymentStart = baseTime.AddDays(-4);
         DateTime gapNotificationTime = baseTime.AddDays(-7);

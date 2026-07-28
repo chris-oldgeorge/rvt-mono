@@ -57,8 +57,8 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
     // Function summary: Creates a user account and assigns the requested role.
     public async Task<UserAccountCommandResult> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
-        UserAccountCommandResult result = new UserAccountCommandResult();
-        ApplicationUser user = new ApplicationUser
+        UserAccountCommandResult result = new();
+        ApplicationUser user = new()
         {
             Email = request.Request.Email.Trim(),
             UserName = request.Request.Email.Trim(),
@@ -102,7 +102,7 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
     // Function summary: Updates user account fields and role membership.
     public async Task<UserAccountCommandResult> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
     {
-        UserAccountCommandResult result = new UserAccountCommandResult { UserId = request.UserId };
+        UserAccountCommandResult result = new() { UserId = request.UserId };
         ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
@@ -177,7 +177,7 @@ public sealed class DisableUserCommandHandler : IRequestHandler<DisableUserComma
     // Function summary: Disables a user and refreshes their security stamp.
     public async Task<UserAccountCommandResult> Handle(DisableUserCommand request, CancellationToken cancellationToken)
     {
-        UserAccountCommandResult result = new UserAccountCommandResult { UserId = request.UserId };
+        UserAccountCommandResult result = new() { UserId = request.UserId };
         ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
@@ -218,7 +218,7 @@ public sealed class EnableUserCommandHandler : IRequestHandler<EnableUserCommand
     // Function summary: Enables a disabled user account.
     public async Task<UserAccountCommandResult> Handle(EnableUserCommand request, CancellationToken cancellationToken)
     {
-        UserAccountCommandResult result = new UserAccountCommandResult { UserId = request.UserId };
+        UserAccountCommandResult result = new() { UserId = request.UserId };
         ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
@@ -254,7 +254,7 @@ public sealed class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand
     // Function summary: Deletes a user account and removes its site-assignment data atomically.
     public async Task<UserAccountCommandResult> Handle(DeleteUserCommand request, CancellationToken cancellationToken)
     {
-        UserAccountCommandResult result = new UserAccountCommandResult { UserId = request.UserId };
+        UserAccountCommandResult result = new() { UserId = request.UserId };
         ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {

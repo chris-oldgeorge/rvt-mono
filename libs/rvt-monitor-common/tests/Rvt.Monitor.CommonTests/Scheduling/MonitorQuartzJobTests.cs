@@ -11,8 +11,8 @@ public sealed class MonitorQuartzJobTests
     [TestMethod]
     public async Task Execute_DispatchesConfiguredJobName()
     {
-        CapturingDispatcher dispatcher = new CapturingDispatcher(0);
-        MonitorQuartzJob job = new MonitorQuartzJob(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
+        CapturingDispatcher dispatcher = new(0);
+        MonitorQuartzJob job = new(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
         IJobExecutionContext context = CreateContext("StoreMonitors");
 
         await job.Execute(context);
@@ -23,8 +23,8 @@ public sealed class MonitorQuartzJobTests
     [TestMethod]
     public async Task Execute_ThrowsWhenDispatcherReturnsFailure()
     {
-        CapturingDispatcher dispatcher = new CapturingDispatcher(2);
-        MonitorQuartzJob job = new MonitorQuartzJob(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
+        CapturingDispatcher dispatcher = new(2);
+        MonitorQuartzJob job = new(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
         IJobExecutionContext context = CreateContext("MissingJob");
 
         await Assert.ThrowsExactlyAsync<JobExecutionException>(() => job.Execute(context));
@@ -33,8 +33,8 @@ public sealed class MonitorQuartzJobTests
     [TestMethod]
     public async Task Execute_ThrowsWhenJobNameIsMissing()
     {
-        CapturingDispatcher dispatcher = new CapturingDispatcher(0);
-        MonitorQuartzJob job = new MonitorQuartzJob(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
+        CapturingDispatcher dispatcher = new(0);
+        MonitorQuartzJob job = new(dispatcher, NullLogger<MonitorQuartzJob>.Instance);
         IJobExecutionContext context = CreateContext(null);
 
         await Assert.ThrowsExactlyAsync<JobExecutionException>(() => job.Execute(context));
@@ -56,8 +56,8 @@ public sealed class MonitorQuartzJobTests
 
     private static IJobExecutionContext CreateContext(string? jobName)
     {
-        Mock<IJobExecutionContext> context = new Mock<IJobExecutionContext>();
-        JobDataMap jobDataMap = new JobDataMap();
+        Mock<IJobExecutionContext> context = new();
+        JobDataMap jobDataMap = [];
         if (jobName is not null)
         {
             jobDataMap["JobName"] = jobName;

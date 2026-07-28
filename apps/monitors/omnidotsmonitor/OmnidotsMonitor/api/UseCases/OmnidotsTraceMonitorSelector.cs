@@ -26,19 +26,17 @@ public static class OmnidotsTraceMonitorSelector
                 ? lastTraceAt
                 : DateTime.MinValue)
             .OrderBy(group => group.Key);
-        List<VibrationMonitorDto> ordered = new List<VibrationMonitorDto>();
+        List<VibrationMonitorDto> ordered = [];
 
         foreach (IGrouping<DateTime, VibrationMonitorDto>? priorityGroup in eligible)
         {
-            VibrationMonitorDto[] monitorsAtPriority = priorityGroup
-                .OrderBy(monitor => monitor.SerialId, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
+            VibrationMonitorDto[] monitorsAtPriority = [.. priorityGroup.OrderBy(monitor => monitor.SerialId, StringComparer.OrdinalIgnoreCase)];
             int offset = RotationOffset(rotationSlot, options.MaxMonitorsPerRun, monitorsAtPriority.Length);
             ordered.AddRange(monitorsAtPriority.Skip(offset));
             ordered.AddRange(monitorsAtPriority.Take(offset));
         }
 
-        return ordered.Take(options.MaxMonitorsPerRun).ToArray();
+        return [.. ordered.Take(options.MaxMonitorsPerRun)];
     }
 
     private static int RotationOffset(long rotationSlot, int maxMonitorsPerRun, int count)

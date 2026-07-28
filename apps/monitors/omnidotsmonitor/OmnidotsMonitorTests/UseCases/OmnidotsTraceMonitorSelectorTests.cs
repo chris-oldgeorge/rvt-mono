@@ -63,7 +63,7 @@ public sealed class OmnidotsTraceMonitorSelectorTests
     public void Select_RotatesWithinEqualPriorityGroupWithoutMutatingFleet()
     {
         List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(4);
-        string[] originalOrder = monitors.Select(monitor => monitor.SerialId).ToArray();
+        string[] originalOrder = [.. monitors.Select(monitor => monitor.SerialId)];
 
         IReadOnlyList<VibrationMonitorDto> first = OmnidotsTraceMonitorSelector.Select(
             monitors, new Dictionary<string, DateTime>(), Options(maxMonitorsPerRun: 2), rotationSlot: 0);

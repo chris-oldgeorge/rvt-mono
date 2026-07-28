@@ -131,7 +131,7 @@ public sealed class MyAtmSharedOutboxMigrationTests
     {
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         await command.ExecuteNonQueryAsync();
     }
 
@@ -139,7 +139,7 @@ public sealed class MyAtmSharedOutboxMigrationTests
     {
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
 
@@ -147,7 +147,7 @@ public sealed class MyAtmSharedOutboxMigrationTests
     {
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         return Convert.ToString(await command.ExecuteScalarAsync());
     }
 
@@ -155,7 +155,7 @@ public sealed class MyAtmSharedOutboxMigrationTests
     {
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         object? value = await command.ExecuteScalarAsync();
         return value is DBNull or null ? null : (DateTime)value;
     }
@@ -178,9 +178,9 @@ public sealed class MyAtmSharedOutboxMigrationTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
-        List<LegacyDeliverySnapshot> rows = new List<LegacyDeliverySnapshot>();
+        List<LegacyDeliverySnapshot> rows = [];
         while (await reader.ReadAsync())
         {
             rows.Add(new LegacyDeliverySnapshot(
@@ -218,9 +218,9 @@ public sealed class MyAtmSharedOutboxMigrationTests
 
         await using NpgsqlConnection connection = database!.OpenConnection();
         await connection.OpenAsync();
-        await using NpgsqlCommand command = new NpgsqlCommand(sql, connection);
+        await using NpgsqlCommand command = new(sql, connection);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
-        List<SharedDeliverySnapshot> rows = new List<SharedDeliverySnapshot>();
+        List<SharedDeliverySnapshot> rows = [];
         while (await reader.ReadAsync())
         {
             rows.Add(new SharedDeliverySnapshot(

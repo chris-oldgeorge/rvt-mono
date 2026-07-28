@@ -41,7 +41,7 @@ public sealed class RemoveUnattachedMonitorCommandHandler
         RemoveUnattachedMonitorCommand request,
         CancellationToken cancellationToken)
     {
-        RemoveUnattachedMonitorResult result = new RemoveUnattachedMonitorResult();
+        RemoveUnattachedMonitorResult result = new();
         RVT.Entities.Monitor? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(
             item => item.Id == request.MonitorId && !item.Archived,
             cancellationToken);

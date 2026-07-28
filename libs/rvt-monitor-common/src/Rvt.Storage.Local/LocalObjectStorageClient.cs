@@ -28,6 +28,21 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            return await WriteCoreAsync(request, cancellationToken);
+        }
+        catch (Exception exception) when (ShouldTranslate(exception, cancellationToken))
+        {
+            throw Translate(exception, request.Key);
+        }
+    }
+
+    private async Task<StorageWriteResult> WriteCoreAsync(
+        StorageWriteRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Key);
         ArgumentNullException.ThrowIfNull(request.Content);
 
@@ -96,6 +111,20 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(key);
+        try
+        {
+            return await OpenReadCoreAsync(key, cancellationToken);
+        }
+        catch (Exception exception) when (ShouldTranslate(exception, cancellationToken))
+        {
+            throw Translate(exception, key);
+        }
+    }
+
+    private async Task<StorageReadResult?> OpenReadCoreAsync(
+        StorageObjectKey key,
+        CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
 
         var localRoot = GetLocalRootPath();
@@ -141,6 +170,20 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(key);
+        try
+        {
+            return DeleteIfExistsCore(key, cancellationToken);
+        }
+        catch (Exception exception) when (ShouldTranslate(exception, cancellationToken))
+        {
+            throw Translate(exception, key);
+        }
+    }
+
+    private Task<bool> DeleteIfExistsCore(
+        StorageObjectKey key,
+        CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
 
         var localRoot = GetLocalRootPath();
@@ -165,6 +208,36 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         var targetPath = GetTargetPath(GetLocalRootPath(), key);
         return new Uri(targetPath);
     }
+
+    /// <summary>
+    /// Filesystem faults are operational failures and must reach callers as
+    /// the port's <see cref="ObjectStorageException"/>. Argument validation and
+    /// caller cancellation are deliberately excluded: neither is a storage
+    /// fault, and both are part of the documented port contract.
+    /// </summary>
+    private static bool ShouldTranslate(Exception exception, CancellationToken cancellationToken)
+    {
+        if (exception is ObjectStorageException or ArgumentException)
+        {
+            return false;
+        }
+
+        if (exception is OperationCanceledException && cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        return exception is IOException or UnauthorizedAccessException or NotSupportedException;
+    }
+
+    private ObjectStorageException Translate(Exception exception, StorageObjectKey? key) =>
+        new(
+            exception is UnauthorizedAccessException
+                ? StorageFailureKind.AccessDenied
+                : StorageFailureKind.Unavailable,
+            resourceName,
+            key,
+            exception);
 
     private string GetLocalRootPath()
     {
@@ -260,9 +333,10 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         }
     }
 
-    private static void EnsureNoExistingReparsePoints(
+    private void EnsureNoExistingReparsePoints(
         string localRoot,
-        string targetPath)
+        string targetPath,
+        StorageObjectKey? key = null)
     {
         var relativeTargetPath = Path.GetRelativePath(localRoot, targetPath);
         var pathComponent = localRoot;
@@ -277,8 +351,12 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
             {
                 if ((File.GetAttributes(pathComponent) & FileAttributes.ReparsePoint) != 0)
                 {
-                    throw new IOException(
-                        "The local object storage target path cannot contain reparse points.");
+                    throw new ObjectStorageException(
+                        StorageFailureKind.InvalidRequest,
+                        resourceName,
+                        key,
+                        new IOException(
+                            "The local object storage target path cannot contain reparse points."));
                 }
             }
             catch (FileNotFoundException)

@@ -69,6 +69,9 @@ public sealed class MonitorBlobReportStorageTests
 
     private sealed class RecordingObjectStorageClient : IObjectStorageClient
     {
+        public Uri GetObjectUri(StorageObjectKey key) =>
+            new($"https://reports.example.test/{key.Value}");
+
         public StorageWriteRequest? Request { get; private set; }
 
         public byte[]? Content { get; private set; }

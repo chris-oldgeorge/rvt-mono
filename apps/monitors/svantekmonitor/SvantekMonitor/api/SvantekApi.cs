@@ -180,6 +180,10 @@ public class SvantekApi
             throw new InvalidOperationException(
                 "IObjectStorageClientFactory must be supplied to read sound recordings.");
 
+        public Uri GetObjectUri(StorageObjectKey key) =>
+            throw new InvalidOperationException(
+                "IObjectStorageClientFactory must be supplied to resolve sound recording URIs.");
+
         public Task<bool> DeleteIfExistsAsync(
             StorageObjectKey key,
             CancellationToken cancellationToken = default) =>

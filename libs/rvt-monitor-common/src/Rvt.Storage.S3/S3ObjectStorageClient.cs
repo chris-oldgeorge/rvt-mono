@@ -1,4 +1,5 @@
 using Amazon;
+using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 
@@ -85,6 +86,14 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         {
             throw TranslateFailure(exception, request.Key);
         }
+        catch (AmazonServiceException exception)
+        {
+            throw TranslateServiceFailure(exception, request.Key);
+        }
+        catch (AmazonClientException exception)
+        {
+            throw TranslateClientFailure(exception, request.Key);
+        }
     }
 
     public async Task<StorageReadResult?> OpenReadAsync(
@@ -123,6 +132,14 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         catch (AmazonS3Exception exception)
         {
             throw TranslateFailure(exception, key);
+        }
+        catch (AmazonServiceException exception)
+        {
+            throw TranslateServiceFailure(exception, key);
+        }
+        catch (AmazonClientException exception)
+        {
+            throw TranslateClientFailure(exception, key);
         }
     }
 
@@ -166,6 +183,14 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
         catch (AmazonS3Exception exception)
         {
             throw TranslateFailure(exception, key);
+        }
+        catch (AmazonServiceException exception)
+        {
+            throw TranslateServiceFailure(exception, key);
+        }
+        catch (AmazonClientException exception)
+        {
+            throw TranslateClientFailure(exception, key);
         }
     }
 
@@ -221,6 +246,33 @@ public sealed class S3ObjectStorageClient : IObjectStorageClient, IDisposable
 
     private ObjectStorageException TranslateFailure(
         AmazonS3Exception exception,
+        StorageObjectKey key) =>
+        new(
+            ClassifyFailure(exception.StatusCode),
+            resourceName,
+            key,
+            exception);
+
+    /// <summary>
+    /// Covers the SDK failures that never reached a service response —
+    /// missing credentials, DNS and endpoint faults — which are transport
+    /// problems rather than a classified service rejection.
+    /// </summary>
+    private ObjectStorageException TranslateClientFailure(
+        AmazonClientException exception,
+        StorageObjectKey key) =>
+        new(
+            StorageFailureKind.Unavailable,
+            resourceName,
+            key,
+            exception);
+
+    /// <summary>
+    /// Non-S3 service rejections (for example STS credential resolution)
+    /// still carry a status code, so they classify like any other response.
+    /// </summary>
+    private ObjectStorageException TranslateServiceFailure(
+        AmazonServiceException exception,
         StorageObjectKey key) =>
         new(
             ClassifyFailure(exception.StatusCode),

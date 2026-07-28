@@ -99,11 +99,15 @@ public sealed class LocalObjectStorageClientTests
             new MemoryStream(Encoding.UTF8.GetBytes("original"), writable: false),
             "audio/wav"));
 
-        await Assert.ThrowsExactlyAsync<IOException>(() =>
+        // A filesystem fault is an operational failure and must reach callers
+        // through the port contract, with the original cause preserved.
+        var failure = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() =>
             client.WriteAsync(new StorageWriteRequest(
                 key,
                 new ThrowingReadStream(Encoding.UTF8.GetBytes("replacement")),
                 "audio/mpeg")));
+        Assert.AreEqual(StorageFailureKind.Unavailable, failure.Kind);
+        Assert.IsInstanceOfType<IOException>(failure.InnerException);
 
         await using var read = await client.OpenReadAsync(key);
         Assert.IsNotNull(read);
@@ -220,10 +224,18 @@ public sealed class LocalObjectStorageClientTests
         var client = CreateClient(localRoot.Path, "recordings", string.Empty);
         var key = StorageObjectKey.Parse("escape.wav");
 
-        await Assert.ThrowsExactlyAsync<IOException>(() =>
-            client.WriteAsync(CreateRequest(key.Value, [1])));
-        await Assert.ThrowsExactlyAsync<IOException>(() => client.OpenReadAsync(key));
-        await Assert.ThrowsExactlyAsync<IOException>(() => client.DeleteIfExistsAsync(key));
+        // A rejected path is an invalid request, not a disk fault, and is
+        // classified as such rather than crossing the port as a raw IOException.
+        foreach (var operation in new Func<Task>[]
+                 {
+                     () => client.WriteAsync(CreateRequest(key.Value, [1])),
+                     () => client.OpenReadAsync(key),
+                     () => client.DeleteIfExistsAsync(key),
+                 })
+        {
+            var rejected = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() => operation());
+            Assert.AreEqual(StorageFailureKind.InvalidRequest, rejected.Kind);
+        }
         Assert.IsFalse(File.Exists(Path.Combine(outsideDirectory.Path, "escape.wav")));
     }
 
@@ -255,10 +267,18 @@ public sealed class LocalObjectStorageClientTests
         var client = CreateClient(localRoot.Path, "recordings", string.Empty);
         var key = StorageObjectKey.Parse("escape.wav");
 
-        await Assert.ThrowsExactlyAsync<IOException>(() =>
-            client.WriteAsync(CreateRequest(key.Value, [1])));
-        await Assert.ThrowsExactlyAsync<IOException>(() => client.OpenReadAsync(key));
-        await Assert.ThrowsExactlyAsync<IOException>(() => client.DeleteIfExistsAsync(key));
+        // A rejected path is an invalid request, not a disk fault, and is
+        // classified as such rather than crossing the port as a raw IOException.
+        foreach (var operation in new Func<Task>[]
+                 {
+                     () => client.WriteAsync(CreateRequest(key.Value, [1])),
+                     () => client.OpenReadAsync(key),
+                     () => client.DeleteIfExistsAsync(key),
+                 })
+        {
+            var rejected = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() => operation());
+            Assert.AreEqual(StorageFailureKind.InvalidRequest, rejected.Kind);
+        }
         CollectionAssert.AreEqual(new byte[] { 9 }, await File.ReadAllBytesAsync(outsideTargetPath));
     }
 

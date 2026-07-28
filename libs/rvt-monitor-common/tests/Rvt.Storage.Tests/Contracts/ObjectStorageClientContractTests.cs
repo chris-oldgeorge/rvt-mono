@@ -6,6 +6,28 @@ public abstract class ObjectStorageClientContractTests
     protected abstract Task<IObjectStorageClientFixture> CreateFixtureAsync();
 
     [TestMethod]
+    public async Task GetObjectUri_IsPartOfThePortAndReturnsAnAbsoluteUri()
+    {
+        // Every adapter implemented this identically before it was added to the
+        // port, which forced consumers to bind to concrete adapter types.
+        await using var fixture = await CreateFixtureAsync();
+        var key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
+
+        var uri = fixture.Client.GetObjectUri(key);
+
+        Assert.IsTrue(uri.IsAbsoluteUri, $"Expected an absolute URI but got '{uri}'.");
+        Assert.IsNotEmpty(uri.Scheme);
+    }
+
+    [TestMethod]
+    public async Task GetObjectUri_WithNullKey_ThrowsArgumentNullException()
+    {
+        await using var fixture = await CreateFixtureAsync();
+
+        Assert.ThrowsExactly<ArgumentNullException>(() => fixture.Client.GetObjectUri(null!));
+    }
+
+    [TestMethod]
     public async Task WriteAsync_WithNonSeekableContent_ReturnsSameNormalizedKey()
     {
         await using var fixture = await CreateFixtureAsync();

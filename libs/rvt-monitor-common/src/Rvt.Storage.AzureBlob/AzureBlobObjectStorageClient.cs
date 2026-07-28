@@ -78,6 +78,10 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         {
             throw TranslateFailure(exception, request.Key);
         }
+        catch (AuthenticationFailedException exception)
+        {
+            throw TranslateAuthenticationFailure(exception, request.Key);
+        }
     }
 
     public async Task<StorageReadResult?> OpenReadAsync(
@@ -113,6 +117,10 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         {
             throw TranslateFailure(exception, key);
         }
+        catch (AuthenticationFailedException exception)
+        {
+            throw TranslateAuthenticationFailure(exception, key);
+        }
     }
 
     public async Task<bool> DeleteIfExistsAsync(
@@ -138,6 +146,10 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         catch (RequestFailedException exception)
         {
             throw TranslateFailure(exception, key);
+        }
+        catch (AuthenticationFailedException exception)
+        {
+            throw TranslateAuthenticationFailure(exception, key);
         }
     }
 
@@ -187,6 +199,21 @@ public sealed class AzureBlobObjectStorageClient : IObjectStorageClient
         StorageObjectKey key) =>
         new(
             ClassifyFailure(exception.Status),
+            resourceName,
+            key,
+            exception);
+
+    /// <summary>
+    /// Credential resolution failures arrive as
+    /// <see cref="AuthenticationFailedException"/>, which is not a
+    /// <see cref="RequestFailedException"/> and therefore previously crossed
+    /// the port untranslated.
+    /// </summary>
+    private ObjectStorageException TranslateAuthenticationFailure(
+        AuthenticationFailedException exception,
+        StorageObjectKey key) =>
+        new(
+            StorageFailureKind.AccessDenied,
             resourceName,
             key,
             exception);

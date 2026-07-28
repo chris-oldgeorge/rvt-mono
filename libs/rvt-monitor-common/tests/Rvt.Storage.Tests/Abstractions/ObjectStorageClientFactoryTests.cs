@@ -51,6 +51,8 @@ public sealed class ObjectStorageClientFactoryTests
 
     private sealed class FakeObjectStorageClient : IObjectStorageClient
     {
+        public Uri GetObjectUri(StorageObjectKey key) => throw new NotSupportedException();
+
         public Task<StorageWriteResult> WriteAsync(
             StorageWriteRequest request,
             CancellationToken cancellationToken = default)

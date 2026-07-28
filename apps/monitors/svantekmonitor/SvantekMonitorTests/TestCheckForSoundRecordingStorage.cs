@@ -212,6 +212,9 @@ public sealed class TestCheckForSoundRecordingStorage
 
 internal sealed class RecordingObjectStorageClient : IObjectStorageClient
 {
+    public Uri GetObjectUri(StorageObjectKey key) =>
+        new($"file:///recordings/{key.Value}");
+
     public List<StorageWrite> Writes { get; } = [];
 
     public async Task<StorageWriteResult> WriteAsync(

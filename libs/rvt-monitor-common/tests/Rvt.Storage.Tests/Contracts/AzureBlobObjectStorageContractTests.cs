@@ -73,6 +73,9 @@ public sealed class AzureBlobObjectStorageContractTests : ObjectStorageClientCon
         {
             var blob = new Mock<BlobClient>(MockBehavior.Strict);
             blob
+                .SetupGet(client => client.Uri)
+                .Returns(new Uri($"https://account.blob.core.windows.net/container/{providerKey}"));
+            blob
                 .Setup(client => client.UploadAsync(
                     It.IsAny<Stream>(),
                     It.IsAny<BlobUploadOptions>(),

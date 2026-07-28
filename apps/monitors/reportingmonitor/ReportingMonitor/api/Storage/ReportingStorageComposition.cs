@@ -33,12 +33,7 @@ internal static class ReportingStorageComposition
                     defaultContainer: "pdfreports",
                     defaultPrefix: "rvtreports",
                     legacyContainerEnvironmentKey: "BLOB_REPORT_CONTAINER_NAME"));
-            services.AddSingleton<IReportObjectUriResolver>(provider =>
-                new ConfiguredReportObjectUriResolver(
-                    provider
-                        .GetRequiredKeyedService<LocalObjectStorageClient>(
-                            ReportingStorageResourceNames.Reports)
-                        .GetObjectUri));
+            AddObjectUriResolver(services);
             return services;
         }
 
@@ -51,12 +46,7 @@ internal static class ReportingStorageComposition
                     defaultContainer: "pdfreports",
                     defaultPrefix: "rvtreports",
                     legacyContainerEnvironmentKey: "BLOB_REPORT_CONTAINER_NAME"));
-            services.AddSingleton<IReportObjectUriResolver>(provider =>
-                new ConfiguredReportObjectUriResolver(
-                    provider
-                        .GetRequiredKeyedService<AzureBlobObjectStorageClient>(
-                            ReportingStorageResourceNames.Reports)
-                        .GetObjectUri));
+            AddObjectUriResolver(services);
             return services;
         }
 
@@ -67,16 +57,27 @@ internal static class ReportingStorageComposition
                 providerConfiguration => S3StorageOptions.Bind(
                     providerConfiguration,
                     defaultPrefix: "rvtreports"));
-            services.AddSingleton<IReportObjectUriResolver>(provider =>
-                new ConfiguredReportObjectUriResolver(
-                    provider
-                        .GetRequiredKeyedService<S3ObjectStorageClient>(
-                            ReportingStorageResourceNames.Reports)
-                        .GetObjectUri));
+            AddObjectUriResolver(services);
             return services;
         }
 
         throw new InvalidOperationException(
             $"Unsupported blob storage provider '{configuredProvider}'. Allowed values are 'Local', 'AzureBlob', and 'S3'.");
+    }
+
+    /// <summary>
+    /// Resolves object URIs through the storage port. This previously bound to
+    /// each concrete adapter type because <c>GetObjectUri</c> was missing from
+    /// <see cref="Rvt.Storage.IObjectStorageClient"/>, which made a port
+    /// consumer depend on adapter types.
+    /// </summary>
+    private static void AddObjectUriResolver(IServiceCollection services)
+    {
+        services.AddSingleton<IReportObjectUriResolver>(provider =>
+            new ConfiguredReportObjectUriResolver(
+                provider
+                    .GetRequiredService<Rvt.Storage.IObjectStorageClientFactory>()
+                    .GetRequiredClient(ReportingStorageResourceNames.Reports)
+                    .GetObjectUri));
     }
 }

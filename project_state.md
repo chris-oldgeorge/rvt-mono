@@ -1,5 +1,145 @@
 # Project State
 
+## Authoritative checkpoint: Sonar reliability follow-up merged — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- GitHub PR #11, `Resolve remaining Sonar reliability findings`, merged into
+  `main` as `415fe890a01ee6120edc06690c78abf8a0482712`. Its exact-head
+  Engineering Standards run `30372441816` passed, and the remote feature
+  branch was deleted.
+- On-demand SonarQube run `30372738728` analyzed exact SCM revision
+  `415fe890a01ee6120edc06690c78abf8a0482712`. Setup, dependency installation,
+  integration-database preparation, restore, engineering standards, scanner
+  initialization, Release build, database deployment, .NET coverage, all 78
+  Portal client tests with coverage, report upload, and database cleanup
+  passed. The scanner exited 1 only because the published quality gate is red.
+- The three JavaScript new-code reliability findings from the preceding
+  checkpoint are resolved. New-code reliability, security, and
+  maintainability ratings are all A; duplicated-line density is 0.0%; security
+  hotspot review is 100%; active vulnerabilities are 0; and security hotspots
+  with status `TO_REVIEW` are 0.
+- The quality gate now fails one condition only: new-code coverage is 9.8%
+  against the 80% threshold (102 covered of 1,626 lines to cover; 1,524
+  uncovered). No gate, threshold, new-code period, or coverage exclusion was
+  weakened. Remediating this repository-wide coverage debt is a separate,
+  non-security scope.
+- Four active legacy bugs remain outside the new-code gate: one namespace
+  organization finding, one always-true condition, and two cancellation-token
+  findings. They do not affect the A new-code reliability rating and were not
+  expanded into this security-remediation scope.
+- Sonar dependency analysis remains outside the authorized scope and was not
+  run; the final scanner log again records `Dependency analysis skipped`.
+  No runtime variable, secret, application configuration, or file-layout
+  contract changed in this final checkpoint.
+
+## Authoritative checkpoint: Sonar security remediation merged — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- GitHub PR #9, `Remediate Sonar security findings`, merged into `main` as
+  `0234e459069c111499516e3287024aa58a77c37c`. PR #10, `Run standards before
+  Sonar scanner initialization`, then merged as
+  `6fb1019b9b4d667b13f7429fe39d610c918a5490`. Both remote feature branches
+  were deleted.
+- SonarCloud project `aileron-forward_rvt-mono`, branch `main`, now reports
+  zero active vulnerabilities and zero security hotspots with status
+  `TO_REVIEW`. The security rating is A, and security-hotspot review is 100%.
+  The seven context-dependent dispositions in the next checkpoint remain the
+  authoritative rationale for six false positives and one accepted
+  container-network HTTP boundary.
+- GitHub Actions Sonar run `30370391674` analyzed exact SCM revision
+  `6fb1019b9b4d667b13f7429fe39d610c918a5490`. Restore, standards verification,
+  Release build, database deployment, .NET coverage, all 78 Portal client
+  tests with coverage, analysis upload, and database cleanup passed. The run
+  is available at
+  `https://github.com/chris-oldgeorge/rvt-mono/actions/runs/30370391674`.
+- The overall quality gate remains `ERROR` for non-security new-code debt:
+  reliability rating D from three JavaScript findings and coverage 9.8%
+  (102 covered of 1,626 lines to cover; 1,524 uncovered) against an 80%
+  threshold. Security rating, maintainability rating, duplicated-line density,
+  and hotspot review all pass.
+- The reliability follow-up branch is
+  `codex/sonar-reliability-followup`. It adds explicit JavaScript property
+  types to `scripts/engineering-standards/verify.mjs` so Sonar does not infer
+  mutable parser fields as permanently undefined, and it gives
+  `scripts/engineering-standards/model.mjs` an explicit code-point comparator
+  for deterministic diagnostic-key ordering. The model suite passes 26/26,
+  both files pass `node --check`, and the full verifier scenario suite passes.
+- The coverage result is repository-wide new-code-period debt, not part of the
+  security remediation. Its largest uncovered files are the engineering
+  standards verifier/model and the existing Portal Help feature. No quality
+  gate, new-code period, or coverage exclusion was weakened or changed.
+- Sonar dependency analysis was not authorized or run; the analysis log
+  explicitly records `Dependency analysis skipped`. No runtime variable,
+  secret, application configuration, or file-layout contract changed in the
+  reliability follow-up.
+
+## Authoritative checkpoint: Sonar security dispositions recorded — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- SonarCloud project `aileron-forward_rvt-mono`, branch `main`, has seven
+  context-dependent findings dispositioned through the authenticated Sonar API:
+  - `AZ-ojKl9UqA9vndbQR-a`, `AZ-ojKl9UqA9vndbQR-b`, and
+    `AZ-ojKl9UqA9vndbQR-c` are `FALSE_POSITIVE`: each is the normative SVG
+    namespace identifier in a disposable verifier fixture, not clear-text
+    network traffic.
+  - `AZ-iGxXCIPvQyd8fB6yf` and `AZ-iGxXCIPvQyd8fB6yg` are `FALSE_POSITIVE`:
+    `forgot-password` and `reset-password` are public route names, not
+    credentials.
+  - `AZ-iGxM5IPvQyd8fB6vz` is `FALSE_POSITIVE`: only validated, canonicalized,
+    provider-delimited PostgreSQL identifiers are rendered; all values remain
+    parameters and regression coverage rejects injected routine and parameter
+    names.
+  - `AZ-iGyHeIPvQyd8fB7H3` is `ACCEPTED` (Sonar API resolution `WONTFIX`):
+    clear-text HTTP is restricted to the container network and production TLS
+    terminates at managed ingress or a reverse proxy; direct public port 8080
+    exposure is prohibited.
+- Commit `bb87547` documents the reporting listener boundary before the final
+  acceptance transition. The local verifier scenarios, Portal client tests
+  (78 tests), and focused stored-routine tests (7 tests) passed.
+- The post-transition unresolved vulnerability query returns 10 findings. They
+  are exactly the code/configuration findings fixed in Tasks 2–6 and remain
+  open only until the next analysis is published; no additional unresolved
+  context-dependent finding remains.
+
+## Authoritative checkpoint: Sonar main branch aligned with Git — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- SonarCloud project `aileron-forward_rvt-mono` had one long-lived main branch
+  named `master` (`isMain: true`) at analyzed commit
+  `000f6c58d114927e800977ca6db0c0cb9f889f38`.
+- The SonarCloud main-branch setting was renamed from `master` to `main`.
+  Verification confirms `main` is now the sole `LONG` branch with
+  `isMain: true`, retaining the same analysis commit and branch identity.
+- No Git branch, ref, workflow, or repository file was renamed; this was a
+  SonarCloud administrative setting change only. The SonarQube workflow
+  continues to analyze project key `aileron-forward_rvt-mono`.
+- Post-rename validation ran `sonar list issues -p aileron-forward_rvt-mono
+  --branch main --format json --page-size 500` successfully. It returned the
+  current inventory (`total: 5345`, page 1 of 500), proving that `main`
+  resolves the analyzed project inventory rather than a branch mismatch.
+
+## Authoritative checkpoint: Visual Studio SPA proxy repaired — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- The Visual Studio SPA proxy launch command now invokes Vite directly with
+  `node.exe node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort`.
+  This keeps the generated `spa.proxy.json` valid and avoids `npm` lifecycle
+  scripts falling back to `C:\Windows` when Visual Studio opens the repository
+  through `\\Mac\Home\Developer\rvt-mono`.
+- `SpaProxyConfigurationTests` freezes both the JSON-integrity requirement and
+  the UNC-compatible launch command.
+- On Windows 11 ARM64, a fresh `npm ci` completed with zero vulnerabilities,
+  `dotnet clean` succeeded, and the Debug SPA project rebuild completed with
+  zero warnings and zero errors. The regenerated proxy JSON parsed
+  successfully and direct Node/Vite execution from the UNC working directory
+  reported Vite 6.4.3 on Node 24.18.0.
+- The two focused proxy regression tests passed on Windows. The prior macOS
+  dependency tree and the incomplete Windows install were preserved under the
+  ignored `apps/portal/artifacts/spa-proxy-repair` directory for recovery.
+- Delivery is tracked in GitHub PR #8. Its follow-up CI repair restores
+  executable bits only on shell entrypoints that commit `8fab1bd` changed to
+  non-executable; the two SVG assets remain correctly non-executable.
+
 ## Authoritative checkpoint: PR #6 merged into main — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

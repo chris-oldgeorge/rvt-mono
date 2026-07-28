@@ -34,7 +34,7 @@ jobs:
 
       - name: Install Portal client dependencies
         working-directory: apps/portal/RvtPortal.Client
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Restore monorepo
         run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel

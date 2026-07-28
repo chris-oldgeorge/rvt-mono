@@ -132,7 +132,7 @@ jobs:
       - name: Install frontend dependencies
         if: steps.sonar-token.outputs.available == 'true'
         working-directory: RvtPortal.Client
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Collect frontend coverage
         if: steps.sonar-token.outputs.available == 'true'

@@ -294,7 +294,7 @@ def assert_engineering_standards_gate(steps)
   )
 
   canonical_commands = [
-    [install_step, ["npm ci"], "Portal dependency installation"],
+    [install_step, ["npm ci --ignore-scripts"], "Portal dependency installation"],
     [
       restore_step,
       ["dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel"],
@@ -428,16 +428,33 @@ def assert_database_lifecycle(steps)
   deploy_index = steps.index(named_step.call("Deploy Portal database"))
   coverage_index = steps.index(named_step.call("Collect .NET coverage"))
   assert(
-    begin_index < restore_index &&
-      restore_index < standards_index &&
-      standards_index < build_index &&
+    restore_index < standards_index &&
+      standards_index < begin_index &&
+      begin_index < build_index &&
       build_index < deploy_index &&
       deploy_index < coverage_index,
-    "database deployment must occur after scanner begin, restore, standards verification, and build, before .NET coverage"
+    "database deployment must occur after restore, standards verification, scanner begin, and build, before .NET coverage"
+  )
+end
+
+def assert_sonar_analysis_order(steps)
+  install_tools_index = named_step_index(steps, "Install analysis tools")
+  restore_index = named_step_index(steps, "Restore monorepo")
+  standards_index = named_step_index(steps, "Verify engineering standards")
+  begin_index = named_step_index(steps, "Begin SonarQube analysis")
+  build_index = named_step_index(steps, "Build monorepo (Release)")
+
+  assert(
+    install_tools_index < begin_index &&
+      restore_index < standards_index &&
+      standards_index < begin_index &&
+      begin_index < build_index,
+    "analysis tools must precede scanner begin; restore and standards verification must precede scanner begin; scanner begin must precede the Release build"
   )
 end
 
 assert_engineering_standards_gate(steps)
+assert_sonar_analysis_order(steps)
 assert_database_lifecycle(steps)
 
 install_tools = run.call("Install analysis tools")
@@ -503,6 +520,27 @@ SCHEMA_DEPLOY
   end
   raise "#{label} mutation was accepted"
 end
+
+verifier_after_begin_steps = steps.dup
+begin_index = named_step_index(verifier_after_begin_steps, "Begin SonarQube analysis")
+standards_index = named_step_index(verifier_after_begin_steps, "Verify engineering standards")
+verifier_step = verifier_after_begin_steps.delete_at(standards_index)
+begin_index = named_step_index(verifier_after_begin_steps, "Begin SonarQube analysis")
+verifier_after_begin_steps.insert(begin_index + 1, verifier_step)
+begin
+  assert_sonar_analysis_order(verifier_after_begin_steps)
+rescue RuntimeError
+  # Expected: moving the engineering gate after scanner begin is forbidden.
+else
+  raise "verifier-after-begin mutation was accepted"
+end
+
+restore_before_tools_steps = steps.dup
+install_tools_index = named_step_index(restore_before_tools_steps, "Install analysis tools")
+restore_index = named_step_index(restore_before_tools_steps, "Restore monorepo")
+install_tools_step = restore_before_tools_steps.delete_at(install_tools_index)
+restore_before_tools_steps.insert(restore_index, install_tools_step)
+assert_sonar_analysis_order(restore_before_tools_steps)
 
 puts "verify-manual-sonarqube-workflow: PASS"
 RUBY

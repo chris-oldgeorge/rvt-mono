@@ -9,7 +9,8 @@ public static class SensitiveLogRedactor
     private const int VisiblePrefixLength = 4;
     private static readonly Regex SensitiveAssignmentPattern = new(
         @"(?<name>\b(?:token|secret|password|api[_-]?key|user[_-]?(?:auth|id)|authorization|key|username)\b\s*[:=]\s*)(?<value>[^\s,&;]+)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(100));
 
     public static string Redact(string? value)
     {
@@ -122,8 +123,20 @@ public static class SensitiveLogRedactor
     }
 
     private static string RedactSensitiveAssignments(string value) =>
-        SensitiveAssignmentPattern.Replace(value, match =>
-            match.Groups["name"].Value + Redact(match.Groups["value"].Value));
+        RedactSensitiveAssignments(value, SensitiveAssignmentPattern);
+
+    private static string RedactSensitiveAssignments(string value, Regex pattern)
+    {
+        try
+        {
+            return pattern.Replace(value, match =>
+                match.Groups["name"].Value + Redact(match.Groups["value"].Value));
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return Redact(value);
+        }
+    }
 
     private static bool IsSensitiveName(string name)
     {

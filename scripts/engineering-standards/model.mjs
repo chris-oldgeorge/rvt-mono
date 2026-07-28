@@ -188,7 +188,9 @@ export function compareRatchet({
   ].sort(compareDiagnostics);
 
   const observedCounts = countDiagnostics(activeDiagnostics);
-  const keys = [...new Set([...observedCounts.keys(), ...baseline.keys()])].sort();
+  const keys = [
+    ...new Set([...observedCounts.keys(), ...baseline.keys()])
+  ].sort(compareStrings);
   const result = {
     changedSurfaceViolations,
     increases: [],

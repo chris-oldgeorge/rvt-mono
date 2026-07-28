@@ -28,8 +28,9 @@ namespace AirQ.Api.UseCases
             this.ruleProcessor = ruleProcessor;
         }
 
-        public void Run(DateTime date)
+        public Task RunAsync(DateTime date, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var monitors = monitorQueries.ReadSiteMonitorsWithSiteHours(date);
             foreach (var monitor in monitors)
             {
@@ -86,6 +87,8 @@ namespace AirQ.Api.UseCases
                     }
                 }
             }
+
+            return Task.CompletedTask;
         }
     }
 }

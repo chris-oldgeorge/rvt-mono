@@ -29,12 +29,12 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreNoiseLevels_EmptyRules_Success()
+        public async Task TestStoreNoiseLevels_EmptyRules_Success()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
 
             var monitors = AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE);
@@ -43,9 +43,9 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns(new List<RvtAlertRuleDto>());
 
-            testObj.StoreNoiseLevels("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/latestData?userID=foo"))), Times.Exactly(3));
+            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/latestData?userID=foo")), It.IsAny<CancellationToken>()), Times.Exactly(3));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -66,20 +66,20 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreNoiseLevels_TruncatedByTimestamp_Success()
+        public async Task TestStoreNoiseLevels_TruncatedByTimestamp_Success()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(DateTime.UtcNow, NoiseMonitorStatus.ACTIVE));
 
-            testObj.StoreNoiseLevels("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/latestData?userID=foo"))), Times.Exactly(3));
+            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/latestData?userID=foo")), It.IsAny<CancellationToken>()), Times.Exactly(3));
             httpClient.VerifyNoOtherCalls();
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             dbClient.VerifyNoOtherCalls();
@@ -90,22 +90,22 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreNoiseLevelsForYesterday_Success()
+        public async Task TestStoreNoiseLevelsForYesterday_Success()
         {
 
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             var yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + yesterday + "&token=bar&instrumentID=*"))).
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + yesterday + "&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.DateSamplesResponseJson()));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
-            testObj.StoreAllNoiseLevelsForYesterday("foo", "bar");
+            await testObj.StoreAllNoiseLevelsForYesterdayAsync("foo", "bar");
 
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID=foo"))), Times.Exactly(3));
+            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID=foo")), It.IsAny<CancellationToken>()), Times.Exactly(3));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -120,7 +120,7 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreNoiseLevelsForDate_Success()
+        public async Task TestStoreNoiseLevelsForDate_Success()
         {
 
             var dateStr = "2023-09-11";
@@ -128,14 +128,14 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
             var regex =
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"))).
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.DateSamplesResponseJson()));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
-            testObj.StoreNoiseLevelsForDate("foo", "bar", dateStr);
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID="))), Times.Exactly(3));
+            await testObj.StoreNoiseLevelsForDateAsync("foo", "bar", dateStr);
+            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID=")), It.IsAny<CancellationToken>()), Times.Exactly(3));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -150,39 +150,39 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void GetSamplesForDate_EncodesEveryDynamicQueryParameter()
+        public async Task GetSamplesForDate_EncodesEveryDynamicQueryParameter()
         {
             var httpClient = new Mock<IHttpClient>(MockBehavior.Strict);
-            httpClient.Setup(client => client.GetAsync(It.IsAny<string>())).ReturnsAsync("[]");
+            httpClient.Setup(client => client.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("[]");
             var gateway = new AirQHttpGateway(httpClient.Object);
 
-            gateway.GetSamplesForDate(
+            await gateway.GetSamplesForDateAsync(
                 "vendor user&admin=true",
                 "vendor token&role=admin",
                 "serial&override=true",
                 "2026-07-14&token=attacker");
 
             httpClient.Verify(client => client.GetAsync(
-                "/dataForDate?userID=vendor%20user%26admin%3Dtrue&date=2026-07-14%26token%3Dattacker&token=vendor%20token%26role%3Dadmin&instrumentID=serial%26override%3Dtrue"),
+                "/dataForDate?userID=vendor%20user%26admin%3Dtrue&date=2026-07-14%26token%3Dattacker&token=vendor%20token%26role%3Dadmin&instrumentID=serial%26override%3Dtrue", It.IsAny<CancellationToken>()),
                 Times.Once);
             httpClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
-        public void TestStoreNoiseLevelsInactiveMonitor_Success()
+        public async Task TestStoreNoiseLevelsInactiveMonitor_Success()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(null, "Inactive"));
 
-            testObj.StoreNoiseLevels("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID="))), Times.Exactly(0));
+            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID=")), It.IsAny<CancellationToken>()), Times.Exactly(0));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -194,22 +194,22 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreNoiseLevelsForDateInactiveMonitor_Success()
+        public async Task TestStoreNoiseLevelsForDateInactiveMonitor_Success()
         {
 
             var dateStr = "2023-09-11";
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
 
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"))).
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(null, "Inactive"));
 
-            testObj.StoreNoiseLevelsForDate("foo", "bar", dateStr);
+            await testObj.StoreNoiseLevelsForDateAsync("foo", "bar", dateStr);
 
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID="))), Times.Exactly(0));
+            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID=")), It.IsAny<CancellationToken>()), Times.Exactly(0));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -256,7 +256,7 @@ namespace AirQMonitorTests
         //                                   sunEndTime: TimeSpan.Parse("15:00:00"));
 
         //    dbClient.Setup(c => c.ReadSiteInfo(It.IsAny<Guid>())).Returns(siteInfo);
-        //    testObj.NotifySiteAverages(DateTime.Today.AddDays(-1));
+        //    await testObj.NotifySiteAveragesAsync(DateTime.Today.AddDays(-1));
 
         //    dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
         //    dbClient.Verify(c => c.ReadRules(monitors[0].SerialId), Times.Exactly(1));

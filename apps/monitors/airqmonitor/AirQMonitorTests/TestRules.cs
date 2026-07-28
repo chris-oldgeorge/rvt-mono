@@ -48,14 +48,14 @@ namespace AirQMonitorTests
         [DynamicData(nameof(DeletedExclusion))]
         [DynamicData(nameof(TimeExclusion))]
         [DynamicData(nameof(LevelExclusion))]
-        public void TestStoreNoiseLevels_WithAlertRuleExclusion_Success(List<RvtAlertRuleDto> rules)
+        public async Task TestStoreNoiseLevels_WithAlertRuleExclusion_Success(List<RvtAlertRuleDto> rules)
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IMessageService> messageService);
 
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
             var monitors = AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE);
             dbClient.Setup(c => c.ReadMonitorList(null)).
@@ -64,11 +64,11 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadRules("Device1")).
                 Returns(rules);
 
-            testObj.StoreNoiseLevels("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
-            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device1"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device2"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device3"), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device1", It.IsAny<CancellationToken>()), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device2", It.IsAny<CancellationToken>()), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device3", It.IsAny<CancellationToken>()), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -93,7 +93,7 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreNoiseLevels_AlertRuleActivatedThenDeactivatedByActivityWindow_Success()
+        public async Task TestStoreNoiseLevels_AlertRuleActivatedThenDeactivatedByActivityWindow_Success()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
@@ -118,7 +118,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
 
-            httpClient.SetupSequence(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
+            httpClient.SetupSequence(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements1))).
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements2)));
 
@@ -137,10 +137,10 @@ namespace AirQMonitorTests
                                 Returns(false);
 
             // first store noise levels should trigger an alert second should cancel it
-            testObj.StoreNoiseLevels("foo", "bar");
-            testObj.StoreNoiseLevels("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId)),
+            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(2));
             httpClient.VerifyNoOtherCalls();
 
@@ -170,7 +170,7 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreNoiseLevels_AlertRuleActivatedThenDeactivatedByNoiseLimitOnOff_Success()
+        public async Task TestStoreNoiseLevels_AlertRuleActivatedThenDeactivatedByNoiseLimitOnOff_Success()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
@@ -212,7 +212,7 @@ namespace AirQMonitorTests
 
 
 
-            httpClient.SetupSequence(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
+            httpClient.SetupSequence(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(alertingMeasurements))).
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(alertingMeasurements))).
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(nonAlertingMeasurements)));
@@ -220,11 +220,11 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType)).
                 Returns(false);
 
-            testObj.StoreNoiseLevels("foo", "bar");
-            testObj.StoreNoiseLevels("foo", "bar");
-            testObj.StoreNoiseLevels("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId)),
+            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(3));
             httpClient.VerifyNoOtherCalls();
 
@@ -255,7 +255,7 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreNoiseLevels_AlertRuleActiveWritesAlertAccordingToAlertDelay_Success()
+        public async Task TestStoreNoiseLevels_AlertRuleActiveWritesAlertAccordingToAlertDelay_Success()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
@@ -275,7 +275,7 @@ namespace AirQMonitorTests
             var contacts = AirQFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
-            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=blah&token=blahh&instrumentID={0}", serialId))).
+            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=blah&token=blahh&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
             var ruleActivity = AirQFixture.CreateActiveRuleActivity(null, null);
@@ -297,11 +297,11 @@ namespace AirQMonitorTests
                    Returns(false);
 
             // first store noise levels should trigger an alert, second should not as it occurred before RULE_ALERT_DELAY_MINUTES but 3rd should as it's after RULE_ALERT_DELAY_MINUTES
-            testObj.StoreNoiseLevels("blah", "blahh");
-            testObj.StoreNoiseLevels("blah", "blahh");
-            testObj.StoreNoiseLevels("blah", "blahh");
+            await testObj.StoreNoiseLevelsAsync("blah", "blahh");
+            await testObj.StoreNoiseLevelsAsync("blah", "blahh");
+            await testObj.StoreNoiseLevelsAsync("blah", "blahh");
 
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=blah&token=blahh&instrumentID={0}", serialId)),
+            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=blah&token=blahh&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(3));
             httpClient.VerifyNoOtherCalls();
 
@@ -337,7 +337,7 @@ namespace AirQMonitorTests
         [DynamicData(nameof(OneAlertContact))]
         [DynamicData(nameof(TwoAlertContacts))]
         [DynamicData(nameof(ThreeAlertContacts))]
-        public void TestStoreNoiseLevels_WithVaryingNumberOfContactsForAlertRule_Success(List<RvtContactDto> contacts)
+        public async Task TestStoreNoiseLevels_WithVaryingNumberOfContactsForAlertRule_Success(List<RvtContactDto> contacts)
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                          out Mock<IDBClient> dbClient,
@@ -357,7 +357,7 @@ namespace AirQMonitorTests
 
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
-            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
+            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
             var ruleActivity = AirQFixture.CreateActiveRuleActivity(null, null);
@@ -373,9 +373,9 @@ namespace AirQMonitorTests
                 Returns(false);
 
             // first store noise levels should trigger an alert, second should not as it occurred before RULE_ALERT_DELAY_MINUTES but 3rd should as it's after RULE_ALERT_DELAY_MINUTES
-            testObj.StoreNoiseLevels("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId)),
+            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
@@ -435,7 +435,7 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreNoiseLevels_AlertRuleActivatedButSendMessageFails_Success()
+        public async Task TestStoreNoiseLevels_AlertRuleActivatedButSendMessageFails_Success()
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
@@ -454,7 +454,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(null)).
                    Returns(monitors);
 
-            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
+            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
             var ruleId = Guid.NewGuid(); ;
@@ -473,9 +473,9 @@ namespace AirQMonitorTests
             messageService.Setup(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>())).
                 Throws(CommsException.Of("test-address", "test-message"));
 
-            testObj.StoreNoiseLevels("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId)),
+            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
@@ -520,7 +520,7 @@ namespace AirQMonitorTests
         [DataRow("Sun, 17 Dec 2023 14:10:00Z", "14:09:00", "15:00:00", 1)]
         [DataRow("Sun, 18 Jun 2023 14:10:00Z", "08:00:00", "14:09:00", 0)]
         [TestMethod]
-        public void TestStoreNoiseLevels_AlertRuleActivatedButSendMessageExcludedBySendTime_Success(
+        public async Task TestStoreNoiseLevels_AlertRuleActivatedButSendMessageExcludedBySendTime_Success(
             string dataTimeStr, string? sendStartTimeStr, string? sendEndTimeStr, int numExpectedMessages)
         {
             var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
@@ -543,7 +543,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(null)).
                    Returns(monitors);
 
-            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
+            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
             var ruleId = Guid.NewGuid();
@@ -559,9 +559,9 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, It.IsAny<string>(), It.IsAny<AlertType>())).
                     Returns(false);
 
-            testObj.StoreNoiseLevels("foo", "bar"); //Runs the StoreNoiseLevels function so that we can verify that all required functions have been triggered
+            await testObj.StoreNoiseLevelsAsync("foo", "bar"); //Runs the StoreNoiseLevels function so that we can verify that all required functions have been triggered
 
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId)),
+            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(1)); //Checks that the GetAsync function has been ran with the correct parameters only 1 time (as shown above)
             httpClient.VerifyNoOtherCalls();// checks that no other calls have been made by the httpClient
 

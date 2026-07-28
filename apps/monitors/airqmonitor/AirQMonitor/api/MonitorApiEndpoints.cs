@@ -65,7 +65,7 @@ public static class MonitorApiEndpoints
         }
 
         var importer = context.RequestServices.GetRequiredService<IAirQDateImporter>();
-        importer.StoreNoiseLevelsForDate(canonicalDate);
+        await importer.StoreNoiseLevelsForDateAsync(canonicalDate, context.RequestAborted);
         return Results.Ok();
     }
 

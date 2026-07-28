@@ -2,5 +2,5 @@ namespace AirQ.Api.UseCases;
 
 public interface IAirQDateImporter
 {
-    void StoreNoiseLevelsForDate(string date);
+    Task StoreNoiseLevelsForDateAsync(string date, CancellationToken cancellationToken = default);
 }

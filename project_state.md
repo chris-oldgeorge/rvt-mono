@@ -33,16 +33,35 @@
 - Each fix landed with the regression coverage that was missing where the bug
   survived: 28 new tests across Graph token classification, missing-destination
   delivery, heatmap geometry, invariant formatting, and the HTTP timeouts.
-- Still open from the review's critical list, deliberately not started because
-  it is a larger refactor rather than a surgical fix: the AirQ and Omnidots
-  import cores still call `.Result` and still discard the job
-  `CancellationToken`. The vendor timeout now bounds the stall, but a blocked
-  thread and ungraceful shutdown remain. Completing it means making
-  `IHttpClient` cancellable, cascading `async` through the gateways, handlers,
-  facades, and job dispatchers, restructuring
-  `AirQHttpGateway.HttpGetLatestSamples` away from its `ref DateTime`
-  parameter, and updating roughly 520 AirQ and Omnidots tests that mock the
-  synchronous `IHttpClient` shape.
+- **AirQ is now fully asynchronous and cancellable.** `.Result` no longer
+  appears anywhere in `AirQMonitor`, and the Quartz/one-shot token reaches the
+  vendor request. The chain is
+  `AirQMonitorJobDispatcher` → `MonitorJobRunner` → `AirQService` →
+  `AirQApi` → handlers → `IAirQVendorGateway` → `IHttpClient`.
+  - A driven port `AirQ.Api.Ports.IAirQVendorGateway` was introduced. The
+    import use cases previously depended on the concrete `AirQHttpGateway`
+    adapter; they now depend only on the port, and
+    `TestAirQCancellation.UseCasesDependOnThePortNotTheHttpAdapter` guards
+    that boundary by reflection.
+  - `HttpGetLatestSamples` used a `ref DateTime` watermark, which cannot cross
+    an `async` boundary. The port returns `LatestSamplesResult(Samples,
+    LatestDateTime)` instead of mutating an argument.
+  - Cancellation is distinguished from failure throughout: every handler
+    rethrows `OperationCanceledException` before its `catch (Exception)`
+    error-recording path, so a container stop is never written as a vendor
+    import failure or counted against a monitor's error count.
+  - `POST /store-noise-levels-for-date` now awaits the import with
+    `HttpContext.RequestAborted`, so a disconnecting caller cancels the work.
+  - Four exception assertions in `TestAirQApiException` had encoded the
+    sync-over-async artifact: `.Result` wrapped failures in an
+    `AggregateException`, so they asserted
+    `InnerException is AggregateException`. With `await` the original
+    exception propagates, and the assertions now pin that.
+- Still open: **Omnidots** retains the same blocking pattern (8 `.Result`
+  call sites in `OmnidotsHttpGateway`) and still discards the job token for 8
+  of its 11 jobs. Its vendor timeout bounds the stall. The AirQ work above is
+  the template to follow; Omnidots additionally needs its `IHttpClient.PostAsync`
+  made cancellable and has a much larger mock surface (394 tests).
 - Also still open and intentionally untouched: the Omnidots
   `RVT__OMNIDOTS_USE_TOKEN` request-path token seam. It defaults to enabled, so
   changing it could alter how production authenticates against the vendor;

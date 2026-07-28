@@ -94,7 +94,8 @@ public class TestMonitorApiEndpoints
     public async Task StoreNoiseLevelsForDate_DispatchesOnlyCanonicalDateAfterApiKeyValidation()
     {
         var importer = new Mock<IAirQDateImporter>(MockBehavior.Strict);
-        importer.Setup(service => service.StoreNoiseLevelsForDate("2026-07-14"));
+        importer.Setup(service => service.StoreNoiseLevelsForDateAsync("2026-07-14", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
         await using var app = await StartAppAsync("monitor-api-key", importer.Object);
         using var client = app.GetTestClient();
 
@@ -106,7 +107,7 @@ public class TestMonitorApiEndpoints
 
         using var response = await client.SendAsync(request);
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
-        importer.Verify(service => service.StoreNoiseLevelsForDate("2026-07-14"), Times.Once);
+        importer.Verify(service => service.StoreNoiseLevelsForDateAsync("2026-07-14", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [TestMethod]
@@ -115,7 +116,7 @@ public class TestMonitorApiEndpoints
         await using var app = await StartAppAsync("monitor-api-key", new Mock<IAirQDateImporter>(MockBehavior.Strict).Object);
         using var client = app.GetTestClient();
 
-        using var response = await client.GetAsync("/liveness");
+        using var response = await client.GetAsync("/liveness", It.IsAny<CancellationToken>());
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
     }
 

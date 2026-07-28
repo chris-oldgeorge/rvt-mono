@@ -1,5 +1,5 @@
 using AirQ.Api.Db;
-using AirQ.Api.Http;
+using AirQ.Api.Ports;
 using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Configuration;
@@ -12,13 +12,13 @@ namespace AirQ.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitorsNoiseLevels).
     public class StoreNoiseLevelsForDateHandler
     {
-        private readonly AirQHttpGateway gateway;
+        private readonly IAirQVendorGateway gateway;
         private readonly AirQMonitorReader monitorReader;
         private readonly IAirQMeasurementCommands measurementCommands;
         private readonly IAirQOperationalCommands operationalCommands;
 
         public StoreNoiseLevelsForDateHandler(
-            AirQHttpGateway gateway,
+            IAirQVendorGateway gateway,
             AirQMonitorReader monitorReader,
             IAirQMeasurementCommands measurementCommands,
             IAirQOperationalCommands operationalCommands)
@@ -29,7 +29,7 @@ namespace AirQ.Api.UseCases
             this.operationalCommands = operationalCommands;
         }
 
-        public void Run(string userId, string userAuth, string dateStr)
+        public async Task RunAsync(string userId, string userAuth, string dateStr, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -46,9 +46,10 @@ namespace AirQ.Api.UseCases
                     }
                     var serialId = monitor!.SerialId;
 
+                    cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
-                        var samples = gateway.GetSamplesForDate(userId, userAuth, serialId, dateStr);
+                        var samples = await gateway.GetSamplesForDateAsync(userId, userAuth, serialId, dateStr, cancellationToken);
 
                         var dtos = new List<NoiseDto>();
                         foreach (var sample in samples)
@@ -57,6 +58,10 @@ namespace AirQ.Api.UseCases
                         }
                         measurementCommands.InsertNoiseDtos(serialId, dtos);
 
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception e)
                     {
@@ -71,6 +76,10 @@ namespace AirQ.Api.UseCases
                 }
             }
             catch (AggregateException)
+            {
+                throw;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }

@@ -1,5 +1,5 @@
 using AirQ.Api.Db;
-using AirQ.Api.Http;
+using AirQ.Api.Ports;
 using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Configuration;
@@ -13,7 +13,7 @@ namespace AirQ.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitorsNoiseLevels).
     public class StoreNoiseLevelsHandler
     {
-        private readonly AirQHttpGateway gateway;
+        private readonly IAirQVendorGateway gateway;
         private readonly AirQMonitorReader monitorReader;
         private readonly IAirQRuleQueries ruleQueries;
         private readonly IAirQMonitorCommands monitorCommands;
@@ -23,7 +23,7 @@ namespace AirQ.Api.UseCases
         private readonly AirQRuleProcessor ruleProcessor;
 
         public StoreNoiseLevelsHandler(
-            AirQHttpGateway gateway,
+            IAirQVendorGateway gateway,
             AirQMonitorReader monitorReader,
             IAirQRuleQueries ruleQueries,
             IAirQMonitorCommands monitorCommands,
@@ -42,7 +42,7 @@ namespace AirQ.Api.UseCases
             this.ruleProcessor = ruleProcessor;
         }
 
-        public void Run(string userId, string userAuth)
+        public async Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -59,11 +59,14 @@ namespace AirQ.Api.UseCases
 
                     DateTime lastDataTime = monitor.LastDataTime == null ? DateTime.Now.AddYears(-1) : (DateTime)monitor.LastDataTime!;
 
+                    cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
                         DateTime preLastDate = lastDataTime; //Saving this as it get changed below and neede to calculate the time period.
 
-                        var samples = gateway.HttpGetLatestSamples(userId, userAuth, monitor.SerialId, ref lastDataTime);
+                        var latest = await gateway.GetLatestSamplesAsync(userId, userAuth, monitor.SerialId, lastDataTime, cancellationToken);
+                        var samples = latest.Samples;
+                        lastDataTime = latest.LatestDateTime;
                         RvtLogger.Logger.LogInformation("GetLatestSamples SerialId={Value1} number of samples={Value2} lastDataTime={Value3}", monitor.SerialId, samples.Count, lastDataTime);
                         var dtos = new List<NoiseDto>();
                         foreach (var sample in samples)
@@ -100,6 +103,10 @@ namespace AirQ.Api.UseCases
                         }
 
                     }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
                     catch (Exception e)
                     {
                         monitor.MonitorStatus.ErrorCount++;
@@ -115,6 +122,10 @@ namespace AirQ.Api.UseCases
                 }
             }
             catch (AggregateException)
+            {
+                throw;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }

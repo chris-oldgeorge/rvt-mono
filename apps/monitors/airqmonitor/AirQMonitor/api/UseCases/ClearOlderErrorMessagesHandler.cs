@@ -14,12 +14,14 @@ namespace AirQ.Api.UseCases
             this.operationalCommands = operationalCommands;
         }
 
-        public void Run()
+        public Task RunAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
 
             var cutOff = DateTime.UtcNow.AddDays(-7);
             operationalCommands.ClearErrorMessages(cutOff);
 
+            return Task.CompletedTask;
         }
     }
 }

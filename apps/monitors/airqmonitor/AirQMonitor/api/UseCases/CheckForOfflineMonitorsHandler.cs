@@ -30,8 +30,9 @@ namespace AirQ.Api.UseCases
             this.ruleProcessor = ruleProcessor;
         }
 
-        public void Run()
+        public Task RunAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var rules = ruleQueries.ReadRules(null);
 
             var utcNow = DateTime.UtcNow;
@@ -81,6 +82,8 @@ namespace AirQ.Api.UseCases
                     }
                 }
             }
+
+            return Task.CompletedTask;
         }
     }
 }

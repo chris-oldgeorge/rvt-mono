@@ -30,11 +30,11 @@ namespace AirQ.Api.Http
             this.httpClient.Timeout = RequestTimeout;
         }
 
-        public async Task<string> GetAsync(string path)
+        public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
-            var response = await httpClient.GetAsync(path);
-            var reply = await response.Content.ReadAsStringAsync();
+            using var response = await httpClient.GetAsync(path, cancellationToken);
+            var reply = await response.Content.ReadAsStringAsync(cancellationToken);
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 throw AdapterException.Of("HTTP ERROR response=", SensitiveLogRedactor.RedactJson(reply));

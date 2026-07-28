@@ -16,7 +16,10 @@ public sealed class MyAtmDependencyBoundaryTests
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        CollectionAssert.AreEqual(Array.Empty<string>(), violations);
+        CollectionAssert.AreEqual(
+            Array.Empty<string>(),
+            violations,
+            string.Join(Environment.NewLine, violations));
     }
 
     private static IEnumerable<string> ValidateMapperlyReference(

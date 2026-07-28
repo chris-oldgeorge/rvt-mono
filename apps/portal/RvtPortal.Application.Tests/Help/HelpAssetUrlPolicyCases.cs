@@ -2,6 +2,7 @@
 // Major updates:
 // - 2026-07-28 Added the initial policy-parity corpus for Help asset URLs.
 
+#pragma warning disable IDE0130 // Shared test corpus is linked into multiple test projects.
 namespace RvtPortal.Testing.Help;
 
 public sealed record HelpAssetUrlCase(
@@ -175,3 +176,4 @@ public static class HelpAssetUrlPolicyCases
             null)
     ];
 }
+#pragma warning restore IDE0130

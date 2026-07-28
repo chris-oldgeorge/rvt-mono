@@ -8,8 +8,8 @@ using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
 using RVT.ReleaseAudit;
-using RvtPortal.Testing.Help;
 using RvtPortal.Spa.Tests.Support;
+using RvtPortal.Testing.Help;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -19,7 +19,7 @@ public sealed class HelpAssetUrlAuditTests
         "Usage: RVT.ReleaseAudit help-asset-urls --environment <label> --revision <git-sha> --receipt <path>"
         + "\nSet RVT_RELEASE_AUDIT_CONNECTION in the process environment.\n";
 
-    private static readonly DateTimeOffset ExecutedAtUtc =
+    private static readonly DateTimeOffset executedAtUtc =
         new(2026, 7, 28, 12, 34, 56, TimeSpan.Zero);
 
     public static TheoryData<string, string?, string?> PersistedCases
@@ -249,7 +249,7 @@ public sealed class HelpAssetUrlAuditTests
                     return Task.FromResult(
                         new HelpAssetUrlAuditReadResult(
                             "unexpected",
-                            Array.Empty<HelpAssetUrlAuditRow>()));
+                            []));
                 }
 
                 throw new InvalidOperationException(
@@ -342,16 +342,16 @@ public sealed class HelpAssetUrlAuditTests
         {
             await HelpAssetUrlAudit.WriteReceiptAsync(
                 receiptPath,
-                "{\"outcome\":\"old\"}\n",
+                /*lang=json,strict*/ "{\"outcome\":\"old\"}\n",
                 CancellationToken.None);
             await HelpAssetUrlAudit.WriteReceiptAsync(
                 receiptPath,
-                "{\"outcome\":\"pass\"}\n",
+                /*lang=json,strict*/ "{\"outcome\":\"pass\"}\n",
                 CancellationToken.None);
 
             var bytes = await File.ReadAllBytesAsync(receiptPath);
             Assert.False(bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }));
-            Assert.Equal("{\"outcome\":\"pass\"}\n", System.Text.Encoding.UTF8.GetString(bytes));
+            Assert.Equal(/*lang=json,strict*/ "{\"outcome\":\"pass\"}\n", System.Text.Encoding.UTF8.GetString(bytes));
             Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(receiptPath)!, "*.tmp"));
         }
         finally
@@ -463,6 +463,7 @@ public sealed class HelpAssetUrlAuditTests
 
         var json = HelpAssetUrlAudit.SerializeReceipt(receipt);
 
+#pragma warning disable JSON002 // Raw JSON verifies the stable serialized property order.
         Assert.Equal(
             """
             {
@@ -484,6 +485,7 @@ public sealed class HelpAssetUrlAuditTests
             }
             """ + Environment.NewLine,
             json);
+#pragma warning restore JSON002
         Assert.DoesNotContain(validRawUrl, json, StringComparison.Ordinal);
         Assert.DoesNotContain(invalidRawUrl, json, StringComparison.Ordinal);
         using var document = JsonDocument.Parse(json);
@@ -586,7 +588,7 @@ public sealed class HelpAssetUrlAuditTests
             rows,
             environment: "production",
             database: "rvt_portal",
-            executedAtUtc: ExecutedAtUtc,
+            executedAtUtc: executedAtUtc,
             revision: "abc123",
             auditVersion: "1");
 
@@ -610,10 +612,10 @@ public sealed class HelpAssetUrlAuditTests
         var exitCode = await ReleaseAuditProgram.RunAsync(
             args ?? ValidArguments(),
             getEnvironmentVariable ?? (_ => "Host=database.test;Database=rvt;Password=not-real"),
-            () => ExecutedAtUtc,
+            () => executedAtUtc,
             () => "test-version",
             readRows ?? ((_, _) => Task.FromResult(
-                new HelpAssetUrlAuditReadResult("rvt_portal", Array.Empty<HelpAssetUrlAuditRow>()))),
+                new HelpAssetUrlAuditReadResult("rvt_portal", []))),
             writeReceipt ?? ((_, _, _) => Task.CompletedTask),
             standardOutput,
             standardError,

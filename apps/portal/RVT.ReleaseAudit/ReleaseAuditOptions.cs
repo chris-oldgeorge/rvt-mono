@@ -85,9 +85,9 @@ internal sealed record ReleaseAuditOptions(
     private static bool IsEnvironmentLabel(string value) =>
         value is { Length: >= 1 and <= 64 }
         && value.All(character =>
-            character is >= 'a' and <= 'z'
-            or >= 'A' and <= 'Z'
-            or >= '0' and <= '9'
+            character is (>= 'a' and <= 'z')
+            or (>= 'A' and <= 'Z')
+            or (>= '0' and <= '9')
             or '.'
             or '_'
             or '-');
@@ -95,7 +95,7 @@ internal sealed record ReleaseAuditOptions(
     private static bool IsRevision(string value) =>
         value is { Length: >= 7 and <= 64 }
         && value.All(character =>
-            character is >= 'a' and <= 'f'
-            or >= 'A' and <= 'F'
-            or >= '0' and <= '9');
+            character is (>= 'a' and <= 'f')
+            or (>= 'A' and <= 'F')
+            or (>= '0' and <= '9'));
 }

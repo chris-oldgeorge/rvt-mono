@@ -30,12 +30,31 @@
   zero-length new-side hunks as deletion-only paths, so those valid changes
   can be verified while metadata-only changes and empty added source files
   remain rejected.
+- GitHub Actions run `30352635145` confirmed the Node 24 transition itself:
+  checkout v6, setup-dotnet v5, setup-node v6, npm install, restore, standards
+  model, engineering configuration, and workflow-contract steps all passed.
+  The remaining changed-range failure was unrelated to Node. It exposed style
+  diagnostics in the full PR diff that a local check had missed because local
+  branch `main` pointed at `b9d663c` while `origin/main` and the PR base were
+  `129419a`. For this branch, committed-range verification must use
+  `--base origin/main` or the CI `--base auto`, not the local `main` label.
+- The full-PR style remediation formats the release-audit CLI and option
+  predicates, simplifies Portal registration and test collection creation,
+  removes two unused imports, orders test imports, renames the private test
+  timestamp field to camel case, and annotates intentional JSON literals.
+  The shared Help URL corpus keeps its neutral namespace with a documented
+  `IDE0130` suppression because the same source is linked into two differently
+  named test projects.
 - `tests/verify-engineering-standards.test.sh` contains the committed-range
   regression: it deletes a member from `src/Clock.cs`, verifies the range, and
-  asserts successful analysis. The full verifier scenario suite passed, and
-  the exact CI command
-  `scripts/verify-engineering-standards.sh --base main --head HEAD` passed.
+  asserts successful analysis. The full verifier scenario suite passed.
   Mode-only changes still fail closed.
+- After the style remediation, targeted Roslyn style and whitespace checks
+  passed. `RvtPortal.Application.Tests` passed 75/75 tests and
+  `RvtPortal.Spa.Tests` passed 546 tests with 11 opt-in PostgreSQL tests
+  skipped. The committed remote-base ratchet passed against `origin/main`
+  with baseline decreases and no policy violation. The replacement GitHub
+  Actions run remains the final verification step.
 - Node 24 container verification passed: ESLint completed with the same two
   pre-existing Fast Refresh warnings and no errors, all 78 Vitest tests passed,
   and the production Vite build passed. The current dependency tree still
@@ -44,8 +63,8 @@
 - No secrets, application variable definitions, or deployment behavior changed
   in this hardening. The Portal email setting remains `RVT:EMAIL_ENABLED`,
   supplied by environment variable `RVT__Email_ENABLED`, defaulting to `true`.
-- Next step: commit this durable checkpoint, push the three CI-hardening
-  commits to PR #5, and monitor the Engineering standards check to green.
+- Next step: push the style-remediation commit to PR #5 and monitor the
+  replacement Engineering standards run to green.
 
 ## Authoritative checkpoint: Help audit and Portal email-toggle scopes — 2026-07-28
 

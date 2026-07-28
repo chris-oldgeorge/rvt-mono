@@ -33,9 +33,7 @@
 // - 2026-07-08 pending Registered user-list and dashboard breach application services for controller cleanup.
 
 using MediatR;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
-using Rvt.Communication.Abstractions;
 using Rvt.Communication.SendGridMail;
 using RVT.BusinessLogic;
 using RVT.BusinessLogic.Notifications;
@@ -112,7 +110,7 @@ public static class ServiceCollectionExtensions
             FromEmail = configuration["EmailConfiguration:Sending_Email_Address"] ?? string.Empty,
             FromName = "RVT Cloud"
         };
-        services.AddSingleton<IOptions<SendGridMailOptions>>(Options.Create(sendGridMailOptions));
+        services.AddSingleton(Options.Create(sendGridMailOptions));
         services.AddSendGridMail(sendGridMailOptions);
         services.AddScoped<IEmailDelivery, RvtCommonEmailDelivery>();
         services.AddScoped<IAccountMessenger, AccountMessenger>();

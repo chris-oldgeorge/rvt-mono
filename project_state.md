@@ -1,5 +1,340 @@
 # Project State
 
+## R9 enforcement implemented — R1 next 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Physical worktree:
+  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/repository-engineering-standards`
+  (also exposed through `/Users/oldgeorge/Documents/rvt-mono`).
+- Branch: `codex/repository-engineering-standards`.
+- Implementation head before the Task 7 documentation commit:
+  `22865329d41e28f7d1f60b52bc6bd6a4bc01ff82`
+  (`test: tokenize shell punctuation in workflow guards`).
+- Tasks 1–7 of
+  `docs/superpowers/plans/2026-07-27-repository-engineering-standards-enforcement.md`
+  are implemented. The design status is `Implemented`, R9 is checked complete
+  in the architecture/code-quality review, and the operating guide and
+  evidence report are linked from `docs/index.md`.
+- R9 commits by area:
+  - standard/plan: `e083eda`, `9bd194b`, `1b05562`, `170b4d8`;
+  - root configuration: `2212185`;
+  - model: `3d01096`, `4f23da2`, `e7757de`;
+  - verifier: `988c0e9`, `6bc3b26`, `f5f1472`, `8d50a96`, `20c3bde`,
+    `5c850cc`, `30acaca`;
+  - frontend policy: `e8759f6`, `d0d659c`;
+  - baseline/module policy: `604912d`, `71a84a0`, `20d89b0`, `331c181`,
+    `d3ab241`, `76eecc4`;
+  - local/CI integration: `bfa78d0`, `dd3910d`, `299d971`, `c03ba2e`,
+    `2286532`;
+  - Task 7: `docs: record engineering standards enforcement` (the commit
+    containing this checkpoint).
+- Baseline generated 2026-07-27: 2,050 identities / 8,024 diagnostics.
+  By tool:
+  - `dotnet-format-analyzers`: 27 identities / 61 diagnostics;
+  - `dotnet-format-style`: 1,933 / 7,872;
+  - `dotnet-format-whitespace`: 59 / 59;
+  - `eslint`: 1 / 2;
+  - `prettier`: 30 / 30.
+  The exception register is empty.
+- Final standards evidence:
+  - model/policy: 50/50 passed;
+  - configuration hierarchy, verifier scenarios, integration sequence, and
+    working-tree ratchet passed with no increase;
+  - all 12 root shell guards passed;
+  - the temporary real mutation proof exited 1 for exact C# `CSH-002` and
+    TypeScript `@typescript-eslint/naming-convention` path/rule evidence;
+  - the disposable mutation worktree was removed and production source was
+    untouched.
+- Aggregate evidence:
+  - locked restore passed;
+  - build passed with 0 errors and 5 existing NU1903 advisories for
+    `System.Security.Cryptography.Xml` 10.0.7;
+  - backend tests: 2,109 total, 1,896 passed, 203 failed, 10 skipped;
+  - 186 failures require the deliberately absent
+    `RVT__POSTGRES_INTEGRATION_CONNECTION`;
+  - 17 failures are stale monorepo-layout/Mapperly expectations assigned to
+    R1;
+  - Portal SPA passed 425 with 10 PostgreSQL-dependent skips;
+  - frontend lint passed with 0 errors and 2 existing Fast Refresh warnings,
+    Vitest passed 68/68, and Vite built 1,606 modules;
+  - `git diff --check` passed.
+- No production database credential was used, no failing test was hidden, and
+  no enforcement gate was weakened. R9 completion describes the enforcement
+  deliverable; the classified backend outcomes remain visible work.
+- Exact commands and requirement traceability are in
+  `docs/reviews/2026-07-27-engineering-standards-enforcement-report.md`.
+- Next step: write and execute a separate R1 plan for stale MyAtm/Svantek and
+  related monitor architecture paths plus the shared repository-layout helper.
+  Keep R2 product behavior and R3 reporting-lineage decisions out of R1.
+- Remaining sequence after R1: R2 Help Admin; R3 reporting lineage; R4 dead
+  Portal infrastructure/blob unification; R5 Portal vertical extraction; R6
+  monitor narrow ports; R7 async compatibility removal; R8 selectable Common
+  infrastructure; R10 structural reduction; R11 ambient configuration.
+
+## R9 latest checkpoint — Task 6 complete, Task 7 next 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Branch: `codex/repository-engineering-standards`.
+- Committed `HEAD`:
+  `22865329d41e28f7d1f60b52bc6bd6a4bc01ff82`
+  (`test: tokenize shell punctuation in workflow guards`).
+- Tasks 1–6 of the repository engineering-standards enforcement plan are
+  implemented. Task 5 remains independently approved at `76eecc4`; Task 6
+  production integration is at `bfa78d0`.
+- Task 6 integrates the working-tree ratchet into `scripts/build-mono.sh`
+  after restore and before compile, and integrates the base/head ratchet into
+  `.github/workflows/sonarqube.yml` after .NET restore and Portal `npm ci`
+  and before Release build. Portal coverage does not reinstall dependencies.
+- Task 6 guard-hardening commits are:
+  - `dd3910d` — initial workflow guard mutation coverage;
+  - `299d971` — wrapper, option, and executable classifier coverage;
+  - `c03ba2e` — conservative npm and dotnet phase classification;
+  - `2286532` — shell control/redirection punctuation tokenization.
+- The final punctuation correction added ten real bypass regressions. RED
+  proved exactly 20 acceptances across the integration and manual workflow
+  guards; GREEN rejects all ten in both guards. Reverting only the tokenizer
+  reopens exactly those 20 acceptances.
+- Final independent Task 6 review found no Critical, Important, or Minor
+  issue. It additionally proved rejection of `>>`, `<`, `<<<`, `|&`, `&>`,
+  `>|`, and grouped-redirection forms. Full-line command comments remain
+  ignored, and the duplicated classifier blocks are byte-identical.
+- Fresh controller evidence passed Bash syntax, diff hygiene, the complete
+  engineering-standards integration mutation harness, the manual Sonar
+  workflow guard, and the Rvt.Common source-boundary suite.
+- The original Task 6 aggregate build reached the test phase. Its failures
+  were classified outside Task 6: environment-sensitive monitor tests require
+  unset PostgreSQL configuration, and two untouched Portal assertions remain
+  reproducible (`NotificationLists` expected 2/actual 1 and
+  `CompanyUserClose` expected 200/actual 404). No gate was weakened and no
+  production database credentials were used.
+- Required next step: execute Task 7 from
+  `docs/superpowers/plans/2026-07-27-repository-engineering-standards-enforcement.md`.
+  Complete the enforcement guide/status/report, run the complete standards
+  and root-guard matrices plus backend/frontend verification, prove real
+  ratchet increases fail in temporary copies, obtain independent review, and
+  only then mark R9 complete.
+- `project_state.md` remains the only tracked working-tree modification. It
+  must be incorporated deliberately by Task 7 and not staged before that
+  documentation/evidence commit.
+
+## R9 latest checkpoint — Task 5 complete, Task 6 next 2026-07-28
+
+- Branch: `codex/repository-engineering-standards`.
+- Committed `HEAD`:
+  `76eecc4d8f0710a00826386e0884a925b42329d6`
+  (`test: revalidate module policy inputs`).
+- The prior user-authorized ESLint structural-ignore exception is complete at
+  `30acaca` and independently approved. Fresh controller syntax, model 26/26,
+  real selector, and expanded verifier harness evidence passed.
+- Task 5 has committed exactly:
+  - `eng/standards/baseline.json`;
+  - `eng/standards/exceptions.json`;
+  - `eng/standards/module-policy.json`;
+  - `tests/verify-engineering-standards-policy.test.mjs`.
+  The production baseline contains 2,050 unique identities and 8,024 actual
+  diagnostics. No convenience exceptions were created.
+- Task 5 is complete and independently approved. Its review-driven hardening
+  commits are:
+  - `20d89b0` — initial framework/package/exact-shape guards;
+  - `331c181` — replace textual XML inference with evaluated MSBuild metadata
+    and exact filesystem-versus-solution inventory;
+  - `d3ab241` — enforce module-root central-policy provenance, fail-closed
+    governed roots/symlinks, and regular lock files;
+  - `76eecc4` — reject dangling/unknown links and remove stale cross-call
+    central metadata caching.
+- The final policy suite evaluates all governed projects with MSBuild, proves
+  exact module and override shape, handles framework package IDs
+  case-insensitively, distinguishes central from central-locked behavior,
+  validates central declaration origin, and prevents projects from being
+  omitted from the solution census.
+- Final independent review found no Critical, Important, or Minor issue.
+  Fresh controller evidence passed syntax, model/policy 50/50, the focused
+  process-lock harness, the working-tree ratchet with no increases, and diff
+  hygiene.
+- Required next step: execute Task 6 from the written plan—wire the ratchet
+  into the aggregate build and CI—using a fresh implementer, TDD evidence,
+  independent scoped review, and controller verification.
+- `project_state.md` remains the only tracked working-tree modification.
+  Tasks 6–7 and final branch review have not started.
+
+## R9 repository engineering standards — blocked checkpoint 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Physical worktree:
+  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/repository-engineering-standards`
+  (also exposed through `/Users/oldgeorge/Documents/rvt-mono`).
+- Branch: `codex/repository-engineering-standards`.
+- Committed `HEAD`:
+  `5c850cc5c88e3dfc86e6e64def782fe2a4851cef`
+  (`fix: route only supported files to Prettier`).
+- The only tracked working-tree modification is this state file. Preserved
+  untracked Task 5 work:
+  - `eng/standards/exceptions.json`;
+  - `eng/standards/module-policy.json`;
+  - `tests/verify-engineering-standards-policy.test.mjs`.
+  `eng/standards/baseline.json` does not exist and no partial baseline or lock
+  was left behind.
+- Task 3 reached its fifth and final planned fix round. Commit `5c850cc`
+  keeps SVG in the validated Portal source surface but routes only the
+  explicit Prettier 3.9.6 parser allowlist to Prettier. Fresh controller
+  evidence passed Node/Bash syntax, model 26/26, and the 79-repository focused
+  harness. A real all-scope Prettier probe now reaches normal policy exit 1
+  with 30 formatting-debt entries instead of invocation exit 2. Independent
+  scoped review approved the fix with no new Critical/Important finding.
+- Task 4 is complete through `d0d659c`: Prettier is pinned exactly to 3.9.6,
+  the prescribed configuration and structural generated-schema ESLint ignore
+  are committed, and the naming policy is active. The two unchanged
+  `react-refresh/only-export-components` warnings remain intended Task 5
+  baseline inputs.
+- Task 5 captured its strict RED: 4/4 tests failed only because the three
+  production policy documents were absent. Exact exceptions/module policy and
+  the 333-line behavior test are preserved. Required SDK 10.0.302 is installed
+  only under `/private/tmp/rvt-dotnet-sdk-10.0.302`; serial restore and
+  `npm ci` succeeded. Sandbox Roslyn named-pipe denial was proven
+  environmental and avoided by the approved unsandboxed run.
+- Current load-bearing blocker: the real all-scope verifier selects 36 tracked
+  TypeScript paths and explicitly passes generated
+  `apps/portal/RvtPortal.Client/src/api/schema.d.ts` to ESLint. Task 4
+  structurally ignores that generated file, so ESLint exits 0 but emits an
+  ignored-file informational message with `ruleId: null`, severity 1, and
+  `fatal: false`. Task 3 rejects the null rule ID and exits 2 before baseline
+  initialization.
+- The five-round breaker has therefore tripped. No sixth correction was
+  attempted. User direction is required to authorize an exception fix round
+  or revise the workflow. The likely bounded correction is to make Task 3
+  honor ESLint's structural ignore without weakening supported-file lint
+  failures (for example, the pinned CLI's `--no-warn-ignored` behavior), with
+  RED/GREEN, a dedicated commit, and scoped re-review.
+- Tasks 6 and 7 and the final whole-branch review have not started. Task 5
+  cannot resume until the blocker is corrected and reviewed.
+- The SDD ledger and reports remain under
+  `.superpowers/sdd/2026-07-27-repository-engineering-standards-enforcement/`;
+  the plan remains
+  `docs/superpowers/plans/2026-07-27-repository-engineering-standards-enforcement.md`.
+- A separate task temporarily switched this physical worktree to
+  `codex/help-admin-application-boundary`; that branch has since advanced
+  independently through `c015d0b` and retains the earlier `96fa359` commit.
+  The worktree was restored to the R9 branch; do not switch branches or reuse
+  this physical worktree for another task while R9 resumes.
+
+## Repository engineering standards enforcement — saved 2026-07-27 (Task 3 awaiting final review)
+
+- Resume instruction: start the next session with
+  `Read project_state.md to get up to speed`.
+- Worktree:
+  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/repository-engineering-standards`.
+  Branch: `codex/repository-engineering-standards`.
+- Current committed `HEAD` is
+  `20c3bde` (`fix: secure verifier assets and lock ownership`). The only
+  tracked working-tree modification is this state file; there are no
+  uncommitted verifier changes.
+- Completed and independently approved commits:
+  - `e083eda` — engineering standards specification;
+  - `9bd194b`, `1b05562`, `170b4d8` — enforcement plan and approved
+    evaluated-test/Ratchet corrections;
+  - `2212185` — shared EditorConfig/MSBuild hierarchy;
+  - `3d01096`, `4f23da2`, `e7757de` — diagnostic/exception model and its
+    reviewed boundary/date fixes.
+- Task 1 is complete and independently approved. All 10 then-existing root
+  guards passed; restore passed; default Ratchet build passed with 73 warnings
+  and 0 errors. `RvtEngineeringStandardsMode` defaults to `Ratchet`, where
+  `EnforceCodeStyleInBuild=false`; `Strict` evaluates it to `true`. Promotion
+  remains gated on zero code-style baselines and a strict root build.
+- Task 2 is complete and independently approved. Its focused suite passes
+  26/26 and covers POSIX/Windows/UNC paths, escapes, realistic .NET/ESLint
+  reports, fatal ESLint identity, fail-closed one-based lines, baseline and
+  exception validation, strict `reviewOn > introducedOn`, exact exception
+  scope, deterministic ordering, baseline-only deltas, and non-mutation.
+
+### Task 3 review state
+
+- Task 3's original implementation and four remediation rounds are committed:
+  - `988c0e9` — changed-scope standards ratchet;
+  - `6bc3b26` — verifier hardening, review round 1;
+  - `f5f1472` — range assets and recoverable verifier locks, round 2;
+  - `8d50a96` — prerequisite and lock identity checks, round 3;
+  - `20c3bde` — secure asset provenance and collision-resistant lock
+    ownership, round 4.
+- Task 3 is **not yet complete or independently approved**. The round-4
+  implementer reported passing syntax, the 26/26 model suite, five consecutive
+  focused harness runs, two traced runs under CPU load, all 11 isolated root
+  guards, and diff hygiene. Those results have not been independently rerun
+  after commit `20c3bde`.
+- Round 4 addresses the two findings left after round 3:
+  1. exact-head asset provisioning could link dependency inputs from a dirty,
+     staged, deleted, or untracked caller working tree;
+  2. verifier lock ownership used locale-sensitive, second-resolution process
+     start timestamps.
+- The round-4 implementation rejects contaminated documented dependency
+  inputs, uses random-token sentinel child ownership, and guards ownership
+  immediately before the atomic baseline write. Its harness includes
+  dirty/staged/deleted/untracked dependency inputs plus predecessor/successor
+  lock safety.
+- No verification process or subagent is currently running. The Task 3
+  progress ledger/report is one round behind and still needs the round-4
+  implementation and review outcome recorded.
+- Resume with:
+  1. inspect `git status` and confirm `HEAD` is `20c3bde`;
+  2. update the Task 3 report and ledger for round 4;
+  3. independently rerun syntax, the 26/26 model suite, the focused verifier
+     harness, relevant root guards, and `git diff --check`;
+  4. prepare the exact review package for `8d50a96..20c3bde`;
+  5. dispatch a fresh scoped review against only the two open round-3
+     findings;
+  6. if approved, mark Task 3 complete; otherwise use the fifth and final
+     permitted remediation round and then adjudicate any remaining blocker.
+
+### Remaining R9 execution
+
+- Task 4 — add deterministic frontend formatting and naming policy: not
+  started.
+- Task 5 — capture the legacy baseline and module policy: not started.
+- Task 6 — wire the ratchet into the aggregate build and CI: not started.
+- Task 7 — complete R9 documentation and end-to-end verification: not started.
+- After Tasks 3–7, run the mandatory whole-branch review, one bounded final fix
+  wave if necessary, update this state file and the final documentation, and
+  use the finishing-development-branch workflow for the integration decision.
+- The broader remediation phases R1–R8 and R10–R11 remain Future Pending Work;
+  they are not part of this R9 branch.
+- Codegraph is unavailable (`unable to open database file`); use focused local
+  inspection. The relocated Developer worktree is outside the app's stale
+  Documents writable root, so use the narrow escalated worktree patch
+  workaround when direct `apply_patch` cannot resolve it. The Task 3 worker's
+  `/bin/zsh` launch failed while `/bin/bash` worked.
+- Local Node is `v22.22.3`; the planned CI/runtime pin is Node 24.
+
+### Task 3 interfaces and variable definitions
+
+- CLI modes: `--working-tree`, `--base REV --head REV`,
+  `--base auto --head HEAD`, and `--all`. Baseline lifecycle flags are
+  `--initialize-baseline` and `--update-baseline`, valid only with `--all`.
+  Exit codes are 0 compliant, 1 policy violation, and 2 invocation/tool error.
+- Command overrides are JSON arrays of non-empty tokens:
+  `RVT_STANDARDS_DOTNET_COMMAND`, `RVT_STANDARDS_ESLINT_COMMAND`, and
+  `RVT_STANDARDS_PRETTIER_COMMAND`; they are never evaluated as shell text.
+- Policy path overrides are `RVT_STANDARDS_BASELINE_PATH` and
+  `RVT_STANDARDS_EXCEPTIONS_PATH`; defaults are
+  `eng/standards/baseline.json` and `eng/standards/exceptions.json`.
+- Core constants are `ignoredPrefixes`, `portalPrefix`, `dotnetTools`, and
+  `portalSourceExtensions`; error classes are `PolicyError` and
+  `InvocationError`.
+- Resolution/validation functions are `parseArguments`, `resolveRevision`,
+  `resolveRange`, `resolveScope`, `finalizeChangedScope`,
+  `parseUnifiedDiffRanges`, `validateGitPath`, `validatePatchPath`,
+  `validateSourceBoundary`, `validateSourceFile`, `isIgnoredPath`, and
+  `isSourcePath`.
+- Tool/policy functions are `loadPolicy`, `commandOverride`,
+  `collectDiagnostics`, `runDotnetPhase`, `runPortalTools`,
+  `validateToolPath`, `printRatchet`, `baselineDocumentFromResult`, and
+  `writeBaselineAtomically`.
+- Harness variables are `source_root`, `temp_root`, `fake_bin`, `case_number`,
+  `last_repo`, `last_output`, and `last_status`. Scenario overrides use
+  `RVT_TEST_BASELINE_PATH`, `RVT_TEST_EXCEPTIONS_PATH`, and `RVT_FAKE_*`.
+- Ledger/brief/report files are under
+  `.superpowers/sdd/2026-07-27-repository-engineering-standards-enforcement/`.
+  The plan is
+  `docs/superpowers/plans/2026-07-27-repository-engineering-standards-enforcement.md`.
+
 ## Provider package release migration Task 1 - 2026-07-26 (complete)
 
 - Resume instruction: start a future session with
@@ -3291,6 +3626,70 @@ TimescaleDB extensions where the schema requires them.
   evaluated `dotnet msbuild` properties, `dotnet format` EditorConfig behavior, and
   representative mutations. No implementation commit existed at the ruling point.
 - Resume by dispatching the Task 1 implementer from the plan-specific ledger.
+
+Next-session instruction: Read project_state.md to get up to speed
+
+## Help Admin application-boundary design - 2026-07-28
+
+- Branch: `codex/help-admin-application-boundary`.
+- Design commit: `96fa359` (`docs: design Help Admin application boundary`).
+- Approved scope: Help Admin ships as a supported capability; linked assets
+  remain URL metadata and binary upload/storage is excluded.
+- Specification:
+  `docs/superpowers/specs/2026-07-28-help-admin-application-boundary-design.md`.
+- Selected architecture moves the complete published/admin Help vertical slice
+  into BCL-only `RvtPortal.Application.Help`, with application-owned read/write
+  ports and EF adapters under `RvtPortal.Spa.Adapters.Help`.
+- Mutations use `IApplicationUnitOfWork`, injected `TimeProvider`, immutable
+  asset IDs, application-level admin authorization, and safe HTTPS or
+  `/help-assets/` URL validation.
+- The approved first-release API normalizes creation to
+  `POST /api/help/admin/articles` and removes the unapproved legacy mutation
+  route `POST /api/help/articles`.
+- Client work includes stable asset row keys and deterministic focus after
+  article/asset mutations. Release work changes Help Admin from `EXCLUDED` to
+  `READY` only after application, adapter, API, client, browser, export, and
+  persisted-URL checks pass.
+- Production implementation has not started. The next required gate is user
+  review of the committed written specification, followed by a detailed TDD
+  implementation plan.
+- Existing untracked engineering-standard artifacts and prior state-file
+  changes remain preserved and unstaged.
+
+Next-session instruction: Read project_state.md to get up to speed
+
+## `/admin/help` release-surface analysis - 2026-07-28
+
+- Analysis only; no production code was changed.
+- The authoritative Portal readiness matrix marks Help Admin `EXCLUDED`, and
+  the 2026-07-27 architecture review records R2 as excluding it from the
+  production route/import surface unless shipment is explicitly approved.
+- Runtime behavior contradicts that decision. `RvtPortal.Client/src/App.tsx`
+  statically imports `HelpAdminPanel`, advertises `/admin/help` to RVT admins,
+  resolves `admin-help`, and renders the editor. The focused `App.test.tsx`
+  Help Admin test passes and explicitly proves the admin CRUD route.
+- A fresh `npm run build` passed. The main production bundle contains
+  `/admin/help`, `admin-help`, `Help/FAQ Management`, `Linked assets`, and
+  `/api/help/admin`, proving the feature is compiled into the release artifact.
+- `apps/portal/docs/release/client-release-exclusions.txt` does not exclude Help
+  Admin. The release exporter copies tracked client source, while
+  `RvtPortal.Spa.csproj` always builds and publishes the complete client.
+- There is no Help release feature flag. The only Vite environment settings are
+  API-origin and allowed-host configuration.
+- The client route and all Help mutation endpoints require RVT admin roles, so
+  no authorization bypass was found. The impact is instead that excluded and
+  unsigned-off functionality can mutate persistent Help content in production.
+- Public `/help` and report-rule guideline reads depend on the Help CMS model.
+  Preserve those reads, entities, and tables; isolate the temporary editor and
+  admin mutation surface rather than deleting the whole Help subsystem.
+- Recommended decision: retain the documented exclusion. Remove the production
+  navigation, route resolution, render path, and static import; decide explicitly
+  whether production admin mutation endpoints must also be disabled. If internal
+  development access remains, gate the route and endpoints together using one
+  default-off release capability and add production-negative regression tests.
+- If the product instead approves shipment, update the readiness decision only
+  after browser CRUD, immutable asset row identity/focus, authorization, rollback,
+  and production bundle validation are complete.
 
 Next-session instruction: Read project_state.md to get up to speed
 

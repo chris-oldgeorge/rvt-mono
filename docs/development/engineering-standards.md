@@ -731,7 +731,9 @@ provider isolation remains valid. Where a module `.editorconfig`, build file, or
 test convention differs from this standard, ratcheted implementation resolves
 the difference without making untouched legacy debt an unrelated blocker.
 
-The implementation plan will define the root configuration, machine-readable
-baseline and exception formats, guard scripts, and migration order. Until those
-mechanisms are merged, reviewers MUST apply this document manually to every
-new or modified logical unit.
+The root configuration, machine-readable baseline and exception formats,
+guard scripts, and migration order are implemented. Reviewers still apply this
+document to architectural and behavioral rules that are not mechanically
+detectable. The executable workflow, baseline lifecycle, exception procedure,
+and Ratchet-to-Strict promotion gate are documented in the
+[engineering standards enforcement guide](engineering-standards-enforcement.md).

@@ -1,6 +1,6 @@
 # Repository Engineering Standards Design
 
-**Status:** Approved for implementation
+**Status:** Implemented
 
 **Date:** 2026-07-27
 
@@ -207,5 +207,18 @@ The user approved the following sections in sequence:
 4. async, error, HTTP, time, storage, observability, and host reliability; and
 5. testing, analysis evidence, package hygiene, and automated enforcement.
 
-No design question remains open. Implementation planning begins only after the
-user reviews the committed specification.
+No design question remains open. The approved implementation is recorded in
+the
+[engineering standards enforcement report](../../reviews/2026-07-27-engineering-standards-enforcement-report.md)
+and operated through the
+[engineering standards enforcement guide](../../development/engineering-standards-enforcement.md).
+
+The R9 enforcement deliverable is implemented: its focused model, policy,
+configuration, verifier, local-build, and workflow guards pass; every root
+shell guard passes; the backend compiles; frontend lint, tests, and production
+build pass; and temporary real C# and TypeScript mutations are rejected.
+Repository-wide backend tests are not represented as globally green: the
+completion evidence records 186 tests that require a dedicated PostgreSQL
+integration connection and 17 existing architecture tests assigned to R1 for
+stale monorepo layout assumptions. Those classified outcomes neither weaken
+the R9 gates nor close R1.

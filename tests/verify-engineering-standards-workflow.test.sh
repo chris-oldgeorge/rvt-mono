@@ -81,7 +81,7 @@ def verify_workflow(source)
     scalar(job.fetch("timeout-minutes"), "timeout") == "30",
     "engineering standards timeout must be 30 minutes"
   )
-  %w[continue-on-error container env if services].each do |key|
+  %w[continue-on-error container env if permissions services].each do |key|
     assert(!job.key?(key), "engineering-standards job must not define #{key}")
   end
 
@@ -222,6 +222,10 @@ mutations = {
     "actions/checkout@v4"
   ],
   "self-hosted runner" => ["    runs-on: ubuntu-latest", "    runs-on: self-hosted"],
+  "job permission override" => [
+    "    timeout-minutes: 30\n",
+    "    timeout-minutes: 30\n    permissions:\n      contents: write\n"
+  ],
   "unlocked restore" => [" --locked-mode --disable-parallel", " --disable-parallel"],
   "nonblocking setup" => [
     "      - name: Set up Node.js 24\n",

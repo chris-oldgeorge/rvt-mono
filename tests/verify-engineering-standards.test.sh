@@ -968,6 +968,18 @@ run_verify --base "$base_revision" --head HEAD
 assert_status 0
 assert_log_contains "<src/Clock.cs>"
 
+# A committed range that removes code from a retained source file has no
+# new-side ranges, but remains a valid changed surface.
+create_repo explicit-range-deletion-only-hunk
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+sed -i.bak '/public int Second/d' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Clock.cs
+git -C "$last_repo" commit -q -m "remove source member"
+run_verify --base "$base_revision" --head HEAD
+assert_status 0
+assert_log_contains "<src/Clock.cs>"
+
 create_repo auto-feature
 sed -i.bak 's/public int Hour/public int Day/' "$last_repo/src/Clock.cs"
 rm "$last_repo/src/Clock.cs.bak"

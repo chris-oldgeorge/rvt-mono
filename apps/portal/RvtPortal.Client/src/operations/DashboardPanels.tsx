@@ -55,36 +55,53 @@ type DashboardPanelProps = Readonly<{
   onRequestError: (error: unknown) => void;
 }>;
 
+type DashboardSummaryResult = Readonly<{
+  requestKey: string;
+  summary: DashboardSummaryResponse | null;
+  error: string | null;
+}>;
+
+type SiteSearchResult = Readonly<{
+  requestKey: string;
+  sites: SiteListItem[];
+  total: number;
+  totalPages: number;
+  error: string | null;
+}>;
+
+type BreachesAlertsResult = Readonly<{
+  requestKey: string;
+  response: BreachesAlertsResponse | null;
+  error: string | null;
+}>;
+
 const siteSearchPageSize = 50;
 
 // Function summary: Renders the DashboardPanel React component and wires its local UI behavior.
 export function DashboardPanel({ auth, onNavigate, onRequestError }: DashboardPanelProps) {
-  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [summaryResult, setSummaryResult] = useState<DashboardSummaryResult | null>(null);
+  const summaryRequestKey = 'dashboard-summary';
+  const summary = summaryResult?.requestKey === summaryRequestKey ? summaryResult.summary : null;
+  const error = summaryResult?.requestKey === summaryRequestKey ? summaryResult.error : null;
+  const isLoading = summaryResult?.requestKey !== summaryRequestKey;
   const userRoles = auth.user?.roles ?? [];
   const isMasterAdmin = userRoles.includes(roleNames.masterAdmin);
   const isInstaller = userRoles.includes(roleNames.installer);
 
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
     getDashboardSummary({ signal: controller.signal })
       .then((response) => {
-        setSummary(response);
-        setError(null);
+        if (!controller.signal.aborted) {
+          setSummaryResult({ requestKey: summaryRequestKey, summary: response, error: null });
+        }
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setError(err.message);
+        setSummaryResult({ requestKey: summaryRequestKey, summary: null, error: err.message });
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
       });
     return () => controller.abort();
   }, [onRequestError]);
@@ -166,15 +183,11 @@ function DashboardSiteSearch({
   onNavigate,
   onRequestError
 }: Readonly<{ onNavigate: (path: string) => void; onRequestError: (error: unknown) => void }>) {
-  const [sites, setSites] = useState<SiteListItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+  const [siteSearchResult, setSiteSearchResult] = useState<SiteSearchResult | null>(null);
   const [searchText, setSearchText] = useState('');
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState('siteName');
   const [sortDir, setSortDir] = useState<SortDirection>('Ascending');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const columns = useMemo<DataGridColumn<SiteListItem>[]>(() => [
     { key: 'contracts', header: 'Contracts', sortable: true, render: (site) => site.contracts || 'None' },
     { key: 'siteName', header: 'Site Name', sortable: true, render: (site) => site.siteName || 'None' },
@@ -189,6 +202,13 @@ function DashboardSiteSearch({
     sort: sortKey,
     sortDir
   }), [page, searchText, sortDir, sortKey]);
+  const requestKey = useMemo(() => JSON.stringify(query), [query]);
+  const activeResult = siteSearchResult?.requestKey === requestKey ? siteSearchResult : null;
+  const sites = activeResult?.sites ?? [];
+  const total = activeResult?.total ?? 0;
+  const totalPages = activeResult?.totalPages ?? 0;
+  const error = activeResult?.error ?? null;
+  const isLoading = siteSearchResult?.requestKey !== requestKey;
   const handleSortChange = useCallback((key: string, direction: GridSortDirection) => {
     setSortKey(key);
     setSortDir(direction);
@@ -197,28 +217,27 @@ function DashboardSiteSearch({
 
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
     querySites(query, { signal: controller.signal })
       .then((response) => {
-        setSites(response.results);
-        setTotal(response.total);
-        setTotalPages(response.totalPages);
-        setError(null);
+        if (!controller.signal.aborted) {
+          setSiteSearchResult({
+            requestKey,
+            sites: response.results,
+            total: response.total,
+            totalPages: response.totalPages,
+            error: null
+          });
+        }
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setError(err.message);
+        setSiteSearchResult({ requestKey, sites: [], total: 0, totalPages: 0, error: err.message });
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
       });
     return () => controller.abort();
-  }, [onRequestError, query]);
+  }, [onRequestError, query, requestKey]);
 
   return (
     <section className="panel">
@@ -271,35 +290,31 @@ function DashboardSiteSearch({
 // Function summary: Renders the BreachesAlertsWidget React component and wires its local UI behavior.
 function BreachesAlertsWidget({ onRequestError }: Readonly<{ onRequestError: (error: unknown) => void }>) {
   const [date, setDate] = useState(todayInputValue());
-  const [response, setResponse] = useState<BreachesAlertsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [breachesAlertsResult, setBreachesAlertsResult] = useState<BreachesAlertsResult | null>(null);
+  const requestKey = date;
+  const activeResult = breachesAlertsResult?.requestKey === requestKey ? breachesAlertsResult : null;
+  const response = activeResult?.response ?? null;
+  const error = activeResult?.error ?? null;
+  const isLoading = breachesAlertsResult?.requestKey !== requestKey;
 
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
     queryBreachesAlerts({ date, page: 1, pageSize: 8, sort: 'notificationTime', sortDir: 'Descending' }, { signal: controller.signal })
       .then((nextResponse) => {
         if (controller.signal.aborted) {
           return;
         }
-        setResponse(nextResponse);
-        setError(null);
+        setBreachesAlertsResult({ requestKey, response: nextResponse, error: null });
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setError(err.message);
+        setBreachesAlertsResult({ requestKey, response: null, error: err.message });
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
       });
     return () => controller.abort();
-  }, [date, onRequestError]);
+  }, [date, onRequestError, requestKey]);
 
   return (
     <section className="panel">

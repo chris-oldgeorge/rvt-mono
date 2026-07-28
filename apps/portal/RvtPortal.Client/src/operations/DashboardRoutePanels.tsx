@@ -28,42 +28,57 @@ type DashboardRoutePanelProps = Readonly<{
   onRequestError: (error: unknown) => void;
 }>;
 
+type MapResult = Readonly<{
+  requestKey: string;
+  summary: DashboardSummaryResponse | null;
+  markers: MapMarkersResponse | null;
+  error: string | null;
+}>;
+
+type CalendarMonthResult = Readonly<{
+  requestKey: string;
+  data: CalendarMonthResponse | null;
+  error: string | null;
+}>;
+
+type CalendarDayResult = Readonly<{
+  selectedDate: string;
+  data: CalendarDayResponse;
+}>;
+
 // Function summary: Renders the MapPanel React component and wires its local UI behavior.
 export function MapPanel({ locationPath, onRequestError }: DashboardRoutePanelProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [siteId, setSiteId] = useState(initialParams.get('siteId') ?? '');
-  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
-  const [markers, setMarkers] = useState<MapMarkersResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [mapResult, setMapResult] = useState<MapResult | null>(null);
+  const requestKey = siteId;
+  const activeResult = mapResult?.requestKey === requestKey ? mapResult : null;
+  const summary = activeResult?.summary ?? null;
+  const markers = activeResult?.markers ?? null;
+  const error = activeResult?.error ?? null;
+  const isLoading = mapResult?.requestKey !== requestKey;
 
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', `/maps${mapQuery(siteId)}`);
-    setIsLoading(true);
     Promise.all([
       getDashboardSummary({ signal: controller.signal }),
       queryMapMarkers(mapMarkersRequest(siteId), { signal: controller.signal })
     ])
       .then(([nextSummary, nextMarkers]) => {
-        setSummary(nextSummary);
-        setMarkers(nextMarkers);
-        setError(null);
+        if (!controller.signal.aborted) {
+          setMapResult({ requestKey, summary: nextSummary, markers: nextMarkers, error: null });
+        }
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setError(err.message);
+        setMapResult({ requestKey, summary: null, markers: null, error: err.message });
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
       });
     return () => controller.abort();
-  }, [onRequestError, siteId]);
+  }, [onRequestError, requestKey, siteId]);
 
   return (
     <section className="panel">
@@ -100,10 +115,15 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
   const [year, setYear] = useState(initialDate.year);
   const [month, setMonth] = useState(initialDate.month);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [monthData, setMonthData] = useState<CalendarMonthResponse | null>(null);
-  const [dayData, setDayData] = useState<CalendarDayResponse | null>(null);
+  const [monthResult, setMonthResult] = useState<CalendarMonthResult | null>(null);
+  const [dayResult, setDayResult] = useState<CalendarDayResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const monthRequestKey = `${deploymentId}:${year}:${month}`;
+  const activeMonthResult = monthResult?.requestKey === monthRequestKey ? monthResult : null;
+  const monthData = activeMonthResult?.data ?? null;
+  const monthError = activeMonthResult?.error ?? null;
+  const dayData = selectedDate && dayResult?.selectedDate === selectedDate ? dayResult.data : null;
+  const isLoading = Boolean(deploymentId) && monthResult?.requestKey !== monthRequestKey;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -115,7 +135,7 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
         }
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
         setError(err.message);
@@ -130,34 +150,28 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
     }
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildCalendarUrl(deploymentId, year, month));
-    setIsLoading(true);
     getCalendarMonth({ deploymentId, year, month }, { signal: controller.signal })
       .then((response) => {
-        setMonthData(response);
-        setDeployments(response.deployments);
-        setYear(response.year);
-        setMonth(response.month);
-        setSelectedDate(defaultSelectedDate(response));
-        setError(null);
+        if (!controller.signal.aborted) {
+          setMonthResult({ requestKey: monthRequestKey, data: response, error: null });
+          setDeployments(response.deployments);
+          setYear(response.year);
+          setMonth(response.month);
+          setSelectedDate(defaultSelectedDate(response));
+        }
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setError(err.message);
+        setMonthResult({ requestKey: monthRequestKey, data: null, error: err.message });
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
       });
     return () => controller.abort();
-  }, [deploymentId, month, onRequestError, year]);
+  }, [deploymentId, month, monthRequestKey, onRequestError, year]);
 
   useEffect(() => {
     if (!monthData || !selectedDate) {
-      setDayData(null);
       return;
     }
     const controller = new AbortController();
@@ -165,7 +179,7 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
     getCalendarDay({ monitorId: monthData.monitorId, ...date }, { signal: controller.signal })
       .then((response) => {
         if (!controller.signal.aborted) {
-          setDayData(response);
+          setDayResult({ selectedDate, data: response });
         }
       })
       .catch((err: Error) => {
@@ -215,7 +229,7 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
             </button>
           </div>
         </div>
-        {error && <Notice tone="error" message={error} />}
+        {(monthError ?? error) && <Notice tone="error" message={monthError ?? error ?? ''} />}
         {isLoading && <LoadingInline label="Loading calendar" />}
         {monthData && (
           <>

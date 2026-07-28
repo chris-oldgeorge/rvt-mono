@@ -74,7 +74,7 @@ namespace Omnidots.Api.UseCases
 
                         monitorCommands.SetMonitorOffline(monitor.Id, false);
 
-                        eventPublisher.PublishDataInserted(newestSampleAt, monitor.SerialId);
+                        await eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
                     }
                     else
                     {

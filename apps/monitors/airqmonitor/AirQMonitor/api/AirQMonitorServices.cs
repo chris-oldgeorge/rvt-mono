@@ -26,7 +26,11 @@ public static class AirQMonitorServices
     {
         services.AddSingleton<IHttpClient>(_ => new HttpWebClient<AirQService>(RvtConfig.BASE_URL));
         services.AddSingleton<IDBClient>(_ => new DBClient(RvtConfig.DB_CONNECTION_STRING));
-        services.AddSingleton<IMqttClient, RvtMqttClient>();
+        // Broker settings are supplied explicitly rather than read from
+        // static configuration inside the client.
+        services.AddSingleton(_ => MqttOptions.FromRvtConfig());
+        services.AddSingleton<IMqttClient>(provider =>
+            new RvtMqttClient(provider.GetRequiredService<MqttOptions>()));
         services.AddRvtCommunication();
         AddEmailProvider(services, configuration);
         services.AddTransmitSms(configuration);

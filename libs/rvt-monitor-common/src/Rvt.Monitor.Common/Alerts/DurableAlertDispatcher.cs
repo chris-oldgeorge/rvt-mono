@@ -3,6 +3,8 @@ using Microsoft.Extensions.Options;
 using Rvt.Monitor.Common.Alerts.Persistence;
 using Rvt.Communication.Abstractions;
 
+using Rvt.Monitor.Common.Delivery;
+
 namespace Rvt.Monitor.Common.Alerts;
 
 public sealed class DurableAlertDispatcher
@@ -129,19 +131,12 @@ public sealed class DurableAlertDispatcher
     private static TimeSpan RetryDelay(
         int attemptCount,
         Exception exception,
-        DurableAlertOptions options)
-    {
-        var exponent = Math.Max(0, attemptCount - 1);
-        var exponentialSeconds = Math.Min(
-            options.InitialRetrySeconds * Math.Pow(2, exponent),
-            options.MaxRetrySeconds);
-        var retryAfterSeconds = exception is DeliveryException { RetryAfter: { } retryAfter }
-            ? retryAfter.TotalSeconds
-            : 0;
-        return TimeSpan.FromSeconds(Math.Min(
-            Math.Max(exponentialSeconds, retryAfterSeconds),
-            options.MaxRetrySeconds));
-    }
+        DurableAlertOptions options) =>
+        DeliveryRetrySchedule.NextDelay(
+            attemptCount,
+            TimeSpan.FromSeconds(options.InitialRetrySeconds),
+            TimeSpan.FromSeconds(options.MaxRetrySeconds),
+            exception);
 
     private static AlertDeliveryAudit? CreateFailureAudit(
         ClaimedAlertDelivery message,

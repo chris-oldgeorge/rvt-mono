@@ -76,7 +76,11 @@ public static class OmnidotsMonitorServices
         services.AddSingleton<IConfigureOptions<RateLimiterOptions>, OmnidotsRateLimiterOptionsSetup>();
         services.AddSingleton<IOmnidotsMonitoringNotifier, EmailOmnidotsMonitoringNotifier>();
         services.TryAddSingleton<TimeProvider>(_ => TimeProvider.System);
-        services.AddSingleton<IMqttClient, RvtMqttClient>();
+        // Broker settings are supplied explicitly rather than read from
+        // static configuration inside the client.
+        services.AddSingleton(_ => MqttOptions.FromRvtConfig());
+        services.AddSingleton<IMqttClient>(provider =>
+            new RvtMqttClient(provider.GetRequiredService<MqttOptions>()));
         services.AddRvtCommunication();
         AddEmailProvider(services, configuration);
         services.AddTransmitSms(configuration);

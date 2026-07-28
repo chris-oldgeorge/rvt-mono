@@ -77,7 +77,11 @@ public static class MyAtmMonitorServices
         services.AddSingleton<IMonitorDeliveryOutboxQueries>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton(provider => provider.GetRequiredService<MyAtmMonitorOptions>()
             .ToDeliveryOptions(RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC));
-        services.AddSingleton<IMqttClient, RvtMqttClient>();
+        // Broker settings are supplied explicitly rather than read from
+        // static configuration inside the client.
+        services.AddSingleton(_ => MqttOptions.FromRvtConfig());
+        services.AddSingleton<IMqttClient>(provider =>
+            new RvtMqttClient(provider.GetRequiredService<MqttOptions>()));
         services.AddRvtCommunication();
         AddEmailProvider(services, configuration);
         services.AddTransmitSms(configuration);

@@ -300,18 +300,12 @@ public sealed class MonitorDeliveryDispatcher
         exception is DeliveryException { FailureKind: not DeliveryFailureKind.Transient } ||
         attemptCount >= options.MaxAttempts;
 
-    private TimeSpan RetryDelay(int attemptCount, Exception exception)
-    {
-        var exponent = Math.Max(0, attemptCount - 1);
-        var ticks = options.InitialRetryDelay.Ticks * Math.Pow(2, exponent);
-        var exponential = TimeSpan.FromTicks((long)Math.Min(ticks, options.RetryCap.Ticks));
-        var retryAfter = exception is DeliveryException { RetryAfter: { } requested }
-            ? requested
-            : TimeSpan.Zero;
-        return TimeSpan.FromTicks(Math.Min(
-            Math.Max(exponential.Ticks, retryAfter.Ticks),
-            options.RetryCap.Ticks));
-    }
+    private TimeSpan RetryDelay(int attemptCount, Exception exception) =>
+        DeliveryRetrySchedule.NextDelay(
+            attemptCount,
+            options.InitialRetryDelay,
+            options.RetryCap,
+            exception);
 
     private static string DeliveryError(Exception exception)
     {

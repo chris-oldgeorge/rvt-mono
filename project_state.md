@@ -1,5 +1,41 @@
 # Project State
 
+## Authoritative checkpoint: Rvt.Monitor.Common hub cleanup — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Branch `fix/critical-consolidate-reporting-duplication`; the review's
+  remaining `Rvt.Monitor.Common` items are addressed.
+- **One retry backoff.** `DeliveryRetrySchedule` replaces the two copies the
+  alert dispatcher and the monitor delivery dispatcher each carried — one in
+  ticks, one in whole seconds — which is the drift the review flagged. A test
+  asserts both configurations produce identical delays across ten attempts, and
+  a large attempt count now saturates at the cap instead of overflowing the
+  tick arithmetic.
+- **MQTT settings are injected.** `MqttOptions` is supplied by each composition
+  root; `RvtMqttClient` no longer reads static configuration at the point of
+  use. `MqttOptions.FromRvtConfig()` is the deliberate bridge that preserves
+  the existing environment contract, and is the only remaining `RvtConfig`
+  reference in the MQTT stack.
+- **`RvtMqttClient` is disposable.** It held an MQTTnet client and a
+  `SemaphoreSlim` and disposed neither. This was found by the new tests, not by
+  the review.
+- **`RvtLogger` can no longer take a process down.** Reading it before a host
+  configured it used to throw — so a diagnostic statement could itself become
+  the failure — and the message named MyAtm regardless of caller. It degrades
+  to `NullLogger` now, exposes `IsConfigured`, and validates its arguments. It
+  is still a service locator: migrating the 157 call sites to injected
+  `ILogger` is separate, unstarted work.
+- `MonitorEventPublisher` threads a `CancellationToken` and the four
+  asynchronous import call sites await it. The blocking wrappers remain only
+  for the legacy synchronous `NoiseRuleEvaluator` path and are documented as
+  such.
+- Note for future test work: this suite runs with
+  `Parallelize(Scope = ExecutionScope.MethodLevel)`, so tests touching
+  process-wide state must be `[DoNotParallelize]` and must avoid asserting on
+  global transitions another suite could race. `RvtLoggerTests` follows that.
+- Verification: 2324 passed, 0 failed, 0 warnings; all five repository guards
+  and the 24 standards-policy tests green.
+
 ## Authoritative checkpoint: storage port and shared-rule coupling — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

@@ -73,7 +73,7 @@ namespace Omnidots.Api.UseCases
                              monitor.SerialId, dtos.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / dtos.Count));
 
                         monitorCommands.SetMonitorOffline(monitor.Id, false);
-                        eventPublisher.PublishDataInserted(newestSampleAt, monitor.SerialId);
+                        await eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
                     }
                     else
                     {

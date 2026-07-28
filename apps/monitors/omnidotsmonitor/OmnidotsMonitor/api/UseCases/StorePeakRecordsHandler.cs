@@ -186,7 +186,7 @@ namespace Omnidots.Api.UseCases
                 RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
                      monitor.SerialId, table.Rows.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / table.Rows.Count));
                 monitor.LastDataTime = newestSampleAt;
-                eventPublisher.PublishDataInserted(newestSampleAt, monitor.SerialId);
+                await eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
             }
             else
             {

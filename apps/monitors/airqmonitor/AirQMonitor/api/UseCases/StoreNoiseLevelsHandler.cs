@@ -96,7 +96,7 @@ namespace AirQ.Api.UseCases
                             monitorCommands.WriteLatestTimestamp(monitor.SerialId, lastDataTime);
                             if (monitor.Offline)
                                 monitorCommands.SetMonitorOffline(monitor.Id, false);
-                            eventPublisher.PublishDataInserted((DateTime)lastDataTime!, monitor.SerialId);
+                            await eventPublisher.PublishDataInsertedAsync((DateTime)lastDataTime!, monitor.SerialId, cancellationToken: cancellationToken);
 
                             var rules = ruleQueries.ReadRules(monitor.SerialId);
                             ruleProcessor.ProcessRulesV2(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos);

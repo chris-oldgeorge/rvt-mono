@@ -13,13 +13,22 @@ public interface IMonitorEventPublisher
 
     void PublishAlert(DateTime timestamp, string serialId, string message, int? customerId = null);
 
-    Task PublishDataInsertedAsync(DateTime timestamp, string serialId, int? customerId = null)
+    Task PublishDataInsertedAsync(
+        DateTime timestamp,
+        string serialId,
+        int? customerId = null,
+        CancellationToken cancellationToken = default)
     {
         PublishDataInserted(timestamp, serialId, customerId);
         return Task.CompletedTask;
     }
 
-    Task PublishAlertAsync(DateTime timestamp, string serialId, string message, int? customerId = null)
+    Task PublishAlertAsync(
+        DateTime timestamp,
+        string serialId,
+        string message,
+        int? customerId = null,
+        CancellationToken cancellationToken = default)
     {
         PublishAlert(timestamp, serialId, message, customerId);
         return Task.CompletedTask;
@@ -45,28 +54,49 @@ public class MonitorEventPublisher : IMonitorEventPublisher
         this.alertTopic = alertTopic;
     }
 
+    /// <summary>
+    /// Blocking entry point retained only for the legacy synchronous rule
+    /// evaluator. Callers that can await should use the asynchronous members;
+    /// every asynchronous import path already does.
+    /// </summary>
     public void PublishDataInserted(DateTime timestamp, string serialId, int? customerId = null)
     {
         PublishDataInsertedAsync(timestamp, serialId, customerId).GetAwaiter().GetResult();
     }
 
+    /// <inheritdoc cref="PublishDataInserted" />
     public void PublishAlert(DateTime timestamp, string serialId, string message, int? customerId = null)
     {
         PublishAlertAsync(timestamp, serialId, message, customerId).GetAwaiter().GetResult();
     }
 
-    public Task PublishDataInsertedAsync(DateTime timestamp, string serialId, int? customerId = null) =>
-        PublishAsync(insertTopic, timestamp, serialId, DataInsertedMessage, customerId);
+    public Task PublishDataInsertedAsync(
+        DateTime timestamp,
+        string serialId,
+        int? customerId = null,
+        CancellationToken cancellationToken = default) =>
+        PublishAsync(insertTopic, timestamp, serialId, DataInsertedMessage, customerId, cancellationToken);
 
-    public Task PublishAlertAsync(DateTime timestamp, string serialId, string message, int? customerId = null) =>
-        PublishAsync(alertTopic, timestamp, serialId, message, customerId);
+    public Task PublishAlertAsync(
+        DateTime timestamp,
+        string serialId,
+        string message,
+        int? customerId = null,
+        CancellationToken cancellationToken = default) =>
+        PublishAsync(alertTopic, timestamp, serialId, message, customerId, cancellationToken);
 
-    private Task PublishAsync(string topic, DateTime timestamp, string serialId, string message, int? customerId)
+    private Task PublishAsync(
+        string topic,
+        DateTime timestamp,
+        string serialId,
+        string message,
+        int? customerId,
+        CancellationToken cancellationToken = default)
     {
         var mqttMessage = customerId.HasValue
             ? new RvtMqttMessage(timestamp, customerId.Value, serialId, message)
             : new RvtMqttMessage(timestamp, serialId, message);
 
-        return mqttClient.PublishAsync(topic, JsonSerializer.Serialize(mqttMessage));
+        return mqttClient.PublishAsync(topic, JsonSerializer.Serialize(mqttMessage), cancellationToken);
     }
 }

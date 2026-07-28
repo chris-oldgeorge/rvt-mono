@@ -134,8 +134,9 @@ and diff packages are supporting detail, not the sole evidence.
 | Local and CI gates | Complete local phase order and complete workflow dependency-install, restore, verifier, build, coverage, and failure-propagation units | Accepted after wrapper, option, targetless-command, punctuation, removal, duplication, and reordering mutations; pull-request trigger hardening is in `ea6fd74` |
 | Documentation authority and evidence | Root README, documentation index, authoritative remediation review, normative standard, operator guide, design, plan, and enforcement report as one navigable authority unit | All seven required source/target links and target existence are load-bearing; a dedicated mutation removes the remediation-review standard link |
 
-This record does not declare the final audit passed. Independent re-review of
-the combined final-audit commits remains the next gate.
+Independent re-review accepted the combined final-audit commits with no
+Critical, Important, or Minor finding. Integration is the next gate; this
+record does not claim that merge or push has already occurred.
 
 ## Verification evidence
 

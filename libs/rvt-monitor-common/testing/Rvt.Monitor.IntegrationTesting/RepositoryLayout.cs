@@ -131,7 +131,9 @@ public static class RepositoryLayout
 
         throw new DirectoryNotFoundException(
             $"Could not find the RVT monorepository root from output '{outputDirectory}' " +
-            $"source '{sourceFilePath}', or current directory '{currentDirectory}'.");
+            $"source '{sourceFilePath}', or current directory '{currentDirectory}'. " +
+            $"Set {RepositoryRootEnvironmentVariable} to the validated repository root " +
+            "when the test host relocates both build output and its working directory.");
     }
 
     private static void AddCandidate(

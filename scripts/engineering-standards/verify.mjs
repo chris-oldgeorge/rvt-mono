@@ -106,6 +106,13 @@ never evaluated.`;
 }
 
 function parseArguments(argv) {
+  /** @type {{
+   * mode: string | undefined,
+   * base: string | undefined,
+   * head: string | undefined,
+   * initialize: boolean,
+   * update: boolean
+   * }} */
   const parsed = {
     mode: undefined,
     base: undefined,

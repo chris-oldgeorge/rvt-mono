@@ -29,7 +29,7 @@ import {
   Upload,
   Wrench
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   addDefaultMonitorAlertLevels,
@@ -809,7 +809,8 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const activeRequestController = useRef<AbortController | null>(null);
+  const requestGeneration = useRef(0);
   const [isRemoving, setIsRemoving] = useState(false);
   const backPath = returnToOr(locationPath, '/monitors');
   const columns = useMemo<DataGridColumn<UnattachedMonitorListItem>[]>(() => [
@@ -828,35 +829,52 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
     sortDir
   }), [page, searchText, sortDir, sortKey]);
   const requestKey = JSON.stringify(query);
-  const isLoading = isRefreshing || completedRequestKey !== requestKey;
+  const isLoading = completedRequestKey !== requestKey;
+
+  const claimRequest = useCallback(() => {
+    activeRequestController.current?.abort();
+    const controller = new AbortController();
+    const generation = requestGeneration.current + 1;
+    requestGeneration.current = generation;
+    activeRequestController.current = controller;
+    return { controller, generation };
+  }, []);
+
+  const ownsRequest = useCallback((controller: AbortController, generation: number) => (
+    activeRequestController.current === controller &&
+    requestGeneration.current === generation &&
+    !controller.signal.aborted
+  ), []);
 
   // Function summary: Refreshes unattached monitor removal candidates after an event-owned mutation.
   const refreshMonitors = useCallback(async () => {
-    setIsRefreshing(true);
+    const { controller, generation } = claimRequest();
+    setCompletedRequestKey(null);
     try {
-      const response = await queryUnattachedMonitors(query);
+      const response = await queryUnattachedMonitors(query, { signal: controller.signal });
+      if (!ownsRequest(controller, generation)) {
+        return;
+      }
       setMonitors(response.results);
       setTotal(response.total);
       setTotalPages(response.totalPages);
       setError(null);
       setCompletedRequestKey(requestKey);
     } catch (err) {
-      if (isAbortError(err)) {
+      if (!ownsRequest(controller, generation) || isAbortError(err)) {
         return;
       }
       setError((err as Error).message);
       onRequestError(err);
       setCompletedRequestKey(requestKey);
-    } finally {
-      setIsRefreshing(false);
     }
-  }, [onRequestError, query, requestKey]);
+  }, [claimRequest, onRequestError, ownsRequest, query, requestKey]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    const { controller, generation } = claimRequest();
     queryUnattachedMonitors(query, { signal: controller.signal })
       .then((response) => {
-        if (controller.signal.aborted) {
+        if (!ownsRequest(controller, generation)) {
           return;
         }
         setMonitors(response.results);
@@ -866,7 +884,7 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
         setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
-        if (isAbortError(err)) {
+        if (!ownsRequest(controller, generation) || isAbortError(err)) {
           return;
         }
         setError(err.message);
@@ -874,7 +892,7 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
         setCompletedRequestKey(requestKey);
       });
     return () => controller.abort();
-  }, [onRequestError, query, requestKey]);
+  }, [claimRequest, onRequestError, ownsRequest, query, requestKey]);
 
   // Function summary: Handles search text changes for unattached monitor removal candidates.
   function handleSearch(value: string) {
@@ -894,6 +912,7 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
       return;
     }
 
+    const removeGeneration = requestGeneration.current;
     setIsRemoving(true);
     setError(null);
     try {
@@ -901,6 +920,9 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
       setNotice(response.message);
       setSelectedMonitor(null);
       setReason('');
+      if (requestGeneration.current !== removeGeneration) {
+        return;
+      }
       await refreshMonitors();
     } catch (err) {
       setError((err as Error).message);

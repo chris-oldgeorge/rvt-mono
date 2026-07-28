@@ -726,10 +726,74 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /^archive$/i }));
 
     await waitFor(() => {
-      expect(fetchedUrls().some((url) => url.pathname === '/api/monitors/unattached')).toBe(true);
+      expect(fetchedUrls().filter((url) => url.pathname === '/api/monitors/unattached')).toHaveLength(2);
       expect(fetchedUrls().some((url) => url.pathname === '/api/monitors/11111111-1111-1111-1111-111111111111/unattached')).toBe(true);
     });
     await waitFor(() => expect(screen.getByText(/has been archived/i)).toBeInTheDocument());
+  });
+
+  it('keeps a newer unattached-monitor search authoritative over an older removal refresh', async () => {
+    globalThis.history.replaceState(null, '', '/monitors/unattached');
+    const oldRefresh = deferredResponse();
+    const currentQuery = deferredResponse();
+    let emptyQueryRequestCount = 0;
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/monitors/11111111-1111-1111-1111-111111111111/unattached' && init?.method === 'DELETE') {
+          return jsonResponse({
+            id: '11111111-1111-1111-1111-111111111111',
+            action: 'archived',
+            message: "Monitor 'RVT-OLD-001' has been archived because related data exists.",
+            impact: {
+              deploymentCount: 1,
+              notificationCount: 2,
+              alertRuleCount: 3,
+              measurementTableCount: 1,
+              measurementRowCount: 20,
+              hasRelatedData: true
+            }
+          });
+        }
+        if (url.pathname !== '/api/monitors/unattached') {
+          return undefined;
+        }
+
+        const searchText = url.searchParams.get('searchText') ?? '';
+        if (!searchText) {
+          emptyQueryRequestCount += 1;
+          return emptyQueryRequestCount === 1
+            ? jsonResponse(unattachedMonitorPage(url, 'SER-OLD-001'))
+            : oldRefresh.promise;
+        }
+        if (searchText === 'current') {
+          return currentQuery.promise;
+        }
+        return undefined;
+      }
+    });
+
+    render(<App />);
+
+    await screen.findByText('SER-OLD-001');
+    fireEvent.click(screen.getByRole('button', { name: /remove monitor/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^archive$/i }));
+    await waitFor(() => expect(emptyQueryRequestCount).toBe(2));
+
+    fireEvent.change(screen.getByPlaceholderText(/search unattached monitors/i), { target: { value: 'current' } });
+    await waitFor(() => expect(fetchedUrls().some((url) =>
+      url.pathname === '/api/monitors/unattached' && url.searchParams.get('searchText') === 'current')).toBe(true));
+
+    await act(async () => {
+      currentQuery.resolve(jsonResponse(unattachedMonitorPage(new URL('/api/monitors/unattached?searchText=current', 'http://localhost'), 'SER-CURRENT')));
+    });
+    await act(async () => {
+      oldRefresh.resolve(jsonResponse(unattachedMonitorPage(new URL('/api/monitors/unattached', 'http://localhost'), 'SER-STALE')));
+    });
+
+    await screen.findByText('SER-CURRENT');
+    expect(screen.queryByText('SER-STALE')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
   });
 
   it('renders the notifications operations route for RVT admin users', async () => {
@@ -2733,6 +2797,57 @@ function monitorPage(url: URL, fleetNumber: string) {
     isScopedToCurrentUser: false,
     canManage: true,
     canUseInstallerTools: true
+  };
+}
+
+// Function summary: Builds an unattached-monitor page fixture for request-ownership tests.
+function unattachedMonitorPage(url: URL, serialId: string) {
+  return {
+    results: [{
+      id: serialId === 'SER-OLD-001' ? '11111111-1111-1111-1111-111111111111' : `${serialId.toLowerCase()}-id`,
+      fleetNumber: serialId.replace('SER-', 'RVT-'),
+      serialId,
+      manufacturer: 'RVT',
+      model: 'Dust',
+      firmwareVersion: '1.0',
+      typeOfMonitor: 'Dust',
+      contractId: null,
+      contractNumber: null,
+      siteId: null,
+      siteName: null,
+      companyId: null,
+      companyName: null,
+      startDate: null,
+      endDate: null,
+      lastDataTime: null,
+      isAssigned: false,
+      isOffline: false,
+      hasAlerts: false,
+      hasCautions: false,
+      canEdit: true,
+      canAssign: false,
+      canInstallerEdit: false,
+      hasRelatedData: true,
+      willArchiveOnRemoval: true,
+      impact: {
+        deploymentCount: 1,
+        notificationCount: 2,
+        alertRuleCount: 3,
+        measurementTableCount: 1,
+        measurementRowCount: 20,
+        hasRelatedData: true
+      }
+    }],
+    total: 1,
+    page: Number(url.searchParams.get('page') ?? 1),
+    pageSize: Number(url.searchParams.get('pageSize') ?? 10),
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+    searchText: url.searchParams.get('searchText') ?? '',
+    sort: url.searchParams.get('sort') ?? 'fleetNumber',
+    sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
+    canRemove: true
   };
 }
 

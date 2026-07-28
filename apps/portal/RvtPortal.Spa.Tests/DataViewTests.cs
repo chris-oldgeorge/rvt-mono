@@ -127,7 +127,7 @@ public class DataViewTests
     public async Task MonitorService_TimeSeriesBounds_AreUnspecifiedAtDatabaseBoundary()
     {
         var reader = new RecordingSearchQueryReader();
-        var service = new MonitorService(null!, null!, null!, reader, null!, null!, null!, null!);
+        var service = new MonitorService(null!, null!, null!, reader, null!, null!);
         var from = new DateTime(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
         var to = from.AddHours(1);
 
@@ -149,7 +149,7 @@ public class DataViewTests
     public async Task MonitorService_TimeSeriesBounds_RejectNonUtcInputs(DateTimeKind kind)
     {
         var reader = new RecordingSearchQueryReader();
-        var service = new MonitorService(null!, null!, null!, reader, null!, null!, null!, null!);
+        var service = new MonitorService(null!, null!, null!, reader, null!, null!);
         var from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
         var to = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 15, 0, 0), kind);
 
@@ -210,50 +210,6 @@ public class DataViewTests
 
         var error = await Assert.ThrowsAsync<ArgumentException>(
             () => dataSource.GetTraceIndexesAsync("TRACE-NON-UTC-BOUND", from, to));
-
-        Assert.Equal("value", error.ParamName);
-        Assert.Contains("must be UTC", error.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    // Function summary: Verifies the point-in-time trace-index lookup also strips UTC Kind only at its EF query boundary.
-    public async Task MonitorService_TraceIndexBound_IsUnspecifiedAtDatabaseBoundary()
-    {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-        var probe = new TraceBoundCommandProbe();
-        var options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseSqlite(connection)
-            .AddInterceptors(probe)
-            .Options;
-        await using var searchContext = new RVTSearchContext(options);
-        await searchContext.Database.EnsureCreatedAsync();
-        probe.Clear();
-        var service = new MonitorService(null!, null!, null!, null!, searchContext, null!, null!, null!);
-        var instant = new DateTime(2026, 7, 1, 14, 30, 0, DateTimeKind.Utc);
-
-        await service.GetVibrationTracesIndex("TRACE-UTC-INSTANT", instant);
-
-        var parameter = Assert.Single(probe.DateTimeParameters);
-        Assert.Equal(instant.Ticks, parameter.Ticks);
-        Assert.Equal(DateTimeKind.Unspecified, parameter.Kind);
-    }
-
-    [Theory]
-    [InlineData(DateTimeKind.Local)]
-    [InlineData(DateTimeKind.Unspecified)]
-    // Function summary: Verifies point-in-time trace-index reads reject non-UTC application instants.
-    public async Task MonitorService_TraceIndexBound_RejectsNonUtcInput(DateTimeKind kind)
-    {
-        var options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseInMemoryDatabase($"trace-index-kind-{Guid.NewGuid():N}")
-            .Options;
-        await using var searchContext = new RVTSearchContext(options);
-        var service = new MonitorService(null!, null!, null!, null!, searchContext, null!, null!, null!);
-        var instant = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 30, 0), kind);
-
-        var error = await Assert.ThrowsAsync<ArgumentException>(
-            () => service.GetVibrationTracesIndex("TRACE-NON-UTC-INSTANT", instant));
 
         Assert.Equal("value", error.ParamName);
         Assert.Contains("must be UTC", error.Message, StringComparison.Ordinal);
@@ -405,7 +361,7 @@ public class DataViewTests
             INSERT INTO omnidots_trace (omnidots_trace_index_id, x, y, z)
             VALUES ({traceId}, {0.1}, {0.2}, {0.3})
             """);
-        var service = new MonitorService(null!, null!, null!, null!, searchContext, null!, null!, null!);
+        var service = new MonitorService(null!, null!, null!, null!, searchContext, null!);
 
         var result = await service.GetVibrationTraces(traceId);
 

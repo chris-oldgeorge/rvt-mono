@@ -20,26 +20,14 @@ namespace RvtPortal.Spa.Application.Lookups
     public interface ILookupService
     {
         Task<List<string>> CompaniesSearchAsync(string searchString, int take, CancellationToken cancellationToken = default);
-        Task<List<ContractSearch>> ContractsForCompanyAsync(Guid companyId, int take = 50, CancellationToken cancellationToken = default);
-        Task<List<SiteSearch>> SitesForCompanyAsync(Guid companyId, int take = 50, CancellationToken cancellationToken = default);
-        Task<List<ContractSearch>> ContractsAsync(int take = 50, CancellationToken cancellationToken = default);
         Task<List<string>> ContractsSearchAsync(string searchString, int take, CancellationToken cancellationToken = default);
-        Task<List<Monitor>> MonitorsNotDeployedAsync(int take = 50, CancellationToken cancellationToken = default);
         Task<List<string>> MonitorsSearchAsync(string searchString, int take, CancellationToken cancellationToken = default);
-        Task<List<string>> MonitorsAvailableSearchAsync(string searchString, int take, CancellationToken cancellationToken = default);
         Task<List<string>> MonitorsOnlineSearchAsync(string searchString, int take, CancellationToken cancellationToken = default);
         Task<List<string>> MonitorsNewSearchAsync(string searchString, int take, CancellationToken cancellationToken = default);
         Task<List<string>> MonitorsOfflineSearchAsync(string searchString, int take, CancellationToken cancellationToken = default);
-        Task<List<string>> MonitorsForSiteSearchAsync(Guid siteId, string searchString, int take = 50, CancellationToken cancellationToken = default);
-        Task<List<string>> MonitorsForContractSearchAsync(Guid siteId, string searchString, int take = 50, CancellationToken cancellationToken = default);
-        Task<List<string>> MonitorUserSearchAsync(Guid userId, string searchString, int take = 50, CancellationToken cancellationToken = default);
-        Task<List<Site>> SitesListAsync(int take = 50, CancellationToken cancellationToken = default);
         Task<List<string>> SitesSearchAsync(string searchString, int take, CancellationToken cancellationToken = default);
-        Task<List<string>> SiteUserSearchAsync(Guid userId, string searchString, int take = 50, CancellationToken cancellationToken = default);
         Task<List<string>> UserSearchAsync(Guid companyId, string searchString, int take, bool includeAdmin = false, CancellationToken cancellationToken = default);
         Task<List<string>> UserSearchAsync(string searchString, int take, CancellationToken cancellationToken = default);
-        Task<List<UserSearch>> UsersForCompanyAsync(Guid companyId, int take = 50, CancellationToken cancellationToken = default);
-        Task<string?> CompanyNameFromIdAsync(Guid companyId, CancellationToken cancellationToken = default);
     }
 
     public class LookupService : ILookupService
@@ -67,16 +55,6 @@ namespace RvtPortal.Spa.Application.Lookups
                 cancellationToken);
         }
 
-        // Function summary: Returns a company name by ID without loading all companies.
-        public Task<string?> CompanyNameFromIdAsync(Guid companyId, CancellationToken cancellationToken = default)
-        {
-            return dbContext.Companies
-                .AsNoTracking()
-                .Where(company => company.Id == companyId)
-                .Select(company => company.CompanyName)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
         // Function summary: Returns combined contract, site, and company lookup suggestions from the contract search view.
         public Task<List<string>> ContractsSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
         {
@@ -90,55 +68,10 @@ namespace RvtPortal.Spa.Application.Lookups
                 cancellationToken);
         }
 
-        // Function summary: Returns a bounded set of contract search rows.
-        public Task<List<ContractSearch>> ContractsAsync(int take = 50, CancellationToken cancellationToken = default)
-        {
-            return searchContext.ContractSearches
-                .AsNoTracking()
-                .Take(NormalizeTake(take))
-                .ToListAsync(cancellationToken);
-        }
-
-        // Function summary: Returns contracts for a company that are not already linked to a site.
-        public Task<List<ContractSearch>> ContractsForCompanyAsync(Guid companyId, int take = 50, CancellationToken cancellationToken = default)
-        {
-            return searchContext.ContractSearches
-                .AsNoTracking()
-                .Where(contract => contract.CompanyId == companyId && contract.SiteiD == null)
-                .Take(NormalizeTake(take))
-                .ToListAsync(cancellationToken);
-        }
-
-        // Function summary: Returns site-search rows visible for company selection.
-        public Task<List<SiteSearch>> SitesForCompanyAsync(Guid companyId, int take = 50, CancellationToken cancellationToken = default)
-        {
-            return searchContext.SiteSearches
-                .AsNoTracking()
-                .Where(site => site.CompanyId == companyId || site.CompanyId == null)
-                .Take(NormalizeTake(take))
-                .ToListAsync(cancellationToken);
-        }
-
         // Function summary: Returns combined site, company, contract, and address lookup suggestions.
         public Task<List<string>> SitesSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
         {
             var rows = searchContext.SiteSearches.AsNoTracking();
-            return LookupValuesAsync(
-                rows.Select(site => site.Contracts)
-                    .Concat(rows.Select(site => site.SiteName))
-                    .Concat(rows.Select(site => site.CompanyName))
-                    .Concat(rows.Select(site => site.SiteAddress)),
-                searchString,
-                take,
-                cancellationToken);
-        }
-
-        // Function summary: Returns site lookup suggestions scoped to a user.
-        public Task<List<string>> SiteUserSearchAsync(Guid userId, string searchString, int take = 50, CancellationToken cancellationToken = default)
-        {
-            var rows = searchContext.SiteUserSearches
-                .AsNoTracking()
-                .Where(site => site.UserId == userId);
             return LookupValuesAsync(
                 rows.Select(site => site.Contracts)
                     .Concat(rows.Select(site => site.SiteName))
@@ -157,19 +90,6 @@ namespace RvtPortal.Spa.Application.Lookups
                 rows.Select(monitor => monitor.ContractNumber)
                     .Concat(rows.Select(monitor => monitor.FleetNr))
                     .Concat(rows.Select(monitor => monitor.SiteName)),
-                searchString,
-                take,
-                cancellationToken);
-        }
-
-        // Function summary: Returns available monitor fleet-number suggestions.
-        public Task<List<string>> MonitorsAvailableSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
-        {
-            return LookupValuesAsync(
-                searchContext.MonitorCurrentSearches
-                    .AsNoTracking()
-                    .Where(monitor => monitor.ContractNumber == null)
-                    .Select(monitor => monitor.FleetNr),
                 searchString,
                 take,
                 cancellationToken);
@@ -214,58 +134,6 @@ namespace RvtPortal.Spa.Application.Lookups
                 cancellationToken);
         }
 
-        // Function summary: Returns monitor and contract suggestions scoped to a site.
-        public Task<List<string>> MonitorsForSiteSearchAsync(Guid siteId, string searchString, int take = 50, CancellationToken cancellationToken = default)
-        {
-            var rows = searchContext.MonitorSearches
-                .AsNoTracking()
-                .Where(monitor => monitor.SiteiD == siteId);
-            return LookupValuesAsync(
-                rows.Select(monitor => monitor.ContractNumber)
-                    .Concat(rows.Select(monitor => monitor.FleetNr)),
-                searchString,
-                take,
-                cancellationToken);
-        }
-
-        // Function summary: Returns monitor suggestions for contract-related lookup consumers.
-        public Task<List<string>> MonitorsForContractSearchAsync(Guid siteId, string searchString, int take = 50, CancellationToken cancellationToken = default)
-        {
-            _ = siteId;
-            return LookupValuesAsync(
-                searchContext.MonitorSearches
-                    .AsNoTracking()
-                    .Select(monitor => monitor.FleetNr),
-                searchString,
-                take,
-                cancellationToken);
-        }
-
-        // Function summary: Returns monitor lookup suggestions scoped to a user.
-        public Task<List<string>> MonitorUserSearchAsync(Guid userId, string searchString, int take = 50, CancellationToken cancellationToken = default)
-        {
-            var rows = searchContext.MonitorUserSearches
-                .AsNoTracking()
-                .Where(monitor => monitor.UserId == userId);
-            return LookupValuesAsync(
-                rows.Select(monitor => monitor.ContractNumber)
-                    .Concat(rows.Select(monitor => monitor.FleetNr))
-                    .Concat(rows.Select(monitor => monitor.SiteName)),
-                searchString,
-                take,
-                cancellationToken);
-        }
-
-        // Function summary: Returns users for a company using a bounded search-view query.
-        public Task<List<UserSearch>> UsersForCompanyAsync(Guid companyId, int take = 50, CancellationToken cancellationToken = default)
-        {
-            return searchContext.UserSearches
-                .AsNoTracking()
-                .Where(user => user.CompanyId == companyId)
-                .Take(NormalizeTake(take))
-                .ToListAsync(cancellationToken);
-        }
-
         // Function summary: Returns unscoped user lookup suggestions.
         public Task<List<string>> UserSearchAsync(string searchString, int take, CancellationToken cancellationToken = default)
         {
@@ -294,25 +162,6 @@ namespace RvtPortal.Spa.Application.Lookups
                 searchString,
                 take,
                 cancellationToken);
-        }
-
-        // Function summary: Returns a bounded list of sites for legacy lookup consumers.
-        public Task<List<Site>> SitesListAsync(int take = 50, CancellationToken cancellationToken = default)
-        {
-            return dbContext.Sites
-                .AsNoTracking()
-                .Take(NormalizeTake(take))
-                .ToListAsync(cancellationToken);
-        }
-
-        // Function summary: Returns fleet-numbered monitors that are not archived for legacy lookup consumers.
-        public Task<List<Monitor>> MonitorsNotDeployedAsync(int take = 50, CancellationToken cancellationToken = default)
-        {
-            return dbContext.MonitorsList
-                .AsNoTracking()
-                .Where(monitor => monitor.FleetNr != null && !monitor.Archived)
-                .Take(NormalizeTake(take))
-                .ToListAsync(cancellationToken);
         }
 
         // Function summary: Applies lookup text filtering, de-duplication, and result limits in the database.

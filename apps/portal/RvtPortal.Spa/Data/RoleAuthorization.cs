@@ -11,12 +11,3 @@ public static class RoleAuthorization
 {
     public const string AdminRoles = RoleNames.RVTMasterAdmin + "," + RoleNames.RVTAdmin;
 }
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
-public class AuthorizeRolesAttribute : AuthorizeAttribute
-{
-    // Function summary: Handles the authorize roles attribute workflow for this module.
-    public AuthorizeRolesAttribute(params string[] roles)
-    {
-        Roles = string.Join(",", roles);
-    }
-}

@@ -180,9 +180,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMonitorRepository, MonitorRepository>();
         services.AddScoped<IAlertlevelRepository, AlertlevelRepository>();
         services.AddScoped<ISearchQueryReader, SearchQueryReader>();
-        services.AddScoped<IOmnidotsSensorRepository, OmnidotsSensorRepository>();
-        services.AddScoped<ISvantekMonitorStatusRepository, SvantekMonitorStatusRepository>();
-        services.AddScoped<IOmnidotsBreachesAndAlertsRepository, OmnidotsBreachesAndAlertsRepository>();
         return services;
     }
 }

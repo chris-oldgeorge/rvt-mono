@@ -114,16 +114,6 @@ public class QueryReportUsersResponse : PagedResponse<UserListItem>
     public int AssignedUserCount { get; set; }
 }
 
-public class ReportUserAssignmentSummaryResponse
-{
-    public Guid ReportRuleId { get; set; }
-    public Guid SiteId { get; set; }
-    public string SiteName { get; set; } = "";
-    public Guid? CompanyId { get; set; }
-    public string? CompanyName { get; set; }
-    public int AssignedUserCount { get; set; }
-}
-
 public class ReportGenerationRequest
 {
     public DateTime? ReportDate { get; set; }

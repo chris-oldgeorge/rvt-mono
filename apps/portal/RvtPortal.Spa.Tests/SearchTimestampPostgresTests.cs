@@ -289,8 +289,6 @@ public sealed class SearchTimestampPostgresTests
             null!,
             new SearchQueryReader(searchContext),
             searchContext,
-            null!,
-            null!,
             null!);
         var dataSource = new PostgresDustDataSource(monitorService, monitor);
         var application = new DataApplicationService(domainContext, dataSource);

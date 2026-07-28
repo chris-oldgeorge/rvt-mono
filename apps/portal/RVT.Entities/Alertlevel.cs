@@ -21,12 +21,6 @@ namespace RVT.Entities
         BatteryAlert = 4,
         BatteryCaution = 5
     }
-    public enum BatteryAlertTypeEnum
-    {
-        Off = 0,
-        BatteryAlert = 1,
-        BatteryCaution = 2
-    }
 
     public enum AveragingPeriodsDustEnum
     {

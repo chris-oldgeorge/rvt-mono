@@ -17,8 +17,8 @@ namespace RVT.DataAccess
     {
 
         // Function summary: Handles the monitor repository workflow for this module.
-        public MonitorRepository(RVTDbContext ContextDB)
-            : base(ContextDB)
+        public MonitorRepository(RVTDbContext contextDb)
+            : base(contextDb)
         {
         }
 

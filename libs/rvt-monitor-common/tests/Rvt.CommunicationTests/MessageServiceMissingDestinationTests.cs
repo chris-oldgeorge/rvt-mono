@@ -61,7 +61,7 @@ public sealed class MessageServiceMissingDestinationTests
             () => service.SendMessageAsync(
                 LegacyMessageKind.Alert,
                 LegacyMessageChannel.Email,
-                new RvtContactDto(true, false, null, "+15550001111", null, null),
+                new RvtContactDto(true, false, string.Empty, "+15550001111", null, null),
                 "fleet-1"));
 
         StringAssert.Contains(exception.Message, "email address");

@@ -11,6 +11,13 @@ namespace Omnidots.Api.Http
     public class HttpWebClient : IHttpClient
     {
 
+        /// <summary>
+        /// Bounds every vendor call. Without an explicit value the 100 second
+        /// default applies, so an unresponsive endpoint stalled the whole
+        /// import for that long on each request.
+        /// </summary>
+        internal static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+
         private readonly HttpClient httpClient;
 
         public HttpWebClient(string baseUrl)
@@ -23,6 +30,7 @@ namespace Omnidots.Api.Http
             this.httpClient = httpClient;
             this.httpClient.BaseAddress = new Uri(baseUrl);
             this.httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
+            this.httpClient.Timeout = RequestTimeout;
         }
 
         public async Task<string> GetAsync(string path)

@@ -1,5 +1,53 @@
 # Project State
 
+## Authoritative checkpoint: critical review findings in progress — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Branch `fix/critical-consolidate-reporting-duplication` continues to carry
+  the critical remediation from
+  `docs/reviews/2026-07-28-full-codebase-review.md`.
+- An integration database is now available for the previously unrunnable
+  PostgreSQL tests. Export
+  `RVT__POSTGRES_INTEGRATION_CONNECTION="Host=localhost;Port=55432;Database=rvt_integration;Username=postgres;Password=postgres"`
+  and start it with:
+  `docker run -d --name rvt-integration-db -e POSTGRES_DB=rvt_integration -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 55432:5432 timescale/timescaledb:2.28.3-pg17`.
+  With it configured the whole solution is green: **2256 passed, 0 failed, 0
+  warnings**. Without it, 188 PostgreSQL tests fail by design rather than
+  silently passing.
+- Completed on this branch since the consolidation:
+  - Microsoft Graph token failures now classify transport faults as
+    `Transient`. Previously an Entra ID outage dead-lettered every in-flight
+    alert because the wrapped cause was not a `RequestFailedException`.
+  - A contact enabled for a channel it has no address for is reported through
+    `CommsException` instead of escaping as `ArgumentException`, so the
+    failure is audited against that contact and the remaining contacts of the
+    notification still run.
+  - The report alert heatmap sizes its SVG viewBox to the day count. The fixed
+    640x190 box clipped every row past the eighth day, silently truncating
+    monthly and 31-day one-time reports. Report text also formats invariantly
+    now, so thresholds no longer render as "42,5" under a comma-decimal
+    container locale.
+  - AirQ and Omnidots vendor HTTP clients apply an explicit 30 second timeout.
+    Both previously relied on the 100 second framework default, so an
+    unresponsive endpoint stalled the import on every request.
+- Each fix landed with the regression coverage that was missing where the bug
+  survived: 28 new tests across Graph token classification, missing-destination
+  delivery, heatmap geometry, invariant formatting, and the HTTP timeouts.
+- Still open from the review's critical list, deliberately not started because
+  it is a larger refactor rather than a surgical fix: the AirQ and Omnidots
+  import cores still call `.Result` and still discard the job
+  `CancellationToken`. The vendor timeout now bounds the stall, but a blocked
+  thread and ungraceful shutdown remain. Completing it means making
+  `IHttpClient` cancellable, cascading `async` through the gateways, handlers,
+  facades, and job dispatchers, restructuring
+  `AirQHttpGateway.HttpGetLatestSamples` away from its `ref DateTime`
+  parameter, and updating roughly 520 AirQ and Omnidots tests that mock the
+  synchronous `IHttpClient` shape.
+- Also still open and intentionally untouched: the Omnidots
+  `RVT__OMNIDOTS_USE_TOKEN` request-path token seam. It defaults to enabled, so
+  changing it could alter how production authenticates against the vendor;
+  that needs a product decision before any behavior change.
+
 ## Authoritative checkpoint: reporting duplication consolidated — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

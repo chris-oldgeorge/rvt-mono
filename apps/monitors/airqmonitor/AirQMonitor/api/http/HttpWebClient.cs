@@ -8,15 +8,26 @@ namespace AirQ.Api.Http
 
     public class HttpWebClient<T> : IHttpClient
     {
+        /// <summary>
+        /// Bounds every vendor call. Without an explicit value the 100 second
+        /// default applies, so an unresponsive endpoint stalled the whole
+        /// fleet import for that long on each request.
+        /// </summary>
+        internal static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+
         private readonly HttpClient httpClient;
 
         public HttpWebClient(string baseUrl)
+            : this(baseUrl, new HttpClient())
         {
-            httpClient = new()
-            {
-                BaseAddress = new Uri(baseUrl),
-            };
-            httpClient.DefaultRequestHeaders.Add("accept", "application/json");
+        }
+
+        internal HttpWebClient(string baseUrl, HttpClient httpClient)
+        {
+            this.httpClient = httpClient;
+            this.httpClient.BaseAddress = new Uri(baseUrl);
+            this.httpClient.DefaultRequestHeaders.Add("accept", "application/json");
+            this.httpClient.Timeout = RequestTimeout;
         }
 
         public async Task<string> GetAsync(string path)

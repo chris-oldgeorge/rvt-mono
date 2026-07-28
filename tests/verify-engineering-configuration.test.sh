@@ -171,7 +171,7 @@ target_contents() {
 has_hardened_msbuild_npm_install() {
   local project="$1"
   local target_name="$2"
-  local expected_command='    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci --ignore-scripts &amp;&amp; popd&quot;" />'
+  local expected_command='    <Exec Command="npm ci --ignore-scripts" WorkingDirectory="$(SpaRoot)" />'
   local contents
   local npm_ci_count
 
@@ -209,7 +209,7 @@ assert_second_msbuild_npm_install_rejected() {
   awk '
     /<Target Name="DebugEnsureNodeEnv"/ { in_target = 1 }
     in_target && /<\/Target>/ {
-      print "    <Exec Command=\"cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci --ignore-scripts &amp;&amp; popd&quot;\" />"
+      print "    <Exec Command=\"npm ci --ignore-scripts\" WorkingDirectory=\"$(SpaRoot)\" />"
       in_target = 0
     }
     { print }

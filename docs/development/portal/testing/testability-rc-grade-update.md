@@ -86,6 +86,5 @@ The existing architecture and source guardrails remain useful, but they should b
 Highest-value next coverage areas:
 
 - `RVT.BusinessLogic` services that still sit below 25% aggregate coverage.
-- `RVT.Utilities` email/blob services, using test doubles for transport and storage boundaries.
 - Client panels with large source files and weaker coverage: admin panels, monitor panels, notification panels, data views, and reports.
 - Real database integration tests for Timescale/Postgres paths once credentials and schema are stable.

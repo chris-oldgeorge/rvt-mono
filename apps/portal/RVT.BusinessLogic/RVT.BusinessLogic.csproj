@@ -18,7 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RVT.Entities\RVT.Entities.csproj" />
-    <ProjectReference Include="..\RVT.Utilities\RVT.Utilities.csproj" />
   </ItemGroup>
 
 </Project>

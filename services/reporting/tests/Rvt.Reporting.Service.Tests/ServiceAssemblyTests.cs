@@ -8,7 +8,17 @@ namespace Rvt.Reporting.Service.Tests;
 /// </summary>
 public sealed class ServiceAssemblyTests
 {
-    private static readonly string[] CredentialMarkers = ["Password=", "Username=", "User ID="];
+    private static readonly string[] CredentialMarkers =
+    [
+        "Password=",
+        "Pwd=",
+        "Username=",
+        "User Name=",
+        "UserName=",
+        "User ID=",
+        "UserId=",
+        "User=",
+    ];
 
     [Fact]
     public void ProgramTypeIsAvailable()
@@ -29,6 +39,13 @@ public sealed class ServiceAssemblyTests
 
         Assert.NotNull(reportingDatabase);
         Assert.False(ContainsCredentialMarker(reportingDatabase));
+    }
+
+    [Fact]
+    public void NpgsqlCredentialAliasesAreDetected()
+    {
+        Assert.True(ContainsCredentialMarker("Host=localhost;User=reporter"));
+        Assert.True(ContainsCredentialMarker("Host=localhost;Pwd=not-a-secret"));
     }
 
     private static bool ContainsCredentialMarker(string connectionString) =>

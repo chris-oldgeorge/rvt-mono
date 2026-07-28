@@ -17,4 +17,4 @@ done
 
 curl --fail --silent http://127.0.0.1:18080/healthz | grep -Fx 'ok'
 curl --fail --silent http://127.0.0.1:18080/nonexistent-route | grep --fixed-strings '<div id="root"></div>'
-docker image inspect --format '{{.Config.User}}' "$image" | grep -Fx '101'
+docker image inspect --format '{{.Config.User}}' "$image" | grep -Fx '101:101'

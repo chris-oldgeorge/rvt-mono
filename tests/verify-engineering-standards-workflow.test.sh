@@ -177,7 +177,7 @@ def verify_workflow(source)
   )
 
   canonical = {
-    "Install Portal client dependencies" => "npm ci",
+    "Install Portal client dependencies" => "npm ci --ignore-scripts",
     "Restore monorepo" =>
       "dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel",
     "Verify standards model and module policy" =>

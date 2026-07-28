@@ -1,5 +1,50 @@
 # Project State
 
+## Authoritative checkpoint: Sonar security dispositions recorded — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- SonarCloud project `aileron-forward_rvt-mono`, branch `main`, has seven
+  context-dependent findings dispositioned through the authenticated Sonar API:
+  - `AZ-ojKl9UqA9vndbQR-a`, `AZ-ojKl9UqA9vndbQR-b`, and
+    `AZ-ojKl9UqA9vndbQR-c` are `FALSE_POSITIVE`: each is the normative SVG
+    namespace identifier in a disposable verifier fixture, not clear-text
+    network traffic.
+  - `AZ-iGxXCIPvQyd8fB6yf` and `AZ-iGxXCIPvQyd8fB6yg` are `FALSE_POSITIVE`:
+    `forgot-password` and `reset-password` are public route names, not
+    credentials.
+  - `AZ-iGxM5IPvQyd8fB6vz` is `FALSE_POSITIVE`: only validated, canonicalized,
+    provider-delimited PostgreSQL identifiers are rendered; all values remain
+    parameters and regression coverage rejects injected routine and parameter
+    names.
+  - `AZ-iGyHeIPvQyd8fB7H3` is `ACCEPTED` (Sonar API resolution `WONTFIX`):
+    clear-text HTTP is restricted to the container network and production TLS
+    terminates at managed ingress or a reverse proxy; direct public port 8080
+    exposure is prohibited.
+- Commit `bb87547` documents the reporting listener boundary before the final
+  acceptance transition. The local verifier scenarios, Portal client tests
+  (78 tests), and focused stored-routine tests (7 tests) passed.
+- The post-transition unresolved vulnerability query returns 10 findings. They
+  are exactly the code/configuration findings fixed in Tasks 2–6 and remain
+  open only until the next analysis is published; no additional unresolved
+  context-dependent finding remains.
+
+## Authoritative checkpoint: Sonar main branch aligned with Git — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- SonarCloud project `aileron-forward_rvt-mono` had one long-lived main branch
+  named `master` (`isMain: true`) at analyzed commit
+  `000f6c58d114927e800977ca6db0c0cb9f889f38`.
+- The SonarCloud main-branch setting was renamed from `master` to `main`.
+  Verification confirms `main` is now the sole `LONG` branch with
+  `isMain: true`, retaining the same analysis commit and branch identity.
+- No Git branch, ref, workflow, or repository file was renamed; this was a
+  SonarCloud administrative setting change only. The SonarQube workflow
+  continues to analyze project key `aileron-forward_rvt-mono`.
+- Post-rename validation ran `sonar list issues -p aileron-forward_rvt-mono
+  --branch main --format json --page-size 500` successfully. It returned the
+  current inventory (`total: 5345`, page 1 of 500), proving that `main`
+  resolves the analyzed project inventory rather than a branch mismatch.
+
 ## Authoritative checkpoint: Visual Studio SPA proxy repaired — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

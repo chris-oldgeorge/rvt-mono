@@ -358,11 +358,15 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
     if (!globalThis.confirm(`Delete ${rule.reportName || rule.frequencyLabel} report rule?`)) {
       return;
     }
+    const deleteGeneration = requestGeneration.current;
     setNotice(null);
     setError(null);
     try {
       await deleteReportRule(rule.id);
       setNotice('Report rule has been deleted.');
+      if (requestGeneration.current !== deleteGeneration) {
+        return;
+      }
       await refreshRules();
     } catch (err) {
       setError((err as Error).message);

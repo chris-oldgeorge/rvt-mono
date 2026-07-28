@@ -958,6 +958,72 @@ describe('App', () => {
     expect(screen.getByText('Current Rule')).toBeInTheDocument();
   });
 
+  it('does not let a delayed delete reclaim a newer report-rule query', async () => {
+    globalThis.history.replaceState(null, '', '/reports/rules');
+    const deleteRequest = deferredResponse();
+    const currentQuery = deferredResponse();
+    let emptyQueryRequestCount = 0;
+    const reportRulePage = (url: URL, reportName: string) => ({
+      results: [{
+        id: `${reportName.toLowerCase().replaceAll(' ', '-')}-id`,
+        siteId: 'site-id',
+        siteName: 'RVT Test Site',
+        frequency: 2,
+        frequencyLabel: 'Weekly',
+        dayOfWeek: 1,
+        dayOfMonth: null,
+        reportName,
+        lastGenerated: null,
+        canManage: true,
+        assignedUserCount: 1
+      }],
+      total: 1,
+      page: Number(url.searchParams.get('page') ?? 1),
+      pageSize: 10,
+      totalPages: 1,
+      hasPreviousPage: false,
+      hasNextPage: false,
+      searchText: url.searchParams.get('searchText') ?? '',
+      sort: url.searchParams.get('sort') ?? 'lastGenerated',
+      sortDir: url.searchParams.get('sortDir') ?? 'Ascending'
+    });
+    vi.stubGlobal('confirm', vi.fn(() => true));
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url, init) => {
+        if (url.pathname === '/api/report-rules/old-rule-id' && init?.method === 'DELETE') {
+          return deleteRequest.promise;
+        }
+        if (url.pathname !== '/api/report-rules') {
+          return undefined;
+        }
+
+        const searchText = url.searchParams.get('searchText') ?? '';
+        if (!searchText) {
+          emptyQueryRequestCount += 1;
+          return jsonResponse(reportRulePage(url, 'Old Rule'));
+        }
+        if (searchText === 'current') {
+          return currentQuery.promise;
+        }
+        return undefined;
+      }
+    });
+
+    render(<App />);
+
+    await screen.findByText('Old Rule');
+    fireEvent.click(screen.getByRole('button', { name: /delete report rule/i }));
+    fireEvent.change(screen.getByPlaceholderText(/search rules/i), { target: { value: 'current' } });
+    await waitFor(() => expect(screen.getByText('Loading data...')).toBeInTheDocument());
+
+    deleteRequest.resolve(jsonResponse({ message: 'Deleted' }));
+    currentQuery.resolve(jsonResponse(reportRulePage(new URL('/api/report-rules?searchText=current', 'http://localhost'), 'Current Rule')));
+
+    await screen.findByText('Current Rule');
+    expect(emptyQueryRequestCount).toBe(1);
+  });
+
   it('shows monitor loading until its current request completes', async () => {
     const pending = deferredResponse();
     stubFetch({

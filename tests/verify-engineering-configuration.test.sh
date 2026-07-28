@@ -157,8 +157,74 @@ assert_npm_install_mutation_rejected() {
   printf 'Rejected %s mutation.\n' "$description"
 }
 
+target_contents() {
+  local project="$1"
+  local target_name="$2"
+
+  awk -v target_name="$target_name" '
+    $0 ~ "<Target Name=\"" target_name "\"" { in_target = 1 }
+    in_target { print }
+    in_target && /<\/Target>/ { exit }
+  ' "$project"
+}
+
+has_hardened_msbuild_npm_install() {
+  local project="$1"
+  local target_name="$2"
+  local expected_command='    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci --ignore-scripts &amp;&amp; popd&quot;" />'
+  local contents
+  local npm_ci_count
+
+  contents="$(target_contents "$project" "$target_name")"
+  grep -Fqx "$expected_command" <<< "$contents" || return 1
+  npm_ci_count="$(grep -oE 'npm[[:space:]]+ci([[:space:]]|&amp;|$)' <<< "$contents" | wc -l | tr -d '[:space:]')"
+  [[ "$npm_ci_count" == "1" ]]
+}
+
+assert_hardened_msbuild_npm_installs() {
+  local project="$1"
+
+  has_hardened_msbuild_npm_install "$project" DebugEnsureNodeEnv || fail "Portal DebugEnsureNodeEnv must use exactly one canonical npm ci --ignore-scripts command"
+  has_hardened_msbuild_npm_install "$project" PublishClientApp || fail "Portal PublishClientApp must use exactly one canonical npm ci --ignore-scripts command"
+}
+
+assert_msbuild_npm_install_mutation_rejected() {
+  local source_path="$1"
+  local replacement="$2"
+  local description="$3"
+  local mutation_path="$temp_dir/$(basename "$source_path").$RANDOM.mutation"
+
+  sed "s|npm ci --ignore-scripts|$replacement|" "$source_path" > "$mutation_path"
+  if has_hardened_msbuild_npm_install "$mutation_path" DebugEnsureNodeEnv && has_hardened_msbuild_npm_install "$mutation_path" PublishClientApp; then
+    fail "$description mutation bypassed the MSBuild npm lifecycle-script guard"
+  fi
+
+  printf 'Rejected %s mutation.\n' "$description"
+}
+
+assert_second_msbuild_npm_install_rejected() {
+  local source_path="$1"
+  local mutation_path="$temp_dir/$(basename "$source_path").second-install.mutation"
+
+  awk '
+    /<Target Name="DebugEnsureNodeEnv"/ { in_target = 1 }
+    in_target && /<\/Target>/ {
+      print "    <Exec Command=\"cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci --ignore-scripts &amp;&amp; popd&quot;\" />"
+      in_target = 0
+    }
+    { print }
+  ' "$source_path" > "$mutation_path"
+  if has_hardened_msbuild_npm_install "$mutation_path" DebugEnsureNodeEnv; then
+    fail "Portal DebugEnsureNodeEnv second npm ci mutation bypassed the MSBuild npm lifecycle-script guard"
+  fi
+
+  printf 'Rejected Portal DebugEnsureNodeEnv second npm ci mutation.\n'
+}
+
 portal_frontend_verifier="$root_dir/apps/portal/scripts/verify-frontend.sh"
+portal_frontend_container_verifier="$root_dir/apps/portal/scripts/verify-frontend-container.sh"
 portal_client_dockerfile="$root_dir/apps/portal/RvtPortal.Client/Dockerfile"
+portal_spa_project="$root_dir/apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj"
 
 final_dockerfile_stage() {
   awk '
@@ -171,15 +237,22 @@ final_dockerfile_stage() {
 has_portal_runtime_user() {
   local dockerfile="$1"
   local stage
-  local user_instruction_line
-  local runtime_instruction_line
+  local effective_user
 
   stage="$(final_dockerfile_stage "$dockerfile")"
-  user_instruction_line="$(printf '%s\n' "$stage" | awk '/^[[:space:]]*USER[[:space:]]+101:101[[:space:]]*(#.*)?$/ { print NR; exit }')"
-  runtime_instruction_line="$(printf '%s\n' "$stage" | awk '/^[[:space:]]*(ENTRYPOINT|CMD|HEALTHCHECK)[[:space:]]/ { print NR; exit }')"
+  effective_user="$(printf '%s\n' "$stage" | awk '
+    /^[[:space:]]*(ENTRYPOINT|CMD|HEALTHCHECK)[[:space:]]/ { exit }
+    /^[[:space:]]*USER[[:space:]]+/ { user = $0 }
+    END { print user }
+  ')"
 
-  [[ -n "$user_instruction_line" ]] || return 1
-  [[ -z "$runtime_instruction_line" || "$user_instruction_line" -lt "$runtime_instruction_line" ]]
+  [[ "$effective_user" =~ ^[[:space:]]*USER[[:space:]]+101:101[[:space:]]*(#.*)?$ ]]
+}
+
+has_portal_container_inspection_user() {
+  local verifier="$1"
+
+  grep -Fqx "docker image inspect --format '{{.Config.User}}' \"\$image\" | grep -Fx '101:101'" "$verifier"
 }
 
 assert_portal_runtime_user_mutation_rejected() {
@@ -190,8 +263,30 @@ assert_portal_runtime_user_mutation_rejected() {
   printf 'Rejected Portal client commented runtime-user mutation.\n'
 }
 
+assert_portal_runtime_user_later_root_mutation_rejected() {
+  local mutation_path="$temp_dir/$(basename "$portal_client_dockerfile").runtime-user-later-root.mutation"
+
+  awk '
+    /^[[:space:]]*HEALTHCHECK/ { print "USER 0:0" }
+    { print }
+  ' "$portal_client_dockerfile" > "$mutation_path"
+  has_portal_runtime_user "$mutation_path" && fail "Portal client later-root runtime-user mutation bypassed the Dockerfile USER guard"
+  printf 'Rejected Portal client later-root runtime-user mutation.\n'
+}
+
+assert_portal_container_inspection_user_mutation_rejected() {
+  local mutation_path="$temp_dir/$(basename "$portal_frontend_container_verifier").user-inspection.mutation"
+
+  sed "s/'101:101'/'101'/" "$portal_frontend_container_verifier" > "$mutation_path"
+  has_portal_container_inspection_user "$mutation_path" && fail "Portal frontend container bare UID inspection mutation bypassed the user guard"
+  printf 'Rejected Portal frontend container bare UID inspection mutation.\n'
+}
+
 has_portal_runtime_user "$portal_client_dockerfile" || fail "Portal client Dockerfile final runtime stage must declare USER 101:101 before runtime execution"
 assert_portal_runtime_user_mutation_rejected
+assert_portal_runtime_user_later_root_mutation_rejected
+has_portal_container_inspection_user "$portal_frontend_container_verifier" || fail "Portal frontend container verifier must require Config.User 101:101"
+assert_portal_container_inspection_user_mutation_rejected
 
 assert_hardened_npm_install "$portal_frontend_verifier" 'npm ci --ignore-scripts' "Portal frontend verifier"
 assert_hardened_npm_install "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' "Portal client Dockerfile"
@@ -211,6 +306,12 @@ assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --i
 assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN command env CI=true npm ci' "Dockerfile nested-wrapper bare install"
 assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' "RUN sh -c 'npm ci'" "Dockerfile single-quoted shell bare install"
 assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN bash -c "npm ci"' "Dockerfile double-quoted shell bare install"
+
+assert_hardened_msbuild_npm_installs "$portal_spa_project"
+assert_msbuild_npm_install_mutation_rejected "$portal_spa_project" 'npm ci --ignore-scripts --no-audit' "MSBuild arbitrary npm ci option"
+assert_msbuild_npm_install_mutation_rejected "$portal_spa_project" 'command npm ci --ignore-scripts' "MSBuild command-wrapped npm ci"
+assert_msbuild_npm_install_mutation_rejected "$portal_spa_project" 'npm ci' "MSBuild bare npm ci"
+assert_second_msbuild_npm_install_rejected "$portal_spa_project"
 
 declare -a representative_projects=(
   "apps/monitors/airqmonitor/AirQMonitor/AirQMonitor.csproj|latest|true"

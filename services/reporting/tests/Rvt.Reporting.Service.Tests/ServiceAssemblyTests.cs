@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Npgsql;
 
 namespace Rvt.Reporting.Service.Tests;
 
@@ -8,18 +9,6 @@ namespace Rvt.Reporting.Service.Tests;
 /// </summary>
 public sealed class ServiceAssemblyTests
 {
-    private static readonly string[] CredentialMarkers =
-    [
-        "Password=",
-        "Pwd=",
-        "Username=",
-        "User Name=",
-        "UserName=",
-        "User ID=",
-        "UserId=",
-        "User=",
-    ];
-
     [Fact]
     public void ProgramTypeIsAvailable()
     {
@@ -27,7 +16,7 @@ public sealed class ServiceAssemblyTests
     }
 
     [Fact]
-    public void CommittedReportingDatabaseDefaultDoesNotContainCredentialMarkers()
+    public void CommittedReportingDatabaseDefaultHasNoParsedCredentials()
     {
         var configurationPath = FindRepositoryFile(
             "services/reporting/src/Rvt.Reporting.Service/appsettings.json");
@@ -37,19 +26,40 @@ public sealed class ServiceAssemblyTests
             .GetProperty("ReportingDatabase")
             .GetString();
 
-        Assert.NotNull(reportingDatabase);
-        Assert.False(ContainsCredentialMarker(reportingDatabase));
+        var connectionString = Assert.IsType<string>(reportingDatabase);
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+
+        Assert.True(string.IsNullOrEmpty(builder.Username));
+        Assert.True(string.IsNullOrEmpty(builder.Password));
     }
 
     [Fact]
     public void NpgsqlCredentialAliasesAreDetected()
     {
-        Assert.True(ContainsCredentialMarker("Host=localhost;User=reporter"));
-        Assert.True(ContainsCredentialMarker("Host=localhost;Pwd=not-a-secret"));
+        Assert.True(HasParsedCredentials("Host=localhost;User=reporter"));
+        Assert.True(HasParsedCredentials("Host=localhost;Username=reporter"));
+        Assert.True(HasParsedCredentials("Host=localhost;User Name=reporter"));
+        Assert.True(HasParsedCredentials("Host=localhost;UserName=reporter"));
+        Assert.True(HasParsedCredentials("Host=localhost;User ID=reporter"));
+        Assert.True(HasParsedCredentials("Host=localhost;UserId=reporter"));
+        Assert.True(HasParsedCredentials("Host=localhost;Password=not-a-secret"));
+        Assert.True(HasParsedCredentials("Host=localhost;Pwd=not-a-secret"));
+        Assert.True(HasParsedCredentials("Host=localhost;UID=reporter"));
+        Assert.True(HasParsedCredentials("Host=localhost;PSW=not-a-secret"));
     }
 
-    private static bool ContainsCredentialMarker(string connectionString) =>
-        CredentialMarkers.Any(marker => connectionString.Contains(marker, StringComparison.OrdinalIgnoreCase));
+    private static bool HasParsedCredentials(string connectionString)
+    {
+        try
+        {
+            var builder = new NpgsqlConnectionStringBuilder(connectionString);
+            return !string.IsNullOrEmpty(builder.Username) || !string.IsNullOrEmpty(builder.Password);
+        }
+        catch (ArgumentException)
+        {
+            return true;
+        }
+    }
 
     private static string FindRepositoryFile(string relativePath)
     {

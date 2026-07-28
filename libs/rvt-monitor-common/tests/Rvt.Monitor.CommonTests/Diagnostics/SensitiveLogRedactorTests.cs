@@ -67,7 +67,25 @@ public sealed class SensitiveLogRedactorTests
         var pattern = patternField.GetValue(null) as Regex;
 
         Assert.IsNotNull(pattern);
-        Assert.AreNotEqual(Regex.InfiniteMatchTimeout, pattern.MatchTimeout);
+        Assert.AreEqual(TimeSpan.FromMilliseconds(100), pattern.MatchTimeout);
+    }
+
+    [TestMethod]
+    public void RedactSensitiveAssignments_FallsBackToRedactingTheWholePayloadWhenRegexTimesOut()
+    {
+        var method = typeof(SensitiveLogRedactor).GetMethod(
+            "RedactSensitiveAssignments",
+            BindingFlags.NonPublic | BindingFlags.Static,
+            binder: null,
+            types: [typeof(string), typeof(Regex)],
+            modifiers: null);
+        var timeoutPattern = new Regex("(a+)+$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(1));
+        var payload = new string('a', 20_000) + "!";
+
+        Assert.IsNotNull(method);
+        var redacted = method.Invoke(null, [payload, timeoutPattern]) as string;
+
+        Assert.AreEqual(SensitiveLogRedactor.Redact(payload), redacted);
     }
 
     [TestMethod]

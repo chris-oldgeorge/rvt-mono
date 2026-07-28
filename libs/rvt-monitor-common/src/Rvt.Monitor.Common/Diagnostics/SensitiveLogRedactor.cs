@@ -122,11 +122,14 @@ public static class SensitiveLogRedactor
         return value?.ToJsonString() ?? string.Empty;
     }
 
-    private static string RedactSensitiveAssignments(string value)
+    private static string RedactSensitiveAssignments(string value) =>
+        RedactSensitiveAssignments(value, SensitiveAssignmentPattern);
+
+    private static string RedactSensitiveAssignments(string value, Regex pattern)
     {
         try
         {
-            return SensitiveAssignmentPattern.Replace(value, match =>
+            return pattern.Replace(value, match =>
                 match.Groups["name"].Value + Redact(match.Groups["value"].Value));
         }
         catch (RegexMatchTimeoutException)

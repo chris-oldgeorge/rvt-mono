@@ -137,7 +137,7 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'reportDate');
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir'), 'Descending'));
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
 
   const query = useMemo<QueryCompaniesRequest>(() => ({
     searchText,
@@ -146,6 +146,8 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
     sort: sortKey,
     sortDir
   }), [page, searchText, sortDir, sortKey]);
+  const requestKey = JSON.stringify(query);
+  const isLoading = completedRequestKey !== requestKey;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
   const returnPath = currentRoutePath(locationPath);
 
@@ -161,13 +163,16 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildReportsUrl({ searchText, page, sort: sortKey, sortDir }));
-    setIsLoading(true);
     queryReports(query, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setReports(response.results);
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
+        setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
         if (isAbortError(err)) {
@@ -175,14 +180,10 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedRequestKey(requestKey);
       });
     return () => controller.abort();
-  }, [onRequestError, page, query, searchText, sortDir, sortKey]);
+  }, [onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
 
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
@@ -258,7 +259,7 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
 
   const query = useMemo<QueryReportRulesRequest>(() => ({
     searchText,
@@ -267,6 +268,8 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
     sort: sortKey,
     sortDir
   }), [page, searchText, sortDir, sortKey]);
+  const requestKey = JSON.stringify(query);
+  const isLoading = completedRequestKey !== requestKey;
 
   const columns = useMemo<DataGridColumn<ReportRuleListItem>[]>(() => [
     { key: 'reportName', header: 'Rule', sortable: true, render: (rule) => rule.reportName || 'Scheduled Report' },
@@ -276,33 +279,49 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
     { key: 'lastGenerated', header: 'Last Generated', sortable: true, render: (rule) => formatDateTime(rule.lastGenerated) || 'Never' }
   ], []);
 
-  const loadRules = useCallback(async (signal?: AbortSignal) => {
-    setIsLoading(true);
+  const refreshRules = useCallback(async () => {
+    setCompletedRequestKey(null);
     try {
-      const response = await queryReportRules(query, { signal });
+      const response = await queryReportRules(query);
       setRules(response.results);
       setTotal(response.total);
       setTotalPages(response.totalPages);
       setError(null);
+      setCompletedRequestKey(requestKey);
     } catch (err) {
       if (isAbortError(err)) {
         return;
       }
       setError((err as Error).message);
       onRequestError(err);
-    } finally {
-      if (!signal?.aborted) {
-        setIsLoading(false);
-      }
+      setCompletedRequestKey(requestKey);
     }
-  }, [onRequestError, query]);
+  }, [onRequestError, query, requestKey]);
 
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildRulesUrl({ searchText, page, sort: sortKey, sortDir }));
-    loadRules(controller.signal).catch(onRequestError);
+    queryReportRules(query, { signal: controller.signal })
+      .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setRules(response.results);
+        setTotal(response.total);
+        setTotalPages(response.totalPages);
+        setError(null);
+        setCompletedRequestKey(requestKey);
+      })
+      .catch((err: Error) => {
+        if (isAbortError(err)) {
+          return;
+        }
+        setError(err.message);
+        onRequestError(err);
+        setCompletedRequestKey(requestKey);
+      });
     return () => controller.abort();
-  }, [loadRules, onRequestError, page, searchText, sortDir, sortKey]);
+  }, [onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
 
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
@@ -323,7 +342,7 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
     try {
       await deleteReportRule(rule.id);
       setNotice('Report rule has been deleted.');
-      await loadRules();
+      await refreshRules();
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);

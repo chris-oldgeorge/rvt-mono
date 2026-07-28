@@ -115,7 +115,7 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
   const [canClose, setCanClose] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const showClosedNoteColumn = notifications.some((notification) => hasText(notification.closedNote));
   const returnPath = currentRoutePath(locationPath);
@@ -168,20 +168,25 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
     sortDir,
     state
   }), [page, searchText, sortDir, sortKey, state]);
+  const requestKey = JSON.stringify(query);
+  const isLoading = completedRequestKey !== requestKey;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
 
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildNotificationsUrl({ state, searchText, page, sort: sortKey, sortDir }));
-    setIsLoading(true);
     queryNotifications(query, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setNotifications(response.results);
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setCanClose(response.canClose);
         setSelectedIds(new Set());
         setError(null);
+        setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
         if (isAbortError(err)) {
@@ -189,14 +194,10 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedRequestKey(requestKey);
       });
     return () => controller.abort();
-  }, [onRequestError, page, query, searchText, sortDir, sortKey, state]);
+  }, [onRequestError, page, query, requestKey, searchText, sortDir, sortKey, state]);
 
   // Function summary: Maps ggle selected into the shape required by callers.
   function toggleSelected(id: string, checked: boolean) {
@@ -494,7 +495,7 @@ function AlertLevelsListPanel({ monitorId, locationPath, onNavigate, onRequestEr
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
   const manageAllowed = Boolean(canManage && response?.canManage);
   const backPath = returnToOr(locationPath, `/monitors/${monitorId}`);
   const returnPath = currentRoutePath(locationPath);
@@ -506,16 +507,21 @@ function AlertLevelsListPanel({ monitorId, locationPath, onNavigate, onRequestEr
     sort: sortKey,
     sortDir
   }), [monitorId, page, sortDir, sortKey]);
+  const requestKey = JSON.stringify(query);
+  const isLoading = completedRequestKey !== requestKey;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
 
   useEffect(() => {
     const controller = new AbortController();
     globalThis.history.replaceState(null, '', buildAlertLevelsUrl(monitorId, { page, sort: sortKey, sortDir }));
-    setIsLoading(true);
     queryAlertLevels(query, { signal: controller.signal })
       .then((nextResponse) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setResponse(nextResponse);
         setError(null);
+        setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
         if (isAbortError(err)) {
@@ -523,14 +529,10 @@ function AlertLevelsListPanel({ monitorId, locationPath, onNavigate, onRequestEr
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedRequestKey(requestKey);
       });
     return () => controller.abort();
-  }, [monitorId, onRequestError, page, query, sortDir, sortKey]);
+  }, [monitorId, onRequestError, page, query, requestKey, sortDir, sortKey]);
 
   async function handleDelete(level: AlertLevelItem) {
     if (!globalThis.confirm(`Delete ${level.alertType} ${level.alertField} alert level?`)) {

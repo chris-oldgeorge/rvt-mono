@@ -180,7 +180,7 @@ function MonitorListPanel({
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedRequestKey, setCompletedRequestKey] = useState<string | null>(null);
   const [isAddingDefaults, setIsAddingDefaults] = useState(false);
   const columns = useMemo<DataGridColumn<MonitorListItem>[]>(() => [
     {
@@ -208,33 +208,35 @@ function MonitorListPanel({
       render: (monitor) => <MonitorStatusBadge monitor={monitor} />
     }
   ], []);
+  const effectiveState = tabs.some((tab) => tab.state === state)
+    ? state
+    : tabs[0].state;
   const query = useMemo<QueryMonitorsRequest>(() => ({
     searchText,
     page,
     pageSize,
     sort: sortKey,
     sortDir,
-    state
-  }), [page, searchText, sortDir, sortKey, state]);
+    state: effectiveState
+  }), [effectiveState, page, searchText, sortDir, sortKey]);
+  const requestKey = JSON.stringify(query);
+  const isLoading = completedRequestKey !== requestKey;
   const returnPath = currentRoutePath(locationPath);
 
   useEffect(() => {
-    if (!tabs.some((tab) => tab.state === state)) {
-      setState(tabs[0].state);
-    }
-  }, [state, tabs]);
-
-  useEffect(() => {
     const controller = new AbortController();
-    globalThis.history.replaceState(null, '', buildMonitorsUrl({ searchText, page, sort: sortKey, sortDir, state }));
-    setIsLoading(true);
+    globalThis.history.replaceState(null, '', buildMonitorsUrl({ searchText, page, sort: sortKey, sortDir, state: effectiveState }));
     const load = installerOnly ? queryInstallerMonitors : queryMonitors;
     load(query, { signal: controller.signal })
       .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setMonitors(response.results);
         setTotal(response.total);
         setTotalPages(response.totalPages);
         setError(null);
+        setCompletedRequestKey(requestKey);
       })
       .catch((err: Error) => {
         if (isAbortError(err)) {
@@ -242,14 +244,10 @@ function MonitorListPanel({
         }
         setError(err.message);
         onRequestError(err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setCompletedRequestKey(requestKey);
       });
     return () => controller.abort();
-  }, [installerOnly, onRequestError, page, query, searchText, sortDir, sortKey, state]);
+  }, [effectiveState, installerOnly, onRequestError, page, query, requestKey, searchText, sortDir, sortKey]);
 
   // Function summary: Handles the handle state workflow for this module.
   function handleState(nextState: MonitorListState) {
@@ -306,10 +304,10 @@ function MonitorListPanel({
       <div className="segmented-control" role="tablist" aria-label="Monitor list states">
         {tabs.map((tab) => (
           <button
-            className={state === tab.state ? 'active' : ''}
+            className={effectiveState === tab.state ? 'active' : ''}
             type="button"
             role="tab"
-            aria-selected={state === tab.state}
+            aria-selected={effectiveState === tab.state}
             key={tab.state}
             onClick={() => handleState(tab.state)}
           >

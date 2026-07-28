@@ -1,5 +1,75 @@
 # Project State
 
+## R2 implementation plan authored; execution not started — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- This top checkpoint is the sole current authority for the Help asset URL
+  release-audit work. It supersedes the lower R2 pause/next-step wording while
+  preserving the integrated R1 state.
+- The configured workspace
+  `/Users/oldgeorge/Documents/rvt-mono` resolves to
+  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/repository-engineering-standards`.
+  That clean historical worktree was switched to the plan-only branch
+  `codex/help-asset-url-release-audit-plan`, based exactly on synchronized
+  `main`/`origin/main` commit `129419a`
+  (`docs: approve Help asset URL release audit design`). The main checkout
+  remains `/Users/oldgeorge/Developer/rvt-mono`.
+- The implementation plan is now authored at
+  `docs/superpowers/plans/2026-07-28-help-asset-url-release-audit.md`.
+  It follows the approved design in
+  `docs/superpowers/specs/2026-07-28-help-asset-url-release-audit-design.md`
+  and defines eight independently reviewable, test-first tasks with focused
+  RED/GREEN commands and commits.
+- Planned source structure:
+  - `RvtPortal.Application/Help/HelpAssetUrlPolicy.cs` will become the sole
+    BCL-only URL authority;
+  - `RVT.ReleaseAudit/{RVT.ReleaseAudit.csproj,Program.cs,ReleaseAuditOptions.cs,HelpAssetUrlAudit.cs}`
+    will form the isolated Npgsql console adapter;
+  - `RvtPortal.Application.Tests/Help/HelpAssetUrlPolicyCases.cs` will be the
+    single test-corpus source linked into the SPA audit/parity tests;
+  - `RvtPortal.Application.Tests/Help/HelpAssetUrlPolicyTests.cs` and
+    `RvtPortal.Spa.Tests/HelpAssetUrlAuditTests.cs` will cover pure policy,
+    mutation/audit parity, receipt/exit secrecy, and opt-in PostgreSQL behavior;
+  - both solution catalogs and the Portal backend publish script will include
+    the audit artifact; and
+  - the obsolete `apps/portal/docs/release/validate-help-asset-urls.sql` and
+    its two source-contract tests will be deleted during implementation.
+- Planned variable and contract definitions:
+  - `RVT_RELEASE_AUDIT_CONNECTION` is the only runtime release connection
+    source;
+  - `RVT_TEST_POSTGRES_CONNECTION` is the only opt-in disposable PostgreSQL
+    test connection;
+  - production reads are fixed to `public.help_asset`; the test-only relation
+    is fixed to the connection-scoped `pg_temp.help_asset`;
+  - URL violation codes remain `required`, `too_long`, `not_canonical`,
+    `unsafe_character`, `unsupported_relative_path`,
+    `absolute_https_required`, `host_required`, `user_info_forbidden`, and
+    `malformed_uri`;
+  - process exit codes remain `0` pass, `10` complete findings, `2` invalid
+    input, and `3` database/incomplete-read/receipt failure; and
+  - mutation validation preserves its existing required, maximum-length, and
+    unsafe-URL field/message contracts.
+- No implementation source, project, test, SQL, workflow, release script, or
+  runtime documentation has been changed. No production/release/shared
+  database or credential was accessed. The historical production credential
+  must not be used during implementation.
+- Help Admin remains `CONDITIONAL` and R2 remains unchecked. Implementing the
+  tool will not by itself make the capability `READY`; every targeted release
+  database still needs a complete zero-finding receipt from the deployed
+  revision.
+- The blob storage client/service unification remains approved future pending
+  R4 work and is explicitly outside this plan.
+- Plan self-review confirmed coverage of every approved violation code, the
+  four exit outcomes, mutation message compatibility, fixed production/test
+  relations, read-only repeatable-read execution, deterministic secret-safe
+  receipts, SQL deletion, artifact publishing, and the conditional release
+  boundary. `git diff --check` and the engineering-standards working-tree
+  ratchet passed with no increase.
+- Next step: review the committed plan, then choose its execution mode:
+  subagent-driven development (recommended) or inline execution. Do not begin
+  the implementation branch `codex/help-asset-url-release-audit` until that
+  choice is made.
+
 ## R1 integrated; R2 release-audit design approved and paused — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

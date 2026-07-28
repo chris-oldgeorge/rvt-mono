@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -7,7 +7,7 @@
     <UserSecretsId>rvtportal-spa-alpha-dev</UserSecretsId>
     <SpaRoot>..\RvtPortal.Client\</SpaRoot>
     <SpaProxyServerUrl>http://localhost:5173</SpaProxyServerUrl>
-    <SpaProxyLaunchCommand>npm run dev:vs</SpaProxyLaunchCommand>
+    <SpaProxyLaunchCommand>cmd.exe /c "pushd $(SpaRoot) &amp;&amp; npm run dev:vs &amp;&amp; popd"</SpaProxyLaunchCommand>
   </PropertyGroup>
 
   <ItemGroup>
@@ -49,12 +49,12 @@
     </Exec>
     <Error Condition="'$(ErrorCode)' != '0'" Text="Node.js is required to build and run the RVT Portal SPA client. Install Node.js, then restart Visual Studio." />
     <Message Importance="high" Text="Restoring SPA dependencies with npm ci..." />
-    <Exec WorkingDirectory="$(SpaRoot)" Command="npm ci" />
+    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci &amp;&amp; popd&quot;" />
   </Target>
 
   <Target Name="PublishClientApp" BeforeTargets="ComputeFilesToPublish">
-    <Exec WorkingDirectory="$(SpaRoot)" Command="npm ci" />
-    <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" />
+    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci &amp;&amp; popd&quot;" />
+    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm run build &amp;&amp; popd&quot;" />
     <ItemGroup>
       <ClientDist Include="$(SpaRoot)dist\**" />
       <ResolvedFileToPublish Include="@(ClientDist->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">

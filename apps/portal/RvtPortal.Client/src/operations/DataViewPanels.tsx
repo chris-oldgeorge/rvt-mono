@@ -68,8 +68,13 @@ type DataViewResult = Readonly<{
 }>;
 
 type TraceDetailResult = Readonly<{
-  traceId: string;
+  ownerKey: string;
   item: TraceDetailResponse | null;
+}>;
+
+type FilterOptionsResult = Readonly<{
+  deploymentId: string;
+  items: OptionItem[];
 }>;
 
 // Function summary: Renders the DataViewsPanel React component and wires its local UI behavior.
@@ -83,6 +88,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
   const [toDate, setToDate] = useState(toDateTimeInput(initialParams.get('toDate')));
   const [dataViewResult, setDataViewResult] = useState<DataViewResult | null>(null);
   const [traceDetailResult, setTraceDetailResult] = useState<TraceDetailResult | null>(null);
+  const [filterOptionsResult, setFilterOptionsResult] = useState<FilterOptionsResult | null>(null);
   const [selectedTraceId, setSelectedTraceId] = useState('');
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sort, setSort] = useState(initialParams.get('sort') ?? defaultSort);
@@ -108,8 +114,11 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
   const grid = activeResult?.grid ?? null;
   const graph = activeResult?.graph ?? null;
   const traces = activeResult?.traces ?? null;
+  const traceDetailOwnerKey =
+    mode === 'traces' && deploymentId && selectedTraceId ? `${deploymentId}:${selectedTraceId}` : null;
   const traceDetail =
-    mode === 'traces' && traceDetailResult?.traceId === selectedTraceId ? traceDetailResult.item : null;
+    traceDetailOwnerKey && traceDetailResult?.ownerKey === traceDetailOwnerKey ? traceDetailResult.item : null;
+  const filterOptions = filterOptionsResult?.deploymentId === deploymentId ? filterOptionsResult.items : [];
   const requestError = activeResult?.error ?? null;
   const isLoading = Boolean(deploymentId) && dataViewResult?.requestKey !== requestKey;
 
@@ -165,6 +174,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
         .then((response) => {
           if (!controller.signal.aborted) {
             setDataViewResult({ requestKey, grid: response, graph: null, traces: null, error: null });
+            setFilterOptionsResult({ deploymentId, items: response.filterOptions });
             setError(null);
             setFilterOptionFromResponse(response.filterOption);
           }
@@ -183,6 +193,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
         .then((response) => {
           if (!controller.signal.aborted) {
             setDataViewResult({ requestKey, grid: null, graph: response, traces: null, error: null });
+            setFilterOptionsResult({ deploymentId, items: response.filterOptions });
             setError(null);
             setFilterOptionFromResponse(response.filterOption);
           }
@@ -227,7 +238,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
   ]);
 
   useEffect(() => {
-    if (mode !== 'traces' || !deploymentId || !selectedTraceId) {
+    if (!traceDetailOwnerKey) {
       return;
     }
 
@@ -236,7 +247,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
     getMonitorTrace(deploymentId, traceId, { signal: controller.signal })
       .then((item) => {
         if (!controller.signal.aborted) {
-          setTraceDetailResult({ traceId, item });
+          setTraceDetailResult({ ownerKey: traceDetailOwnerKey, item });
         }
       })
       .catch((err: Error) => {
@@ -245,7 +256,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
         }
       });
     return () => controller.abort();
-  }, [deploymentId, handleError, mode, selectedTraceId]);
+  }, [deploymentId, handleError, selectedTraceId, traceDetailOwnerKey]);
 
   // Function summary: Handles the handle mode workflow for this module.
   function handleMode(nextMode: PanelMode) {
@@ -313,8 +324,6 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
       setIsDownloading(false);
     }
   }
-
-  const filterOptions = currentFilterOptions(grid, graph);
 
   return (
     <section className="data-view-layout">
@@ -632,18 +641,6 @@ function LoadingInline({ label }: Readonly<{ label: string }>) {
       <span>{label}</span>
     </div>
   );
-}
-
-// Function summary: Handles the current filter options workflow for this module.
-function currentFilterOptions(grid: MonitorDataGridResponse | null, graph: MonitorGraphResponse | null): OptionItem[] {
-  if (grid?.filterOptions.length) {
-    return grid.filterOptions;
-  }
-  if (graph?.filterOptions.length) {
-    return graph.filterOptions;
-  }
-
-  return [];
 }
 
 // Function summary: Builds grid request data for callers.

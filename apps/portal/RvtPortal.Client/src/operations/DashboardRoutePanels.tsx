@@ -12,7 +12,6 @@ import type {
   CalendarMonthDayItem,
   CalendarMonthResponse,
   DashboardNotificationItem,
-  DashboardSummaryResponse,
   MapMarkersResponse,
   OptionItem,
 } from '../dtos';
@@ -24,7 +23,6 @@ type DashboardRoutePanelProps = Readonly<{
 
 type MapResult = Readonly<{
   requestKey: string;
-  summary: DashboardSummaryResponse | null;
   markers: MapMarkersResponse | null;
   error: string | null;
 }>;
@@ -44,10 +42,10 @@ type CalendarDayResult = Readonly<{
 export function MapPanel({ locationPath, onRequestError }: DashboardRoutePanelProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [siteId, setSiteId] = useState(initialParams.get('siteId') ?? '');
+  const [sites, setSites] = useState<OptionItem[]>([]);
   const [mapResult, setMapResult] = useState<MapResult | null>(null);
   const requestKey = siteId;
   const activeResult = mapResult?.requestKey === requestKey ? mapResult : null;
-  const summary = activeResult?.summary ?? null;
   const markers = activeResult?.markers ?? null;
   const error = activeResult?.error ?? null;
   const isLoading = mapResult?.requestKey !== requestKey;
@@ -61,14 +59,15 @@ export function MapPanel({ locationPath, onRequestError }: DashboardRoutePanelPr
     ])
       .then(([nextSummary, nextMarkers]) => {
         if (!controller.signal.aborted) {
-          setMapResult({ requestKey, summary: nextSummary, markers: nextMarkers, error: null });
+          setSites(nextSummary.sites);
+          setMapResult({ requestKey, markers: nextMarkers, error: null });
         }
       })
       .catch((err: Error) => {
         if (isAbortError(err) || controller.signal.aborted) {
           return;
         }
-        setMapResult({ requestKey, summary: null, markers: null, error: err.message });
+        setMapResult({ requestKey, markers: null, error: err.message });
         onRequestError(err);
       });
     return () => controller.abort();
@@ -87,7 +86,7 @@ export function MapPanel({ locationPath, onRequestError }: DashboardRoutePanelPr
         <span>Site</span>
         <select value={siteId} onChange={(event) => setSiteId(event.target.value)}>
           <option value="">All visible sites</option>
-          {(summary?.sites ?? []).map((site) => (
+          {sites.map((site) => (
             <option value={site.value} key={site.value}>
               {site.label}
             </option>

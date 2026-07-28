@@ -127,7 +127,11 @@ function siteResponse(name: string) {
   };
 }
 
-function gridResponse(name: string) {
+function gridResponse(
+  name: string,
+  filterOption = '',
+  filterOptions: Array<{ value: string; label: string }> = [],
+) {
   return {
     deploymentId: 'deployment-a',
     monitorId: 'monitor-a',
@@ -140,8 +144,8 @@ function gridResponse(name: string) {
     fromDateChanged: false,
     toDateChanged: false,
     maxDuration: null,
-    filterOption: '',
-    filterOptions: [],
+    filterOption,
+    filterOptions,
     columns: [],
     rows: [],
     total: 0,
@@ -155,23 +159,25 @@ function gridResponse(name: string) {
   };
 }
 
-function tracesResponse() {
+function tracesResponse(deploymentId = 'deployment-a', traceIds = ['trace-a', 'trace-b']) {
   return {
-    deploymentId: 'deployment-a',
-    monitorId: 'monitor-a',
+    deploymentId,
+    monitorId: `${deploymentId}-monitor`,
     monitorName: 'Trace monitor',
     monitorType: 'Vibration',
-    traces: [
-      { id: 'trace-a', startTime: '2026-05-24T10:00:00Z', endTime: '2026-05-24T10:01:00Z', durationSeconds: 60 },
-      { id: 'trace-b', startTime: '2026-05-24T11:00:00Z', endTime: '2026-05-24T11:01:00Z', durationSeconds: 60 },
-    ],
+    traces: traceIds.map((id, index) => ({
+      id,
+      startTime: `2026-05-24T${10 + index}:00:00Z`,
+      endTime: `2026-05-24T${10 + index}:01:00Z`,
+      durationSeconds: 60,
+    })),
   };
 }
 
-function traceDetail(traceId: string, monitorName: string) {
+function traceDetail(traceId: string, monitorName: string, deploymentId = 'deployment-a') {
   return {
-    deploymentId: 'deployment-a',
-    monitorId: 'monitor-a',
+    deploymentId,
+    monitorId: `${deploymentId}-monitor`,
     traceId,
     monitorName,
     fromDate: '2026-05-24T10:00:00Z',
@@ -232,6 +238,30 @@ describe('Portal dashboard request ownership', () => {
     expect(within(markerList).queryByText('Site A (Dust)')).not.toBeInTheDocument();
   });
 
+  it('keeps map site options interactive while an intermediate marker request is pending', async () => {
+    const initialMarkers = deferred<ReturnType<typeof mapResponse>>();
+    const siteAMarkers = deferred<ReturnType<typeof mapResponse>>();
+    const siteBMarkers = deferred<ReturnType<typeof mapResponse>>();
+    api.queryMapMarkers
+      .mockReturnValueOnce(initialMarkers.promise)
+      .mockReturnValueOnce(siteAMarkers.promise)
+      .mockReturnValueOnce(siteBMarkers.promise);
+
+    render(<MapPanel locationPath="/maps" onRequestError={vi.fn()} />);
+    await act(async () => initialMarkers.resolve(mapResponse('All Sites')));
+    const siteSelector = await screen.findByLabelText('Site');
+    fireEvent.change(siteSelector, { target: { value: 'site-a' } });
+    await waitFor(() => expect(api.queryMapMarkers).toHaveBeenCalledTimes(2));
+
+    expect(screen.getByRole('option', { name: 'Site B' })).toBeInTheDocument();
+    fireEvent.change(siteSelector, { target: { value: 'site-b' } });
+    await waitFor(() => expect(api.queryMapMarkers).toHaveBeenCalledTimes(3));
+    await act(async () => siteBMarkers.resolve(mapResponse('Site B')));
+
+    expect(within(screen.getByLabelText('Map marker list')).getByText('Site B (Dust)')).toBeInTheDocument();
+    expect(screen.queryByText('All Sites (Dust)')).not.toBeInTheDocument();
+  });
+
   it('keeps the newest live site search result when an older query resolves last', async () => {
     const initialSearch = deferred<ReturnType<typeof siteResponse>>();
     const alphaSearch = deferred<ReturnType<typeof siteResponse>>();
@@ -280,6 +310,31 @@ describe('Portal dashboard request ownership', () => {
     expect(screen.queryByText('Old grid')).not.toBeInTheDocument();
   });
 
+  it('keeps averaging controls interactive while an intermediate grid request is pending', async () => {
+    const rawGrid = deferred<ReturnType<typeof gridResponse>>();
+    const hourlyGrid = deferred<ReturnType<typeof gridResponse>>();
+    const options = [
+      { value: 'raw', label: 'Raw' },
+      { value: 'hourly', label: 'Hourly' },
+    ];
+    api.queryMonitorDataGrid
+      .mockResolvedValueOnce(gridResponse('Initial grid', '', options))
+      .mockReturnValueOnce(rawGrid.promise)
+      .mockReturnValueOnce(hourlyGrid.promise);
+
+    render(<DataViewsPanel locationPath="/data?deploymentId=deployment-a" onRequestError={vi.fn()} />);
+    expect(await screen.findByText('Initial grid')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Raw' }));
+    await waitFor(() => expect(api.queryMonitorDataGrid).toHaveBeenCalledTimes(2));
+
+    expect(screen.queryByText('Initial grid')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hourly' }));
+    await waitFor(() => expect(api.queryMonitorDataGrid).toHaveBeenCalledTimes(3));
+    await act(async () => hourlyGrid.resolve(gridResponse('Hourly grid', 'hourly', options)));
+
+    expect(await screen.findByText('Hourly grid')).toBeInTheDocument();
+  });
+
   it('keeps trace detail owned by the latest selected trace', async () => {
     const firstTrace = deferred<ReturnType<typeof traceDetail>>();
     const secondTrace = deferred<ReturnType<typeof traceDetail>>();
@@ -297,5 +352,28 @@ describe('Portal dashboard request ownership', () => {
 
     expect(screen.getByText('Trace B detail')).toBeInTheDocument();
     expect(screen.queryByText('Trace A detail')).not.toBeInTheDocument();
+  });
+
+  it('does not reuse same-id trace detail across deployments', async () => {
+    const deploymentBTraces = deferred<ReturnType<typeof tracesResponse>>();
+    const deploymentBDetail = deferred<ReturnType<typeof traceDetail>>();
+    api.queryMonitorTraces
+      .mockResolvedValueOnce(tracesResponse('deployment-a', ['shared-trace']))
+      .mockReturnValueOnce(deploymentBTraces.promise);
+    api.getMonitorTrace
+      .mockResolvedValueOnce(traceDetail('shared-trace', 'Deployment A detail', 'deployment-a'))
+      .mockReturnValueOnce(deploymentBDetail.promise);
+
+    render(<DataViewsPanel locationPath="/data?deploymentId=deployment-a&view=traces" onRequestError={vi.fn()} />);
+    expect(await screen.findByText('Deployment A detail')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Deployment'), { target: { value: 'deployment-b' } });
+    await act(async () => deploymentBTraces.resolve(tracesResponse('deployment-b', ['shared-trace'])));
+    await waitFor(() => expect(api.getMonitorTrace).toHaveBeenCalledTimes(2));
+
+    expect(screen.queryByText('Deployment A detail')).not.toBeInTheDocument();
+    await act(async () =>
+      deploymentBDetail.resolve(traceDetail('shared-trace', 'Deployment B detail', 'deployment-b')),
+    );
+    expect(await screen.findByText('Deployment B detail')).toBeInTheDocument();
   });
 });

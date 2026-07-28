@@ -138,48 +138,10 @@ def logical_shell_commands(source)
     .reject(&:empty?)
 end
 
-NPM_OPTIONS_WITH_ARGUMENT = %w[
-  --cache
-  --prefix
-  --registry
-  --userconfig
-  --workspace
-  -C
-  -w
-].freeze
-MONOREPO_PHASES = %w[restore build test].freeze
-
 def shell_command_words(command)
   # Deliberately conservative: quoted/subshell command text is tokenized too,
   # so ambiguous embedded invocations fail closed instead of evading the guard.
   command.tr(%q{"'()}, "    ").split
-end
-
-def shell_assignment?(word)
-  word.match?(/\A[A-Za-z_][A-Za-z0-9_]*=/)
-end
-
-def command_executable_index(words)
-  index = 0
-
-  loop do
-    index += 1 while index < words.length && shell_assignment?(words[index])
-
-    case words[index]
-    when "command"
-      index += 1
-      index += 1 while index < words.length && words[index].start_with?("-")
-    when "env"
-      index += 1
-      index += 1 while index < words.length &&
-        (words[index].start_with?("-") || shell_assignment?(words[index]))
-    else
-      break
-    end
-  end
-
-  index += 1 while index < words.length && shell_assignment?(words[index])
-  index
 end
 
 def executable_basename(word)
@@ -194,29 +156,24 @@ def npm_executable_word?(word)
   %w[npm npm.cmd].include?(executable_basename(word))
 end
 
-def monorepo_solution_word?(word)
-  normalized = word.tr("\\", "/")
-  normalized == "Rvt.Mono.slnx" ||
-    normalized == "${solution}" ||
-    normalized.end_with?("/Rvt.Mono.slnx")
+def bounded_executable_token_occurrences(command, token)
+  words = shell_command_words(command)
+  words.each_index.count do |executable_index|
+    next false unless yield(words[executable_index])
+
+    next_executable_index = ((executable_index + 1)...words.length).find do |index|
+      yield(words[index])
+    end || words.length
+
+    words[(executable_index + 1)...next_executable_index].include?(token)
+  end
 end
 
 def monorepo_phase_occurrences(command, phase)
-  words = shell_command_words(command)
-  words.each_index.count do |dotnet_index|
-    next false unless dotnet_executable_word?(words[dotnet_index])
-
-    next_dotnet_index = ((dotnet_index + 1)...words.length).find do |index|
-      dotnet_executable_word?(words[index])
-    end || words.length
-    phase_index = ((dotnet_index + 1)...next_dotnet_index).find do |index|
-      MONOREPO_PHASES.include?(words[index])
-    end
-    next false unless phase_index && words[phase_index] == phase
-
-    words[(phase_index + 1)...next_dotnet_index].any? do |word|
-      monorepo_solution_word?(word)
-    end
+  # Intentionally fail closed for targetless/root-directory invocations and
+  # quoted embedded command text; canonical command checks reject ambiguity.
+  bounded_executable_token_occurrences(command, phase) do |word|
+    dotnet_executable_word?(word)
   end
 end
 
@@ -227,20 +184,11 @@ def standards_occurrences(command)
 end
 
 def npm_ci_occurrences(command)
-  words = shell_command_words(command)
-  index = command_executable_index(words)
-  return 0 unless npm_executable_word?(words[index])
-
-  index += 1
-  while index < words.length
-    word = words[index]
-    return 1 if word == "ci"
-    return 0 unless word.start_with?("-")
-
-    index += NPM_OPTIONS_WITH_ARGUMENT.include?(word) ? 2 : 1
+  # Intentionally fail closed for wrappers, arbitrary option/value pairs, and
+  # quoted embedded command text; an exact ci token before the next npm counts.
+  bounded_executable_token_occurrences(command, "ci") do |word|
+    npm_executable_word?(word)
   end
-
-  0
 end
 
 def step_name(step)

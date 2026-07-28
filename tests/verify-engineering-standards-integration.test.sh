@@ -67,48 +67,10 @@ def logical_shell_commands(source)
     .reject(&:empty?)
 end
 
-NPM_OPTIONS_WITH_ARGUMENT = %w[
-  --cache
-  --prefix
-  --registry
-  --userconfig
-  --workspace
-  -C
-  -w
-].freeze
-MONOREPO_PHASES = %w[restore build test].freeze
-
 def shell_command_words(command)
   # Deliberately conservative: quoted/subshell command text is tokenized too,
   # so ambiguous embedded invocations fail closed instead of evading the guard.
   command.tr(%q{"'()}, "    ").split
-end
-
-def shell_assignment?(word)
-  word.match?(/\A[A-Za-z_][A-Za-z0-9_]*=/)
-end
-
-def command_executable_index(words)
-  index = 0
-
-  loop do
-    index += 1 while index < words.length && shell_assignment?(words[index])
-
-    case words[index]
-    when "command"
-      index += 1
-      index += 1 while index < words.length && words[index].start_with?("-")
-    when "env"
-      index += 1
-      index += 1 while index < words.length &&
-        (words[index].start_with?("-") || shell_assignment?(words[index]))
-    else
-      break
-    end
-  end
-
-  index += 1 while index < words.length && shell_assignment?(words[index])
-  index
 end
 
 def executable_basename(word)
@@ -123,29 +85,24 @@ def npm_executable_word?(word)
   %w[npm npm.cmd].include?(executable_basename(word))
 end
 
-def monorepo_solution_word?(word)
-  normalized = word.tr("\\", "/")
-  normalized == "Rvt.Mono.slnx" ||
-    normalized == "${solution}" ||
-    normalized.end_with?("/Rvt.Mono.slnx")
+def bounded_executable_token_occurrences(command, token)
+  words = shell_command_words(command)
+  words.each_index.count do |executable_index|
+    next false unless yield(words[executable_index])
+
+    next_executable_index = ((executable_index + 1)...words.length).find do |index|
+      yield(words[index])
+    end || words.length
+
+    words[(executable_index + 1)...next_executable_index].include?(token)
+  end
 end
 
 def monorepo_phase_occurrences(command, phase)
-  words = shell_command_words(command)
-  words.each_index.count do |dotnet_index|
-    next false unless dotnet_executable_word?(words[dotnet_index])
-
-    next_dotnet_index = ((dotnet_index + 1)...words.length).find do |index|
-      dotnet_executable_word?(words[index])
-    end || words.length
-    phase_index = ((dotnet_index + 1)...next_dotnet_index).find do |index|
-      MONOREPO_PHASES.include?(words[index])
-    end
-    next false unless phase_index && words[phase_index] == phase
-
-    words[(phase_index + 1)...next_dotnet_index].any? do |word|
-      monorepo_solution_word?(word)
-    end
+  # Intentionally fail closed for targetless/root-directory invocations and
+  # quoted embedded command text; canonical command checks reject ambiguity.
+  bounded_executable_token_occurrences(command, phase) do |word|
+    dotnet_executable_word?(word)
   end
 end
 
@@ -156,20 +113,11 @@ def standards_occurrences(command)
 end
 
 def npm_ci_occurrences(command)
-  words = shell_command_words(command)
-  index = command_executable_index(words)
-  return 0 unless npm_executable_word?(words[index])
-
-  index += 1
-  while index < words.length
-    word = words[index]
-    return 1 if word == "ci"
-    return 0 unless word.start_with?("-")
-
-    index += NPM_OPTIONS_WITH_ARGUMENT.include?(word) ? 2 : 1
+  # Intentionally fail closed for wrappers, arbitrary option/value pairs, and
+  # quoted embedded command text; an exact ci token before the next npm counts.
+  bounded_executable_token_occurrences(command, "ci") do |word|
+    npm_executable_word?(word)
   end
-
-  0
 end
 
 def boundary_occurrences(command)
@@ -494,6 +442,33 @@ when "npm-absolute-executable"
 when "npm-windows-executable"
   needle = "          npm run test:coverage\n"
   [needle, "          npm.cmd ci\n#{needle}"]
+when "npm-sudo-wrapper"
+  needle = "          npm run test:coverage\n"
+  [needle, "          sudo npm ci\n#{needle}"]
+when "npm-time-wrapper"
+  needle = "          npm run test:coverage\n"
+  [needle, "          time npm ci\n#{needle}"]
+when "npm-bash-wrapper"
+  needle = "          npm run test:coverage\n"
+  [needle, "          bash -c 'npm ci'\n#{needle}"]
+when "npm-loglevel-value-option"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm --loglevel verbose ci\n#{needle}"]
+when "npm-omit-value-option"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm --omit dev ci\n#{needle}"]
+when "npm-absolute-loglevel-value-option"
+  needle = "          npm run test:coverage\n"
+  [needle, "          /usr/bin/npm --loglevel verbose ci\n#{needle}"]
+when "npm-absolute-omit-value-option"
+  needle = "          npm run test:coverage\n"
+  [needle, "          /usr/bin/npm --omit dev ci\n#{needle}"]
+when "npm-windows-loglevel-value-option"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm.cmd --loglevel verbose ci\n#{needle}"]
+when "npm-windows-omit-value-option"
+  needle = "          npm run test:coverage\n"
+  [needle, "          npm.cmd --omit dev ci\n#{needle}"]
 when "standards-continue-on-error"
   needle = "      - name: Verify engineering standards\n"
   [needle, "#{needle}        continue-on-error: true\n"]
@@ -612,6 +587,22 @@ when "pre-standards-windows-solution"
     "\n" \
     "#{needle}"
   [needle, replacement]
+when "pre-standards-targetless-build"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature targetless monorepo build\n" \
+    "        run: dotnet build --configuration Release\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
+when "pre-standards-root-restore"
+  needle = "      - name: Verify engineering standards\n"
+  replacement =
+    "      - name: Premature repository-root restore\n" \
+    "        run: dotnet restore .\n" \
+    "\n" \
+    "#{needle}"
+  [needle, replacement]
 else
   abort "unknown workflow mutation: #{mutation_key}"
 end
@@ -681,7 +672,11 @@ command = {
   "pre-boundary-absolute-solution" =>
     "dotnet restore /workspace/Rvt.Mono.slnx",
   "pre-boundary-windows-solution" =>
-    "dotnet build C:\\repo\\Rvt.Mono.slnx"
+    "dotnet build C:\\repo\\Rvt.Mono.slnx",
+  "pre-boundary-targetless-build" =>
+    "dotnet build --configuration Release",
+  "pre-boundary-root-restore" =>
+    "dotnet restore ."
 }.fetch(mutation_key)
 replacement = "#{command}\n\n#{needle}"
 mutated = source.sub(needle, replacement)
@@ -713,6 +708,28 @@ assert_workflow_mutation_rejected \
   "npm-absolute-executable" "absolute-path npm ci"
 assert_workflow_mutation_rejected \
   "npm-windows-executable" "npm.cmd ci"
+assert_workflow_mutation_rejected \
+  "npm-sudo-wrapper" "sudo-wrapped npm ci"
+assert_workflow_mutation_rejected \
+  "npm-time-wrapper" "time-wrapped npm ci"
+assert_workflow_mutation_rejected \
+  "npm-bash-wrapper" "bash-wrapped npm ci"
+assert_workflow_mutation_rejected \
+  "npm-loglevel-value-option" "npm ci after --loglevel value"
+assert_workflow_mutation_rejected \
+  "npm-omit-value-option" "npm ci after --omit value"
+assert_workflow_mutation_rejected \
+  "npm-absolute-loglevel-value-option" \
+  "absolute-path npm ci after --loglevel value"
+assert_workflow_mutation_rejected \
+  "npm-absolute-omit-value-option" \
+  "absolute-path npm ci after --omit value"
+assert_workflow_mutation_rejected \
+  "npm-windows-loglevel-value-option" \
+  "npm.cmd ci after --loglevel value"
+assert_workflow_mutation_rejected \
+  "npm-windows-omit-value-option" \
+  "npm.cmd ci after --omit value"
 assert_workflow_mutation_rejected \
   "standards-continue-on-error" "non-blocking standards step"
 assert_workflow_mutation_rejected \
@@ -799,6 +816,18 @@ assert_build_mutation_rejected \
 assert_workflow_mutation_rejected \
   "pre-standards-windows-solution" \
   "Windows-solution build before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-targetless-build" \
+  "targetless build before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-targetless-build" \
+  "targetless build before standards verification"
+assert_build_mutation_rejected \
+  "pre-boundary-root-restore" \
+  "repository-root restore before the PostgreSQL boundary"
+assert_workflow_mutation_rejected \
+  "pre-standards-root-restore" \
+  "repository-root restore before standards verification"
 
 if ((mutation_failures > 0)); then
   printf 'FAIL: %d guard mutation acceptance(s) detected.\n' \

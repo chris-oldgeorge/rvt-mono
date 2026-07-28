@@ -1,5 +1,36 @@
 # Project State
 
+## Authoritative checkpoint: PR #5 merged into main — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- PR #5, `Harden Help asset release auditing and configure Portal email
+  delivery`, was marked ready and merged into `main` with merge commit
+  `2eebf3defa6bd820bb220aa324b73d1d8010e51f`. Its remote feature branch
+  `codex/help-asset-url-release-audit` was deleted.
+- The primary `main` worktree was fast-forwarded to the merge while preserving
+  its unrelated, unstaged
+  `apps/portal/RvtPortal.Spa/Properties/launchSettings.json` change that sets
+  `RVT__EMAIL_ENABLED` to `false`. That local developer setting was not staged,
+  committed, or included in PR #5.
+- Exact-head GitHub Engineering standards run `30353814819` passed every step,
+  including the pinned Node 24 setup and changed-range ratchet.
+- Pre-merge full verification used a disposable
+  `timescale/timescaledb:2.28.3-pg17` container on localhost port `55432`;
+  the production/local PostgreSQL database on port `5432` was not touched.
+  With command-scoped `RVT__POSTGRES_INTEGRATION_CONNECTION`, the complete
+  `Rvt.Mono.slnx` suite passed 2,266 tests with 11 opt-in Portal database tests
+  skipped. The disposable container was stopped and automatically removed.
+- Portal verification in `node:24-alpine` passed npm install, lint with the
+  same two pre-existing Fast Refresh warnings and no errors, all 78 Vitest
+  tests, and the production Vite build.
+- Remaining pending work: remediate the six high-severity npm dependency
+  advisories in a dedicated dependency-change scope. Help Admin/R2 remains
+  conditional on the documented operator release-database audit and retained
+  zero-finding receipt; this merge does not constitute that production audit.
+- Next improvement step: open a dedicated dependency-remediation task for the
+  Portal npm advisories, review transitive upgrade impact, and verify the Node
+  24 lint/test/build suite before proposing dependency changes.
+
 ## Authoritative checkpoint: Node 24 and engineering-standards CI hardening — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

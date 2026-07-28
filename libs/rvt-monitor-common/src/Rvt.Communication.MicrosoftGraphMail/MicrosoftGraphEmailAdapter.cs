@@ -334,11 +334,20 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         {
             throw;
         }
-        catch
+        catch (Exception exception)
         {
+            // Transport faults reaching the identity endpoint are retryable;
+            // only a genuine credential rejection is permanent.
+            var kind = exception is HttpRequestException
+                or System.Net.Sockets.SocketException
+                or IOException
+                or TimeoutException
+                or TaskCanceledException
+                ? DeliveryFailureKind.Transient
+                : DeliveryFailureKind.Permanent;
             throw new EmailDeliveryException(
                 "MicrosoftGraph",
-                DeliveryFailureKind.Permanent,
+                kind,
                 "Authentication");
         }
 

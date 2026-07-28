@@ -119,7 +119,10 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
         _ = reportName;
         _ = fromUtc;
         _ = toUtc;
-        return new ReportChrome("RVT Cloud", $"Report date: {generatedAtUtc:yyyy-MM-dd HH:mm} UTC", "RVT Cloud Reporting");
+        return new ReportChrome(
+            "RVT Cloud",
+            FormattableString.Invariant($"Report date: {generatedAtUtc:yyyy-MM-dd HH:mm} UTC"),
+            "RVT Cloud Reporting");
     }
 
     private static string? FindRvtLogoPath()
@@ -169,7 +172,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
                 group.Key.AlertType,
                 group.Key.Threshold,
                 group.Key.Unit,
-                $"{group.Key.AlertType} {group.Key.Threshold:0.##} {group.Key.Unit}".Trim()))
+                FormattableString.Invariant($"{group.Key.AlertType} {group.Key.Threshold:0.##} {group.Key.Unit}").Trim()))
             .OrderBy(static limit => limit.AlertType)
             .ThenBy(static limit => limit.Value)
             .ToArray();
@@ -348,13 +351,18 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
     private static string BuildHeatmapSvg(ReportAlertHeatmap heatmap)
     {
         const decimal width = 640m;
-        const decimal height = 190m;
         const decimal left = 58m;
         const decimal top = 20m;
         const decimal cellWidth = 22m;
         const decimal cellHeight = 20m;
+        const decimal bottomPadding = 6m;
         var days = heatmap.Cells.Select(static cell => cell.Day).Distinct().Order().ToArray();
+        // The viewBox must grow with the number of days. A fixed height clipped
+        // every row past the eighth, which silently truncated monthly and
+        // 31-day one-time reports.
+        var height = top + (days.Length * cellHeight) + bottomPadding;
         var maxCount = Math.Max(1, heatmap.Cells.Max(static cell => cell.AlertCount + cell.CautionCount));
+        var cellsByDayHour = heatmap.Cells.ToDictionary(static cell => (cell.Day, cell.Hour));
         var lines = new List<string>
         {
             $"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:0} {height:0}">""",
@@ -375,7 +383,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
 
             for (var hour = 0; hour < 24; hour++)
             {
-                var cell = heatmap.Cells.SingleOrDefault(item => item.Day == day && item.Hour == hour);
+                var cell = cellsByDayHour.GetValueOrDefault((day, hour));
                 var count = cell is null ? 0 : cell.AlertCount + cell.CautionCount;
                 var color = HeatmapColor(count, maxCount, cell?.AlertCount > 0);
                 var x = left + hour * cellWidth;
@@ -462,7 +470,7 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
             foreach (var rule in rules)
             {
                 table.Cell().Element(BodyCell).Text(rule.Name ?? rule.Field);
-                table.Cell().Element(BodyCell).Text($"{rule.Threshold:0.##} {rule.Unit}".Trim());
+                table.Cell().Element(BodyCell).Text(FormattableString.Invariant($"{rule.Threshold:0.##} {rule.Unit}").Trim());
                 if (showAveragingPeriod)
                 {
                     table.Cell().Element(BodyCell).Text(rule.AveragingPeriodLabel ?? "N/A");
@@ -522,6 +530,6 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
     private static string CreateFileName(DateTimeOffset generatedAtUtc, string siteName)
     {
         var safeName = string.Concat(siteName.Where(static character => !Path.GetInvalidFileNameChars().Contains(character) && !char.IsWhiteSpace(character)));
-        return $"{generatedAtUtc:yyyyMMddHHmmssfff}_{safeName}_report.pdf";
+        return FormattableString.Invariant($"{generatedAtUtc:yyyyMMddHHmmssfff}_{safeName}_report.pdf");
     }
 }

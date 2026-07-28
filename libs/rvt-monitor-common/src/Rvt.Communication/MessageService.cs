@@ -40,20 +40,31 @@ public sealed class MessageService(INotificationDeliveryService notificationDeli
             ? contact.EmailAddress
             : contact.PhoneNumber;
 
+        // A contact opted into a channel it has no address for is a data
+        // condition, not a programming error. Report it through the same
+        // CommsException contract callers already handle so the failure is
+        // audited against this contact and the remaining contacts still run.
+        if (string.IsNullOrWhiteSpace(destination))
+        {
+            throw CommsException.Of(
+                string.Empty,
+                $"Contact has no {(channel == NotificationChannel.Email ? "email address" : "phone number")} for {channel} delivery.");
+        }
+
         try
         {
             await notificationDelivery.SendAsync(
                 new NotificationDeliveryRequest(
                     ToMessageKind(message),
                     channel,
-                    destination ?? string.Empty,
+                    destination,
                     MonitorName,
                     url),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (DeliveryException exception)
         {
-            throw CommsException.Of(destination ?? string.Empty, exception.Message);
+            throw CommsException.Of(destination, exception.Message);
         }
     }
 

@@ -36,10 +36,22 @@ public sealed class AzureIdentityGraphAccessTokenProvider : IMicrosoftGraphAcces
         }
         catch (AuthenticationFailedException exception)
         {
-            var requestFailure = exception.InnerException as RequestFailedException;
-            var kind = requestFailure is { Status: 408 or 429 } || requestFailure?.Status >= 500
-                ? DeliveryFailureKind.Transient
-                : DeliveryFailureKind.Permanent;
+            var requestFailure = FindInner<RequestFailedException>(exception);
+            DeliveryFailureKind kind;
+            if (requestFailure is not null)
+            {
+                kind = ClassifyStatus(requestFailure.Status);
+            }
+            else
+            {
+                // A token request that never reached a response — the identity
+                // endpoint was unreachable or timed out — is a transport fault,
+                // not a rejected credential, so it must stay retryable.
+                kind = IsTransportFailure(exception)
+                    ? DeliveryFailureKind.Transient
+                    : DeliveryFailureKind.Permanent;
+            }
+
             throw new EmailDeliveryException(
                 "MicrosoftGraph",
                 kind,
@@ -47,13 +59,46 @@ public sealed class AzureIdentityGraphAccessTokenProvider : IMicrosoftGraphAcces
         }
         catch (RequestFailedException exception)
         {
-            var kind = exception.Status is 408 or 429 || exception.Status >= 500
-                ? DeliveryFailureKind.Transient
-                : DeliveryFailureKind.Permanent;
             throw new EmailDeliveryException(
                 "MicrosoftGraph",
-                kind,
+                ClassifyStatus(exception.Status),
                 exception.Status.ToString());
         }
+    }
+
+    private static DeliveryFailureKind ClassifyStatus(int status) =>
+        status is 408 or 429 || status >= 500
+            ? DeliveryFailureKind.Transient
+            : DeliveryFailureKind.Permanent;
+
+    private static bool IsTransportFailure(Exception exception)
+    {
+        for (var current = exception.InnerException; current is not null; current = current.InnerException)
+        {
+            if (current is HttpRequestException
+                or System.Net.Sockets.SocketException
+                or IOException
+                or TimeoutException
+                or TaskCanceledException)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static TException? FindInner<TException>(Exception exception)
+        where TException : Exception
+    {
+        for (var current = exception.InnerException; current is not null; current = current.InnerException)
+        {
+            if (current is TException match)
+            {
+                return match;
+            }
+        }
+
+        return null;
     }
 }

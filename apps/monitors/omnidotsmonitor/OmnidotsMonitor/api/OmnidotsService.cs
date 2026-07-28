@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace Omnidots.Api
@@ -17,8 +16,6 @@ namespace Omnidots.Api
         {
             this.omnidotsApi = omnidotsApi;
         }
-
-        public string Liveness() => RvtConfig.SERVICE_NAME + RvtConfig.SERVICE_VERSION;
 
         public Task StoreMonitorsAsync(CancellationToken cancellationToken = default)
         {

@@ -84,28 +84,4 @@ public sealed class MessageService(INotificationDeliveryService notificationDeli
         LegacyMessageChannel.SMS => NotificationChannel.Sms,
         _ => throw new ArgumentOutOfRangeException(nameof(messageType), messageType, "Unsupported delivery channel.")
     };
-
-    public sealed class MessageContent
-    {
-        public enum MonitorMessageTypeEnum
-        {
-            Dust = 0,
-            Noise = 1,
-            Vibration = 2,
-            Other = 3,
-            All = 4
-        }
-
-        public LegacyMessageKind Message { get; set; }
-
-        public LegacyMessageChannel MessageType { get; set; }
-
-        public MonitorMessageTypeEnum MonitorType { get; set; }
-
-        public string Name { get; set; } = string.Empty;
-
-        public string Subject { get; set; } = string.Empty;
-
-        public string Content { get; set; } = string.Empty;
-    }
 }

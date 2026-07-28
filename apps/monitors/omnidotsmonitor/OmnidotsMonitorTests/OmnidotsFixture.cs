@@ -7,7 +7,6 @@ using System.Text.Json;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
@@ -284,7 +283,9 @@ namespace OmnidotsAdapterTests
                 case AlertType.Ignore:
                 case AlertType.Caution:
                 case AlertType.Alert:
-                    return GetHash(AlertTypeJson(alertType), RvtConfig.WEBHOOK_SECRET);
+                    return GetHash(
+                        AlertTypeJson(alertType),
+                        Environment.GetEnvironmentVariable("RVT__OMNIDOTS_WEBHOOK_SECRET") ?? string.Empty);
                 //HE local test values dell.
                 //case AlertType.Ignore:
                 //    return "sha256=b12da2afdc5388e076c86fcec072d18d82098c9ef74015849a62b4bbf4303d9b";

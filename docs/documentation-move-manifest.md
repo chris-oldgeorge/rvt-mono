@@ -18,7 +18,6 @@ are intentionally absent from this table.
 | `apps/monitors/docs/monitor-timer-triggers.md` | `docs/modules/monitors/monitor-timer-triggers.md` |
 | `apps/monitors/docs/quartz-monitor-scheduling.md` | `docs/modules/monitors/quartz-monitor-scheduling.md` |
 | `apps/monitors/docs/release/client-release-runbook.md` | `docs/release/monitors/client-release-runbook.md` |
-| `apps/monitors/docs/sonarqube.md` | `docs/development/monitors/sonarqube.md` |
 | `apps/monitors/docs/superpowers/evidence/2026-07-16-rvt-common-extraction-baseline.md` | `docs/history/monitors/evidence/2026-07-16-rvt-common-extraction-baseline.md` |
 | `apps/monitors/docs/superpowers/evidence/2026-07-16-rvt-common-monitor-rc-validation.md` | `docs/history/monitors/evidence/2026-07-16-rvt-common-monitor-rc-validation.md` |
 | `apps/monitors/docs/superpowers/evidence/2026-07-17-rvt-common-monitor-source-removal.md` | `docs/history/monitors/evidence/2026-07-17-rvt-common-monitor-source-removal.md` |

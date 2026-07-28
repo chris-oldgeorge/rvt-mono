@@ -107,9 +107,6 @@ public sealed class SharedRuntimeCompatibilityTests
         Assert.AreEqual(Rvt.Monitor.Common.Notifications.ContactMethod.SMSAndEmail, notificationContact.ContactMethod);
         Assert.AreEqual(contact.EmailAddress, notificationContact.EmailAddress);
 
-        Common.Rules.RvtContactDto rulesContact = Rvt.Monitor.Common.Rules.RvtContactDto.FromNotificationDto(notificationContact);
-        Assert.AreEqual(contact.ContactMethod, rulesContact.ContactMethod);
-        Assert.AreEqual(contact.PhoneNumber, rulesContact.PhoneNumber);
     }
 
     [TestMethod]

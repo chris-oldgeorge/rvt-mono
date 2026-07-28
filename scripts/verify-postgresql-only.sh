@@ -11,6 +11,8 @@ fi
 allowlisted_paths=(
   "docs/superpowers/specs/2026-07-25-postgresql-only-design.md"
   "docs/superpowers/plans/2026-07-25-postgresql-only.md"
+  "docs/history/project-state/2026-07-checkpoint-log.md"
+  "docs/reviews/2026-07-28-duplication-legacy-consistency-review.md"
   "project_state.md"
   "scripts/verify-postgresql-only.sh"
 )

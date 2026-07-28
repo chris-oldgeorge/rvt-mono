@@ -126,8 +126,6 @@ namespace MyAtm.Api
         public Task StoreMonitorsAsync(int customerId, CancellationToken cancellationToken = default) =>
             storeMonitors.RunAsync(customerId, cancellationToken);
 
-        // Compatibility facade for older in-process callers. Scheduled jobs use StoreMonitorsAsync.
-        public void StoreMonitors(int customerId) => StoreMonitorsAsync(customerId).GetAwaiter().GetResult();
 
         public Task CheckForOfflineMonitorsAsync(int customerId, CancellationToken cancellationToken = default)
         {
@@ -135,8 +133,6 @@ namespace MyAtm.Api
             return checkForOfflineMonitors.RunAsync(customerId, cancellationToken);
         }
 
-        // Compatibility facade for older in-process callers. Scheduled jobs use CheckForOfflineMonitorsAsync.
-        public void CheckForOfflineMonitors(int customerId) => CheckForOfflineMonitorsAsync(customerId).GetAwaiter().GetResult();
 
         public Task ClearMonitorsOfflineFlagAsync(int customerId, CancellationToken cancellationToken = default)
         {
@@ -145,8 +141,6 @@ namespace MyAtm.Api
             return Task.CompletedTask;
         }
 
-        // Compatibility facade for older in-process callers. Scheduled jobs use ClearMonitorsOfflineFlagAsync.
-        public void ClearMonitorsOfflineFlag(int customerId) => ClearMonitorsOfflineFlagAsync(customerId).GetAwaiter().GetResult();
 
         public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default)
         {
@@ -155,16 +149,11 @@ namespace MyAtm.Api
             return Task.CompletedTask;
         }
 
-        // Compatibility facade for older in-process callers. Scheduled jobs use ClearOlderErrorMessagesAsync.
-        public void ClearOlderErrorMessages() => ClearOlderErrorMessagesAsync().GetAwaiter().GetResult();
 
         public Task StoreDustLevelsAsync<T>(int customerId, Period period, CancellationToken cancellationToken = default)
             where T : BaseDeviceMeasurement =>
             storeDustLevels.RunAsync<T>(customerId, period, cancellationToken);
 
-        // Compatibility facade for older in-process callers. Scheduled jobs use StoreDustLevelsAsync.
-        public void StoreDustLevels<T>(int customerId, Period period) where T : BaseDeviceMeasurement =>
-            StoreDustLevelsAsync<T>(customerId, period).GetAwaiter().GetResult();
 
         public Task ProcessDustLevelsAsync<T>(int customerId, Period period, CancellationToken cancellationToken = default)
             where T : BaseDeviceMeasurement
@@ -173,15 +162,10 @@ namespace MyAtm.Api
             return processDustLevels.RunAsync<T>(customerId, period, cancellationToken);
         }
 
-        // Compatibility facade for older in-process callers. Scheduled jobs use ProcessDustLevelsAsync.
-        public void ProcessDustLevels<T>(int customerId, Period period) where T : BaseDeviceMeasurement =>
-            ProcessDustLevelsAsync<T>(customerId, period).GetAwaiter().GetResult();
 
         public Task StoreAccessoryInfoAsync(int customerId, CancellationToken cancellationToken = default) =>
             storeAccessoryInfo.RunAsync(customerId, cancellationToken);
 
-        // Compatibility facade for older in-process callers. Scheduled jobs use StoreAccessoryInfoAsync.
-        public void StoreAccessoryInfo(int customerId) => StoreAccessoryInfoAsync(customerId).GetAwaiter().GetResult();
 
         public Task DispatchOutboxAsync(CancellationToken cancellationToken = default) =>
             outboxDispatcher.DispatchDueAsync(cancellationToken);

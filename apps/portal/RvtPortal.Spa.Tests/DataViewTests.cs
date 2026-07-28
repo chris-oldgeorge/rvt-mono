@@ -125,7 +125,7 @@ public class DataViewTests
     public async Task MonitorService_TimeSeriesBounds_AreUnspecifiedAtDatabaseBoundary()
     {
         RecordingSearchQueryReader reader = new();
-        MonitorService service = new(null!, null!, null!, reader, null!, null!, null!, null!);
+        MonitorService service = new(null!, null!, reader, null!, null!);
         DateTime from = new(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
         DateTime to = from.AddHours(1);
 
@@ -146,7 +146,7 @@ public class DataViewTests
     public async Task MonitorService_TimeSeriesBounds_RejectNonUtcInputs(DateTimeKind kind)
     {
         RecordingSearchQueryReader reader = new();
-        MonitorService service = new(null!, null!, null!, reader, null!, null!, null!, null!);
+        MonitorService service = new(null!, null!, reader, null!, null!);
         DateTime from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
         DateTime to = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 15, 0, 0), kind);
 
@@ -207,50 +207,6 @@ public class DataViewTests
 
         ArgumentException error = await Assert.ThrowsAsync<ArgumentException>(
             () => dataSource.GetTraceIndexesAsync("TRACE-NON-UTC-BOUND", from, to));
-
-        Assert.Equal("value", error.ParamName);
-        Assert.Contains("must be UTC", error.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    // Function summary: Verifies the point-in-time trace-index lookup also strips UTC Kind only at its EF query boundary.
-    public async Task MonitorService_TraceIndexBound_IsUnspecifiedAtDatabaseBoundary()
-    {
-        await using SqliteConnection connection = new("Data Source=:memory:");
-        await connection.OpenAsync();
-        TraceBoundCommandProbe probe = new();
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseSqlite(connection)
-            .AddInterceptors(probe)
-            .Options;
-        await using RVTSearchContext searchContext = new(options);
-        await searchContext.Database.EnsureCreatedAsync();
-        probe.Clear();
-        MonitorService service = new(null!, null!, null!, null!, searchContext, null!, null!, null!);
-        DateTime instant = new(2026, 7, 1, 14, 30, 0, DateTimeKind.Utc);
-
-        await service.GetVibrationTracesIndex("TRACE-UTC-INSTANT", instant);
-
-        DateTime parameter = Assert.Single(probe.DateTimeParameters);
-        Assert.Equal(instant.Ticks, parameter.Ticks);
-        Assert.Equal(DateTimeKind.Unspecified, parameter.Kind);
-    }
-
-    [Theory]
-    [InlineData(DateTimeKind.Local)]
-    [InlineData(DateTimeKind.Unspecified)]
-    // Function summary: Verifies point-in-time trace-index reads reject non-UTC application instants.
-    public async Task MonitorService_TraceIndexBound_RejectsNonUtcInput(DateTimeKind kind)
-    {
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseInMemoryDatabase($"trace-index-kind-{Guid.NewGuid():N}")
-            .Options;
-        await using RVTSearchContext searchContext = new(options);
-        MonitorService service = new(null!, null!, null!, null!, searchContext, null!, null!, null!);
-        DateTime instant = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 30, 0), kind);
-
-        ArgumentException error = await Assert.ThrowsAsync<ArgumentException>(
-            () => service.GetVibrationTracesIndex("TRACE-NON-UTC-INSTANT", instant));
 
         Assert.Equal("value", error.ParamName);
         Assert.Contains("must be UTC", error.Message, StringComparison.Ordinal);
@@ -402,7 +358,7 @@ public class DataViewTests
             INSERT INTO omnidots_trace (omnidots_trace_index_id, x, y, z)
             VALUES ({traceId}, {0.1}, {0.2}, {0.3})
             """);
-        MonitorService service = new(null!, null!, null!, null!, searchContext, null!, null!, null!);
+        MonitorService service = new(null!, null!, null!, searchContext, null!);
 
         SearchQueryResult<OmnidotsTrace> result = await service.GetVibrationTraces(traceId);
 

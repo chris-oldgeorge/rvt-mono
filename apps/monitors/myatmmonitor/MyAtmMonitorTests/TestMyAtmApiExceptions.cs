@@ -70,7 +70,7 @@ namespace MyAtmMonitorTests
         }
 
         [TestMethod]
-        public void ReadMonitorsList_HandlesExceptionCorrectly()
+        public async Task ReadMonitorsList_HandlesExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
                          out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
@@ -79,7 +79,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Throws(new IOException());
 
-            Assert.ThrowsExactly<IOException>(() => testObj.StoreDustLevels<DeviceMeasurement>(customerId, Period.Minutes1));
+            await Assert.ThrowsExactlyAsync<IOException>(() => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1));
 
             httpClient.VerifyNoOtherCalls();
 

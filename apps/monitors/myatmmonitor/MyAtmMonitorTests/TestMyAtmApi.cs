@@ -30,7 +30,7 @@ namespace MyAtmMonitorTests
 
 
         [TestMethod]
-        public void TestStoreDustLevels_EmptyRules_Success()
+        public async Task TestStoreDustLevels_EmptyRules_Success()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
@@ -48,7 +48,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns([]);
 
-            testObj.StoreDustLevels<DeviceMeasurement>(customerId, Period.Minutes1);
+            await testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1);
 
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "11111", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "22222", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
@@ -209,7 +209,7 @@ namespace MyAtmMonitorTests
         [DataRow(Period.Minutes15, "/15min")]
         [DataRow(Period.Hours1, "/hourly")]
         [DataRow(Period.Hours24, "/daily")]
-        public void TestStoreAverageDustLevels_Success(Period period, string urlSuffix)
+        public async Task TestStoreAverageDustLevels_Success(Period period, string urlSuffix)
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
@@ -221,7 +221,7 @@ namespace MyAtmMonitorTests
             List<DustMonitorDto> monitors = MyAtmFixture.CustomerDeviceDtos(null);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).Returns(monitors);
             DateTime dt = DateTime.Parse("2023-09-25T10:29:00");
-            testObj.StoreDustLevels<AvgDeviceMeasurement>(customerId, period);
+            await testObj.StoreDustLevelsAsync<AvgDeviceMeasurement>(customerId, period);
 
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "11111", urlSuffix))), Times.Exactly(1));
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "22222", urlSuffix))), Times.Exactly(1));
@@ -277,7 +277,7 @@ namespace MyAtmMonitorTests
         }
 
         [TestMethod]
-        public void TestStoreDustLevels_TruncatedByTimestamp_Success()
+        public async Task TestStoreDustLevels_TruncatedByTimestamp_Success()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
@@ -294,7 +294,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                     Returns([]);
 
-            testObj.StoreDustLevels<DeviceMeasurement>(customerId, Period.Minutes1);
+            await testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1);
 
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "11111", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
             httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "22222", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
@@ -309,7 +309,7 @@ namespace MyAtmMonitorTests
 
 
         [TestMethod]
-        public void TestClearMonitorsOfflineFlag_Success()
+        public async Task TestClearMonitorsOfflineFlag_Success()
 
         {
 
@@ -324,7 +324,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(monitors);
 
-            testObj.ClearMonitorsOfflineFlag(customerId);
+            await testObj.ClearMonitorsOfflineFlagAsync(customerId);
 
             httpClient.VerifyNoOtherCalls();
 

@@ -90,11 +90,6 @@ public class UserMutationRequest
     public string? CompanyRole { get; set; }
 }
 
-public class QuerySiteUsersRequest : PagedQueryRequest
-{
-    public required Guid SiteId { get; set; }
-}
-
 public class SiteAssignmentResponse
 {
     public Guid SiteId { get; set; }

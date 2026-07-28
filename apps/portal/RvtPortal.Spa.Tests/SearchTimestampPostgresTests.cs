@@ -288,11 +288,8 @@ public sealed class SearchTimestampPostgresTests
         MonitorService monitorService = new(
             null!,
             null!,
-            null!,
             new SearchQueryReader(searchContext),
             searchContext,
-            null!,
-            null!,
             null!);
         PostgresDustDataSource dataSource = new(monitorService, monitor);
         DataApplicationService application = new(domainContext, dataSource);

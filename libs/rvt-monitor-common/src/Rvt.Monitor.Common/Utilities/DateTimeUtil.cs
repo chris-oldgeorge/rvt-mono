@@ -26,19 +26,6 @@ namespace Rvt.Monitor.Common.Utilities
                    dateTime.ToString("tt").ToLower();
         }
 
-        public static DateTime GetStartTime(long latestTimestampMillis, DateTime endTime, TimeSpan maxTimespan)
-        {
-            DateTime startTime = DateTimeUtil.JAN1_1970;
-            startTime = startTime.Add(TimeSpan.FromMilliseconds(latestTimestampMillis));
-
-            TimeSpan duration = endTime - startTime;
-            if (duration.TotalSeconds >= maxTimespan.TotalSeconds)
-            {
-                startTime = endTime - maxTimespan;
-            }
-            return startTime;
-        }
-
         public static DateTime TruncateMillis(DateTime dateTime)
         {
             return dateTime.AddTicks(-(dateTime.Ticks % TimeSpan.TicksPerSecond));

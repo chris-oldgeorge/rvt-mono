@@ -33,7 +33,6 @@
 		<None Include="..\OmnidotsMonitor\postgres\2026-07-15-rollback-common-durable-alerts.sql" Link="postgres\2026-07-15-rollback-common-durable-alerts.sql" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 	<ItemGroup>
-		<None Remove="manualtest\" />
 	</ItemGroup>
 	<ItemGroup>
 		<None Update="testdata/authenticate.json">
@@ -142,6 +141,5 @@
 		</None>
 	</ItemGroup>
 	<ItemGroup>
-		<Folder Include="manualtest\" />
 	</ItemGroup>
 </Project>

@@ -23,31 +23,6 @@ export function Notice({ tone, message }: NoticeProps) {
   );
 }
 
-type ErrorSummaryProps = Readonly<{
-  errors: ReadonlyArray<string>;
-}>;
-
-// Function summary: Renders the ErrorSummary React component and wires its local UI behavior.
-export function ErrorSummary({ errors }: ErrorSummaryProps) {
-  if (errors.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="notice error" role="alert">
-      <AlertCircle size={18} aria-hidden="true" />
-      <div>
-        <strong>Check the form</strong>
-        <ul>
-          {errors.map((error) => (
-            <li key={error}>{error}</li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
 type FormFieldProps = Readonly<{
   label: string;
   children: ReactNode;

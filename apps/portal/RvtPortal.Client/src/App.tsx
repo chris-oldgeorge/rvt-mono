@@ -315,7 +315,6 @@ export function App() {
   const [route, setRoute] = useState<AppRoute>(() => getRouteFromLocation());
   const [locationPath, setLocationPath] = useState(currentLocationPath);
   const [auth, setAuth] = useState<AuthStateResponse | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     // Function summary: Handles the on pop state workflow for this module.
@@ -331,11 +330,9 @@ export function App() {
     getCurrentAuth()
       .then((nextAuth) => {
         setAuth(nextAuth);
-        setAuthError(null);
       })
       .catch(() => {
         setAuth({ isAuthenticated: false, user: null });
-        setAuthError(null);
       });
   }, []);
 
@@ -360,7 +357,7 @@ export function App() {
     if (route === 'confirm-email') {
       return <ConfirmEmailPage onAuthenticated={setAuth} onNavigate={navigate} />;
     }
-    return <LoginPage authError={authError} onAuthenticated={setAuth} onNavigate={navigate} />;
+    return <LoginPage onAuthenticated={setAuth} onNavigate={navigate} />;
   }
 
   const protectedRoute: ProtectedRoute =
@@ -727,15 +724,14 @@ function PublicNotFoundPage({ onNavigate }: PublicPageProps) {
 
 type LoginPageProps = PublicPageProps &
   Readonly<{
-    authError: string | null;
     onAuthenticated: (auth: AuthStateResponse) => void;
   }>;
 
 // Function summary: Renders the LoginPage React component and wires its local UI behavior.
-function LoginPage({ authError, onAuthenticated, onNavigate }: LoginPageProps) {
+function LoginPage({ onAuthenticated, onNavigate }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(authError);
+  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent) {

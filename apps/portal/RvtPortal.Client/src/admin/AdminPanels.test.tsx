@@ -1,11 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type {
-  CompanyListItem,
-  PagedResponse,
-  SearchLookupResponse,
-  UserListItem,
-} from '../dtos';
+import type { CompanyListItem, PagedResponse, SearchLookupResponse, UserListItem } from '../dtos';
 import { CompaniesPanel, UsersPanel } from './AdminPanels';
 
 const api = vi.hoisted(() => ({
@@ -41,17 +36,19 @@ function companyResponse(name: string): PagedResponse<CompanyListItem> {
 
 function userResponse(email: string, companyName: string): PagedResponse<UserListItem> {
   return {
-    results: [{
-      id: email,
-      name: email,
-      companyName,
-      email,
-      phoneNumber: '',
-      role: 'CompanyUser',
-      siteCount: 0,
-      emailConfirmed: true,
-      isDisabled: false,
-    }],
+    results: [
+      {
+        id: email,
+        name: email,
+        companyName,
+        email,
+        phoneNumber: '',
+        role: 'CompanyUser',
+        siteCount: 0,
+        emailConfirmed: true,
+        isDisabled: false,
+      },
+    ],
     total: 1,
     page: 1,
     pageSize: 10,
@@ -81,13 +78,7 @@ describe('AdminPanels request ownership', () => {
       .mockReturnValueOnce(alphaAgain.promise);
     api.searchLookup.mockResolvedValue(lookup('alpha', []));
 
-    render(
-      <CompaniesPanel
-        locationPath="/companies?q=alpha"
-        onNavigate={vi.fn()}
-        onRequestError={vi.fn()}
-      />,
-    );
+    render(<CompaniesPanel locationPath="/companies?q=alpha" onNavigate={vi.fn()} onRequestError={vi.fn()} />);
 
     expect(await screen.findByText('Old Alpha Company')).toBeInTheDocument();
     const search = screen.getByPlaceholderText('Search companies');
@@ -114,13 +105,7 @@ describe('AdminPanels request ownership', () => {
       .mockReturnValueOnce(beta.promise)
       .mockReturnValueOnce(alphaAgain.promise);
 
-    render(
-      <CompaniesPanel
-        locationPath="/companies?q=alpha"
-        onNavigate={vi.fn()}
-        onRequestError={vi.fn()}
-      />,
-    );
+    render(<CompaniesPanel locationPath="/companies?q=alpha" onNavigate={vi.fn()} onRequestError={vi.fn()} />);
 
     expect(await screen.findByRole('button', { name: 'Old Alpha Suggestion' })).toBeInTheDocument();
     const search = screen.getByPlaceholderText('Search companies');

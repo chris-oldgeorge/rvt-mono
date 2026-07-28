@@ -189,18 +189,14 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
     }),
     [page, searchText, sortDir, sortKey],
   );
-  const execution = useMemo<RequestExecution<QueryCompaniesRequest>>(
-    () => ({ query, generation: 0 }),
-    [query],
-  );
+  const execution = useMemo<RequestExecution<QueryCompaniesRequest>>(() => ({ query, generation: 0 }), [query]);
   const [completedExecution, setCompletedExecution] = useState<RequestExecution<QueryCompaniesRequest> | null>(null);
   const suggestionExecution = useMemo<LookupExecution | null>(
     () => (searchText.length >= 2 ? { query: searchText } : null),
     [searchText],
   );
   const isLoading = completedExecution !== execution;
-  const suggestions =
-    suggestionResult?.execution === suggestionExecution ? suggestionResult.results : [];
+  const suggestions = suggestionResult?.execution === suggestionExecution ? suggestionResult.results : [];
   const returnPath = currentRoutePath(locationPath);
 
   useEffect(() => {
@@ -587,8 +583,7 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
     [companyId, searchText],
   );
   const isLoading = completedExecution !== execution;
-  const suggestions =
-    suggestionResult?.execution === suggestionExecution ? suggestionResult.results : [];
+  const suggestions = suggestionResult?.execution === suggestionExecution ? suggestionResult.results : [];
   const returnPath = currentRoutePath(locationPath);
   const companiesBackPath = returnToOr(locationPath, '/companies');
 

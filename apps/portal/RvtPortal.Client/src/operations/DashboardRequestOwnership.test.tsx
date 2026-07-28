@@ -129,11 +129,7 @@ function siteResponse(name: string) {
   };
 }
 
-function gridResponse(
-  name: string,
-  filterOption = '',
-  filterOptions: Array<{ value: string; label: string }> = [],
-) {
+function gridResponse(name: string, filterOption = '', filterOptions: Array<{ value: string; label: string }> = []) {
   return {
     deploymentId: 'deployment-a',
     monitorId: 'monitor-a',
@@ -298,17 +294,13 @@ describe('Portal dashboard request ownership', () => {
     expect(screen.getByText('Loading calendar')).toBeInTheDocument();
     expect(screen.queryByText('Old Month A / Dust')).not.toBeInTheDocument();
     expect(screen.queryByText('Old Day A / Dust')).not.toBeInTheDocument();
-    await act(async () =>
-      deploymentAAgainMonth.resolve(calendarMonth('deployment-a', 'monitor-a', 'Fresh Month A')),
-    );
+    await act(async () => deploymentAAgainMonth.resolve(calendarMonth('deployment-a', 'monitor-a', 'Fresh Month A')));
     expect(await screen.findByText('Fresh Month A / Dust')).toBeInTheDocument();
     await waitFor(() => expect(api.getCalendarDay).toHaveBeenCalledTimes(2));
     expect(screen.queryByText('Old Day A / Dust')).not.toBeInTheDocument();
     await act(async () => deploymentAAgainDay.resolve(calendarDay('monitor-a', 'Fresh Day A')));
     expect(await screen.findByText('Fresh Day A / Dust')).toBeInTheDocument();
-    await act(async () =>
-      deploymentBMonth.resolve(calendarMonth('deployment-b', 'monitor-b', 'Late Month B')),
-    );
+    await act(async () => deploymentBMonth.resolve(calendarMonth('deployment-b', 'monitor-b', 'Late Month B')));
     expect(screen.queryByText('Late Month B / Dust')).not.toBeInTheDocument();
   });
 

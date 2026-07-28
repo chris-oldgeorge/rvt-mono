@@ -96,10 +96,7 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
   const newArticleButtonRef = useRef<HTMLButtonElement>(null);
   const currentExecutionRef = useRef<HelpAdminExecution | null>(null);
 
-  const query = useMemo<HelpAdminQuery>(
-    () => ({ searchText, status, contentType }),
-    [contentType, searchText, status],
-  );
+  const query = useMemo<HelpAdminQuery>(() => ({ searchText, status, contentType }), [contentType, searchText, status]);
   const queryExecution = useMemo<HelpAdminExecution>(() => ({ query }), [query]);
   const activeExecution = refreshExecution?.query === query ? refreshExecution : queryExecution;
   const overview = overviewResult?.overview ?? null;
@@ -151,11 +148,7 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
         setCompletedExecution(queryExecution);
       })
       .catch((err: Error) => {
-        if (
-          controller.signal.aborted
-          || isAbortError(err)
-          || currentExecutionRef.current !== queryExecution
-        ) {
+        if (controller.signal.aborted || isAbortError(err) || currentExecutionRef.current !== queryExecution) {
           return;
         }
         setError(err.message);

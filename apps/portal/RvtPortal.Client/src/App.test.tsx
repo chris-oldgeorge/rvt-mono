@@ -848,9 +848,7 @@ describe('App', () => {
       fireEvent.change(searchInput, { target: { value: 'bridge' } });
       await waitFor(() =>
         expect(
-          fetchedUrls().some(
-            (url) => url.pathname === endpoint && url.searchParams.get('searchText') === 'bridge',
-          ),
+          fetchedUrls().some((url) => url.pathname === endpoint && url.searchParams.get('searchText') === 'bridge'),
         ).toBe(true),
       );
       fireEvent.change(searchInput, { target: { value: '' } });
@@ -979,9 +977,7 @@ describe('App', () => {
           }
           if (!searchText) {
             emptyRequestCount += 1;
-            return emptyRequestCount === 1
-              ? jsonResponse(pageFixture(url, oldText))
-              : currentRequest.promise;
+            return emptyRequestCount === 1 ? jsonResponse(pageFixture(url, oldText)) : currentRequest.promise;
           }
           return undefined;
         },
@@ -994,9 +990,7 @@ describe('App', () => {
       fireEvent.change(searchInput, { target: { value: 'bridge' } });
       await waitFor(() =>
         expect(
-          fetchedUrls().some(
-            (url) => url.pathname === endpoint && url.searchParams.get('searchText') === 'bridge',
-          ),
+          fetchedUrls().some((url) => url.pathname === endpoint && url.searchParams.get('searchText') === 'bridge'),
         ).toBe(true),
       );
       fireEvent.change(searchInput, { target: { value: '' } });

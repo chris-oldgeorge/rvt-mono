@@ -261,9 +261,7 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
             </button>
           </div>
         </div>
-        {(monthError ?? dayError ?? error) && (
-          <Notice tone="error" message={monthError ?? dayError ?? error ?? ''} />
-        )}
+        {(monthError ?? dayError ?? error) && <Notice tone="error" message={monthError ?? dayError ?? error ?? ''} />}
         {isLoading && <LoadingInline label="Loading calendar" />}
         {monthData && (
           <>

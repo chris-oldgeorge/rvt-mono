@@ -25,23 +25,27 @@ function overview(title: string, searchText: string): HelpOverviewResponse {
   const slug = title.toLowerCase().replaceAll(' ', '-');
   return {
     searchText,
-    sections: [{
-      id: slug,
-      title: 'General',
-      slug: 'general',
-      sortOrder: 1,
-      articles: [{
+    sections: [
+      {
         id: slug,
-        title,
-        slug,
-        summary: `${title} summary`,
-        contentType: 'FAQ',
-        sectionTitle: 'General',
-        sectionSlug: 'general',
-        sectionSortOrder: 1,
+        title: 'General',
+        slug: 'general',
         sortOrder: 1,
-      }],
-    }],
+        articles: [
+          {
+            id: slug,
+            title,
+            slug,
+            summary: `${title} summary`,
+            contentType: 'FAQ',
+            sectionTitle: 'General',
+            sectionSlug: 'general',
+            sectionSortOrder: 1,
+            sortOrder: 1,
+          },
+        ],
+      },
+    ],
   };
 }
 
@@ -108,9 +112,7 @@ describe('HelpPanel request ownership', () => {
       .mockReturnValueOnce(beta.promise)
       .mockReturnValueOnce(alphaAgain.promise);
 
-    const view = render(
-      <HelpPanel locationPath="/help/alpha" onNavigate={vi.fn()} onRequestError={vi.fn()} />,
-    );
+    const view = render(<HelpPanel locationPath="/help/alpha" onNavigate={vi.fn()} onRequestError={vi.fn()} />);
 
     expect(await screen.findByRole('heading', { name: 'Old Alpha Article' })).toBeInTheDocument();
     view.rerender(<HelpPanel locationPath="/help/beta" onNavigate={vi.fn()} onRequestError={vi.fn()} />);

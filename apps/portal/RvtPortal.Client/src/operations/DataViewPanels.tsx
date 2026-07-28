@@ -238,11 +238,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
         }
       });
     return () => controller.abort();
-  }, [
-    execution,
-    onRequestError,
-    setFilterOptionFromResponse,
-  ]);
+  }, [execution, onRequestError, setFilterOptionFromResponse]);
 
   useEffect(() => {
     if (!traceDetailExecution) {

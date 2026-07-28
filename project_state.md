@@ -8,6 +8,9 @@
   release gate, and next-step instruction concerning either item. Lower
   sections are preserved only as historical evidence and must not override or
   direct work away from this checkpoint.
+- Current Git integration state: the clean local `main` checkout and
+  `origin/main` are synchronized at `bef6da3`. There is no unpublished
+  `main` commit or pending `main` push recorded by this checkpoint.
 - R1 is complete on the unmerged implementation branch
   `codex/r1-architecture-guards`. The implementation builds on `aaa20de`
   (`Repair monorepo test paths`) and `f59d5d1` (`Record monorepo path repair
@@ -88,12 +91,16 @@
 - The architecture review now marks R1 and R9 complete. R2 remains
   conditional/unchecked; R3-R8 and R10-R11 remain pending and unchanged.
 
-## Local main reconciled after Help Admin merge — 2026-07-28
+## Historical/superseded checkpoint — local main reconciliation after Help Admin merge — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
-- The local integration checkout at `/Users/oldgeorge/Developer/rvt-mono` is
-  on `main`, fast-forwarded to `origin/main` commit `1e2fbf3`, and has one
-  intentionally retained local commit:
+- Historical evidence only: this section records the intermediate state before
+  the later synchronization recorded in the top checkpoint. Its ahead,
+  unpublished, and push-next wording is superseded and must not be used as a
+  current action instruction.
+- At this checkpoint, the local integration checkout at
+  `/Users/oldgeorge/Developer/rvt-mono` was on `main`, fast-forwarded to
+  `origin/main` commit `1e2fbf3`, and had one intentionally retained local commit:
   `244816b` (`build: include Portal communication projects in solution`).
 - The retained Visual Studio edit adds the in-repository
   `Rvt.Communication.Abstractions` and `Rvt.Communication.SendGridMail`
@@ -112,9 +119,10 @@
     restriction in MSBuild child nodes (`MSB4166`);
   - the identical serial Release build (`-m:1`) passed with 0 warnings and
     0 errors.
-- This local reconciliation has not been pushed. `main` is intentionally ahead
-  of `origin/main` until the state-file update is committed and a later explicit
-  push is requested.
+- At this historical checkpoint only, the local reconciliation had not yet
+  been pushed and `main` was ahead of `origin/main`. That condition no longer
+  applies: the top checkpoint records clean, synchronized refs and no pending
+  `main` push.
 - The Help Admin release remains `CONDITIONAL`; the zero-row release-database
   URL-validation receipt gate is unchanged.
 

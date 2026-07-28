@@ -18,8 +18,9 @@
 - The two focused proxy regression tests passed on Windows. The prior macOS
   dependency tree and the incomplete Windows install were preserved under the
   ignored `apps/portal/artifacts/spa-proxy-repair` directory for recovery.
-- Numerous pre-existing executable-bit-only working-tree changes remain
-  untouched. No commit or push has been performed for this repair.
+- Delivery is tracked in GitHub PR #8. Its follow-up CI repair restores
+  executable bits only on shell entrypoints that commit `8fab1bd` changed to
+  non-executable; the two SVG assets remain correctly non-executable.
 
 ## Authoritative checkpoint: PR #6 merged into main — 2026-07-28
 

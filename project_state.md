@@ -1,5 +1,46 @@
 # Project State
 
+## Authoritative checkpoint: storage port and shared-rule coupling — 2026-07-28
+
+- Resume instruction: `Read project_state.md to get up to speed`.
+- Branch `fix/critical-consolidate-reporting-duplication` also carries the two
+  high-priority library findings from
+  `docs/reviews/2026-07-28-full-codebase-review.md`.
+- **Storage port contract is uniform.** All three adapters now report
+  operational failures as `ObjectStorageException` with a
+  `StorageFailureKind`: S3 additionally classifies `AmazonServiceException`
+  and reports `AmazonClientException` as `Unavailable`; Azure translates
+  `AuthenticationFailedException` as `AccessDenied`; Local previously
+  translated nothing and now maps filesystem faults to `Unavailable`, denied
+  access to `AccessDenied`, and rejected reparse-point paths to
+  `InvalidRequest`. Argument validation and caller cancellation stay outside
+  the contract by design and are pinned by tests.
+- `GetObjectUri` moved onto `IObjectStorageClient`. It removed the last reason
+  for a port consumer to name adapter types: ReportingMonitor's storage
+  composition had three near-identical branches resolving concrete adapters and
+  now resolves the port once through `IObjectStorageClientFactory`.
+- Three Local tests had asserted the raw `IOException` produced by the missing
+  translation; they now assert the port contract and that the original cause is
+  preserved as `InnerException`.
+- **Shared rules no longer branch on which executable is running.**
+  `MonitorRulePolicy` states the monitor-specific behaviour explicitly, and
+  `AlertActivityTimeDto.IsActive` and `RvtNotificationDto.GetMessage` take it
+  as a value instead of reading `RvtConfig.IsMyAtmMonitor` /
+  `IsOmnidotsMonitor` / `IsNoiseMonitor`. Both default to the running monitor's
+  policy so callers are unaffected, and both can now be evaluated for a chosen
+  monitor without global state.
+- Nine dead `RvtConfig` statics were deleted, including the `SENDGRID_API_KEY`,
+  `SMS_API_KEY` and `SMS_API_SECRET` secret surface. All had zero consumers;
+  the identically named environment variables remain in use by the adapter
+  options binders, which is the supported path.
+- `RVT__MONITOR_KIND` is now declared for all four vendor monitors in
+  `apps/monitors/docker-compose.yml`. It was previously set nowhere, so the
+  entry-assembly and base-directory sniffing was load-bearing. The fallbacks
+  are retained for hosts that predate the variable and are documented as a
+  legacy last resort.
+- Verification: 2295 passed, 0 failed, 0 warnings, all five repository guards
+  green.
+
 ## Authoritative checkpoint: critical review findings in progress — 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.

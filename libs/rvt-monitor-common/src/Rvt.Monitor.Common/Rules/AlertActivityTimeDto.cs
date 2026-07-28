@@ -14,10 +14,20 @@ namespace Rvt.Monitor.Common.Rules
         public TimeSpan? StartTime { get; init; }
         public TimeSpan? EndTime { get; init; }
 
+        /// <summary>
+        /// The monitor-specific rule behaviour. Defaults to the running
+        /// monitor's policy so existing callers are unaffected, but can be set
+        /// explicitly, which is what makes this rule testable without global
+        /// state.
+        /// </summary>
+        public MonitorRulePolicy Policy { get; init; } = RvtConfig.RulePolicy;
 
-        public bool IsActive(DateTime dateTime)
+        public bool IsActive(DateTime dateTime) => IsActive(dateTime, Policy);
+
+        public bool IsActive(DateTime dateTime, MonitorRulePolicy policy)
         {
-            if (RvtConfig.IsMyAtmMonitor)
+            ArgumentNullException.ThrowIfNull(policy);
+            if (!policy.AppliesActivityTimeWindow)
             {
                 return DoesRuleApplyForDay(dateTime);
             }

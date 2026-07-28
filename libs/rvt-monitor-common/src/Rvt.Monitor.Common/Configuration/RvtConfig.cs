@@ -91,6 +91,16 @@ public sealed class RvtConfig
         };
     }
 
+    /// <summary>
+    /// Resolves which monitor the process is running as.
+    /// </summary>
+    /// <remarks>
+    /// <c>RVT__MONITOR_KIND</c> is the supported signal and every deployed
+    /// monitor declares it. The entry-assembly and base-directory fallbacks are
+    /// a legacy last resort for hosts that predate that variable: they make the
+    /// library's behaviour depend on what the executable is named, which is
+    /// why nothing new should rely on them.
+    /// </remarks>
     private static string NormalizeMonitorKind(string? monitorKind, string baseDirectory, string entryAssemblyName)
     {
         var candidates = new[] { monitorKind, entryAssemblyName, baseDirectory };
@@ -163,9 +173,14 @@ public sealed class RvtConfig
     }
 
     internal static string MonitorKind => Defaults.Kind;
-    internal static bool IsMyAtmMonitor => Defaults.Kind == "myatm";
-    internal static bool IsOmnidotsMonitor => Defaults.Kind == "omnidots";
-    internal static bool IsNoiseMonitor => Defaults.Kind is "airq" or "svantek";
+
+    /// <summary>
+    /// The resolved monitor-specific rule behaviour. Shared rules take this as
+    /// an explicit value rather than reading process-wide state, so they can be
+    /// evaluated for a chosen monitor without depending on which executable is
+    /// running.
+    /// </summary>
+    public static MonitorRulePolicy RulePolicy => MonitorRulePolicy.ForMonitorKind(Defaults.Kind);
     private static readonly Lazy<MonitorCredentialSettings> LazyCredentials =
         new(() => ResolveCredentialSettings(Defaults.Kind, GetOptionalSetting));
 
@@ -186,12 +201,6 @@ public sealed class RvtConfig
     public static string PORTAL_BASE_URL => GetSetting("RVT__PORTAL_BASE_URL", Defaults.PortalBaseUrl);
     public static string BASE_URL => GetSetting("RVT__BASE_URL", Defaults.BaseUrl);
     public static readonly string LOCAL_TIME_ZONE = GetSetting("RVT__LOCAL_TIME_ZONE", "GMT Standard Time");
-    public static readonly string EMAIL_ALERT_FROM_EMAIL = GetSetting("RVT__EMAIL_ALERT_FROM_EMAIL", "NoReply@rvtgroup.co.uk");
-    public static readonly string EMAIL_ALERT_FROM_NAME = GetSetting("RVT__EMAIL_ALERT_FROM_NAME", "RVT Cloud");
-    public static readonly string SENDGRID_API_KEY = GetSetting("RVT__SENDGRID_API_KEY");
-    public static readonly string SMS_API_SECRET = GetSetting("RVT__SMS_API_SECRET");
-    public static readonly string SMS_API_KEY = GetSetting("RVT__SMS_API_KEY");
-    public static readonly string SMS_SENDER = GetSetting("RVT__SMS_SENDER", "KrakenAlert");
     public static string INSERT_TOPIC => GetSetting("RVT__INSERT_TOPIC", Defaults.InsertTopic);
     public static string ALERT_TOPIC => GetSetting("RVT__ALERT_TOPIC", Defaults.AlertTopic);
 
@@ -205,9 +214,6 @@ public sealed class RvtConfig
     public static readonly int NOTIFICATION_DELAY_MINUTES = GetIntSetting("RVT__NOTIFICATION_DELAY_MINUTES", 5);
 
     public static readonly string API_KEY = GetSetting("RVT__SVANTEK_API_KEY");
-    public static readonly string BlobConnectionString = GetSetting("RVT__BLOB_CONNECTION_STRING");
-    public static readonly string BlobServiceUri = GetSetting("RVT__BLOB_SERVICE_URI");
-    public static readonly string AudioFolder = GetSetting("RVT__AUDIO_FOLDER", "audiofiles");
 }
 
 public sealed record MonitorRuntimeDefaults(

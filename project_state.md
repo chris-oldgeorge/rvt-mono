@@ -10,6 +10,18 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
+- The current branch `feat/p0-guardrails` executes the P0 guardrail backlog
+  from
+  [docs/reviews/2026-07-28-duplication-legacy-consistency-review.md](docs/reviews/2026-07-28-duplication-legacy-consistency-review.md):
+  a new `Tests` pull-request workflow (full `Rvt.Mono.slnx` suite against a
+  TimescaleDB service container, Portal client type check and unit tests, the
+  five repository guards, and every `tests/*.test.sh` contract test), AirQ
+  architecture guards, the portal `Application → Spa.Api` shrinking baseline,
+  the `MonitorHost` one-shot shutdown token, and the Svantek HTTP timeout.
+  SonarQube stays manual: `tests/verify-manual-sonarqube-workflow.test.sh`
+  pins `workflow_dispatch`, so scheduling it is a deliberate product change,
+  not a guardrail gap.
+
 - `main` additionally carries the repo-wide explicit-local-types style pass
   (PR #17, merge `c6e77e3a`, 593 files) — local variables use explicit types
   everywhere; keep new code consistent with it.

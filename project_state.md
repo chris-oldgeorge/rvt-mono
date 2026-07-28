@@ -1,36 +1,37 @@
 # Project State
 
-## R9 final review approved — integration next 2026-07-28
+## R9 integrated into main — R1 next 2026-07-28
 
 - Resume instruction: `Read project_state.md to get up to speed`.
-- Active worktree:
-  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/repository-engineering-standards`
-  (also exposed through `/Users/oldgeorge/Documents/rvt-mono`); branch:
-  `codex/repository-engineering-standards`.
-- R9 implementation and the combined final audit are complete at `5f0caac`
-  (`test: close workflow execution schema`). Independent final review found no
-  Critical, Important, or Minor issue and returned `Ready—Yes`.
+- Integration worktree: `/Users/oldgeorge/Developer/rvt-mono`; branch: `main`.
+- R9 was merged with merge commit `1a48378`
+  (`Merge repository engineering standards enforcement`). The reviewed feature
+  branch remains `codex/repository-engineering-standards`, whose final recorded
+  tip was `975d828` (`docs: align final readiness record`).
+- The combined final audit found no Critical, Important, or Minor issue and
+  returned `Ready—Yes`.
 - Final-audit remediation includes trusted requested-head/base policy,
   monotonic baselines, exact current-and-trusted exception intersection,
   automatic least-privilege pull-request CI, locked restores, fail-closed
   exact-path exceptions, exact workflow execution schemas, load-bearing
   documentation authority links, and tracked full-logical-unit review
   evidence.
-- Final controller verification passed:
+- Post-merge verification passed on `main`:
   - model and module-policy tests: 50/50;
   - engineering configuration and full verifier scenarios;
   - automatic workflow, integration, and manual Sonar guards with zero
     accepted mutations;
   - working-tree ratchet, documentation mutations, source-boundary and runner
     guards;
+  - locked restore and a full serial build with 0 warnings and 0 errors;
   - `git diff --check` and clean-worktree checks.
-- The branch is ready for integration. Next process step: merge and push the
-  reviewed R9 branch according to the repository workflow, then start the
-  separate test-first R1 plan. Do not start R1 before integration is complete.
+- Integration is complete locally. Push `main`, then start the separate,
+  test-first R1 plan for stale repository-layout and Mapperly assumptions.
 - Residual classified work is unchanged: 2,050 baselined identities / 8,024
-  diagnostics; five existing NU1903 advisories; and backend aggregate results
-  of 1,896 passed, 203 failed, 10 skipped (186 dedicated-test-DB cases and 17
-  existing R1 layout/Mapperly cases).
+  diagnostics; and backend aggregate results of 1,896 passed, 203 failed,
+  10 skipped (186 dedicated-test-DB cases and 17 existing R1 layout/Mapperly
+  cases). The five historical NU1903 advisories recorded below are no longer
+  present in the post-merge build.
 
 ## Historical checkpoint — R9 implementation recorded before final audit
 

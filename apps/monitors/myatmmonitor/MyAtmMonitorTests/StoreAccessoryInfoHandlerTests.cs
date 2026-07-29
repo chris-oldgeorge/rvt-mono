@@ -55,12 +55,12 @@ public sealed class StoreAccessoryInfoHandlerTests
         MyAtmHttpGateway gateway = new(http.Object, devicePageSize: 10, accessoryPageSize: 1);
         StoreAccessoryInfoHandler handler = new(gateway, reader, database.Object, database.Object, database.Object, maxPagesPerMonitorPerRun: 2);
 
-        await handler.RunAsync(9);
+        await handler.RunAsync(9, TestContext.CancellationToken);
 
         Assert.AreEqual(2, calls);
-        StringAssert.Contains(
-            requestPaths[1],
-            "timestamp gt " + firstTimestamp.ToString("O", CultureInfo.InvariantCulture));
+        Assert.Contains(
+            "timestamp gt " + firstTimestamp.ToString("O", CultureInfo.InvariantCulture),
+            requestPaths[1]);
         database.Verify(query => query.ReadMonitorList(9, null), Times.Once);
         database.Verify(query => query.ReadLatestAccessoryTimestamp(monitor.SerialId), Times.Once);
         database.Verify(command => command.InsertAccessoryPageAsync(It.IsAny<IReadOnlyList<MyAtm.Model.Dto.AccessoryInfoDto>>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
@@ -92,7 +92,7 @@ public sealed class StoreAccessoryInfoHandlerTests
 
         StoreAccessoryInfoHandler handler = CreateHandler(http.Object, database.Object, maxPagesPerMonitorPerRun: 10);
 
-        await handler.RunAsync(9);
+        await handler.RunAsync(9, TestContext.CancellationToken);
 
         Assert.AreEqual(2, calls);
         database.Verify(query => query.ReadMonitorList(9, null), Times.Once);
@@ -132,7 +132,7 @@ public sealed class StoreAccessoryInfoHandlerTests
 
         StoreAccessoryInfoHandler handler = CreateHandler(http.Object, database.Object, maxPagesPerMonitorPerRun: 10);
 
-        MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => handler.RunAsync(9));
+        MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => handler.RunAsync(9, TestContext.CancellationToken));
 
         CollectionAssert.AreEqual(new[] { failure }, aggregate.Failures.Select(item => item.Exception).ToArray());
         Assert.AreSame(recordingFailure, aggregate.Failures.Single().RecordingException);
@@ -176,4 +176,6 @@ public sealed class StoreAccessoryInfoHandlerTests
 
     private static string AccessoryPageJson(DateTime timestamp) =>
         JsonSerializer.Serialize(new[] { new AccessoryInfo { Timestamp = timestamp } });
+
+    public TestContext TestContext { get; set; } = null!;
 }

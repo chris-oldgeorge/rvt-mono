@@ -32,9 +32,9 @@ namespace AirQMonitorTests
                                                      out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar", It.IsAny<CancellationToken>())).
-                Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah."));
+                Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah.", TestContext.CancellationToken));
 
-            await Assert.ThrowsAsync<AdapterException>(() => testObj.StoreMonitorsAsync("foo", "bar"));
+            await Assert.ThrowsAsync<AdapterException>(() => testObj.StoreMonitorsAsync("foo", "bar", TestContext.CancellationToken));
 
             httpClient.Verify(c => c.GetAsync("/instrumentList?userID=foo&token=bar", It.IsAny<CancellationToken>()), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
@@ -56,9 +56,9 @@ namespace AirQMonitorTests
                                                      out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar", It.IsAny<CancellationToken>())).
-                    Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson()));
+                    Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson(), TestContext.CancellationToken));
 
-            await Assert.ThrowsAsync<AdapterException>(() => testObj.StoreMonitorsAsync("foo", "bar"));
+            await Assert.ThrowsAsync<AdapterException>(() => testObj.StoreMonitorsAsync("foo", "bar", TestContext.CancellationToken));
 
 
             httpClient.Verify(c => c.GetAsync("/instrumentList?userID=foo&token=bar", It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -81,19 +81,19 @@ namespace AirQMonitorTests
                                                      out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar", It.IsAny<CancellationToken>())).
-                    Returns(Task<string>.Factory.StartNew(() => AirQFixture.InstrumentsResponseJson()));
+                    Returns(Task<string>.Factory.StartNew(() => AirQFixture.InstrumentsResponseJson(), TestContext.CancellationToken));
 
             // 2nd monitor should fail to get metadata
             httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device1", It.IsAny<CancellationToken>())).
-                Returns(Task<string>.Factory.StartNew(() => AirQFixture.MetaDataResponseJson()));
+                Returns(Task<string>.Factory.StartNew(() => AirQFixture.MetaDataResponseJson(), TestContext.CancellationToken));
 
             httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device2", It.IsAny<CancellationToken>())).
-                Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson()));
+                Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson(), TestContext.CancellationToken));
 
             httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device3", It.IsAny<CancellationToken>())).
-                Returns(Task<string>.Factory.StartNew(() => AirQFixture.MetaDataResponseJson()));
+                Returns(Task<string>.Factory.StartNew(() => AirQFixture.MetaDataResponseJson(), TestContext.CancellationToken));
 
-            await testObj.StoreMonitorsAsync("foo", "bar");
+            await testObj.StoreMonitorsAsync("foo", "bar", TestContext.CancellationToken);
 
             httpClient.Verify(c => c.GetAsync("/instrumentList?userID=foo&token=bar", It.IsAny<CancellationToken>()), Times.Exactly(1));
             httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device1", It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -123,7 +123,7 @@ namespace AirQMonitorTests
                     Throws(new IOException());
             httpClient.VerifyNoOtherCalls();
 
-            await Assert.ThrowsAsync<AdapterException>(() => testObj.StoreMonitorsAsync("foo", "bar"));
+            await Assert.ThrowsAsync<AdapterException>(() => testObj.StoreMonitorsAsync("foo", "bar", TestContext.CancellationToken));
 
             dbClient.Verify(c => c.HandleException("StoreMonitors",
                                     It.Is<AdapterException>(e =>
@@ -147,7 +147,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Throws(new IOException());
 
-            await Assert.ThrowsAsync<AdapterException>(() => testObj.StoreNoiseLevelsAsync("foo", "bar"));
+            await Assert.ThrowsAsync<AdapterException>(() => testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken));
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             dbClient.Verify(c => c.HandleException("StoreNoiseLevels",
@@ -171,12 +171,12 @@ namespace AirQMonitorTests
                                                      out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
-                                Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah"));
+                                Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah", TestContext.CancellationToken));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
-            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsAsync("foo", "bar"));
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken));
             Assert.HasCount(3, exception.InnerExceptions);
 
             httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device1", It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -212,12 +212,12 @@ namespace AirQMonitorTests
                                                      out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
-                                Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson()));
+                                Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson(), TestContext.CancellationToken));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
-            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsAsync("foo", "bar"));
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken));
             Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -251,7 +251,7 @@ namespace AirQMonitorTests
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
-            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsAsync("foo", "bar"));
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken));
             Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -286,12 +286,12 @@ namespace AirQMonitorTests
             string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
-                                Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah"));
+                                Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah", TestContext.CancellationToken));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
-            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreAllNoiseLevelsForYesterdayAsync("foo", "bar"));
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreAllNoiseLevelsForYesterdayAsync("foo", "bar", TestContext.CancellationToken));
             Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -320,12 +320,12 @@ namespace AirQMonitorTests
             string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
-                                Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson()));
+                                Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson(), TestContext.CancellationToken));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
-            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreAllNoiseLevelsForYesterdayAsync("foo", "bar"));
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreAllNoiseLevelsForYesterdayAsync("foo", "bar", TestContext.CancellationToken));
             Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -357,7 +357,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
-            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreAllNoiseLevelsForYesterdayAsync("foo", "bar"));
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreAllNoiseLevelsForYesterdayAsync("foo", "bar", TestContext.CancellationToken));
             Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -388,12 +388,12 @@ namespace AirQMonitorTests
                                                      out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", dateStr)), It.IsAny<CancellationToken>())).
-                                Returns(Task<string>.Factory.StartNew(() => "Blah!!!"));
+                                Returns(Task<string>.Factory.StartNew(() => "Blah!!!", TestContext.CancellationToken));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
-            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsForDateAsync("foo", "bar", dateStr));
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsForDateAsync("foo", "bar", dateStr, TestContext.CancellationToken));
             Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -421,12 +421,12 @@ namespace AirQMonitorTests
                                                      out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", dateStr)), It.IsAny<CancellationToken>())).
-                                Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson()));
+                                Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson(), TestContext.CancellationToken));
 
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
-            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsForDateAsync("foo", "bar", dateStr));
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsForDateAsync("foo", "bar", dateStr, TestContext.CancellationToken));
             Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -458,7 +458,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE));
 
-            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsForDateAsync("foo", "bar", dateStr));
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(() => testObj.StoreNoiseLevelsForDateAsync("foo", "bar", dateStr, TestContext.CancellationToken));
             Assert.HasCount(3, exception.InnerExceptions);
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -477,5 +477,7 @@ namespace AirQMonitorTests
             mqttClient.VerifyNoOtherCalls();
             messageService.VerifyNoOtherCalls();
         }
+
+        public TestContext TestContext { get; set; } = null!;
     }
 }

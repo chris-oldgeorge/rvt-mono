@@ -66,11 +66,11 @@ public sealed class NotificationDeliveryServiceTests
                 It.Is<SmsDeliveryRequest>(message =>
                     message.Recipient == request.Destination &&
                     message.Content == "sms body"),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .Returns(Task.CompletedTask);
         NotificationDeliveryService service = new(composer.Object, email.Object, sms.Object);
 
-        await service.SendAsync(request);
+        await service.SendAsync(request, TestContext.CancellationToken);
 
         composer.VerifyAll();
         sms.VerifyAll();
@@ -91,7 +91,7 @@ public sealed class NotificationDeliveryServiceTests
                 NotificationChannel.Email,
                 " ",
                 "fleet-1",
-                string.Empty)));
+                string.Empty), TestContext.CancellationToken));
 
         composer.VerifyNoOtherCalls();
         email.VerifyNoOtherCalls();
@@ -126,4 +126,6 @@ public sealed class NotificationDeliveryServiceTests
 
         Assert.AreEqual(cancellationSource.Token, exception.CancellationToken);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

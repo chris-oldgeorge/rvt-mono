@@ -48,11 +48,11 @@ public sealed class TestRules
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((MonitorDeliveryMessage?)null);
-        mqttClient.Setup(client => client.PublishAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+        mqttClient.Setup(client => client.PublishAsync(It.IsAny<string>(), It.IsAny<string>(), TestContext.CancellationToken)).Returns(Task.CompletedTask);
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
-        await api.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1);
+        await api.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1, TestContext.CancellationToken);
 
         Assert.IsNotNull(commit);
         Assert.AreEqual(monitor.Id, commit.Monitor.Id);
@@ -97,11 +97,11 @@ public sealed class TestRules
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((MonitorDeliveryMessage?)null);
-        mqttClient.Setup(client => client.PublishAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+        mqttClient.Setup(client => client.PublishAsync(It.IsAny<string>(), It.IsAny<string>(), TestContext.CancellationToken)).Returns(Task.CompletedTask);
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
-        await api.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1);
+        await api.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1, TestContext.CancellationToken);
 
         Assert.IsNotNull(commit);
         Assert.HasCount(1, commit.RuleStateMutations);
@@ -124,4 +124,6 @@ public sealed class TestRules
             isDeleted,
             DateTime.UnixEpoch,
             null);
+
+    public TestContext TestContext { get; set; } = null!;
 }

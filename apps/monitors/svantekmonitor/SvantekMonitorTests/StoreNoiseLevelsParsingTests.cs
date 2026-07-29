@@ -10,7 +10,6 @@ using Svantek.Api.Db;
 using Svantek.Api.Http;
 using Svantek.Api.UseCases;
 using Svantek.Model.Config;
-using SvantekMonitor.model.dto;
 
 namespace SvantekMonitorTests;
 
@@ -49,13 +48,13 @@ public sealed class StoreNoiseLevelsParsingTests
                 SvantekApi.BatteryAlertType.Off,
                 100);
             Mock<ISvantekMonitorQueries> monitorQueries = new(MockBehavior.Strict);
-            monitorQueries.Setup(queries => queries.ReadMonitorListAsync(null, CancellationToken.None))
+            monitorQueries.Setup(queries => queries.ReadMonitorListAsync(null, It.IsAny<CancellationToken>()))
                 .ReturnsAsync([monitor]);
             Mock<IHttpClient> http = new(MockBehavior.Strict);
             http.Setup(client => client.PostAsync(
                     "projects-get-result-data-multi-point.php",
                     It.IsAny<HttpContent>(),
-                    CancellationToken.None))
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync("""
                     {
                       "status":"ok",
@@ -78,14 +77,14 @@ public sealed class StoreNoiseLevelsParsingTests
             Mock<ISvantekMeasurementCommands> measurementCommands = new(MockBehavior.Strict);
             measurementCommands.Setup(commands => commands.InsertNoiseRecordsTableAsync(
                     It.IsAny<DataTable>(),
-                    CancellationToken.None))
+                    It.IsAny<CancellationToken>()))
                 .Callback((DataTable table, CancellationToken _) => writtenTable = table)
                 .Returns(Task.CompletedTask);
             Mock<ISvantekMonitorCommands> monitorCommands = new(MockBehavior.Strict);
             monitorCommands.Setup(commands => commands.WriteLatestTimestampAsync(
                     "1001",
                     expectedSampleTime,
-                    CancellationToken.None))
+                    It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
             Mock<ISvantekRuleQueries> ruleQueries = new(MockBehavior.Strict);
             ruleQueries.Setup(queries => queries.ReadRules("1001")).Returns([]);
@@ -105,7 +104,7 @@ public sealed class StoreNoiseLevelsParsingTests
                 new NoiseRequestWindowCalculator(new SvantekImportOptions()),
                 new FixedTimeProvider(utcNow));
 
-            await handler.RunAsync();
+            await handler.RunAsync(TestContext.CancellationToken);
 
             Assert.IsNotNull(writtenTable);
             Assert.HasCount(1, writtenTable.Rows);
@@ -129,4 +128,6 @@ public sealed class StoreNoiseLevelsParsingTests
     {
         public override DateTimeOffset GetUtcNow() => new(utcNow);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

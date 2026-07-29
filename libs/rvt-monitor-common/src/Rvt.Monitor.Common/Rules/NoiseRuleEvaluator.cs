@@ -6,24 +6,16 @@ using Rvt.Monitor.Common.Rules;
 
 namespace Rvt.Monitor.Common.Rules;
 
-public sealed class NoiseRuleEvaluator
+public sealed class NoiseRuleEvaluator(
+    Action<RvtAlertRuleDto> updateAlertRule,
+    Func<Guid, List<RvtContactDto>> readAlertContacts,
+    Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts,
+    IMonitorEventPublisher eventPublisher)
 {
-    private readonly Action<RvtAlertRuleDto> updateAlertRule;
-    private readonly Func<Guid, List<RvtContactDto>> readAlertContacts;
-    private readonly Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts;
-    private readonly IMonitorEventPublisher eventPublisher;
-
-    public NoiseRuleEvaluator(
-        Action<RvtAlertRuleDto> updateAlertRule,
-        Func<Guid, List<RvtContactDto>> readAlertContacts,
-        Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts,
-        IMonitorEventPublisher eventPublisher)
-    {
-        this.updateAlertRule = updateAlertRule;
-        this.readAlertContacts = readAlertContacts;
-        this.processAlertForContacts = processAlertForContacts;
-        this.eventPublisher = eventPublisher;
-    }
+    private readonly Action<RvtAlertRuleDto> _updateAlertRule = updateAlertRule;
+    private readonly Func<Guid, List<RvtContactDto>> _readAlertContacts = readAlertContacts;
+    private readonly Action<RuleNotificationRequest, List<RvtContactDto>> _processAlertForContacts = processAlertForContacts;
+    private readonly IMonitorEventPublisher _eventPublisher = eventPublisher;
 
     public Rvt.Monitor.Common.Notifications.AlertType Evaluate(
         RuleEvaluationRequest request,
@@ -33,11 +25,14 @@ public sealed class NoiseRuleEvaluator
     {
         if (request.DeactivateDeletedRules && rule.IsDeleted)
         {
-            RvtLogger.Logger.LogInformation("PROCESS-RULES Ignoring deleted rule ={Value1}", rule.ToString());
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation("PROCESS-RULES Ignoring deleted rule ={Value1}", rule.ToString());
+            }
             if (rule.IsActive)
             {
                 rule.IsActive = false;
-                updateAlertRule(rule);
+                _updateAlertRule(rule);
             }
 
             return previousAlert;
@@ -45,15 +40,22 @@ public sealed class NoiseRuleEvaluator
 
         if (!rule.RuleActiveTime.IsActive(request.ActivityTime))
         {
-            RvtLogger.Logger.LogInformation("PROCESS-RULES Time is outside activity window ignoring rule ={Value1}", rule.ToString());
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation("PROCESS-RULES Time is outside activity window ignoring rule ={Value1}", rule.ToString());
+            }
+
             return previousAlert;
         }
 
-        RvtLogger.Logger.LogInformation(
-            "PROCESS-RULES Processing rule serialId={Value1} level={Value2} rule={Value3}",
-            request.MonitorSerialId,
-            level,
-            rule.ToString());
+        if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+        {
+            RvtLogger.Logger.LogInformation(
+                "PROCESS-RULES Processing rule serialId={Value1} level={Value2} rule={Value3}",
+                request.MonitorSerialId,
+                level,
+                rule.ToString());
+        }
 
         if (level >= rule.LimitOn)
         {
@@ -62,15 +64,18 @@ public sealed class NoiseRuleEvaluator
 
         if (level <= rule.LimitOff)
         {
-            RvtLogger.Logger.LogInformation(
-                "PROCESS-RULES Rule level={Value1} is below limit off={Value2} setting rule as inactive",
-                level,
-                rule.LimitOff);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation(
+                    "PROCESS-RULES Rule level={Value1} is below limit off={Value2} setting rule as inactive",
+                    level,
+                    rule.LimitOff);
+            }
 
             if (rule.IsActive)
             {
                 rule.IsActive = false;
-                updateAlertRule(rule);
+                _updateAlertRule(rule);
             }
 
             return previousAlert;
@@ -81,11 +86,14 @@ public sealed class NoiseRuleEvaluator
             return rule.AlertType;
         }
 
-        RvtLogger.Logger.LogInformation(
-            "PROCESS-RULES Rule level={Value1} is within limits on={Value2} off={Value3}",
-            level,
-            rule.LimitOn,
-            rule.LimitOff);
+        if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+        {
+            RvtLogger.Logger.LogInformation(
+                "PROCESS-RULES Rule level={Value1} is within limits on={Value2} off={Value3}",
+                level,
+                rule.LimitOn,
+                rule.LimitOff);
+        }
 
         return previousAlert;
     }
@@ -109,8 +117,8 @@ public sealed class NoiseRuleEvaluator
             return rule.AlertType;
         }
 
-        List<RvtContactDto> contacts = readAlertContacts(request.MonitorId);
-        processAlertForContacts(
+        List<RvtContactDto> contacts = _readAlertContacts(request.MonitorId);
+        _processAlertForContacts(
             new RuleNotificationRequest(
                 request.FleetNr,
                 rule.SerialId!,
@@ -129,10 +137,10 @@ public sealed class NoiseRuleEvaluator
             level,
             rule.LimitOn,
             rule.LimitOff);
-        eventPublisher.PublishAlert(request.PublishTime, request.MonitorSerialId, text);
+        _eventPublisher.PublishAlert(request.PublishTime, request.MonitorSerialId, text);
 
         rule.IsActive = true;
-        updateAlertRule(rule);
+        _updateAlertRule(rule);
         return rule.AlertType;
     }
 }

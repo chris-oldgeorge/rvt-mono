@@ -8,27 +8,26 @@ using RVT.DataAccess.Context;
 using RVT.Entities;
 using RVT.Entities.Querying;
 
-namespace RVT.DataAccess
+namespace RVT.DataAccess;
+
+public class AlertlevelRepository : GenericRepository<Alertlevel>, IAlertlevelRepository
 {
-    public class AlertlevelRepository : GenericRepository<Alertlevel>, IAlertlevelRepository
+    // Function summary: Handles the alertlevel repository workflow for this module.
+    public AlertlevelRepository(RVTDbContext contextDB)
+        : base(contextDB)
     {
-        // Function summary: Handles the alertlevel repository workflow for this module.
-        public AlertlevelRepository(RVTDbContext ContextDB)
-            : base(ContextDB)
-        {
-        }
-        // Function summary: Retrieves all for monitor data for callers.
-        public async Task<IList<Alertlevel>> ReadAllForMonitorAsync(Guid MonitorId)
-        {
-            return await this.DbSet.Where(s => s.MonitorId == MonitorId && !s.IsDeleted).ToListAsync();
-        }
-
-        // Function summary: Retrieves filtered data for callers.
-        public Task<SearchQueryResult<Alertlevel>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default)
-        {
-            return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.paged, pagedata.page, pagedata.pageSize, cancellationToken);
-        }
-
-
     }
+    // Function summary: Retrieves all for monitor data for callers.
+    public async Task<IList<Alertlevel>> ReadAllForMonitorAsync(Guid monitorId)
+    {
+        return await DbSet.Where(s => s.MonitorId == monitorId && !s.IsDeleted).ToListAsync();
+    }
+
+    // Function summary: Retrieves filtered data for callers.
+    public Task<SearchQueryResult<Alertlevel>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default)
+    {
+        return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.Paged, pagedata.Page, pagedata.PageSize, cancellationToken);
+    }
+
+
 }

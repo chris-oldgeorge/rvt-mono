@@ -299,6 +299,6 @@ namespace SvantekMonitorTests
             return rules;
         }
     }
+
+
 }
-
-

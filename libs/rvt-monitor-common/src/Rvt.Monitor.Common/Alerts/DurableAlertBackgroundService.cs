@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -60,6 +61,10 @@ public sealed class DurableAlertBackgroundService : BackgroundService
         }
     }
 
+    [SuppressMessage(
+        "Major Code Smell",
+        "S6667:Exception information should be passed to the logger",
+        Justification = "Worker exceptions can include sensitive delivery data; the log records only the exception type.")]
     internal async Task RunIterationAsync(DateTime utcNow, CancellationToken cancellationToken)
     {
         if (!isEnabled)

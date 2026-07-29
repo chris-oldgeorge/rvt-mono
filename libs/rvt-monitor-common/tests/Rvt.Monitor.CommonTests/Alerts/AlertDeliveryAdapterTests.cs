@@ -29,7 +29,7 @@ public sealed class AlertDeliveryAdapterTests
             envelope.Timestamp,
             envelope.SerialId,
             envelope.Message,
-            envelope.CustomerId), Times.Once);
+            envelope.CustomerId, CancellationToken.None), Times.Once);
     }
 
     [TestMethod]
@@ -298,4 +298,6 @@ public sealed class AlertDeliveryAdapterTests
         int? CustomerId,
         string SerialNumber,
         string Message);
+
+    public TestContext TestContext { get; set; } = null!;
 }

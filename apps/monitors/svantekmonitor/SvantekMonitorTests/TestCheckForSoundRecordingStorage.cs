@@ -87,7 +87,7 @@ public sealed class TestCheckForSoundRecordingStorage
         Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         Mock<IDBClient> dbClient = new(MockBehavior.Strict);
         RecordingObjectStorageClient storage = new();
-        dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
+        dbClient.Setup(client => client.ReadLatestNotificationAsync(TestContext.CancellationToken)).ReturnsAsync(
             [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
             ]);
@@ -97,7 +97,7 @@ public sealed class TestCheckForSoundRecordingStorage
         httpClient.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ReturnsAsync(filesResponse);
         CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
@@ -106,13 +106,13 @@ public sealed class TestCheckForSoundRecordingStorage
             TestObjectStorageFactory.ForSoundRecordings(storage));
 
         SvantekJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(
-            () => handler.RunAsync());
+            () => handler.RunAsync(TestContext.CancellationToken));
 
         Assert.AreEqual("CheckForSoundRecordings", aggregate.JobName);
         Assert.HasCount(1, aggregate.Failures);
         Assert.AreEqual(identifier, aggregate.Failures[0].Message);
         Assert.IsLessThanOrEqualTo(64, identifier.Length, "DBClient error tags are limited to 64 characters.");
-        StringAssert.Contains(identifier, notificationId.ToString());
+        Assert.Contains(notificationId.ToString(), identifier);
         Assert.IsEmpty(storage.Writes);
         httpClient.VerifyAll();
         dbClient.VerifyAll();
@@ -136,7 +136,7 @@ public sealed class TestCheckForSoundRecordingStorage
         Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         Mock<IDBClient> dbClient = new(MockBehavior.Strict);
         RecordingObjectStorageClient storage = new();
-        dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
+        dbClient.Setup(client => client.ReadLatestNotificationAsync(TestContext.CancellationToken)).ReturnsAsync(
             [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
             ]);
@@ -146,7 +146,7 @@ public sealed class TestCheckForSoundRecordingStorage
         httpClient.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ReturnsAsync(filesResponse);
         CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
@@ -155,7 +155,7 @@ public sealed class TestCheckForSoundRecordingStorage
             TestObjectStorageFactory.ForSoundRecordings(storage));
 
         SvantekJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(
-            () => handler.RunAsync());
+            () => handler.RunAsync(TestContext.CancellationToken));
 
         Assert.HasCount(1, aggregate.Failures);
         Assert.AreEqual(identifier, aggregate.Failures[0].Message);
@@ -182,14 +182,14 @@ public sealed class TestCheckForSoundRecordingStorage
         Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         Mock<IDBClient> dbClient = new(MockBehavior.Strict);
         RecordingObjectStorageClient storage = new();
-        dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
+        dbClient.Setup(client => client.ReadLatestNotificationAsync(TestContext.CancellationToken)).ReturnsAsync(
             [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
             ]);
         httpClient.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ReturnsAsync(filesResponse);
         CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
@@ -197,12 +197,14 @@ public sealed class TestCheckForSoundRecordingStorage
             new SvantekHttpGateway(httpClient.Object, "test-api-key"),
             TestObjectStorageFactory.ForSoundRecordings(storage));
 
-        await handler.RunAsync();
+        await handler.RunAsync(TestContext.CancellationToken);
 
         Assert.IsEmpty(storage.Writes);
         httpClient.VerifyAll();
         dbClient.VerifyAll();
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }
 
 internal sealed class RecordingObjectStorageClient : IObjectStorageClient

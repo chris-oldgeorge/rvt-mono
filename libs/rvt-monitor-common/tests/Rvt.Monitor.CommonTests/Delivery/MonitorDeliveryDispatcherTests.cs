@@ -11,14 +11,15 @@ namespace Rvt.Monitor.CommonTests.Delivery;
 [TestClass]
 public sealed class MonitorDeliveryDispatcherTests
 {
-    private static readonly TimeSpan TimingTolerance = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan _timingTolerance = TimeSpan.FromSeconds(2);
+    private static readonly string[] _outcomeAndSinkEvents = ["outcome", "sink"];
 
     [TestMethod]
     public async Task DispatchDueAsync_WhenNoRowIsDue_ClaimsOnceWithoutMutatingOrDelivering()
     {
         DispatcherHarness harness = new();
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.HasCount(1, harness.Queries.Claims);
         Assert.AreEqual(MonitorDeliveryProducers.Svantek, harness.Queries.Claims.Single().Producer);
@@ -56,7 +57,7 @@ public sealed class MonitorDeliveryDispatcherTests
             })
             .Returns(Task.CompletedTask);
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.AreEqual("rvt/alerts", topic);
         using JsonDocument document = JsonDocument.Parse(json!);
@@ -64,7 +65,7 @@ public sealed class MonitorDeliveryDispatcherTests
         Assert.AreEqual("Dust Alert LAeq level=75", document.RootElement.GetProperty("Message").GetString());
         Assert.AreEqual(JsonValueKind.Null, document.RootElement.GetProperty("CustomerId").ValueKind);
         CollectionAssert.AreEqual(
-            new[] { "claim", "deliver", "complete", "claim" },
+            _expected,
             events);
         Assert.HasCount(2, harness.Queries.Claims);
         Assert.IsNull(harness.Commands.Completions.Single().Audit);
@@ -82,7 +83,7 @@ public sealed class MonitorDeliveryDispatcherTests
             .Callback((string _, string body, CancellationToken _) => json = body)
             .Returns(Task.CompletedTask);
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         using JsonDocument document = JsonDocument.Parse(json!);
         Assert.AreEqual(41, document.RootElement.GetProperty("CustomerId").GetInt32());
@@ -106,7 +107,7 @@ public sealed class MonitorDeliveryDispatcherTests
             .Callback((string _, string body, CancellationToken _) => json = body)
             .Returns(Task.CompletedTask);
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         using JsonDocument document = JsonDocument.Parse(json!);
         Assert.AreEqual("Dto Inserted", document.RootElement.GetProperty("Message").GetString());
@@ -136,7 +137,7 @@ public sealed class MonitorDeliveryDispatcherTests
                 request = selectedRequest)
             .Returns(Task.CompletedTask);
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.AreEqual(NotificationMessageKind.Offline, request!.Kind);
         Assert.AreEqual(NotificationChannel.Email, request.Channel);
@@ -167,7 +168,7 @@ public sealed class MonitorDeliveryDispatcherTests
                 request = selectedRequest)
             .Returns(Task.CompletedTask);
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.AreEqual(NotificationMessageKind.Alert, request!.Kind);
         Assert.AreEqual(NotificationChannel.Sms, request.Channel);
@@ -194,7 +195,7 @@ public sealed class MonitorDeliveryDispatcherTests
                 request = selectedRequest)
             .Returns(Task.CompletedTask);
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.AreEqual(string.Empty, request!.CallbackUrl);
         Assert.IsNull(harness.Commands.Completions.Single().Audit);
@@ -216,7 +217,7 @@ public sealed class MonitorDeliveryDispatcherTests
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.HasCount(50, harness.Queries.Claims);
         Assert.HasCount(50, harness.Commands.Completions);
@@ -238,7 +239,7 @@ public sealed class MonitorDeliveryDispatcherTests
             .Returns((string _, string _, CancellationToken cancellationToken) =>
                 Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken));
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         RetryCall retry = harness.Commands.Retries.Single();
         Assert.AreEqual(message.Id, retry.Id);
@@ -262,7 +263,7 @@ public sealed class MonitorDeliveryDispatcherTests
             .ThrowsAsync(new TimeoutException());
         DateTime startedAt = DateTime.UtcNow;
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.HasCount(3, harness.Commands.Retries);
         AssertTimestampNear(startedAt.AddSeconds(30), harness.Commands.Retries[0].NextAttemptAt);
@@ -286,7 +287,7 @@ public sealed class MonitorDeliveryDispatcherTests
             .ThrowsAsync(new EmailDeliveryException("SendGrid", failureKind, "400"));
 
         await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
-            () => harness.Dispatcher.DispatchDueAsync());
+            () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         Assert.IsEmpty(harness.Commands.Retries);
         Assert.AreEqual(
@@ -309,7 +310,7 @@ public sealed class MonitorDeliveryDispatcherTests
                 TimeSpan.FromMinutes(2)));
         DateTime startedAt = DateTime.UtcNow;
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         RetryCall retry = harness.Commands.Retries.Single();
         AssertTimestampNear(startedAt.AddMinutes(2), retry.NextAttemptAt);
@@ -334,7 +335,7 @@ public sealed class MonitorDeliveryDispatcherTests
                 TimeSpan.FromHours(1)));
         DateTime startedAt = DateTime.UtcNow;
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         AssertTimestampNear(
             startedAt.AddMinutes(30),
@@ -355,7 +356,7 @@ public sealed class MonitorDeliveryDispatcherTests
                 "503"));
 
         await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
-            () => harness.Dispatcher.DispatchDueAsync());
+            () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         Assert.IsEmpty(harness.Commands.Retries);
         Assert.AreEqual(
@@ -375,7 +376,7 @@ public sealed class MonitorDeliveryDispatcherTests
             .ThrowsAsync(new IOException("provider included person@example.test"));
 
         MonitorDeliveryDispatchException error = await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
-            () => harness.Dispatcher.DispatchDueAsync());
+            () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         DeadLetterCall deadLetter = harness.Commands.DeadLetters.Single();
         Assert.AreEqual("Delivery failed (IOException).", deadLetter.Error);
@@ -394,7 +395,7 @@ public sealed class MonitorDeliveryDispatcherTests
         harness.Queries.Enqueue(message);
 
         MonitorDeliveryDispatchException error = await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
-            () => harness.Dispatcher.DispatchDueAsync());
+            () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         DeadLetterCall deadLetter = harness.Commands.DeadLetters.Single();
         Assert.AreEqual("Delivery failed (InvalidDataException).", deadLetter.Error);
@@ -417,7 +418,7 @@ public sealed class MonitorDeliveryDispatcherTests
             .Returns(Task.CompletedTask);
 
         MonitorDeliveryDispatchException error = await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
-            () => harness.Dispatcher.DispatchDueAsync());
+            () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         Assert.HasCount(1, error.Failures);
         Assert.AreEqual(malformed.Id, harness.Commands.DeadLetters.Single().Id);
@@ -436,7 +437,7 @@ public sealed class MonitorDeliveryDispatcherTests
             .Returns(Task.CompletedTask);
         harness.Commands.OutcomeResult = false;
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.HasCount(1, harness.Commands.Completions);
         Assert.IsEmpty(harness.Commands.Retries);
@@ -459,7 +460,7 @@ public sealed class MonitorDeliveryDispatcherTests
             .ThrowsAsync(new IOException());
         harness.Commands.OutcomeResult = false;
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.HasCount(1, harness.Commands.Retries);
         Assert.IsEmpty(harness.Commands.DeadLetters);
@@ -495,7 +496,7 @@ public sealed class MonitorDeliveryDispatcherTests
         harness.Queries.Enqueue(Message(producer: MonitorDeliveryProducers.MyAtm));
 
         await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
-            () => harness.Dispatcher.DispatchDueAsync());
+            () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         Assert.AreEqual("Delivery failed (InvalidDataException).", harness.Commands.DeadLetters.Single().Error);
         Assert.IsEmpty(harness.Commands.Retries);
@@ -509,7 +510,7 @@ public sealed class MonitorDeliveryDispatcherTests
         harness.Queries.Enqueue(Message() with { PayloadVersion = 2 });
 
         await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
-            () => harness.Dispatcher.DispatchDueAsync());
+            () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         Assert.AreEqual("Delivery failed (InvalidDataException).", harness.Commands.DeadLetters.Single().Error);
         Assert.IsEmpty(harness.Commands.Retries);
@@ -522,7 +523,7 @@ public sealed class MonitorDeliveryDispatcherTests
         harness.Queries.Enqueue(Message((MonitorDeliveryKind)99));
 
         await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
-            () => harness.Dispatcher.DispatchDueAsync());
+            () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         Assert.AreEqual("Delivery failed (InvalidDataException).", harness.Commands.DeadLetters.Single().Error);
         Assert.IsEmpty(harness.Commands.Retries);
@@ -542,7 +543,7 @@ public sealed class MonitorDeliveryDispatcherTests
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new TimeoutException(secret));
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         string persistedError = harness.Commands.Retries.Single().Error;
         Assert.AreEqual("Delivery failed (TimeoutException).", persistedError);
@@ -561,7 +562,7 @@ public sealed class MonitorDeliveryDispatcherTests
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new TimeoutException());
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.HasCount(1, harness.Commands.Retries);
         Assert.HasCount(1, harness.FailureSink.Failures);
@@ -580,7 +581,7 @@ public sealed class MonitorDeliveryDispatcherTests
             .ThrowsAsync(new TimeoutException("secret destination"));
 
         MonitorDeliveryDispatchException error = await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
-            () => harness.Dispatcher.DispatchDueAsync());
+            () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));
 
         Assert.AreEqual("Delivery failed (TimeoutException).", harness.Commands.Retries.Single().Error);
         Assert.DoesNotContain("secret", harness.Commands.Retries.Single().Error);
@@ -603,9 +604,9 @@ public sealed class MonitorDeliveryDispatcherTests
             throw new InvalidOperationException("sink secret");
         };
 
-        await harness.Dispatcher.DispatchDueAsync();
+        await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
-        CollectionAssert.AreEqual(new[] { "outcome", "sink" }, events);
+        CollectionAssert.AreEqual(_outcomeAndSinkEvents, events);
         Assert.HasCount(1, harness.Commands.Retries);
         Assert.IsTrue(harness.Logger.Messages.Any(entry =>
             entry.Contains("failure sink", StringComparison.OrdinalIgnoreCase) &&
@@ -615,7 +616,7 @@ public sealed class MonitorDeliveryDispatcherTests
     private static void AssertTimestampNear(DateTime expected, DateTime actual)
     {
         TimeSpan delta = (actual - expected).Duration();
-        Assert.IsLessThanOrEqualTo(TimingTolerance, delta, $"Expected {actual:O} within {TimingTolerance} of {expected:O}.");
+        Assert.IsLessThanOrEqualTo(_timingTolerance, delta, $"Expected {actual:O} within {_timingTolerance} of {expected:O}.");
     }
 
     private static MonitorDeliveryMessage Message(
@@ -664,13 +665,13 @@ public sealed class MonitorDeliveryDispatcherTests
 
     private sealed class RecordingQueries : IMonitorDeliveryOutboxQueries
     {
-        private readonly Queue<MonitorDeliveryMessage> messages = new();
+        private readonly Queue<MonitorDeliveryMessage> _messages = new();
 
         internal List<ClaimCall> Claims { get; } = [];
         internal Action? OnClaim { get; set; }
-        internal int Remaining => messages.Count;
+        internal int Remaining => _messages.Count;
 
-        internal void Enqueue(MonitorDeliveryMessage message) => messages.Enqueue(message);
+        internal void Enqueue(MonitorDeliveryMessage message) => _messages.Enqueue(message);
 
         public Task<MonitorDeliveryMessage?> ClaimNextDueAsync(
             string producer,
@@ -681,7 +682,7 @@ public sealed class MonitorDeliveryDispatcherTests
             cancellationToken.ThrowIfCancellationRequested();
             Claims.Add(new ClaimCall(producer, utcNow, leaseDuration, cancellationToken));
             OnClaim?.Invoke();
-            return Task.FromResult(messages.TryDequeue(out MonitorDeliveryMessage? message) ? message : null);
+            return Task.FromResult(_messages.TryDequeue(out MonitorDeliveryMessage? message) ? message : null);
         }
     }
 
@@ -807,4 +808,8 @@ public sealed class MonitorDeliveryDispatcherTests
         string Error,
         bool Terminal,
         CancellationToken CancellationToken);
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly string[] _expected = ["claim", "deliver", "complete", "claim"];
 }

@@ -27,14 +27,10 @@ public abstract class DeliveryException : Exception
     }
 }
 
-public sealed class EmailDeliveryException : DeliveryException
+public sealed class EmailDeliveryException(string provider, DeliveryFailureKind failureKind, string? code = null, TimeSpan? retryAfter = null, Exception? innerException = null) : DeliveryException(provider, "email", failureKind, code, retryAfter, innerException)
 {
-    public EmailDeliveryException(string provider, DeliveryFailureKind failureKind, string? code = null, TimeSpan? retryAfter = null, Exception? innerException = null)
-        : base(provider, "email", failureKind, code, retryAfter, innerException) { }
 }
 
-public sealed class SmsDeliveryException : DeliveryException
+public sealed class SmsDeliveryException(string provider, DeliveryFailureKind failureKind, string? code = null, TimeSpan? retryAfter = null, Exception? innerException = null) : DeliveryException(provider, "SMS", failureKind, code, retryAfter, innerException)
 {
-    public SmsDeliveryException(string provider, DeliveryFailureKind failureKind, string? code = null, TimeSpan? retryAfter = null, Exception? innerException = null)
-        : base(provider, "SMS", failureKind, code, retryAfter, innerException) { }
 }

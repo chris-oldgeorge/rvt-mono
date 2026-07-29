@@ -70,7 +70,9 @@ public sealed class MqttOptionsTests
     {
         using RvtMqttClient client = new(new MqttOptions { Enabled = false });
 
-        await client.PublishAsync("rvt/noise/inserted", "{}");
+        await client.PublishAsync("rvt/noise/inserted", "{}", TestContext.CancellationToken);
+
+        Assert.IsNotNull(client);
     }
 
     [TestMethod]
@@ -78,7 +80,7 @@ public sealed class MqttOptionsTests
     {
         using RvtMqttClient client = new(new MqttOptions { Enabled = false });
 
-        Assert.IsTrue(await client.ConnectAsync());
+        Assert.IsTrue(await client.ConnectAsync(TestContext.CancellationToken));
     }
 
     [TestMethod]
@@ -86,4 +88,6 @@ public sealed class MqttOptionsTests
     {
         Assert.ThrowsExactly<ArgumentNullException>(() => new RvtMqttClient(null!));
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

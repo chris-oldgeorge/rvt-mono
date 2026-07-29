@@ -54,7 +54,7 @@ public sealed class OfflineAlertCommitTests
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
-        await api.CheckForOfflineMonitorsAsync(customerId);
+        await api.CheckForOfflineMonitorsAsync(customerId, TestContext.CancellationToken);
 
         Assert.IsNotNull(commit);
         Assert.AreEqual(monitor.Id, commit.MonitorStateMutation!.MonitorId);
@@ -116,7 +116,7 @@ public sealed class OfflineAlertCommitTests
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
-        await api.CheckForOfflineMonitorsAsync(customerId);
+        await api.CheckForOfflineMonitorsAsync(customerId, TestContext.CancellationToken);
 
         Assert.IsNotNull(commit);
         Assert.IsTrue(commit.MonitorStateMutation!.ExpectedOffline);
@@ -140,4 +140,6 @@ public sealed class OfflineAlertCommitTests
             request.Payload,
             AttemptCount: 1,
             LeaseId: Guid.NewGuid()));
+
+    public TestContext TestContext { get; set; } = null!;
 }

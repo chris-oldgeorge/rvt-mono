@@ -7,7 +7,6 @@ using MyAtm.Api.Http;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
-using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -54,7 +53,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
         importCommands.Setup(commands => commands.CommitDustImportAsync(
                 It.Is<MyAtmDustImportCommit>(commit => commit.Monitor.SerialId == second.SerialId),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new DustImportCommitResult([]));
         operational.Setup(commands => commands.HandleException(
                 $"StoreDustLevels SerialId={first.SerialId}",
                 It.IsAny<AdapterException>()))
@@ -70,7 +69,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
             maxPagesPerMonitorPerRun: 10);
 
         MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() =>
-            handler.RunAsync<DeviceMeasurement>(123, Period.Minutes1));
+            handler.RunAsync<DeviceMeasurement>(123, Period.Minutes1, TestContext.CancellationToken));
 
         Assert.HasCount(
             1,
@@ -104,7 +103,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
         commits.Setup(commands => commands.CommitAlertAsync(
                 It.Is<MyAtmAlertCommit>(commit => commit.RuleStateMutations.Single().RuleId == second.RuleId),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new MyAtmAlertCommitResult(true, []));
         operational.Setup(commands => commands.HandleException(
                 $"ProcessDustLevels RuleId={first.RuleId} SerialId={first.SerialId}",
                 primary))
@@ -119,7 +118,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
             testLocal: false);
 
         MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() =>
-            handler.RunAsync<AvgDeviceMeasurement>(123, Period.Hours8));
+            handler.RunAsync<AvgDeviceMeasurement>(123, Period.Hours8, TestContext.CancellationToken));
 
         Assert.HasCount(1, aggregate.Failures);
         Assert.AreSame(primary, aggregate.Failures[0].Exception);
@@ -216,15 +215,12 @@ public sealed class MyAtmFleetFailureSemanticsTests
         DateTime.UnixEpoch,
         null);
 
-    private sealed class FixedTimeProvider : TimeProvider
+    private sealed class FixedTimeProvider(DateTime now) : TimeProvider
     {
-        private readonly DateTimeOffset now;
+        private readonly DateTimeOffset _now = new(now);
 
-        public FixedTimeProvider(DateTime now)
-        {
-            this.now = new DateTimeOffset(now);
-        }
-
-        public override DateTimeOffset GetUtcNow() => now;
+        public override DateTimeOffset GetUtcNow() => _now;
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

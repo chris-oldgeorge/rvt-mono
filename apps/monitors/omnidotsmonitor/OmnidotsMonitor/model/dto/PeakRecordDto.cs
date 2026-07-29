@@ -29,5 +29,5 @@ namespace Omnidots.Model.Dto
             SampleTime = offset.DateTime;
         }
     }
-}
 
+}

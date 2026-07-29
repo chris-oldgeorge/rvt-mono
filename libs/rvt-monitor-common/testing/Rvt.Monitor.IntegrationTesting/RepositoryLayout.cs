@@ -30,19 +30,17 @@ public static class RepositoryLayout
                 nameof(segments));
         }
 
-        foreach (string? segment in segments)
+        foreach (string? segment in segments.Where(segment =>
+                     string.IsNullOrWhiteSpace(segment) ||
+                     Path.IsPathRooted(segment) ||
+                     segment is "." or ".." ||
+                     segment.Contains('/') ||
+                     segment.Contains('\\')))
         {
-            if (string.IsNullOrWhiteSpace(segment) ||
-                Path.IsPathRooted(segment) ||
-                segment is "." or ".." ||
-                segment.Contains('/') ||
-                segment.Contains('\\'))
-            {
-                throw new ArgumentException(
-                    $"Repository path segment '{segment}' must be a non-empty, " +
-                    "non-rooted name without separators or traversal.",
-                    nameof(segments));
-            }
+            throw new ArgumentException(
+                $"Repository path segment '{segment}' must be a non-empty, " +
+                "non-rooted name without separators or traversal.",
+                nameof(segments));
         }
 
         string repositoryRoot = Root;

@@ -23,7 +23,7 @@ public sealed class SendGridEmailAdapterTests
         EmailAttachment attachment = new("report.pdf", "application/pdf", [1, 2, 3]);
 
         await adapter.SendAsync(new EmailDeliveryRequest(
-            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]));
+            "ops@example.test", "subject", "plain", "<p>html</p>", [attachment]), TestContext.CancellationToken);
 
         Assert.AreEqual("sender@example.test", captured!.From.Email);
         Assert.AreEqual("RVT Cloud", captured.From.Name);
@@ -52,7 +52,7 @@ public sealed class SendGridEmailAdapterTests
         SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
-            adapter.SendAsync(Request()));
+            adapter.SendAsync(Request(), TestContext.CancellationToken));
 
         Assert.AreEqual(expectedKind, exception.FailureKind);
         Assert.AreEqual(((int)status).ToString(), exception.Code);
@@ -83,7 +83,7 @@ public sealed class SendGridEmailAdapterTests
         SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
-            adapter.SendAsync(Request()));
+            adapter.SendAsync(Request(), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
         Assert.DoesNotContain("raw network secret", exception.Message);
@@ -97,7 +97,11 @@ public sealed class SendGridEmailAdapterTests
             .ReturnsAsync(Response(HttpStatusCode.OK));
         SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
-        await adapter.SendAsync(Request());
+        await adapter.SendAsync(Request(), TestContext.CancellationToken);
+
+        client.Verify(
+            x => x.SendEmailAsync(It.IsAny<SendGridMessage>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [TestMethod]
@@ -112,7 +116,7 @@ public sealed class SendGridEmailAdapterTests
         SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
-            adapter.SendAsync(Request()));
+            adapter.SendAsync(Request(), TestContext.CancellationToken));
 
         Assert.AreEqual(TimeSpan.FromSeconds(75), exception.RetryAfter);
     }
@@ -126,7 +130,7 @@ public sealed class SendGridEmailAdapterTests
         SendGridEmailAdapter adapter = new(factory.Object, new SendGridMailOptions());
 
         EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
-            adapter.SendAsync(Request()));
+            adapter.SendAsync(Request(), TestContext.CancellationToken));
 
         Assert.AreEqual(DeliveryFailureKind.Configuration, exception.FailureKind);
         client.VerifyNoOtherCalls();
@@ -142,8 +146,8 @@ public sealed class SendGridEmailAdapterTests
         factory.Setup(x => x.Create("api-key")).Returns(client.Object);
         SendGridEmailAdapter adapter = new(factory.Object, Options());
 
-        await adapter.SendAsync(Request());
-        await adapter.SendAsync(Request());
+        await adapter.SendAsync(Request(), TestContext.CancellationToken);
+        await adapter.SendAsync(Request(), TestContext.CancellationToken);
 
         factory.Verify(x => x.Create("api-key"), Times.Once);
         client.Verify(
@@ -160,7 +164,7 @@ public sealed class SendGridEmailAdapterTests
             .ReturnsAsync(Response(HttpStatusCode.Accepted, content: content));
         SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
-        await adapter.SendAsync(Request());
+        await adapter.SendAsync(Request(), TestContext.CancellationToken);
 
         Assert.IsTrue(content.IsDisposed);
     }
@@ -210,4 +214,6 @@ public sealed class SendGridEmailAdapterTests
             base.Dispose(disposing);
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

@@ -262,30 +262,22 @@ namespace OmnidotsAdapterTests
 
         public static string AlertTypeJson(AlertType alertType)
         {
-            switch (alertType)
+            return alertType switch
             {
-                case AlertType.Ignore:
-                    return TestUtil.ReadTextFromFile("testdata/alarm_ignore.json");
-                case AlertType.Alert:
-                    return TestUtil.ReadTextFromFile("testdata/alarm_alert.json");
-                case AlertType.Caution:
-                    return TestUtil.ReadTextFromFile("testdata/alarm_caution.json");
-
-                default:
-                    throw new Exception("No json for alert type");
-            }
+                AlertType.Ignore => TestUtil.ReadTextFromFile("testdata/alarm_ignore.json"),
+                AlertType.Alert => TestUtil.ReadTextFromFile("testdata/alarm_alert.json"),
+                AlertType.Caution => TestUtil.ReadTextFromFile("testdata/alarm_caution.json"),
+                _ => throw new Exception("No json for alert type"),
+            };
         }
 
         public static string AlertTypeHash(AlertType alertType)
         {
-            switch (alertType)
+            return alertType switch
             {
-                case AlertType.Ignore:
-                case AlertType.Caution:
-                case AlertType.Alert:
-                    return GetHash(
-                        AlertTypeJson(alertType),
-                        Environment.GetEnvironmentVariable("RVT__OMNIDOTS_WEBHOOK_SECRET") ?? string.Empty);
+                AlertType.Ignore or AlertType.Caution or AlertType.Alert => GetHash(
+                                    AlertTypeJson(alertType),
+                                    Environment.GetEnvironmentVariable("RVT__OMNIDOTS_WEBHOOK_SECRET") ?? string.Empty),
                 //HE local test values dell.
                 //case AlertType.Ignore:
                 //    return "sha256=b12da2afdc5388e076c86fcec072d18d82098c9ef74015849a62b4bbf4303d9b";
@@ -306,9 +298,8 @@ namespace OmnidotsAdapterTests
                 //    return "sha256=129937183b46c41f4cd26eadac8ae4894cd70e53d2f20c195bf74d3f3704f21f";
                 //case AlertType.Alert:
                 //    return "sha256=a62c52352b8bed44c5bce2bc7cdbd06a5f9aca3fb2e73eeeacfc6356190aac18";
-                default:
-                    throw new Exception("No hash for alert type");
-            }
+                _ => throw new Exception("No hash for alert type"),
+            };
         }
 
         private static string GetHash(string text, string key)

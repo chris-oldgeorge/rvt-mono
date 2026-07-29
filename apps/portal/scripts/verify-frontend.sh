@@ -8,4 +8,4 @@ npm run test:run
 npm run build
 popd >/dev/null
 
-test -f RvtPortal.Client/dist/index.html
+[[ -f RvtPortal.Client/dist/index.html ]]

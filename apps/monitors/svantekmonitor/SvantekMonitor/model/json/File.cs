@@ -9,7 +9,7 @@ namespace Svantek.Model.Http
     public class ProjectFilesResponse
     {
         public string status { get; set; } = string.Empty;
-        public List<ProjectFile> files { get; set; } = new();
+        public List<ProjectFile> files { get; set; } = [];
         public int files_size { get; set; }
     }
 
@@ -29,9 +29,8 @@ namespace Svantek.Model.Http
         {
             get
             {
-                DateTime dt;
-                string filenametime = filename.Substring(0, 4) + "-" + filename.Substring(4, 2) + "-" + filename.Substring(6, 2) + " " + filename.Substring(9, 2) + ":" + filename.Substring(12, 2) + ":" + filename.Substring(15, 2);
-                return DateTime.TryParse(filenametime, CultureInfo.InvariantCulture, out dt) ? dt : DateTime.Now.AddDays(1);
+                string filenametime = filename[..4] + "-" + filename[4..6] + "-" + filename[6..8] + " " + filename[9..11] + ":" + filename[12..14] + ":" + filename[15..17];
+                return DateTime.TryParse(filenametime, CultureInfo.InvariantCulture, out DateTime dt) ? dt : DateTime.Now.AddDays(1);
             }
         }
     }

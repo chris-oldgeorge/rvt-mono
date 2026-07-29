@@ -51,7 +51,7 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.AuthenticateTask());
 
             OmnidotsHttpGateway gateway = new(httpClient.Object, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
-            TokenResponse response = await gateway.AuthenticateAsync();
+            TokenResponse response = await gateway.AuthenticateAsync(TestContext.CancellationToken);
             AssertTokenResponse(response);
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
@@ -81,7 +81,7 @@ namespace OmnidotsAdapterTests
             httpClient.Setup(c => c.GetAsync(measuringPointsUrl, It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.MeasuringPointsJson()));
 
-            await testObj.StoreMonitorsAsync();
+            await testObj.StoreMonitorsAsync(TestContext.CancellationToken);
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
              It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -115,7 +115,7 @@ namespace OmnidotsAdapterTests
             httpClient.Setup(c => c.GetAsync(measuringPointsUrl, It.IsAny<CancellationToken>())).
                 Returns(OmnidotsFixture.StringTask(TestLocalMeasuringPointsJson()));
 
-            await testObj.StoreMonitorsAsync();
+            await testObj.StoreMonitorsAsync(TestContext.CancellationToken);
 
             dbClient.Verify(c => c.WriteMonitorList(It.Is<List<VibrationMonitorDto>>(
                 monitors => monitors.Count == 1 && monitors[0].SerialId == "14768")), Times.Exactly(1));
@@ -131,86 +131,86 @@ namespace OmnidotsAdapterTests
 
         private static string TestLocalMeasuringPointsJson() =>
             """
+        {
+          "ok": true,
+          "measuring_points": [
             {
-              "ok": true,
-              "measuring_points": [
-                {
-                  "name": "Vibration - Other - 99999",
-                  "id": 99999,
-                  "active": true,
-                  "disable_led": false,
-                  "log_flush_interval": 5,
-                  "timezone": "Europe/London",
-                  "vtop_enabled": "Off",
-                  "atop_enabled": "Off",
-                  "vector_enabled": "Off",
-                  "guide_line": "DIN4150_3_80Hz",
-                  "building_level": "unspecified",
-                  "category": "CAT3",
-                  "measurement_duration": 60,
-                  "data_save_level": 1,
-                  "noise_saving_enabled": "Off",
-                  "vdv_enabled": "Off",
-                  "vdv_period": 0,
-                  "trace_save_level": 1,
-                  "trace_pre_trigger": 1,
-                  "trace_post_trigger": 1,
-                  "schedule_enable_1": "00:00:00",
-                  "schedule_disable_1": "24:00:00",
-                  "schedule_enable_2": "00:00:00",
-                  "schedule_disable_2": "24:00:00",
-                  "schedule_enable_3": "00:00:00",
-                  "schedule_disable_3": "24:00:00",
-                  "schedule_enable_4": "00:00:00",
-                  "schedule_disable_4": "24:00:00",
-                  "schedule_enable_5": "00:00:00",
-                  "schedule_disable_5": "24:00:00",
-                  "schedule_enable_6": "00:00:00",
-                  "schedule_disable_6": "24:00:00",
-                  "schedule_enable_0": "00:00:00",
-                  "schedule_disable_0": "24:00:00",
-                  "alarm_value": 50
-                },
-                {
-                  "name": "Vibration - R17222V-QUCILO - 14768",
-                  "id": 14768,
-                  "active": true,
-                  "disable_led": false,
-                  "log_flush_interval": 5,
-                  "timezone": "Europe/London",
-                  "vtop_enabled": "Off",
-                  "atop_enabled": "Off",
-                  "vector_enabled": "Off",
-                  "guide_line": "DIN4150_3_80Hz",
-                  "building_level": "unspecified",
-                  "category": "CAT3",
-                  "measurement_duration": 60,
-                  "data_save_level": 1,
-                  "noise_saving_enabled": "Off",
-                  "vdv_enabled": "Off",
-                  "vdv_period": 0,
-                  "trace_save_level": 1,
-                  "trace_pre_trigger": 1,
-                  "trace_post_trigger": 1,
-                  "schedule_enable_1": "00:00:00",
-                  "schedule_disable_1": "24:00:00",
-                  "schedule_enable_2": "00:00:00",
-                  "schedule_disable_2": "24:00:00",
-                  "schedule_enable_3": "00:00:00",
-                  "schedule_disable_3": "24:00:00",
-                  "schedule_enable_4": "00:00:00",
-                  "schedule_disable_4": "24:00:00",
-                  "schedule_enable_5": "00:00:00",
-                  "schedule_disable_5": "24:00:00",
-                  "schedule_enable_6": "00:00:00",
-                  "schedule_disable_6": "24:00:00",
-                  "schedule_enable_0": "00:00:00",
-                  "schedule_disable_0": "24:00:00",
-                  "alarm_value": 50
-                }
-              ]
+              "name": "Vibration - Other - 99999",
+              "id": 99999,
+              "active": true,
+              "disable_led": false,
+              "log_flush_interval": 5,
+              "timezone": "Europe/London",
+              "vtop_enabled": "Off",
+              "atop_enabled": "Off",
+              "vector_enabled": "Off",
+              "guide_line": "DIN4150_3_80Hz",
+              "building_level": "unspecified",
+              "category": "CAT3",
+              "measurement_duration": 60,
+              "data_save_level": 1,
+              "noise_saving_enabled": "Off",
+              "vdv_enabled": "Off",
+              "vdv_period": 0,
+              "trace_save_level": 1,
+              "trace_pre_trigger": 1,
+              "trace_post_trigger": 1,
+              "schedule_enable_1": "00:00:00",
+              "schedule_disable_1": "24:00:00",
+              "schedule_enable_2": "00:00:00",
+              "schedule_disable_2": "24:00:00",
+              "schedule_enable_3": "00:00:00",
+              "schedule_disable_3": "24:00:00",
+              "schedule_enable_4": "00:00:00",
+              "schedule_disable_4": "24:00:00",
+              "schedule_enable_5": "00:00:00",
+              "schedule_disable_5": "24:00:00",
+              "schedule_enable_6": "00:00:00",
+              "schedule_disable_6": "24:00:00",
+              "schedule_enable_0": "00:00:00",
+              "schedule_disable_0": "24:00:00",
+              "alarm_value": 50
+            },
+            {
+              "name": "Vibration - R17222V-QUCILO - 14768",
+              "id": 14768,
+              "active": true,
+              "disable_led": false,
+              "log_flush_interval": 5,
+              "timezone": "Europe/London",
+              "vtop_enabled": "Off",
+              "atop_enabled": "Off",
+              "vector_enabled": "Off",
+              "guide_line": "DIN4150_3_80Hz",
+              "building_level": "unspecified",
+              "category": "CAT3",
+              "measurement_duration": 60,
+              "data_save_level": 1,
+              "noise_saving_enabled": "Off",
+              "vdv_enabled": "Off",
+              "vdv_period": 0,
+              "trace_save_level": 1,
+              "trace_pre_trigger": 1,
+              "trace_post_trigger": 1,
+              "schedule_enable_1": "00:00:00",
+              "schedule_disable_1": "24:00:00",
+              "schedule_enable_2": "00:00:00",
+              "schedule_disable_2": "24:00:00",
+              "schedule_enable_3": "00:00:00",
+              "schedule_disable_3": "24:00:00",
+              "schedule_enable_4": "00:00:00",
+              "schedule_disable_4": "24:00:00",
+              "schedule_enable_5": "00:00:00",
+              "schedule_disable_5": "24:00:00",
+              "schedule_enable_6": "00:00:00",
+              "schedule_disable_6": "24:00:00",
+              "schedule_enable_0": "00:00:00",
+              "schedule_disable_0": "24:00:00",
+              "alarm_value": 50
             }
-            """;
+          ]
+        }
+        """;
 
 
         [TestMethod]
@@ -224,7 +224,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).
                 Returns([]);
 
-            await testObj.CheckForOfflineMonitorsAsync();
+            await testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken);
 
             httpClient.VerifyNoOtherCalls();
 
@@ -261,7 +261,7 @@ namespace OmnidotsAdapterTests
             List<RvtContactDto> contacts = OmnidotsFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(It.IsAny<Guid>())).Returns(contacts);
 
-            await testObj.CheckForOfflineMonitorsAsync();
+            await testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken);
 
             httpClient.VerifyNoOtherCalls();
 
@@ -328,7 +328,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.ReadAlertContacts(validMonitor.Id))
                 .Returns(OmnidotsFixture.AlertContacts());
 
-            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.CheckForOfflineMonitorsAsync());
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken));
 
             Assert.AreEqual("CheckForOfflineMonitors", exception.Operation);
             Assert.HasCount(1, exception.Failures);
@@ -394,7 +394,7 @@ namespace OmnidotsAdapterTests
                     It.IsAny<Exception>()))
                 .Throws(recordingException);
 
-            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.CheckForOfflineMonitorsAsync());
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken));
 
             Assert.AreEqual("CheckForOfflineMonitors", exception.Operation);
             Assert.HasCount(1, exception.Failures);
@@ -441,7 +441,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns([]);
 
-            await testObj.StorePeakRecordsLastDataTimeAsync();
+            await testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken);
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
@@ -466,7 +466,7 @@ namespace OmnidotsAdapterTests
 
             dbClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(2));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(2));
 
             mqttClient.VerifyNoOtherCalls();
             messageClient.VerifyNoOtherCalls();
@@ -496,7 +496,7 @@ namespace OmnidotsAdapterTests
             cursorQueries.Setup(c => c.ReadImportCursor("1", OmnidotsMeasurementSeries.Peak))
                 .Returns(cursor);
 
-            await testObj.StorePeakRecordsLastDataTimeAsync();
+            await testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken);
 
             Assert.IsNotNull(requestedUrl);
             Assert.AreEqual(DateTimeUtil.GetMillis(cursor.AddMinutes(-5)), RequestTime(requestedUrl, "start_time"));
@@ -512,7 +512,7 @@ namespace OmnidotsAdapterTests
             cursorQueries.Verify(c => c.ReadLatestMeasurementTime(It.IsAny<string>(), It.IsAny<OmnidotsMeasurementSeries>()), Times.Never);
             dbClient.Verify(c => c.InsertPeakRecordsTable(It.IsAny<DataTable>()), Times.Never);
             dbClient.Verify(c => c.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>()), Times.Never);
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Once);
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Once);
             messageClient.VerifyNoOtherCalls();
         }
 
@@ -538,7 +538,7 @@ namespace OmnidotsAdapterTests
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns([monitor]);
 
-            await testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2));
+            await testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2), TestContext.CancellationToken);
             DateTime after = DateTime.UtcNow;
 
             Assert.IsNotNull(requestedUrl);
@@ -581,7 +581,7 @@ namespace OmnidotsAdapterTests
             cursorQueries.Setup(c => c.ReadLatestMeasurementTime("1", OmnidotsMeasurementSeries.Vdv))
                 .Returns(storedMeasurement);
 
-            await testObj.StoreVdvRecordsAsync(TimeSpan.FromHours(2));
+            await testObj.StoreVdvRecordsAsync(TimeSpan.FromHours(2), TestContext.CancellationToken);
 
             Assert.IsNotNull(requestedUrl);
             Assert.AreEqual(DateTimeUtil.GetMillis(storedMeasurement.AddMinutes(-5)), RequestTime(requestedUrl, "start_time"));
@@ -597,7 +597,7 @@ namespace OmnidotsAdapterTests
             dbClient.Verify(c => c.InsertVdvRecords(It.IsAny<string>(), It.IsAny<List<VdvRecordDto>>()), Times.Never);
             dbClient.Verify(c => c.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>()), Times.Never);
             dbClient.Verify(c => c.SetMonitorOffline(monitor.Id, false), Times.Once);
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Once);
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Once);
             messageClient.VerifyNoOtherCalls();
         }
 
@@ -624,7 +624,7 @@ namespace OmnidotsAdapterTests
                     "1", It.IsAny<IReadOnlyCollection<VeffRecordDto>>(), It.IsAny<DateTime>()))
                 .Throws(importFailure);
 
-            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2)));
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2), TestContext.CancellationToken));
 
             Assert.AreEqual("StoreVeffRecords", exception.Operation);
             Assert.AreEqual("1", exception.Failures.Single().SerialId);
@@ -634,7 +634,7 @@ namespace OmnidotsAdapterTests
             dbClient.Verify(c => c.SetMonitorOffline(monitors[0].Id, false), Times.Never);
             dbClient.Verify(c => c.SetMonitorOffline(monitors[1].Id, false), Times.Once);
             dbClient.Verify(c => c.HandleException("StoreVeffRecords serialId=1", importFailure), Times.Once);
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Once);
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Once);
             cursorQueries.Verify(c => c.ReadImportCursor(It.IsAny<string>(), OmnidotsMeasurementSeries.Veff), Times.Exactly(2));
             messageClient.VerifyNoOtherCalls();
         }
@@ -671,7 +671,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns([]);
 
-            await testObj.StorePeakRecordsLastDataTimeAsync();
+            await testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken);
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
@@ -698,7 +698,7 @@ namespace OmnidotsAdapterTests
 
             dbClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(2));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(2));
 
             mqttClient.VerifyNoOtherCalls();
             messageClient.VerifyNoOtherCalls();
@@ -725,7 +725,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns([]);
 
-            await testObj.StoreVdvRecordsAsync(TimeSpan.FromMinutes(10));
+            await testObj.StoreVdvRecordsAsync(TimeSpan.FromMinutes(10), TestContext.CancellationToken);
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
@@ -751,7 +751,7 @@ namespace OmnidotsAdapterTests
             }
             dbClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(2));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(2));
 
             mqttClient.VerifyNoOtherCalls();
             messageClient.VerifyNoOtherCalls();
@@ -779,7 +779,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns([]);
 
-            await testObj.StoreVeffRecordsAsync(TimeSpan.FromMinutes(10));
+            await testObj.StoreVeffRecordsAsync(TimeSpan.FromMinutes(10), TestContext.CancellationToken);
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
@@ -805,7 +805,7 @@ namespace OmnidotsAdapterTests
             }
             dbClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(2));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(2));
 
             mqttClient.VerifyNoOtherCalls();
         }
@@ -833,7 +833,7 @@ namespace OmnidotsAdapterTests
                     url.Contains("measuring_point_id=1", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"traces\":[]}"));
 
-            await testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5));
+            await testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5), TestContext.CancellationToken);
 
             httpClient.Verify(client => client.GetAsync(It.Is<string>(url =>
                 url.StartsWith("/api/v1/get_traces_list", StringComparison.Ordinal) &&
@@ -859,7 +859,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(client => client.ReadMonitorList(It.IsAny<DateTime?>()))
                 .Returns(OmnidotsFixture.MonitorsList(1));
 
-            await testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5));
+            await testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5), TestContext.CancellationToken);
 
             httpClient.VerifyNoOtherCalls();
             mqttClient.VerifyNoOtherCalls();
@@ -893,7 +893,7 @@ namespace OmnidotsAdapterTests
             List<RvtContactDto> contacts = OmnidotsFixture.AlertContacts();
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id)).
                 Returns(contacts);
-            await testObj.NotifyBatteryLevelsAsync();
+            await testObj.NotifyBatteryLevelsAsync(TestContext.CancellationToken);
             httpClient.VerifyNoOtherCalls();
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             if (expectNotification)
@@ -1027,7 +1027,7 @@ namespace OmnidotsAdapterTests
         private static void AssertTokenResponse(TokenResponse response)
         {
             Assert.IsNotNull(response);
-            Assert.IsInstanceOfType(response, typeof(TokenResponse));
+            Assert.IsInstanceOfType<TokenResponse>(response);
             Assert.IsTrue(response.Ok);
             Assert.AreEqual("702811da14ff4225973c4054ed52bb9f", response.Token);
         }
@@ -1040,5 +1040,7 @@ namespace OmnidotsAdapterTests
                 .Single(part => part[0] == name)[1];
             return long.Parse(value);
         }
+
+        public TestContext TestContext { get; set; } = null!;
     }
 }

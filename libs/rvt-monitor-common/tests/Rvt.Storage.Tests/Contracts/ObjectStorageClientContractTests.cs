@@ -35,7 +35,7 @@ public abstract class ObjectStorageClientContractTests
         await using NonSeekableReadStream content = new([1, 2, 3]);
 
         StorageWriteResult result = await fixture.Client.WriteAsync(
-            new StorageWriteRequest(key, content, "application/octet-stream"));
+            new StorageWriteRequest(key, content, "application/octet-stream"), TestContext.CancellationToken);
 
         Assert.AreSame(key, result.Key);
         Assert.AreEqual("project/source/sample.bin", result.Key.Value);
@@ -54,7 +54,7 @@ public abstract class ObjectStorageClientContractTests
             expectedContent,
             "application/octet-stream");
 
-        await using StorageReadResult? result = await fixture.Client.OpenReadAsync(key);
+        await using StorageReadResult? result = await fixture.Client.OpenReadAsync(key, TestContext.CancellationToken);
 
         Assert.IsNotNull(result);
         Assert.AreEqual("application/octet-stream", result.ContentType);
@@ -68,7 +68,7 @@ public abstract class ObjectStorageClientContractTests
         await using IObjectStorageClientFixture fixture = await CreateFixtureAsync();
 
         StorageReadResult? result = await fixture.Client.OpenReadAsync(
-            StorageObjectKey.Parse("project-a/source-a/missing.bin"));
+            StorageObjectKey.Parse("project-a/source-a/missing.bin"), TestContext.CancellationToken);
 
         Assert.IsNull(result);
     }
@@ -96,12 +96,12 @@ public abstract class ObjectStorageClientContractTests
         StorageObjectKey key = StorageObjectKey.Parse("project-a/source-a/sample.bin");
         await WriteAsync(fixture.Client, key, [1, 2, 3], "application/octet-stream");
 
-        bool existingResult = await fixture.Client.DeleteIfExistsAsync(key);
-        bool missingResult = await fixture.Client.DeleteIfExistsAsync(key);
+        bool existingResult = await fixture.Client.DeleteIfExistsAsync(key, TestContext.CancellationToken);
+        bool missingResult = await fixture.Client.DeleteIfExistsAsync(key, TestContext.CancellationToken);
 
         Assert.IsTrue(existingResult);
         Assert.IsFalse(missingResult);
-        Assert.IsNull(await fixture.Client.OpenReadAsync(key));
+        Assert.IsNull(await fixture.Client.OpenReadAsync(key, TestContext.CancellationToken));
     }
 
     [TestMethod]
@@ -252,6 +252,8 @@ public abstract class ObjectStorageClientContractTests
             await base.DisposeAsync();
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }
 
 public interface IObjectStorageClientFixture : IAsyncDisposable

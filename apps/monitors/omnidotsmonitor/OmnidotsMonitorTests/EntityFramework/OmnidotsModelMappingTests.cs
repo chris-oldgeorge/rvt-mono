@@ -7,7 +7,7 @@ using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
 
-namespace OmnidotsMonitorTests.EntityFramework;
+namespace OmnidotsAdapterTests.EntityFramework;
 
 [TestClass]
 public sealed class OmnidotsModelMappingTests

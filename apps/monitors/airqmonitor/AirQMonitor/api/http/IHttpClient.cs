@@ -11,5 +11,4 @@ namespace AirQ.Api.Http
         public Task<string> GetAsync(string path, CancellationToken cancellationToken = default);
 
     }
-
 }

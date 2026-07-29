@@ -8,7 +8,11 @@ public sealed class EmailAttachment
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
-        if (content.IsEmpty) throw new ArgumentException("Attachment content must not be empty.", nameof(content));
+        if (content.IsEmpty)
+        {
+            throw new ArgumentException("Attachment content must not be empty.", nameof(content));
+        }
+
         FileName = fileName;
         ContentType = contentType;
         this.content = content.ToArray();

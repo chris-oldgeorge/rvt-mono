@@ -8,7 +8,7 @@ namespace Svantek.Model.Http
     public class StationsResponse
     {
         public string status { get; set; } = string.Empty;
-        public List<Station> stations { get; set; } = new();
+        public List<Station> stations { get; set; } = [];
     }
 
     public class Station
@@ -57,7 +57,7 @@ namespace Svantek.Model.Http
         public int memoryfreepercent { get; set; }
 
         [JsonPropertyName("warning-list")]
-        public List<string> warninglist { get; set; } = new();
+        public List<string> warninglist { get; set; } = [];
 
         [JsonPropertyName("warning-level")]
         public int warninglevel { get; set; }

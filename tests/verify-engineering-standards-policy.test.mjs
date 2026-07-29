@@ -664,7 +664,7 @@ test('legacy baseline is valid, deterministic, unique, and excludes generated pa
     ['version', 'generatedAt', 'entries'],
     'baseline must use the version/generatedAt/entries interface'
   );
-  assert.equal(baseline.generatedAt, '2026-07-28');
+  assert.equal(baseline.generatedAt, '2026-07-29');
   validateBaseline(baseline);
 
   const keys = baseline.entries.map(diagnosticKey);

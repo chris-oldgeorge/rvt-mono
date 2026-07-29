@@ -25,9 +25,9 @@ public sealed class MessageServiceMissingDestinationTests
                 LegacyMessageKind.Alert,
                 LegacyMessageChannel.SMS,
                 new RvtContactDto(false, true, "alerts@example.test", null, null, null),
-                "fleet-1"));
+                "fleet-1", cancellationToken: TestContext.CancellationToken));
 
-        StringAssert.Contains(exception.Message, "phone number");
+        Assert.Contains("phone number", exception.Message);
         delivery.Verify(
             x => x.SendAsync(It.IsAny<NotificationDeliveryRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
@@ -44,7 +44,7 @@ public sealed class MessageServiceMissingDestinationTests
                 LegacyMessageKind.Alert,
                 LegacyMessageChannel.SMS,
                 new RvtContactDto(false, true, "alerts@example.test", "   ", null, null),
-                "fleet-1"));
+                "fleet-1", cancellationToken: TestContext.CancellationToken));
 
         delivery.Verify(
             x => x.SendAsync(It.IsAny<NotificationDeliveryRequest>(), It.IsAny<CancellationToken>()),
@@ -62,9 +62,9 @@ public sealed class MessageServiceMissingDestinationTests
                 LegacyMessageKind.Alert,
                 LegacyMessageChannel.Email,
                 new RvtContactDto(true, false, string.Empty, "+15550001111", null, null),
-                "fleet-1"));
+                "fleet-1", cancellationToken: TestContext.CancellationToken));
 
-        StringAssert.Contains(exception.Message, "email address");
+        Assert.Contains("email address", exception.Message);
         delivery.Verify(
             x => x.SendAsync(It.IsAny<NotificationDeliveryRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
@@ -86,4 +86,6 @@ public sealed class MessageServiceMissingDestinationTests
             "fleet-1"));
 #pragma warning restore CS0618
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

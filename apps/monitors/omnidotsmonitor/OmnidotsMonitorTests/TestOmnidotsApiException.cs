@@ -40,11 +40,11 @@ namespace OmnidotsAdapterTests
             OmnidotsHttpGateway gateway = new(httpClient.Object, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
-                await gateway.AuthenticateAsync();
+                await gateway.AuthenticateAsync(TestContext.CancellationToken);
             });
 
             Assert.AreEqual("Failed ! Invalid ErrorResponse", exception.Message);
-            Assert.IsInstanceOfType(exception.InnerException, typeof(JsonException));
+            Assert.IsInstanceOfType<JsonException>(exception.InnerException);
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
                 It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -71,7 +71,7 @@ namespace OmnidotsAdapterTests
             OmnidotsHttpGateway gateway = new(httpClient.Object, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
-                await gateway.AuthenticateAsync();
+                await gateway.AuthenticateAsync(TestContext.CancellationToken);
             });
             Assert.AreEqual("Failed ! error message='Some error message.'", exception.Message);
 
@@ -104,10 +104,10 @@ namespace OmnidotsAdapterTests
 
             AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
-                await testObj.StoreMonitorsAsync();
+                await testObj.StoreMonitorsAsync(TestContext.CancellationToken);
             });
             Assert.AreEqual("Failed ! Invalid ErrorResponse", exception.Message);
-            Assert.IsInstanceOfType(exception.InnerException, typeof(JsonException));
+            Assert.IsInstanceOfType<JsonException>(exception.InnerException);
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
                 It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -139,7 +139,7 @@ namespace OmnidotsAdapterTests
             AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(async () =>
             {
 
-                await testObj.StoreMonitorsAsync();
+                await testObj.StoreMonitorsAsync(TestContext.CancellationToken);
             });
             Assert.AreEqual("Failed ! error message='Some error message.'", exception.Message);
 
@@ -174,9 +174,9 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.StringTask("Blahh"));
 
 
-            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsLastDataTimeAsync());
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken));
             Assert.AreEqual("StorePeakRecords", exception.Operation);
-            CollectionAssert.AreEqual(new[] { "1", "2" }, exception.Failures.Select(failure => failure.SerialId).ToArray());
+            CollectionAssert.AreEqual(_expected, exception.Failures.Select(failure => failure.SerialId).ToArray());
 
             httpClient.Verify(c => c.PostAsync(authUrl, It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
             httpClient.Verify(c =>
@@ -201,6 +201,8 @@ namespace OmnidotsAdapterTests
             mqttClient.VerifyNoOtherCalls();
         }
 
+        private static readonly string[] _expected = ["1", "2"];
+
         [TestMethod]
         public async Task TestStorePeakRecords_ErrorJson_ThrowsCorrectException()
         {
@@ -222,9 +224,9 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.ErrorJson()));
 
 
-            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsLastDataTimeAsync());
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken));
             Assert.AreEqual("StorePeakRecords", exception.Operation);
-            CollectionAssert.AreEqual(new[] { "1", "2" }, exception.Failures.Select(failure => failure.SerialId).ToArray());
+            CollectionAssert.AreEqual(_expected, exception.Failures.Select(failure => failure.SerialId).ToArray());
 
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
              It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -270,7 +272,7 @@ namespace OmnidotsAdapterTests
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
 
             await AssertAggregateFailure(
-                () => testObj.StorePeakRecordsLastDataTimeAsync(),
+                () => testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken),
                 "StorePeakRecords",
                 "1");
 
@@ -302,7 +304,7 @@ namespace OmnidotsAdapterTests
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
 
             await AssertAggregateFailure(
-                () => testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2)),
+                () => testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2), TestContext.CancellationToken),
                 "StoreVeffRecords",
                 "1");
 
@@ -334,7 +336,7 @@ namespace OmnidotsAdapterTests
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
 
             await AssertAggregateFailure(
-                () => testObj.StoreVdvRecordsAsync(TimeSpan.FromHours(2)),
+                () => testObj.StoreVdvRecordsAsync(TimeSpan.FromHours(2), TestContext.CancellationToken),
                 "StoreVdvRecords",
                 "1");
 
@@ -363,7 +365,7 @@ namespace OmnidotsAdapterTests
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"traces\":[]}"));
 
             await AssertAggregateFailure(
-                () => testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5)),
+                () => testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5), TestContext.CancellationToken),
                 "StoreTraces",
                 "23423");
 
@@ -402,9 +404,9 @@ namespace OmnidotsAdapterTests
 
             Func<Task> import = operation switch
             {
-                "StorePeakRecords" => () => testObj.StorePeakRecordsLastDataTimeAsync(),
-                "StoreVeffRecords" => () => testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2)),
-                "StoreVdvRecords" => () => testObj.StoreVdvRecordsAsync(TimeSpan.FromHours(2)),
+                "StorePeakRecords" => () => testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken),
+                "StoreVeffRecords" => () => testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2), TestContext.CancellationToken),
+                "StoreVdvRecords" => () => testObj.StoreVdvRecordsAsync(TimeSpan.FromHours(2), TestContext.CancellationToken),
                 _ => throw new AssertFailedException($"Unexpected operation '{operation}'.")
             };
 
@@ -437,7 +439,7 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.HandleException("StoreTraces serialId=23423", It.IsAny<AdapterException>()))
                 .Throws(recordingException);
 
-            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5)));
+            OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5), TestContext.CancellationToken));
 
             AssertRecordingFailureContext(exception, "StoreTraces", "23423", recordingException);
             httpClient.Verify(c => c.GetAsync(It.Is<string>(url =>
@@ -474,5 +476,6 @@ namespace OmnidotsAdapterTests
             Assert.AreSame(recordingException, failure.RecordingException);
         }
 
+        public TestContext TestContext { get; set; } = null!;
     }
 }

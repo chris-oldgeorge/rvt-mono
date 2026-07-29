@@ -10,18 +10,23 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
-- The current branch `feat/p0-guardrails` executes the P0 guardrail backlog
-  from
+- Pull requests are gated by two workflows. `Engineering standards` grades the
+  changed surface; `Tests` (added by PR #20) runs the whole `Rvt.Mono.slnx`
+  suite against a TimescaleDB service container, the Portal client type check
+  and unit tests, the five repository guards, and every `tests/*.test.sh`
+  contract test as a glob. Before PR #20 no workflow ran any test on a pull
+  request, and the guards and contract tests were wired into nothing.
+- `main` carries the P0 guardrail work (PR #20) from
   [docs/reviews/2026-07-28-duplication-legacy-consistency-review.md](docs/reviews/2026-07-28-duplication-legacy-consistency-review.md):
-  a new `Tests` pull-request workflow (full `Rvt.Mono.slnx` suite against a
-  TimescaleDB service container, Portal client type check and unit tests, the
-  five repository guards, and every `tests/*.test.sh` contract test), AirQ
-  architecture guards, the portal `Application → Spa.Api` shrinking baseline,
-  the `MonitorHost` one-shot shutdown token, and the Svantek HTTP timeout.
-  SonarQube stays manual: `tests/verify-manual-sonarqube-workflow.test.sh`
+  the `Tests` workflow and its mutation-tested contract, AirQ architecture
+  guards, the portal `Application → Spa.Api` shrinking baseline, the
+  `MonitorHost` one-shot shutdown token, the Svantek HTTP timeout,
+  cross-platform Portal SPA build targets (the `cmd.exe` wrapper broke any
+  non-Windows build), and portal private static fields converged on the
+  repository-wide `_camelCase` rule.
+- SonarQube stays manual: `tests/verify-manual-sonarqube-workflow.test.sh`
   pins `workflow_dispatch`, so scheduling it is a deliberate product change,
   not a guardrail gap.
-
 - `main` additionally carries the repo-wide explicit-local-types style pass
   (PR #17, merge `c6e77e3a`, 593 files) — local variables use explicit types
   everywhere; keep new code consistent with it.
@@ -36,9 +41,10 @@ superseded narratives to the archive.
   (the authoritative remaining-findings list, including the P0 guardrail backlog:
   PR test job, Svantek HTTP timeout, `MonitorHost` one-shot token, AirQ
   architecture tests, portal `Application → Spa.Api` guard).
-- The branch `codex/monotonic-standards-baseline` remediates the six standards
-  increases found after PR #18 and regenerates the engineering-standards
-  baseline through the official monotonic updater. The baseline falls from
+- `main` carries the monotonic standards-baseline regeneration (PR #21), which
+  remediates the six standards increases found after PR #18 and regenerates the
+  engineering-standards baseline through the official updater. The baseline fell
+  from
   1,994 entries / 7,709 diagnostics to 1,112 entries / 2,072 diagnostics:
   882 entries removed, 12 lowered, 5,637 diagnostic allowances retired, and
   zero increases.

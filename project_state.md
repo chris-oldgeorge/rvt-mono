@@ -10,9 +10,8 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
-- `main` is at merge `5508de5` after PR #19 fixed the engineering-standards
-  verifier so generated `.sonar/` tool inputs do not make committed-range
-  verification fail.
+- `main` is at merge `3f9f0fc` and includes PR #21's monotonic standards
+  baseline, plus PR #19's verifier fix for generated `.sonar/` tool inputs.
 - The active isolated branch is `codex/sonar-release-remediation` in
   `/private/tmp/rvt-sonar-remediation`. Do not modify or clean the unrelated
   dirty linked worktree at `/Users/oldgeorge/Documents/rvt-mono`.
@@ -26,7 +25,8 @@ superseded narratives to the archive.
   80% gate.
 - Local remediation commits exist but are not yet pushed:
   `6be52e7` (`apply initial Sonar maintainability fixes`) and `060fd88`
-  (`enforce clean code style after Sonar fixes`).
+  (`enforce clean code style after Sonar fixes`), plus `17873de`
+  (`record Sonar remediation state`).
 - The completed waves remove the dominant cancellation-token, MSTest
   assertion, array-allocation, and file-scoped namespace findings; they also
   repair the newly exposed style/naming surface without widening the
@@ -38,15 +38,13 @@ superseded narratives to the archive.
 - Full committed-range verification, baseline shrinkage, remaining Sonar
   reliability/maintainability remediation, guardrail additions, CI, and the
   post-fix Sonar rerun are still pending.
-
-## Current blocker
-
-- The required repository-wide pre-read secrets scan reported three
-  secret-like values in
-  `apps/monitors/omnidotsmonitor/OmnidotsMonitorTests/testdata/measuring_points.json`.
-  Do not open that file. If the values are real, rotate them first; then
-  sanitize the fixture and rerun the deterministic scan. Workspace policy
-  blocks further remediation until this is clean.
+- The repository-local `AGENTS.md` now permits two exact Omnidots test-fixture
+  false-positive patterns after their paths, rule IDs, and finding counts were
+  independently verified. Any deviation remains blocking.
+- `main` also carries the explicit-local-types pass (PR #17), critical-findings
+  remediation (PR #15), P1 dead-code and hygiene sweep (PR #18), and PR #21's
+  baseline reduction from 1,994 entries / 7,709 diagnostics to 1,112 entries /
+  2,072 diagnostics.
 
 ## Relevant structure
 
@@ -80,12 +78,16 @@ superseded narratives to the archive.
 - The engineering-standards ratchet
   (`scripts/verify-engineering-standards.sh --base origin/main --head HEAD`)
   grades the changed surface. This remediation intentionally converted legacy
-  namespaces and then fixed the resulting whole-file graded surface.
+  namespaces and then fixed the resulting whole-file graded surface. Pure
+  deletions are safe, but any edited line must satisfy the standards.
+- Full standards inventory and baseline regeneration invoke Roslyn through a
+  local named pipe. Sandboxed runs that prohibit local IPC fail before
+  producing a report; rerun the unchanged command with local IPC permitted.
 
 ## Standing working-tree notes
 
 - The original linked worktree contains a large unrelated formatting
   migration on `codex/monotonic-standards-baseline`; preserve it exactly.
 - Resume by reading this file, switching to
-  `/private/tmp/rvt-sonar-remediation`, and addressing the blocker before any
-  additional workspace file reads.
+  `/private/tmp/rvt-sonar-remediation`, and continuing the Sonar remediation
+  plan. Apply the repository's pre-read secrets policy to newly changed files.

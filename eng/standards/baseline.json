@@ -89,12 +89,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/ReportingMonitorTests/Core/Reports/ReportGraphTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
       "path": "apps/monitors/reportingmonitor/ReportingMonitorTests/Core/Reports/ReportInsightBuilderTests.cs",
       "count": 1
     },
@@ -780,7 +774,7 @@
       "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
       "path": "libs/rvt-monitor-common/src/Rvt.Communication/NotificationMessageComposer.cs",
-      "count": 2
+      "count": 1
     },
     {
       "tool": "dotnet-format-style",
@@ -804,7 +798,7 @@
       "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
       "path": "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Alerts/DurableAlertDispatcher.cs",
-      "count": 5
+      "count": 4
     },
     {
       "tool": "dotnet-format-style",
@@ -870,12 +864,6 @@
       "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
       "path": "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Hosting/MonitorOpenTelemetryOptions.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "libs/rvt-monitor-common/src/Rvt.Storage.Abstractions/ObjectStorageClientFactory.cs",
       "count": 1
     },
     {

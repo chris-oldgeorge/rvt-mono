@@ -4,8 +4,8 @@ namespace Svantek.Api.Db.EntityFramework;
 
 public static class SvantekAggregateFields
 {
-    private static readonly IReadOnlyDictionary<string, MonitorAggregateField<SvantekNoiseLevelEntity>> _fields =
-        new Dictionary<string, MonitorAggregateField<SvantekNoiseLevelEntity>>(StringComparer.Ordinal)
+    private static readonly Dictionary<string, MonitorAggregateField<SvantekNoiseLevelEntity>> _fields =
+        new(StringComparer.Ordinal)
         {
             ["LAeq"] = MonitorAggregateField<SvantekNoiseLevelEntity>.Average("LAeq", row => row.LAeq),
             ["LAmax"] = MonitorAggregateField<SvantekNoiseLevelEntity>.Maximum("LAmax", row => row.LAmax),

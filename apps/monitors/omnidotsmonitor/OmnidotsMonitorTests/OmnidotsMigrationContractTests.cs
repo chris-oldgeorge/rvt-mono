@@ -6,7 +6,7 @@ using Rvt.Monitor.IntegrationTesting;
 namespace OmnidotsAdapterTests;
 
 [TestClass]
-public sealed class OmnidotsMigrationContractTests
+public sealed partial class OmnidotsMigrationContractTests
 {
     private const string _forwardScript = "2026-07-14-add-import-cursors-and-trace-order.sql";
     private const string _rollbackScript = "2026-07-14-rollback-import-cursors-and-trace-order.sql";
@@ -70,9 +70,7 @@ public sealed class OmnidotsMigrationContractTests
             "DROP TABLE IF EXISTS omnidots_import_cursor",
             "COMMIT;");
         Assert.MatchesRegex(
-            new Regex(
-                @"-- WARNING: Dropping sample_index permanently discards trace sample ordering metadata\.\r?\nALTER TABLE IF EXISTS omnidots_trace\s+DROP COLUMN IF EXISTS sample_index;",
-                RegexOptions.CultureInvariant),
+            RollbackWarningPattern(),
             rawScript);
     }
 
@@ -157,23 +155,15 @@ public sealed class OmnidotsMigrationContractTests
 
     private static string RemoveComments(string script)
     {
-        string withoutBlockComments = Regex.Replace(
-            script,
-            @"/\*.*?\*/",
-            string.Empty,
-            RegexOptions.Singleline | RegexOptions.CultureInvariant);
-        return Regex.Replace(
-            withoutBlockComments,
-            @"--[^\r\n]*",
-            string.Empty,
-            RegexOptions.CultureInvariant);
+        string withoutBlockComments = BlockCommentPattern().Replace(script, string.Empty);
+        return LineCommentPattern().Replace(withoutBlockComments, string.Empty);
     }
 
     private static string NormalizeSql(string script)
     {
-        string normalized = Regex.Replace(script, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
-        normalized = Regex.Replace(normalized, @"\(\s+", "(", RegexOptions.CultureInvariant);
-        return Regex.Replace(normalized, @"\s+\)", ")", RegexOptions.CultureInvariant);
+        string normalized = WhitespacePattern().Replace(script, " ").Trim();
+        normalized = OpeningParenthesisWhitespacePattern().Replace(normalized, "(");
+        return ClosingParenthesisWhitespacePattern().Replace(normalized, ")");
     }
 
     private static void AssertCursorHasNoDefault(string script, string startMarker, string endMarker)
@@ -255,4 +245,24 @@ public sealed class OmnidotsMigrationContractTests
 
         throw new DirectoryNotFoundException("Could not find the repository root from the test output directory.");
     }
+
+    [GeneratedRegex(
+        @"-- WARNING: Dropping sample_index permanently discards trace sample ordering metadata\.\r?\nALTER TABLE IF EXISTS omnidots_trace\s+DROP COLUMN IF EXISTS sample_index;",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex RollbackWarningPattern();
+
+    [GeneratedRegex(@"/\*.*?\*/", RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+    private static partial Regex BlockCommentPattern();
+
+    [GeneratedRegex(@"--[^\r\n]*", RegexOptions.CultureInvariant)]
+    private static partial Regex LineCommentPattern();
+
+    [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)]
+    private static partial Regex WhitespacePattern();
+
+    [GeneratedRegex(@"\(\s+", RegexOptions.CultureInvariant)]
+    private static partial Regex OpeningParenthesisWhitespacePattern();
+
+    [GeneratedRegex(@"\s+\)", RegexOptions.CultureInvariant)]
+    private static partial Regex ClosingParenthesisWhitespacePattern();
 }

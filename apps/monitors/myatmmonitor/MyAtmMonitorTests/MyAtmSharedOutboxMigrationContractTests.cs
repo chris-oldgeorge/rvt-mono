@@ -4,7 +4,7 @@ using Rvt.Monitor.IntegrationTesting;
 namespace MyAtmMonitorTests;
 
 [TestClass]
-public sealed class MyAtmSharedOutboxMigrationContractTests
+public sealed partial class MyAtmSharedOutboxMigrationContractTests
 {
     private const string AddDurableOutbox = "2026-07-14-add-durable-outbox.postgres.sql";
     private const string AddHardening = "2026-07-14-add-myatm-hardening.postgres.sql";
@@ -150,10 +150,7 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
         Assert.Contains("'InProgress' THEN 'Leased'", sql);
         Assert.Contains("LEFT JOIN my_atm_alert_occurrence", sql);
         Assert.Contains("ON CONFLICT (delivery_key)", sql);
-        Assert.IsFalse(Regex.IsMatch(
-            sql,
-            @"\b(?:DELETE\s+FROM|UPDATE)\s+monitor_delivery_outbox",
-            RegexOptions.IgnoreCase));
+        Assert.IsFalse(DestructiveOutboxMutationPattern().IsMatch(sql));
         Assert.IsFalse(sql.Contains("DROP TABLE", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -185,4 +182,8 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
             "myatmmonitor",
             "database",
             "migrations");
+    [GeneratedRegex(
+        @"\b(?:DELETE\s+FROM|UPDATE)\s+monitor_delivery_outbox",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex DestructiveOutboxMutationPattern();
 }

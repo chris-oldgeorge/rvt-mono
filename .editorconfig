@@ -30,6 +30,9 @@ dotnet_diagnostic.IDE0161.severity = error
 dotnet_diagnostic.IDE0028.severity = error
 dotnet_diagnostic.CA1873.severity = error
 dotnet_diagnostic.CA1861.severity = error
+dotnet_diagnostic.CA1859.severity = error
+dotnet_diagnostic.IDE0080.severity = error
+dotnet_diagnostic.SYSLIB1045.severity = error
 dotnet_diagnostic.S6667.severity = error
 dotnet_diagnostic.S8949.severity = error
 

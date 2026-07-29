@@ -36,7 +36,7 @@ public sealed class OmnidotsAlertCommitStoreTests
     private static readonly string[] _allDeliveryKinds = ["MqttAlert", "Email", "Sms"];
 
     private static PostgreSqlIntegrationDatabase? _database;
-    private IAlertCommitStore _store = null!;
+    private EfAlertCommitStore<OmnidotsMonitorContext> _store = null!;
 
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext _)

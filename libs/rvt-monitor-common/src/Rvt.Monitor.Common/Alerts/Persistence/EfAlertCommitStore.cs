@@ -245,7 +245,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         string destination,
         string canonicalDestination,
         string payload,
-        ISet<string> planned)
+        HashSet<string> planned)
     {
         string deliveryKey = AlertDeliveryIdentity.Create(
             occurrenceId,

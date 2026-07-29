@@ -61,7 +61,7 @@ public sealed class MyAtmOutboxContractTests
     [TestMethod]
     public async Task ClaimNextDueAsync_RejectsCaseVariantUnknownProducerBeforeDatabaseAccess()
     {
-        IMonitorDeliveryOutboxQueries queries = (IMonitorDeliveryOutboxQueries)new DBClient(string.Empty);
+        DBClient queries = new(string.Empty);
 
         await Assert.ThrowsExactlyAsync<ArgumentException>(() => queries.ClaimNextDueAsync(
             "myatm",

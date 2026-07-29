@@ -15,8 +15,8 @@ public sealed class NotificationMessageComposer : INotificationMessageComposer
         "</body>" +
         "</html>";
 
-    private static readonly IReadOnlyDictionary<(NotificationMessageKind, NotificationChannel), Template> Templates =
-        new Dictionary<(NotificationMessageKind, NotificationChannel), Template>
+    private static readonly Dictionary<(NotificationMessageKind, NotificationChannel), Template> _templates =
+        new()
         {
             [(NotificationMessageKind.Alert, NotificationChannel.Email)] = new(
                 "Alert received from {Monitor}",
@@ -90,7 +90,7 @@ public sealed class NotificationMessageComposer : INotificationMessageComposer
             throw new ArgumentOutOfRangeException(nameof(channel));
         }
 
-        Template template = Templates[(kind, channel)];
+        Template template = _templates[(kind, channel)];
         return new ComposedNotification(
             Substitute(template.Subject, monitorName, callbackUrl),
             Substitute(template.PlainTextBody, monitorName, callbackUrl),

@@ -713,8 +713,8 @@ public class TestDBClient
         Assert.AreEqual(1, ReadScalarInt(connection, "SELECT COUNT(*) FROM notification;"));
         Assert.AreEqual(2, ReadScalarInt(connection, "SELECT COUNT(*) FROM monitor_delivery_outbox WHERE producer = 'MyAtm';"));
 
-        IMonitorDeliveryOutboxQueries queries = (IMonitorDeliveryOutboxQueries)_testObj;
-        IMonitorDeliveryOutboxCommands commands = (IMonitorDeliveryOutboxCommands)_testObj!;
+        DBClient queries = _testObj!;
+        DBClient commands = _testObj!;
         DateTime unspecifiedCommitTime = DateTime.SpecifyKind(commitTime, DateTimeKind.Unspecified);
         MonitorDeliveryMessage?[] claimed =
         [
@@ -936,7 +936,7 @@ public class TestDBClient
         InsertOutboxMessage(connection, pendingId, "Pending", utcNow.AddMinutes(-5), 0, null, null);
         InsertOutboxMessage(connection, expiredId, "InProgress", utcNow.AddMinutes(-4), 7, expiredLeaseId, utcNow.AddSeconds(-1));
 
-        IMonitorDeliveryOutboxQueries queries = (IMonitorDeliveryOutboxQueries)_testObj!;
+        DBClient queries = _testObj!;
         DateTime unspecifiedUtcNow = DateTime.SpecifyKind(utcNow, DateTimeKind.Unspecified);
         MonitorDeliveryMessage? firstClaim = await queries.ClaimNextDueAsync(
             MonitorDeliveryProducers.MyAtm,
@@ -1046,7 +1046,7 @@ public class TestDBClient
     [TestMethod]
     public async Task ClaimNextDueAsync_RejectsUnknownProducerUsingOrdinalValidation()
     {
-        IMonitorDeliveryOutboxQueries queries = (IMonitorDeliveryOutboxQueries)_testObj!;
+        DBClient queries = _testObj!;
 
         await Assert.ThrowsExactlyAsync<ArgumentException>(() => queries.ClaimNextDueAsync(
             "myatm",
@@ -1062,8 +1062,8 @@ public class TestDBClient
         DateTime utcNow = ParseUtc("2026-07-14T12:00:00Z");
         Guid messageId = Guid.NewGuid();
         InsertOutboxMessage(connection, messageId, "Pending", utcNow, 0, null, null);
-        IMonitorDeliveryOutboxQueries queries = (IMonitorDeliveryOutboxQueries)_testObj!;
-        IMonitorDeliveryOutboxCommands commands = (IMonitorDeliveryOutboxCommands)_testObj!;
+        DBClient queries = _testObj!;
+        DBClient commands = _testObj!;
         MonitorDeliveryMessage? claim = await queries.ClaimNextDueAsync(
             MonitorDeliveryProducers.MyAtm,
             utcNow,
@@ -1119,8 +1119,8 @@ public class TestDBClient
         InsertOutboxMessage(connection, completedId, "Pending", utcNow.AddMinutes(-1), 0, null, null);
         InsertOutboxMessage(connection, deadLetterId, "Pending", utcNow, 7, null, null);
 
-        IMonitorDeliveryOutboxQueries queries = (IMonitorDeliveryOutboxQueries)_testObj;
-        IMonitorDeliveryOutboxCommands commands = (IMonitorDeliveryOutboxCommands)_testObj!;
+        DBClient queries = _testObj!;
+        DBClient commands = _testObj!;
         MonitorDeliveryMessage? completedClaim = await queries.ClaimNextDueAsync(
             MonitorDeliveryProducers.MyAtm,
             utcNow,
@@ -1614,7 +1614,7 @@ public class TestDBClient
         }
     }
 
-    private static IReadOnlyList<Guid> ReadOutboxLeaseIds(NpgsqlConnection connection)
+    private static List<Guid> ReadOutboxLeaseIds(NpgsqlConnection connection)
     {
         using NpgsqlCommand command = new(
             "SELECT lease_id FROM monitor_delivery_outbox WHERE producer = 'MyAtm' AND lease_id IS NOT NULL;",

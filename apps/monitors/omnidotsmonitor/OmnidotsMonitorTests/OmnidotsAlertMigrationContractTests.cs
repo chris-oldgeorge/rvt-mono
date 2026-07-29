@@ -6,7 +6,7 @@ using Rvt.Monitor.IntegrationTesting;
 namespace OmnidotsAdapterTests;
 
 [TestClass]
-public sealed class OmnidotsAlertMigrationContractTests
+public sealed partial class OmnidotsAlertMigrationContractTests
 {
     private const string _forwardScript = "2026-07-15-add-common-durable-alerts.sql";
     private const string _rollbackScript = "2026-07-15-rollback-common-durable-alerts.sql";
@@ -90,15 +90,15 @@ public sealed class OmnidotsAlertMigrationContractTests
 
     private static string RemoveComments(string script)
     {
-        string withoutBlockComments = Regex.Replace(script, @"/\*.*?\*/", string.Empty, RegexOptions.Singleline | RegexOptions.CultureInvariant);
-        return Regex.Replace(withoutBlockComments, @"--[^\r\n]*", string.Empty, RegexOptions.CultureInvariant);
+        string withoutBlockComments = BlockCommentPattern().Replace(script, string.Empty);
+        return LineCommentPattern().Replace(withoutBlockComments, string.Empty);
     }
 
     private static string NormalizeSql(string script)
     {
-        string normalized = Regex.Replace(script, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
-        normalized = Regex.Replace(normalized, @"\(\s+", "(", RegexOptions.CultureInvariant);
-        return Regex.Replace(normalized, @"\s+\)", ")", RegexOptions.CultureInvariant);
+        string normalized = WhitespacePattern().Replace(script, " ").Trim();
+        normalized = OpeningParenthesisWhitespacePattern().Replace(normalized, "(");
+        return ClosingParenthesisWhitespacePattern().Replace(normalized, ")");
     }
 
     private static void AssertAppearsInOrder(string script, params string[] statements)
@@ -129,4 +129,19 @@ public sealed class OmnidotsAlertMigrationContractTests
         Assert.IsNotNull(result);
         return (T)Convert.ChangeType(result, typeof(T), CultureInfo.InvariantCulture);
     }
+
+    [GeneratedRegex(@"/\*.*?\*/", RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+    private static partial Regex BlockCommentPattern();
+
+    [GeneratedRegex(@"--[^\r\n]*", RegexOptions.CultureInvariant)]
+    private static partial Regex LineCommentPattern();
+
+    [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)]
+    private static partial Regex WhitespacePattern();
+
+    [GeneratedRegex(@"\(\s+", RegexOptions.CultureInvariant)]
+    private static partial Regex OpeningParenthesisWhitespacePattern();
+
+    [GeneratedRegex(@"\s+\)", RegexOptions.CultureInvariant)]
+    private static partial Regex ClosingParenthesisWhitespacePattern();
 }

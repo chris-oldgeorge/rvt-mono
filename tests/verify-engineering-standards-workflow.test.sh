@@ -101,7 +101,7 @@ def verify_workflow(source)
     "engineering standards timeout must be 30 minutes"
   )
   steps = sequence(job.fetch("steps"), "steps").map { |node| mapping(node, "step") }
-  assert(steps.length == 9, "workflow must define exactly the nine required setup and gate steps")
+  assert(steps.length == 10, "workflow must define exactly the ten required setup and gate steps")
   steps.each do |step|
     name = step.key?("name") ? scalar(step.fetch("name"), "step name") : "unnamed step"
     if step.key?("uses")
@@ -184,6 +184,8 @@ def verify_workflow(source)
       "node --test tests/engineering-standards-model.test.mjs tests/verify-engineering-standards-policy.test.mjs",
     "Verify engineering configuration" =>
       "tests/verify-engineering-configuration.test.sh",
+    "Verify shell conditional safety" =>
+      "tests/verify-shell-conditionals.test.sh\nscripts/verify-shell-conditionals.sh .\n",
     "Verify automatic workflow contract" =>
       "tests/verify-engineering-standards-workflow.test.sh",
     "Verify changed-range engineering standards" =>
@@ -213,6 +215,7 @@ def verify_workflow(source)
     "Restore monorepo",
     "Verify standards model and module policy",
     "Verify engineering configuration",
+    "Verify shell conditional safety",
     "Verify automatic workflow contract",
     "Verify changed-range engineering standards"
   ]
@@ -289,6 +292,17 @@ mutations = {
     "      - name: Verify engineering configuration\n" \
       "        run: tests/verify-engineering-configuration.test.sh\n\n",
     ""
+  ],
+  "removed shell conditional gate" => [
+    "      - name: Verify shell conditional safety\n" \
+      "        run: |\n" \
+      "          tests/verify-shell-conditionals.test.sh\n" \
+      "          scripts/verify-shell-conditionals.sh .\n\n",
+    ""
+  ],
+  "nonblocking shell conditional gate" => [
+    "      - name: Verify shell conditional safety\n",
+    "      - name: Verify shell conditional safety\n        continue-on-error: true\n"
   ],
   "removed workflow contract gate" => [
     "      - name: Verify automatic workflow contract\n" \

@@ -27,7 +27,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
         Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
 
     private static PostgreSqlIntegrationDatabase? _database;
-    private IAlertOutboxStore _store = null!;
+    private EfAlertOutboxStore<OmnidotsMonitorContext> _store = null!;
 
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext _)

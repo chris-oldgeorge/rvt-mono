@@ -4,8 +4,8 @@ namespace Omnidots.Api.Db.EntityFramework;
 
 public static class OmnidotsAggregateFields
 {
-    private static readonly IReadOnlyDictionary<string, MonitorAggregateField<OmnidotsPeakLevelEntity>> _fields =
-        new Dictionary<string, MonitorAggregateField<OmnidotsPeakLevelEntity>>(StringComparer.Ordinal)
+    private static readonly Dictionary<string, MonitorAggregateField<OmnidotsPeakLevelEntity>> _fields =
+        new(StringComparer.Ordinal)
         {
             ["XFdom"] = MonitorAggregateField<OmnidotsPeakLevelEntity>.Average("XFdom", row => row.XFdom),
             ["XVtop"] = MonitorAggregateField<OmnidotsPeakLevelEntity>.Average("XVtop", row => row.XVtop),

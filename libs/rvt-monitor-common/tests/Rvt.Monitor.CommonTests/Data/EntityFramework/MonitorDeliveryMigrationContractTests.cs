@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Rvt.Monitor.CommonTests.Data.EntityFramework;
 
 [TestClass]
-public sealed class MonitorDeliveryMigrationContractTests
+public sealed partial class MonitorDeliveryMigrationContractTests
 {
     private const string PostgreSqlMigration = "2026-07-15-add-monitor-delivery-outbox.postgres.sql";
 
@@ -20,7 +20,7 @@ public sealed class MonitorDeliveryMigrationContractTests
         Assert.Contains("CREATE INDEX IF NOT EXISTS ix_monitor_delivery_outbox_due", sql);
         Assert.Contains("ON monitor_delivery_outbox (producer, status, next_attempt_at)", sql);
         Assert.Contains("DO $$", sql);
-        Assert.HasCount(1, Regex.Matches(sql, @"\bCREATE\s+TABLE\b", RegexOptions.IgnoreCase));
+        Assert.HasCount(1, CreateTablePattern().Matches(sql));
         Assert.DoesNotContain("ALTER TABLE notification ", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ALTER TABLE notification_sent", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("CREATE TABLE notification ", sql, StringComparison.OrdinalIgnoreCase);
@@ -53,4 +53,7 @@ public sealed class MonitorDeliveryMigrationContractTests
         Assert.Fail("Could not find repository root from test output directory.");
         return string.Empty;
     }
+
+    [GeneratedRegex(@"\bCREATE\s+TABLE\b", RegexOptions.IgnoreCase)]
+    private static partial Regex CreateTablePattern();
 }

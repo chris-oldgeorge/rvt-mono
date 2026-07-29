@@ -846,26 +846,22 @@ assert_status 0
   fail "dead canonical baseline lock was not reclaimed and cleaned"
 
 # A same-window numeric PID collision without the random sentinel token is stale.
+# This harness is the recorded sentinel PID, so it is unambiguously alive and its
+# command line unambiguously lacks the token: the verdict is a property of the
+# observation, not of the clock. The ownership answer is therefore read from the
+# run's outcome rather than from how quickly it returned -- mistaking the recycled
+# PID for the live owner exhausts the bounded acquisition retries and reports a
+# lock timeout instead of reclaiming.
 create_repo reused-pid-baseline-lock-owner
 reused_lock="$last_repo/baseline.json.update.lock"
 mkdir "$reused_lock"
 write_json "$reused_lock/owner.json" \
   "{\"version\":2,\"pid\":$$,\"sentinelPid\":$$,\"token\":\"collision-token\",\"createdAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
-(
-  trap - EXIT
-  run_verify --all --update-baseline
-  printf '%s\n' "$last_status" > "$last_repo/reused-owner.status"
-) &
-reused_waiter=$!
-sleep 0.4
-if kill -0 "$reused_waiter" 2>/dev/null; then
-  kill "$reused_waiter" 2>/dev/null || true
-  wait "$reused_waiter" 2>/dev/null || true
+run_verify --all --update-baseline
+[[ "$last_output" != *"Timed out waiting for baseline-update lock"* ]] ||
   fail "same numeric PID without the sentinel token was treated as the owner"
-fi
-wait "$reused_waiter"
-[[ "$(<"$last_repo/reused-owner.status")" == "0" ]] ||
-  fail "same-window numeric PID collision was not reclaimed"
+[[ "$last_status" -eq 0 ]] ||
+  fail "same-window numeric PID collision was not reclaimed: $last_output"
 [[ ! -e "$reused_lock" ]] ||
   fail "same-window numeric PID collision lock was not cleaned"
 

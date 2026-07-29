@@ -16,6 +16,7 @@ import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
 import { Notice } from '../components/FormControls';
 import { localDateInputValue } from '../localDate';
+import { formatDateTime, formatNumber } from '../format';
 import type {
   AuthStateResponse,
   BreachesAlertsItem,
@@ -461,20 +462,6 @@ function dashboardAudience(role: string) {
 // Function summary: Maps day input value into the shape required by callers.
 function todayInputValue() {
   return localDateInputValue();
-}
-
-// Function summary: Handles the format date time workflow for this module.
-function formatDateTime(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-}
-
-// Function summary: Handles the format number workflow for this module.
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('en-GB', { maximumFractionDigits: 2 }).format(value);
 }
 
 // Function summary: Handles the format optional number workflow for this module.

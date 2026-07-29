@@ -9,7 +9,7 @@
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
 import { Bell, Check, ChevronLeft, Edit3, Eye, Gauge, Plus, RefreshCcw, Save, Search, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   batchCloseNotifications,
@@ -26,9 +26,12 @@ import {
   updateVibrationAlertLevels,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
-import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
+import type { DataGridColumn } from '../components/DataGrid';
 import { FormField, Notice, SubmitButton } from '../components/FormControls';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
+import { formatDateTime, formatNumber } from '../format';
+import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
+import { useRequestLifecycle } from '../requestLifecycle';
 import type {
   AlertLevelItem,
   AlertLevelMutationRequest,
@@ -60,22 +63,6 @@ type AlertLevelsPanelProps = Readonly<{
 }>;
 
 type AlertLevelRoute = { kind: 'list' } | { kind: 'new' } | { kind: 'edit'; levelId: string } | { kind: 'vibration' };
-
-// Function summary: Applies grid sort handler to the current configuration.
-function useGridSortHandler(
-  setSortKey: (key: string) => void,
-  setSortDir: (direction: SortDirection) => void,
-  setPage: (page: number) => void,
-) {
-  return useCallback(
-    (key: string, direction: GridSortDirection) => {
-      setSortKey(key);
-      setSortDir(direction);
-      setPage(1);
-    },
-    [setPage, setSortDir, setSortKey],
-  );
-}
 
 // Function summary: Renders the NotificationsPanel React component and wires its local UI behavior.
 export function NotificationsPanel({ locationPath, onNavigate, onRequestError }: OperationsPanelProps) {
@@ -116,8 +103,7 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
   const [error, setError] = useState<string | null>(null);
   const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryNotificationsRequest> | null>(null);
   const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryNotificationsRequest> | null>(null);
-  const activeRequestController = useRef<AbortController | null>(null);
-  const requestGeneration = useRef(0);
+  const { claimRequest, ownsRequest, currentGeneration } = useRequestLifecycle();
   const [isClosing, setIsClosing] = useState(false);
   const showClosedNoteColumn = notifications.some((notification) => hasText(notification.closedNote));
   const returnPath = currentRoutePath(locationPath);
@@ -204,23 +190,6 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
   const isLoading = completedExecution !== currentExecution;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
 
-  const claimRequest = useCallback(() => {
-    activeRequestController.current?.abort();
-    const controller = new AbortController();
-    const generation = requestGeneration.current + 1;
-    requestGeneration.current = generation;
-    activeRequestController.current = controller;
-    return { controller, generation };
-  }, []);
-
-  const ownsRequest = useCallback(
-    (controller: AbortController, generation: number) =>
-      activeRequestController.current === controller &&
-      requestGeneration.current === generation &&
-      !controller.signal.aborted,
-    [],
-  );
-
   const refreshNotifications = useCallback(async () => {
     const nextExecution: ListExecution<QueryNotificationsRequest> = { query };
     const { controller, generation } = claimRequest();
@@ -305,7 +274,7 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
   }
 
   async function handleBatchClose() {
-    const mutationGeneration = requestGeneration.current;
+    const mutationGeneration = currentGeneration();
     setIsClosing(true);
     setNotice(null);
     setError(null);
@@ -313,7 +282,7 @@ function NotificationListPanel({ locationPath, onNavigate, onRequestError }: Ope
       const response = await batchCloseNotifications({ notificationIds: Array.from(selectedIds), note: closeNote });
       setNotice(`Closed ${response.closedIds.length} of ${response.requested} selected notifications.`);
       setCloseNote('');
-      if (requestGeneration.current !== mutationGeneration) {
+      if (currentGeneration() !== mutationGeneration) {
         return;
       }
       await refreshNotifications();
@@ -626,8 +595,7 @@ function AlertLevelsListPanel({
   const [error, setError] = useState<string | null>(null);
   const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryAlertLevelsRequest> | null>(null);
   const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryAlertLevelsRequest> | null>(null);
-  const activeRequestController = useRef<AbortController | null>(null);
-  const requestGeneration = useRef(0);
+  const { claimRequest, ownsRequest, currentGeneration } = useRequestLifecycle();
   const manageAllowed = Boolean(canManage && response?.canManage);
   const backPath = returnToOr(locationPath, `/monitors/${monitorId}`);
   const returnPath = currentRoutePath(locationPath);
@@ -646,23 +614,6 @@ function AlertLevelsListPanel({
   const currentExecution = refreshExecution?.query === query ? refreshExecution : execution;
   const isLoading = completedExecution !== currentExecution;
   const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
-
-  const claimRequest = useCallback(() => {
-    activeRequestController.current?.abort();
-    const controller = new AbortController();
-    const generation = requestGeneration.current + 1;
-    requestGeneration.current = generation;
-    activeRequestController.current = controller;
-    return { controller, generation };
-  }, []);
-
-  const ownsRequest = useCallback(
-    (controller: AbortController, generation: number) =>
-      activeRequestController.current === controller &&
-      requestGeneration.current === generation &&
-      !controller.signal.aborted,
-    [],
-  );
 
   const refreshAlertLevels = useCallback(async () => {
     const nextExecution: ListExecution<QueryAlertLevelsRequest> = { query };
@@ -714,13 +665,13 @@ function AlertLevelsListPanel({
     if (!globalThis.confirm(`Delete ${level.alertType} ${level.alertField} alert level?`)) {
       return;
     }
-    const mutationGeneration = requestGeneration.current;
+    const mutationGeneration = currentGeneration();
     setNotice(null);
     setError(null);
     try {
       await deleteAlertLevel(level.id);
       setNotice('Alert level has been deleted.');
-      if (requestGeneration.current !== mutationGeneration) {
+      if (currentGeneration() !== mutationGeneration) {
         return;
       }
       await refreshAlertLevels();
@@ -1224,17 +1175,6 @@ function normalizeNotificationState(value: string | null): NotificationListState
   return value === 'all' || value === 'cautions' || value === 'open' ? value : 'open';
 }
 
-// Function summary: Handles the normalize sort direction workflow for this module.
-function normalizeSortDirection(value: string | null, fallback: SortDirection = 'Ascending'): SortDirection {
-  return value === 'Descending' || value === 'desc' ? 'Descending' : fallback;
-}
-
-// Function summary: Handles the parse positive int workflow for this module.
-function parsePositiveInt(value: string | null, fallback: number) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 // Function summary: Handles the empty alert level form workflow for this module.
 function emptyAlertLevelForm(monitorId: string): AlertLevelMutationRequest {
   return {
@@ -1256,22 +1196,6 @@ function emptyAlertLevelForm(monitorId: string): AlertLevelMutationRequest {
 function numberValue(value: string) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-// Function summary: Handles the format date time workflow for this module.
-function formatDateTime(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
-}
-
-// Function summary: Handles the format number workflow for this module.
-function formatNumber(value?: number | null) {
-  return typeof value === 'number' ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '';
 }
 
 // Function summary: Handles optional text checks for conditional notification fields.

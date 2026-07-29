@@ -54,10 +54,13 @@ public sealed class SiteArchiveServiceSecurityTests
             BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
         using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(250));
 
-        await service.DeleteSupersededAsync(
-            siteId,
-            $"http://127.0.0.1:1/archiveaccount/site-archives/{siteId:N}/site-archive.zip",
-            timeout.Token);
+        Exception? exception = await Record.ExceptionAsync(() =>
+            service.DeleteSupersededAsync(
+                siteId,
+                $"http://127.0.0.1:1/archiveaccount/site-archives/{siteId:N}/site-archive.zip",
+                timeout.Token));
+
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -68,10 +71,13 @@ public sealed class SiteArchiveServiceSecurityTests
             BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
         using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(250));
 
-        await service.DeleteSupersededAsync(
-            siteId,
-            $"http://127.0.0.1:1/archiveaccount/site-archives/{siteId:N}/site%2Darchive.zip",
-            timeout.Token);
+        Exception? exception = await Record.ExceptionAsync(() =>
+            service.DeleteSupersededAsync(
+                siteId,
+                $"http://127.0.0.1:1/archiveaccount/site-archives/{siteId:N}/site%2Darchive.zip",
+                timeout.Token));
+
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -82,11 +88,14 @@ public sealed class SiteArchiveServiceSecurityTests
             BlobConnectionString("http://127.0.0.1:1/archiveaccount"));
         using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(250));
 
-        await service.DeleteSupersededAsync(
-            siteId,
-            $"http://127.0.0.1:1/archiveaccount/site-archives/{siteId:N}/site-archive.zip"
-                + "?sv=2025-05-05&sr=b&sig=test-signature",
-            timeout.Token);
+        Exception? exception = await Record.ExceptionAsync(() =>
+            service.DeleteSupersededAsync(
+                siteId,
+                $"http://127.0.0.1:1/archiveaccount/site-archives/{siteId:N}/site-archive.zip"
+                    + "?sv=2025-05-05&sr=b&sig=test-signature",
+                timeout.Token));
+
+        Assert.Null(exception);
     }
 
     [Fact]

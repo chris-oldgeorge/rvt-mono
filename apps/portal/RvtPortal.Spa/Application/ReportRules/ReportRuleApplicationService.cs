@@ -543,19 +543,12 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             .ToListAsync(cancellationToken);
         HashSet<Guid> visibleUserIds = [.. activeSiteUserIds, .. assignedUserIds];
         IReadOnlyList<PortalUserProfile> users = await _userDirectory.ListUsersAsync(cancellationToken);
-        List<PortalUserProfile> candidates = new();
-
-        foreach (PortalUserProfile user in users)
-        {
-            if (user.IsInRole(PortalRoleNames.RVTMasterAdmin) ||
+        return [.. users
+            .Where(user =>
+                user.IsInRole(PortalRoleNames.RVTMasterAdmin) ||
                 user.IsInRole(PortalRoleNames.RVTAdmin) ||
                 visibleUserIds.Contains(user.UserId))
-            {
-                candidates.Add(user);
-            }
-        }
-
-        return [.. candidates.OrderBy(user => user.Email)];
+            .OrderBy(user => user.Email)];
     }
 
     // Function summary: Builds user list rows with company names and active site counts.

@@ -18,21 +18,24 @@ public sealed record HelpMutationValidationResult(
 
 public static partial class HelpMutationValidator
 {
+    private const string DocumentType = "Document";
+    private const string VideoType = "Video";
+
     private static readonly IReadOnlyDictionary<string, string> contentTypes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["FAQ"] = "FAQ",
             ["Article"] = "Article",
-            ["Document"] = "Document",
-            ["Video"] = "Video",
+            [DocumentType] = DocumentType,
+            [VideoType] = VideoType,
             ["Definition"] = "Definition"
         };
 
     private static readonly IReadOnlyDictionary<string, string> assetTypes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Document"] = "Document",
-            ["Video"] = "Video",
+            [DocumentType] = DocumentType,
+            [VideoType] = VideoType,
             ["Link"] = "Link"
         };
 

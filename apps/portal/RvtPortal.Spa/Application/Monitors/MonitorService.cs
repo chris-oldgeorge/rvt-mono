@@ -71,6 +71,9 @@ public class MonitorDataSearchFilters
 
 public class MonitorService : IMonitorService
 {
+    private const string SampleTimeProperty = "SampleTime";
+    private const string SerialIdProperty = "SerialId";
+
     private readonly IMonitorRepository _monitorRepository;
     private readonly ISearchQueryReader _timeSeries;
     private readonly RVTSearchContext _searchContext;
@@ -140,14 +143,14 @@ public class MonitorService : IMonitorService
         }
         else
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = SampleTimeProperty });
         }
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate },
+            new SingleFilter { Operation = Op.Equals, PropertyName = SerialIdProperty, Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = SampleTimeProperty, Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = SampleTimeProperty, Value = toDate },
             new SingleFilter { Operation = Op.Equals, PropertyName = "Avrg", Value = avrgDuration }
         };
 
@@ -170,14 +173,14 @@ public class MonitorService : IMonitorService
         }
         else
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = SampleTimeProperty });
         }
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = SerialIdProperty, Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = SampleTimeProperty, Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = SampleTimeProperty, Value = toDate }
         };
 
         int effectivePageSize = pageSize ?? 1000000;
@@ -203,14 +206,14 @@ public class MonitorService : IMonitorService
         }
         else
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = SampleTimeProperty });
         }
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = SerialIdProperty, Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = SampleTimeProperty, Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = SampleTimeProperty, Value = toDate }
         };
 
         int effectivePageSize = pageSize ?? 1000000;
@@ -232,14 +235,14 @@ public class MonitorService : IMonitorService
         }
         else
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = SampleTimeProperty });
         }
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = SerialIdProperty, Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = SampleTimeProperty, Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = SampleTimeProperty, Value = toDate }
         };
 
         int effectivePageSize = pageSize ?? 1000000;
@@ -261,14 +264,14 @@ public class MonitorService : IMonitorService
         }
         else
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = SampleTimeProperty });
         }
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = SerialIdProperty, Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = SampleTimeProperty, Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = SampleTimeProperty, Value = toDate }
         };
 
         int effectivePageSize = pageSize ?? 1000000;
@@ -290,14 +293,14 @@ public class MonitorService : IMonitorService
         }
         else
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = SampleTimeProperty });
         }
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = SerialIdProperty, Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = SampleTimeProperty, Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = SampleTimeProperty, Value = toDate }
         };
 
         int effectivePageSize = pageSize ?? 1000000;
@@ -324,14 +327,14 @@ public class MonitorService : IMonitorService
         }
         else
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "SampleTime" });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = SampleTimeProperty });
         }
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = SerialIdProperty, Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = SampleTimeProperty, Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = SampleTimeProperty, Value = toDate }
         };
 
         int effectivePageSize = pageSize ?? 30000;

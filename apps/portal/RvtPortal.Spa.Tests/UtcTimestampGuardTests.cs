@@ -51,6 +51,8 @@ public sealed class UtcTimestampGuardTests
         context.Sites.Add(new Site { CreateDate = DateTime.UtcNow });
 
         UtcTimestampGuardInterceptor.Guard(context);
+
+        Assert.Equal(DateTimeKind.Utc, context.Sites.Local.Single().CreateDate.Kind);
     }
 
     [RequiresPostgresFact]

@@ -6,11 +6,13 @@
 // - 2026-06-09 pending Enabled canonical EF mappings when the context runs against migrated PostgreSQL.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Configuration;
 
 namespace RVT.DataAccess.Context;
 
+[SuppressMessage("Naming", "S101:Types should be named in PascalCase", Justification = "Legacy EF context name is shared by migration tooling and repository consumers; renaming would create broad compatibility churn without changing database behavior.")]
 public class RVTDbContext : DbContext
 {
     // Function summary: Initializes this type with the dependencies required by its workflow.

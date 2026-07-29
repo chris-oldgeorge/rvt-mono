@@ -38,10 +38,12 @@ namespace RvtPortal.Spa.Api;
 [Route("api/monitors")]
 public class MonitorsController : ControllerBase
 {
+    private const string DefaultSort = "fleetNumber";
+
     // Function summary: Defines the public monitor sort aliases accepted by list endpoints.
     private static readonly IReadOnlyDictionary<string, string> sortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["fleetNumber"] = "fleetNumber",
+        [DefaultSort] = DefaultSort,
         ["serialId"] = "serialId",
         ["typeOfMonitor"] = "typeOfMonitor",
         ["siteName"] = "siteName",
@@ -73,7 +75,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Returns the paged monitor inventory visible to the current user.
     public async Task<ActionResult<QueryMonitorsResponse>> Query([FromQuery] QueryMonitorsRequest request)
     {
-        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "fleetNumber" : request.Sort.Trim();
+        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? DefaultSort : request.Sort.Trim();
         if (!sortFields.ContainsKey(requestedSort))
         {
             return InvalidSort(requestedSort, sortFields.Keys);
@@ -255,7 +257,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Retrieves unattached monitor removal candidates for RVT administrators.
     public async Task<ActionResult<QueryUnattachedMonitorsResponse>> QueryUnattached([FromQuery] QueryMonitorsRequest request)
     {
-        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "fleetNumber" : request.Sort.Trim();
+        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? DefaultSort : request.Sort.Trim();
         if (!sortFields.ContainsKey(requestedSort))
         {
             return InvalidSort(requestedSort, sortFields.Keys);

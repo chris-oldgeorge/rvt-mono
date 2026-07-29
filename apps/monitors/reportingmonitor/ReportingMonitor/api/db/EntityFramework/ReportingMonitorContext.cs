@@ -6,6 +6,9 @@ namespace ReportingMonitor.Api.Db.EntityFramework;
 
 public sealed class ReportingMonitorContext(DbContextOptions<ReportingMonitorContext> options, MonitorDbOptions monitorOptions) : MonitorDbContextBase(options, monitorOptions)
 {
+    private const string _sampleTimeColumn = "sample_time";
+    private const string _serialIdColumn = "serial_id";
+
     public DbSet<ReportRuleEntity> ReportRules => Set<ReportRuleEntity>();
     public DbSet<ReportEntity> Reports => Set<ReportEntity>();
     public DbSet<ReportSentEntity> ReportSends => Set<ReportSentEntity>();
@@ -89,7 +92,7 @@ public sealed class ReportingMonitorContext(DbContextOptions<ReportingMonitorCon
             entity.Property(row => row.Active).HasColumnName("active");
             entity.Property(row => row.DeploymentId).HasColumnName("deployment_id");
             entity.Property(row => row.FleetNumber).HasColumnName("fleet_row_count");
-            entity.Property(row => row.SerialId).HasColumnName("serial_id");
+            entity.Property(row => row.SerialId).HasColumnName(_serialIdColumn);
             entity.Property(row => row.TypeOfMonitor).HasColumnName("type_of_monitor");
             entity.Property(row => row.Offline).HasColumnName("off_line");
             entity.Property(row => row.Alerts).HasColumnName("alerts");
@@ -152,44 +155,44 @@ public sealed class ReportingMonitorContext(DbContextOptions<ReportingMonitorCon
 
         ConfigureReadModel<DustHourlyAverageRow>(modelBuilder, "my_atm_dust_level", entity =>
         {
-            entity.Property(row => row.SerialId).HasColumnName("serial_id");
+            entity.Property(row => row.SerialId).HasColumnName(_serialIdColumn);
             entity.Property(row => row.AveragingPeriodSeconds).HasColumnName("avrg");
-            entity.Property(row => row.SampleTime).HasColumnName("sample_time");
+            entity.Property(row => row.SampleTime).HasColumnName(_sampleTimeColumn);
             entity.Property(row => row.Pm10).HasColumnName("pm_10");
         });
 
         ConfigureReadModel<DustDailyAverageRow>(modelBuilder, "my_atm_dust_level_1_day_avg", entity =>
         {
-            entity.Property(row => row.SerialId).HasColumnName("serial_id");
-            entity.Property(row => row.SampleTime).HasColumnName("sample_time");
+            entity.Property(row => row.SerialId).HasColumnName(_serialIdColumn);
+            entity.Property(row => row.SampleTime).HasColumnName(_sampleTimeColumn);
             entity.Property(row => row.Pm10).HasColumnName("pm_10");
         });
 
         ConfigureReadModel<NoiseHourlyAverageRow>(modelBuilder, "noise_level_1_hour_avg", entity =>
         {
-            entity.Property(row => row.SerialId).HasColumnName("serial_id");
-            entity.Property(row => row.SampleTime).HasColumnName("sample_time");
+            entity.Property(row => row.SerialId).HasColumnName(_serialIdColumn);
+            entity.Property(row => row.SampleTime).HasColumnName(_sampleTimeColumn);
             entity.Property(row => row.Laeq).HasColumnName("laeq");
         });
 
         ConfigureReadModel<NoiseDailyAverageRow>(modelBuilder, "noise_level_1_day_avg", entity =>
         {
-            entity.Property(row => row.SerialId).HasColumnName("serial_id");
-            entity.Property(row => row.SampleTime).HasColumnName("sample_time");
+            entity.Property(row => row.SerialId).HasColumnName(_serialIdColumn);
+            entity.Property(row => row.SampleTime).HasColumnName(_sampleTimeColumn);
             entity.Property(row => row.Laeq).HasColumnName("laeq");
         });
 
         ConfigureReadModel<NoiseSiteAverageRow>(modelBuilder, "noise_level_site_avg", entity =>
         {
-            entity.Property(row => row.SerialId).HasColumnName("serial_id");
-            entity.Property(row => row.SampleTime).HasColumnName("sample_time");
+            entity.Property(row => row.SerialId).HasColumnName(_serialIdColumn);
+            entity.Property(row => row.SampleTime).HasColumnName(_sampleTimeColumn);
             entity.Property(row => row.Laeq).HasColumnName("laeq");
         });
 
         ConfigureReadModel<VibrationDailyPeakRow>(modelBuilder, "omnidots_peak_level_1_day_peak", entity =>
         {
-            entity.Property(row => row.SerialId).HasColumnName("serial_id");
-            entity.Property(row => row.SampleTime).HasColumnName("sample_time");
+            entity.Property(row => row.SerialId).HasColumnName(_serialIdColumn);
+            entity.Property(row => row.SampleTime).HasColumnName(_sampleTimeColumn);
             entity.Property(row => row.XVtop).HasColumnName("x_vtop");
             entity.Property(row => row.YVtop).HasColumnName("y_vtop");
             entity.Property(row => row.ZVtop).HasColumnName("z_vtop");

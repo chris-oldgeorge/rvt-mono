@@ -35,6 +35,10 @@ dotnet_diagnostic.IDE0080.severity = error
 dotnet_diagnostic.SYSLIB1045.severity = error
 dotnet_diagnostic.S6667.severity = error
 dotnet_diagnostic.S8949.severity = error
+dotnet_diagnostic.S3267.severity = error
+dotnet_diagnostic.S2699.severity = error
+dotnet_diagnostic.S1192.severity = error
+dotnet_diagnostic.S101.severity = error
 
 dotnet_naming_symbols.private_instance_fields.applicable_kinds = field
 dotnet_naming_symbols.private_instance_fields.applicable_accessibilities = private

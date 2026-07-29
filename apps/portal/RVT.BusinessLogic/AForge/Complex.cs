@@ -80,6 +80,7 @@ public struct Complex : ICloneable, ISerializable
     public static readonly Complex I = new Complex(0, 1);
 
     private const double ZeroTolerance = 8.8817841970012523233891E-16;
+    private const string DivideByZeroMessage = "Can not divide by zero.";
 
     /// <summary>
     /// Magnitude value of the complex number.
@@ -368,7 +369,7 @@ public struct Complex : ICloneable, ISerializable
 
         if (IsNearlyZero(modulusSquared))
         {
-            throw new DivideByZeroException("Can not divide by zero.");
+            throw new DivideByZeroException(DivideByZeroMessage);
         }
 
         double invModulusSquared = 1 / modulusSquared;
@@ -393,7 +394,7 @@ public struct Complex : ICloneable, ISerializable
     {
         if (IsNearlyZero(s))
         {
-            throw new DivideByZeroException("Can not divide by zero.");
+            throw new DivideByZeroException(DivideByZeroMessage);
         }
 
         return new Complex(a.Re / s, a.Im / s);
@@ -414,7 +415,7 @@ public struct Complex : ICloneable, ISerializable
     {
         if (IsNearlyZero(a.Re) || IsNearlyZero(a.Im))
         {
-            throw new DivideByZeroException("Can not divide by zero.");
+            throw new DivideByZeroException(DivideByZeroMessage);
         }
         return new Complex(s / a.Re, s / a.Im);
     }
@@ -437,7 +438,7 @@ public struct Complex : ICloneable, ISerializable
 
         if (IsNearlyZero(modulusSquared))
         {
-            throw new DivideByZeroException("Can not divide by zero.");
+            throw new DivideByZeroException(DivideByZeroMessage);
         }
 
         double invModulusSquared = 1 / modulusSquared;
@@ -460,7 +461,7 @@ public struct Complex : ICloneable, ISerializable
     {
         if (IsNearlyZero(s))
         {
-            throw new DivideByZeroException("Can not divide by zero.");
+            throw new DivideByZeroException(DivideByZeroMessage);
         }
 
         result.Re = a.Re / s;
@@ -481,7 +482,7 @@ public struct Complex : ICloneable, ISerializable
     {
         if (IsNearlyZero(a.Re) || IsNearlyZero(a.Im))
         {
-            throw new DivideByZeroException("Can not divide by zero.");
+            throw new DivideByZeroException(DivideByZeroMessage);
         }
 
         result.Re = s / a.Re;

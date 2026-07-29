@@ -330,6 +330,8 @@ public sealed class MonitoringHandlerTests
 
         await host.StartAsync(TestContext.CancellationToken);
 
+        Assert.IsNotNull(host.Services.GetService<OmnidotsMonitoringOptions>());
+
         await host.StopAsync(TestContext.CancellationToken);
     }
 

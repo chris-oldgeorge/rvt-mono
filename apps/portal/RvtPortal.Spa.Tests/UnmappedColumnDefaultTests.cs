@@ -114,7 +114,10 @@ public sealed class UnmappedColumnDefaultTests
         });
 
         // Throws DbUpdateException (23502) if an unmapped NOT NULL column has no default.
-        await context.SaveChangesAsync();
+        int written = await context.SaveChangesAsync();
+
+        Assert.Equal(2, written);
+
         await transaction.RollbackAsync();
     }
 

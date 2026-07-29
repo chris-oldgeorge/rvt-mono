@@ -71,6 +71,8 @@ public sealed class MqttOptionsTests
         using RvtMqttClient client = new(new MqttOptions { Enabled = false });
 
         await client.PublishAsync("rvt/noise/inserted", "{}", TestContext.CancellationToken);
+
+        Assert.IsNotNull(client);
     }
 
     [TestMethod]

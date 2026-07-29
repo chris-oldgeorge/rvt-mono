@@ -98,6 +98,10 @@ public sealed class SendGridEmailAdapterTests
         SendGridEmailAdapter adapter = CreateAdapter(client.Object);
 
         await adapter.SendAsync(Request(), TestContext.CancellationToken);
+
+        client.Verify(
+            x => x.SendEmailAsync(It.IsAny<SendGridMessage>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [TestMethod]

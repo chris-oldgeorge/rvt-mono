@@ -155,15 +155,11 @@ public class DataController : ControllerBase
                 Detail = $"Sort field '{failure.RequestedSort}' is not supported. Allowed values: {string.Join(", ", failure.AllowedFields ?? [])}"
             }),
             DataWorkflowFailureKind.InvalidTimestamp => BadRequest(InvalidTimestampProblem(failure)),
-            DataWorkflowFailureKind.TraceNotFound => NotFound(new ProblemDetails
-            {
-                Title = "Trace not found",
-                Detail = $"Trace '{failure.EntityId}' was not found or is not visible to the current user."
-            }),
-            DataWorkflowFailureKind.DeploymentNotFound => throw new NotImplementedException(),
-            DataWorkflowFailureKind.NoDataToDownload => throw new NotImplementedException(),
-            DataWorkflowFailureKind.NoTraceDataToDownload => throw new NotImplementedException(),
-            _ => NotFound(ProblemDetailsFor(failure))
+            DataWorkflowFailureKind.TraceNotFound => NotFound(ProblemDetailsFor(failure)),
+            DataWorkflowFailureKind.DeploymentNotFound => NotFound(ProblemDetailsFor(failure)),
+            DataWorkflowFailureKind.NoDataToDownload => NotFound(ProblemDetailsFor(failure)),
+            DataWorkflowFailureKind.NoTraceDataToDownload => NotFound(ProblemDetailsFor(failure)),
+            _ => throw new ArgumentOutOfRangeException(nameof(failure), failure.Kind, "Unsupported data workflow failure kind.")
         };
     }
 

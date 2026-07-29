@@ -60,12 +60,11 @@ public static class ApiDiagnostics
 
         // Allow only a conservative token charset; anything with control characters
         // (CR/LF, etc.) is dropped so it cannot inject forged lines into logs.
-        foreach (char character in trimmed)
+        if (trimmed.Any(character =>
+                !char.IsLetterOrDigit(character) &&
+                character is not ('-' or '_' or '.' or ':')))
         {
-            if (!char.IsLetterOrDigit(character) && character is not ('-' or '_' or '.' or ':'))
-            {
-                return null;
-            }
+            return null;
         }
 
         return trimmed;

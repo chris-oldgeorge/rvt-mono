@@ -4,6 +4,8 @@ namespace Rvt.Communication;
 
 public sealed class NotificationMessageComposer : INotificationMessageComposer
 {
+    private const string _smsSignOff = "Many thanks From the RVT Group";
+
     private const string HtmlTemplate = "<!DOCTYPE html>\r\n<html lang=\"en\">" +
         "<head>" +
         "<meta charset=\"UTF-8\">" +
@@ -27,7 +29,7 @@ public sealed class NotificationMessageComposer : INotificationMessageComposer
                 "Alert received from  {Monitor}" + Environment.NewLine +
                 "Your monitor has detected an alert above the safe limit set." + Environment.NewLine +
                 "Click here '{callbackUrl}' to view the details." + Environment.NewLine +
-                "Many thanks From the RVT Group",
+                _smsSignOff,
                 string.Empty),
             [(NotificationMessageKind.Caution, NotificationChannel.Email)] = new(
                 "Caution received from {Monitor}",
@@ -38,7 +40,7 @@ public sealed class NotificationMessageComposer : INotificationMessageComposer
                 "Caution received from {Monitor}" + Environment.NewLine +
                 "Your monitor has detected an alert above the safe limit set." + Environment.NewLine +
                 "Click here {callbackUrl} to view the details." + Environment.NewLine +
-                "Many thanks From the RVT Group",
+                _smsSignOff,
                 string.Empty),
             [(NotificationMessageKind.Offline, NotificationChannel.Email)] = new(
                 "Connectivity Alert. Your device {Monitor} has gone offline!",
@@ -58,7 +60,7 @@ public sealed class NotificationMessageComposer : INotificationMessageComposer
                 "Battery Caution ",
                 "Battery Caution for {Monitor}" + Environment.NewLine +
                 "Your battery is near caution level." + Environment.NewLine +
-                "Many thanks From the RVT Group",
+                _smsSignOff,
                 string.Empty),
             [(NotificationMessageKind.BatteryAlert, NotificationChannel.Email)] = new(
                 "Battery Alert for {Monitor}",
@@ -68,7 +70,7 @@ public sealed class NotificationMessageComposer : INotificationMessageComposer
                 "Battery Alert.",
                 "Battery Alert for {Monitor}" + Environment.NewLine +
                 "Your battery is at alert level." + Environment.NewLine +
-                "Many thanks From the RVT Group",
+                _smsSignOff,
                 string.Empty)
         };
 

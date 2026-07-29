@@ -12,8 +12,10 @@ superseded narratives to the archive.
 
 ### Reviewable full-monorepo client release
 
-- Active implementation branch:
+- Completed implementation branch:
   `chore/full-monorepo-client-release-v2`.
+- Source-tooling PR `chris-oldgeorge/rvt-mono#43` merged to `main` as
+  `a9b1bd2a2de3e0db79fb543f4bde629dbcdf555c`.
 - Isolated worktree:
   `/Users/oldgeorge/Developer/rvt-mono/.worktrees/full-monorepo-client-release`.
 - Approved design:
@@ -23,6 +25,11 @@ superseded narratives to the archive.
 - Client remote:
   `https://github.com/RVT-Group-LTD/rvt-monitors.git`.
 - Client branch: `release-candidate`.
+- Published client commit:
+  `7d7d8b1f74ba7c0acd77a738b29e149259f0df0f`.
+- Published source commit:
+  `a9b1bd2a2de3e0db79fb543f4bde629dbcdf555c`.
+- Published payload: 1,445 manifested files plus `RELEASE_MANIFEST.txt`.
 - The payload is the complete committed monorepo, preserving `.github`,
   `apps`, `libs`, `eng`, `scripts`, `tests`, operational/client-facing `docs`,
   and root build files. It excludes agent/session state, internal development
@@ -54,10 +61,13 @@ superseded narratives to the archive.
 - `RVT_CLIENT_RELEASE_POLICY` can point the verifier at an alternate policy
   during isolated contract tests. `RVT_CLIENT_RELEASE_BEFORE_PUSH_HOOK` is a
   test-only race-injection hook; do not set it during a real publication.
-- The exporter, verifier, and publisher contract suites pass. The next
-  checkpoint is full repository/export validation, followed by source-tooling
-  integration and lease-protected publication. No client remote update has
-  been made by this branch yet.
+- Publication verification completed with .NET SDK `10.0.302`: restore/build
+  succeeded with zero warnings, the TimescaleDB-backed suite passed
+  2,367/2,367 with no skips, all shell contracts and repository guards passed,
+  Portal passed 163/163 tests and its production build, and all Compose inputs
+  validated. GitHub PR checks passed. The publisher and a second independent
+  clone both verified the source metadata, root/orphan history, manifest,
+  required monorepo paths, internal-file exclusions, and saved-secret boundary.
 
 - The consolidated report of work since the monorepo source import is
   [docs/reviews/2026-07-29-monorepo-work-report.md](docs/reviews/2026-07-29-monorepo-work-report.md).

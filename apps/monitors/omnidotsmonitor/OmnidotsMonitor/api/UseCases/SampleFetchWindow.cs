@@ -1,24 +1,25 @@
-namespace Omnidots.Api.UseCases;
-
-// Summary: Shared clamp for how far back the sample-fetch handlers may request data.
-// Major updates:
-// - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiVibrationLevels).
-internal static class SampleFetchWindow
+namespace Omnidots.Api.UseCases
 {
-    internal static int MaxInterval(int interval)
+    // Summary: Shared clamp for how far back the sample-fetch handlers may request data.
+    // Major updates:
+    // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiVibrationLevels).
+    internal static class SampleFetchWindow
     {
-        if (interval < -10)
+        internal static int MaxInterval(int interval)
         {
-            return -10;
+            if (interval < -10)
+            {
+                return -10;
+            }
+            return interval;
         }
-        return interval;
-    }
 
-    internal static DateTime Start(DateTime utcNow, TimeSpan lookback, TimeSpan overlap)
-    {
-        if (utcNow.Kind != DateTimeKind.Utc) throw new ArgumentException("utcNow must be UTC.", nameof(utcNow));
-        if (lookback <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(lookback));
-        if (overlap < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(overlap));
-        return utcNow - lookback - overlap;
+        internal static DateTime Start(DateTime utcNow, TimeSpan lookback, TimeSpan overlap)
+        {
+            if (utcNow.Kind != DateTimeKind.Utc) throw new ArgumentException("utcNow must be UTC.", nameof(utcNow));
+            if (lookback <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(lookback));
+            if (overlap < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(overlap));
+            return utcNow - lookback - overlap;
+        }
     }
 }

@@ -1,79 +1,80 @@
 using Rvt.Monitor.Common.Utilities;
 using SvantekMonitor.model.dto;
 
-namespace Svantek.Model.Dto;
-
-
-// Summary: Encapsulates site operating hours used to decide whether Svantek reporting should run.
-// Major updates:
-// - 2026-06-18: Inherits from DtoBase after C# naming cleanup.
-public class SiteInfoDto : DtoBase
+namespace Svantek.Model.Dto
 {
-    public Guid SiteId { get; }
-    public TimeSpan? StartTime { get; }
-    public TimeSpan? EndTime { get; }
 
-    public TimeSpan? SatStartTime { get; }
-    public TimeSpan? SatEndTime { get; }
-
-    public TimeSpan? SunStartTime { get; }
-    public TimeSpan? SunEndTime { get; }
-
-
-    public SiteInfoDto(Guid siteId,
-                       TimeSpan? startTime, TimeSpan? endTime,
-                       TimeSpan? satStartTime, TimeSpan? satEndTime,
-                       TimeSpan? sunStartTime, TimeSpan? sunEndTime)
+    // Summary: Encapsulates site operating hours used to decide whether Svantek reporting should run.
+    // Major updates:
+    // - 2026-06-18: Inherits from DtoBase after C# naming cleanup.
+    public class SiteInfoDto : DtoBase
     {
-        SiteId = siteId;
+        public Guid SiteId { get; }
+        public TimeSpan? StartTime { get; }
+        public TimeSpan? EndTime { get; }
 
-        StartTime = startTime;
-        EndTime = endTime;
+        public TimeSpan? SatStartTime { get; }
+        public TimeSpan? SatEndTime { get; }
 
-        SatStartTime = satStartTime;
-        SatEndTime = satEndTime;
+        public TimeSpan? SunStartTime { get; }
+        public TimeSpan? SunEndTime { get; }
 
-        SunStartTime = sunStartTime;
-        SunEndTime = sunEndTime;
-    }
 
-    public bool ShouldReportForDate(DateTime date)
-    {
-
-        switch (date.DayOfWeek)
+        public SiteInfoDto(Guid siteId,
+                           TimeSpan? startTime, TimeSpan? endTime,
+                           TimeSpan? satStartTime, TimeSpan? satEndTime,
+                           TimeSpan? sunStartTime, TimeSpan? sunEndTime)
         {
-            case DayOfWeek.Sunday:
-                return SunStartTime != null && SunEndTime != null;
+            SiteId = siteId;
 
-            case DayOfWeek.Saturday:
-                return SatStartTime != null && SatEndTime != null;
+            StartTime = startTime;
+            EndTime = endTime;
 
-            default:
-                return StartTime != null && EndTime != null;
+            SatStartTime = satStartTime;
+            SatEndTime = satEndTime;
 
+            SunStartTime = sunStartTime;
+            SunEndTime = sunEndTime;
         }
-    }
 
-    public void GetStartAndEndTimeForDate(DateTime date, out DateTime startTime, out DateTime endTime)
-    {
-
-        switch (date.DayOfWeek)
+        public bool ShouldReportForDate(DateTime date)
         {
-            case DayOfWeek.Sunday:
-                startTime = DateTimeUtil.LocalToUtc((DateTime)(date + SunStartTime!));
-                endTime = DateTimeUtil.LocalToUtc((DateTime)(date + SunEndTime!));
-                break;
 
-            case DayOfWeek.Saturday:
-                startTime = DateTimeUtil.LocalToUtc((DateTime)(date + SatStartTime!));
-                endTime = DateTimeUtil.LocalToUtc((DateTime)(date + SatEndTime!));
-                break;
-            default:
-                startTime = DateTimeUtil.LocalToUtc((DateTime)(date + StartTime!));
-                endTime = DateTimeUtil.LocalToUtc((DateTime)(date + EndTime!));
-                break;
+            switch (date.DayOfWeek)
+            {
+                case DayOfWeek.Sunday:
+                    return SunStartTime != null && SunEndTime != null;
 
+                case DayOfWeek.Saturday:
+                    return SatStartTime != null && SatEndTime != null;
+
+                default:
+                    return StartTime != null && EndTime != null;
+
+            }
         }
-    }
 
+        public void GetStartAndEndTimeForDate(DateTime date, out DateTime startTime, out DateTime endTime)
+        {
+
+            switch (date.DayOfWeek)
+            {
+                case DayOfWeek.Sunday:
+                    startTime = DateTimeUtil.LocalToUtc((DateTime)(date + SunStartTime!));
+                    endTime = DateTimeUtil.LocalToUtc((DateTime)(date + SunEndTime!));
+                    break;
+
+                case DayOfWeek.Saturday:
+                    startTime = DateTimeUtil.LocalToUtc((DateTime)(date + SatStartTime!));
+                    endTime = DateTimeUtil.LocalToUtc((DateTime)(date + SatEndTime!));
+                    break;
+                default:
+                    startTime = DateTimeUtil.LocalToUtc((DateTime)(date + StartTime!));
+                    endTime = DateTimeUtil.LocalToUtc((DateTime)(date + EndTime!));
+                    break;
+
+            }
+        }
+
+    }
 }

@@ -56,8 +56,14 @@ generated_code = true
 [**/Generated/**/*.cs]
 generated_code = true
 
-# Newer main introduced monitor implementations before these performance rules
-# were enforced. Keep the diagnostics visible while the inherited debt is retired.
+# Newer main introduced monitor implementations before these rules were enforced.
+# Keep performance debt visible, preserve its mixed namespace style, and defer
+# namespace/folder alignment until the legacy public namespaces can be migrated.
 [apps/monitors/**/*.cs]
 dotnet_diagnostic.CA1859.severity = warning
 dotnet_diagnostic.CA1873.severity = warning
+dotnet_diagnostic.IDE0130.severity = none
+dotnet_diagnostic.IDE0161.severity = none
+dotnet_diagnostic.IDE0230.severity = none
+dotnet_diagnostic.IDE0290.severity = none
+dotnet_diagnostic.IDE0301.severity = none

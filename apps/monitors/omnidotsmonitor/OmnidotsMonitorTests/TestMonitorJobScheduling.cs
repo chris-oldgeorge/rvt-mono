@@ -61,7 +61,7 @@ public sealed class TestMonitorJobScheduling
         long latestEndTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
         Assert.IsNotNull(requestedUrl);
-        IReadOnlyDictionary<string, string> query = ParseQuery(requestedUrl);
+        Dictionary<string, string> query = ParseQuery(requestedUrl);
         long startTime = long.Parse(query["start_time"]);
         long endTime = long.Parse(query["end_time"]);
 
@@ -149,7 +149,7 @@ public sealed class TestMonitorJobScheduling
 
         Assert.AreEqual(0, result);
         Assert.IsNotNull(requestedUrl);
-        IReadOnlyDictionary<string, string> query = ParseQuery(requestedUrl);
+        Dictionary<string, string> query = ParseQuery(requestedUrl);
         Assert.AreEqual(DateTimeUtil.GetMillis(cursor.AddMinutes(-5)), long.Parse(query["start_time"]));
         DateTime endTime = DateTimeUtil.JAN1_1970.AddMilliseconds(long.Parse(query["end_time"]));
         Assert.IsTrue(endTime >= before.AddSeconds(-1) && endTime <= after);
@@ -258,7 +258,7 @@ public sealed class TestMonitorJobScheduling
         dbClient.Verify(client => client.HandleException("StoreVeffRecords serialId=1", It.IsAny<Exception>()), Times.Once);
     }
 
-    private static readonly string[] expected = new[] { "23423" };
+    private static readonly string[] _expected = ["23423"];
 
     [TestMethod]
     public void AppSettings_ContainsStaggeredVeffAndVdvSchedules()
@@ -277,7 +277,7 @@ public sealed class TestMonitorJobScheduling
         Assert.IsTrue(jobs.Any(job => job.Name == "CleanupAlerts" && job.Cron == "0 15 3 * * ?"));
         Assert.IsTrue(configuration.GetValue<bool>($"{OmnidotsTraceCollectionOptions.SectionName}:Enabled"));
         CollectionAssert.AreEqual(
-            expected,
+            _expected,
             configuration.GetSection($"{OmnidotsTraceCollectionOptions.SectionName}:AllowedSerialIds").Get<string[]>());
         Assert.AreEqual(
             1,
@@ -467,7 +467,7 @@ public sealed class TestMonitorJobScheduling
         "--hostBuilder:reloadConfigOnChange=false"
     ];
 
-    private static IReadOnlyDictionary<string, string> ParseQuery(string url)
+    private static Dictionary<string, string> ParseQuery(string url)
     {
         int queryStart = url.IndexOf('?');
         Assert.IsGreaterThanOrEqualTo(0, queryStart, $"URL '{url}' did not contain a query string.");
@@ -519,5 +519,5 @@ public sealed class TestMonitorJobScheduling
         public override DateTimeOffset GetUtcNow() => new(utcNow);
     }
 
-    public TestContext TestContext { get; set; }
+    public TestContext TestContext { get; set; } = null!;
 }

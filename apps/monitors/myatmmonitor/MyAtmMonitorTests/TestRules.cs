@@ -125,5 +125,5 @@ public sealed class TestRules
             DateTime.UnixEpoch,
             null);
 
-    public TestContext TestContext { get; set; }
+    public TestContext TestContext { get; set; } = null!;
 }

@@ -129,7 +129,7 @@ public sealed class HttpWebClientCancellationTests
 
     private sealed class TrackingContent : HttpContent
     {
-        private readonly byte[] value;
+        private readonly byte[] _value;
 
         public TrackingContent(string value)
             : this(Encoding.UTF8.GetBytes(value))
@@ -138,14 +138,14 @@ public sealed class HttpWebClientCancellationTests
 
         public TrackingContent(byte[] value)
         {
-            this.value = value;
+            _value = value;
         }
 
         public bool IsDisposed { get; private set; }
 
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
         {
-            return stream.WriteAsync(value).AsTask();
+            return stream.WriteAsync(_value).AsTask();
         }
 
         protected override Task SerializeToStreamAsync(
@@ -153,12 +153,12 @@ public sealed class HttpWebClientCancellationTests
             TransportContext? context,
             CancellationToken cancellationToken)
         {
-            return stream.WriteAsync(value, cancellationToken).AsTask();
+            return stream.WriteAsync(_value, cancellationToken).AsTask();
         }
 
         protected override bool TryComputeLength(out long length)
         {
-            length = value.Length;
+            length = _value.Length;
             return true;
         }
 
@@ -216,5 +216,5 @@ public sealed class HttpWebClientCancellationTests
         }
     }
 
-    public TestContext TestContext { get; set; }
+    public TestContext TestContext { get; set; } = null!;
 }

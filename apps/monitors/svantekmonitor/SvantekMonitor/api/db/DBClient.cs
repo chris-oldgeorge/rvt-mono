@@ -15,491 +15,546 @@ using SvantekMonitor.model.dto;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
-namespace Svantek.Api.Db;
-
-
-// Summary: EF Core-backed Svantek database client that preserves the IDBClient contract.
-// Major updates:
-// - 2026-06-20 EF migration: replaced DBUtil SQL calls with provider-aware EF Core operations.
-public class DBClient : IDBClient
+namespace Svantek.Api.Db
 {
-    private readonly string ConnectionString;
 
-    public DBClient(string connectionString)
+    // Summary: EF Core-backed Svantek database client that preserves the IDBClient contract.
+    // Major updates:
+    // - 2026-06-20 EF migration: replaced DBUtil SQL calls with provider-aware EF Core operations.
+    public class DBClient : IDBClient
     {
-        MonitorDb.ValidateLegacyProvider(
-            Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
-            Environment.GetEnvironmentVariable("DatabaseProvider"));
-        ConnectionString = connectionString;
-    }
+        private readonly string ConnectionString;
 
-    public void InsertNoiseDtos(List<NoiseDto> dtos)
-    {
-        if (dtos.Count == 0)
+        public DBClient(string connectionString)
         {
-            RvtLogger.Logger.LogWarning("Attempt to insert empty InsertNoiseDtos !");
-            return;
+            MonitorDb.ValidateLegacyProvider(
+                Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
+                Environment.GetEnvironmentVariable("DatabaseProvider"));
+            ConnectionString = connectionString;
         }
 
-        using SvantekMonitorContext context = CreateContext();
-        InsertNoiseDtos(context, dtos);
-        context.SaveChanges();
-    }
-
-    public void InsertNoiseDtos(string serialId, List<NoiseDto> dtos)
-    {
-        foreach (NoiseDto dto in dtos)
+        public void InsertNoiseDtos(List<NoiseDto> dtos)
         {
-            dto.SerialId = serialId;
-        }
-
-        InsertNoiseDtos(dtos);
-    }
-
-    public void InsertNoiseRecordsTable(DataTable table)
-    {
-        InsertNoiseDtos(ToNoiseDtos(table));
-    }
-
-    public async Task InsertNoiseRecordsTableAsync(
-        DataTable table,
-        CancellationToken cancellationToken = default)
-    {
-        List<NoiseDto> dtos = ToNoiseDtos(table);
-        if (dtos.Count == 0)
-        {
-            RvtLogger.Logger.LogWarning("Attempt to insert empty InsertNoiseDtos !");
-            return;
-        }
-
-        await using SvantekMonitorContext context = CreateContext();
-        await InsertNoiseDtosAsync(context, dtos, cancellationToken).ConfigureAwait(false);
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    public List<NoiseMonitorReadDto> ReadMonitorList(DateTime? lastDataTime)
-    {
-        DateTime minLastDataTime = lastDataTime ?? SvantekApi.JAN1_1970;
-        using SvantekMonitorContext context = CreateContext();
-
-        var rows = (from monitor in context.Monitors.AsNoTracking()
-                    join status in context.SvantekMonitorStatus.AsNoTracking() on monitor.SerialId equals status.SerialId
-                    join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
-                    where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
-                          monitor.FleetNr != null &&
-                          deployment.EndDate == null &&
-                          (monitor.LastDataTime15Min == null || monitor.LastDataTime15Min >= minLastDataTime)
-                    select new
-                    {
-                        Monitor = monitor,
-                        Status = status,
-                        Deployment = deployment
-                    }).ToList();
-
-        return [.. rows.Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))];
-    }
-
-    public async Task<List<NoiseMonitorReadDto>> ReadMonitorListAsync(
-        DateTime? lastDataTime,
-        CancellationToken cancellationToken = default)
-    {
-        DateTime minLastDataTime = lastDataTime ?? SvantekApi.JAN1_1970;
-        await using SvantekMonitorContext context = CreateContext();
-
-        var rows = await (from monitor in context.Monitors.AsNoTracking()
-                          join status in context.SvantekMonitorStatus.AsNoTracking() on monitor.SerialId equals status.SerialId
-                          join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
-                          where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
-                                monitor.FleetNr != null &&
-                                deployment.EndDate == null &&
-                                (monitor.LastDataTime15Min == null || monitor.LastDataTime15Min >= minLastDataTime)
-                          select new
-                          {
-                              Monitor = monitor,
-                              Status = status,
-                              Deployment = deployment
-                          })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return [.. rows.Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))];
-    }
-
-    public void WriteMonitorList(List<NoiseMonitorDto> monitors)
-    {
-        using SvantekMonitorContext context = CreateContext();
-
-        foreach (NoiseMonitorDto dto in monitors)
-        {
-            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
-                row.SerialId == dto.SerialId &&
-                row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE);
-
-            if (monitor == null)
+            if (dtos.Count == 0)
             {
-                context.Monitors.Add(SvantekDbMapper.ToMonitorEntity(dto));
-            }
-            else
-            {
-                SvantekDbMapper.UpdateMonitorEntity(monitor, dto);
+                RvtLogger.Logger.LogWarning("Attempt to insert empty InsertNoiseDtos !");
+                return;
             }
 
-            SvantekMonitorStatusEntity? status = context.SvantekMonitorStatus.FirstOrDefault(row => row.SerialId == dto.SerialId);
+            using SvantekMonitorContext context = CreateContext();
+            InsertNoiseDtos(context, dtos);
+            context.SaveChanges();
+        }
+
+        public void InsertNoiseDtos(string serialId, List<NoiseDto> dtos)
+        {
+            foreach (NoiseDto dto in dtos)
+            {
+                dto.SerialId = serialId;
+            }
+
+            InsertNoiseDtos(dtos);
+        }
+
+        public void InsertNoiseRecordsTable(DataTable table)
+        {
+            InsertNoiseDtos(ToNoiseDtos(table));
+        }
+
+        public async Task InsertNoiseRecordsTableAsync(
+            DataTable table,
+            CancellationToken cancellationToken = default)
+        {
+            List<NoiseDto> dtos = ToNoiseDtos(table);
+            if (dtos.Count == 0)
+            {
+                RvtLogger.Logger.LogWarning("Attempt to insert empty InsertNoiseDtos !");
+                return;
+            }
+
+            await using SvantekMonitorContext context = CreateContext();
+            await InsertNoiseDtosAsync(context, dtos, cancellationToken).ConfigureAwait(false);
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public List<NoiseMonitorReadDto> ReadMonitorList(DateTime? lastDataTime)
+        {
+            DateTime minLastDataTime = lastDataTime ?? SvantekApi.JAN1_1970;
+            using SvantekMonitorContext context = CreateContext();
+
+            var rows = (from monitor in context.Monitors.AsNoTracking()
+                        join status in context.SvantekMonitorStatus.AsNoTracking() on monitor.SerialId equals status.SerialId
+                        join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
+                        where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
+                              monitor.FleetNr != null &&
+                              deployment.EndDate == null &&
+                              (monitor.LastDataTime15Min == null || monitor.LastDataTime15Min >= minLastDataTime)
+                        select new
+                        {
+                            Monitor = monitor,
+                            Status = status,
+                            Deployment = deployment
+                        }).ToList();
+
+            return [.. rows.Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))];
+        }
+
+        public async Task<List<NoiseMonitorReadDto>> ReadMonitorListAsync(
+            DateTime? lastDataTime,
+            CancellationToken cancellationToken = default)
+        {
+            DateTime minLastDataTime = lastDataTime ?? SvantekApi.JAN1_1970;
+            await using SvantekMonitorContext context = CreateContext();
+
+            var rows = await (from monitor in context.Monitors.AsNoTracking()
+                              join status in context.SvantekMonitorStatus.AsNoTracking() on monitor.SerialId equals status.SerialId
+                              join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
+                              where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
+                                    monitor.FleetNr != null &&
+                                    deployment.EndDate == null &&
+                                    (monitor.LastDataTime15Min == null || monitor.LastDataTime15Min >= minLastDataTime)
+                              select new
+                              {
+                                  Monitor = monitor,
+                                  Status = status,
+                                  Deployment = deployment
+                              })
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            return [.. rows.Select(row => SvantekDbMapper.ToNoiseMonitorReadDto(row.Monitor, row.Status, row.Deployment))];
+        }
+
+        public void WriteMonitorList(List<NoiseMonitorDto> monitors)
+        {
+            using SvantekMonitorContext context = CreateContext();
+
+            foreach (NoiseMonitorDto dto in monitors)
+            {
+                MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
+                    row.SerialId == dto.SerialId &&
+                    row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE);
+
+                if (monitor == null)
+                {
+                    context.Monitors.Add(SvantekDbMapper.ToMonitorEntity(dto));
+                }
+                else
+                {
+                    SvantekDbMapper.UpdateMonitorEntity(monitor, dto);
+                }
+
+                SvantekMonitorStatusEntity? status = context.SvantekMonitorStatus.FirstOrDefault(row => row.SerialId == dto.SerialId);
+                if (status == null)
+                {
+                    context.SvantekMonitorStatus.Add(SvantekDbMapper.ToStatusEntity(dto));
+                }
+                else
+                {
+                    SvantekDbMapper.UpdateStatusEntity(status, dto);
+                }
+            }
+
+            context.SaveChanges();
+        }
+
+        public async Task WriteMonitorListAsync(
+            IReadOnlyList<NoiseMonitorDto> monitors,
+            CancellationToken cancellationToken = default)
+        {
+            await using SvantekMonitorContext context = CreateContext();
+
+            foreach (NoiseMonitorDto dto in monitors)
+            {
+                MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(row =>
+                    row.SerialId == dto.SerialId &&
+                    row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (monitor == null)
+                {
+                    context.Monitors.Add(SvantekDbMapper.ToMonitorEntity(dto));
+                }
+                else
+                {
+                    SvantekDbMapper.UpdateMonitorEntity(monitor, dto);
+                }
+
+                SvantekMonitorStatusEntity? status = await context.SvantekMonitorStatus.FirstOrDefaultAsync(
+                    row => row.SerialId == dto.SerialId,
+                    cancellationToken).ConfigureAwait(false);
+                if (status == null)
+                {
+                    context.SvantekMonitorStatus.Add(SvantekDbMapper.ToStatusEntity(dto));
+                }
+                else
+                {
+                    SvantekDbMapper.UpdateStatusEntity(status, dto);
+                }
+            }
+
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public void UpdateMonitorStatus(string serialId, int errorCount)
+        {
+            using SvantekMonitorContext context = CreateContext();
+            SvantekMonitorStatusEntity? status = context.SvantekMonitorStatus.FirstOrDefault(row => row.SerialId == serialId);
             if (status == null)
             {
-                context.SvantekMonitorStatus.Add(SvantekDbMapper.ToStatusEntity(dto));
+                return;
             }
-            else
-            {
-                SvantekDbMapper.UpdateStatusEntity(status, dto);
-            }
+
+            status.ErrorCount = errorCount;
+            context.SaveChanges();
         }
 
-        context.SaveChanges();
-    }
-
-    public async Task WriteMonitorListAsync(
-        IReadOnlyList<NoiseMonitorDto> monitors,
-        CancellationToken cancellationToken = default)
-    {
-        await using SvantekMonitorContext context = CreateContext();
-
-        foreach (NoiseMonitorDto dto in monitors)
+        public void HandleException(string message, Exception exception)
         {
+            RvtLogger.Logger.LogError("DBClient HandleException message={Value1} exception={Value2}",
+                                       message, exception.Message);
+
+            using SvantekMonitorContext context = CreateContext();
+            context.SvantekErrorMessages.Add(new SvantekErrorMessageEntity
+            {
+                Tag = Truncate(message, 64),
+                Error = Truncate(exception.Message, 512),
+                ErrorTime = DateTime.UtcNow
+            });
+            context.SaveChanges();
+        }
+
+        public void WriteLatestTimestamp(string serialId, DateTime lastDataTime)
+        {
+            DateTime normalizedLastDataTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(lastDataTime);
+            using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
+                row.SerialId == serialId &&
+                row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE);
+            if (monitor == null)
+            {
+                return;
+            }
+
+            monitor.LastDataTime15Min = normalizedLastDataTime;
+            context.SaveChanges();
+        }
+
+        public async Task WriteLatestTimestampAsync(
+            string serialId,
+            DateTime lastDataTime,
+            CancellationToken cancellationToken = default)
+        {
+            DateTime normalizedLastDataTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(lastDataTime);
+            await using SvantekMonitorContext context = CreateContext();
             MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(row =>
-                row.SerialId == dto.SerialId &&
+                row.SerialId == serialId &&
                 row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE,
                 cancellationToken).ConfigureAwait(false);
-
             if (monitor == null)
             {
-                context.Monitors.Add(SvantekDbMapper.ToMonitorEntity(dto));
+                return;
+            }
+
+            monitor.LastDataTime15Min = normalizedLastDataTime;
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public List<RvtAlertRuleDto> ReadRules(string? serialNumber)
+        {
+            using SvantekMonitorContext context = CreateContext();
+
+            IQueryable<RvtAlertRuleEntity> query;
+            if (serialNumber == null)
+            {
+                query = context.AlertRules.AsNoTracking().Where(row => row.SerialId == null);
             }
             else
             {
-                SvantekDbMapper.UpdateMonitorEntity(monitor, dto);
+                query = from rule in context.AlertRules.AsNoTracking()
+                        join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
+                        where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
+                              rule.SerialId == serialNumber &&
+                              !rule.IsDeleted
+                        select rule;
             }
 
-            SvantekMonitorStatusEntity? status = await context.SvantekMonitorStatus.FirstOrDefaultAsync(
-                row => row.SerialId == dto.SerialId,
+            return [.. query
+                .AsEnumerable()
+                .Select(rule => ToRuleDto(rule, serialNumber))];
+        }
+
+        public List<RvtContactDto> ReadAlertContacts(Guid monitorId, out Guid siteId)
+        {
+            using SvantekMonitorContext context = CreateContext();
+
+            var contactRows = (from deployment in context.Deployments.AsNoTracking()
+                               join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
+                               join siteUser in context.SiteUsers.AsNoTracking() on contract.SiteId equals siteUser.SiteId
+                               join setting in context.NotificationSettings.AsNoTracking() on siteUser.Id equals setting.SiteUserId
+                               where deployment.MonitorId == monitorId &&
+                                     deployment.EndDate == null &&
+                                     (setting.Email || setting.SMS)
+                               select new
+                               {
+                                   siteUser.UserId,
+                                   siteUser.SiteId,
+                                   setting.Email,
+                                   setting.SMS,
+                                   setting.StartTime,
+                                   setting.EndTime
+                               }).ToList();
+
+            siteId = contactRows.FirstOrDefault()?.SiteId ?? Guid.Empty;
+
+            HashSet<string> userIds = contactRows
+                .Select(row => row.UserId.ToString())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, AspNetUserEntity> usersById = context.Users
+                .AsNoTracking()
+                .Where(user => userIds.Contains(user.Id))
+                .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
+
+            return [.. contactRows
+                .Where(row => usersById.ContainsKey(row.UserId.ToString()))
+                .Select(row =>
+                {
+                    AspNetUserEntity user = usersById[row.UserId.ToString()];
+                    return new RvtContactDto(
+                        useEmail: row.Email,
+                        useSms: row.SMS,
+                        emailAddress: user.Email,
+                        phoneNumber: user.PhoneNumber,
+                        sendStartTime: row.StartTime,
+                        sendEndTime: row.EndTime);
+                })];
+        }
+
+        public void WriteNotification(NotificationDto dto)
+        {
+            using SvantekMonitorContext context = CreateContext();
+            context.Notifications.Add(new NotificationEntity
+            {
+                Id = dto.Id,
+                NotificationTime = dto.NotificationTime,
+                LimitOn = dto.LimitOn,
+                AveragingPeriod = dto.AveragingPeriod,
+                Level = dto.Level,
+                ClosedTime = dto.ClosedTime,
+                ClosedByUser = dto.ClosedByUser,
+                MonitorId = dto.MonitorId,
+                AlertType = (int)dto.AlertType,
+                AlertField = dto.AlertField
+            });
+            context.SaveChanges();
+        }
+
+        public bool HasOpenNotification(Guid monitorId, string alertField, AlertType alertType)
+        {
+            using SvantekMonitorContext context = CreateContext();
+
+            return context.Notifications
+                .AsNoTracking()
+                .Any(row => row.MonitorId == monitorId &&
+                            row.AlertField == alertField &&
+                            row.AlertType == (int)alertType &&
+                            row.ClosedTime == null);
+        }
+
+        public void UpdateAlertRule(RvtAlertRuleDto dto)
+        {
+            using SvantekMonitorContext context = CreateContext();
+            RvtAlertRuleEntity? rule = context.AlertRules.FirstOrDefault(row => row.Id == dto.RuleId);
+            if (rule == null)
+            {
+                return;
+            }
+
+            rule.IsActive = dto.IsActive;
+            rule.Accessed = dto.Accessed;
+            context.SaveChanges();
+        }
+
+        public double GetAverageNoiseLevel(string serialNumber, string columnName, DateTime start, DateTime end)
+        {
+            using SvantekMonitorContext context = CreateContext();
+            MonitorAggregateField<SvantekNoiseLevelEntity> field = SvantekAggregateFields.Resolve(columnName);
+            DateTime normalizedStart = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(start);
+            DateTime normalizedEnd = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(end);
+            IQueryable<SvantekNoiseLevelEntity> query = context.NoiseLevels
+                .Where(row => row.SerialId == serialNumber)
+                .Where(row => row.SampleTime > normalizedStart && row.SampleTime <= normalizedEnd);
+
+            return (field.UseMaximum ? query.Max(field.Selector) : query.Average(field.Selector)) ?? 0.0;
+        }
+
+        public void WriteNotificationAudit(Guid notificationId, string address, string message)
+        {
+            RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
+                SensitiveLogRedactor.Redact(address), message);
+
+            using SvantekMonitorContext context = CreateContext();
+            context.NotificationAudits.Add(new NotificationSentEntity
+            {
+                Id = Guid.NewGuid(),
+                SendTime = DateTime.UtcNow,
+                Address = address,
+                ErrorMessage = message,
+                NotificationId = notificationId
+            });
+            context.SaveChanges();
+        }
+
+        public void SetMonitorOffline(Guid monitorId, bool offline)
+        {
+            using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
+            if (monitor == null)
+            {
+                return;
+            }
+
+            monitor.Offline = offline;
+            context.SaveChanges();
+        }
+
+        public async Task SetMonitorOfflineAsync(
+            Guid monitorId,
+            bool offline,
+            CancellationToken cancellationToken = default)
+        {
+            await using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(
+                row => row.Id == monitorId,
                 cancellationToken).ConfigureAwait(false);
-            if (status == null)
+            if (monitor == null)
             {
-                context.SvantekMonitorStatus.Add(SvantekDbMapper.ToStatusEntity(dto));
+                return;
             }
-            else
+
+            monitor.Offline = offline;
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public void ClearErrorMessages(DateTime before)
+        {
+            using SvantekMonitorContext context = CreateContext();
+            List<SvantekErrorMessageEntity> messages = [.. context.SvantekErrorMessages.Where(row => row.ErrorTime < before)];
+
+            context.SvantekErrorMessages.RemoveRange(messages);
+            context.SaveChanges();
+        }
+
+        public SiteInfoDto ReadSiteInfo(Guid siteId)
+        {
+            using SvantekMonitorContext context = CreateContext();
+            SiteEntity? site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId);
+            if (site == null)
             {
-                SvantekDbMapper.UpdateStatusEntity(status, dto);
+                throw AdapterException.Of($"No site info for site Id={siteId}");
             }
+
+            return new SiteInfoDto(
+                siteId: siteId,
+                startTime: site.StartTime,
+                endTime: site.EndTime,
+                satStartTime: site.SatStartTime,
+                satEndTime: site.SatEndTime,
+                sunStartTime: site.SunStartTime,
+                sunEndTime: site.SunEndTime);
         }
 
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    public void UpdateMonitorStatus(string serialId, int errorCount)
-    {
-        using SvantekMonitorContext context = CreateContext();
-        SvantekMonitorStatusEntity? status = context.SvantekMonitorStatus.FirstOrDefault(row => row.SerialId == serialId);
-        if (status == null)
+        public List<SiteMonitorsWithSiteHoursDto> ReadSiteMonitorsWithSiteHours(DateTime Day)
         {
-            return;
-        }
+            using SvantekMonitorContext context = CreateContext();
 
-        status.ErrorCount = errorCount;
-        context.SaveChanges();
-    }
+            var query = from monitor in context.Monitors.AsNoTracking()
+                        join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
+                        join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
+                        join site in context.Sites.AsNoTracking() on contract.SiteId equals site.Id
+                        where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
+                              deployment.EndDate == null &&
+                              monitor.Offline == false
+                        select new
+                        {
+                            Monitor = monitor,
+                            Contract = contract,
+                            Site = site
+                        };
 
-    public void HandleException(string message, Exception exception)
-    {
-        RvtLogger.Logger.LogError("DBClient HandleException message={Value1} exception={Value2}",
-                                   message, exception.Message);
-
-        using SvantekMonitorContext context = CreateContext();
-        context.SvantekErrorMessages.Add(new SvantekErrorMessageEntity
-        {
-            Tag = Truncate(message, 64),
-            Error = Truncate(exception.Message, 512),
-            ErrorTime = DateTime.UtcNow
-        });
-        context.SaveChanges();
-    }
-
-    public void WriteLatestTimestamp(string serialId, DateTime lastDataTime)
-    {
-        DateTime normalizedLastDataTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(lastDataTime);
-        using SvantekMonitorContext context = CreateContext();
-        MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
-            row.SerialId == serialId &&
-            row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE);
-        if (monitor == null)
-        {
-            return;
-        }
-
-        monitor.LastDataTime15Min = normalizedLastDataTime;
-        context.SaveChanges();
-    }
-
-    public async Task WriteLatestTimestampAsync(
-        string serialId,
-        DateTime lastDataTime,
-        CancellationToken cancellationToken = default)
-    {
-        DateTime normalizedLastDataTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(lastDataTime);
-        await using SvantekMonitorContext context = CreateContext();
-        MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(row =>
-            row.SerialId == serialId &&
-            row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE,
-            cancellationToken).ConfigureAwait(false);
-        if (monitor == null)
-        {
-            return;
-        }
-
-        monitor.LastDataTime15Min = normalizedLastDataTime;
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    public List<RvtAlertRuleDto> ReadRules(string? serialNumber)
-    {
-        using SvantekMonitorContext context = CreateContext();
-
-        IQueryable<RvtAlertRuleEntity> query;
-        if (serialNumber == null)
-        {
-            query = context.AlertRules.AsNoTracking().Where(row => row.SerialId == null);
-        }
-        else
-        {
-            query = from rule in context.AlertRules.AsNoTracking()
-                    join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
-                    where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
-                          rule.SerialId == serialNumber &&
-                          !rule.IsDeleted
-                    select rule;
-        }
-
-        return [.. query
-            .AsEnumerable()
-            .Select(rule => ToRuleDto(rule, serialNumber))];
-    }
-
-    public List<RvtContactDto> ReadAlertContacts(Guid monitorId, out Guid siteId)
-    {
-        using SvantekMonitorContext context = CreateContext();
-
-        var contactRows = (from deployment in context.Deployments.AsNoTracking()
-                           join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
-                           join siteUser in context.SiteUsers.AsNoTracking() on contract.SiteId equals siteUser.SiteId
-                           join setting in context.NotificationSettings.AsNoTracking() on siteUser.Id equals setting.SiteUserId
-                           where deployment.MonitorId == monitorId &&
-                                 deployment.EndDate == null &&
-                                 (setting.Email || setting.SMS)
-                           select new
-                           {
-                               siteUser.UserId,
-                               siteUser.SiteId,
-                               setting.Email,
-                               setting.SMS,
-                               setting.StartTime,
-                               setting.EndTime
-                           }).ToList();
-
-        siteId = contactRows.FirstOrDefault()?.SiteId ?? Guid.Empty;
-
-        HashSet<string> userIds = contactRows
-            .Select(row => row.UserId.ToString())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, AspNetUserEntity> usersById = context.Users
-            .AsNoTracking()
-            .Where(user => userIds.Contains(user.Id))
-            .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
-
-        return [.. contactRows
-            .Where(row => usersById.ContainsKey(row.UserId.ToString()))
-            .Select(row =>
+            query = Day.DayOfWeek switch
             {
-                AspNetUserEntity user = usersById[row.UserId.ToString()];
-                return new RvtContactDto(
-                    useEmail: row.Email,
-                    useSms: row.SMS,
-                    emailAddress: user.Email,
-                    phoneNumber: user.PhoneNumber,
-                    sendStartTime: row.StartTime,
-                    sendEndTime: row.EndTime);
-            })];
-    }
+                DayOfWeek.Saturday => query.Where(row => row.Site.SatStartTime != null && row.Site.SatEndTime != null),
+                DayOfWeek.Sunday => query.Where(row => row.Site.SunStartTime != null && row.Site.SunEndTime != null),
+                _ => query.Where(row => row.Site.StartTime != null && row.Site.EndTime != null)
+            };
 
-    public void WriteNotification(NotificationDto dto)
-    {
-        using SvantekMonitorContext context = CreateContext();
-        context.Notifications.Add(new NotificationEntity
-        {
-            Id = dto.Id,
-            NotificationTime = dto.NotificationTime,
-            LimitOn = dto.LimitOn,
-            AveragingPeriod = dto.AveragingPeriod,
-            Level = dto.Level,
-            ClosedTime = dto.ClosedTime,
-            ClosedByUser = dto.ClosedByUser,
-            MonitorId = dto.MonitorId,
-            AlertType = (int)dto.AlertType,
-            AlertField = dto.AlertField
-        });
-        context.SaveChanges();
-    }
-
-    public bool HasOpenNotification(Guid monitorId, string alertField, AlertType alertType)
-    {
-        using SvantekMonitorContext context = CreateContext();
-
-        return context.Notifications
-            .AsNoTracking()
-            .Any(row => row.MonitorId == monitorId &&
-                        row.AlertField == alertField &&
-                        row.AlertType == (int)alertType &&
-                        row.ClosedTime == null);
-    }
-
-    public void UpdateAlertRule(RvtAlertRuleDto dto)
-    {
-        using SvantekMonitorContext context = CreateContext();
-        RvtAlertRuleEntity? rule = context.AlertRules.FirstOrDefault(row => row.Id == dto.RuleId);
-        if (rule == null)
-        {
-            return;
-        }
-
-        rule.IsActive = dto.IsActive;
-        rule.Accessed = dto.Accessed;
-        context.SaveChanges();
-    }
-
-    public double GetAverageNoiseLevel(string serialNumber, string columnName, DateTime start, DateTime end)
-    {
-        using SvantekMonitorContext context = CreateContext();
-        MonitorAggregateField<SvantekNoiseLevelEntity> field = SvantekAggregateFields.Resolve(columnName);
-        DateTime normalizedStart = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(start);
-        DateTime normalizedEnd = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(end);
-        IQueryable<SvantekNoiseLevelEntity> query = context.NoiseLevels
-            .Where(row => row.SerialId == serialNumber)
-            .Where(row => row.SampleTime > normalizedStart && row.SampleTime <= normalizedEnd);
-
-        return (field.UseMaximum ? query.Max(field.Selector) : query.Average(field.Selector)) ?? 0.0;
-    }
-
-    public void WriteNotificationAudit(Guid notificationId, string address, string message)
-    {
-        RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
-            SensitiveLogRedactor.Redact(address), message);
-
-        using SvantekMonitorContext context = CreateContext();
-        context.NotificationAudits.Add(new NotificationSentEntity
-        {
-            Id = Guid.NewGuid(),
-            SendTime = DateTime.UtcNow,
-            Address = address,
-            ErrorMessage = message,
-            NotificationId = notificationId
-        });
-        context.SaveChanges();
-    }
-
-    public void SetMonitorOffline(Guid monitorId, bool offline)
-    {
-        using SvantekMonitorContext context = CreateContext();
-        MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
-        if (monitor == null)
-        {
-            return;
-        }
-
-        monitor.Offline = offline;
-        context.SaveChanges();
-    }
-
-    public async Task SetMonitorOfflineAsync(
-        Guid monitorId,
-        bool offline,
-        CancellationToken cancellationToken = default)
-    {
-        await using SvantekMonitorContext context = CreateContext();
-        MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(
-            row => row.Id == monitorId,
-            cancellationToken).ConfigureAwait(false);
-        if (monitor == null)
-        {
-            return;
-        }
-
-        monitor.Offline = offline;
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    public void ClearErrorMessages(DateTime before)
-    {
-        using SvantekMonitorContext context = CreateContext();
-        List<SvantekErrorMessageEntity> messages = [.. context.SvantekErrorMessages.Where(row => row.ErrorTime < before)];
-
-        context.SvantekErrorMessages.RemoveRange(messages);
-        context.SaveChanges();
-    }
-
-    public SiteInfoDto ReadSiteInfo(Guid siteId)
-    {
-        using SvantekMonitorContext context = CreateContext();
-        SiteEntity? site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId);
-        if (site == null)
-        {
-            throw AdapterException.Of($"No site info for site Id={siteId}");
-        }
-
-        return new SiteInfoDto(
-            siteId: siteId,
-            startTime: site.StartTime,
-            endTime: site.EndTime,
-            satStartTime: site.SatStartTime,
-            satEndTime: site.SatEndTime,
-            sunStartTime: site.SunStartTime,
-            sunEndTime: site.SunEndTime);
-    }
-
-    public List<SiteMonitorsWithSiteHoursDto> ReadSiteMonitorsWithSiteHours(DateTime Day)
-    {
-        using SvantekMonitorContext context = CreateContext();
-
-        var query = from monitor in context.Monitors.AsNoTracking()
-                    join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
-                    join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
-                    join site in context.Sites.AsNoTracking() on contract.SiteId equals site.Id
-                    where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
-                          deployment.EndDate == null &&
-                          monitor.Offline == false
-                    select new
+            return [.. query
+                .AsEnumerable()
+                .Select(row =>
+                {
+                    TimeSpan startTime = Day.DayOfWeek switch
                     {
-                        Monitor = monitor,
-                        Contract = contract,
-                        Site = site
+                        DayOfWeek.Saturday => row.Site.SatStartTime!.Value,
+                        DayOfWeek.Sunday => row.Site.SunStartTime!.Value,
+                        _ => row.Site.StartTime!.Value
+                    };
+                    TimeSpan endTime = Day.DayOfWeek switch
+                    {
+                        DayOfWeek.Saturday => row.Site.SatEndTime!.Value,
+                        DayOfWeek.Sunday => row.Site.SunEndTime!.Value,
+                        _ => row.Site.EndTime!.Value
                     };
 
-        query = Day.DayOfWeek switch
-        {
-            DayOfWeek.Saturday => query.Where(row => row.Site.SatStartTime != null && row.Site.SatEndTime != null),
-            DayOfWeek.Sunday => query.Where(row => row.Site.SunStartTime != null && row.Site.SunEndTime != null),
-            _ => query.Where(row => row.Site.StartTime != null && row.Site.EndTime != null)
-        };
+                    return new SiteMonitorsWithSiteHoursDto(
+                        monitorId: row.Monitor.Id,
+                        fleetnr: row.Monitor.FleetNr ?? string.Empty,
+                        serialId: row.Monitor.SerialId,
+                        typeOfMonitor: row.Monitor.TypeOfMonitor,
+                        offline: row.Monitor.Offline ?? false,
+                        siteId: row.Site.Id,
+                        siteName: row.Site.SiteName ?? string.Empty,
+                        startTime: startTime,
+                        endTime: endTime);
+                })];
+        }
 
-        return [.. query
-            .AsEnumerable()
-            .Select(row =>
+        public async Task<List<SiteMonitorsWithSiteHoursDto>> ReadSiteMonitorsWithSiteHoursAsync(
+            DateTime day,
+            CancellationToken cancellationToken = default)
+        {
+            await using SvantekMonitorContext context = CreateContext();
+
+            var query = from monitor in context.Monitors.AsNoTracking()
+                        join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
+                        join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
+                        join site in context.Sites.AsNoTracking() on contract.SiteId equals site.Id
+                        where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
+                              deployment.EndDate == null &&
+                              monitor.Offline == false
+                        select new
+                        {
+                            Monitor = monitor,
+                            Site = site
+                        };
+
+            query = day.DayOfWeek switch
             {
-                TimeSpan startTime = Day.DayOfWeek switch
+                DayOfWeek.Saturday => query.Where(row => row.Site.SatStartTime != null && row.Site.SatEndTime != null),
+                DayOfWeek.Sunday => query.Where(row => row.Site.SunStartTime != null && row.Site.SunEndTime != null),
+                _ => query.Where(row => row.Site.StartTime != null && row.Site.EndTime != null)
+            };
+
+            var rows = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
+            return [.. rows.Select(row =>
+            {
+                TimeSpan startTime = day.DayOfWeek switch
                 {
                     DayOfWeek.Saturday => row.Site.SatStartTime!.Value,
                     DayOfWeek.Sunday => row.Site.SunStartTime!.Value,
                     _ => row.Site.StartTime!.Value
                 };
-                TimeSpan endTime = Day.DayOfWeek switch
+                TimeSpan endTime = day.DayOfWeek switch
                 {
                     DayOfWeek.Saturday => row.Site.SatEndTime!.Value,
                     DayOfWeek.Sunday => row.Site.SunEndTime!.Value,
@@ -517,235 +572,213 @@ public class DBClient : IDBClient
                     startTime: startTime,
                     endTime: endTime);
             })];
-    }
+        }
 
-    public async Task<List<SiteMonitorsWithSiteHoursDto>> ReadSiteMonitorsWithSiteHoursAsync(
-        DateTime day,
-        CancellationToken cancellationToken = default)
-    {
-        await using SvantekMonitorContext context = CreateContext();
-
-        var query = from monitor in context.Monitors.AsNoTracking()
-                    join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
-                    join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
-                    join site in context.Sites.AsNoTracking() on contract.SiteId equals site.Id
-                    where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
-                          deployment.EndDate == null &&
-                          monitor.Offline == false
-                    select new
-                    {
-                        Monitor = monitor,
-                        Site = site
-                    };
-
-        query = day.DayOfWeek switch
+        public void WriteDailyAverage(Guid siteId, Guid monitorId, string field, double level, DateTime timestamp)
         {
-            DayOfWeek.Saturday => query.Where(row => row.Site.SatStartTime != null && row.Site.SatEndTime != null),
-            DayOfWeek.Sunday => query.Where(row => row.Site.SunStartTime != null && row.Site.SunEndTime != null),
-            _ => query.Where(row => row.Site.StartTime != null && row.Site.EndTime != null)
-        };
-
-        var rows = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
-        return [.. rows.Select(row =>
-        {
-            TimeSpan startTime = day.DayOfWeek switch
+            using SvantekMonitorContext context = CreateContext();
+            context.SiteAverages.Add(new SiteAverageEntity
             {
-                DayOfWeek.Saturday => row.Site.SatStartTime!.Value,
-                DayOfWeek.Sunday => row.Site.SunStartTime!.Value,
-                _ => row.Site.StartTime!.Value
-            };
-            TimeSpan endTime = day.DayOfWeek switch
+                Id = Guid.NewGuid(),
+                SiteId = siteId,
+                MonitorId = monitorId,
+                Field = field,
+                Level = level,
+                CollectionTime = timestamp
+            });
+            context.SaveChanges();
+        }
+
+        public async Task WriteDailyAverageAsync(
+            Guid siteId,
+            Guid monitorId,
+            string field,
+            double level,
+            DateTime timestamp,
+            CancellationToken cancellationToken = default)
+        {
+            await using SvantekMonitorContext context = CreateContext();
+            context.SiteAverages.Add(new SiteAverageEntity
             {
-                DayOfWeek.Saturday => row.Site.SatEndTime!.Value,
-                DayOfWeek.Sunday => row.Site.SunEndTime!.Value,
-                _ => row.Site.EndTime!.Value
-            };
-
-            return new SiteMonitorsWithSiteHoursDto(
-                monitorId: row.Monitor.Id,
-                fleetnr: row.Monitor.FleetNr ?? string.Empty,
-                serialId: row.Monitor.SerialId,
-                typeOfMonitor: row.Monitor.TypeOfMonitor,
-                offline: row.Monitor.Offline ?? false,
-                siteId: row.Site.Id,
-                siteName: row.Site.SiteName ?? string.Empty,
-                startTime: startTime,
-                endTime: endTime);
-        })];
-    }
-
-    public void WriteDailyAverage(Guid siteId, Guid monitorId, string field, double level, DateTime timestamp)
-    {
-        using SvantekMonitorContext context = CreateContext();
-        context.SiteAverages.Add(new SiteAverageEntity
-        {
-            Id = Guid.NewGuid(),
-            SiteId = siteId,
-            MonitorId = monitorId,
-            Field = field,
-            Level = level,
-            CollectionTime = timestamp
-        });
-        context.SaveChanges();
-    }
-
-    public async Task WriteDailyAverageAsync(
-        Guid siteId,
-        Guid monitorId,
-        string field,
-        double level,
-        DateTime timestamp,
-        CancellationToken cancellationToken = default)
-    {
-        await using SvantekMonitorContext context = CreateContext();
-        context.SiteAverages.Add(new SiteAverageEntity
-        {
-            Id = Guid.NewGuid(),
-            SiteId = siteId,
-            MonitorId = monitorId,
-            Field = field,
-            Level = level,
-            CollectionTime = timestamp
-        });
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    public void Create8hourAverage(string serialId, DateTime SampleTime)
-    {
-        DateTime normalizedSampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(SampleTime);
-        using SvantekMonitorContext context = CreateContext();
-
-        bool exists = context.Noise8HourAverages.Any(row =>
-            row.SerialId == serialId &&
-            row.SampleTime == normalizedSampleTime);
-        if (exists)
-        {
-            return;
+                Id = Guid.NewGuid(),
+                SiteId = siteId,
+                MonitorId = monitorId,
+                Field = field,
+                Level = level,
+                CollectionTime = timestamp
+            });
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        List<SvantekNoiseLevelEntity> rows = [.. context.NoiseLevels
-            .AsNoTracking()
-            .Where(row => row.SerialId == serialId)
-            .Where(row => row.SampleTime > normalizedSampleTime.AddHours(-8) && row.SampleTime <= normalizedSampleTime)];
-        if (rows.Count == 0)
+        public void Create8hourAverage(string serialId, DateTime SampleTime)
         {
-            return;
+            DateTime normalizedSampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(SampleTime);
+            using SvantekMonitorContext context = CreateContext();
+
+            bool exists = context.Noise8HourAverages.Any(row =>
+                row.SerialId == serialId &&
+                row.SampleTime == normalizedSampleTime);
+            if (exists)
+            {
+                return;
+            }
+
+            List<SvantekNoiseLevelEntity> rows = [.. context.NoiseLevels
+                .AsNoTracking()
+                .Where(row => row.SerialId == serialId)
+                .Where(row => row.SampleTime > normalizedSampleTime.AddHours(-8) && row.SampleTime <= normalizedSampleTime)];
+            if (rows.Count == 0)
+            {
+                return;
+            }
+
+            context.Noise8HourAverages.Add(new SvantekNoise8HourAverageEntity
+            {
+                SerialId = serialId,
+                SampleTime = normalizedSampleTime,
+                LAeq = rows.Average(row => row.LAeq),
+                LAmax = rows.Average(row => row.LAmax),
+                LA90 = rows.Average(row => row.LA90),
+                LA10 = rows.Average(row => row.LA10),
+                LCeq = rows.Average(row => row.LCeq),
+                LCmax = rows.Average(row => row.LCmax),
+                LC90 = rows.Average(row => row.LC90),
+                LC10 = rows.Average(row => row.LC10),
+                NumberOfSamples = rows.Count
+            });
+            context.SaveChanges();
         }
 
-        context.Noise8HourAverages.Add(new SvantekNoise8HourAverageEntity
+        public async Task Create8hourAverageAsync(
+            string serialId,
+            DateTime sampleTime,
+            CancellationToken cancellationToken = default)
         {
-            SerialId = serialId,
-            SampleTime = normalizedSampleTime,
-            LAeq = rows.Average(row => row.LAeq),
-            LAmax = rows.Average(row => row.LAmax),
-            LA90 = rows.Average(row => row.LA90),
-            LA10 = rows.Average(row => row.LA10),
-            LCeq = rows.Average(row => row.LCeq),
-            LCmax = rows.Average(row => row.LCmax),
-            LC90 = rows.Average(row => row.LC90),
-            LC10 = rows.Average(row => row.LC10),
-            NumberOfSamples = rows.Count
-        });
-        context.SaveChanges();
-    }
+            DateTime normalizedSampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(sampleTime);
+            await using SvantekMonitorContext context = CreateContext();
 
-    public async Task Create8hourAverageAsync(
-        string serialId,
-        DateTime sampleTime,
-        CancellationToken cancellationToken = default)
-    {
-        DateTime normalizedSampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(sampleTime);
-        await using SvantekMonitorContext context = CreateContext();
+            bool exists = await context.Noise8HourAverages.AnyAsync(row =>
+                row.SerialId == serialId &&
+                row.SampleTime == normalizedSampleTime,
+                cancellationToken).ConfigureAwait(false);
+            if (exists)
+            {
+                return;
+            }
 
-        bool exists = await context.Noise8HourAverages.AnyAsync(row =>
-            row.SerialId == serialId &&
-            row.SampleTime == normalizedSampleTime,
-            cancellationToken).ConfigureAwait(false);
-        if (exists)
-        {
-            return;
+            List<SvantekNoiseLevelEntity> rows = await context.NoiseLevels
+                .AsNoTracking()
+                .Where(row => row.SerialId == serialId)
+                .Where(row => row.SampleTime > normalizedSampleTime.AddHours(-8) && row.SampleTime <= normalizedSampleTime)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (rows.Count == 0)
+            {
+                return;
+            }
+
+            context.Noise8HourAverages.Add(new SvantekNoise8HourAverageEntity
+            {
+                SerialId = serialId,
+                SampleTime = normalizedSampleTime,
+                LAeq = rows.Average(row => row.LAeq),
+                LAmax = rows.Average(row => row.LAmax),
+                LA90 = rows.Average(row => row.LA90),
+                LA10 = rows.Average(row => row.LA10),
+                LCeq = rows.Average(row => row.LCeq),
+                LCmax = rows.Average(row => row.LCmax),
+                LC90 = rows.Average(row => row.LC90),
+                LC10 = rows.Average(row => row.LC10),
+                NumberOfSamples = rows.Count
+            });
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        List<SvantekNoiseLevelEntity> rows = await context.NoiseLevels
-            .AsNoTracking()
-            .Where(row => row.SerialId == serialId)
-            .Where(row => row.SampleTime > normalizedSampleTime.AddHours(-8) && row.SampleTime <= normalizedSampleTime)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-        if (rows.Count == 0)
+        public void SetMonitorBatteryStatus(Guid monitorId, byte batteryStatus)
         {
-            return;
+            using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
+            if (monitor == null)
+            {
+                return;
+            }
+
+            monitor.BatteryStatus = batteryStatus;
+            context.SaveChanges();
         }
 
-        context.Noise8HourAverages.Add(new SvantekNoise8HourAverageEntity
+        public async Task SetMonitorBatteryStatusAsync(
+            Guid monitorId,
+            byte batteryStatus,
+            CancellationToken cancellationToken = default)
         {
-            SerialId = serialId,
-            SampleTime = normalizedSampleTime,
-            LAeq = rows.Average(row => row.LAeq),
-            LAmax = rows.Average(row => row.LAmax),
-            LA90 = rows.Average(row => row.LA90),
-            LA10 = rows.Average(row => row.LA10),
-            LCeq = rows.Average(row => row.LCeq),
-            LCmax = rows.Average(row => row.LCmax),
-            LC90 = rows.Average(row => row.LC90),
-            LC10 = rows.Average(row => row.LC10),
-            NumberOfSamples = rows.Count
-        });
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
+            await using SvantekMonitorContext context = CreateContext();
+            MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(
+                row => row.Id == monitorId,
+                cancellationToken).ConfigureAwait(false);
+            if (monitor == null)
+            {
+                return;
+            }
 
-    public void SetMonitorBatteryStatus(Guid monitorId, byte batteryStatus)
-    {
-        using SvantekMonitorContext context = CreateContext();
-        MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.Id == monitorId);
-        if (monitor == null)
-        {
-            return;
+            monitor.BatteryStatus = batteryStatus;
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        monitor.BatteryStatus = batteryStatus;
-        context.SaveChanges();
-    }
-
-    public async Task SetMonitorBatteryStatusAsync(
-        Guid monitorId,
-        byte batteryStatus,
-        CancellationToken cancellationToken = default)
-    {
-        await using SvantekMonitorContext context = CreateContext();
-        MonitorEntity? monitor = await context.Monitors.FirstOrDefaultAsync(
-            row => row.Id == monitorId,
-            cancellationToken).ConfigureAwait(false);
-        if (monitor == null)
+        public List<NoiseNotificationLatest> ReadLatestNotification()
         {
-            return;
+            using SvantekMonitorContext context = CreateContext();
+            DateTime cutoff = DateTime.Now.AddHours(-12);
+
+            var rows = (from notification in context.Notifications.AsNoTracking()
+                        join monitor in context.Monitors.AsNoTracking() on notification.MonitorId equals monitor.Id
+                        join status in context.SvantekMonitorStatus.AsNoTracking() on monitor.SerialId equals status.SerialId
+                        where EF.Property<string?>(notification, "RecordingLink") == null &&
+                              monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
+                              notification.AlertType == 0 &&
+                              notification.NotificationTime >= cutoff
+                        select new
+                        {
+                            Notification = notification,
+                            Monitor = monitor,
+                            Status = status
+                        }).ToList();
+
+            return [.. rows
+                .Select(row => new NoiseNotificationLatest(
+                    NotificationId: row.Notification.Id,
+                    MonitorId: row.Monitor.Id,
+                    FleetNr: row.Monitor.FleetNr ?? string.Empty,
+                    SerialId: row.Monitor.SerialId,
+                    ProjectId: row.Status.ProjectId ?? 0,
+                    PointId: row.Status.PointId ?? 0,
+                    NotificationTime: row.Notification.NotificationTime,
+                    AvgPeriod: row.Notification.AveragingPeriod))];
         }
 
-        monitor.BatteryStatus = batteryStatus;
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
+        public async Task<List<NoiseNotificationLatest>> ReadLatestNotificationAsync(
+            CancellationToken cancellationToken = default)
+        {
+            await using SvantekMonitorContext context = CreateContext();
+            DateTime cutoff = DateTime.Now.AddHours(-12);
 
-    public List<NoiseNotificationLatest> ReadLatestNotification()
-    {
-        using SvantekMonitorContext context = CreateContext();
-        DateTime cutoff = DateTime.Now.AddHours(-12);
+            var rows = await (from notification in context.Notifications.AsNoTracking()
+                              join monitor in context.Monitors.AsNoTracking() on notification.MonitorId equals monitor.Id
+                              join status in context.SvantekMonitorStatus.AsNoTracking() on monitor.SerialId equals status.SerialId
+                              where EF.Property<string?>(notification, "RecordingLink") == null &&
+                                    monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
+                                    notification.AlertType == 0 &&
+                                    notification.NotificationTime >= cutoff
+                              select new
+                              {
+                                  Notification = notification,
+                                  Monitor = monitor,
+                                  Status = status
+                              })
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
-        var rows = (from notification in context.Notifications.AsNoTracking()
-                    join monitor in context.Monitors.AsNoTracking() on notification.MonitorId equals monitor.Id
-                    join status in context.SvantekMonitorStatus.AsNoTracking() on monitor.SerialId equals status.SerialId
-                    where EF.Property<string?>(notification, "RecordingLink") == null &&
-                          monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
-                          notification.AlertType == 0 &&
-                          notification.NotificationTime >= cutoff
-                    select new
-                    {
-                        Notification = notification,
-                        Monitor = monitor,
-                        Status = status
-                    }).ToList();
-
-        return [.. rows
-            .Select(row => new NoiseNotificationLatest(
+            return [.. rows.Select(row => new NoiseNotificationLatest(
                 NotificationId: row.Notification.Id,
                 MonitorId: row.Monitor.Id,
                 FleetNr: row.Monitor.FleetNr ?? string.Empty,
@@ -754,186 +787,154 @@ public class DBClient : IDBClient
                 PointId: row.Status.PointId ?? 0,
                 NotificationTime: row.Notification.NotificationTime,
                 AvgPeriod: row.Notification.AveragingPeriod))];
-    }
+        }
 
-    public async Task<List<NoiseNotificationLatest>> ReadLatestNotificationAsync(
-        CancellationToken cancellationToken = default)
-    {
-        await using SvantekMonitorContext context = CreateContext();
-        DateTime cutoff = DateTime.Now.AddHours(-12);
-
-        var rows = await (from notification in context.Notifications.AsNoTracking()
-                          join monitor in context.Monitors.AsNoTracking() on notification.MonitorId equals monitor.Id
-                          join status in context.SvantekMonitorStatus.AsNoTracking() on monitor.SerialId equals status.SerialId
-                          where EF.Property<string?>(notification, "RecordingLink") == null &&
-                                monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
-                                notification.AlertType == 0 &&
-                                notification.NotificationTime >= cutoff
-                          select new
-                          {
-                              Notification = notification,
-                              Monitor = monitor,
-                              Status = status
-                          })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return [.. rows.Select(row => new NoiseNotificationLatest(
-            NotificationId: row.Notification.Id,
-            MonitorId: row.Monitor.Id,
-            FleetNr: row.Monitor.FleetNr ?? string.Empty,
-            SerialId: row.Monitor.SerialId,
-            ProjectId: row.Status.ProjectId ?? 0,
-            PointId: row.Status.PointId ?? 0,
-            NotificationTime: row.Notification.NotificationTime,
-            AvgPeriod: row.Notification.AveragingPeriod))];
-    }
-
-    public bool WriteSoundFile(Guid notificationId, string fileName)
-    {
-        using SvantekMonitorContext context = CreateContext();
-        NotificationEntity? notification = context.Notifications.FirstOrDefault(row => row.Id == notificationId);
-        if (notification == null)
+        public bool WriteSoundFile(Guid notificationId, string fileName)
         {
+            using SvantekMonitorContext context = CreateContext();
+            NotificationEntity? notification = context.Notifications.FirstOrDefault(row => row.Id == notificationId);
+            if (notification == null)
+            {
+                return true;
+            }
+
+            context.Entry(notification).Property("RecordingLink").CurrentValue = fileName;
+            context.SaveChanges();
             return true;
         }
 
-        context.Entry(notification).Property("RecordingLink").CurrentValue = fileName;
-        context.SaveChanges();
-        return true;
-    }
-
-    public async Task<bool> WriteSoundFileAsync(
-        Guid notificationId,
-        string fileName,
-        CancellationToken cancellationToken = default)
-    {
-        await using SvantekMonitorContext context = CreateContext();
-        NotificationEntity? notification = await context.Notifications.FirstOrDefaultAsync(
-            row => row.Id == notificationId,
-            cancellationToken).ConfigureAwait(false);
-        if (notification == null)
+        public async Task<bool> WriteSoundFileAsync(
+            Guid notificationId,
+            string fileName,
+            CancellationToken cancellationToken = default)
         {
-            return true;
-        }
-
-        context.Entry(notification).Property("RecordingLink").CurrentValue = fileName;
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return true;
-    }
-
-    private SvantekMonitorContext CreateContext()
-    {
-        MonitorDbOptions monitorOptions = SvantekMonitorDbOptions.Current;
-        DbContextOptions<SvantekMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<SvantekMonitorContext>(ConnectionString);
-        return new SvantekMonitorContext(options, monitorOptions);
-    }
-
-    private static List<NoiseDto> ToNoiseDtos(DataTable table) =>
-        [.. table.Rows
-            .Cast<DataRow>()
-            .Select(row => new NoiseDto
-            {
-                SerialId = Convert.ToString(row["SerialId"]) ?? string.Empty,
-                SampleTime = Convert.ToDateTime(row["SampleTime"]),
-                LAeq = Convert.ToDouble(row["LAeq"]),
-                LAmax = Convert.ToDouble(row["LAmax"]),
-                LA90 = Convert.ToDouble(row["LA90"]),
-                LA10 = Convert.ToDouble(row["LA10"]),
-                LCeq = Convert.ToDouble(row["LCeq"]),
-                LCmax = Convert.ToDouble(row["LCmax"]),
-                LC90 = Convert.ToDouble(row["LC90"]),
-                LC10 = Convert.ToDouble(row["LC10"])
-            })];
-
-    private static void InsertNoiseDtos(SvantekMonitorContext context, IEnumerable<NoiseDto> dtos)
-    {
-        HashSet<(string SerialId, DateTime SampleTime)> seen = [];
-
-        foreach (NoiseDto dto in dtos)
-        {
-            DateTime sampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(dto.SampleTime);
-            if (!seen.Add((dto.SerialId, sampleTime)))
-            {
-                continue;
-            }
-
-            bool exists = context.NoiseLevels.Any(row =>
-                row.SerialId == dto.SerialId &&
-                row.SampleTime == sampleTime);
-            if (exists)
-            {
-                continue;
-            }
-
-            SvantekNoiseLevelEntity entity = SvantekDbMapper.ToNoiseLevelEntity(dto.SerialId, dto);
-            entity.SampleTime = sampleTime;
-            context.NoiseLevels.Add(entity);
-        }
-    }
-
-    private static async Task InsertNoiseDtosAsync(
-        SvantekMonitorContext context,
-        IEnumerable<NoiseDto> dtos,
-        CancellationToken cancellationToken)
-    {
-        HashSet<(string SerialId, DateTime SampleTime)> seen = [];
-
-        foreach (NoiseDto dto in dtos)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            DateTime sampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(dto.SampleTime);
-            if (!seen.Add((dto.SerialId, sampleTime)))
-            {
-                continue;
-            }
-
-            bool exists = await context.NoiseLevels.AnyAsync(row =>
-                row.SerialId == dto.SerialId &&
-                row.SampleTime == sampleTime,
+            await using SvantekMonitorContext context = CreateContext();
+            NotificationEntity? notification = await context.Notifications.FirstOrDefaultAsync(
+                row => row.Id == notificationId,
                 cancellationToken).ConfigureAwait(false);
-            if (exists)
+            if (notification == null)
             {
-                continue;
+                return true;
             }
 
-            SvantekNoiseLevelEntity entity = SvantekDbMapper.ToNoiseLevelEntity(dto.SerialId, dto);
-            entity.SampleTime = sampleTime;
-            context.NoiseLevels.Add(entity);
+            context.Entry(notification).Property("RecordingLink").CurrentValue = fileName;
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return true;
         }
-    }
 
-    private static RvtAlertRuleDto ToRuleDto(RvtAlertRuleEntity rule, string? serialId)
-    {
-        return new RvtAlertRuleDto(
-            ruleId: rule.Id,
-            serialId: serialId,
-            field: rule.AlertField,
-            limitOn: rule.LimitOn,
-            limitOff: rule.LimitOff,
-            averagingPeriod: rule.AveragingPeriod,
-            ruleActivityTime: new AlertActivityTimeDto
-            {
-                Weekdays = rule.Weekdays,
-                Saturdays = rule.Saturdays,
-                Sundays = rule.Sundays,
-                StartTime = rule.StartTime,
-                EndTime = rule.EndTime
-            },
-            alertType: (AlertType)rule.AlertType,
-            isActive: rule.IsActive,
-            isDeleted: rule.IsDeleted,
-            created: rule.Created,
-            accessed: rule.Accessed);
-    }
-
-    private static string Truncate(string value, int maxLength)
-    {
-        if (string.IsNullOrEmpty(value))
+        private SvantekMonitorContext CreateContext()
         {
-            return value;
+            MonitorDbOptions monitorOptions = SvantekMonitorDbOptions.Current;
+            DbContextOptions<SvantekMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<SvantekMonitorContext>(ConnectionString);
+            return new SvantekMonitorContext(options, monitorOptions);
         }
 
-        return value.Length <= maxLength ? value : value.Substring(0, maxLength);
+        private static List<NoiseDto> ToNoiseDtos(DataTable table) =>
+            [.. table.Rows
+                .Cast<DataRow>()
+                .Select(row => new NoiseDto
+                {
+                    SerialId = Convert.ToString(row["SerialId"]) ?? string.Empty,
+                    SampleTime = Convert.ToDateTime(row["SampleTime"]),
+                    LAeq = Convert.ToDouble(row["LAeq"]),
+                    LAmax = Convert.ToDouble(row["LAmax"]),
+                    LA90 = Convert.ToDouble(row["LA90"]),
+                    LA10 = Convert.ToDouble(row["LA10"]),
+                    LCeq = Convert.ToDouble(row["LCeq"]),
+                    LCmax = Convert.ToDouble(row["LCmax"]),
+                    LC90 = Convert.ToDouble(row["LC90"]),
+                    LC10 = Convert.ToDouble(row["LC10"])
+                })];
+
+        private static void InsertNoiseDtos(SvantekMonitorContext context, IEnumerable<NoiseDto> dtos)
+        {
+            HashSet<(string SerialId, DateTime SampleTime)> seen = [];
+
+            foreach (NoiseDto dto in dtos)
+            {
+                DateTime sampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(dto.SampleTime);
+                if (!seen.Add((dto.SerialId, sampleTime)))
+                {
+                    continue;
+                }
+
+                bool exists = context.NoiseLevels.Any(row =>
+                    row.SerialId == dto.SerialId &&
+                    row.SampleTime == sampleTime);
+                if (exists)
+                {
+                    continue;
+                }
+
+                SvantekNoiseLevelEntity entity = SvantekDbMapper.ToNoiseLevelEntity(dto.SerialId, dto);
+                entity.SampleTime = sampleTime;
+                context.NoiseLevels.Add(entity);
+            }
+        }
+
+        private static async Task InsertNoiseDtosAsync(
+            SvantekMonitorContext context,
+            IEnumerable<NoiseDto> dtos,
+            CancellationToken cancellationToken)
+        {
+            HashSet<(string SerialId, DateTime SampleTime)> seen = [];
+
+            foreach (NoiseDto dto in dtos)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                DateTime sampleTime = SvantekDbMapper.NormalizeSampleTimeForPostgreSql(dto.SampleTime);
+                if (!seen.Add((dto.SerialId, sampleTime)))
+                {
+                    continue;
+                }
+
+                bool exists = await context.NoiseLevels.AnyAsync(row =>
+                    row.SerialId == dto.SerialId &&
+                    row.SampleTime == sampleTime,
+                    cancellationToken).ConfigureAwait(false);
+                if (exists)
+                {
+                    continue;
+                }
+
+                SvantekNoiseLevelEntity entity = SvantekDbMapper.ToNoiseLevelEntity(dto.SerialId, dto);
+                entity.SampleTime = sampleTime;
+                context.NoiseLevels.Add(entity);
+            }
+        }
+
+        private static RvtAlertRuleDto ToRuleDto(RvtAlertRuleEntity rule, string? serialId)
+        {
+            return new RvtAlertRuleDto(
+                ruleId: rule.Id,
+                serialId: serialId,
+                field: rule.AlertField,
+                limitOn: rule.LimitOn,
+                limitOff: rule.LimitOff,
+                averagingPeriod: rule.AveragingPeriod,
+                ruleActivityTime: new AlertActivityTimeDto
+                {
+                    Weekdays = rule.Weekdays,
+                    Saturdays = rule.Saturdays,
+                    Sundays = rule.Sundays,
+                    StartTime = rule.StartTime,
+                    EndTime = rule.EndTime
+                },
+                alertType: (AlertType)rule.AlertType,
+                isActive: rule.IsActive,
+                isDeleted: rule.IsDeleted,
+                created: rule.Created,
+                accessed: rule.Accessed);
+        }
+
+        private static string Truncate(string value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value;
+            }
+
+            return value.Length <= maxLength ? value : value.Substring(0, maxLength);
+        }
     }
 }

@@ -1,10 +1,11 @@
 using System.Text.Json.Serialization;
 
-namespace AirQ.Model.Http;
-
-
-public class ErrorResponse
+namespace AirQ.Model.Http
 {
-    [JsonRequired]
-    public string? Response { get; set; }
+
+    public class ErrorResponse
+    {
+        [JsonRequired]
+        public string? Response { get; set; }
+    }
 }

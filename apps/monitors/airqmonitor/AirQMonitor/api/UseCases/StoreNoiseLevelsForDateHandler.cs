@@ -5,88 +5,89 @@ using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Diagnostics;
 
-namespace AirQ.Api.UseCases;
-
-// Summary: Backfills AirQ noise samples for a single date across all active monitors.
-// Major updates:
-// - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitorsNoiseLevels).
-public class StoreNoiseLevelsForDateHandler
+namespace AirQ.Api.UseCases
 {
-    private readonly IAirQVendorGateway _gateway;
-    private readonly AirQMonitorReader monitorReader;
-    private readonly IAirQMeasurementCommands measurementCommands;
-    private readonly IAirQOperationalCommands operationalCommands;
-
-    public StoreNoiseLevelsForDateHandler(
-        IAirQVendorGateway gateway,
-        AirQMonitorReader monitorReader,
-        IAirQMeasurementCommands measurementCommands,
-        IAirQOperationalCommands operationalCommands)
+    // Summary: Backfills AirQ noise samples for a single date across all active monitors.
+    // Major updates:
+    // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitorsNoiseLevels).
+    public class StoreNoiseLevelsForDateHandler
     {
-        _gateway = gateway;
-        this.monitorReader = monitorReader;
-        this.measurementCommands = measurementCommands;
-        this.operationalCommands = operationalCommands;
-    }
+        private readonly IAirQVendorGateway _gateway;
+        private readonly AirQMonitorReader monitorReader;
+        private readonly IAirQMeasurementCommands measurementCommands;
+        private readonly IAirQOperationalCommands operationalCommands;
 
-    public async Task RunAsync(string userId, string userAuth, string dateStr, CancellationToken cancellationToken = default)
-    {
-        try
+        public StoreNoiseLevelsForDateHandler(
+            IAirQVendorGateway gateway,
+            AirQMonitorReader monitorReader,
+            IAirQMeasurementCommands measurementCommands,
+            IAirQOperationalCommands operationalCommands)
         {
-            List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
-            List<Exception> failures = [];
-            foreach (NoiseMonitorDto monitor in monitors)
+            _gateway = gateway;
+            this.monitorReader = monitorReader;
+            this.measurementCommands = measurementCommands;
+            this.operationalCommands = operationalCommands;
+        }
+
+        public async Task RunAsync(string userId, string userAuth, string dateStr, CancellationToken cancellationToken = default)
+        {
+            try
             {
-                if (!monitor.MonitorStatus.IsMonitorActive())
+                List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
+                List<Exception> failures = [];
+                foreach (NoiseMonitorDto monitor in monitors)
                 {
-                    RvtLogger.Logger.LogWarning("StoreNoiseLevelsForDate skipping inactive monitor serialId={Value1} status={Value2} errorCount={Value3}",
-                            monitor.SerialId, monitor.MonitorStatus.Status, monitor.MonitorStatus.ErrorCount);
-
-                    continue;
-                }
-                string serialId = monitor!.SerialId;
-
-                cancellationToken.ThrowIfCancellationRequested();
-                try
-                {
-                    List<SampleResponse> samples = await _gateway.GetSamplesForDateAsync(userId, userAuth, serialId, dateStr, cancellationToken);
-
-                    List<NoiseDto> dtos = [];
-                    foreach (SampleResponse sample in samples)
+                    if (!monitor.MonitorStatus.IsMonitorActive())
                     {
-                        dtos.Add(new NoiseDto(sample));
+                        RvtLogger.Logger.LogWarning("StoreNoiseLevelsForDate skipping inactive monitor serialId={Value1} status={Value2} errorCount={Value3}",
+                                monitor.SerialId, monitor.MonitorStatus.Status, monitor.MonitorStatus.ErrorCount);
+
+                        continue;
                     }
-                    measurementCommands.InsertNoiseDtos(serialId, dtos);
+                    string serialId = monitor!.SerialId;
 
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try
+                    {
+                        List<SampleResponse> samples = await _gateway.GetSamplesForDateAsync(userId, userAuth, serialId, dateStr, cancellationToken);
+
+                        List<NoiseDto> dtos = [];
+                        foreach (SampleResponse sample in samples)
+                        {
+                            dtos.Add(new NoiseDto(sample));
+                        }
+                        measurementCommands.InsertNoiseDtos(serialId, dtos);
+
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception e)
+                    {
+                        operationalCommands.HandleException(string.Format("StoreAllNoiseLevelsForDate SerialId={0}", monitor.SerialId), e);
+                        failures.Add(e);
+                    }
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+
+                if (failures.Count > 0)
                 {
-                    throw;
-                }
-                catch (Exception e)
-                {
-                    operationalCommands.HandleException(string.Format("StoreAllNoiseLevelsForDate SerialId={0}", monitor.SerialId), e);
-                    failures.Add(e);
+                    throw new AggregateException("One or more AirQ date imports failed.", failures);
                 }
             }
-
-            if (failures.Count > 0)
+            catch (AggregateException)
             {
-                throw new AggregateException("One or more AirQ date imports failed.", failures);
+                throw;
             }
-        }
-        catch (AggregateException)
-        {
-            throw;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception e)
-        {
-            operationalCommands.HandleException("StoreAllNoiseLevelsForDate", e);
-            throw;
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception e)
+            {
+                operationalCommands.HandleException("StoreAllNoiseLevelsForDate", e);
+                throw;
+            }
         }
     }
 }

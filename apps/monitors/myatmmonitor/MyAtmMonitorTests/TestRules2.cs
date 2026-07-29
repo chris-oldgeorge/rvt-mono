@@ -73,5 +73,5 @@ public sealed class TestRules2
         mqttClient.VerifyNoOtherCalls();
     }
 
-    public TestContext TestContext { get; set; }
+    public TestContext TestContext { get; set; } = null!;
 }

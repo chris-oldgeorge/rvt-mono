@@ -141,5 +141,5 @@ public sealed class OfflineAlertCommitTests
             AttemptCount: 1,
             LeaseId: Guid.NewGuid()));
 
-    public TestContext TestContext { get; set; }
+    public TestContext TestContext { get; set; } = null!;
 }

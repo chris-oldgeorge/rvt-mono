@@ -3,31 +3,32 @@ using Omnidots.Model.Dto;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
-namespace Omnidots.Api;
-
-// Summary: Reads the Omnidots monitor list with the optional testlocal demo filter applied.
-// Major updates:
-// - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiMonitors).
-public class OmnidotsMonitorReader
+namespace Omnidots.Api
 {
-    private readonly IOmnidotsMonitorQueries monitorQueries;
-    private readonly bool testLocal;
-
-    public OmnidotsMonitorReader(IOmnidotsMonitorQueries monitorQueries, bool testLocal)
+    // Summary: Reads the Omnidots monitor list with the optional testlocal demo filter applied.
+    // Major updates:
+    // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiMonitors).
+    public class OmnidotsMonitorReader
     {
-        this.monitorQueries = monitorQueries;
-        this.testLocal = testLocal;
-    }
+        private readonly IOmnidotsMonitorQueries monitorQueries;
+        private readonly bool testLocal;
 
-    public List<VibrationMonitorDto> ReadMonitors(DateTime? lastDataTime = null)
-    {
-        try
+        public OmnidotsMonitorReader(IOmnidotsMonitorQueries monitorQueries, bool testLocal)
         {
-            return OmnidotsTestLocalMonitorFilter.Apply(monitorQueries.ReadMonitorList(lastDataTime), testLocal);
+            this.monitorQueries = monitorQueries;
+            this.testLocal = testLocal;
         }
-        catch (Exception e)
+
+        public List<VibrationMonitorDto> ReadMonitors(DateTime? lastDataTime = null)
         {
-            throw AdapterException.Of("ReadMonitors", e);
+            try
+            {
+                return OmnidotsTestLocalMonitorFilter.Apply(monitorQueries.ReadMonitorList(lastDataTime), testLocal);
+            }
+            catch (Exception e)
+            {
+                throw AdapterException.Of("ReadMonitors", e);
+            }
         }
     }
 }

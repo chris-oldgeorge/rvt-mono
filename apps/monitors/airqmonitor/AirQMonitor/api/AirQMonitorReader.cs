@@ -3,33 +3,34 @@ using AirQ.Model.Dto;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
-namespace AirQ.Api;
-
-// Summary: Reads the AirQ monitor list shared by the use-case handlers.
-// Major updates:
-// - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitors).
-public class AirQMonitorReader
+namespace AirQ.Api
 {
-    private readonly IAirQMonitorQueries monitorQueries;
-    private readonly AirQTestLocalMonitorFilter testLocalFilter;
-
-    public AirQMonitorReader(
-        IAirQMonitorQueries monitorQueries,
-        AirQTestLocalMonitorFilter testLocalFilter)
+    // Summary: Reads the AirQ monitor list shared by the use-case handlers.
+    // Major updates:
+    // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitors).
+    public class AirQMonitorReader
     {
-        this.monitorQueries = monitorQueries;
-        this.testLocalFilter = testLocalFilter;
-    }
+        private readonly IAirQMonitorQueries monitorQueries;
+        private readonly AirQTestLocalMonitorFilter testLocalFilter;
 
-    public List<NoiseMonitorDto> ReadMonitors(DateTime? lastDataTime = null)
-    {
-        try
+        public AirQMonitorReader(
+            IAirQMonitorQueries monitorQueries,
+            AirQTestLocalMonitorFilter testLocalFilter)
         {
-            return testLocalFilter.Apply(monitorQueries.ReadMonitorList(lastDataTime));
+            this.monitorQueries = monitorQueries;
+            this.testLocalFilter = testLocalFilter;
         }
-        catch (Exception e)
+
+        public List<NoiseMonitorDto> ReadMonitors(DateTime? lastDataTime = null)
         {
-            throw AdapterException.Of("ReadMonitors", e);
+            try
+            {
+                return testLocalFilter.Apply(monitorQueries.ReadMonitorList(lastDataTime));
+            }
+            catch (Exception e)
+            {
+                throw AdapterException.Of("ReadMonitors", e);
+            }
         }
     }
 }

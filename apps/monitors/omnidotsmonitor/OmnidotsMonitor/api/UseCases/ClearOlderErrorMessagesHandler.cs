@@ -1,26 +1,27 @@
 using Omnidots.Api.Db;
 
-namespace Omnidots.Api.UseCases;
-
-// Summary: Purges Omnidots error messages older than the retention cutoff.
-// Major updates:
-// - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiTraces).
-public class ClearOlderErrorMessagesHandler
+namespace Omnidots.Api.UseCases
 {
-    private readonly IOmnidotsOperationalCommands operationalCommands;
-
-    public ClearOlderErrorMessagesHandler(IOmnidotsOperationalCommands operationalCommands)
+    // Summary: Purges Omnidots error messages older than the retention cutoff.
+    // Major updates:
+    // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiTraces).
+    public class ClearOlderErrorMessagesHandler
     {
-        this.operationalCommands = operationalCommands;
-    }
+        private readonly IOmnidotsOperationalCommands operationalCommands;
 
-    public Task RunAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
+        public ClearOlderErrorMessagesHandler(IOmnidotsOperationalCommands operationalCommands)
+        {
+            this.operationalCommands = operationalCommands;
+        }
 
-        DateTime cutOff = DateTime.UtcNow.AddDays(-7);
-        operationalCommands.ClearErrorMessages(cutOff);
+        public Task RunAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
 
-        return Task.CompletedTask;
+            DateTime cutOff = DateTime.UtcNow.AddDays(-7);
+            operationalCommands.ClearErrorMessages(cutOff);
+
+            return Task.CompletedTask;
+        }
     }
 }

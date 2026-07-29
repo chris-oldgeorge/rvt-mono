@@ -1,11 +1,12 @@
-namespace AirQ.Api.Db;
-
-
-public interface IDBClient :
-    IAirQMonitorQueries,
-    IAirQRuleQueries,
-    IAirQMonitorCommands,
-    IAirQMeasurementCommands,
-    IAirQOperationalCommands
+namespace AirQ.Api.Db
 {
+
+    public interface IDBClient :
+        IAirQMonitorQueries,
+        IAirQRuleQueries,
+        IAirQMonitorCommands,
+        IAirQMeasurementCommands,
+        IAirQOperationalCommands
+    {
+    }
 }

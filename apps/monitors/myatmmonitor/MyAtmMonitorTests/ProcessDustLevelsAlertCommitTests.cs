@@ -55,14 +55,14 @@ public sealed class ProcessDustLevelsAlertCommitTests
         Assert.IsTrue(commits.All(commit => commit.Occurrences.Count == 0));
     }
 
-    private static readonly string[] expected = new[]
-            {
-                "ReadRules",
-                "ReadMonitor",
-                "GetAverageDustLevel",
-                "ReadAlertContacts",
-                "CommitAlertAsync"
-            };
+    private static readonly string[] _expected =
+    [
+        "ReadRules",
+        "ReadMonitor",
+        "GetAverageDustLevel",
+        "ReadAlertContacts",
+        "CommitAlertAsync"
+    ];
 
     [TestMethod]
     public async Task CompletedAggregatePeriod_CommitsStateOccurrenceAndAllDurableDeliveriesOnce()
@@ -135,7 +135,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
         }
         string[] databaseCalls = [.. dbClient.Invocations.Select(invocation => invocation.Method.Name)];
         CollectionAssert.AreEqual(
-            expected,
+            _expected,
             databaseCalls,
             $"Unexpected active aggregate DB call sequence: {string.Join(", ", databaseCalls)}");
         messageService.VerifyNoOtherCalls();
@@ -191,5 +191,5 @@ public sealed class ProcessDustLevelsAlertCommitTests
             AttemptCount: 1,
             LeaseId: Guid.NewGuid()));
 
-    public TestContext TestContext { get; set; }
+    public TestContext TestContext { get; set; } = null!;
 }

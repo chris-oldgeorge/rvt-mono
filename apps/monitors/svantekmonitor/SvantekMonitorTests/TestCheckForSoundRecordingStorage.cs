@@ -204,7 +204,7 @@ public sealed class TestCheckForSoundRecordingStorage
         dbClient.VerifyAll();
     }
 
-    public TestContext TestContext { get; set; }
+    public TestContext TestContext { get; set; } = null!;
 }
 
 internal sealed class RecordingObjectStorageClient : IObjectStorageClient

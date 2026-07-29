@@ -152,16 +152,16 @@ public class HttpWebClientTests
 
     private sealed class QueueHttpMessageHandler : HttpMessageHandler
     {
-        private readonly Queue<HttpResponseMessage> responses;
+        private readonly Queue<HttpResponseMessage> _responses;
 
-        public QueueHttpMessageHandler(Queue<HttpResponseMessage> responses) => this.responses = responses;
+        public QueueHttpMessageHandler(Queue<HttpResponseMessage> responses) => _responses = responses;
 
         public int RequestCount { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestCount++;
-            return Task.FromResult(responses.Dequeue());
+            return Task.FromResult(_responses.Dequeue());
         }
     }
 
@@ -181,5 +181,5 @@ public class HttpWebClientTests
         }
     }
 
-    public TestContext TestContext { get; set; }
+    public TestContext TestContext { get; set; } = null!;
 }

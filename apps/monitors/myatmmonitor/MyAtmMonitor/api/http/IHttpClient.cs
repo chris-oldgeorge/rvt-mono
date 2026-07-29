@@ -1,7 +1,8 @@
-namespace MyAtm.Api.Http;
-
-
-public interface IHttpClient
+namespace MyAtm.Api.Http
 {
-    Task<string> GetAsync(string path, CancellationToken cancellationToken = default);
+
+    public interface IHttpClient
+    {
+        Task<string> GetAsync(string path, CancellationToken cancellationToken = default);
+    }
 }

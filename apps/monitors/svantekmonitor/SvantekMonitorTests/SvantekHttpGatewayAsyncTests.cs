@@ -125,5 +125,5 @@ public sealed class SvantekHttpGatewayAsyncTests
         Assert.AreSame(expected, exception);
     }
 
-    public TestContext TestContext { get; set; }
+    public TestContext TestContext { get; set; } = null!;
 }

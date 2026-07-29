@@ -1,22 +1,23 @@
 using MyAtm.Api.Db;
 
-namespace MyAtm.Api.UseCases;
-
-// Summary: Prunes stored error messages older than a week.
-// Major updates:
-// - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiMonitors).
-public class ClearOlderErrorMessagesHandler
+namespace MyAtm.Api.UseCases
 {
-    private readonly IMyAtmOperationalCommands operationalCommands;
-
-    public ClearOlderErrorMessagesHandler(IMyAtmOperationalCommands operationalCommands)
+    // Summary: Prunes stored error messages older than a week.
+    // Major updates:
+    // - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiMonitors).
+    public class ClearOlderErrorMessagesHandler
     {
-        this.operationalCommands = operationalCommands;
-    }
+        private readonly IMyAtmOperationalCommands operationalCommands;
 
-    public void Run()
-    {
-        DateTime cutOff = DateTime.UtcNow.AddDays(-7);
-        operationalCommands.ClearErrorMessages(cutOff);
+        public ClearOlderErrorMessagesHandler(IMyAtmOperationalCommands operationalCommands)
+        {
+            this.operationalCommands = operationalCommands;
+        }
+
+        public void Run()
+        {
+            DateTime cutOff = DateTime.UtcNow.AddDays(-7);
+            operationalCommands.ClearErrorMessages(cutOff);
+        }
     }
 }

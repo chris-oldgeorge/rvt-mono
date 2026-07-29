@@ -1,7 +1,8 @@
 
-namespace MyAtm.Api;
-
-public enum Period
+namespace MyAtm.Api
 {
-    Minutes1, Minutes15, Hours1, Hours8, Hours24
-};
+    public enum Period
+    {
+        Minutes1, Minutes15, Hours1, Hours8, Hours24
+    };
+}

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Omnidots.Api;
 using Rvt.Communication.Abstractions;
 
-namespace OmnidotsMonitorTests.Architecture;
+namespace OmnidotsAdapterTests.Architecture;
 
 [TestClass]
 public sealed class CommunicationsCompositionTests

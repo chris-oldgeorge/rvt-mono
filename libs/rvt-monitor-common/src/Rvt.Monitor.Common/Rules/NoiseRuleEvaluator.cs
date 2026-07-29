@@ -29,7 +29,7 @@ public sealed class NoiseRuleEvaluator(
             if (rule.IsActive)
             {
                 rule.IsActive = false;
-                updateAlertRule(rule);
+                _updateAlertRule(rule);
             }
 
             return previousAlert;
@@ -62,7 +62,7 @@ public sealed class NoiseRuleEvaluator(
             if (rule.IsActive)
             {
                 rule.IsActive = false;
-                updateAlertRule(rule);
+                _updateAlertRule(rule);
             }
 
             return previousAlert;
@@ -101,8 +101,8 @@ public sealed class NoiseRuleEvaluator(
             return rule.AlertType;
         }
 
-        List<RvtContactDto> contacts = readAlertContacts(request.MonitorId);
-        processAlertForContacts(
+        List<RvtContactDto> contacts = _readAlertContacts(request.MonitorId);
+        _processAlertForContacts(
             new RuleNotificationRequest(
                 request.FleetNr,
                 rule.SerialId!,
@@ -124,7 +124,7 @@ public sealed class NoiseRuleEvaluator(
         _eventPublisher.PublishAlert(request.PublishTime, request.MonitorSerialId, text);
 
         rule.IsActive = true;
-        updateAlertRule(rule);
+        _updateAlertRule(rule);
         return rule.AlertType;
     }
 }

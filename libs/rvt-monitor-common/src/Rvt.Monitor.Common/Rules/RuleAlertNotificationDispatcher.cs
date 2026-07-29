@@ -29,7 +29,7 @@ public sealed class RuleAlertNotificationDispatcher(
             alertField: request.Field,
             monitorId: request.MonitorId);
 
-        writeNotification(notification);
+        _writeNotification(notification);
 
         if (contacts == null || contacts.Count == 0)
         {
@@ -82,7 +82,7 @@ public sealed class RuleAlertNotificationDispatcher(
                     contact.ToNotificationDto(),
                     fleetNr,
                     notificationUrl);
-                writeNotificationAudit(notificationId, contact.EmailAddress, Rvt.Monitor.Common.Notifications.NotificationConstants.SENT_OK);
+                _writeNotificationAudit(notificationId, contact.EmailAddress, Rvt.Monitor.Common.Notifications.NotificationConstants.SENT_OK);
             }
             else
             {
@@ -92,7 +92,7 @@ public sealed class RuleAlertNotificationDispatcher(
         }
         catch (CommsException e)
         {
-            writeNotificationAudit(notificationId, e.Address, e.Message);
+            _writeNotificationAudit(notificationId, e.Address, e.Message);
         }
     }
 
@@ -116,7 +116,7 @@ public sealed class RuleAlertNotificationDispatcher(
                     contact.ToNotificationDto(),
                     fleetNr,
                     notificationUrl);
-                writeNotificationAudit(notificationId, contact.PhoneNumber!, Rvt.Monitor.Common.Notifications.NotificationConstants.SENT_OK);
+                _writeNotificationAudit(notificationId, contact.PhoneNumber!, Rvt.Monitor.Common.Notifications.NotificationConstants.SENT_OK);
             }
             else
             {
@@ -126,7 +126,7 @@ public sealed class RuleAlertNotificationDispatcher(
         }
         catch (CommsException e)
         {
-            writeNotificationAudit(notificationId, e.Address, e.Message);
+            _writeNotificationAudit(notificationId, e.Address, e.Message);
         }
     }
 }

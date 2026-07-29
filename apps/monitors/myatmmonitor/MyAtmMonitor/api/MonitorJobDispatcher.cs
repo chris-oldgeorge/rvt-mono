@@ -2,46 +2,17 @@ using Rvt.Monitor.Common.Scheduling;
 
 namespace MyAtm.Api;
 
-// Summary: Dispatches Quartz scheduler job names to the existing MyAtm monitor runner.
+// Summary: Dispatches Quartz scheduler job names through the MyAtm job catalog.
 // Major updates:
 // - 2026-06-18 Quartz scheduling: added config-driven container scheduler dispatch.
-// - 2026-07-12 DI composition: receives the container-managed MyAtmService instead of constructing one per run.
-internal sealed class MyAtmMonitorJobDispatcher : IMonitorJobDispatcher
+// - 2026-07-12 DI composition: receives the container-managed job service instead of constructing one per run.
+// - 2026-07-29 Job catalog: schedule validation reads the catalog directly, so
+//   the dispatcher no longer needs a parameterless constructor, a nullable
+//   service, or a runtime guard against being used unconstructed.
+internal sealed class MyAtmMonitorJobDispatcher(IMyAtmMonitorJobs service) : IMonitorJobDispatcher
 {
-    private readonly IMyAtmMonitorJobs? service;
+    public IReadOnlySet<string> SupportedJobNames => MyAtmMonitorJobs.Catalog.JobNames;
 
-    // Used only by Quartz schedule validation, which reads SupportedJobNames and never runs jobs.
-    public MyAtmMonitorJobDispatcher()
-    {
-    }
-
-    public MyAtmMonitorJobDispatcher(IMyAtmMonitorJobs service)
-    {
-        this.service = service;
-    }
-
-    public IReadOnlySet<string> SupportedJobNames { get; } = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "StoreMonitors",
-        "CheckForOfflineMonitors",
-        "StoreDustLevels",
-        "Store15MinAverageDustLevels",
-        "Store1HourAverageDustLevels",
-        "Store24HourAverageDustLevels",
-        "Process8HourAverageDustLevels",
-        "ClearOlderErrorMessages",
-        "StoreAccessoryInfo",
-        "DispatchOutbox"
-    };
-
-    public Task<int> RunAsync(string jobName, CancellationToken cancellationToken)
-    {
-        if (service == null)
-        {
-            throw new InvalidOperationException(
-                "MyAtmMonitorJobDispatcher was created without a MyAtmService and cannot run jobs.");
-        }
-
-        return MonitorJobRunner.RunAsync(jobName, service, cancellationToken);
-    }
+    public Task<int> RunAsync(string jobName, CancellationToken cancellationToken) =>
+        MyAtmMonitorJobs.Catalog.RunAsync(jobName, service, cancellationToken);
 }

@@ -37,27 +37,27 @@ namespace RVT.DataAccess.Context
         // Every runtime context now comes from AddDbContext with explicit options; EF tooling uses
         // RVTDbContextDesignTimeFactory.
 
-        public virtual DbSet<RVT.Entities.Company> Companies { get; set; }
-        public virtual DbSet<RVT.Entities.Contract> Contracts { get; set; }
-        public virtual DbSet<RVT.Entities.Site> Sites { get; set; }
-        public virtual DbSet<RVT.Entities.Deployment> Deployments { get; set; }
-        public virtual DbSet<RVT.Entities.SiteUsers> SiteUsers { get; set; }
-        public virtual DbSet<RVT.Entities.Monitor> MonitorsList { get; set; }
-        public virtual DbSet<RVT.Entities.Alertlevel> RvtAlertRules { get; set; }
-        public virtual DbSet<RVT.Entities.NotificationSettings> NotificationSettings { get; set; }
-        public virtual DbSet<RVT.Entities.Notification> Notifications { get; set; }
-        public virtual DbSet<RVT.Entities.SiteArchived> SiteArchived { get; set; }
-        public virtual DbSet<RVT.Entities.SiteOperatingHours> SiteOperatingHours { get; set; }
-        public virtual DbSet<RVT.Entities.HelpSection> HelpSections { get; set; }
-        public virtual DbSet<RVT.Entities.HelpArticle> HelpArticles { get; set; }
-        public virtual DbSet<RVT.Entities.HelpAsset> HelpAssets { get; set; }
+        public virtual DbSet<Entities.Company> Companies { get; set; } = null!;
+        public virtual DbSet<Entities.Contract> Contracts { get; set; } = null!;
+        public virtual DbSet<Entities.Site> Sites { get; set; } = null!;
+        public virtual DbSet<Entities.Deployment> Deployments { get; set; } = null!;
+        public virtual DbSet<Entities.SiteUsers> SiteUsers { get; set; } = null!;
+        public virtual DbSet<Entities.Monitor> MonitorsList { get; set; } = null!;
+        public virtual DbSet<Entities.Alertlevel> RvtAlertRules { get; set; } = null!;
+        public virtual DbSet<Entities.NotificationSettings> NotificationSettings { get; set; } = null!;
+        public virtual DbSet<Entities.Notification> Notifications { get; set; } = null!;
+        public virtual DbSet<Entities.SiteArchived> SiteArchived { get; set; } = null!;
+        public virtual DbSet<Entities.SiteOperatingHours> SiteOperatingHours { get; set; } = null!;
+        public virtual DbSet<Entities.HelpSection> HelpSections { get; set; } = null!;
+        public virtual DbSet<Entities.HelpArticle> HelpArticles { get; set; } = null!;
+        public virtual DbSet<Entities.HelpAsset> HelpAssets { get; set; } = null!;
 
         // Function summary: Configures provider-neutral domain relationships and indexes.
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<RVT.Entities.SiteOperatingHours>(entity =>
+            modelBuilder.Entity<Entities.SiteOperatingHours>(entity =>
             {
                 entity.HasIndex(hours => new { hours.SiteId, hours.DayOfWeek }).IsUnique();
                 entity.HasOne(hours => hours.Site)
@@ -66,22 +66,22 @@ namespace RVT.DataAccess.Context
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            modelBuilder.Entity<RVT.Entities.SiteArchived>(entity =>
+            modelBuilder.Entity<Entities.SiteArchived>(entity =>
             {
                 entity.HasIndex(archive => archive.SiteId).IsUnique();
             });
 
-            modelBuilder.Entity<RVT.Entities.NotificationSettings>(entity =>
+            modelBuilder.Entity<Entities.NotificationSettings>(entity =>
             {
                 entity.HasIndex(settings => settings.SiteUserId).IsUnique();
             });
 
-            modelBuilder.Entity<RVT.Entities.HelpSection>(entity =>
+            modelBuilder.Entity<Entities.HelpSection>(entity =>
             {
                 entity.HasIndex(section => section.Slug).IsUnique();
             });
 
-            modelBuilder.Entity<RVT.Entities.HelpArticle>(entity =>
+            modelBuilder.Entity<Entities.HelpArticle>(entity =>
             {
                 entity.HasIndex(article => article.Slug).IsUnique();
                 entity.HasOne(article => article.Section)
@@ -90,7 +90,7 @@ namespace RVT.DataAccess.Context
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            modelBuilder.Entity<RVT.Entities.HelpAsset>(entity =>
+            modelBuilder.Entity<Entities.HelpAsset>(entity =>
             {
                 entity.HasOne(asset => asset.HelpArticle)
                     .WithMany(article => article.Assets)

@@ -8,12 +8,15 @@ namespace Rvt.Monitor.CommonTests.Scheduling;
 [TestClass]
 public sealed class MonitorQuartzServiceCollectionExtensionsTests
 {
+    private static readonly IReadOnlySet<string> _supportedJobNames =
+        new HashSet<string>(StringComparer.Ordinal) { "StoreMonitors" };
+
     [TestMethod]
     public void AddMonitorQuartzScheduler_DoesNotRegisterHostedSchedulerWhenDisabled()
     {
         ServiceCollection services = new();
 
-        services.AddMonitorQuartzScheduler<TestDispatcher>(CreateConfiguration(enabled: false), "TestMonitor");
+        services.AddMonitorQuartzScheduler<TestDispatcher>(CreateConfiguration(enabled: false), "TestMonitor", _supportedJobNames);
 
         Assert.IsFalse(services.Any(service => service.ServiceType == typeof(IHostedService)));
     }
@@ -25,7 +28,7 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
         IConfiguration configuration = CreateConfiguration(enabled: true, jobName: "MissingJob");
 
         InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(() =>
-            services.AddMonitorQuartzScheduler<TestDispatcher>(configuration, "TestMonitor"));
+            services.AddMonitorQuartzScheduler<TestDispatcher>(configuration, "TestMonitor", _supportedJobNames));
 
         Assert.Contains("MissingJob", exception.Message);
     }
@@ -35,7 +38,7 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
     {
         ServiceCollection services = new();
 
-        services.AddMonitorQuartzScheduler<TestDispatcher>(CreateConfiguration(enabled: true), "TestMonitor");
+        services.AddMonitorQuartzScheduler<TestDispatcher>(CreateConfiguration(enabled: true), "TestMonitor", _supportedJobNames);
 
         Assert.IsTrue(services.Any(service => service.ServiceType == typeof(IMonitorJobDispatcher)));
         Assert.IsTrue(services.Any(service => service.ServiceType == typeof(IHostedService)));
@@ -48,7 +51,8 @@ public sealed class MonitorQuartzServiceCollectionExtensionsTests
 
         services.AddMonitorQuartzScheduler<TestDispatcher>(
             CreateConfiguration(enabled: true, infrastructure: "azure"),
-            "TestMonitor");
+            "TestMonitor",
+            _supportedJobNames);
 
         Assert.IsFalse(services.Any(service => service.ServiceType == typeof(IMonitorJobDispatcher)));
         Assert.IsFalse(services.Any(service => service.ServiceType == typeof(IHostedService)));

@@ -10,10 +10,9 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
-- The current branch is `codex/reliability-cleanup`. It was forked from
-  `ad7a8834`, which is now an ancestor of `origin/main` after PR #20 merged.
-  `origin/main` has subsequently advanced to `584bbff2`; update this branch
-  from `main` only as part of the chosen integration path.
+- The current branch is `codex/reliability-cleanup`. Draft PR #23 targets
+  `main`; the branch includes `origin/main` through `7453360c` after resolving
+  the publishing-time base conflict.
 - This branch implements the bounded reliability cleanup recorded in
   [docs/superpowers/plans/2026-07-29-reliability-cleanup.md](docs/superpowers/plans/2026-07-29-reliability-cleanup.md):
   - Omnidots trace imports propagate caller cancellation instead of recording
@@ -28,6 +27,46 @@ superseded narratives to the archive.
 - The authoritative review has been updated to distinguish the resolved slice
   from remaining work:
   [docs/reviews/2026-07-28-duplication-legacy-consistency-review.md](docs/reviews/2026-07-28-duplication-legacy-consistency-review.md).
+- Pull requests are gated by two workflows. `Engineering standards` grades the
+  changed surface; `Tests` (added by PR #20) runs the whole `Rvt.Mono.slnx`
+  suite against a TimescaleDB service container, the Portal client type check
+  and unit tests, the five repository guards, and every `tests/*.test.sh`
+  contract test as a glob. Before PR #20 no workflow ran any test on a pull
+  request, and the guards and contract tests were wired into nothing.
+- `main` carries the P0 guardrail work (PR #20) from
+  [docs/reviews/2026-07-28-duplication-legacy-consistency-review.md](docs/reviews/2026-07-28-duplication-legacy-consistency-review.md):
+  the `Tests` workflow and its mutation-tested contract, AirQ architecture
+  guards, the portal `Application → Spa.Api` shrinking baseline, the
+  `MonitorHost` one-shot shutdown token, the Svantek HTTP timeout,
+  cross-platform Portal SPA build targets (the `cmd.exe` wrapper broke any
+  non-Windows build), and portal private static fields converged on the
+  repository-wide `_camelCase` rule.
+- SonarQube stays manual: `tests/verify-manual-sonarqube-workflow.test.sh`
+  pins `workflow_dispatch`, so scheduling it is a deliberate product change,
+  not a guardrail gap.
+- `main` additionally carries the repo-wide explicit-local-types style pass
+  (PR #17, merge `c6e77e3a`, 593 files) — local variables use explicit types
+  everywhere; keep new code consistent with it.
+- `main` carries the critical-findings remediation (PR #15, merge `6be9c90`):
+  reporting consolidated onto `apps/monitors/reportingmonitor`, alert
+  delivery/heatmap/contact-skipping fixes, AirQ and Omnidots import chains
+  async + cancellable behind vendor ports, uniform storage-port contract,
+  shared rules decoupled from the running executable, common-hub cleanup.
+- `main` carries the P1 dead-code and hygiene sweep (PR #18, merge
+  `adf9c824`) from
+  [docs/reviews/2026-07-28-duplication-legacy-consistency-review.md](docs/reviews/2026-07-28-duplication-legacy-consistency-review.md)
+  (the authoritative remaining-findings list, including the P0 guardrail backlog:
+  PR test job, Svantek HTTP timeout, `MonitorHost` one-shot token, AirQ
+  architecture tests, portal `Application → Spa.Api` guard).
+- `main` carries the monotonic standards-baseline regeneration (PR #21), which
+  remediates the six standards increases found after PR #18 and regenerates the
+  engineering-standards baseline through the official updater. The baseline fell
+  from
+  1,994 entries / 7,709 diagnostics to 1,112 entries / 2,072 diagnostics:
+  882 entries removed, 12 lowered, 5,637 diagnostic allowances retired, and
+  zero increases.
+- `main` also carries the PR #22 monitor-hosting consolidation, including
+  per-monitor job catalogs and shared job-argument handling.
 
 ## Verification environment
 
@@ -45,9 +84,10 @@ superseded narratives to the archive.
   [docs/database/portal/ef-migrations.md](docs/database/portal/ef-migrations.md).
   The example is a non-secret local test credential; never substitute a
   production connection.
-- Verification on this tree passed with the disposable database prepared:
-  AirQ 140/140, Omnidots 403/403, and Portal 558/558 with no skips. The five
-  root repository guards, all `tests/*.test.sh` contract scripts, and
+- Verification on the merged PR tree passed with the disposable database
+  prepared: the full solution reported 2,379/2,379, including AirQ 140/140,
+  Omnidots 403/403, and Portal 560/560, with no skips. The five root repository
+  guards, all `tests/*.test.sh` contract scripts, and
   `scripts/verify-engineering-standards.sh --working-tree` also passed. One
   engineering-standards contract scenario needed an isolated retry after its
   0.4-second process-ownership timing check flaked; the retry passed.
@@ -59,17 +99,28 @@ superseded narratives to the archive.
   grades the changed surface; pure deletions are safe, but any edited line
   must satisfy the standards, and whole-file reformatting (namespace
   conversion) expands the graded surface — keep style fixes line-local.
+- Full standards inventory and baseline regeneration invoke Roslyn through a
+  local named pipe. Sandboxed runs that prohibit local IPC fail before
+  producing a report; rerun the unchanged command with local IPC permitted.
 
 ## Standing working-tree notes
 
 - Preserve the pre-existing untracked `.codex/`, root `AGENTS.md`, and
   `docs/superpowers/plans/2026-07-28-sonar-security-remediation.md`; they are
   not part of this branch.
-- A developer-local `apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj` variant
-  (Visual Studio `npm run dev:vs` proxy + a reference to the deleted
-  `RVT.Utilities`) was retired from the working tree on 2026-07-29; a backup
-  copy sits in the session scratchpad. The committed proxy command from PR #8
-  is the supported configuration and is pinned by `SpaProxyConfigurationTests`.
+- `main` carries the Windows/Parallels SPA proxy repair:
+  `RvtPortal.Spa.csproj` launches
+  `RvtPortal.Client/scripts/start-vite-for-visual-studio.mjs`, and
+  `SpaProxyConfigurationTests` pins that boundary. The launcher installs the
+  lockfile-specific Windows npm tree below
+  `%LOCALAPPDATA%\RvtPortal\spa-dependencies`, mirrors the shared client source
+  into a Windows-local workspace with `robocopy /MIR`, and runs Vite entirely
+  from NTFS. The mirror repeats every second so edits in the shared checkout
+  still trigger Vite/HMR. It uses the standard Windows `LOCALAPPDATA` and
+  `ComSpec` variables; no new repository or user variable is required.
+- The Windows ARM VM verification builds `RvtPortal.Spa` with zero warnings or
+  errors, starts Vite 6.4.3 on port 5173, serves the HTML shell, and returns a
+  transformed (non-error-overlay) `src/main.tsx` module.
 
 ## Remaining deferred work
 

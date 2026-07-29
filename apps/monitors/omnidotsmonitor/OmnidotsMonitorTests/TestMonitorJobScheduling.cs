@@ -1,5 +1,4 @@
 using System.Data;
-using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -289,12 +288,10 @@ public sealed class TestMonitorJobScheduling
     }
 
     [TestMethod]
-    public void QuartzDispatcher_SupportsDurableAlertJobs()
+    public void JobCatalog_SupportsDurableAlertJobs()
     {
-        OmnidotsMonitorJobDispatcher dispatcher = new();
-
-        Assert.Contains("DispatchAlerts", dispatcher.SupportedJobNames);
-        Assert.Contains("CleanupAlerts", dispatcher.SupportedJobNames);
+        Assert.Contains("DispatchAlerts", OmnidotsMonitorJobs.Catalog.JobNames);
+        Assert.Contains("CleanupAlerts", OmnidotsMonitorJobs.Catalog.JobNames);
     }
 
     [TestMethod]
@@ -383,7 +380,7 @@ public sealed class TestMonitorJobScheduling
         int exitCode = await MonitorHost.RunAsync<OmnidotsMonitorJobDispatcher>(
             OneShotArgs("DispatchAlerts"),
             "OmnidotsMonitor",
-            _ => "DispatchAlerts",
+            OmnidotsMonitorJobs.Catalog.JobNames,
             InvokeJobRunner,
             _ => Assert.Fail("API mapping must not run for one-shot alert dispatch."),
             configureServices: (services, configuration) =>
@@ -439,7 +436,7 @@ public sealed class TestMonitorJobScheduling
         int exitCode = await MonitorHost.RunAsync<OmnidotsMonitorJobDispatcher>(
             OneShotArgs("CleanupAlerts"),
             "OmnidotsMonitor",
-            _ => "CleanupAlerts",
+            OmnidotsMonitorJobs.Catalog.JobNames,
             InvokeJobRunner,
             _ => Assert.Fail("API mapping must not run for one-shot alert cleanup."),
             configureServices: (services, configuration) =>
@@ -517,19 +514,8 @@ public sealed class TestMonitorJobScheduling
     private static Task<int> InvokeJobRunner(
         string jobName,
         IServiceProvider provider,
-        CancellationToken cancellationToken = default)
-    {
-        Type runner = typeof(OmnidotsApi).Assembly.GetType("Omnidots.Api.MonitorJobRunner", throwOnError: true)!;
-        MethodInfo method = runner.GetMethod("RunAsync", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
-        ParameterInfo[] parameters = method.GetParameters();
-        Assert.IsTrue(parameters.Length is 2 or 3);
-        Assert.AreEqual(typeof(IServiceProvider), parameters[1].ParameterType);
-        return (Task<int>)method.Invoke(
-            null,
-            parameters.Length == 2
-                ? [jobName, provider]
-                : [jobName, provider, cancellationToken])!;
-    }
+        CancellationToken cancellationToken = default) =>
+        OmnidotsMonitorJobs.Catalog.RunAsync(jobName, provider, cancellationToken);
 
     private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
     {

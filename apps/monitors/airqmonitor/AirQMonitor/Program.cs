@@ -13,8 +13,8 @@ using Rvt.Monitor.Common.Hosting;
 return await MonitorHost.RunAsync<AirQMonitorJobDispatcher>(
     args,
     "AirQMonitor",
-    MonitorJobRunner.GetJobName,
-    (jobName, services, cancellationToken) => MonitorJobRunner.RunAsync(
+    AirQMonitorJobs.Catalog.JobNames,
+    (jobName, services, cancellationToken) => AirQMonitorJobs.Catalog.RunAsync(
         jobName,
         services.GetRequiredService<AirQService>(),
         cancellationToken),

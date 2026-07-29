@@ -1436,6 +1436,27 @@ run_verify_default_commands --base "$base_revision" --head "$head_revision"
 assert_status 0
 assert_log_contains "dotnet"
 
+# Sonar's repository-local tool directory is generated analysis state, not a
+# dirty dependency input, even when installed tools contain MSBuild targets.
+create_repo exact-range-ignored-sonar-tools
+write_json "$last_repo/src/Sample.csproj" \
+  '<Project Sdk="Microsoft.NET.Sdk"></Project>'
+git -C "$last_repo" add src/Sample.csproj
+git -C "$last_repo" commit -q -m "track project input"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+sed -i.bak 's/public int Hour/public int HeadHour/' "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add src/Clock.cs
+git -C "$last_repo" commit -q -m "requested C# head"
+head_revision="$(git -C "$last_repo" rev-parse HEAD)"
+mkdir -p "$last_repo/src/obj"
+mkdir -p "$last_repo/.sonar/.store/scanner/1.0.0/build"
+write_json "$last_repo/.sonar/.store/scanner/1.0.0/build/scanner.targets" \
+  '<Project />'
+run_verify_default_commands --base "$base_revision" --head "$head_revision"
+assert_status 0
+assert_log_contains "dotnet"
+
 create_repo exact-range-missing-assets
 write_json "$last_repo/src/Sample.csproj" \
   '<Project Sdk="Microsoft.NET.Sdk"></Project>'

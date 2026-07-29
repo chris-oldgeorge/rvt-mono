@@ -34,10 +34,14 @@ public static class MonitorHost
             .Build();
     }
 
+    /// <param name="supportedJobNames">
+    /// The monitor's job catalog names, used to validate the configured Quartz
+    /// schedule before the container is built.
+    /// </param>
     public static async Task<int> RunAsync<TDispatcher>(
         string[] args,
         string monitorName,
-        Func<string[], string?> getJobName,
+        IReadOnlySet<string> supportedJobNames,
         Func<string, IServiceProvider, CancellationToken, Task<int>> runJobAsync,
         Action<WebApplication> mapApi,
         Action<ILoggingBuilder>? configureLogging = null,
@@ -45,7 +49,7 @@ public static class MonitorHost
         where TDispatcher : class, IMonitorJobDispatcher
     {
         IConfiguration configuration = BuildConfiguration(args);
-        string? jobName = getJobName(args);
+        string? jobName = MonitorJobArguments.GetJobName(args);
         if (!string.IsNullOrWhiteSpace(jobName))
         {
             using IHost oneShotHost = CreateOneShotHost(args, configuration, monitorName, configureLogging, configureServices);
@@ -100,7 +104,7 @@ public static class MonitorHost
 
             if (schedulerEnabled)
             {
-                apiBuilder.Services.AddMonitorQuartzScheduler<TDispatcher>(apiBuilder.Configuration, monitorName);
+                apiBuilder.Services.AddMonitorQuartzScheduler<TDispatcher>(apiBuilder.Configuration, monitorName, supportedJobNames);
             }
 
             WebApplication app = apiBuilder.Build();
@@ -119,7 +123,7 @@ public static class MonitorHost
                     services.AddSingleton<IMonitorRuntimeDefaultsResolver>(new MonitorRuntimeDefaultsResolver(monitorName));
                     services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.QuartzScheduler));
                     configureServices?.Invoke(services, context.Configuration);
-                    services.AddMonitorQuartzScheduler<TDispatcher>(context.Configuration, monitorName);
+                    services.AddMonitorQuartzScheduler<TDispatcher>(context.Configuration, monitorName, supportedJobNames);
                 })
                 .ConfigureLogging((context, logging) =>
                 {

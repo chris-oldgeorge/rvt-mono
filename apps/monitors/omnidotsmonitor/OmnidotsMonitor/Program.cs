@@ -12,8 +12,8 @@ using Rvt.Monitor.Common.Hosting;
 return await MonitorHost.RunAsync<OmnidotsMonitorJobDispatcher>(
     args,
     "OmnidotsMonitor",
-    MonitorJobRunner.GetJobName,
-    (jobName, services, cancellationToken) => MonitorJobRunner.RunAsync(jobName, services, cancellationToken),
+    OmnidotsMonitorJobs.Catalog.JobNames,
+    (jobName, services, cancellationToken) => OmnidotsMonitorJobs.Catalog.RunAsync(jobName, services, cancellationToken),
     app => app.MapOmnidotsMonitorApi(),
     configureServices: (services, configuration) =>
         services.AddOmnidotsMonitor(configuration));

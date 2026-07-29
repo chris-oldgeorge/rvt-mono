@@ -39,7 +39,7 @@ namespace AirQ.Api
                 httpClient,
                 dbClient,
                 mqttClient,
-                messageService,
+                alertIngress,
                 testLocal,
                 testLocalSerialId,
                 TimeProvider.System)
@@ -50,7 +50,7 @@ namespace AirQ.Api
             IHttpClient httpClient,
             IDBClient dbClient,
             IMqttClient mqttClient,
-            IMessageService messageService,
+            IAlertIngressPort alertIngress,
             bool testLocal,
             string? testLocalSerialId,
             TimeProvider timeProvider)

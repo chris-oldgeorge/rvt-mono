@@ -7,7 +7,7 @@ using AirQ.Api.UseCases;
 using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -194,8 +194,7 @@ public class TestAirQCancellation
         AirQRuleProcessor ruleProcessor = new(
             ruleQueries.Object,
             operationalCommands.Object,
-            Mock.Of<IMessageService>(),
-            eventPublisher.Object);
+            Mock.Of<IAlertIngressPort>());
         StoreNoiseLevelsHandler subject = new(
             gateway.Object,
             monitorReader,

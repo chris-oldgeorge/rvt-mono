@@ -830,7 +830,7 @@ namespace OmnidotsAdapterTests
             dbClient.As<IOmnidotsMeasurementImportCommands>();
             dbClient.As<IOmnidotsTraceQueries>();
             Mock<IMqttClient> mqttClient = new();
-            Mock<IMessageService> messageClient = new();
+            Mock<IAlertIngressPort> messageClient = new();
             OmnidotsApi subject = new(
                 httpClient.Object,
                 dbClient.Object,

@@ -431,7 +431,8 @@
       "rvt.monitor.integrationtesting": {
         "type": "Project",
         "dependencies": {
-          "Npgsql": "[10.0.3, )"
+          "Npgsql": "[10.0.3, )",
+          "Rvt.Communication.Abstractions": "[1.0.0-rc.1, )"
         }
       },
       "rvt.storage.abstractions": {

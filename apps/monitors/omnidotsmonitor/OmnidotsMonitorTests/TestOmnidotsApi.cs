@@ -844,6 +844,54 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
+        public async Task StoreTraces_CompatibilityDefaults_DoNotRestrictFleetSerials()
+        {
+            Mock<IHttpClient> httpClient = new();
+            Mock<IDBClient> dbClient = new();
+            dbClient.As<IOmnidotsImportCursorQueries>();
+            dbClient.As<IOmnidotsMeasurementImportCommands>();
+            dbClient.As<IOmnidotsTraceQueries>();
+            Mock<IMqttClient> mqttClient = new();
+            Mock<IMessageService> messageClient = new();
+            OmnidotsApi subject = new(
+                httpClient.Object,
+                dbClient.Object,
+                mqttClient.Object,
+                messageClient.Object);
+            dbClient
+                .Setup(client => client.ReadMonitorList(It.IsAny<DateTime?>()))
+                .Returns(OmnidotsFixture.MonitorsList(1));
+            httpClient
+                .Setup(client => client.PostAsync(
+                    "/api/v1/user/authenticate",
+                    It.IsAny<HttpContent>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(OmnidotsFixture.AuthenticateTask("trace-token"));
+            httpClient
+                .Setup(client => client.GetAsync(
+                    It.Is<string>(url =>
+                        url.StartsWith(
+                            "/api/v1/get_traces_list",
+                            StringComparison.Ordinal)
+                        && url.Contains(
+                            "measuring_point_id=1",
+                            StringComparison.Ordinal)),
+                    It.IsAny<CancellationToken>()))
+                .Returns(OmnidotsFixture.StringTask(
+                    "{\"ok\":true,\"traces\":[]}"));
+
+            await subject.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5));
+
+            httpClient.Verify(
+                client => client.GetAsync(
+                    It.Is<string>(url => url.Contains(
+                        "measuring_point_id=1",
+                        StringComparison.Ordinal)),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [TestMethod]
         public async Task StoreTraces_DisabledCollection_MakesNoVendorCalls()
         {
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(

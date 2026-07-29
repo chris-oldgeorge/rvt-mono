@@ -22,6 +22,7 @@ namespace AirQ.Api.UseCases
         private readonly IAirQOperationalCommands operationalCommands;
         private readonly IMonitorEventPublisher eventPublisher;
         private readonly AirQRuleProcessor ruleProcessor;
+        private readonly TimeProvider _timeProvider;
 
         public StoreNoiseLevelsHandler(
             IAirQVendorGateway gateway,
@@ -31,7 +32,8 @@ namespace AirQ.Api.UseCases
             IAirQMeasurementCommands measurementCommands,
             IAirQOperationalCommands operationalCommands,
             IMonitorEventPublisher eventPublisher,
-            AirQRuleProcessor ruleProcessor)
+            AirQRuleProcessor ruleProcessor,
+            TimeProvider timeProvider)
         {
             _gateway = gateway;
             this.monitorReader = monitorReader;
@@ -41,6 +43,7 @@ namespace AirQ.Api.UseCases
             this.operationalCommands = operationalCommands;
             this.eventPublisher = eventPublisher;
             this.ruleProcessor = ruleProcessor;
+            _timeProvider = timeProvider;
         }
 
         public async Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
@@ -58,7 +61,8 @@ namespace AirQ.Api.UseCases
                         continue;
                     }
 
-                    DateTime lastDataTime = monitor.LastDataTime == null ? DateTime.Now.AddYears(-1) : (DateTime)monitor.LastDataTime!;
+                    DateTime lastDataTime = monitor.LastDataTime
+                        ?? _timeProvider.GetUtcNow().UtcDateTime.AddYears(-1);
 
                     cancellationToken.ThrowIfCancellationRequested();
                     try
@@ -128,15 +132,11 @@ namespace AirQ.Api.UseCases
                     throw new AggregateException("One or more AirQ noise-level imports failed.", failures);
                 }
             }
-            catch (AggregateException)
-            {
-                throw;
-            }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not AggregateException)
             {
                 operationalCommands.HandleException("StoreNoiseLevels", e);
                 throw;

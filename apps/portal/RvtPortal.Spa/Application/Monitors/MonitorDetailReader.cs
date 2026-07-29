@@ -101,9 +101,16 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
             PictureLink = pictureStorage.BuildProtectedLink(monitor.Id, deployment?.PictureLink),
             StatusLabel = MonitorStatusLabel(row),
             MonitorNotes = "No notes for this monitor",
-            LatestReading = await summaryService.BuildLatestReadingAsync(deployment, notifications.FirstOrDefault()),
-            LatestAverage = await summaryService.BuildLatestAverageAsync(deployment),
-            LatestBattery = await summaryService.BuildLatestBatteryAsync(monitor),
+            LatestReading = await summaryService.BuildLatestReadingAsync(
+                deployment,
+                notifications.FirstOrDefault(),
+                cancellationToken),
+            LatestAverage = await summaryService.BuildLatestAverageAsync(
+                deployment,
+                cancellationToken),
+            LatestBattery = await summaryService.BuildLatestBatteryAsync(
+                monitor,
+                cancellationToken),
             DeploymentSummary = summaryService.BuildDeploymentSummary(deployment),
             AlertLevels = [.. alertLevels.Select(BuildAlertLevelItem)],
             RecentNotifications = [.. notifications.Select(BuildNotificationItem)]

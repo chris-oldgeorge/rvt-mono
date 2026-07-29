@@ -275,9 +275,14 @@ public sealed class TestMonitorJobScheduling
         Assert.IsTrue(jobs.Any(job => job.Name == "DispatchAlerts" && job.Cron == "0 0/1 * * * ?"));
         Assert.IsTrue(jobs.Any(job => job.Name == "CleanupAlerts" && job.Cron == "0 15 3 * * ?"));
         Assert.IsTrue(configuration.GetValue<bool>($"{OmnidotsTraceCollectionOptions.SectionName}:Enabled"));
+        Assert.IsTrue(string.IsNullOrWhiteSpace(
+            configuration[$"{OmnidotsMonitoringOptions.SectionName}:Recipient"]));
         CollectionAssert.AreEqual(
-            new[] { "23423" },
-            configuration.GetSection($"{OmnidotsTraceCollectionOptions.SectionName}:AllowedSerialIds").Get<string[]>());
+            Array.Empty<string>(),
+            configuration
+                .GetSection($"{OmnidotsTraceCollectionOptions.SectionName}:AllowedSerialIds")
+                .Get<string[]>()
+                ?? []);
         Assert.AreEqual(
             1,
             configuration.GetValue<int>($"{OmnidotsTraceCollectionOptions.SectionName}:MaxMonitorsPerRun"));

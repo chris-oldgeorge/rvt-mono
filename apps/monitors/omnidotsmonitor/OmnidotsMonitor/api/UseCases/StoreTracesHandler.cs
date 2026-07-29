@@ -72,12 +72,17 @@ namespace Omnidots.Api.UseCases
 
             foreach (VibrationMonitorDto monitor in selectedMonitors)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
                     TraceReadResult result = await ReadTracesAsync(token, monitor.SerialId, last, null, cancellationToken);
                     succeeded++;
                     tracesStored += result.TraceCount;
                     samplesStored += result.SampleCount;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception e)
                 {

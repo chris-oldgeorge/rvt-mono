@@ -30,32 +30,32 @@ public interface IMonitorService
 
 
     Task<IList<Monitor>> ReadAllAsync();
-    Task<Monitor?> ReadOneAsync(Guid Id);
+    Task<Monitor?> ReadOneAsync(Guid id);
 
 
 
 
     //Deployments
-    Task<Deployment?> DeploymentReadOneAsync(Guid DeploymentId);
+    Task<Deployment?> DeploymentReadOneAsync(Guid deploymentId);
 
     //AlertLevels
 
 
     //Dust data
-    Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels(string SerialId, DateTime FromDate, DateTime ToDate, int AvrgDuration, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
-    Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels8hourAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels(string serialId, DateTime fromDate, DateTime toDate, int avrgDuration, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels8hourAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
 
     //Noise data
-    Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
-    Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1hourAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
-    Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1dayAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
-    Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevelsSiteAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1hourAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1dayAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevelsSiteAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
 
     //Vibration data
-    Task<SearchQueryResult<OmnidotsPeakLevel>> GetOmnidotsPeakLevels(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
-    Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string SerialId);
-    Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid TraceId, CancellationToken cancellationToken = default);
-    Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid Id);
+    Task<SearchQueryResult<OmnidotsPeakLevel>> GetOmnidotsPeakLevels(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string serialId);
+    Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid traceId, CancellationToken cancellationToken = default);
+    Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid id);
 
     //  Data services
 }
@@ -91,9 +91,9 @@ public class MonitorService : IMonitorService
     }
 
     // Function summary: Retrieves one data for callers.
-    public Task<Monitor?> ReadOneAsync(Guid Id)
+    public Task<Monitor?> ReadOneAsync(Guid id)
     {
-        return _monitorRepository.GetByIdAsync(Id);
+        return _monitorRepository.GetByIdAsync(id);
     }
 
     // Function summary: Retrieves all data for callers.
@@ -111,32 +111,32 @@ public class MonitorService : IMonitorService
     #region Deployment
     //Returns current  Deployment if any
     // Function summary: Handles the deployment read one workflow for this module.
-    public Task<Deployment?> DeploymentReadOneAsync(Guid DeploymentId)
+    public Task<Deployment?> DeploymentReadOneAsync(Guid deploymentId)
     {
-        return _deploymentRepository.GetByIdAsync(DeploymentId);
+        return _deploymentRepository.GetByIdAsync(deploymentId);
     }
     #endregion
 
     #region Dust data
     // Function summary: Retrieves my atm dust levels data for callers.
-    public Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels(string SerialId, DateTime FromDate, DateTime ToDate, int AvrgDuration, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
+    public Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels(string serialId, DateTime fromDate, DateTime toDate, int avrgDuration, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
     {
-        if (AvrgDuration >= 86400)
+        if (avrgDuration >= 86400)
         {
             // For 1 day averages, we need to use just the date and ignore the time
-            FromDate = FromDate.UtcToLocal(_dateTimeProvider).Date;
-            ToDate = ToDate.UtcToLocal(_dateTimeProvider).Date;
+            fromDate = fromDate.UtcToLocal(_dateTimeProvider).Date;
+            toDate = toDate.UtcToLocal(_dateTimeProvider).Date;
         }
         else
         {
-            FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
-            ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
+            fromDate = SearchTimestampPolicy.ToDatabase(fromDate);
+            toDate = SearchTimestampPolicy.ToDatabase(toDate);
         }
 
         List<OrderByProperty> orderBy = new();
-        if (!string.IsNullOrEmpty(Sort))
+        if (!string.IsNullOrEmpty(sort))
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = sort });
         }
         else
         {
@@ -145,28 +145,28 @@ public class MonitorService : IMonitorService
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate },
-            new SingleFilter { Operation = Op.Equals, PropertyName = "Avrg", Value = AvrgDuration }
+            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate },
+            new SingleFilter { Operation = Op.Equals, PropertyName = "Avrg", Value = avrgDuration }
         };
 
-        int pageSize = PageSize ?? 1000000;
-        Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+        int effectivePageSize = pageSize ?? 1000000;
+        Paging paging = page == null ? new Paging { Paged = false } : new Paging { Paged = true, Page = (int)page, PageSize = effectivePageSize };
 
-        return _timeSeries.ReadFilteredAsync<MyAtmDustLevel, MyAtmDustLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.DustLevel, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<MyAtmDustLevel, MyAtmDustLevel>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.DustLevel, cancellationToken);
     }
 
     // Function summary: Retrieves my atm dust levels8hour avg data for callers.
-    public Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels8hourAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
+    public Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels8hourAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
     {
-        FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
-        ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
+        fromDate = SearchTimestampPolicy.ToDatabase(fromDate);
+        toDate = SearchTimestampPolicy.ToDatabase(toDate);
 
         List<OrderByProperty> orderBy = new();
-        if (!string.IsNullOrEmpty(Sort))
+        if (!string.IsNullOrEmpty(sort))
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = sort });
         }
         else
         {
@@ -175,15 +175,15 @@ public class MonitorService : IMonitorService
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
         };
 
-        int pageSize = PageSize ?? 1000000;
-        Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+        int effectivePageSize = pageSize ?? 1000000;
+        Paging paging = page == null ? new Paging { Paged = false } : new Paging { Paged = true, Page = (int)page, PageSize = effectivePageSize };
 
-        return _timeSeries.ReadFilteredAsync<MyAtmDustLevel8hourAvg, MyAtmDustLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.DustLevelFromEightHour, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<MyAtmDustLevel8hourAvg, MyAtmDustLevel>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.DustLevelFromEightHour, cancellationToken);
     }
 
 
@@ -191,15 +191,15 @@ public class MonitorService : IMonitorService
 
     #region Noise data
     // Function summary: Retrieves air qnoise levels data for callers.
-    public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
+    public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
     {
-        FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
-        ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
+        fromDate = SearchTimestampPolicy.ToDatabase(fromDate);
+        toDate = SearchTimestampPolicy.ToDatabase(toDate);
 
         List<OrderByProperty> orderBy = new();
-        if (!string.IsNullOrEmpty(Sort))
+        if (!string.IsNullOrEmpty(sort))
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = sort });
         }
         else
         {
@@ -208,27 +208,27 @@ public class MonitorService : IMonitorService
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
         };
 
-        int pageSize = PageSize ?? 1000000;
-        Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+        int effectivePageSize = pageSize ?? 1000000;
+        Paging paging = page == null ? new Paging { Paged = false } : new Paging { Paged = true, Page = (int)page, PageSize = effectivePageSize };
 
-        return _timeSeries.ReadFilteredAsync<NoiseLevel15minAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevel, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<NoiseLevel15minAvg, NoiseLevel15minAvg>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.NoiseLevel, cancellationToken);
     }
 
     // Function summary: Retrieves air qnoise levels1hour avg data for callers.
-    public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1hourAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
+    public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1hourAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
     {
-        FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
-        ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
+        fromDate = SearchTimestampPolicy.ToDatabase(fromDate);
+        toDate = SearchTimestampPolicy.ToDatabase(toDate);
 
         List<OrderByProperty> orderBy = new();
-        if (!string.IsNullOrEmpty(Sort))
+        if (!string.IsNullOrEmpty(sort))
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = sort });
         }
         else
         {
@@ -237,27 +237,27 @@ public class MonitorService : IMonitorService
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
         };
 
-        int pageSize = PageSize ?? 1000000;
-        Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+        int effectivePageSize = pageSize ?? 1000000;
+        Paging paging = page == null ? new Paging { Paged = false } : new Paging { Paged = true, Page = (int)page, PageSize = effectivePageSize };
 
-        return _timeSeries.ReadFilteredAsync<NoiseLevel1hourAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromHour, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<NoiseLevel1hourAvg, NoiseLevel15minAvg>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.NoiseLevelFromHour, cancellationToken);
     }
 
     // Function summary: Retrieves air qnoise levels1day avg data for callers.
-    public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1dayAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
+    public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1dayAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
     {
-        FromDate = FromDate.UtcToLocal(_dateTimeProvider).Date;
-        ToDate = ToDate.UtcToLocal(_dateTimeProvider).Date;
+        fromDate = fromDate.UtcToLocal(_dateTimeProvider).Date;
+        toDate = toDate.UtcToLocal(_dateTimeProvider).Date;
 
         List<OrderByProperty> orderBy = new();
-        if (!string.IsNullOrEmpty(Sort))
+        if (!string.IsNullOrEmpty(sort))
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = sort });
         }
         else
         {
@@ -266,27 +266,27 @@ public class MonitorService : IMonitorService
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
         };
 
-        int pageSize = PageSize ?? 1000000;
-        Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+        int effectivePageSize = pageSize ?? 1000000;
+        Paging paging = page == null ? new Paging { Paged = false } : new Paging { Paged = true, Page = (int)page, PageSize = effectivePageSize };
 
-        return _timeSeries.ReadFilteredAsync<NoiseLevel1dayAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromDay, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<NoiseLevel1dayAvg, NoiseLevel15minAvg>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.NoiseLevelFromDay, cancellationToken);
     }
 
     // Function summary: Retrieves air qnoise levels site avg data for callers.
-    public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevelsSiteAvg(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
+    public Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevelsSiteAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
     {
-        FromDate = FromDate.UtcToLocal(_dateTimeProvider).Date;
-        ToDate = ToDate.UtcToLocal(_dateTimeProvider).Date;
+        fromDate = fromDate.UtcToLocal(_dateTimeProvider).Date;
+        toDate = toDate.UtcToLocal(_dateTimeProvider).Date;
 
         List<OrderByProperty> orderBy = new();
-        if (!string.IsNullOrEmpty(Sort))
+        if (!string.IsNullOrEmpty(sort))
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = sort });
         }
         else
         {
@@ -295,15 +295,15 @@ public class MonitorService : IMonitorService
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
         };
 
-        int pageSize = PageSize ?? 1000000;
-        Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+        int effectivePageSize = pageSize ?? 1000000;
+        Paging paging = page == null ? new Paging { Paged = false } : new Paging { Paged = true, Page = (int)page, PageSize = effectivePageSize };
 
-        return _timeSeries.ReadFilteredAsync<NoiseLevelSiteAvg, NoiseLevel15minAvg>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.NoiseLevelFromSite, cancellationToken);
+        return _timeSeries.ReadFilteredAsync<NoiseLevelSiteAvg, NoiseLevel15minAvg>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.NoiseLevelFromSite, cancellationToken);
     }
 
     #endregion
@@ -311,16 +311,16 @@ public class MonitorService : IMonitorService
 
     #region Vibration data
     // Function summary: Retrieves omnidots peak levels data for callers.
-    public Task<SearchQueryResult<OmnidotsPeakLevel>> GetOmnidotsPeakLevels(string SerialId, DateTime FromDate, DateTime ToDate, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
+    public Task<SearchQueryResult<OmnidotsPeakLevel>> GetOmnidotsPeakLevels(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default)
     {
-        TimeSpan duration = ToDate - FromDate;
-        FromDate = SearchTimestampPolicy.ToDatabase(FromDate);
-        ToDate = SearchTimestampPolicy.ToDatabase(ToDate);
+        TimeSpan duration = toDate - fromDate;
+        fromDate = SearchTimestampPolicy.ToDatabase(fromDate);
+        toDate = SearchTimestampPolicy.ToDatabase(toDate);
 
         List<OrderByProperty> orderBy = new();
-        if (!string.IsNullOrEmpty(Sort))
+        if (!string.IsNullOrEmpty(sort))
         {
-            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = Sort });
+            orderBy.Add(new OrderByProperty() { OrderByDirection = sortdir ?? OrderByDirectionEnum.Ascending, OrderByColumn = sort });
         }
         else
         {
@@ -329,50 +329,50 @@ public class MonitorService : IMonitorService
 
         List<Filter> query = new()
         {
-            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = SerialId },
-            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = FromDate },
-            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = ToDate }
+            new SingleFilter { Operation = Op.Equals, PropertyName = "SerialId", Value = serialId },
+            new SingleFilter { Operation = Op.GreaterThanOrEqual, PropertyName = "SampleTime", Value = fromDate },
+            new SingleFilter { Operation = Op.LessThanOrEqual, PropertyName = "SampleTime", Value = toDate }
         };
 
-        int pageSize = PageSize ?? 30000;
-        Paging paging = Page == null ? new Paging { paged = false } : new Paging { paged = true, page = (int)Page, pageSize = pageSize };
+        int effectivePageSize = pageSize ?? 30000;
+        Paging paging = page == null ? new Paging { Paged = false } : new Paging { Paged = true, Page = (int)page, PageSize = effectivePageSize };
         if (duration.TotalHours < 1) //Samples every 2 second
         {
-            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevel, cancellationToken);
+            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel, OmnidotsPeakLevel>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.PeakLevel, cancellationToken);
         }
         else if (duration.TotalHours < 4) //Samples every 2 second
         {
-            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel1min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom1Min, cancellationToken);
+            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel1min, OmnidotsPeakLevel>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.PeakLevelFrom1Min, cancellationToken);
         }
         else if (duration.TotalDays < 1) //samples every 5min
         {
-            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel5min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom5Min, cancellationToken);
+            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel5min, OmnidotsPeakLevel>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.PeakLevelFrom5Min, cancellationToken);
         }
         else if (duration.TotalDays < 2) //samples every 15min
         {
-            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel15min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom15Min, cancellationToken);
+            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel15min, OmnidotsPeakLevel>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.PeakLevelFrom15Min, cancellationToken);
         }
         else //Samples every 20 min
         {
-            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel20min, OmnidotsPeakLevel>(query, [.. orderBy], pageSize, paging, TimeSeriesProjections.PeakLevelFrom20Min, cancellationToken);
+            return _timeSeries.ReadFilteredAsync<OmnidotsPeakLevel20min, OmnidotsPeakLevel>(query, [.. orderBy], effectivePageSize, paging, TimeSeriesProjections.PeakLevelFrom20Min, cancellationToken);
         }
     }
 
     // Function summary: Retrieves vibration monitor status data for callers.
-    public Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string SerialId)
+    public Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string serialId)
     {
         return _searchContext.Set<OmnidotsMonitorStatus>()
-            .Where(status => status.SerialId == SerialId)
+            .Where(status => status.SerialId == serialId)
             .FirstOrDefaultAsync();
     }
 
     // Function summary: Retrieves vibration traces data for callers.
-    public async Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid TraceId, CancellationToken cancellationToken = default)
+    public async Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid traceId, CancellationToken cancellationToken = default)
     {
         // TODO: What do we order traces by?
         List<OmnidotsTrace> records = await _searchContext.OmnidotsTraces
             .AsNoTracking()
-            .Where(trace => trace.TraceId == TraceId)
+            .Where(trace => trace.TraceId == traceId)
             .Take(1000000)
             .ToListAsync(cancellationToken);
 
@@ -380,9 +380,9 @@ public class MonitorService : IMonitorService
     }
 
     // Function summary: Handles the traces index read one workflow for this module.
-    public async Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid Id)
+    public async Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid id)
     {
-        return await _searchContext.Set<OmnidotsTracesIndex>().FindAsync(Id);
+        return await _searchContext.Set<OmnidotsTracesIndex>().FindAsync(id);
     }
 
     #endregion

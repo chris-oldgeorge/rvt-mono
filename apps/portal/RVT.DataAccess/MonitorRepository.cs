@@ -25,6 +25,6 @@ public class MonitorRepository : GenericRepository<Monitor>, IMonitorRepository
     // Function summary: Retrieves filtered data for callers.
     public Task<SearchQueryResult<Monitor>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default)
     {
-        return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.paged, pagedata.page, pagedata.pageSize, cancellationToken);
+        return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.Paged, pagedata.Page, pagedata.PageSize, cancellationToken);
     }
 }

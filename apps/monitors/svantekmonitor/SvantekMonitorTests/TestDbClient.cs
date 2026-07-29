@@ -11,7 +11,6 @@ using Rvt.Monitor.IntegrationTesting;
 using Svantek.Api.Db;
 using Svantek.Model.Dto;
 using Svantek.Model.Http;
-using SvantekMonitor.model.dto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;

@@ -30,7 +30,7 @@ public sealed class SearchQueryReader : ISearchQueryReader
     {
         SearchQueryResult<TSource> source = await SearchQueryExecutor.ReadFilteredAsync<TSource>(
             _context, whereFilter, orderBy, maximumRecords,
-            pagedata.paged, pagedata.page, pagedata.pageSize, cancellationToken);
+            pagedata.Paged, pagedata.Page, pagedata.PageSize, cancellationToken);
 
         List<TResult> records = [.. source.Value.Select(map)];
         return new SearchQueryResult<TResult>(source.WasSuccessful, source.ErrorMessage, records, source.RecordCount, string.Empty)

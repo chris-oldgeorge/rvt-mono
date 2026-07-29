@@ -14,7 +14,6 @@
 // - 2026-06-26 pending Awaited archive file/blob APIs to remove blocking async workflows.
 // - 2026-07-08 pending Replaced console archive error output with trace logging during cleanup review.
 
-using System.Data.Common;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -25,7 +24,7 @@ namespace RvtPortal.Spa.Adapters.Archive;
 
 public class BlobStorage
 {
-    public string blobConnectionString { get; set; } = string.Empty;
+    public string BlobConnectionString { get; set; } = string.Empty;
     public string MonitorImagesContainer { get; set; } = string.Empty;
     public string ArchiveContainer { get; set; } = string.Empty;
     public string ReportContainer { get; set; } = string.Empty;
@@ -205,12 +204,6 @@ internal class SiteArchiveService : ISiteArchiveService
                 candidateArchive.BlobContainerName,
                 StringComparison.Ordinal)
             && !string.IsNullOrWhiteSpace(durableArchive.BlobName);
-    }
-
-    // Function summary: Creates a provider-specific site id parameter for focused archive security tests.
-    private DbParameter CreateSiteIdParameter(Guid siteId)
-    {
-        return _queryExecutor.CreateSiteIdParameter(siteId);
     }
 
     // Function summary: Downloads a report blob into the archive workspace.

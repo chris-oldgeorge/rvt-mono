@@ -28,7 +28,7 @@ public sealed class QueryValidationTests
             [new SingleFilter { Operation = Op.Equals, PropertyName = "NotAField", Value = "x" }],
             ByName,
             maximumRecords: 10,
-            new Paging { paged = false },
+            new Paging { Paged = false },
             CancellationToken.None));
 
         Assert.Contains("NotAField", error.Message, StringComparison.Ordinal);
@@ -49,7 +49,7 @@ public sealed class QueryValidationTests
             [new SingleFilter { Operation = Op.Equals, PropertyName = "Nonsense", Value = "x" }],
             ByName,
             maximumRecords: 10,
-            new Paging { paged = false },
+            new Paging { Paged = false },
             CancellationToken.None));
     }
 
@@ -64,7 +64,7 @@ public sealed class QueryValidationTests
             [],
             [new OrderByProperty { OrderByColumn = "NotASortField" }],
             maximumRecords: 10,
-            new Paging { paged = false },
+            new Paging { Paged = false },
             CancellationToken.None));
 
         Assert.Contains("NotASortField", error.Message, StringComparison.Ordinal);
@@ -84,7 +84,7 @@ public sealed class QueryValidationTests
             [],
             ByName,
             maximumRecords: 10,
-            new Paging { paged = false },
+            new Paging { Paged = false },
             CancellationToken.None);
 
         Assert.Equal(2, result.RecordCount);

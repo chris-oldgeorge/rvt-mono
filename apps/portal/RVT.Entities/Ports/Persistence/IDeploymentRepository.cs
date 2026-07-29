@@ -8,9 +8,9 @@ namespace RVT.Entities.Ports.Persistence;
 
 public interface IDeploymentRepository
 {
-    Task<Deployment?> GetByIdAsync(Guid Id);
+    Task<Deployment?> GetByIdAsync(Guid id);
     Task<IList<Deployment>> ReadAllAsync();
     Task<SearchQueryResult<Deployment>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default);
-    Task<Deployment?> ReadCurrentForMonitiorAsync(Guid MonitorId);
-    Task<Deployment?> ReadCurrentForMonitiorAsync(Guid MonitorId, DateTime notificationTime);
+    Task<Deployment?> ReadCurrentForMonitiorAsync(Guid monitorId);
+    Task<Deployment?> ReadCurrentForMonitiorAsync(Guid monitorId, DateTime notificationTime);
 }

@@ -13,27 +13,27 @@ namespace RVT.DataAccess;
 public class DeploymentRepository : GenericRepository<Deployment>, IDeploymentRepository
 {
     // Function summary: Handles the deployment repository workflow for this module.
-    public DeploymentRepository(RVTDbContext ContextDB)
-        : base(ContextDB)
+    public DeploymentRepository(RVTDbContext contextDB)
+        : base(contextDB)
     {
     }
 
     // Function summary: Retrieves filtered data for callers.
     public Task<SearchQueryResult<Deployment>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default)
     {
-        return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.paged, pagedata.page, pagedata.pageSize, cancellationToken);
+        return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.Paged, pagedata.Page, pagedata.PageSize, cancellationToken);
     }
 
     // Function summary: Retrieves current for monitior data for callers.
-    public async Task<Deployment?> ReadCurrentForMonitiorAsync(Guid MonitorId)
+    public async Task<Deployment?> ReadCurrentForMonitiorAsync(Guid monitorId)
     {
-        return await DbSet.Where(s => s.MonitorId == MonitorId && s.EndDate == null).FirstOrDefaultAsync();
+        return await DbSet.Where(s => s.MonitorId == monitorId && s.EndDate == null).FirstOrDefaultAsync();
     }
 
     // Function summary: Retrieves current for monitior data for callers.
-    public async Task<Deployment?> ReadCurrentForMonitiorAsync(Guid MonitorId, DateTime notificationTime)
+    public async Task<Deployment?> ReadCurrentForMonitiorAsync(Guid monitorId, DateTime notificationTime)
     {
-        return await DbSet.Where(s => s.MonitorId == MonitorId && s.StartDate < notificationTime && (s.EndDate == null || s.EndDate > notificationTime)).FirstOrDefaultAsync();
+        return await DbSet.Where(s => s.MonitorId == monitorId && s.StartDate < notificationTime && (s.EndDate == null || s.EndDate > notificationTime)).FirstOrDefaultAsync();
     }
 
 }

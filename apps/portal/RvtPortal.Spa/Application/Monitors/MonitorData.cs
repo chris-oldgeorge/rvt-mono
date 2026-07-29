@@ -34,9 +34,9 @@ public class OmnidotsFourierData
     public Complex[] ZVtopData { get; set; } = [];
 
     // Function summary: Retrieves frequency data for callers.
-    public double GetFrequency(int Index, int MeasurementDuration)
+    public double GetFrequency(int index, int measurementDuration)
     {
-        return Index / (double)MeasurementDuration / DataLength;
+        return index / (double)measurementDuration / DataLength;
     }
 
     // Function summary: Retrieves magnitude data for callers.
@@ -106,15 +106,15 @@ public class MonitorData
     }
 
     // Function summary: Retrieves avrg duration from filter option data for callers.
-    private static int GetAvrgDurationFromFilterOption(string? FilterOption, MonitorTypeEnum MonitorType)
+    private static int GetAvrgDurationFromFilterOption(string? filterOption, MonitorTypeEnum monitorType)
     {
 
-        if (int.TryParse(FilterOption, NumberStyles.Integer, CultureInfo.InvariantCulture, out int avrgDuration))
+        if (int.TryParse(filterOption, NumberStyles.Integer, CultureInfo.InvariantCulture, out int avrgDuration))
         {
             return avrgDuration;
         }
 
-        return MonitorType switch
+        return monitorType switch
         {
             MonitorTypeEnum.Dust => 60,
             MonitorTypeEnum.Noise => 900,
@@ -124,9 +124,9 @@ public class MonitorData
     }
 
     // Function summary: Handles the prepare data for fourier transform workflow for this module.
-    private static OmnidotsFourierData PrepareDataForFourierTransform(List<OmnidotsPeakLevel> OmnidotsPeakLevels, int MeasurementDuration, bool UseFastTransform)
+    private static OmnidotsFourierData PrepareDataForFourierTransform(List<OmnidotsPeakLevel> omnidotsPeakLevels, int measurementDuration, bool useFastTransform)
     {
-        int numEntries = CalculateFourierEntryCount(OmnidotsPeakLevels, MeasurementDuration, UseFastTransform);
+        int numEntries = CalculateFourierEntryCount(omnidotsPeakLevels, measurementDuration, useFastTransform);
 
         OmnidotsFourierData fourierData = new()
         {
@@ -139,9 +139,9 @@ public class MonitorData
         DateTime? lastTime = null;
         int index = 0;
 
-        foreach (OmnidotsPeakLevel vibrationLevel in OmnidotsPeakLevels)
+        foreach (OmnidotsPeakLevel vibrationLevel in omnidotsPeakLevels)
         {
-            index = FillMissingFourierSamples(fourierData, index, numEntries, MeasurementDuration, ref lastTime, vibrationLevel.SampleTime);
+            index = FillMissingFourierSamples(fourierData, index, numEntries, measurementDuration, ref lastTime, vibrationLevel.SampleTime);
             if (index >= numEntries)
             {
                 fourierData.EndDate = vibrationLevel.SampleTime;
@@ -156,13 +156,13 @@ public class MonitorData
     }
 
     // Function summary: Calculates the Fourier buffer length required for the selected transform.
-    private static int CalculateFourierEntryCount(List<OmnidotsPeakLevel> OmnidotsPeakLevels, int MeasurementDuration, bool UseFastTransform)
+    private static int CalculateFourierEntryCount(List<OmnidotsPeakLevel> omnidotsPeakLevels, int measurementDuration, bool useFastTransform)
     {
-        DateTime firstEntry = OmnidotsPeakLevels.First().SampleTime;
-        DateTime lastEntry = OmnidotsPeakLevels.Last().SampleTime;
-        int numEntries = (int)(lastEntry - firstEntry).TotalSeconds / MeasurementDuration;
+        DateTime firstEntry = omnidotsPeakLevels.First().SampleTime;
+        DateTime lastEntry = omnidotsPeakLevels.Last().SampleTime;
+        int numEntries = (int)(lastEntry - firstEntry).TotalSeconds / measurementDuration;
 
-        return UseFastTransform ? RoundUpToSupportedPowerOfTwo(numEntries) : numEntries;
+        return useFastTransform ? RoundUpToSupportedPowerOfTwo(numEntries) : numEntries;
     }
 
     // Function summary: Rounds a Fourier buffer length up to the closest supported FFT power of two.
@@ -182,9 +182,9 @@ public class MonitorData
     }
 
     // Function summary: Fills missing Fourier data points with zero samples until the next measurement time.
-    private static int FillMissingFourierSamples(OmnidotsFourierData fourierData, int index, int numEntries, int MeasurementDuration, ref DateTime? lastTime, DateTime sampleTime)
+    private static int FillMissingFourierSamples(OmnidotsFourierData fourierData, int index, int numEntries, int measurementDuration, ref DateTime? lastTime, DateTime sampleTime)
     {
-        while (lastTime != null && (sampleTime - (DateTime)lastTime).TotalSeconds > MeasurementDuration)
+        while (lastTime != null && (sampleTime - (DateTime)lastTime).TotalSeconds > measurementDuration)
         {
             if (index >= numEntries)
             {
@@ -193,7 +193,7 @@ public class MonitorData
 
             SetFourierSample(fourierData, index, 0, 0, 0);
             index++;
-            lastTime = ((DateTime)lastTime).AddSeconds(MeasurementDuration);
+            lastTime = ((DateTime)lastTime).AddSeconds(measurementDuration);
         }
 
         return index;
@@ -215,43 +215,43 @@ public class MonitorData
 
 
     // Function summary: Retrieves deployment data data for callers.
-    public static async Task<MonitorData> GetDeploymentData(IMonitorService monitorService, IRvtDateTimeProvider dateTimeProvider, Guid DeploymentId, Guid? TraceId, string? FilterOption, DateTime? FromDate, DateTime? ToDate, bool GraphData, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? SortDir = null)
+    public static async Task<MonitorData> GetDeploymentData(IMonitorService monitorService, IRvtDateTimeProvider dateTimeProvider, Guid deploymentId, Guid? traceId, string? filterOption, DateTime? fromDate, DateTime? toDate, bool graphData, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortDir = null)
     {
-        Deployment deployment = (await monitorService.DeploymentReadOneAsync(DeploymentId))!;
+        Deployment deployment = (await monitorService.DeploymentReadOneAsync(deploymentId))!;
 
         DateTime defaultFromDate = DateTime.Today.AddDays(-1).LocalToUtc(dateTimeProvider);
         DateTime defaultToDate = DateTime.Today.AddDays(1).LocalToUtc(dateTimeProvider);
-        (DateTime chosenFromDate, DateTime chosenToDate) = NormalizeDeploymentDateRange(FromDate, ToDate, defaultFromDate, defaultToDate);
+        (DateTime chosenFromDate, DateTime chosenToDate) = NormalizeDeploymentDateRange(fromDate, toDate, defaultFromDate, defaultToDate);
         TimeSpan chosenTimeSpan = chosenToDate - chosenFromDate;
         RVT.Entities.Monitor? monitor = await monitorService.ReadOneAsync(deployment.MonitorId);
 
-        if (TraceId != null)
+        if (traceId != null)
         {
-            return await BuildTraceMonitorData(monitorService, monitor, (Guid)TraceId, defaultFromDate, defaultToDate, FilterOption);
+            return await BuildTraceMonitorData(monitorService, monitor, (Guid)traceId, defaultFromDate, defaultToDate, filterOption);
         }
 
         if (monitor == null)
         {
-            return BuildEmptyMonitorData(chosenFromDate, chosenToDate, FilterOption);
+            return BuildEmptyMonitorData(chosenFromDate, chosenToDate, filterOption);
         }
 
         (DateTime minDate, DateTime maxDate) = GetDeploymentBounds(deployment, dateTimeProvider);
         (DateTime validFromDate, DateTime validToDate) = ClampDeploymentDateRange(minDate, maxDate, chosenFromDate, chosenToDate, chosenTimeSpan, dateTimeProvider);
-        MonitorData monitorData = BuildMonitorData(monitor, minDate, maxDate, validFromDate, validToDate, FilterOption);
+        MonitorData monitorData = BuildMonitorData(monitor, minDate, maxDate, validFromDate, validToDate, filterOption);
 
-        await ApplyMonitorReadings(monitorService, monitorData, monitor, validFromDate, validToDate, FilterOption, GraphData, Page, PageSize, Sort, SortDir);
+        await ApplyMonitorReadings(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir);
 
-        monitorData.FromDateChanged = FromDate != null && FromDate != monitorData.FromDate.TruncateSeconds();
-        monitorData.ToDateChanged = ToDate != null && ToDate != monitorData.ToDate.TruncateSeconds();
+        monitorData.FromDateChanged = fromDate != null && fromDate != monitorData.FromDate.TruncateSeconds();
+        monitorData.ToDateChanged = toDate != null && toDate != monitorData.ToDate.TruncateSeconds();
 
         return monitorData;
     }
 
     // Function summary: Normalizes deployment date range input against the default window.
-    private static (DateTime FromDate, DateTime ToDate) NormalizeDeploymentDateRange(DateTime? FromDate, DateTime? ToDate, DateTime defaultFromDate, DateTime defaultToDate)
+    private static (DateTime FromDate, DateTime ToDate) NormalizeDeploymentDateRange(DateTime? fromDate, DateTime? toDate, DateTime defaultFromDate, DateTime defaultToDate)
     {
-        DateTime chosenFromDate = FromDate == null ? defaultFromDate : DateTime.SpecifyKind((DateTime)FromDate, DateTimeKind.Utc);
-        DateTime chosenToDate = ToDate == null ? defaultToDate : DateTime.SpecifyKind((DateTime)ToDate, DateTimeKind.Utc);
+        DateTime chosenFromDate = fromDate == null ? defaultFromDate : DateTime.SpecifyKind((DateTime)fromDate, DateTimeKind.Utc);
+        DateTime chosenToDate = toDate == null ? defaultToDate : DateTime.SpecifyKind((DateTime)toDate, DateTimeKind.Utc);
 
         if (chosenToDate > chosenFromDate)
         {
@@ -268,7 +268,7 @@ public class MonitorData
     }
 
     // Function summary: Builds monitor data for a vibration trace request.
-    private static async Task<MonitorData> BuildTraceMonitorData(IMonitorService monitorService, RVT.Entities.Monitor? monitor, Guid traceId, DateTime defaultFromDate, DateTime defaultToDate, string? FilterOption)
+    private static async Task<MonitorData> BuildTraceMonitorData(IMonitorService monitorService, RVT.Entities.Monitor? monitor, Guid traceId, DateTime defaultFromDate, DateTime defaultToDate, string? filterOption)
     {
         OmnidotsTracesIndex? traceIndex = await monitorService.TracesIndexReadOne(traceId);
         SearchQueryResult<OmnidotsTrace> traces = await monitorService.GetVibrationTraces(traceId);
@@ -280,13 +280,13 @@ public class MonitorData
             MaxDate = defaultToDate,
             FromDate = traceIndex?.StartTime != null ? traceIndex.StartTime : defaultFromDate,
             ToDate = traceIndex?.EndTime != null ? traceIndex.EndTime : defaultToDate,
-            FilterOption = FilterOption,
+            FilterOption = filterOption,
             VibrationTraces = traces
         };
     }
 
     // Function summary: Builds an empty monitor data response when a deployment monitor is unavailable.
-    private static MonitorData BuildEmptyMonitorData(DateTime chosenFromDate, DateTime chosenToDate, string? FilterOption)
+    private static MonitorData BuildEmptyMonitorData(DateTime chosenFromDate, DateTime chosenToDate, string? filterOption)
     {
         return new MonitorData
         {
@@ -294,7 +294,7 @@ public class MonitorData
             MaxDate = chosenToDate,
             FromDate = chosenFromDate,
             ToDate = chosenToDate,
-            FilterOption = FilterOption,
+            FilterOption = filterOption,
         };
     }
 
@@ -328,7 +328,7 @@ public class MonitorData
     }
 
     // Function summary: Creates monitor data with shared date metadata.
-    private static MonitorData BuildMonitorData(RVT.Entities.Monitor monitor, DateTime minDate, DateTime maxDate, DateTime validFromDate, DateTime validToDate, string? FilterOption)
+    private static MonitorData BuildMonitorData(RVT.Entities.Monitor monitor, DateTime minDate, DateTime maxDate, DateTime validFromDate, DateTime validToDate, string? filterOption)
     {
         return new MonitorData
         {
@@ -337,23 +337,23 @@ public class MonitorData
             MaxDate = maxDate,
             FromDate = validFromDate,
             ToDate = validToDate,
-            FilterOption = FilterOption,
+            FilterOption = filterOption,
         };
     }
 
     // Function summary: Populates monitor-type specific readings.
-    private static async Task ApplyMonitorReadings(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? FilterOption, bool GraphData, int? Page, int? PageSize, string? Sort, OrderByDirectionEnum? SortDir)
+    private static async Task ApplyMonitorReadings(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir)
     {
         switch (monitor.TypeOfMonitor)
         {
             case MonitorTypeEnum.Dust:
-                await ApplyDustData(monitorService, monitorData, monitor, validFromDate, validToDate, FilterOption, GraphData, Page, PageSize, Sort, SortDir);
+                await ApplyDustData(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir);
                 break;
             case MonitorTypeEnum.Noise:
-                await ApplyNoiseData(monitorService, monitorData, monitor, validFromDate, validToDate, FilterOption, GraphData, Page, PageSize, Sort, SortDir);
+                await ApplyNoiseData(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir);
                 break;
             case MonitorTypeEnum.Vibration:
-                await ApplyVibrationData(monitorService, monitorData, monitor, validFromDate, validToDate, FilterOption, GraphData, Page, PageSize, Sort, SortDir);
+                await ApplyVibrationData(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir);
                 break;
             default:
                 break;
@@ -361,9 +361,9 @@ public class MonitorData
     }
 
     // Function summary: Applies maximum duration constraints and returns the adjusted end date.
-    private static DateTime ApplyMaxDuration(MonitorData monitorData, DateTime validFromDate, DateTime validToDate, int maxDurationDays, bool GraphData)
+    private static DateTime ApplyMaxDuration(MonitorData monitorData, DateTime validFromDate, DateTime validToDate, int maxDurationDays, bool graphData)
     {
-        if (!GraphData)
+        if (!graphData)
         {
             maxDurationDays *= 2;
         }
@@ -379,14 +379,14 @@ public class MonitorData
     }
 
     // Function summary: Populates dust readings and filter options.
-    private static async Task ApplyDustData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? FilterOption, bool GraphData, int? Page, int? PageSize, string? Sort, OrderByDirectionEnum? SortDir)
+    private static async Task ApplyDustData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir)
     {
-        int avrgDuration = GetAvrgDurationFromFilterOption(FilterOption, MonitorTypeEnum.Dust);
-        validToDate = ApplyMaxDuration(monitorData, validFromDate, validToDate, avrgDuration / 5, GraphData);
+        int avrgDuration = GetAvrgDurationFromFilterOption(filterOption, MonitorTypeEnum.Dust);
+        validToDate = ApplyMaxDuration(monitorData, validFromDate, validToDate, avrgDuration / 5, graphData);
 
         monitorData.DustLevels = avrgDuration == 28800
-            ? await monitorService.GetMyAtmDustLevels8hourAvg(monitor.SerialId, validFromDate, validToDate, Page, PageSize, Sort, SortDir)
-            : await monitorService.GetMyAtmDustLevels(monitor.SerialId, validFromDate, validToDate, avrgDuration, Page, PageSize, Sort, SortDir);
+            ? await monitorService.GetMyAtmDustLevels8hourAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir)
+            : await monitorService.GetMyAtmDustLevels(monitor.SerialId, validFromDate, validToDate, avrgDuration, page, pageSize, sort, sortDir);
 
         monitorData.FilterOptions = new Dictionary<string, string>
         {
@@ -401,18 +401,18 @@ public class MonitorData
     }
 
     // Function summary: Populates noise readings and filter options.
-    private static async Task ApplyNoiseData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? FilterOption, bool GraphData, int? Page, int? PageSize, string? Sort, OrderByDirectionEnum? SortDir)
+    private static async Task ApplyNoiseData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir)
     {
-        int avrgDuration = GetAvrgDurationFromFilterOption(FilterOption, MonitorTypeEnum.Noise);
-        int maxDurationDays = (FilterOption == "site" ? 86400 : avrgDuration) / 5;
-        validToDate = ApplyMaxDuration(monitorData, validFromDate, validToDate, maxDurationDays, GraphData);
+        int avrgDuration = GetAvrgDurationFromFilterOption(filterOption, MonitorTypeEnum.Noise);
+        int maxDurationDays = (filterOption == "site" ? 86400 : avrgDuration) / 5;
+        validToDate = ApplyMaxDuration(monitorData, validFromDate, validToDate, maxDurationDays, graphData);
 
-        monitorData.NoiseLevels = FilterOption switch
+        monitorData.NoiseLevels = filterOption switch
         {
-            "site" => await monitorService.GetAirQnoiseLevelsSiteAvg(monitor.SerialId, validFromDate, validToDate, Page, PageSize, Sort, SortDir),
-            _ when avrgDuration == 3600 => await monitorService.GetAirQnoiseLevels1hourAvg(monitor.SerialId, validFromDate, validToDate, Page, PageSize, Sort, SortDir),
-            _ when avrgDuration == 86400 => await monitorService.GetAirQnoiseLevels1dayAvg(monitor.SerialId, validFromDate, validToDate, Page, PageSize, Sort, SortDir),
-            _ => await monitorService.GetAirQnoiseLevels(monitor.SerialId, validFromDate, validToDate, Page, PageSize, Sort, SortDir)
+            "site" => await monitorService.GetAirQnoiseLevelsSiteAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir),
+            _ when avrgDuration == 3600 => await monitorService.GetAirQnoiseLevels1hourAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir),
+            _ when avrgDuration == 86400 => await monitorService.GetAirQnoiseLevels1dayAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir),
+            _ => await monitorService.GetAirQnoiseLevels(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir)
         };
 
         monitorData.FilterOptions = new Dictionary<string, string>
@@ -423,15 +423,15 @@ public class MonitorData
             { "site", "Site Averages" }
         };
 
-        monitorData.FilterOption = FilterOption == "site" ? FilterOption : avrgDuration.ToString(CultureInfo.InvariantCulture);
+        monitorData.FilterOption = filterOption == "site" ? filterOption : avrgDuration.ToString(CultureInfo.InvariantCulture);
     }
 
     // Function summary: Populates vibration readings or frequency data and filter options.
-    private static async Task ApplyVibrationData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? FilterOption, bool GraphData, int? Page, int? PageSize, string? Sort, OrderByDirectionEnum? SortDir)
+    private static async Task ApplyVibrationData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir)
     {
-        monitorData.FilterOption = FilterOption ?? "time";
-        validToDate = ApplyMaxDuration(monitorData, validFromDate, validToDate, FilterOption == "frequency" ? 1 : 3, GraphData);
-        SearchQueryResult<OmnidotsPeakLevel> vibrationLevels = await monitorService.GetOmnidotsPeakLevels(monitor.SerialId, validFromDate, validToDate, Page, PageSize, Sort, SortDir);
+        monitorData.FilterOption = filterOption ?? "time";
+        validToDate = ApplyMaxDuration(monitorData, validFromDate, validToDate, filterOption == "frequency" ? 1 : 3, graphData);
+        SearchQueryResult<OmnidotsPeakLevel> vibrationLevels = await monitorService.GetOmnidotsPeakLevels(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir);
 
         if (monitorData.FilterOption == "frequency")
         {

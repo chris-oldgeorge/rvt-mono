@@ -13,19 +13,19 @@ namespace RVT.DataAccess;
 public class CompanyRepository : GenericRepository<Company>, ICompanyRepository
 {
     // Function summary: Initializes this type with the dependencies required by its workflow.
-    public CompanyRepository(RVTDbContext ContextDB)
-        : base(ContextDB)
+    public CompanyRepository(RVTDbContext contextDB)
+        : base(contextDB)
     {
     }
     // Function summary: Retrieves by ID with contracts data for callers.
-    public async Task<Company> GetByIdWithContractsAsync(Guid Id)
+    public async Task<Company> GetByIdWithContractsAsync(Guid id)
     {
-        return (await base.GetByIdAsync(Id, "Contracts"))!;
+        return (await base.GetByIdAsync(id, "Contracts"))!;
     }
     // Function summary: Retrieves filtered data for callers.
     public Task<SearchQueryResult<Company>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default)
     {
-        return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.paged, pagedata.page, pagedata.pageSize, cancellationToken);
+        return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.Paged, pagedata.Page, pagedata.PageSize, cancellationToken);
     }
 
 }

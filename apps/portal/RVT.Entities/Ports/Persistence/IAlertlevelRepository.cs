@@ -8,9 +8,9 @@ namespace RVT.Entities.Ports.Persistence;
 
 public interface IAlertlevelRepository
 {
-    Task<Alertlevel?> GetByIdAsync(Guid Id);
+    Task<Alertlevel?> GetByIdAsync(Guid id);
     Task<IList<Alertlevel>> ReadAllAsync();
-    Task<IList<Alertlevel>> ReadAllForMonitorAsync(Guid MonitorId);
+    Task<IList<Alertlevel>> ReadAllForMonitorAsync(Guid monitorId);
 
     Task<SearchQueryResult<Alertlevel>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default);
 }

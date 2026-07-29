@@ -1,0 +1,51 @@
+using Microsoft.Extensions.Options;
+
+namespace Omnidots.Model.Config;
+
+public sealed class OmnidotsTraceCollectionOptions
+{
+    public const string SectionName = "Omnidots:TraceCollection";
+
+    private string[] _allowedSerialIds = [];
+
+    public bool Enabled { get; init; } = true;
+
+    public string[] AllowedSerialIds
+    {
+        get => _allowedSerialIds;
+        init => _allowedSerialIds = value ?? [];
+    }
+
+    public int MaxMonitorsPerRun { get; init; } = 1;
+
+    public void Validate()
+    {
+        IReadOnlyList<string> failures = GetValidationFailures();
+        if (failures.Count > 0)
+        {
+            throw new OptionsValidationException(SectionName, typeof(OmnidotsTraceCollectionOptions), failures);
+        }
+    }
+
+    internal IReadOnlyList<string> GetValidationFailures()
+    {
+        List<string> failures = [];
+
+        if (MaxMonitorsPerRun <= 0)
+        {
+            failures.Add("MaxMonitorsPerRun must be positive.");
+        }
+
+        if (AllowedSerialIds.Any(string.IsNullOrWhiteSpace))
+        {
+            failures.Add("AllowedSerialIds cannot contain blank values.");
+        }
+
+        if (AllowedSerialIds.Distinct(StringComparer.OrdinalIgnoreCase).Count() != AllowedSerialIds.Length)
+        {
+            failures.Add("AllowedSerialIds cannot contain duplicates.");
+        }
+
+        return failures;
+    }
+}

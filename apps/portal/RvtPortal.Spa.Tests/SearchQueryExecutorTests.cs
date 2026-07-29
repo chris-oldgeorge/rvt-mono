@@ -31,7 +31,7 @@ public sealed class SearchQueryExecutorTests
             [],
             ByName,
             maximumRecords: 10,
-            new Paging { paged = false },
+            new Paging { Paged = false },
             CancellationToken.None);
 
         // RecordCount used to be hard-coded to 0 on the unpaged path, which silently broke every caller
@@ -55,7 +55,7 @@ public sealed class SearchQueryExecutorTests
             [],
             ByName,
             maximumRecords,
-            new Paging { paged = false },
+            new Paging { Paged = false },
             CancellationToken.None);
 
         Assert.Equal(maximumRecords, result.Value.Count);
@@ -77,7 +77,7 @@ public sealed class SearchQueryExecutorTests
             [],
             ByName,
             maximumRecords: 0,
-            new Paging { paged = true, page = 2, pageSize = pageSize },
+            new Paging { Paged = true, Page = 2, PageSize = pageSize },
             CancellationToken.None);
 
         Assert.Equal(seededCompanies, result.RecordCount);
@@ -99,7 +99,7 @@ public sealed class SearchQueryExecutorTests
             [new SingleFilter { Operation = Op.Equals, PropertyName = "CompanyName", Value = "Company 2" }],
             ByName,
             maximumRecords: 10,
-            new Paging { paged = false },
+            new Paging { Paged = false },
             CancellationToken.None);
 
         Assert.Equal("Company 2", Assert.Single(result.Value).CompanyName);

@@ -4,7 +4,7 @@ using Rvt.Monitor.Common.Mqtt;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
-using SvantekMonitor.model.dto;
+using Svantek.Model.Dto;
 
 namespace SvantekMonitorTests;
 

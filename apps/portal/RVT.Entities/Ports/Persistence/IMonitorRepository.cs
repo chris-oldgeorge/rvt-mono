@@ -8,7 +8,7 @@ namespace RVT.Entities.Ports.Persistence;
 
 public interface IMonitorRepository
 {
-    Task<Monitor?> GetByIdAsync(Guid Id);
+    Task<Monitor?> GetByIdAsync(Guid id);
     Task<IList<Monitor>> ReadAllAsync();
     Task<SearchQueryResult<Monitor>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default);
 }

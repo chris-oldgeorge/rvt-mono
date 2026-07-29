@@ -7,7 +7,7 @@ namespace RVT.Entities;
 
 public class Paging
 {
-    public bool paged { get; set; }
-    public int page { get; set; }
-    public int pageSize { get; set; }
+    public bool Paged { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
 }

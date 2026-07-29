@@ -17,11 +17,11 @@ namespace RvtPortal.Spa.Application.Companies;
 
 public interface ICompanyService
 {
-    Task<bool> CompanyExist(string CompanyName, CancellationToken cancellationToken = default);
+    Task<bool> CompanyExist(string companyName, CancellationToken cancellationToken = default);
     Task<IList<Company>> ReadAllAsync();
-    Task<Company> ReadOneAsync(Guid Id);
-    Task<Company> ReadOneWithContractsAsync(Guid Id);
-    Task<SearchQueryResult<CompanySearch>> Search(string CompanyName, int? page, OrderByDirectionEnum sortdir, string Sort, int PageSize, CancellationToken cancellationToken = default);
+    Task<Company> ReadOneAsync(Guid id);
+    Task<Company> ReadOneWithContractsAsync(Guid id);
+    Task<SearchQueryResult<CompanySearch>> Search(string companyName, int? page, OrderByDirectionEnum sortdir, string sort, int pageSize, CancellationToken cancellationToken = default);
 }
 
 public class CompanyService : ICompanyService
@@ -35,15 +35,15 @@ public class CompanyService : ICompanyService
         _searchContext = searchContext;
     }
     // Function summary: Retrieves one data for callers.
-    public async Task<Company> ReadOneAsync(Guid Id)
+    public async Task<Company> ReadOneAsync(Guid id)
     {
-        return (await _companyRepository.GetByIdAsync(Id))!;
+        return (await _companyRepository.GetByIdAsync(id))!;
     }
 
     // Function summary: Retrieves one with contracts data for callers.
-    public Task<Company> ReadOneWithContractsAsync(Guid Id)
+    public Task<Company> ReadOneWithContractsAsync(Guid id)
     {
-        return _companyRepository.GetByIdWithContractsAsync(Id);
+        return _companyRepository.GetByIdWithContractsAsync(id);
     }
     // Function summary: Retrieves all data for callers.
     public Task<IList<Company>> ReadAllAsync()
@@ -52,26 +52,26 @@ public class CompanyService : ICompanyService
     }
 
     // Function summary: Handles the company exist workflow for this module.
-    public async Task<bool> CompanyExist(string CompanyName, CancellationToken cancellationToken = default)
+    public async Task<bool> CompanyExist(string companyName, CancellationToken cancellationToken = default)
     {
         List<OrderByProperty> orderBy = new();
         orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "CompanyName" });
 
         List<Filter> query = new()
         {
-            new SingleFilter{ Operation = Op.Equals, PropertyName = "CompanyName", Value = CompanyName }
+            new SingleFilter{ Operation = Op.Equals, PropertyName = "CompanyName", Value = companyName }
     };
-        SearchQueryResult<Company> res = await _companyRepository.ReadFilteredAsync(query, [.. orderBy], 100, new Paging { paged = true, page = 1, pageSize = 200 }, cancellationToken);
+        SearchQueryResult<Company> res = await _companyRepository.ReadFilteredAsync(query, [.. orderBy], 100, new Paging { Paged = true, Page = 1, PageSize = 200 }, cancellationToken);
         return res.RecordCount > 0;
     }
 
     // Function summary: Handles the search workflow for this module.
-    public async Task<SearchQueryResult<CompanySearch>> Search(string CompanyName, int? page, OrderByDirectionEnum sortdir, string Sort, int PageSize, CancellationToken cancellationToken = default)
+    public async Task<SearchQueryResult<CompanySearch>> Search(string companyName, int? page, OrderByDirectionEnum sortdir, string sort, int pageSize, CancellationToken cancellationToken = default)
     {
         IQueryable<CompanySearch> companies = _searchContext.CompanySearches.AsNoTracking();
-        if (!string.IsNullOrEmpty(CompanyName))
+        if (!string.IsNullOrEmpty(companyName))
         {
-            companies = companies.Where(company => company.CompanyName.Contains(CompanyName));
+            companies = companies.Where(company => company.CompanyName.Contains(companyName));
         }
 
         companies = sortdir == OrderByDirectionEnum.Descending
@@ -81,8 +81,8 @@ public class CompanyService : ICompanyService
         int recordCount = await companies.CountAsync(cancellationToken);
         int pageNumber = page.GetValueOrDefault() < 1 ? 1 : page.GetValueOrDefault();
         List<CompanySearch> results = await companies
-            .Skip((pageNumber - 1) * PageSize)
-            .Take(PageSize)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
         return new SearchQueryResult<CompanySearch>(true, string.Empty, results, recordCount, string.Empty);

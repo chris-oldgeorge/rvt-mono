@@ -18,12 +18,12 @@ namespace RvtPortal.Spa.Api;
 public sealed class ReportContentController : ControllerBase
 {
     private const string InternalKeyHeader = "X-RVT-Internal-Key";
-    private readonly IReportContentApplicationService reportContent;
+    private readonly IReportContentApplicationService _reportContent;
 
     // Function summary: Initializes this controller with the application service that owns report-content fetch workflows.
     public ReportContentController(IReportContentApplicationService reportContent)
     {
-        this.reportContent = reportContent;
+        _reportContent = reportContent;
     }
 
     [HttpGet("sites/{siteId:guid}/customer-logo")]
@@ -37,7 +37,7 @@ public sealed class ReportContentController : ControllerBase
         [FromHeader(Name = InternalKeyHeader)] string? internalKey,
         CancellationToken cancellationToken)
     {
-        ReportContentFileResult result = await reportContent.GetCustomerLogoAsync(siteId, internalKey, cancellationToken);
+        ReportContentFileResult result = await _reportContent.GetCustomerLogoAsync(siteId, internalKey, cancellationToken);
         if (result.File is not null)
         {
             return File(result.File.Stream, result.File.ContentType, result.File.FileName);
@@ -47,6 +47,7 @@ public sealed class ReportContentController : ControllerBase
         {
             ReportContentFailureKind.ServiceUnavailable => StatusCode(StatusCodes.Status503ServiceUnavailable),
             ReportContentFailureKind.Unauthorized => Unauthorized(),
+            ReportContentFailureKind.NotFound => NotFound(),
             _ => NotFound()
         };
     }

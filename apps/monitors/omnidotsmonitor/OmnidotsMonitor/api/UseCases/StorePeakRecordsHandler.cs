@@ -15,12 +15,12 @@ namespace Omnidots.Api.UseCases
     public class StorePeakRecordsHandler
     {
         private readonly IOmnidotsVendorGateway _gateway;
-        private readonly OmnidotsMonitorReader monitorReader;
-        private readonly IOmnidotsMonitorQueries monitorQueries;
-        private readonly IOmnidotsImportCursorQueries cursorQueries;
-        private readonly IOmnidotsMeasurementImportCommands importCommands;
-        private readonly IOmnidotsOperationalCommands operationalCommands;
-        private readonly IMonitorEventPublisher eventPublisher;
+        private readonly OmnidotsMonitorReader _monitorReader;
+        private readonly IOmnidotsMonitorQueries _monitorQueries;
+        private readonly IOmnidotsImportCursorQueries _cursorQueries;
+        private readonly IOmnidotsMeasurementImportCommands _importCommands;
+        private readonly IOmnidotsOperationalCommands _operationalCommands;
+        private readonly IMonitorEventPublisher _eventPublisher;
 
         public StorePeakRecordsHandler(
             IOmnidotsVendorGateway gateway,
@@ -32,24 +32,24 @@ namespace Omnidots.Api.UseCases
             IMonitorEventPublisher eventPublisher)
         {
             _gateway = gateway;
-            this.monitorReader = monitorReader;
-            this.monitorQueries = monitorQueries;
-            this.cursorQueries = cursorQueries;
-            this.importCommands = importCommands;
-            this.operationalCommands = operationalCommands;
-            this.eventPublisher = eventPublisher;
+            _monitorReader = monitorReader;
+            _monitorQueries = monitorQueries;
+            _cursorQueries = cursorQueries;
+            _importCommands = importCommands;
+            _operationalCommands = operationalCommands;
+            _eventPublisher = eventPublisher;
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogInformation("StorePeakRecords called");
-            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
+            List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
             string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
             DateTime utcNow = DateTime.UtcNow;
             List<OmnidotsMonitorFailure> failures = await OmnidotsFleetImport.RunAsync(
                 "StorePeakRecords",
                 monitors,
-                operationalCommands,
+                _operationalCommands,
                 async monitor =>
                 {
                     DateTime startTime = ResolvePeakStart(monitor);
@@ -63,7 +63,7 @@ namespace Omnidots.Api.UseCases
 
         private DateTime ResolvePeakStart(VibrationMonitorDto monitor)
         {
-            DateTime? cursor = cursorQueries.ReadImportCursor(
+            DateTime? cursor = _cursorQueries.ReadImportCursor(
                 monitor.SerialId,
                 OmnidotsMeasurementSeries.Peak);
             if (cursor.HasValue)
@@ -71,7 +71,7 @@ namespace Omnidots.Api.UseCases
                 return cursor.Value.AddMinutes(-5);
             }
 
-            DateTime? latestMeasurement = cursorQueries.ReadLatestMeasurementTime(
+            DateTime? latestMeasurement = _cursorQueries.ReadLatestMeasurementTime(
                 monitor.SerialId,
                 OmnidotsMeasurementSeries.Peak);
             if (latestMeasurement.HasValue)
@@ -79,7 +79,7 @@ namespace Omnidots.Api.UseCases
                 return latestMeasurement.Value.AddMinutes(-5);
             }
 
-            DateTime deployDate = monitor.DeployDate ?? monitorQueries.ReadDeployStartDate(monitor.Id);
+            DateTime deployDate = monitor.DeployDate ?? _monitorQueries.ReadDeployStartDate(monitor.Id);
             DateTime fallback = monitor.LastDataTime.HasValue && monitor.LastDataTime.Value > deployDate
                 ? monitor.LastDataTime.Value
                 : deployDate;
@@ -89,8 +89,11 @@ namespace Omnidots.Api.UseCases
 
         private async Task<int> StorePeakRecordsAsync(VibrationMonitorDto monitor, DateTime startTime, DateTime? endTime, string token, CancellationToken cancellationToken)
         {
-            RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} startTime={Value2} endTime={Value3}",
-                monitor.SerialId, startTime, endTime);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} startTime={Value2} endTime={Value3}",
+                    monitor.SerialId, startTime, endTime);
+            }
 
             if ("OmniDots guest".Equals(monitor.CustomerDisplayName))
             {
@@ -160,16 +163,23 @@ namespace Omnidots.Api.UseCases
                     .Cast<DataRow>()
                     .Max(row => (DateTime)row["SampleTime"]);
                 DateTime ps = DateTime.Now;
-                importCommands.ImportPeakRecords(monitor.SerialId, table, newestSampleAt);
+                _importCommands.ImportPeakRecords(monitor.SerialId, table, newestSampleAt);
                 TimeSpan ts = DateTime.Now - ps;
-                RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
-                     monitor.SerialId, table.Rows.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / table.Rows.Count));
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
+                         monitor.SerialId, table.Rows.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / table.Rows.Count));
+                }
+
                 monitor.LastDataTime = newestSampleAt;
-                await eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
+                await _eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
             }
             else
             {
-                RvtLogger.Logger.LogInformation("StorePeakRecords no samples for serialId={Value1}", monitor.SerialId);
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("StorePeakRecords no samples for serialId={Value1}", monitor.SerialId);
+                }
             }
             return table.Rows.Count;
         }

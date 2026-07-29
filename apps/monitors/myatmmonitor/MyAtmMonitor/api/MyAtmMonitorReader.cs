@@ -9,25 +9,25 @@ namespace MyAtm.Api
     // - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiMonitors).
     public class MyAtmMonitorReader
     {
-        private readonly IMyAtmMonitorQueries monitorQueries;
-        private readonly IMyAtmOperationalCommands operationalCommands;
-        private readonly bool testLocal;
+        private readonly IMyAtmMonitorQueries _monitorQueries;
+        private readonly IMyAtmOperationalCommands _operationalCommands;
+        private readonly bool _testLocal;
 
         public MyAtmMonitorReader(
             IMyAtmMonitorQueries monitorQueries,
             IMyAtmOperationalCommands operationalCommands,
             bool testLocal)
         {
-            this.monitorQueries = monitorQueries;
-            this.operationalCommands = operationalCommands;
-            this.testLocal = testLocal;
+            _monitorQueries = monitorQueries;
+            _operationalCommands = operationalCommands;
+            _testLocal = testLocal;
         }
 
         public List<DustMonitorDto>? ReadMonitors(int customerId, DateTime? dateTime = null)
         {
             try
             {
-                return MyAtmTestLocalMonitorFilter.Apply(monitorQueries.ReadMonitorList(customerId, dateTime), testLocal);
+                return MyAtmTestLocalMonitorFilter.Apply(_monitorQueries.ReadMonitorList(customerId, dateTime), _testLocal);
             }
             catch (OperationCanceledException exception) when (exception.CancellationToken.IsCancellationRequested)
             {
@@ -50,7 +50,7 @@ namespace MyAtm.Api
 
                 try
                 {
-                    operationalCommands.HandleException("ReadMonitors", exception);
+                    _operationalCommands.HandleException("ReadMonitors", exception);
                 }
                 catch (Exception operationalException)
                 {

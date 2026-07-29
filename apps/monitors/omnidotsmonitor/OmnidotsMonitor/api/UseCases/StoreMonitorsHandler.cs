@@ -13,9 +13,9 @@ namespace Omnidots.Api.UseCases
     public class StoreMonitorsHandler
     {
         private readonly IOmnidotsVendorGateway _gateway;
-        private readonly IOmnidotsMonitorCommands monitorCommands;
-        private readonly IOmnidotsOperationalCommands operationalCommands;
-        private readonly bool testLocal;
+        private readonly IOmnidotsMonitorCommands _monitorCommands;
+        private readonly IOmnidotsOperationalCommands _operationalCommands;
+        private readonly bool _testLocal;
 
         public StoreMonitorsHandler(
             IOmnidotsVendorGateway gateway,
@@ -24,9 +24,9 @@ namespace Omnidots.Api.UseCases
             bool testLocal)
         {
             _gateway = gateway;
-            this.monitorCommands = monitorCommands;
-            this.operationalCommands = operationalCommands;
-            this.testLocal = testLocal;
+            _monitorCommands = monitorCommands;
+            _operationalCommands = operationalCommands;
+            _testLocal = testLocal;
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default)
@@ -43,11 +43,11 @@ namespace Omnidots.Api.UseCases
                 catch (Exception e)
                 {
                     RvtLogger.Logger.LogError(e, "StoreMonitors error with measuringPointId={Value1}", mp.Id);
-                    operationalCommands.HandleException(string.Format("StoreMonitor id={0}", mp.Id), e);
+                    _operationalCommands.HandleException(string.Format("StoreMonitor id={0}", mp.Id), e);
                 }
             }
 
-            monitorCommands.WriteMonitorList(OmnidotsTestLocalMonitorFilter.ApplyCatalog(monitors, testLocal));
+            _monitorCommands.WriteMonitorList(OmnidotsTestLocalMonitorFilter.ApplyCatalog(monitors, _testLocal));
         }
     }
 }

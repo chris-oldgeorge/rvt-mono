@@ -4,7 +4,7 @@ namespace MyAtm.Api.Db.EntityFramework;
 
 public static class MyAtmAggregateFields
 {
-    private static readonly IReadOnlyDictionary<string, MonitorAggregateField<MyAtmDustLevelEntity>> Fields =
+    private static readonly Dictionary<string, MonitorAggregateField<MyAtmDustLevelEntity>> _fields =
         new Dictionary<string, MonitorAggregateField<MyAtmDustLevelEntity>>(StringComparer.Ordinal)
         {
             ["Pm1"] = MonitorAggregateField<MyAtmDustLevelEntity>.Average("Pm1", row => row.Pm1),
@@ -15,7 +15,7 @@ public static class MyAtmAggregateFields
 
     public static MonitorAggregateField<MyAtmDustLevelEntity> Resolve(string fieldName)
     {
-        return Fields.TryGetValue(fieldName, out MonitorAggregateField<MyAtmDustLevelEntity>? field)
+        return _fields.TryGetValue(fieldName, out MonitorAggregateField<MyAtmDustLevelEntity>? field)
             ? field
             : throw new NotSupportedException($"Unsupported MyAtm aggregate field '{fieldName}'.");
     }

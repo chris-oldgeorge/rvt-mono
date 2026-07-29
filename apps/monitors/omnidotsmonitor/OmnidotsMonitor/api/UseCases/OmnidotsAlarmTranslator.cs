@@ -10,8 +10,8 @@ namespace Omnidots.Api.UseCases;
 
 public sealed class OmnidotsAlarmTranslator
 {
-    private const string Source = "omnidots.webhook";
-    private const string InvalidPayloadMessage = "Invalid alarm payload.";
+    private const string _source = "omnidots.webhook";
+    private const string _invalidPayloadMessage = "Invalid alarm payload.";
 
     public AlertSignal Translate(
         AlarmDataV2 alarm,
@@ -47,7 +47,7 @@ public sealed class OmnidotsAlarmTranslator
             $"Vibration {alertType} {field} level={level} limit={limit}");
 
         return new AlertSignal(
-            Source,
+            _source,
             Convert.ToHexStringLower(SHA256.HashData(authenticatedBody)),
             eventTime,
             alarm.MeasuringPointId.ToString(CultureInfo.InvariantCulture),
@@ -131,5 +131,5 @@ public sealed class OmnidotsAlarmTranslator
         }
     }
 
-    private static AdapterException InvalidPayload() => AdapterException.Of(InvalidPayloadMessage);
+    private static AdapterException InvalidPayload() => AdapterException.Of(_invalidPayloadMessage);
 }

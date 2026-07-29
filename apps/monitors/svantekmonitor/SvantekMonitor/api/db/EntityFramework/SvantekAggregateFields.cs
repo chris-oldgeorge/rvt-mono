@@ -4,7 +4,7 @@ namespace Svantek.Api.Db.EntityFramework;
 
 public static class SvantekAggregateFields
 {
-    private static readonly IReadOnlyDictionary<string, MonitorAggregateField<SvantekNoiseLevelEntity>> Fields =
+    private static readonly Dictionary<string, MonitorAggregateField<SvantekNoiseLevelEntity>> _fields =
         new Dictionary<string, MonitorAggregateField<SvantekNoiseLevelEntity>>(StringComparer.Ordinal)
         {
             ["LAeq"] = MonitorAggregateField<SvantekNoiseLevelEntity>.Average("LAeq", row => row.LAeq),
@@ -21,7 +21,7 @@ public static class SvantekAggregateFields
 
     public static MonitorAggregateField<SvantekNoiseLevelEntity> Resolve(string fieldName)
     {
-        return Fields.TryGetValue(fieldName, out MonitorAggregateField<SvantekNoiseLevelEntity>? field)
+        return _fields.TryGetValue(fieldName, out MonitorAggregateField<SvantekNoiseLevelEntity>? field)
             ? field
             : throw new NotSupportedException($"Unsupported Svantek aggregate field '{fieldName}'.");
     }

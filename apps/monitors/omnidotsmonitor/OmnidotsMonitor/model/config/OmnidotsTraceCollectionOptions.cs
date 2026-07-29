@@ -6,14 +6,14 @@ public sealed class OmnidotsTraceCollectionOptions
 {
     public const string SectionName = "Omnidots:TraceCollection";
 
-    private string[] allowedSerialIds = [];
+    private string[] _allowedSerialIds = [];
 
     public bool Enabled { get; init; } = true;
 
     public string[] AllowedSerialIds
     {
-        get => allowedSerialIds;
-        init => allowedSerialIds = value ?? [];
+        get => _allowedSerialIds;
+        init => _allowedSerialIds = value ?? [];
     }
 
     public int MaxMonitorsPerRun { get; init; } = 1;

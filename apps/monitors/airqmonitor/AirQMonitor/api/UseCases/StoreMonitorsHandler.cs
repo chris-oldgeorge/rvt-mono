@@ -11,9 +11,9 @@ namespace AirQ.Api.UseCases
     public class StoreMonitorsHandler
     {
         private readonly IAirQVendorGateway _gateway;
-        private readonly IAirQMonitorCommands monitorCommands;
-        private readonly IAirQOperationalCommands operationalCommands;
-        private readonly AirQTestLocalMonitorFilter testLocalFilter;
+        private readonly IAirQMonitorCommands _monitorCommands;
+        private readonly IAirQOperationalCommands _operationalCommands;
+        private readonly AirQTestLocalMonitorFilter _testLocalFilter;
 
         public StoreMonitorsHandler(
             IAirQVendorGateway gateway,
@@ -22,9 +22,9 @@ namespace AirQ.Api.UseCases
             AirQTestLocalMonitorFilter testLocalFilter)
         {
             _gateway = gateway;
-            this.monitorCommands = monitorCommands;
-            this.operationalCommands = operationalCommands;
-            this.testLocalFilter = testLocalFilter;
+            _monitorCommands = monitorCommands;
+            _operationalCommands = operationalCommands;
+            _testLocalFilter = testLocalFilter;
         }
 
         public async Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
@@ -32,7 +32,7 @@ namespace AirQ.Api.UseCases
             List<InstrumentResponse> monitors;
             try
             {
-                monitors = testLocalFilter.ApplyCatalog(await _gateway.GetMonitorsAsync(userId, userAuth, cancellationToken));
+                monitors = _testLocalFilter.ApplyCatalog(await _gateway.GetMonitorsAsync(userId, userAuth, cancellationToken));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -40,7 +40,7 @@ namespace AirQ.Api.UseCases
             }
             catch (Exception e)
             {
-                operationalCommands.HandleException("StoreMonitors", e);
+                _operationalCommands.HandleException("StoreMonitors", e);
                 throw;
             }
 
@@ -62,12 +62,12 @@ namespace AirQ.Api.UseCases
                 }
                 catch (Exception e)
                 {
-                    operationalCommands.HandleException($"StoreMonitors SerialId={monitor.InstrumentID}", e);
+                    _operationalCommands.HandleException($"StoreMonitors SerialId={monitor.InstrumentID}", e);
                     failures.Add(e);
                 }
             }
 
-            monitorCommands.WriteMonitorList(dtos);
+            _monitorCommands.WriteMonitorList(dtos);
             if (failures.Count > 0)
             {
                 throw new AggregateException("One or more AirQ monitor catalogue imports failed.", failures);
@@ -95,7 +95,7 @@ namespace AirQ.Api.UseCases
             }
             catch (Exception e)
             {
-                operationalCommands.HandleException("GetMetaData", e);
+                _operationalCommands.HandleException("GetMetaData", e);
                 return EmptyMetaData();
             }
 

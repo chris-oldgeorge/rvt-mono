@@ -179,13 +179,10 @@ namespace MyAtmMonitorTests
 
         //Had to create a new version of this as I couldn't think of a way to predict the notification time for the 8 houir Average.
         public static bool VerifyNotification8hourDto(NotificationDto dto, RvtAlertRuleDto rule, double alertLevel,
-                                         DateTime notificationTime, int averagingPeriod, double limitOn)
+                                         int averagingPeriod, double limitOn)
         {
 
-            //if (notificationTime != dto.NotificationTime)
-            //{
-            //    return false;
-            //}
+            //The notification time is intentionally not verified for the 8 hour average.
 
             if (alertLevel != dto.Level)
             {

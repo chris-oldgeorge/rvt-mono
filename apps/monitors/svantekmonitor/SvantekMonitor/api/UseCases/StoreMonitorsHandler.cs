@@ -13,9 +13,9 @@ namespace Svantek.Api.UseCases
     public class StoreMonitorsHandler
     {
         private readonly ISvantekVendorGateway _gateway;
-        private readonly ISvantekMonitorCommands monitorCommands;
-        private readonly ISvantekOperationalCommands operationalCommands;
-        private readonly bool testLocal;
+        private readonly ISvantekMonitorCommands _monitorCommands;
+        private readonly ISvantekOperationalCommands _operationalCommands;
+        private readonly bool _testLocal;
 
         public StoreMonitorsHandler(
             ISvantekVendorGateway gateway,
@@ -24,9 +24,9 @@ namespace Svantek.Api.UseCases
             bool testLocal)
         {
             _gateway = gateway;
-            this.monitorCommands = monitorCommands;
-            this.operationalCommands = operationalCommands;
-            this.testLocal = testLocal;
+            _monitorCommands = monitorCommands;
+            _operationalCommands = operationalCommands;
+            _testLocal = testLocal;
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default)
@@ -35,7 +35,7 @@ namespace Svantek.Api.UseCases
             List<Project> projects = await _gateway.GetProjectsAsync(cancellationToken).ConfigureAwait(false);
             RvtLogger.Logger.LogDebug("StoreMonitors reading stations API");
             List<Station> stations = await _gateway.GetStationsAsync(cancellationToken).ConfigureAwait(false);
-            SvantekFailureCollector failures = new(operationalCommands);
+            SvantekFailureCollector failures = new(_operationalCommands);
 
             foreach (Project project in projects)
             {
@@ -49,9 +49,13 @@ namespace Svantek.Api.UseCases
                         Station? station = stations.FirstOrDefault(x => x.serial.ToString() == projectStation.serial);
                         if (station == null)
                         {
-                            RvtLogger.Logger.LogDebug(
-                                "StoreMonitors reading, no serial set for {ProjectStation}",
-                                projectStation.name);
+                            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                            {
+                                RvtLogger.Logger.LogDebug(
+                                    "StoreMonitors reading, no serial set for {ProjectStation}",
+                                    projectStation.name);
+                            }
+
                             continue;
                         }
 
@@ -79,8 +83,8 @@ namespace Svantek.Api.UseCases
                         });
                     }
 
-                    await monitorCommands.WriteMonitorListAsync(
-                        SvantekTestLocalMonitorFilter.Apply(dtos, testLocal),
+                    await _monitorCommands.WriteMonitorListAsync(
+                        SvantekTestLocalMonitorFilter.Apply(dtos, _testLocal),
                         cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception exception)

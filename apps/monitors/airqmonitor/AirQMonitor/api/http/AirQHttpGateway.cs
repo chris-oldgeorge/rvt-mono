@@ -13,11 +13,11 @@ namespace AirQ.Api.Http
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApi, AirQApiMonitors, AirQApiMonitorsNoiseLevels).
     public class AirQHttpGateway : IAirQVendorGateway
     {
-        private readonly IHttpClient httpClient;
+        private readonly IHttpClient _httpClient;
 
         public AirQHttpGateway(IHttpClient httpClient)
         {
-            this.httpClient = httpClient;
+            _httpClient = httpClient;
         }
 
         public async Task<List<InstrumentResponse>> GetMonitorsAsync(
@@ -48,7 +48,11 @@ namespace AirQ.Api.Http
             string serialId,
             CancellationToken cancellationToken = default)
         {
-            RvtLogger.Logger.LogInformation("AirQAdapter GetMetadata userId={Value1}", SensitiveLogRedactor.Redact(userId));
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation("AirQAdapter GetMetadata userId={Value1}", SensitiveLogRedactor.Redact(userId));
+            }
+
             string response = await DoGetMetaData(userId, userAuth, serialId, cancellationToken);
             return ParseResponse<List<MetaDataResponse>>(response);
         }
@@ -64,7 +68,10 @@ namespace AirQ.Api.Http
             try
             {
                 response = await DoGetLatestData(userId, userAuth, serialId, cancellationToken);
-                RvtLogger.Logger.LogDebug("GetLatestSamples response={Value1}", SensitiveLogRedactor.RedactJson(response));
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    RvtLogger.Logger.LogDebug("GetLatestSamples response={Value1}", SensitiveLogRedactor.RedactJson(response));
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -91,7 +98,11 @@ namespace AirQ.Api.Http
             string response;
             try
             {
-                RvtLogger.Logger.LogDebug("GetSamplesForDate for SerialId={Value1}", serialId);
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    RvtLogger.Logger.LogDebug("GetSamplesForDate for SerialId={Value1}", serialId);
+                }
+
                 response = await DoGetDataForDate(userId, userAuth, serialId, date, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -110,14 +121,18 @@ namespace AirQ.Api.Http
         private async Task<string> DoGetInstrumentList(string userId, string token, CancellationToken cancellationToken)
         {
             string path = BuildQueryPath("/instrumentList", ("userID", userId), ("token", token));
-            return await httpClient.GetAsync(path, cancellationToken);
+            return await _httpClient.GetAsync(path, cancellationToken);
         }
 
         private async Task<string> DoGetMetaData(string userId, string token, string serialId, CancellationToken cancellationToken)
         {
             string path = BuildQueryPath("/latestMetaData", ("userID", userId), ("token", token), ("instrumentID", serialId));
-            RvtLogger.Logger.LogInformation("Path={Path}", SensitiveLogRedactor.RedactUrl(path));
-            return await httpClient.GetAsync(path, cancellationToken);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation("Path={Path}", SensitiveLogRedactor.RedactUrl(path));
+            }
+
+            return await _httpClient.GetAsync(path, cancellationToken);
         }
 
         private async Task<string> DoGetDataForDate(string userId, string token,
@@ -129,14 +144,14 @@ namespace AirQ.Api.Http
                 ("date", date),
                 ("token", token),
                 ("instrumentID", instrumentId));
-            return await httpClient.GetAsync(path, cancellationToken);
+            return await _httpClient.GetAsync(path, cancellationToken);
         }
 
         private async Task<string> DoGetLatestData(string userId, string token,
                                                     string instrumentId, CancellationToken cancellationToken)
         {
             string path = BuildQueryPath("/latestData", ("userID", userId), ("token", token), ("instrumentID", instrumentId));
-            return await httpClient.GetAsync(path, cancellationToken);
+            return await _httpClient.GetAsync(path, cancellationToken);
         }
 
         #endregion // ApiCalls

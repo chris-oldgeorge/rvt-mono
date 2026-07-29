@@ -9,7 +9,7 @@ namespace MyAtm.Api;
 
 public sealed class MyAtmRuleEvaluator
 {
-    private readonly MyAtmAlertTransitionEvaluator transitionEvaluator;
+    private readonly MyAtmAlertTransitionEvaluator _transitionEvaluator;
 
     public MyAtmRuleEvaluator()
         : this(new MyAtmAlertTransitionEvaluator())
@@ -18,7 +18,7 @@ public sealed class MyAtmRuleEvaluator
 
     public MyAtmRuleEvaluator(MyAtmAlertTransitionEvaluator transitionEvaluator)
     {
-        this.transitionEvaluator = transitionEvaluator;
+        _transitionEvaluator = transitionEvaluator;
     }
 
     public MyAtmRuleEvaluation Evaluate(
@@ -41,7 +41,7 @@ public sealed class MyAtmRuleEvaluator
                     otherRule.AlertType == AlertType.Alert &&
                     MyAtmAlertTransitionEvaluator.NormalizeField(otherRule.Field) == MyAtmAlertTransitionEvaluator.NormalizeField(rule.Field) &&
                     states[otherRule.RuleId].IsActive);
-                MyAtmAlertTransition transition = transitionEvaluator.Evaluate(rule, IsActive, sample, alertForFieldIsActive);
+                MyAtmAlertTransition transition = _transitionEvaluator.Evaluate(rule, IsActive, sample, alertForFieldIsActive);
                 if (transition.IsActive != IsActive)
                 {
                     states[rule.RuleId] = (transition.IsActive, transition.Activated ? utcNow : Accessed);

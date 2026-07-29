@@ -5,12 +5,12 @@ namespace MyAtm.Api;
 
 public sealed class MyAtmFailureCollector
 {
-    private readonly IMyAtmOperationalCommands operationalCommands;
-    private readonly List<MyAtmJobFailure> failures = [];
+    private readonly IMyAtmOperationalCommands _operationalCommands;
+    private readonly List<MyAtmJobFailure> _failures = [];
 
     public MyAtmFailureCollector(IMyAtmOperationalCommands operationalCommands)
     {
-        this.operationalCommands = operationalCommands;
+        _operationalCommands = operationalCommands;
     }
 
     public void Capture(
@@ -25,20 +25,20 @@ public sealed class MyAtmFailureCollector
 
         try
         {
-            operationalCommands.HandleException(identifier, exception);
-            failures.Add(new MyAtmJobFailure(identifier, exception));
+            _operationalCommands.HandleException(identifier, exception);
+            _failures.Add(new MyAtmJobFailure(identifier, exception));
         }
         catch (Exception recordingException)
         {
-            failures.Add(new MyAtmJobFailure(identifier, exception, recordingException));
+            _failures.Add(new MyAtmJobFailure(identifier, exception, recordingException));
         }
     }
 
     public void ThrowIfAny(string operation)
     {
-        if (failures.Count > 0)
+        if (_failures.Count > 0)
         {
-            throw new MyAtmJobAggregateException(operation, failures);
+            throw new MyAtmJobAggregateException(operation, _failures);
         }
     }
 }

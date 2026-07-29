@@ -65,7 +65,7 @@ namespace Omnidots.Model.Dto
             ListedAtTime = DateTime.UtcNow;
             SerialId = measuringPoint.Id!.ToString();
 
-            Model = measuringPoint.Category != null ? measuringPoint.Category : OmnidotsProtocol.UNKNOWN;
+            Model = measuringPoint.Category ?? OmnidotsProtocol.UNKNOWN;
             FirmwareVersion = OmnidotsProtocol.UNKNOWN;
             Manufacturer = OmnidotsProtocol.UNKNOWN;
             Address = OmnidotsProtocol.UNKNOWN;

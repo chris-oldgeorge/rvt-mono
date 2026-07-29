@@ -28,17 +28,17 @@ namespace MyAtm.Api.Db
     public class DBClient : IDBClient
     {
 
-        private static readonly TimeSpan AlertSuppressionWindow = TimeSpan.FromMinutes(30);
-        private static readonly RuleAlertDeliveryPlanner DeliveryPlanner = new();
+        private static readonly TimeSpan _alertSuppressionWindow = TimeSpan.FromMinutes(30);
+        private static readonly RuleAlertDeliveryPlanner _deliveryPlanner = new();
 
-        private readonly string ConnectionString;
+        private readonly string _connectionString;
 
         public DBClient(string connectionString)
         {
             MonitorDb.ValidateLegacyProvider(
                 Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
                 Environment.GetEnvironmentVariable("DatabaseProvider"));
-            ConnectionString = connectionString;
+            _connectionString = connectionString;
         }
 
         public List<DustMonitorDto> ReadMonitorList(DateTime? lastDataTime)
@@ -239,12 +239,12 @@ namespace MyAtm.Api.Db
             string error = exception.ToString();
             if (error.Length > 1023)
             {
-                error = error.Substring(0, 1023);
+                error = error[..1023];
             }
 
             context.MyAtmErrorMessages.Add(new MyAtmErrorMessageEntity
             {
-                Tag = message.Length > 64 ? message.Substring(0, 64) : message,
+                Tag = message.Length > 64 ? message[..64] : message,
                 Error = error,
                 ErrorTime = DateTime.UtcNow
             });
@@ -392,11 +392,8 @@ namespace MyAtm.Api.Db
             await using MyAtmMonitorContext context = CreateContext();
             await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
-            MonitorEntity? monitor = await context.Monitors.SingleOrDefaultAsync(row => row.Id == commit.Monitor.Id, cancellationToken);
-            if (monitor == null)
-            {
-                throw AdapterException.Of($"CommitDustImport monitorId={commit.Monitor.Id} was not found.");
-            }
+            MonitorEntity monitor = await context.Monitors.SingleOrDefaultAsync(row => row.Id == commit.Monitor.Id, cancellationToken)
+                ?? throw AdapterException.Of($"CommitDustImport monitorId={commit.Monitor.Id} was not found.");
 
             await InsertDustDtosAsync(context, commit.Measurements, cancellationToken);
             SetLatestTimestamp(monitor, commit.Watermark, commit.Period);
@@ -968,7 +965,7 @@ namespace MyAtm.Api.Db
         private MyAtmMonitorContext CreateContext()
         {
             MonitorDbOptions monitorOptions = MyAtmMonitorDbOptions.Current;
-            DbContextOptions<MyAtmMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<MyAtmMonitorContext>(ConnectionString);
+            DbContextOptions<MyAtmMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<MyAtmMonitorContext>(_connectionString);
             return new MyAtmMonitorContext(options, monitorOptions);
         }
 
@@ -1059,7 +1056,7 @@ namespace MyAtm.Api.Db
                 return false;
             }
 
-            DateTime windowStart = triggeredAt.Subtract(AlertSuppressionWindow);
+            DateTime windowStart = triggeredAt.Subtract(_alertSuppressionWindow);
             List<MyAtmAlertOccurrenceEntity> persistedCandidates = await context.AlertOccurrences
                 .AsNoTracking()
                 .Where(row =>
@@ -1094,7 +1091,7 @@ namespace MyAtm.Api.Db
             AlertOccurrenceProposal proposal,
             string normalizedField,
             DateTime createdAt) =>
-            DeliveryPlanner.Plan(
+            _deliveryPlanner.Plan(
                 new RuleNotificationRequest(
                     monitor.FleetNr ?? string.Empty,
                     monitor.SerialId,

@@ -7,11 +7,11 @@ namespace AirQ.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitors).
     public class ClearOlderErrorMessagesHandler
     {
-        private readonly IAirQOperationalCommands operationalCommands;
+        private readonly IAirQOperationalCommands _operationalCommands;
 
         public ClearOlderErrorMessagesHandler(IAirQOperationalCommands operationalCommands)
         {
-            this.operationalCommands = operationalCommands;
+            _operationalCommands = operationalCommands;
         }
 
         public Task RunAsync(CancellationToken cancellationToken = default)
@@ -19,7 +19,7 @@ namespace AirQ.Api.UseCases
             cancellationToken.ThrowIfCancellationRequested();
 
             DateTime cutOff = DateTime.UtcNow.AddDays(-7);
-            operationalCommands.ClearErrorMessages(cutOff);
+            _operationalCommands.ClearErrorMessages(cutOff);
 
             return Task.CompletedTask;
         }

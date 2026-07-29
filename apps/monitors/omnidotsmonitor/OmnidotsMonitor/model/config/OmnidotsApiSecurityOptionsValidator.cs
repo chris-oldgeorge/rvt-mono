@@ -26,7 +26,7 @@ internal static class OmnidotsApiSecurityValidation
     internal const string FailureMessage = "Omnidots API security configuration is invalid.";
     internal const int MinimumSecretByteCount = 32;
 
-    private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+    private static readonly UTF8Encoding _strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     internal static bool IsApiReady(OmnidotsApiSecurityOptions? options)
     {
@@ -67,7 +67,7 @@ internal static class OmnidotsApiSecurityValidation
 
         try
         {
-            secretBytes = StrictUtf8.GetBytes(secret);
+            secretBytes = _strictUtf8.GetBytes(secret);
             if (secretBytes.Length >= MinimumSecretByteCount)
             {
                 return true;

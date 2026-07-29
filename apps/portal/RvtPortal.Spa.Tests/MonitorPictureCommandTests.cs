@@ -10,13 +10,13 @@ using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.Tests.Support;
 using MonitorEntity = RVT.Entities.Monitor;
-
 namespace RvtPortal.Spa.Tests;
 
 public sealed class MonitorPictureCommandTests
 {
-    private static readonly byte[] pngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
+    private static readonly byte[] _pngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
 
     [Fact]
     // Function summary: Verifies a saved picture is deleted when the deployment row cannot be updated.
@@ -35,7 +35,7 @@ public sealed class MonitorPictureCommandTests
         await Assert.ThrowsAsync<DbUpdateException>(() => handler.Handle(
             new UploadMonitorPictureCommand(
                 monitorId,
-                new MemoryUploadedContent("monitor.png", "image/png", pngBytes)),
+                new MemoryUploadedContent("monitor.png", "image/png", _pngBytes)),
             CancellationToken.None));
 
         Assert.Equal(storage.SavedLink, Assert.Single(storage.DeletedLinks));
@@ -44,9 +44,7 @@ public sealed class MonitorPictureCommandTests
     // Function summary: Creates a domain context containing one active monitor deployment.
     private static async Task<ThrowingSaveRVTDbContext> CreateCurrentDeploymentContextAsync(Guid monitorId)
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseInMemoryDatabase($"monitor-picture-command-{Guid.NewGuid():N}")
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.InMemory<RVTDbContext>($"monitor-picture-command-{Guid.NewGuid():N}");
         ThrowingSaveRVTDbContext context = new(options);
         Company company = new() { Id = Guid.NewGuid(), CompanyName = "Picture Company" };
         Site site = new() { Id = Guid.NewGuid(), SiteName = "Picture Site", CreateDate = DateTime.UtcNow };
@@ -152,29 +150,29 @@ public sealed class MonitorPictureCommandTests
 
     private sealed class MemoryUploadedContent : IUploadedContent
     {
-        private readonly byte[] _bytes;
+        private readonly byte[] bytes;
 
         public MemoryUploadedContent(string fileName, string contentType, byte[] bytes)
         {
             FileName = fileName;
             ContentType = contentType;
-            _bytes = bytes;
+            this.bytes = bytes;
         }
 
         public string FileName { get; }
         public string ContentType { get; }
-        public long Length => _bytes.Length;
+        public long Length => bytes.Length;
 
         // Function summary: Opens the in-memory picture payload for command validation.
         public Stream OpenReadStream()
         {
-            return new MemoryStream(_bytes, writable: false);
+            return new MemoryStream(bytes, writable: false);
         }
 
         // Function summary: Copies the in-memory picture payload to storage.
         public Task CopyToAsync(Stream target, CancellationToken cancellationToken)
         {
-            return target.WriteAsync(_bytes, cancellationToken).AsTask();
+            return target.WriteAsync(bytes, cancellationToken).AsTask();
         }
     }
 }

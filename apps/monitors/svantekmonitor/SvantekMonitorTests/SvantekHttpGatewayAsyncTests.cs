@@ -46,7 +46,7 @@ public sealed class SvantekHttpGatewayAsyncTests
                 It.IsAny<HttpContent>(),
                 token))
             .ReturnsAsync(MultiDataJson);
-        http.Setup(client => client.GetByteArrayAsync(
+        http.Setup(client => client.PostForBytesAsync(
                 "projects-get-data.php",
                 It.IsAny<MultipartFormDataContent>(),
                 token))
@@ -63,7 +63,7 @@ public sealed class SvantekHttpGatewayAsyncTests
         Assert.HasCount(1, files);
         Assert.HasCount(1, stations);
         Assert.HasCount(1, data);
-        CollectionAssert.AreEqual("RIFF"u8.ToArray(), sound);
+        CollectionAssert.AreEqual(new byte[] { 82, 73, 70, 70 }, sound);
         http.VerifyAll();
     }
 
@@ -75,7 +75,7 @@ public sealed class SvantekHttpGatewayAsyncTests
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
-                It.IsAny<CancellationToken>()))
+                TestContext.CancellationToken))
             .Returns(response.Task);
         SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
@@ -95,7 +95,7 @@ public sealed class SvantekHttpGatewayAsyncTests
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
-                It.IsAny<CancellationToken>()))
+                TestContext.CancellationToken))
             .ThrowsAsync(adapterFailure);
         SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
@@ -125,5 +125,5 @@ public sealed class SvantekHttpGatewayAsyncTests
         Assert.AreSame(expected, exception);
     }
 
-    public TestContext TestContext { get; set; } = null!;
+    public TestContext TestContext { get; set; }
 }

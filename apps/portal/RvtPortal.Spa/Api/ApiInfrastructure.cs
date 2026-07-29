@@ -60,11 +60,12 @@ public static class ApiDiagnostics
 
         // Allow only a conservative token charset; anything with control characters
         // (CR/LF, etc.) is dropped so it cannot inject forged lines into logs.
-        if (trimmed.Any(character =>
-                !char.IsLetterOrDigit(character) &&
-                character is not ('-' or '_' or '.' or ':')))
+        foreach (char character in trimmed)
         {
-            return null;
+            if (!char.IsLetterOrDigit(character) && character is not ('-' or '_' or '.' or ':'))
+            {
+                return null;
+            }
         }
 
         return trimmed;
@@ -91,16 +92,38 @@ public static class ApiProblems
         problem.Extensions["correlationId"] = context.GetCorrelationId();
         return problem;
     }
+
+    // Function summary: Creates the shared invalid-sort response used by every list endpoint.
+    // The nine controllers previously carried private copies in two diverged
+    // shapes (plain Problem text vs. this machine-readable form); this is the
+    // canonical one. The requested sort is echoed, the allowed fields travel in
+    // an ordered extension, and the subject names the collection being sorted.
+    public static BadRequestObjectResult InvalidSort(
+        HttpContext context,
+        string requestedSort,
+        IEnumerable<string> allowedSortFields,
+        string subject)
+    {
+        ProblemDetails problem = Create(
+            context,
+            StatusCodes.Status400BadRequest,
+            "Invalid sort field",
+            $"Sort field '{requestedSort}' is not supported for {subject}.");
+        problem.Extensions["allowedSortFields"] = allowedSortFields
+            .OrderBy(field => field, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return new BadRequestObjectResult(problem);
+    }
 }
 
 public sealed class ApiCorrelationMiddleware
 {
-    private readonly RequestDelegate _next;
+    private readonly RequestDelegate next;
 
     // Function summary: Initializes correlation middleware with the next request delegate.
     public ApiCorrelationMiddleware(RequestDelegate next)
     {
-        _next = next;
+        this.next = next;
     }
 
     // Function summary: Sanitizes or creates the request correlation id and exposes it on API responses.
@@ -125,20 +148,20 @@ public sealed class ApiCorrelationMiddleware
             });
         }
 
-        await _next(context);
+        await next(context);
     }
 }
 
 public sealed class ApiExceptionMiddleware
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ApiExceptionMiddleware> _logger;
+    private readonly RequestDelegate next;
+    private readonly ILogger<ApiExceptionMiddleware> logger;
 
     // Function summary: Initializes exception middleware with logging and the next request delegate.
     public ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExceptionMiddleware> logger)
     {
-        _next = next;
-        _logger = logger;
+        this.next = next;
+        this.logger = logger;
     }
 
     // Function summary: Converts unhandled API exceptions into safe problem-details responses.
@@ -146,11 +169,11 @@ public sealed class ApiExceptionMiddleware
     {
         try
         {
-            await _next(context);
+            await next(context);
         }
         catch (Exception exception) when (context.Request.Path.StartsWithSegments("/api") && !context.Response.HasStarted)
         {
-            _logger.LogError(exception, "Unhandled API exception. CorrelationId: {CorrelationId}", context.GetCorrelationId());
+            logger.LogError(exception, "Unhandled API exception. CorrelationId: {CorrelationId}", context.GetCorrelationId());
             context.Response.Clear();
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/problem+json";
@@ -161,7 +184,7 @@ public sealed class ApiExceptionMiddleware
                 "An unexpected API error occurred.",
                 "The request could not be completed. Use the correlation id when reviewing server logs.");
 
-            await context.Response.WriteAsJsonAsync(problem, context.RequestAborted);
+            await context.Response.WriteAsJsonAsync(problem);
         }
     }
 }
@@ -175,12 +198,12 @@ public sealed class SecurityHeadersMiddleware
     // a nonce/hash pass and a browser smoke test before it can be enforced safely.
     private const string ContentSecurityPolicy = "frame-ancestors 'none'; object-src 'none'; base-uri 'self'";
 
-    private readonly RequestDelegate _next;
+    private readonly RequestDelegate next;
 
     // Function summary: Initializes security-header middleware with the next request delegate.
     public SecurityHeadersMiddleware(RequestDelegate next)
     {
-        _next = next;
+        this.next = next;
     }
 
     // Function summary: Adds defensive browser security headers before the response starts.
@@ -204,14 +227,14 @@ public sealed class SecurityHeadersMiddleware
             return Task.CompletedTask;
         });
 
-        return _next(context);
+        return next(context);
     }
 }
 
 public sealed class ApiCsrfProtectionMiddleware
 {
     // Function summary: Lists HTTP methods that can mutate server state and require CSRF checks.
-    private static readonly HashSet<string> unsafeMethods = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> _unsafeMethods = new(StringComparer.OrdinalIgnoreCase)
     {
         HttpMethods.Post,
         HttpMethods.Put,
@@ -219,10 +242,10 @@ public sealed class ApiCsrfProtectionMiddleware
         HttpMethods.Delete
     };
 
-    private readonly RequestDelegate _next;
-    private readonly IConfiguration _configuration;
-    private readonly IHostEnvironment _environment;
-    private readonly ILogger<ApiCsrfProtectionMiddleware> _logger;
+    private readonly RequestDelegate next;
+    private readonly IConfiguration configuration;
+    private readonly IHostEnvironment environment;
+    private readonly ILogger<ApiCsrfProtectionMiddleware> logger;
 
     // Function summary: Initializes CSRF middleware with configuration, environment, logging, and the next delegate.
     public ApiCsrfProtectionMiddleware(
@@ -231,18 +254,18 @@ public sealed class ApiCsrfProtectionMiddleware
         IHostEnvironment environment,
         ILogger<ApiCsrfProtectionMiddleware> logger)
     {
-        _next = next;
-        _configuration = configuration;
-        _environment = environment;
-        _logger = logger;
+        this.next = next;
+        this.configuration = configuration;
+        this.environment = environment;
+        this.logger = logger;
     }
 
     // Function summary: Blocks unsafe cross-origin API mutations before they reach controllers.
     public async Task Invoke(HttpContext context)
     {
-        if (!context.Request.Path.StartsWithSegments("/api") || !unsafeMethods.Contains(context.Request.Method))
+        if (!context.Request.Path.StartsWithSegments("/api") || !_unsafeMethods.Contains(context.Request.Method))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
@@ -250,7 +273,7 @@ public sealed class ApiCsrfProtectionMiddleware
         string? suppliedOrigin = GetSuppliedOrigin(context);
         if (suppliedOrigin is not null && !IsAllowedOrigin(suppliedOrigin, requestOrigin))
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Blocked cross-site API mutation {Method} {Path}. Origin: {Origin}; CorrelationId: {CorrelationId}",
                 context.Request.Method,
                 context.Request.Path.Value,
@@ -264,7 +287,7 @@ public sealed class ApiCsrfProtectionMiddleware
             return;
         }
 
-        await _next(context);
+        await next(context);
     }
 
     // Function summary: Reads the strongest available browser origin signal for CSRF validation.
@@ -317,7 +340,7 @@ public sealed class ApiCsrfProtectionMiddleware
             return true;
         }
 
-        foreach (string configuredOrigin in _configuration.GetSection("Spa:AllowedOrigins").Get<string[]>() ?? [])
+        foreach (string configuredOrigin in configuration.GetSection("Spa:AllowedOrigins").Get<string[]>() ?? [])
         {
             if (Uri.TryCreate(configuredOrigin, UriKind.Absolute, out Uri? configuredUri) &&
                 string.Equals(normalizedOrigin, configuredUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
@@ -326,7 +349,7 @@ public sealed class ApiCsrfProtectionMiddleware
             }
         }
 
-        return (_environment.IsDevelopment() || _environment.IsEnvironment("Testing")) &&
+        return (environment.IsDevelopment() || environment.IsEnvironment("Testing")) &&
             IsDevelopmentOrigin(originUri);
     }
 
@@ -355,16 +378,14 @@ public sealed class ApiCsrfProtectionMiddleware
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/problem+json";
         ProblemDetails problem = ApiProblems.Create(context, statusCode, title, detail);
-        await context.Response.WriteAsync(
-            JsonSerializer.Serialize(problem, JsonSerializerOptions.Web),
-            context.RequestAborted);
+        await context.Response.WriteAsync(JsonSerializer.Serialize(problem, JsonSerializerOptions.Web));
     }
 }
 
 public sealed class ApiObservabilityMiddleware
 {
     // Function summary: Lists HTTP methods that should be logged as API mutations.
-    private static readonly HashSet<string> unsafeMethods = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> _unsafeMethods = new(StringComparer.OrdinalIgnoreCase)
     {
         HttpMethods.Post,
         HttpMethods.Put,
@@ -372,14 +393,14 @@ public sealed class ApiObservabilityMiddleware
         HttpMethods.Delete
     };
 
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ApiObservabilityMiddleware> _logger;
+    private readonly RequestDelegate next;
+    private readonly ILogger<ApiObservabilityMiddleware> logger;
 
     // Function summary: Initializes observability middleware with logging and the next request delegate.
     public ApiObservabilityMiddleware(RequestDelegate next, ILogger<ApiObservabilityMiddleware> logger)
     {
-        _next = next;
-        _logger = logger;
+        this.next = next;
+        this.logger = logger;
     }
 
     // Function summary: Adds server timing and structured API request logging.
@@ -387,7 +408,7 @@ public sealed class ApiObservabilityMiddleware
     {
         if (!context.Request.Path.StartsWithSegments("/api"))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
@@ -403,12 +424,12 @@ public sealed class ApiObservabilityMiddleware
             return Task.CompletedTask;
         });
 
-        await _next(context);
+        await next(context);
         stopwatch.Stop();
 
-        if (unsafeMethods.Contains(context.Request.Method) && _logger.IsEnabled(LogLevel.Information))
+        if (_unsafeMethods.Contains(context.Request.Method) && logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 "API mutation {Method} {Path} completed with {StatusCode} in {ElapsedMilliseconds} ms. CorrelationId: {CorrelationId}; User: {UserName}",
                 context.Request.Method,
                 context.Request.Path.Value,
@@ -419,9 +440,9 @@ public sealed class ApiObservabilityMiddleware
             return;
         }
 
-        if (context.Response.StatusCode >= StatusCodes.Status500InternalServerError && _logger.IsEnabled(LogLevel.Warning))
+        if (context.Response.StatusCode >= StatusCodes.Status500InternalServerError && logger.IsEnabled(LogLevel.Warning))
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "API request {Method} {Path} completed with {StatusCode} in {ElapsedMilliseconds} ms. CorrelationId: {CorrelationId}",
                 context.Request.Method,
                 context.Request.Path.Value,

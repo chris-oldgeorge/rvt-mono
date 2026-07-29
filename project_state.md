@@ -10,59 +10,58 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
-- The active isolated branch is `codex/sonar-release-remediation` in
-  `/private/tmp/rvt-sonar-remediation`. Do not modify or clean the unrelated
-  dirty linked worktree at `/Users/oldgeorge/Documents/rvt-mono`.
-- The remediation branch is committed through `1a61acc`
-  (`guard repeated shell literals`). The latest checkpoints are:
-  `10fdfc1` (S3267, S2699, S1192, S101 and data-result mapping),
-  `5028177` (S107 refactors/suppressions and auth result mapping), and
-  `1a61acc` (S3776 and shell S1192 guardrails).
-- The C# Sonar rules S101, S107, S1192, S2699, S3267, and S3776 are promoted
-  to error severity in the root `.editorconfig`. Compatibility/framework
-  suppressions are symbol-scoped and justified.
-- Repeated shell literals in the verifier fixtures were extracted into named
-  values. Root `AGENTS.md` now requires this for any shell literal used three
-  or more times.
-- The current Release solution build succeeds with zero warnings and errors.
-  Focused verification passes: reporting 16/16, alert commit store 3/3,
-  portal auth/monitor/release-audit 27/27, and the formerly failing data-view
-  endpoint regression. The three modified shell harnesses all pass.
-- The working-tree engineering-standards verifier passes. Before handoff,
-  rerun the definitive committed-range verifier and the broad non-database
-  test suite.
-- A real pre-existing 500 response was fixed while verifying this wave:
-  auth workflow statuses now map to their intended 4xx responses instead of
-  `NotImplementedException`. A similar data-view `DeploymentNotFound` mapping
-  was corrected in the preceding checkpoint.
-- A full Omnidots test invocation cannot pass without
-  `RVT__POSTGRES_INTEGRATION_CONNECTION`; its database-backed classes fail
-  deliberately when the variable is absent. Do not treat those failures as a
-  regression. The security-sensitive endpoint subset is green.
-- The branch has not been pushed. A prior push was blocked because the private
-  `origin` destination was not authorized as verified source egress. Do not
-  work around that safeguard; obtain explicit authorization for the exact
-  remote or use a verified connector before pushing.
-- Sonar's `main` analysis is stale (`2026-07-28T22:45:10Z`) and still reports
-  findings already proven clean locally. Live CLI code analysis is unavailable
-  because the organization lacks the Vortex license (403). A fresh traditional
-  branch analysis is required to establish the true residual issue count.
-- The uploaded analysis has no open vulnerabilities or unreviewed security
-  hotspots. Traditional authenticated Sonar API access works through
-  `/Users/oldgeorge/.local/share/sonarqube-cli/bin/sonar`; never print or store
-  its token.
-
-## Relevant structure
-
-- `.github/workflows/sonarqube.yml` — release analysis pipeline.
-- `apps/monitors/` — AirQ, MyAtm, Omnidots, reporting, and Svantek services
-  plus tests.
-- `apps/portal/` — Portal backend, SPA host, and React client.
-- `libs/rvt-monitor-common/` — shared communications, monitoring, storage,
-  and tests.
-- `eng/standards/` and `scripts/engineering-standards/` — monotonic
-  repository ratchet and baseline implementation.
-- `project_state.md` — this current-state handoff.
+- Pull requests are gated by two workflows. `Engineering standards` grades the
+  changed surface; `Tests` (added by PR #20) runs the whole `Rvt.Mono.slnx`
+  suite against a TimescaleDB service container, the Portal client type check
+  and unit tests, the five repository guards, and every `tests/*.test.sh`
+  contract test as a glob. Before PR #20 no workflow ran any test on a pull
+  request, and the guards and contract tests were wired into nothing.
+- `main` carries the P0 guardrail work (PR #20) from
+  [docs/reviews/2026-07-28-duplication-legacy-consistency-review.md](docs/reviews/2026-07-28-duplication-legacy-consistency-review.md):
+  the `Tests` workflow and its mutation-tested contract, AirQ architecture
+  guards, the portal `Application → Spa.Api` shrinking baseline, the
+  `MonitorHost` one-shot shutdown token, the Svantek HTTP timeout,
+  cross-platform Portal SPA build targets (the `cmd.exe` wrapper broke any
+  non-Windows build), and portal private static fields converged on the
+  repository-wide `_camelCase` rule.
+- SonarQube stays manual: `tests/verify-manual-sonarqube-workflow.test.sh`
+  pins `workflow_dispatch`, so scheduling it is a deliberate product change,
+  not a guardrail gap.
+- `main` additionally carries the repo-wide explicit-local-types style pass
+  (PR #17, merge `c6e77e3a`, 593 files) — local variables use explicit types
+  everywhere; keep new code consistent with it.
+- `main` carries the critical-findings remediation (PR #15, merge `6be9c90`):
+  reporting consolidated onto `apps/monitors/reportingmonitor`, alert
+  delivery/heatmap/contact-skipping fixes, AirQ and Omnidots import chains
+  async + cancellable behind vendor ports, uniform storage-port contract,
+  shared rules decoupled from the running executable, common-hub cleanup.
+- `main` carries the P1 dead-code and hygiene sweep (PR #18, merge
+  `adf9c824`) from
+  [docs/reviews/2026-07-28-duplication-legacy-consistency-review.md](docs/reviews/2026-07-28-duplication-legacy-consistency-review.md)
+  (the authoritative remaining-findings list, including the P0 guardrail backlog:
+  PR test job, Svantek HTTP timeout, `MonitorHost` one-shot token, AirQ
+  architecture tests, portal `Application → Spa.Api` guard).
+- `main` carries the monotonic standards-baseline regeneration (PR #21), which
+  remediates the six standards increases found after PR #18 and regenerates the
+  engineering-standards baseline through the official updater. The baseline fell
+  from
+  1,994 entries / 7,709 diagnostics to 1,112 entries / 2,072 diagnostics:
+  882 entries removed, 12 lowered, 5,637 diagnostic allowances retired, and
+  zero increases.
+- The Sonar remediation series retires the unreferenced `RVTUtilities`
+  project and its dedicated tests, removes the outdated package-validation
+  expectation from the common-source-boundary verifier, and documents the
+  repository guardrails added for repeated security and maintainability
+  findings.
+- Portal SendGrid registration now binds its enabled state through `IOptions`;
+  set `RVT__Email_ENABLED=false` in the `RvtPortal.Spa` startup environment to
+  disable outbound email. The variable is optional and email remains enabled
+  when no override is supplied.
+- Monitor projects follow main's lowercase `api`, `model`, `db`, `http`, and
+  `json` directory structure. Path-based architecture tests and tooling must
+  preserve that exact casing. Repo-wide CA1859 and CA1873 enforcement remains
+  enabled, with the inherited monitor-only debt kept visible as warnings
+  through the scoped `apps/monitors/**/*.cs` editorconfig section.
 
 ## Verification environment
 
@@ -75,32 +74,30 @@ superseded narratives to the archive.
   and `RVT__POSTGRES_INTEGRATION_CONNECTION="Host=localhost;Port=55432;Database=rvt_integration;Username=postgres;Password=postgres"`
   (a non-secret local test credential). Without it, the PostgreSQL
   integration tests fail by design rather than silently passing.
-- Sonar authentication is held by the local CLI/keychain; do not write tokens
-  into the repository or command output. In scratch worktrees invoke
-  `/Users/oldgeorge/.local/share/sonarqube-cli/bin/sonar` explicitly.
 - Repository guards run from the root: `verify-postgresql-only.sh .`,
   `verify-mono-layout.sh`, `verify-mono-solution.sh`,
   `verify-rvt-common-source-boundary.sh`, `verify-documentation-layout.sh`.
 - The engineering-standards ratchet
   (`scripts/verify-engineering-standards.sh --base origin/main --head HEAD`)
-  grades the changed surface. This remediation intentionally converted legacy
-  namespaces and then fixed the resulting whole-file graded surface. Pure
-  deletions are safe, but any edited line must satisfy the standards.
+  grades the changed surface; pure deletions are safe, but any edited line
+  must satisfy the standards, and whole-file reformatting (namespace
+  conversion) expands the graded surface — keep style fixes line-local.
 - Full standards inventory and baseline regeneration invoke Roslyn through a
   local named pipe. Sandboxed runs that prohibit local IPC fail before
   producing a report; rerun the unchanged command with local IPC permitted.
 
 ## Standing working-tree notes
 
-- The original linked worktree contains a large unrelated formatting
-  migration on `codex/monotonic-standards-baseline`; preserve it exactly.
-- The isolated remediation worktree should be clean except for the intentional
-  `project_state.md` handoff update.
-- Resume by reading this file, switching to
-  `/private/tmp/rvt-sonar-remediation`, checking `git status`, committing the
-  state update if needed, and then running the definitive committed-range
-  verifier. Apply the repository pre-read secrets policy to every file before
-  reading it and after modifying it.
-- Do not push until the exact private remote is explicitly authorized or a
-  verified connector is available. After upload, use the fresh Sonar analysis
-  rather than the stale `main` line numbers for any further remediation.
+- `main` carries the Windows/Parallels SPA proxy repair:
+  `RvtPortal.Spa.csproj` launches
+  `RvtPortal.Client/scripts/start-vite-for-visual-studio.mjs`, and
+  `SpaProxyConfigurationTests` pins that boundary. The launcher installs the
+  lockfile-specific Windows npm tree below
+  `%LOCALAPPDATA%\RvtPortal\spa-dependencies`, mirrors the shared client source
+  into a Windows-local workspace with `robocopy /MIR`, and runs Vite entirely
+  from NTFS. The mirror repeats every second so edits in the shared checkout
+  still trigger Vite/HMR. It uses the standard Windows `LOCALAPPDATA` and
+  `ComSpec` variables; no new repository or user variable is required.
+- The Windows ARM VM verification builds `RvtPortal.Spa` with zero warnings or
+  errors, starts Vite 6.4.3 on port 5173, serves the HTML shell, and returns a
+  transformed (non-error-overlay) `src/main.tsx` module.

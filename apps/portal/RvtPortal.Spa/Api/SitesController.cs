@@ -330,31 +330,19 @@ public class SitesController : ControllerBase
         {
             UseCaseResultKind.NotFound => SiteNotFound(siteId),
             UseCaseResultKind.Forbidden => Forbid(),
-            UseCaseResultKind.Success => throw new NotImplementedException(),
-            UseCaseResultKind.Validation => throw new NotImplementedException(),
-            UseCaseResultKind.Conflict => throw new NotImplementedException(),
-            UseCaseResultKind.ExternalServiceUnavailable => throw new NotImplementedException(),
             _ => StatusCode(
-                            StatusCodes.Status500InternalServerError,
-                            ApiProblems.Create(
-                                HttpContext,
-                                StatusCodes.Status500InternalServerError,
-                                "Unexpected application result.",
-                                "The customer logo could not be read."))
+                StatusCodes.Status500InternalServerError,
+                ApiProblems.Create(
+                    HttpContext,
+                    StatusCodes.Status500InternalServerError,
+                    "Unexpected application result.",
+                    "The customer logo could not be read."))
         };
     }
 
     // Function summary: Builds the existing invalid-sort problem response for site endpoints.
-    private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
-    {
-        ProblemDetails problem = ApiProblems.Create(
-            HttpContext,
-            StatusCodes.Status400BadRequest,
-            "Invalid sort field",
-            $"Sort field '{requestedSort}' is not supported for sites.");
-        problem.Extensions["allowedSortFields"] = allowedSortFields.OrderBy(field => field, StringComparer.OrdinalIgnoreCase).ToArray();
-        return BadRequest(problem);
-    }
+    private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields) =>
+        ApiProblems.InvalidSort(HttpContext, requestedSort, allowedSortFields, "sites");
     // Function summary: Builds the existing not-found response for missing or unauthorized sites.
     private NotFoundObjectResult SiteNotFound(Guid id)
     {

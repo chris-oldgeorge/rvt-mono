@@ -27,7 +27,7 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
         string result = await subject.PostAsync("stations-get-list.php", requestContent, cancellation.Token);
 
@@ -37,7 +37,7 @@ public sealed class HttpWebClientCancellationTests
     }
 
     [TestMethod]
-    public async Task GetByteArrayAsync_DisposesRequestAndResponse()
+    public async Task PostForBytesAsync_DisposesRequestAndResponse()
     {
         using CancellationTokenSource cancellation = new();
         TrackingMultipartFormDataContent requestContent = new();
@@ -46,14 +46,14 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
-        byte[] result = await subject.GetByteArrayAsync(
+        byte[] result = await subject.PostForBytesAsync(
             "projects-get-data.php",
             requestContent,
             cancellation.Token);
 
-        CollectionAssert.AreEqual("RIFF"u8.ToArray(), result);
+        CollectionAssert.AreEqual(new byte[] { 82, 73, 70, 70 }, result);
         Assert.IsTrue(requestContent.IsDisposed);
         Assert.IsTrue(responseContent.IsDisposed);
     }
@@ -67,7 +67,7 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
         Task<string> operation = subject.GetAsync("projects-get-data.php", cancellation.Token);
         await responseContent.ReadStarted.Task;
@@ -88,7 +88,7 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
         Task<string> operation = subject.GetAsync("projects-get-data.php", cancellation.Token);
         await handler.RequestStarted.Task;
@@ -127,20 +127,25 @@ public sealed class HttpWebClientCancellationTests
         }
     }
 
-    private sealed class TrackingContent(byte[] value) : HttpContent
+    private sealed class TrackingContent : HttpContent
     {
-        private readonly byte[] _value = value;
+        private readonly byte[] value;
 
         public TrackingContent(string value)
             : this(Encoding.UTF8.GetBytes(value))
         {
         }
 
+        public TrackingContent(byte[] value)
+        {
+            this.value = value;
+        }
+
         public bool IsDisposed { get; private set; }
 
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
         {
-            return stream.WriteAsync(_value).AsTask();
+            return stream.WriteAsync(value).AsTask();
         }
 
         protected override Task SerializeToStreamAsync(
@@ -148,12 +153,12 @@ public sealed class HttpWebClientCancellationTests
             TransportContext? context,
             CancellationToken cancellationToken)
         {
-            return stream.WriteAsync(_value, cancellationToken).AsTask();
+            return stream.WriteAsync(value, cancellationToken).AsTask();
         }
 
         protected override bool TryComputeLength(out long length)
         {
-            length = _value.Length;
+            length = value.Length;
             return true;
         }
 
@@ -211,5 +216,5 @@ public sealed class HttpWebClientCancellationTests
         }
     }
 
-    public TestContext TestContext { get; set; } = null!;
+    public TestContext TestContext { get; set; }
 }

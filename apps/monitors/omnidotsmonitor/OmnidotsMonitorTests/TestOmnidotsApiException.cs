@@ -176,7 +176,7 @@ public class TestOmnidotsApiException
 
         OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken));
         Assert.AreEqual("StorePeakRecords", exception.Operation);
-        CollectionAssert.AreEqual(_expected, exception.Failures.Select(failure => failure.SerialId).ToArray());
+        CollectionAssert.AreEqual(expected, exception.Failures.Select(failure => failure.SerialId).ToArray());
 
         httpClient.Verify(c => c.PostAsync(authUrl, It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         httpClient.Verify(c =>
@@ -201,6 +201,8 @@ public class TestOmnidotsApiException
         mqttClient.VerifyNoOtherCalls();
     }
 
+    private static readonly string[] expected = new[] { "1", "2" };
+
     [TestMethod]
     public async Task TestStorePeakRecords_ErrorJson_ThrowsCorrectException()
     {
@@ -224,7 +226,7 @@ public class TestOmnidotsApiException
 
         OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken));
         Assert.AreEqual("StorePeakRecords", exception.Operation);
-        CollectionAssert.AreEqual(_expected, exception.Failures.Select(failure => failure.SerialId).ToArray());
+        CollectionAssert.AreEqual(expected, exception.Failures.Select(failure => failure.SerialId).ToArray());
 
         httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
          It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -370,7 +372,7 @@ public class TestOmnidotsApiException
         httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Once);
         httpClient.Verify(c => c.GetAsync(It.Is<string>(url =>
             url.StartsWith("/api/v1/get_traces_list", StringComparison.Ordinal)), It.IsAny<CancellationToken>()), Times.Exactly(2));
-        dbClient.Verify(c => c.HandleException("Failed to read traces for serialId=23423", It.IsAny<AdapterException>()), Times.Once);
+        dbClient.Verify(c => c.HandleException("StoreTraces serialId=23423", It.IsAny<AdapterException>()), Times.Once);
     }
 
     [TestMethod]
@@ -434,7 +436,7 @@ public class TestOmnidotsApiException
             .Returns(OmnidotsFixture.StringTask("invalid-json"))
             .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"traces\":[]}"));
         InvalidOperationException recordingException = new("database-password=secret-value");
-        dbClient.Setup(c => c.HandleException("Failed to read traces for serialId=23423", It.IsAny<AdapterException>()))
+        dbClient.Setup(c => c.HandleException("StoreTraces serialId=23423", It.IsAny<AdapterException>()))
             .Throws(recordingException);
 
         OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5), TestContext.CancellationToken));
@@ -443,7 +445,7 @@ public class TestOmnidotsApiException
         httpClient.Verify(c => c.GetAsync(It.Is<string>(url =>
             url.StartsWith("/api/v1/get_traces_list", StringComparison.Ordinal)), It.IsAny<CancellationToken>()), Times.Exactly(2));
         dbClient.Verify(c => c.HandleException(
-            "Failed to read traces for serialId=23423",
+            "StoreTraces serialId=23423",
             It.IsAny<AdapterException>()), Times.Once);
     }
 
@@ -474,7 +476,5 @@ public class TestOmnidotsApiException
         Assert.AreSame(recordingException, failure.RecordingException);
     }
 
-    public TestContext TestContext { get; set; } = null!;
-
-    private static readonly string[] _expected = ["1", "2"];
+    public TestContext TestContext { get; set; }
 }

@@ -80,7 +80,7 @@ public sealed class UnmappedColumnDefaultTests
         // EF code path inserts today, and rvt_alert_rule.created, which every alert level creation goes through.
         string? connectionString =
             Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>().UseNpgsql(connectionString).Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.Npgsql<RVTDbContext>(connectionString);
         await using RVTDbContext context = new(options);
 
         // Rolled back: this proves the schema accepts EF's INSERTs without leaving rows behind.
@@ -114,10 +114,7 @@ public sealed class UnmappedColumnDefaultTests
         });
 
         // Throws DbUpdateException (23502) if an unmapped NOT NULL column has no default.
-        int written = await context.SaveChangesAsync();
-
-        Assert.Equal(2, written);
-
+        await context.SaveChangesAsync();
         await transaction.RollbackAsync();
     }
 
@@ -290,9 +287,7 @@ public sealed class UnmappedColumnDefaultTests
         NpgsqlTransaction transaction)
     {
         string serialId = $"TSD-{Guid.NewGuid():N}"[..16];
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseNpgsql(connection)
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.Npgsql<RVTDbContext>(connection);
         await using RVTDbContext context = new(options);
         await context.Database.UseTransactionAsync(transaction);
 

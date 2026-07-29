@@ -29,8 +29,8 @@ import {
   Upload,
   Wrench,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { SubmitEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import {
   addDefaultMonitorAlertLevels,
   addMonitorToContract,
@@ -56,6 +56,9 @@ import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { safeHref } from '../safeUrl';
 import { AlertLevelsPanel } from './NotificationAlertPanels';
+import { formatDate, formatDateTime } from '../format';
+import { normalizeSortDirection, parsePositiveInt } from '../gridQuery';
+import { useRequestLifecycle } from '../requestLifecycle';
 import type {
   DefaultMonitorsResponse,
   InstallerMonitorStatusResponse,
@@ -686,7 +689,7 @@ function MonitorEditPanel({
       });
   }, [monitorId, onRequestError]);
 
-  async function handleSubmit(event: SubmitEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -836,7 +839,7 @@ function InstallerDeploymentPanel({
     }
   }
 
-  async function handleSubmit(event: SubmitEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!monitor?.deploymentId) {
       setError('This monitor does not have a current deployment.');
@@ -922,8 +925,7 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
   const [error, setError] = useState<string | null>(null);
   const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryMonitorsRequest> | null>(null);
   const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryMonitorsRequest> | null>(null);
-  const activeRequestController = useRef<AbortController | null>(null);
-  const requestGeneration = useRef(0);
+  const { claimRequest, ownsRequest, currentGeneration } = useRequestLifecycle();
   const [isRemoving, setIsRemoving] = useState(false);
   const backPath = returnToOr(locationPath, '/monitors');
   const columns = useMemo<DataGridColumn<UnattachedMonitorListItem>[]>(
@@ -954,23 +956,6 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
   const effectExecution = useMemo<ListExecution<QueryMonitorsRequest>>(() => ({ query }), [query]);
   const currentExecution = refreshExecution?.query === query ? refreshExecution : effectExecution;
   const isLoading = completedExecution !== currentExecution;
-
-  const claimRequest = useCallback(() => {
-    activeRequestController.current?.abort();
-    const controller = new AbortController();
-    const generation = requestGeneration.current + 1;
-    requestGeneration.current = generation;
-    activeRequestController.current = controller;
-    return { controller, generation };
-  }, []);
-
-  const ownsRequest = useCallback(
-    (controller: AbortController, generation: number) =>
-      activeRequestController.current === controller &&
-      requestGeneration.current === generation &&
-      !controller.signal.aborted,
-    [],
-  );
 
   // Function summary: Refreshes unattached monitor removal candidates after an event-owned mutation.
   const refreshMonitors = useCallback(async () => {
@@ -1040,7 +1025,7 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
       return;
     }
 
-    const removeGeneration = requestGeneration.current;
+    const removeGeneration = currentGeneration();
     setIsRemoving(true);
     setError(null);
     try {
@@ -1048,7 +1033,7 @@ function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequestErro
       setNotice(response.message);
       setSelectedMonitor(null);
       setReason('');
-      if (requestGeneration.current !== removeGeneration) {
+      if (currentGeneration() !== removeGeneration) {
         return;
       }
       await refreshMonitors();
@@ -1451,17 +1436,6 @@ function normalizeState(value: string | null, fallback: MonitorListState): Monit
   return states.includes(value as MonitorListState) ? (value as MonitorListState) : fallback;
 }
 
-// Function summary: Handles the normalize sort direction workflow for this module.
-function normalizeSortDirection(value: string | null): SortDirection {
-  return value?.toLowerCase() === 'descending' || value?.toLowerCase() === 'desc' ? 'Descending' : 'Ascending';
-}
-
-// Function summary: Handles the parse positive int workflow for this module.
-function parsePositiveInt(value: string | null, fallback: number) {
-  const parsed = Number.parseInt(value ?? '', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 // Function summary: Renders a legacy monitor metric summary card.
 function MonitorMetricCard({
   title,
@@ -1541,22 +1515,6 @@ function numberOrNull(value: string) {
 
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-// Function summary: Handles the format date workflow for this module.
-function formatDate(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date(value));
-}
-
-// Function summary: Handles the format date time workflow for this module.
-function formatDateTime(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
 
 // Function summary: Handles the format coordinates workflow for this module.

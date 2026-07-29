@@ -25,7 +25,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         int customerId = 656;
         DateTime now = DateTime.UtcNow;
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(now.AddDays(1), singleItem: true).Single();
@@ -45,7 +45,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
             .Returns(12);
         dbClient.Setup(client => client.CommitAlertAsync(It.IsAny<MyAtmAlertCommit>(), It.IsAny<CancellationToken>()))
             .Callback<MyAtmAlertCommit, CancellationToken>((commit, _) => commits.Add(commit))
-            .ReturnsAsync(new MyAtmAlertCommitResult(true, []));
+            .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
@@ -55,13 +55,22 @@ public sealed class ProcessDustLevelsAlertCommitTests
         Assert.IsTrue(commits.All(commit => commit.Occurrences.Count == 0));
     }
 
+    private static readonly string[] expected = new[]
+            {
+                "ReadRules",
+                "ReadMonitor",
+                "GetAverageDustLevel",
+                "ReadAlertContacts",
+                "CommitAlertAsync"
+            };
+
     [TestMethod]
     public async Task CompletedAggregatePeriod_CommitsStateOccurrenceAndAllDurableDeliveriesOnce()
     {
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         int customerId = 656;
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow.AddDays(1), singleItem: true).Single();
         RvtAlertRuleDto rule = new(
@@ -81,7 +90,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
         dbClient.Setup(client => client.ReadAlertContacts(monitor.Id)).Returns(contacts);
         dbClient.Setup(client => client.CommitAlertAsync(It.IsAny<MyAtmAlertCommit>(), It.IsAny<CancellationToken>()))
             .Callback<MyAtmAlertCommit, CancellationToken>((value, _) => commit = value)
-            .ReturnsAsync(new MyAtmAlertCommitResult(true, []));
+            .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
@@ -126,7 +135,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
         }
         string[] databaseCalls = [.. dbClient.Invocations.Select(invocation => invocation.Method.Name)];
         CollectionAssert.AreEqual(
-            _expected,
+            expected,
             databaseCalls,
             $"Unexpected active aggregate DB call sequence: {string.Join(", ", databaseCalls)}");
         messageService.VerifyNoOtherCalls();
@@ -139,7 +148,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         int customerId = 656;
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
         RvtAlertRuleDto rule = new(
@@ -151,7 +160,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
         dbClient.Setup(client => client.ReadRules(Period.Hours8)).Returns([rule]);
         dbClient.Setup(client => client.CommitAlertAsync(It.IsAny<MyAtmAlertCommit>(), It.IsAny<CancellationToken>()))
             .Callback<MyAtmAlertCommit, CancellationToken>((value, _) => commit = value)
-            .ReturnsAsync(new MyAtmAlertCommitResult(true, []));
+            .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
@@ -182,14 +191,5 @@ public sealed class ProcessDustLevelsAlertCommitTests
             AttemptCount: 1,
             LeaseId: Guid.NewGuid()));
 
-    public TestContext TestContext { get; set; } = null!;
-
-    private static readonly string[] _expected =
-            [
-                "ReadRules",
-                "ReadMonitor",
-                "GetAverageDustLevel",
-                "ReadAlertContacts",
-                "CommitAlertAsync"
-            ];
+    public TestContext TestContext { get; set; }
 }

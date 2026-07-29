@@ -587,7 +587,12 @@
       "rvt.monitor.integrationtesting": {
         "type": "Project",
         "dependencies": {
-          "Npgsql": "[10.0.3, )"
+          "Microsoft.Extensions.Configuration": "[10.0.10, )",
+          "Microsoft.Extensions.DependencyInjection": "[10.0.10, )",
+          "Microsoft.Extensions.Hosting.Abstractions": "[10.0.10, )",
+          "Microsoft.Extensions.Logging": "[10.0.10, )",
+          "Npgsql": "[10.0.3, )",
+          "Rvt.Communication.Abstractions": "[1.0.0-rc.1, )"
         }
       },
       "rvt.reporting.core": {

@@ -1,0 +1,145 @@
+name: Tests
+
+on: pull_request
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dotnet:
+    name: .NET tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      # The PostgreSQL fixtures fail by design when no connection is supplied
+      # rather than silently skipping, so the integration database is part of
+      # the job rather than an optional extra.
+      timescaledb:
+        image: timescale/timescaledb:2.28.3-pg17
+        env:
+          POSTGRES_DB: rvt_integration
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rvt_integration"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: apps/portal/RvtPortal.Client/package-lock.json
+
+      # RvtPortal.Spa's Debug build restores the SPA client when node_modules is
+      # absent, so the .NET job needs the same prerequisite a developer machine has.
+      - name: Install Portal client dependencies
+        working-directory: apps/portal/RvtPortal.Client
+        run: npm ci --ignore-scripts
+
+      - name: Restore monorepo
+        run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel
+
+      - name: Run .NET tests
+        env:
+          # Throwaway credentials for the ephemeral service container above.
+          RVT__POSTGRES_INTEGRATION_CONNECTION: Host=localhost;Port=55432;Database=rvt_integration;Username=postgres;Password=postgres
+        run: dotnet test Rvt.Mono.slnx --no-restore --verbosity minimal
+
+  client:
+    name: Portal client tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: apps/portal/RvtPortal.Client/package-lock.json
+
+      - name: Install Portal client dependencies
+        working-directory: apps/portal/RvtPortal.Client
+        run: npm ci --ignore-scripts
+
+      - name: Type-check Portal client
+        working-directory: apps/portal/RvtPortal.Client
+        run: node node_modules/typescript/bin/tsc -b
+
+      - name: Run Portal client tests
+        working-directory: apps/portal/RvtPortal.Client
+        run: npm run test:run
+
+  repository-guards:
+    name: Repository guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: apps/portal/RvtPortal.Client/package-lock.json
+
+      # verify-documentation-layout.sh drives ripgrep, which is not preinstalled
+      # on the GitHub-hosted image.
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Verify PostgreSQL-only boundary
+        run: scripts/verify-postgresql-only.sh .
+
+      - name: Verify monorepo layout
+        run: scripts/verify-mono-layout.sh
+
+      - name: Verify monorepo solution
+        run: scripts/verify-mono-solution.sh
+
+      - name: Verify RVT common source boundary
+        run: scripts/verify-rvt-common-source-boundary.sh
+
+      - name: Verify documentation layout
+        run: scripts/verify-documentation-layout.sh
+
+      # A glob rather than a list: a contract test that nothing runs is the
+      # failure mode this job exists to remove, so new ones opt in by existing.
+      - name: Verify repository contract tests
+        run: |
+          for contract_test in tests/*.test.sh; do
+            printf '==> %s\n' "${contract_test}"
+            bash "${contract_test}"
+          done

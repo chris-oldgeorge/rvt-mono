@@ -22,14 +22,14 @@ public class DataController : ControllerBase
 {
     /// <summary>Set to "true" when a CSV export stopped at the reader's row bound and is therefore partial.</summary>
     public const string TruncatedHeader = "X-RVT-Truncated";
-    private static readonly string[] timestampQueryFields = ["fromDate", "toDate"];
+    private static readonly string[] _timestampQueryFields = ["fromDate", "toDate"];
 
-    private readonly IDataApplicationService _dataApplication;
+    private readonly IDataApplicationService dataApplication;
 
     // Function summary: Initializes the data controller with the application service that owns data-view workflows.
     public DataController(IDataApplicationService dataApplication)
     {
-        _dataApplication = dataApplication;
+        this.dataApplication = dataApplication;
     }
 
     [HttpGet("deployments/{deploymentId:guid}/grid")]
@@ -44,7 +44,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        DataWorkflowResult<MonitorDataGridResponse> result = await _dataApplication.GetGridAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<MonitorDataGridResponse> result = await dataApplication.GetGridAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -59,7 +59,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        DataDownloadWorkflowResult result = await _dataApplication.DownloadAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataDownloadWorkflowResult result = await dataApplication.DownloadAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToDownloadResult(result);
     }
 
@@ -74,7 +74,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        DataWorkflowResult<MonitorGraphResponse> result = await _dataApplication.GetGraphAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<MonitorGraphResponse> result = await dataApplication.GetGraphAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -89,7 +89,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        DataWorkflowResult<TraceListResponse> result = await _dataApplication.GetTracesAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<TraceListResponse> result = await dataApplication.GetTracesAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -99,7 +99,7 @@ public class DataController : ControllerBase
     // Function summary: Returns vibration trace samples for a visible deployment and trace.
     public async Task<ActionResult<TraceDetailResponse>> TraceDetail(Guid deploymentId, Guid traceId)
     {
-        DataWorkflowResult<TraceDetailResponse> result = await _dataApplication.GetTraceDetailAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<TraceDetailResponse> result = await dataApplication.GetTraceDetailAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -109,7 +109,7 @@ public class DataController : ControllerBase
     // Function summary: Streams vibration trace samples as CSV for a visible deployment and trace.
     public async Task<IActionResult> TraceDownload(Guid deploymentId, Guid traceId)
     {
-        DataDownloadWorkflowResult result = await _dataApplication.DownloadTraceAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
+        DataDownloadWorkflowResult result = await dataApplication.DownloadTraceAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
         return ToDownloadResult(result);
     }
 
@@ -155,11 +155,12 @@ public class DataController : ControllerBase
                 Detail = $"Sort field '{failure.RequestedSort}' is not supported. Allowed values: {string.Join(", ", failure.AllowedFields ?? [])}"
             }),
             DataWorkflowFailureKind.InvalidTimestamp => BadRequest(InvalidTimestampProblem(failure)),
-            DataWorkflowFailureKind.TraceNotFound => NotFound(ProblemDetailsFor(failure)),
-            DataWorkflowFailureKind.DeploymentNotFound => NotFound(ProblemDetailsFor(failure)),
-            DataWorkflowFailureKind.NoDataToDownload => NotFound(ProblemDetailsFor(failure)),
-            DataWorkflowFailureKind.NoTraceDataToDownload => NotFound(ProblemDetailsFor(failure)),
-            _ => throw new ArgumentOutOfRangeException(nameof(failure), failure.Kind, "Unsupported data workflow failure kind.")
+            DataWorkflowFailureKind.TraceNotFound => NotFound(new ProblemDetails
+            {
+                Title = "Trace not found",
+                Detail = $"Trace '{failure.EntityId}' was not found or is not visible to the current user."
+            }),
+            _ => NotFound(ProblemDetailsFor(failure))
         };
     }
 
@@ -196,7 +197,7 @@ public class DataController : ControllerBase
     // Function summary: Preserves the wire-format distinction that DateTime model binding loses for offset timestamps.
     private ProblemDetails? ValidateUtcQueryTimestamps()
     {
-        string[] invalidFields = [.. timestampQueryFields
+        string[] invalidFields = [.. _timestampQueryFields
             .Where(field =>
             {
                 string value = Request.Query[field].ToString();
@@ -232,8 +233,6 @@ public class DataController : ControllerBase
                 Title = "No data to download",
                 Detail = "There are no matching records for this deployment and date range."
             },
-            DataWorkflowFailureKind.InvalidSort => throw new NotImplementedException(),
-            DataWorkflowFailureKind.InvalidTimestamp => throw new NotImplementedException(),
             _ => new ProblemDetails
             {
                 Title = "Data request failed",

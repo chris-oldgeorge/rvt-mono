@@ -1,0 +1,81 @@
+using MyAtm.Api.Rules;
+using MyAtm.Model.Dto;
+using Rvt.Monitor.Common.Notifications;
+using Rvt.Monitor.Common.Rules;
+using Rvt.Monitor.Common.Utilities;
+using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
+
+namespace MyAtm.Api;
+
+public sealed class MyAtmRuleEvaluator
+{
+    private readonly MyAtmAlertTransitionEvaluator transitionEvaluator;
+
+    public MyAtmRuleEvaluator()
+        : this(new MyAtmAlertTransitionEvaluator())
+    {
+    }
+
+    public MyAtmRuleEvaluator(MyAtmAlertTransitionEvaluator transitionEvaluator)
+    {
+        this.transitionEvaluator = transitionEvaluator;
+    }
+
+    public MyAtmRuleEvaluation Evaluate(
+        DustMonitorDto monitor,
+        Period period,
+        IReadOnlyList<RvtAlertRuleDto> rules,
+        IReadOnlyList<DustDto> samples,
+        DateTime utcNow)
+    {
+        Dictionary<Guid, (bool IsActive, DateTime? Accessed)> originalStates = rules.ToDictionary(rule => rule.RuleId, rule => (rule.IsActive, rule.Accessed));
+        Dictionary<Guid, (bool IsActive, DateTime? Accessed)> states = originalStates.ToDictionary(pair => pair.Key, pair => pair.Value);
+        List<AlertOccurrenceProposal> occurrences = [];
+
+        foreach (DustDto? sample in samples.OrderBy(sample => sample.SampleTime))
+        {
+            foreach (RvtAlertRuleDto? rule in rules.OrderBy(rule => rule.AlertType))
+            {
+                (bool IsActive, DateTime? Accessed) = states[rule.RuleId];
+                bool alertForFieldIsActive = rule.AlertType == AlertType.Caution && rules.Any(otherRule =>
+                    otherRule.AlertType == AlertType.Alert &&
+                    MyAtmAlertTransitionEvaluator.NormalizeField(otherRule.Field) == MyAtmAlertTransitionEvaluator.NormalizeField(rule.Field) &&
+                    states[otherRule.RuleId].IsActive);
+                MyAtmAlertTransition transition = transitionEvaluator.Evaluate(rule, IsActive, sample, alertForFieldIsActive);
+                if (transition.IsActive != IsActive)
+                {
+                    states[rule.RuleId] = (transition.IsActive, transition.Activated ? utcNow : Accessed);
+                }
+
+                if (!transition.Activated)
+                {
+                    continue;
+                }
+
+                occurrences.Add(new AlertOccurrenceProposal(
+                    $"{monitor.Id:N}:{rule.RuleId:N}:{DateTimeUtil.AsUtc(sample.SampleTime):O}:{rule.AlertType}",
+                    monitor.Id,
+                    rule.RuleId,
+                    period,
+                    rule.AlertType,
+                    rule.Field,
+                    rule.LimitOn,
+                    transition.Level!.Value,
+                    sample.SampleTime,
+                    Array.Empty<RvtContactDto>()));
+            }
+        }
+
+        List<RuleStateMutation> mutations = [.. rules
+            .Where(rule => states[rule.RuleId] != originalStates[rule.RuleId])
+            .Select(rule => new RuleStateMutation(
+                rule.RuleId,
+                originalStates[rule.RuleId].IsActive,
+                originalStates[rule.RuleId].Accessed,
+                states[rule.RuleId].IsActive,
+                states[rule.RuleId].Accessed))];
+
+        return new MyAtmRuleEvaluation(mutations, occurrences);
+    }
+
+}

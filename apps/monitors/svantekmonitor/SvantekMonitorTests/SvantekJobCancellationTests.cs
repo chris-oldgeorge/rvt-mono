@@ -12,7 +12,7 @@ using Svantek.Api.Db;
 using Svantek.Api.Http;
 using Svantek.Api.UseCases;
 using Svantek.Model.Config;
-using Svantek.Model.Dto;
+using SvantekMonitor.model.dto;
 
 namespace SvantekMonitorTests;
 
@@ -36,7 +36,7 @@ public sealed class SvantekJobCancellationTests
             nameof(SvantekJobCancellationTests));
 
     [TestMethod]
-    public async Task MonitorJobRunner_PassesTheExactTokenToEveryScheduledServiceMethod()
+    public async Task JobCatalog_PassesTheExactTokenToEveryScheduledServiceMethod()
     {
         using CancellationTokenSource cancellation = new();
         CancellationToken token = cancellation.Token;
@@ -44,7 +44,7 @@ public sealed class SvantekJobCancellationTests
 
         foreach (string jobName in JobNames)
         {
-            int result = await InvokeRunnerAsync(jobName, service.Object, token);
+            int result = await SvantekMonitorJobs.Catalog.RunAsync(jobName, service.Object, token);
             Assert.AreEqual(0, result, jobName);
         }
 
@@ -102,20 +102,11 @@ public sealed class SvantekJobCancellationTests
     }
 
     [TestMethod]
-    public void MonitorJobDispatcher_WithoutJobs_IdentifiesTheInterfaceDependency()
+    public void JobCatalog_DeclaresExactlyTheScheduledJobs()
     {
-        Type? dispatcherType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.SvantekMonitorJobDispatcher");
-        Assert.IsNotNull(dispatcherType);
-        object? dispatcher = Activator.CreateInstance(dispatcherType, nonPublic: true);
-        Assert.IsNotNull(dispatcher);
-        MethodInfo? runMethod = dispatcherType.GetMethod("RunAsync");
-        Assert.IsNotNull(runMethod);
-
-        TargetInvocationException invocation = Assert.ThrowsExactly<TargetInvocationException>(
-            () => runMethod.Invoke(dispatcher, ["StoreMonitors", CancellationToken.None]));
-        InvalidOperationException exception = Assert.IsInstanceOfType<InvalidOperationException>(invocation.InnerException);
-
-        Assert.Contains(nameof(ISvantekMonitorJobs), exception.Message);
+        CollectionAssert.AreEqual(
+            JobNames.Order(StringComparer.Ordinal).ToArray(),
+            SvantekMonitorJobs.Catalog.JobNames.Order(StringComparer.Ordinal).ToArray());
     }
 
     [TestMethod]
@@ -200,24 +191,6 @@ public sealed class SvantekJobCancellationTests
         return service;
     }
 
-    private static async Task<int> InvokeRunnerAsync(
-        string jobName,
-        ISvantekMonitorJobs service,
-        CancellationToken cancellationToken)
-    {
-        Type? runnerType = typeof(SvantekApi).Assembly.GetType("Svantek.Api.MonitorJobRunner");
-        Assert.IsNotNull(runnerType);
-        MethodInfo? runMethod = runnerType.GetMethod(
-            "RunAsync",
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
-            binder: null,
-            types: [typeof(string), typeof(ISvantekMonitorJobs), typeof(CancellationToken)],
-            modifiers: null);
-        Assert.IsNotNull(runMethod);
-        Task<int>? task = runMethod.Invoke(null, [jobName, service, cancellationToken]) as Task<int>;
-        Assert.IsNotNull(task);
-        return await task;
-    }
 
     private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
     {

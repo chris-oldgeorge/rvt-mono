@@ -15,6 +15,7 @@ using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Application.Common;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class SiteConcurrencyTests
@@ -184,9 +185,7 @@ public sealed class SiteConcurrencyTests
     [Fact]
     public void DomainModel_RequiresOneArchivePerSiteAndOneNotificationSettingPerSiteUser()
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseSqlite("Data Source=:memory:")
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.Sqlite<RVTDbContext>("Data Source=:memory:");
         using RVTDbContext context = new(options);
 
         IIndex archiveIndex = Assert.Single(
@@ -205,9 +204,7 @@ public sealed class SiteConcurrencyTests
     [Fact]
     public void UniquenessMigration_GeneratesPostgreSqlDeduplicationBeforeUniqueIndexes()
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseNpgsql("Host=localhost;Database=rvt_migration_script;Username=rvt")
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.Npgsql<RVTDbContext>("Host=localhost;Database=rvt_migration_script;Username=rvt");
         using RVTDbContext context = new(options);
         string script = context.Database.GetService<IMigrator>().GenerateScript(
             "20260714132042_CanonicalBaseline",
@@ -529,17 +526,11 @@ public sealed class SiteConcurrencyTests
                 $"Data Source={databasePath};Foreign Keys=True;Default Timeout=30;Pooling=False");
             await connection.OpenAsync();
             RVTDbContext domainContext = new(
-                new DbContextOptionsBuilder<RVTDbContext>()
-                    .UseSqlite(connection)
-                    .Options);
+                TestDbContexts.Sqlite<RVTDbContext>(connection));
             RVTSearchContext searchContext = new(
-                new DbContextOptionsBuilder<RVTSearchContext>()
-                    .UseSqlite(connection)
-                    .Options);
+                TestDbContexts.Sqlite<RVTSearchContext>(connection));
             ApplicationDbContext applicationContext = new(
-                new DbContextOptionsBuilder<ApplicationDbContext>()
-                    .UseSqlite(connection)
-                    .Options);
+                TestDbContexts.Sqlite<ApplicationDbContext>(connection));
             return new RelationalSiteScope(
                 connection,
                 domainContext,
@@ -552,9 +543,7 @@ public sealed class SiteConcurrencyTests
             SqliteConnection connection = new(
                 $"Data Source={databasePath};Foreign Keys=True;Default Timeout=30;Pooling=False");
             await connection.OpenAsync();
-            DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-                .UseSqlite(connection)
-                .Options;
+            DbContextOptions<RVTDbContext> options = TestDbContexts.Sqlite<RVTDbContext>(connection);
             return new OwnedConnectionDomainContext(options, connection);
         }
 

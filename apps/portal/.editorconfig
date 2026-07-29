@@ -95,7 +95,8 @@ dotnet_naming_rule.constants_should_be_pascal_case.symbols = constants
 dotnet_naming_rule.constants_should_be_pascal_case.style = constants_style
 dotnet_naming_rule.constants_should_be_pascal_case.severity = error
 
-# Static fields are camelCase 
+# Private static fields are camelCase and start with _, matching the private
+# instance fields below and the repository-wide rule in the root .editorconfig.
 dotnet_naming_symbols.static_fields.applicable_kinds = field
 dotnet_naming_symbols.static_fields.required_modifiers = static
 
@@ -104,6 +105,7 @@ dotnet_naming_rule.static_fields_should_be_camel_case.symbols = static_fields
 dotnet_naming_rule.static_fields_should_be_camel_case.style = static_field_style
 
 dotnet_naming_style.static_field_style.capitalization = camel_case
+dotnet_naming_style.static_field_style.required_prefix = _
 
 # Instance fields are camelCase and start with _
 dotnet_naming_symbols.instance_fields.applicable_kinds = field

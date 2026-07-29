@@ -201,13 +201,8 @@ public class AlertLevelsController : ControllerBase
     }
 
     // Function summary: Builds the invalid-sort problem response while preserving the existing contract.
-    private ObjectResult InvalidSort(string sort, IEnumerable<string> validSorts)
-    {
-        return Problem(
-            detail: $"Sort '{sort}' is not supported. Use one of: {string.Join(", ", validSorts)}.",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Invalid sort field");
-    }
+    private BadRequestObjectResult InvalidSort(string sort, IEnumerable<string> validSorts) =>
+        ApiProblems.InvalidSort(HttpContext, sort, validSorts, "alert levels");
 
     // Function summary: Builds the not-found response used for hidden or missing monitor alert-level resources.
     private NotFoundObjectResult MonitorNotFound(Guid id)

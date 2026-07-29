@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, fromDateToApi } from './dataViewDateTime';
+import { formatDateTime } from '../format';
+import { fromDateToApi } from './DataViewPanels';
 
 describe('DataViewPanels UTC timestamp presentation', () => {
   it('renders one UTC instant in explicit UTC and Europe/London zones', () => {

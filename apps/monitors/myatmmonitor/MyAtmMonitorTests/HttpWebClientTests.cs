@@ -36,7 +36,7 @@ public class HttpWebClientTests
             CreateResponse(HttpStatusCode.OK, "12345", null)
         ]);
         using HttpClient client = new(new QueueHttpMessageHandler(responses));
-        HttpWebClient<object> subject = new(
+        HttpWebClient subject = new(
             "https://vendor.example/",
             "test-key",
             client,
@@ -58,7 +58,7 @@ public class HttpWebClientTests
             new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = content }
         ]);
         using HttpClient client = new(new QueueHttpMessageHandler(responses));
-        HttpWebClient<object> subject = new(
+        HttpWebClient subject = new(
             "https://vendor.example/",
             "test-key",
             client,
@@ -87,7 +87,7 @@ public class HttpWebClientTests
                 return Task.CompletedTask;
             });
         using HttpClient client = new(handler);
-        HttpWebClient<object> subject = new("https://vendor.example/", "test-key", client, policy);
+        HttpWebClient subject = new("https://vendor.example/", "test-key", client, policy);
 
         string result = await subject.GetAsync("devices", TestContext.CancellationToken);
 
@@ -116,7 +116,7 @@ public class HttpWebClientTests
             return Task.CompletedTask;
         });
         using HttpClient client = new(new QueueHttpMessageHandler(responses));
-        HttpWebClient<object> subject = new("https://vendor.example/", "test-key", client, policy);
+        HttpWebClient subject = new("https://vendor.example/", "test-key", client, policy);
 
         string result = await subject.GetAsync("devices", TestContext.CancellationToken);
 
@@ -131,7 +131,7 @@ public class HttpWebClientTests
         cancellation.Cancel();
         MyAtmRequestPolicy policy = new();
         using HttpClient client = new(new QueueHttpMessageHandler(new Queue<HttpResponseMessage>()));
-        HttpWebClient<object> subject = new("https://vendor.example/", "test-key", client, policy);
+        HttpWebClient subject = new("https://vendor.example/", "test-key", client, policy);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => subject.GetAsync("devices", cancellation.Token));
     }
@@ -150,21 +150,28 @@ public class HttpWebClientTests
         return response;
     }
 
-    private sealed class QueueHttpMessageHandler(Queue<HttpResponseMessage> responses) : HttpMessageHandler
+    private sealed class QueueHttpMessageHandler : HttpMessageHandler
     {
-        private readonly Queue<HttpResponseMessage> _responses = responses;
+        private readonly Queue<HttpResponseMessage> responses;
+
+        public QueueHttpMessageHandler(Queue<HttpResponseMessage> responses) => this.responses = responses;
 
         public int RequestCount { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestCount++;
-            return Task.FromResult(_responses.Dequeue());
+            return Task.FromResult(responses.Dequeue());
         }
     }
 
-    private sealed class TrackingStringContent(string content) : StringContent(content)
+    private sealed class TrackingStringContent : StringContent
     {
+        public TrackingStringContent(string content)
+            : base(content)
+        {
+        }
+
         public bool WasSerialized { get; private set; }
 
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
@@ -174,5 +181,5 @@ public class HttpWebClientTests
         }
     }
 
-    public TestContext TestContext { get; set; } = null!;
+    public TestContext TestContext { get; set; }
 }

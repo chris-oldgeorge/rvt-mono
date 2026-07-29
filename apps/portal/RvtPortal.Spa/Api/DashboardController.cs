@@ -222,16 +222,8 @@ public class DashboardController : ControllerBase
     }
 
     // Function summary: Builds an invalid-sort problem response for breach-alert queries.
-    private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
-    {
-        ProblemDetails problem = ApiProblems.Create(
-            HttpContext,
-            StatusCodes.Status400BadRequest,
-            "Invalid sort field",
-            $"Sort field '{requestedSort}' is not supported for breach and alert data.");
-        problem.Extensions["allowedSortFields"] = allowedSortFields.OrderBy(field => field, StringComparer.OrdinalIgnoreCase).ToArray();
-        return BadRequest(problem);
-    }
+    private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields) =>
+        ApiProblems.InvalidSort(HttpContext, requestedSort, allowedSortFields, "breach and alert data");
 
     // Function summary: Builds the dashboard site-not-found response used by map-marker filters.
     private NotFoundObjectResult SiteNotFound(Guid siteId)

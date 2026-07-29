@@ -13,8 +13,11 @@ using Rvt.Monitor.Common.Hosting;
 return await MonitorHost.RunAsync<MyAtmMonitorJobDispatcher>(
     args,
     "MyAtmMonitor",
-    MonitorJobRunner.GetJobName,
-    (jobName, services) => MonitorJobRunner.RunAsync(jobName, services.GetRequiredService<MyAtmService>()),
+    MyAtmMonitorJobs.Catalog.JobNames,
+    (jobName, services, cancellationToken) => MyAtmMonitorJobs.Catalog.RunAsync(
+        jobName,
+        services.GetRequiredService<MyAtmService>(),
+        cancellationToken),
     app => app.MapMyAtmMonitorApi(),
     configureServices: (services, configuration) =>
         services.AddMyAtmMonitor(configuration));

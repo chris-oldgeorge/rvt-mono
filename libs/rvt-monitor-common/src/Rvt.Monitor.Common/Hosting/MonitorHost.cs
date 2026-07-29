@@ -34,24 +34,33 @@ public static class MonitorHost
             .Build();
     }
 
+    /// <param name="supportedJobNames">
+    /// The monitor's job catalog names, used to validate the configured Quartz
+    /// schedule before the container is built.
+    /// </param>
     public static async Task<int> RunAsync<TDispatcher>(
         string[] args,
         string monitorName,
-        Func<string[], string?> getJobName,
-        Func<string, IServiceProvider, Task<int>> runJobAsync,
+        IReadOnlySet<string> supportedJobNames,
+        Func<string, IServiceProvider, CancellationToken, Task<int>> runJobAsync,
         Action<WebApplication> mapApi,
         Action<ILoggingBuilder>? configureLogging = null,
         Action<IServiceCollection, IConfiguration>? configureServices = null)
         where TDispatcher : class, IMonitorJobDispatcher
     {
         IConfiguration configuration = BuildConfiguration(args);
-        string? jobName = getJobName(args);
+        string? jobName = MonitorJobArguments.GetJobName(args);
         if (!string.IsNullOrWhiteSpace(jobName))
         {
             using IHost oneShotHost = CreateOneShotHost(args, configuration, monitorName, configureLogging, configureServices);
             await oneShotHost.StartAsync();
             ILoggerFactory loggerFactory = oneShotHost.Services.GetRequiredService<ILoggerFactory>();
             ILogger logger = loggerFactory.CreateLogger("Rvt.Monitor.Job");
+
+            // SIGTERM reaches the job through this token: the console lifetime trips
+            // ApplicationStopping, which cancels the in-flight vendor calls instead of
+            // leaving them running until the container is killed.
+            IHostApplicationLifetime lifetime = oneShotHost.Services.GetRequiredService<IHostApplicationLifetime>();
             try
             {
                 return await MonitorJobTelemetry.ExecuteAsync(
@@ -59,7 +68,14 @@ public static class MonitorHost
                     jobName,
                     "one-shot",
                     logger,
-                    () => runJobAsync(jobName, oneShotHost.Services));
+                    () => runJobAsync(jobName, oneShotHost.Services, lifetime.ApplicationStopping));
+            }
+            catch (OperationCanceledException) when (lifetime.ApplicationStopping.IsCancellationRequested)
+            {
+                logger.LogWarning(
+                    "Monitor job {JobName} was stopped by host shutdown before it completed.",
+                    jobName);
+                return 1;
             }
             catch (Exception exception)
             {
@@ -88,7 +104,7 @@ public static class MonitorHost
 
             if (schedulerEnabled)
             {
-                apiBuilder.Services.AddMonitorQuartzScheduler<TDispatcher>(apiBuilder.Configuration, monitorName);
+                apiBuilder.Services.AddMonitorQuartzScheduler<TDispatcher>(apiBuilder.Configuration, monitorName, supportedJobNames);
             }
 
             WebApplication app = apiBuilder.Build();
@@ -107,7 +123,7 @@ public static class MonitorHost
                     services.AddSingleton<IMonitorRuntimeDefaultsResolver>(new MonitorRuntimeDefaultsResolver(monitorName));
                     services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.QuartzScheduler));
                     configureServices?.Invoke(services, context.Configuration);
-                    services.AddMonitorQuartzScheduler<TDispatcher>(context.Configuration, monitorName);
+                    services.AddMonitorQuartzScheduler<TDispatcher>(context.Configuration, monitorName, supportedJobNames);
                 })
                 .ConfigureLogging((context, logging) =>
                 {

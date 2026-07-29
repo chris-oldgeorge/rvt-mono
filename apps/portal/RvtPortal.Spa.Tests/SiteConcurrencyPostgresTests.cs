@@ -288,9 +288,7 @@ public sealed class SiteConcurrencyPostgresTests
         {
             NpgsqlConnection connection = new(ConnectionString());
             await connection.OpenAsync();
-            DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-                .UseNpgsql(connection)
-                .Options;
+            DbContextOptions<RVTDbContext> options = TestDbContexts.Npgsql<RVTDbContext>(connection);
             return new OwnedNpgsqlDomainContext(options, connection);
         }
 
@@ -314,9 +312,7 @@ public sealed class SiteConcurrencyPostgresTests
             await using NpgsqlConnection connection = new(
                 ConnectionString());
             await connection.OpenAsync();
-            DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-                .UseNpgsql(connection)
-                .Options;
+            DbContextOptions<RVTDbContext> options = TestDbContexts.Npgsql<RVTDbContext>(connection);
             await using RVTDbContext context = new(options);
             await using IDbContextTransaction transaction =
                 await context.Database.BeginTransactionAsync();

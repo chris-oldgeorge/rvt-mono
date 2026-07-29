@@ -56,7 +56,7 @@ public sealed class SiteUserAssignmentModel : UserListModel
 
 public sealed class UserAdministrationReadService : IUserAdministrationReadService
 {
-    private static readonly string[] roleOrder =
+    private static readonly string[] _roleOrder =
     [
         RoleNames.RVTMasterAdmin,
         RoleNames.RVTAdmin,
@@ -64,14 +64,14 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         RoleNames.CompanyUser
     ];
 
-    private readonly ApplicationDbContext _applicationContext;
-    private readonly RVTDbContext _domainContext;
+    private readonly ApplicationDbContext applicationContext;
+    private readonly RVTDbContext domainContext;
 
     // Function summary: Initializes this read service with Identity and domain contexts.
     public UserAdministrationReadService(ApplicationDbContext applicationContext, RVTDbContext domainContext)
     {
-        _applicationContext = applicationContext;
-        _domainContext = domainContext;
+        this.applicationContext = applicationContext;
+        this.domainContext = domainContext;
     }
 
     // Function summary: Returns role and company options visible to the current admin actor.
@@ -92,7 +92,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        ApplicationUser? user = await _applicationContext.Users
+        ApplicationUser? user = await applicationContext.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (user is null)
@@ -134,7 +134,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        Site? site = await _domainContext.Sites
+        Site? site = await domainContext.Sites
             .AsNoTracking()
             .Include(item => item.Contracts)
             .SingleOrDefaultAsync(item => item.Id == siteId, cancellationToken);
@@ -145,12 +145,12 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
 
         Guid? companyId = site.Contracts?.Select(contract => contract.CompanyId).FirstOrDefault();
         Dictionary<Guid, string> companies = await LoadCompaniesAsync(cancellationToken);
-        List<SiteUsers> assigned = await _domainContext.SiteUsers
+        List<SiteUsers> assigned = await domainContext.SiteUsers
             .AsNoTracking()
             .Where(siteUser => siteUser.SiteId == siteId)
             .ToListAsync(cancellationToken);
         HashSet<string> assignedUserIds = assigned.Select(item => item.UserId.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        IQueryable<ApplicationUser> candidates = _applicationContext.Users.AsNoTracking();
+        IQueryable<ApplicationUser> candidates = applicationContext.Users.AsNoTracking();
         if (companyId.HasValue)
         {
             candidates = candidates.Where(user => user.CompanyId == companyId.Value);
@@ -249,11 +249,11 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        List<string?> configuredRoles = await _applicationContext.Roles
+        List<string?> configuredRoles = await applicationContext.Roles
             .AsNoTracking()
             .Select(role => role.Name)
             .ToListAsync(cancellationToken);
-        return [.. roleOrder
+        return [.. _roleOrder
             .Where(role => configuredRoles.Contains(role))
             .Where(role => CanAssignRole(role, actor))
             .Select(role => new UserOptionModel { Value = role, Label = role })];
@@ -262,7 +262,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
     // Function summary: Builds company options for user edit forms.
     private async Task<List<UserOptionModel>> BuildCompanyOptionsAsync(CancellationToken cancellationToken)
     {
-        return await _domainContext.Companies
+        return await domainContext.Companies
             .AsNoTracking()
             .OrderBy(company => company.CompanyName)
             .Select(company => new UserOptionModel { Value = company.Id.ToString(), Label = company.CompanyName })
@@ -272,7 +272,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
     // Function summary: Loads company names keyed by company id.
     private async Task<Dictionary<Guid, string>> LoadCompaniesAsync(CancellationToken cancellationToken)
     {
-        return await _domainContext.Companies
+        return await domainContext.Companies
             .AsNoTracking()
             .ToDictionaryAsync(company => company.Id, company => company.CompanyName, cancellationToken);
     }
@@ -289,8 +289,8 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
         }
 
         var roles = await (
-            from userRole in _applicationContext.UserRoles.AsNoTracking()
-            join role in _applicationContext.Roles.AsNoTracking() on userRole.RoleId equals role.Id
+            from userRole in applicationContext.UserRoles.AsNoTracking()
+            join role in applicationContext.Roles.AsNoTracking() on userRole.RoleId equals role.Id
             where ids.Contains(userRole.UserId)
             select new { userRole.UserId, Role = role.Name ?? "" })
             .ToListAsync(cancellationToken);
@@ -311,7 +311,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
             .Select(id => id!.Value)];
         return parsedIds.Count == 0
             ? []
-            : await _domainContext.SiteUsers
+            : await domainContext.SiteUsers
                 .AsNoTracking()
                 .Where(siteUser => parsedIds.Contains(siteUser.UserId))
                 .GroupBy(siteUser => siteUser.UserId)

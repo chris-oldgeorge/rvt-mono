@@ -2,9 +2,11 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
-    <RootNamespace>AirQ</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- RVT0001: this module still consumes the legacy IMessageService path;
+         retired by legacy-retirement steps 4-5, which also delete this NoWarn. -->
+    <NoWarn>$(NoWarn);RVT0001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="AirQMonitorTests" />

@@ -8,11 +8,12 @@ using RVT.DataAccess.Context;
 using RVT.Entities;
 using RVT.Entities.Querying;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class QueryValidationTests
 {
-    private static readonly OrderByProperty[] byName =
+    private static readonly OrderByProperty[] _byName =
     [
         new() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "CompanyName" }
     ];
@@ -26,7 +27,7 @@ public sealed class QueryValidationTests
 
         QueryValidationException error = await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
             [new SingleFilter { Operation = Op.Equals, PropertyName = "NotAField", Value = "x" }],
-            byName,
+            _byName,
             maximumRecords: 10,
             new Paging { Paged = false },
             CancellationToken.None));
@@ -47,7 +48,7 @@ public sealed class QueryValidationTests
         // The whole point: an entirely invalid filter used to build "WHERE true" and hand back the table.
         await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
             [new SingleFilter { Operation = Op.Equals, PropertyName = "Nonsense", Value = "x" }],
-            byName,
+            _byName,
             maximumRecords: 10,
             new Paging { Paged = false },
             CancellationToken.None));
@@ -82,7 +83,7 @@ public sealed class QueryValidationTests
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
-            byName,
+            _byName,
             maximumRecords: 10,
             new Paging { Paged = false },
             CancellationToken.None);
@@ -93,9 +94,7 @@ public sealed class QueryValidationTests
     // Function summary: Creates an isolated in-memory domain context for query-builder tests.
     private static RVTDbContext CreateContext()
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.InMemory<RVTDbContext>();
 
         return new RVTDbContext(options);
     }

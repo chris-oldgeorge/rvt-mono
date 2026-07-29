@@ -36,7 +36,7 @@ public class ContractSiteOperationsTests
     // carry no times, and DayName is derived server-side from DayOfWeek (1 = Monday .. 7 = Sunday).
     private sealed record DaySchedule(int DayOfWeek, string DayName, string? StartTime, string? EndTime, bool IsClosed);
 
-    private static readonly DaySchedule[] siteWeeklyHours =
+    private static readonly DaySchedule[] _siteWeeklyHours =
     [
         new(DayOfWeek: 1, DayName: "Monday",    StartTime: "07:00", EndTime: "17:00", IsClosed: false),
         new(DayOfWeek: 2, DayName: "Tuesday",   StartTime: "08:00", EndTime: "18:00", IsClosed: false),
@@ -99,10 +99,7 @@ public class ContractSiteOperationsTests
     public async Task CreateContractCommand_PersistsCalendarDateAgainstRealPostgres()
     {
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseNpgsql(connectionString)
-            .AddInterceptors(UtcTimestampGuardInterceptor.Instance)
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.Npgsql<RVTDbContext>(connectionString, UtcTimestampGuardInterceptor.Instance);
         await using RVTDbContext context = new(options);
         await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync();
         Company company = new() { Id = Guid.NewGuid(), CompanyName = "T5 Contract Date Company" };
@@ -213,9 +210,7 @@ public class ContractSiteOperationsTests
     // Function summary: Builds the PostgreSQL model without opening a connection so timestamp guards see actual provider types.
     private static RVTDbContext NpgsqlDomainContext()
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.ModelOnlyNpgsql<RVTDbContext>();
         return new RVTDbContext(options);
     }
     [Fact]
@@ -263,7 +258,7 @@ public class ContractSiteOperationsTests
             EndTime = openTime
         });
 
-        // A valid site persists the full weekly schedule declared in SiteWeeklyHours.
+        // A valid site persists the full weekly schedule declared in _siteWeeklyHours.
         HttpResponseMessage create = await client.PostAsJsonAsync("/api/sites", new SiteMutationRequest
         {
             SiteName = siteName,
@@ -271,7 +266,7 @@ public class ContractSiteOperationsTests
             ContractId = contractId,
             AddressLine1 = "Unit 1",
             City = "Athens",
-            OperatingHours = [.. siteWeeklyHours
+            OperatingHours = [.. _siteWeeklyHours
                 .Select(day => new SiteOperatingHoursMutationRequest
                 {
                     DayOfWeek = day.DayOfWeek,
@@ -301,7 +296,7 @@ public class ContractSiteOperationsTests
         Assert.Contains(created.Item.ContractList, contract => contract.Id == contractId);
         // The submitted schedule round-trips verbatim, including named days and closed days.
         Assert.Equal(
-            siteWeeklyHours,
+            _siteWeeklyHours,
             created.Item.OperatingHours
                 .OrderBy(hours => hours.DayOfWeek)
                 .Select(hours => new DaySchedule(hours.DayOfWeek, hours.DayName, hours.StartTime, hours.EndTime, hours.IsClosed)));

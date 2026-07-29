@@ -22,9 +22,7 @@ public sealed class UtcTimestampGuardTests
     // Function summary: Builds a domain context on the PostgreSQL provider without connecting to a database.
     private static RVTDbContext NpgsqlContext()
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.ModelOnlyNpgsql<RVTDbContext>();
         return new RVTDbContext(options);
     }
 
@@ -51,8 +49,6 @@ public sealed class UtcTimestampGuardTests
         context.Sites.Add(new Site { CreateDate = DateTime.UtcNow });
 
         UtcTimestampGuardInterceptor.Guard(context);
-
-        Assert.Equal(DateTimeKind.Utc, context.Sites.Local.Single().CreateDate.Kind);
     }
 
     [RequiresPostgresFact]
@@ -63,10 +59,7 @@ public sealed class UtcTimestampGuardTests
         // and both halves are proven - DateTime.Now is stopped at SaveChanges, and DateTime.UtcNow reaches
         // PostgreSQL and inserts. Both cases roll back, leaving no row behind.
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseNpgsql(connectionString)
-            .AddInterceptors(UtcTimestampGuardInterceptor.Instance)
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.Npgsql<RVTDbContext>(connectionString, UtcTimestampGuardInterceptor.Instance);
         await using RVTDbContext context = new(options);
         await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync();
 

@@ -23,7 +23,7 @@ public sealed class TestRules
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         DateTime sampleTime = new(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(sampleTime.AddMinutes(-1), singleItem: true).Single();
         RvtAlertRuleDto rule = CreateRule(monitor, isActive: false);
@@ -43,7 +43,7 @@ public sealed class TestRules
         dbClient.Setup(client => client.ReadAlertContacts(monitor.Id)).Returns(contacts);
         dbClient.Setup(client => client.CommitDustImportAsync(It.IsAny<MyAtmDustImportCommit>(), It.IsAny<CancellationToken>()))
             .Callback<MyAtmDustImportCommit, CancellationToken>((value, _) => commit = value)
-            .ReturnsAsync(new DustImportCommitResult([]));
+            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
         dbClient.Setup(client => client.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
@@ -77,7 +77,7 @@ public sealed class TestRules
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         DateTime sampleTime = new(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(sampleTime.AddMinutes(-1), singleItem: true).Single();
         RvtAlertRuleDto rule = CreateRule(monitor, isActive: true, isDeleted: true);
@@ -92,7 +92,7 @@ public sealed class TestRules
         dbClient.Setup(client => client.ReadRules(monitor.SerialId, Period.Minutes1)).Returns([rule]);
         dbClient.Setup(client => client.CommitDustImportAsync(It.IsAny<MyAtmDustImportCommit>(), It.IsAny<CancellationToken>()))
             .Callback<MyAtmDustImportCommit, CancellationToken>((value, _) => commit = value)
-            .ReturnsAsync(new DustImportCommitResult([]));
+            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
         dbClient.Setup(client => client.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
@@ -125,5 +125,5 @@ public sealed class TestRules
             DateTime.UnixEpoch,
             null);
 
-    public TestContext TestContext { get; set; } = null!;
+    public TestContext TestContext { get; set; }
 }

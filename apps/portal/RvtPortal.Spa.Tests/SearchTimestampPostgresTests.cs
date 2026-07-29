@@ -22,7 +22,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class SearchTimestampPostgresTests
 {
-    private static readonly IReadOnlyDictionary<string, string> approvedSampleTimeStoreTypes =
+    private static readonly IReadOnlyDictionary<string, string> _approvedSampleTimeStoreTypes =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["MyAtmDustLevel"] = "timestamp without time zone",
@@ -43,9 +43,7 @@ public sealed class SearchTimestampPostgresTests
     // Function summary: Enumerates every search SampleTime property and compares its PostgreSQL store type to the approved table.
     public void SearchModel_SampleTimeMappings_MatchApprovedPostgresContract()
     {
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-            .Options;
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.ModelOnlyNpgsql<RVTSearchContext>();
         using RVTSearchContext context = new(options);
 
         Dictionary<string, string> actual = context.Model.GetEntityTypes()
@@ -56,16 +54,14 @@ public sealed class SearchTimestampPostgresTests
                 item => item.Property!.GetColumnType(),
                 StringComparer.Ordinal);
 
-        Assert.Equal(approvedSampleTimeStoreTypes, actual);
+        Assert.Equal(_approvedSampleTimeStoreTypes, actual);
     }
 
     [Fact]
     // Function summary: Verifies both trace-index bounds use the PostgreSQL UTC-naive timestamp contract in runtime and snapshot metadata.
     public void SearchModel_TraceIndexTimeMappings_MatchApprovedPostgresContract()
     {
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-            .Options;
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.ModelOnlyNpgsql<RVTSearchContext>();
         using RVTSearchContext context = new(options);
         IEntityType? entity = context.Model.FindEntityType(typeof(OmnidotsTracesIndex));
         Assert.NotNull(entity);
@@ -93,9 +89,7 @@ public sealed class SearchTimestampPostgresTests
     // Function summary: Verifies the EF view metadata and checked-in PostgreSQL definitions agree on UTC-naive aggregate timestamps.
     public void SearchModel_AggregateViewMappings_MatchCheckedInPostgresDefinitions()
     {
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-            .Options;
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.ModelOnlyNpgsql<RVTSearchContext>();
         using RVTSearchContext context = new(options);
         string sql = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
@@ -163,7 +157,7 @@ public sealed class SearchTimestampPostgresTests
             "Search",
             "RVTSearchContextModelSnapshot.cs"));
 
-        foreach ((string entityName, string storeType) in approvedSampleTimeStoreTypes)
+        foreach ((string? entityName, string? storeType) in _approvedSampleTimeStoreTypes)
         {
             string entityBlock = ExtractSnapshotEntityBlock(snapshot, entityName);
             Assert.Matches(
@@ -191,9 +185,7 @@ public sealed class SearchTimestampPostgresTests
             ["omnidots_peak_level_1_day_peak"] = "date"
         };
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql(connectionString)
-            .Options;
+        DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Npgsql<RVTSearchContext>(connectionString);
         await using RVTSearchContext context = new(searchOptions);
         DbConnection connection = context.Database.GetDbConnection();
         await connection.OpenAsync();
@@ -239,9 +231,7 @@ public sealed class SearchTimestampPostgresTests
     public async Task DustTelemetry_UtcBounds_QuerySuccessfullyAndReturnUtcJson()
     {
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql(connectionString)
-            .Options;
+        DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Npgsql<RVTSearchContext>(connectionString);
         await using RVTSearchContext searchContext = new(searchOptions);
         await using IDbContextTransaction transaction = await searchContext.Database.BeginTransactionAsync();
         string serialId = $"T5{Guid.NewGuid():N}"[..22];
@@ -318,9 +308,7 @@ public sealed class SearchTimestampPostgresTests
     public async Task TraceIndexes_UtcBounds_QuerySuccessfullyAndReturnUtcJson()
     {
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql(connectionString)
-            .Options;
+        DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Npgsql<RVTSearchContext>(connectionString);
         await using RVTSearchContext searchContext = new(searchOptions);
         await using IDbContextTransaction transaction = await searchContext.Database.BeginTransactionAsync();
         Guid traceId = Guid.NewGuid();
@@ -405,9 +393,7 @@ public sealed class SearchTimestampPostgresTests
     // Function summary: Creates an isolated domain model that supplies deployment visibility to the API application service.
     private static RVTDbContext CreateDomainContext(Deployment deployment)
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseInMemoryDatabase($"timestamp-contract-{Guid.NewGuid():N}")
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.InMemory<RVTDbContext>($"timestamp-contract-{Guid.NewGuid():N}");
         RVTDbContext context = new(options);
         context.Deployments.Add(deployment);
         context.SaveChanges();
@@ -448,19 +434,19 @@ public sealed class SearchTimestampPostgresTests
 
     private sealed class PostgresDustDataSource : IMonitorDataSource
     {
-        private readonly IMonitorService _monitorService;
-        private readonly RVT.Entities.Monitor _monitor;
+        private readonly IMonitorService monitorService;
+        private readonly RVT.Entities.Monitor monitor;
 
         public PostgresDustDataSource(IMonitorService monitorService, RVT.Entities.Monitor monitor)
         {
-            _monitorService = monitorService;
-            _monitor = monitor;
+            this.monitorService = monitorService;
+            this.monitor = monitor;
         }
 
         public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request)
         {
-            SearchQueryResult<MyAtmDustLevel> levels = await _monitorService.GetMyAtmDustLevels(
-                _monitor.SerialId,
+            SearchQueryResult<MyAtmDustLevel> levels = await monitorService.GetMyAtmDustLevels(
+                monitor.SerialId,
                 request.FromDate!.Value,
                 request.ToDate!.Value,
                 60,
@@ -470,7 +456,7 @@ public sealed class SearchTimestampPostgresTests
                 request.SortDir);
             return new MonitorData
             {
-                Monitor = _monitor,
+                Monitor = monitor,
                 MinDate = request.FromDate.Value,
                 MaxDate = request.ToDate.Value,
                 FromDate = request.FromDate.Value,
@@ -496,22 +482,22 @@ public sealed class SearchTimestampPostgresTests
 
     private sealed class PostgresTraceDataSource : IMonitorDataSource
     {
-        private readonly MonitorDataSource _inner;
-        private readonly RVT.Entities.Monitor _monitor;
+        private readonly MonitorDataSource inner;
+        private readonly RVT.Entities.Monitor monitor;
 
         public PostgresTraceDataSource(MonitorDataSource inner, RVT.Entities.Monitor monitor)
         {
-            _inner = inner;
-            _monitor = monitor;
+            this.inner = inner;
+            this.monitor = monitor;
         }
 
         public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request)
         {
-            OmnidotsTracesIndex? index = await _inner.GetTraceIndexAsync(request.TraceId!.Value);
+            OmnidotsTracesIndex? index = await inner.GetTraceIndexAsync(request.TraceId!.Value);
             Assert.NotNull(index);
             return new MonitorData
             {
-                Monitor = _monitor,
+                Monitor = monitor,
                 FromDate = index.StartTime,
                 ToDate = index.EndTime,
                 VibrationTraces = new SearchQueryResult<OmnidotsTrace>(true, string.Empty, [], 0, string.Empty)
@@ -523,12 +509,12 @@ public sealed class SearchTimestampPostgresTests
             DateTime fromDate,
             DateTime toDate)
         {
-            return _inner.GetTraceIndexesAsync(serialId, fromDate, toDate);
+            return inner.GetTraceIndexesAsync(serialId, fromDate, toDate);
         }
 
         public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
         {
-            return _inner.GetTraceIndexAsync(traceId);
+            return inner.GetTraceIndexAsync(traceId);
         }
     }
 }

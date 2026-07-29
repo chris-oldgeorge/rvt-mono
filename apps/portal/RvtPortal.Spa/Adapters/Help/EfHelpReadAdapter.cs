@@ -34,7 +34,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
             .ThenBy(article => article.Section!.Title)
             .ThenBy(article => article.SortOrder)
             .ThenBy(article => article.Title)
-            .Select(articleSummaryProjection)
+            .Select(_articleSummaryProjection)
             .ToListAsync(cancellationToken);
         List<Guid> sectionIds = [.. articles
             .Select(article => article.SectionId)
@@ -69,7 +69,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
                 article.IsPublished &&
                 article.Section != null &&
                 article.Section.IsPublished)
-            .Select(articleProjection)
+            .Select(_articleProjection)
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -120,7 +120,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
             .ThenBy(article => article.Section == null ? "" : article.Section.Title)
             .ThenBy(article => article.SortOrder)
             .ThenBy(article => article.Title)
-            .Select(articleProjection)
+            .Select(_articleProjection)
             .ToListAsync(cancellationToken);
 
         IQueryable<HelpArticle> sectionArticleQuery = ApplySearch(
@@ -130,7 +130,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
         List<HelpArticleSummaryRow> sectionArticles = await sectionArticleQuery
             .OrderBy(article => article.SortOrder)
             .ThenBy(article => article.Title)
-            .Select(articleSummaryProjection)
+            .Select(_articleSummaryProjection)
             .ToListAsync(cancellationToken);
         List<HelpSectionRow> sections = await domainContext.HelpSections
             .AsNoTracking()
@@ -160,7 +160,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
         return await domainContext.HelpArticles
             .AsNoTracking()
             .Where(article => article.Id == articleId)
-            .Select(articleProjection)
+            .Select(_articleProjection)
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -280,7 +280,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
     }
 
     private static readonly Expression<Func<HelpArticle, HelpArticleSummaryRow>>
-        articleSummaryProjection =
+        _articleSummaryProjection =
             article => new HelpArticleSummaryRow(
                 article.SectionId,
                 new HelpArticleSummaryModel
@@ -297,7 +297,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
                 });
 
     private static readonly Expression<Func<HelpArticle, HelpArticleModel>>
-        articleProjection =
+        _articleProjection =
             article => new HelpArticleModel
             {
                 Id = article.Id,

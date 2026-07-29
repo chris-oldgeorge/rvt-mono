@@ -7,8 +7,6 @@ temp_dir="$(cd "$temp_dir" && pwd -P)"
 nuget_config="$temp_dir/NuGet.Config"
 export NUGET_PACKAGES="$temp_dir/nuget-packages"
 export NUGET_HTTP_CACHE_PATH="$temp_dir/nuget-http-cache"
-npm_ci_command='npm ci --ignore-scripts'
-docker_npm_ci_command='RUN npm ci --ignore-scripts'
 
 cat > "$nuget_config" <<'EOF'
 <?xml version="1.0" encoding="utf-8"?>
@@ -173,7 +171,7 @@ target_contents() {
 has_hardened_msbuild_npm_install() {
   local project="$1"
   local target_name="$2"
-  local expected_command='    <Exec Command="cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci --ignore-scripts &amp;&amp; popd&quot;" />'
+  local expected_command='    <Exec Command="npm ci --ignore-scripts" WorkingDirectory="$(SpaRoot)" />'
   local contents
   local npm_ci_count
 
@@ -211,7 +209,7 @@ assert_second_msbuild_npm_install_rejected() {
   awk '
     /<Target Name="DebugEnsureNodeEnv"/ { in_target = 1 }
     in_target && /<\/Target>/ {
-      print "    <Exec Command=\"cmd.exe /c &quot;pushd $(SpaRoot) &amp;&amp; npm ci --ignore-scripts &amp;&amp; popd&quot;\" />"
+      print "    <Exec Command=\"npm ci --ignore-scripts\" WorkingDirectory=\"$(SpaRoot)\" />"
       in_target = 0
     }
     { print }
@@ -301,24 +299,24 @@ assert_portal_runtime_user_post_runtime_root_mutation_rejected
 has_portal_container_inspection_user "$portal_frontend_container_verifier" || fail "Portal frontend container verifier must require Config.User 101:101"
 assert_portal_container_inspection_user_mutation_rejected
 
-assert_hardened_npm_install "$portal_frontend_verifier" "$npm_ci_command" "Portal frontend verifier"
-assert_hardened_npm_install "$portal_client_dockerfile" "$docker_npm_ci_command" "Portal client Dockerfile"
-assert_npm_install_mutation_rejected "$portal_frontend_verifier" "$npm_ci_command" 'npm ci # comment' "frontend verifier inline-comment bare install"
-assert_npm_install_mutation_rejected "$portal_frontend_verifier" "$npm_ci_command" 'npm ci ' "frontend verifier whitespace bare install"
-assert_npm_install_mutation_rejected "$portal_frontend_verifier" "$npm_ci_command" 'command npm ci' "frontend verifier command-wrapped bare install"
-assert_npm_install_mutation_rejected "$portal_frontend_verifier" "$npm_ci_command" 'env CI=true npm ci' "frontend verifier env-wrapped bare install"
-assert_npm_install_mutation_rejected "$portal_frontend_verifier" "$npm_ci_command" 'CI=true npm ci' "frontend verifier assignment-prefixed bare install"
-assert_npm_install_mutation_rejected "$portal_frontend_verifier" "$npm_ci_command" 'command env CI=true npm ci' "frontend verifier nested-wrapper bare install"
-assert_npm_install_mutation_rejected "$portal_frontend_verifier" "$npm_ci_command" "sh -c 'npm ci'" "frontend verifier single-quoted shell bare install"
-assert_npm_install_mutation_rejected "$portal_frontend_verifier" "$npm_ci_command" 'bash -c "npm ci"' "frontend verifier double-quoted shell bare install"
-assert_npm_install_mutation_rejected "$portal_client_dockerfile" "$docker_npm_ci_command" 'RUN npm ci # comment' "Dockerfile inline-comment bare install"
-assert_npm_install_mutation_rejected "$portal_client_dockerfile" "$docker_npm_ci_command" 'RUN npm ci ' "Dockerfile whitespace bare install"
-assert_npm_install_mutation_rejected "$portal_client_dockerfile" "$docker_npm_ci_command" 'RUN command npm ci' "Dockerfile command-wrapped bare install"
-assert_npm_install_mutation_rejected "$portal_client_dockerfile" "$docker_npm_ci_command" 'RUN env CI=true npm ci' "Dockerfile env-wrapped bare install"
-assert_npm_install_mutation_rejected "$portal_client_dockerfile" "$docker_npm_ci_command" 'RUN CI=true npm ci' "Dockerfile assignment-prefixed bare install"
-assert_npm_install_mutation_rejected "$portal_client_dockerfile" "$docker_npm_ci_command" 'RUN command env CI=true npm ci' "Dockerfile nested-wrapper bare install"
-assert_npm_install_mutation_rejected "$portal_client_dockerfile" "$docker_npm_ci_command" "RUN sh -c 'npm ci'" "Dockerfile single-quoted shell bare install"
-assert_npm_install_mutation_rejected "$portal_client_dockerfile" "$docker_npm_ci_command" 'RUN bash -c "npm ci"' "Dockerfile double-quoted shell bare install"
+assert_hardened_npm_install "$portal_frontend_verifier" 'npm ci --ignore-scripts' "Portal frontend verifier"
+assert_hardened_npm_install "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' "Portal client Dockerfile"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'npm ci # comment' "frontend verifier inline-comment bare install"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'npm ci ' "frontend verifier whitespace bare install"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'command npm ci' "frontend verifier command-wrapped bare install"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'env CI=true npm ci' "frontend verifier env-wrapped bare install"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'CI=true npm ci' "frontend verifier assignment-prefixed bare install"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'command env CI=true npm ci' "frontend verifier nested-wrapper bare install"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' "sh -c 'npm ci'" "frontend verifier single-quoted shell bare install"
+assert_npm_install_mutation_rejected "$portal_frontend_verifier" 'npm ci --ignore-scripts' 'bash -c "npm ci"' "frontend verifier double-quoted shell bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN npm ci # comment' "Dockerfile inline-comment bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN npm ci ' "Dockerfile whitespace bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN command npm ci' "Dockerfile command-wrapped bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN env CI=true npm ci' "Dockerfile env-wrapped bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN CI=true npm ci' "Dockerfile assignment-prefixed bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN command env CI=true npm ci' "Dockerfile nested-wrapper bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' "RUN sh -c 'npm ci'" "Dockerfile single-quoted shell bare install"
+assert_npm_install_mutation_rejected "$portal_client_dockerfile" 'RUN npm ci --ignore-scripts' 'RUN bash -c "npm ci"' "Dockerfile double-quoted shell bare install"
 
 assert_hardened_msbuild_npm_installs "$portal_spa_project"
 assert_msbuild_npm_install_mutation_rejected "$portal_spa_project" 'npm ci --ignore-scripts --no-audit' "MSBuild arbitrary npm ci option"

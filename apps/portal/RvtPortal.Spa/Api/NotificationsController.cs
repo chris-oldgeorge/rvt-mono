@@ -149,13 +149,8 @@ public class NotificationsController : ControllerBase
     }
 
     // Function summary: Handles invalid sort requests for notification lists.
-    private ObjectResult InvalidSort(string sort, IEnumerable<string> validSorts)
-    {
-        return Problem(
-            detail: $"Sort '{sort}' is not supported. Use one of: {string.Join(", ", validSorts)}.",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Invalid sort field");
-    }
+    private BadRequestObjectResult InvalidSort(string sort, IEnumerable<string> validSorts) =>
+        ApiProblems.InvalidSort(HttpContext, sort, validSorts, "notifications");
 
     // Function summary: Builds the not-found response used for hidden or missing notifications.
     private NotFoundObjectResult NotificationNotFound(Guid id)

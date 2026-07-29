@@ -23,7 +23,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { SubmitEvent } from 'react';
+import type { FormEvent } from 'react';
 import {
   createCompany,
   createUser,
@@ -47,6 +47,7 @@ import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
 import { ConfirmDialog, FormField, Notice, SubmitButton } from '../components/FormControls';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
+import { normalizeSortDirection, parsePositiveInt } from '../gridQuery';
 import type {
   CompanyDetailResponse,
   CompanyListItem,
@@ -475,7 +476,7 @@ function CompanyFormPanel({
       });
   }, [companyId, onRequestError]);
 
-  async function handleSubmit(event: SubmitEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -918,7 +919,7 @@ function UserFormPanel({
     });
   }, [onRequestError, userId]);
 
-  async function handleSubmit(event: SubmitEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setStatus(null);
@@ -1080,12 +1081,6 @@ function parseUsersMode(locationPath: string) {
   return { kind: 'list' as const };
 }
 
-// Function summary: Handles the parse positive int workflow for this module.
-function parsePositiveInt(value: string | null, fallback: number) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 // Function summary: Evaluates whether a user role requires a company assignment.
 function roleRequiresCompany(role?: string | null) {
   return role === companyUserRole || role === installerRole;
@@ -1103,11 +1098,6 @@ function userStatusLabel(
     return 'Active';
   }
   return pendingLabel;
-}
-
-// Function summary: Handles the normalize sort direction workflow for this module.
-function normalizeSortDirection(value: string | null): SortDirection {
-  return value?.toLowerCase() === 'descending' || value?.toLowerCase() === 'desc' ? 'Descending' : 'Ascending';
 }
 
 // Function summary: Builds companies url data for callers.

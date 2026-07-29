@@ -10,21 +10,21 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class MonitorOwnershipWindowTests
 {
-    private static readonly DateTime anchor = new(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _anchor = new(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
 
     public static TheoryData<string, DateTime, DateTime?, DateTime?, DateTime?> DeploymentShapes() =>
     new()
     {
-        { "open-ended, no contract", anchor.AddDays(-10), null, null, null },
-        { "closed, no contract", anchor.AddDays(-10), anchor.AddDays(-2), null, null },
-        { "contract starts later than deployment", anchor.AddDays(-10), null, anchor.AddDays(-5), null },
-        { "contract starts before deployment", anchor.AddDays(-10), null, anchor.AddDays(-30), null },
-        { "contract off-hire is a whole day", anchor.AddDays(-10), null, anchor.AddDays(-30), anchor.Date },
-        { "contract off-hire has a time", anchor.AddDays(-10), null, anchor.AddDays(-30), anchor.AddHours(-1) },
-        { "deployment ends before contract", anchor.AddDays(-10), anchor.AddDays(-3), anchor.AddDays(-30), anchor.AddDays(10) },
-        { "contract ends before deployment", anchor.AddDays(-10), anchor.AddDays(10), anchor.AddDays(-30), anchor.AddDays(-3) },
-        { "starts exactly at the timestamp", anchor, null, null, null },
-        { "ends exactly at the timestamp", anchor.AddDays(-10), anchor, null, null }
+        { "open-ended, no contract", _anchor.AddDays(-10), null, null, null },
+        { "closed, no contract", _anchor.AddDays(-10), _anchor.AddDays(-2), null, null },
+        { "contract starts later than deployment", _anchor.AddDays(-10), null, _anchor.AddDays(-5), null },
+        { "contract starts before deployment", _anchor.AddDays(-10), null, _anchor.AddDays(-30), null },
+        { "contract off-hire is a whole day", _anchor.AddDays(-10), null, _anchor.AddDays(-30), _anchor.Date },
+        { "contract off-hire has a time", _anchor.AddDays(-10), null, _anchor.AddDays(-30), _anchor.AddHours(-1) },
+        { "deployment ends before contract", _anchor.AddDays(-10), _anchor.AddDays(-3), _anchor.AddDays(-30), _anchor.AddDays(10) },
+        { "contract ends before deployment", _anchor.AddDays(-10), _anchor.AddDays(10), _anchor.AddDays(-30), _anchor.AddDays(-3) },
+        { "starts exactly at the timestamp", _anchor, null, null, null },
+        { "ends exactly at the timestamp", _anchor.AddDays(-10), _anchor, null, null }
     };
 
     [Theory]
@@ -41,11 +41,11 @@ public sealed class MonitorOwnershipWindowTests
             ? Contract(contractOnHire.Value, contractOffHire)
             : null;
         Deployment deployment = Deployment(deploymentStart, deploymentEnd, contract);
-        DateTime?[] caps = [null, anchor.AddDays(1), anchor.AddHours(-1)];
+        DateTime?[] caps = [null, _anchor.AddDays(1), _anchor.AddHours(-1)];
         DateTime[] timestamps =
         [
-            anchor.AddDays(-40), anchor.AddDays(-20), anchor.AddDays(-4), anchor.AddHours(-1),
-            anchor, anchor.AddHours(1), anchor.AddDays(4), anchor.AddDays(40)
+            _anchor.AddDays(-40), _anchor.AddDays(-20), _anchor.AddDays(-4), _anchor.AddHours(-1),
+            _anchor, _anchor.AddHours(1), _anchor.AddDays(4), _anchor.AddDays(40)
         ];
 
         foreach (DateTime? cap in caps)

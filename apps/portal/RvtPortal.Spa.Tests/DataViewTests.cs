@@ -25,6 +25,7 @@ using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Monitors;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public class DataViewTests
@@ -164,10 +165,7 @@ public class DataViewTests
         await using SqliteConnection connection = new("Data Source=:memory:");
         await connection.OpenAsync();
         TraceBoundCommandProbe probe = new();
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseSqlite(connection)
-            .AddInterceptors(probe)
-            .Options;
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.Sqlite<RVTSearchContext>(connection, probe);
         await using RVTSearchContext searchContext = new(options);
         await searchContext.Database.EnsureCreatedAsync();
         DateTime start = new(2026, 7, 1, 14, 30, 0, DateTimeKind.Unspecified);
@@ -197,9 +195,7 @@ public class DataViewTests
     // Function summary: Verifies trace-list data access rejects bounds that violate the UTC application contract.
     public async Task MonitorDataSource_TraceBounds_RejectNonUtcInputs(DateTimeKind kind)
     {
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseInMemoryDatabase($"trace-bound-kind-{Guid.NewGuid():N}")
-            .Options;
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.InMemory<RVTSearchContext>($"trace-bound-kind-{Guid.NewGuid():N}");
         await using RVTSearchContext searchContext = new(options);
         MonitorDataSource dataSource = new(null!, searchContext, null!);
         DateTime from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
@@ -340,9 +336,7 @@ public class DataViewTests
     {
         await using SqliteConnection connection = new("Data Source=:memory:");
         await connection.OpenAsync();
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseSqlite(connection)
-            .Options;
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.Sqlite<RVTSearchContext>(connection);
         await using RVTSearchContext searchContext = new(options);
         await searchContext.Database.EnsureCreatedAsync();
         Guid traceId = Guid.NewGuid();

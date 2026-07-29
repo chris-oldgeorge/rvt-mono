@@ -28,12 +28,12 @@ public interface IReportRuleRecipientReader
 
 public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
 {
-    private static readonly string[] adminRoleNames = [RoleNames.RVTMasterAdmin, RoleNames.RVTAdmin];
+    private static readonly string[] _adminRoleNames = [RoleNames.RVTMasterAdmin, RoleNames.RVTAdmin];
 
-    private readonly RVTSearchContext _searchContext;
-    private readonly RVTDbContext _domainContext;
-    private readonly UserManager<ApplicationUser> _userManager;
-    private readonly ApplicationDbContext _applicationContext;
+    private readonly RVTSearchContext searchContext;
+    private readonly RVTDbContext domainContext;
+    private readonly UserManager<ApplicationUser> userManager;
+    private readonly ApplicationDbContext applicationContext;
 
     // Function summary: Initializes the report-rule recipient reader.
     public ReportRuleRecipientReader(
@@ -42,10 +42,10 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
         UserManager<ApplicationUser> userManager,
         ApplicationDbContext applicationContext)
     {
-        _searchContext = searchContext;
-        _domainContext = domainContext;
-        _userManager = userManager;
-        _applicationContext = applicationContext;
+        this.searchContext = searchContext;
+        this.domainContext = domainContext;
+        this.userManager = userManager;
+        this.applicationContext = applicationContext;
     }
 
     // Function summary: Loads each user's roles in one join instead of a UserManager round trip per user.
@@ -58,11 +58,11 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             return [];
         }
 
-        var pairs = await _applicationContext.UserRoles
+        var pairs = await applicationContext.UserRoles
             .AsNoTracking()
             .Where(userRole => userIds.Contains(userRole.UserId))
             .Join(
-                _applicationContext.Roles.AsNoTracking(),
+                applicationContext.Roles.AsNoTracking(),
                 userRole => userRole.RoleId,
                 role => role.Id,
                 (userRole, role) => new { userRole.UserId, RoleName = role.Name })
@@ -79,7 +79,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
     // Function summary: Builds the report-rule assignment summary used by assignment screens.
     public async Task<ReportUserAssignmentResponse?> BuildAssignmentResponseAsync(Guid reportRuleId, CancellationToken cancellationToken)
     {
-        ReportRule? rule = await _searchContext.ReportRules
+        ReportRule? rule = await searchContext.ReportRules
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == reportRuleId && !item.Deleted, cancellationToken);
         if (rule == null)
@@ -87,7 +87,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             return null;
         }
 
-        Site? site = await _domainContext.Sites
+        Site? site = await domainContext.Sites
             .AsNoTracking()
             .Include(item => item.Contracts)
             .ThenInclude(contract => contract.Company)
@@ -100,7 +100,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
         Company? company = site.Contracts?
             .Select(contract => contract.Company)
             .FirstOrDefault(item => item != null);
-        List<ReportUser> assignments = await _searchContext.ReportUsers
+        List<ReportUser> assignments = await searchContext.ReportUsers
             .AsNoTracking()
             .Where(item => item.ReportRuleId == reportRuleId)
             .ToListAsync(cancellationToken);
@@ -170,7 +170,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
     // Function summary: Loads the site and company context required by report-recipient assignment queries.
     private async Task<ReportAssignmentContext?> LoadAssignmentContextAsync(Guid reportRuleId, CancellationToken cancellationToken)
     {
-        ReportRule? rule = await _searchContext.ReportRules
+        ReportRule? rule = await searchContext.ReportRules
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == reportRuleId && !item.Deleted, cancellationToken);
         if (rule == null)
@@ -178,7 +178,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             return null;
         }
 
-        Site? site = await _domainContext.Sites
+        Site? site = await domainContext.Sites
             .AsNoTracking()
             .Include(item => item.Contracts)
             .ThenInclude(contract => contract.Company)
@@ -197,7 +197,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
     // Function summary: Loads assigned report-recipient IDs as strings so Identity queries can filter without client-side user scans.
     private async Task<IReadOnlyList<string>> LoadAssignedUserIdsAsync(Guid reportRuleId, CancellationToken cancellationToken)
     {
-        List<Guid> assignedUserIds = await _searchContext.ReportUsers
+        List<Guid> assignedUserIds = await searchContext.ReportUsers
             .AsNoTracking()
             .Where(item => item.ReportRuleId == reportRuleId)
             .Select(item => item.UserId)
@@ -211,7 +211,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
         IReadOnlyCollection<string> assignedUserIds,
         CancellationToken cancellationToken)
     {
-        List<Guid> activeSiteUserIds = await _domainContext.SiteUsers
+        List<Guid> activeSiteUserIds = await domainContext.SiteUsers
             .AsNoTracking()
             .Where(siteUser => siteUser.SiteId == siteId && siteUser.EndDate == null)
             .Select(siteUser => siteUser.UserId)
@@ -228,7 +228,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
         IReadOnlyCollection<string> assignedUserIds,
         bool assigned)
     {
-        IQueryable<UserSearch> users = _searchContext.UserSearches.AsNoTracking();
+        IQueryable<UserSearch> users = searchContext.UserSearches.AsNoTracking();
         return assigned
             ? users.Where(user => assignedUserIds.Contains(user.Id))
             : users.Where(user =>
@@ -293,7 +293,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             .Select(id => id!.Value)];
         Dictionary<Guid, int> siteCounts = userIds.Count == 0
             ? []
-            : await _domainContext.SiteUsers
+            : await domainContext.SiteUsers
                 .AsNoTracking()
                 .Where(siteUser => userIds.Contains(siteUser.UserId) && siteUser.EndDate == null)
                 .GroupBy(siteUser => siteUser.UserId)
@@ -338,7 +338,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
         IReadOnlySet<Guid> assignedUserIds,
         CancellationToken cancellationToken)
     {
-        List<Guid> activeSiteUserIds = await _domainContext.SiteUsers
+        List<Guid> activeSiteUserIds = await domainContext.SiteUsers
             .AsNoTracking()
             .Where(siteUser => siteUser.SiteId == rule.SiteId && siteUser.EndDate == null)
             .Select(siteUser => siteUser.UserId)
@@ -348,10 +348,10 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
         // Candidates are the site-visible/assigned users plus every admin. Both sets are resolved in SQL, so
         // the whole users table is no longer materialized and no per-user role round trip is issued.
         List<string> visibleUserIdStrings = [.. visibleUserIds.Select(id => id.ToString())];
-        List<string> adminUserIds = await _applicationContext.UserRoles
+        List<string> adminUserIds = await applicationContext.UserRoles
             .AsNoTracking()
             .Join(
-                _applicationContext.Roles.AsNoTracking().Where(role => adminRoleNames.Contains(role.Name)),
+                applicationContext.Roles.AsNoTracking().Where(role => _adminRoleNames.Contains(role.Name)),
                 userRole => userRole.RoleId,
                 role => role.Id,
                 (userRole, _) => userRole.UserId)
@@ -366,7 +366,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             return [];
         }
 
-        List<ApplicationUser> candidates = await _userManager.Users
+        List<ApplicationUser> candidates = await userManager.Users
             .AsNoTracking()
             .Where(user => candidateIds.Contains(user.Id))
             .ToListAsync(cancellationToken);
@@ -384,7 +384,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             .Distinct()];
         Dictionary<Guid, string> companies = companyIds.Count == 0
             ? []
-            : await _domainContext.Companies
+            : await domainContext.Companies
                 .AsNoTracking()
                 .Where(company => companyIds.Contains(company.Id))
                 .ToDictionaryAsync(company => company.Id, company => company.CompanyName, cancellationToken);
@@ -394,7 +394,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             .Select(id => id!.Value)];
         Dictionary<Guid, int> siteCounts = userIds.Count == 0
             ? []
-            : await _domainContext.SiteUsers
+            : await domainContext.SiteUsers
                 .AsNoTracking()
                 .Where(siteUser => userIds.Contains(siteUser.UserId) && siteUser.EndDate == null)
                 .GroupBy(siteUser => siteUser.UserId)

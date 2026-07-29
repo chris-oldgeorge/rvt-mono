@@ -33,8 +33,8 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ReactNode, SubmitEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import {
   addUserToSite,
   archiveSite,
@@ -60,12 +60,13 @@ import {
   updateSiteNotificationSetting,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
-import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
+import type { DataGridColumn } from '../components/DataGrid';
 import { ConfirmDialog, FormField, Notice, SubmitButton } from '../components/FormControls';
 import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { notificationSettingDraft, withoutNotificationDraft } from './notificationDrafts';
 import type { NotificationDraftOverrides } from './notificationDrafts';
+import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
 import type {
   ContractDetailResponse,
   ContractListItem,
@@ -133,22 +134,6 @@ type NotificationSettingsPanelProps = Readonly<{
   onUpdated: (settings: SiteNotificationSettingsResponse) => void;
   onRequestError: (error: unknown) => void;
 }>;
-
-// Function summary: Applies grid sort handler to the current configuration.
-function useGridSortHandler(
-  setSortKey: (key: string) => void,
-  setSortDir: (direction: SortDirection) => void,
-  setPage: (page: number) => void,
-) {
-  return useCallback(
-    (key: string, direction: GridSortDirection) => {
-      setSortKey(key);
-      setSortDir(direction);
-      setPage(1);
-    },
-    [setPage, setSortDir, setSortKey],
-  );
-}
 
 // Function summary: Renders the ContractsPanel React component and wires its local UI behavior.
 export function ContractsPanel({ locationPath, onNavigate, onRequestError }: OperationsRouteProps) {
@@ -525,7 +510,7 @@ function ContractFormPanel({
       onRequestError(err);
     }
   }
-  async function handleSubmit(event: SubmitEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -1139,7 +1124,7 @@ function SiteFormPanel({
       ),
     }));
   }
-  async function handleSubmit(event: SubmitEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -1736,15 +1721,6 @@ function parseSitesMode(locationPath: string) {
     return { kind: 'detail' as const, siteId: detail[1] };
   }
   return { kind: 'list' as const };
-}
-// Function summary: Handles the parse positive int workflow for this module.
-function parsePositiveInt(value: string | null, fallback: number) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
-}
-// Function summary: Handles the normalize sort direction workflow for this module.
-function normalizeSortDirection(value: string | null): SortDirection {
-  return value?.toLowerCase() === 'descending' || value?.toLowerCase() === 'desc' ? 'Descending' : 'Ascending';
 }
 // Function summary: Builds contracts url data for callers.
 function buildContractsUrl(options: { searchText: string; page: number; sort: string; sortDir: SortDirection }) {

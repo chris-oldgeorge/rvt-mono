@@ -38,12 +38,10 @@ namespace RvtPortal.Spa.Api;
 [Route("api/monitors")]
 public class MonitorsController : ControllerBase
 {
-    private const string DefaultSort = "fleetNumber";
-
     // Function summary: Defines the public monitor sort aliases accepted by list endpoints.
-    private static readonly IReadOnlyDictionary<string, string> sortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, string> _sortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        [DefaultSort] = DefaultSort,
+        ["fleetNumber"] = "fleetNumber",
         ["serialId"] = "serialId",
         ["typeOfMonitor"] = "typeOfMonitor",
         ["siteName"] = "siteName",
@@ -53,9 +51,9 @@ public class MonitorsController : ControllerBase
     private const int MaxPictureBytes = 5 * 1024 * 1024;
     private const int MaxPictureRequestBytes = MaxPictureBytes + 32 * 1024;
 
-    private readonly IMonitorAdministrationReadService _monitorReads;
-    private readonly IMonitorAdministrationWorkflowService _monitorWorkflows;
-    private readonly ICurrentUserContextFactory _currentUsers;
+    private readonly IMonitorAdministrationReadService monitorReads;
+    private readonly IMonitorAdministrationWorkflowService monitorWorkflows;
+    private readonly ICurrentUserContextFactory currentUsers;
 
     // Function summary: Initializes this HTTP adapter with monitor read and workflow use cases.
     public MonitorsController(
@@ -63,9 +61,9 @@ public class MonitorsController : ControllerBase
         IMonitorAdministrationWorkflowService monitorWorkflows,
         ICurrentUserContextFactory currentUsers)
     {
-        _monitorReads = monitorReads;
-        _monitorWorkflows = monitorWorkflows;
-        _currentUsers = currentUsers;
+        this.monitorReads = monitorReads;
+        this.monitorWorkflows = monitorWorkflows;
+        this.currentUsers = currentUsers;
     }
 
     [HttpGet]
@@ -75,16 +73,16 @@ public class MonitorsController : ControllerBase
     // Function summary: Returns the paged monitor inventory visible to the current user.
     public async Task<ActionResult<QueryMonitorsResponse>> Query([FromQuery] QueryMonitorsRequest request)
     {
-        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? DefaultSort : request.Sort.Trim();
-        if (!sortFields.ContainsKey(requestedSort))
+        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "fleetNumber" : request.Sort.Trim();
+        if (!_sortFields.ContainsKey(requestedSort))
         {
-            return InvalidSort(requestedSort, sortFields.Keys);
+            return InvalidSort(requestedSort, _sortFields.Keys);
         }
 
         int page = request.GetNormalizedPage();
         int pageSize = request.GetNormalizedPageSize();
         string sortDir = request.GetNormalizedSortDir();
-        MonitorInventoryResult result = await _monitorReads.QueryAsync(new MonitorInventoryRequest(
+        MonitorInventoryResult result = await monitorReads.QueryAsync(new MonitorInventoryRequest(
             request.MonitorType,
             request.State,
             request.SearchText,
@@ -105,7 +103,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Returns monitor form and filter options.
     public async Task<ActionResult<MonitorOptionsResponse>> Options()
     {
-        MonitorOptionsModel options = await _monitorReads.OptionsAsync(await CreateActorAsync(), HttpContext.RequestAborted);
+        MonitorOptionsModel options = await monitorReads.OptionsAsync(await CreateActorAsync(), HttpContext.RequestAborted);
         return MonitorApiMapper.ToOptionsResponse(options);
     }
 
@@ -117,7 +115,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Returns context needed before assigning a monitor to a site contract.
     public async Task<ActionResult<MonitorAssignmentContextResponse>> Assignment([FromQuery, Required] Guid siteId, [FromQuery] Guid? contractId = null)
     {
-        MonitorAssignmentContextResult result = await _monitorReads.GetAssignmentContextAsync(siteId, contractId, await CreateActorAsync(), HttpContext.RequestAborted);
+        MonitorAssignmentContextResult result = await monitorReads.GetAssignmentContextAsync(siteId, contractId, await CreateActorAsync(), HttpContext.RequestAborted);
         switch (result.Status)
         {
             case MonitorAssignmentContextStatus.Found:
@@ -141,7 +139,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Retrieves authorized monitor detail through the monitor workflow service.
     public async Task<ActionResult<EntityResponse<MonitorDetailResponse>>> Get(Guid id)
     {
-        MonitorDetailResponse? detail = await _monitorWorkflows.GetDetailAsync(id, User, HttpContext.RequestAborted);
+        MonitorDetailResponse? detail = await monitorWorkflows.GetDetailAsync(id, User, HttpContext.RequestAborted);
         if (detail == null)
         {
             return MonitorNotFound(id);
@@ -156,7 +154,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Retrieves authorized deployment detail through the monitor workflow service.
     public async Task<ActionResult<EntityResponse<MonitorDetailResponse>>> GetDeployment(Guid deploymentId)
     {
-        MonitorDetailResponse? detail = await _monitorWorkflows.GetDeploymentDetailAsync(deploymentId, User, HttpContext.RequestAborted);
+        MonitorDetailResponse? detail = await monitorWorkflows.GetDeploymentDetailAsync(deploymentId, User, HttpContext.RequestAborted);
         if (detail == null)
         {
             return MonitorNotFound(deploymentId);
@@ -173,7 +171,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Updates monitor metadata through the monitor workflow service.
     public async Task<ActionResult<EntityResponse<MonitorDetailResponse>>> Update(Guid id, MonitorMutationRequest request)
     {
-        MonitorDetailWorkflowResult result = await _monitorWorkflows.UpdateAsync(id, request, User, HttpContext.RequestAborted);
+        MonitorDetailWorkflowResult result = await monitorWorkflows.UpdateAsync(id, request, User, HttpContext.RequestAborted);
         return MonitorDetailResult(id, result);
     }
 
@@ -186,7 +184,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Uploads a deployment location picture for the monitor detail workflow.
     public async Task<ActionResult<EntityResponse<MonitorDetailResponse>>> UploadPicture(Guid id, IFormFile picture)
     {
-        MonitorDetailWorkflowResult result = await _monitorWorkflows.UploadPictureAsync(id, new FormFileUpload(picture), HttpContext.RequestAborted);
+        MonitorDetailWorkflowResult result = await monitorWorkflows.UploadPictureAsync(id, new FormFileUpload(picture), HttpContext.RequestAborted);
         return MonitorDetailResult(id, result);
     }
 
@@ -196,7 +194,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Streams a monitor deployment picture after applying monitor read authorization.
     public async Task<IActionResult> GetPicture(Guid id)
     {
-        MonitorPictureModel? picture = await _monitorReads.GetPictureAsync(id, User, await CreateActorAsync(), HttpContext.RequestAborted);
+        MonitorPictureModel? picture = await monitorReads.GetPictureAsync(id, User, await CreateActorAsync(), HttpContext.RequestAborted);
         if (picture == null)
         {
             return MonitorNotFound(id);
@@ -213,7 +211,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Sets a monitor fleet number through the monitor workflow service.
     public async Task<ActionResult<EntityResponse<MonitorDetailResponse>>> SetFleetNumber(Guid id, FleetNumberMutationRequest request)
     {
-        MonitorDetailWorkflowResult result = await _monitorWorkflows.SetFleetNumberAsync(id, request.FleetNumber, User, HttpContext.RequestAborted);
+        MonitorDetailWorkflowResult result = await monitorWorkflows.SetFleetNumberAsync(id, request.FleetNumber, User, HttpContext.RequestAborted);
         return MonitorDetailResult(id, result);
     }
 
@@ -225,7 +223,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Assigns a monitor to a contract through the monitor workflow service.
     public async Task<ActionResult<EntityResponse<MonitorDetailResponse>>> AddToContract(Guid id, MonitorAssignmentRequest request)
     {
-        MonitorDetailWorkflowResult result = await _monitorWorkflows.AssignToContractAsync(id, request.ContractId, User, HttpContext.RequestAborted);
+        MonitorDetailWorkflowResult result = await monitorWorkflows.AssignToContractAsync(id, request.ContractId, User, HttpContext.RequestAborted);
         return MonitorDetailResult(id, result);
     }
 
@@ -236,7 +234,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Removes the active monitor contract assignment through the monitor workflow service.
     public async Task<ActionResult<MutationResponse>> RemoveFromContract(Guid id)
     {
-        MonitorMutationWorkflowResult result = await _monitorWorkflows.RemoveFromContractAsync(id, HttpContext.RequestAborted);
+        MonitorMutationWorkflowResult result = await monitorWorkflows.RemoveFromContractAsync(id, HttpContext.RequestAborted);
         AddModelErrors(result.Errors);
         if (!ModelState.IsValid)
         {
@@ -257,16 +255,16 @@ public class MonitorsController : ControllerBase
     // Function summary: Retrieves unattached monitor removal candidates for RVT administrators.
     public async Task<ActionResult<QueryUnattachedMonitorsResponse>> QueryUnattached([FromQuery] QueryMonitorsRequest request)
     {
-        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? DefaultSort : request.Sort.Trim();
-        if (!sortFields.ContainsKey(requestedSort))
+        string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "fleetNumber" : request.Sort.Trim();
+        if (!_sortFields.ContainsKey(requestedSort))
         {
-            return InvalidSort(requestedSort, sortFields.Keys);
+            return InvalidSort(requestedSort, _sortFields.Keys);
         }
 
         int page = request.GetNormalizedPage();
         int pageSize = request.GetNormalizedPageSize();
         string sortDir = request.GetNormalizedSortDir();
-        MonitorUnattachedInventoryResult result = await _monitorReads.QueryUnattachedAsync(new MonitorInventoryRequest(
+        MonitorUnattachedInventoryResult result = await monitorReads.QueryUnattachedAsync(new MonitorInventoryRequest(
             request.MonitorType,
             MonitorListStates.All,
             request.SearchText,
@@ -284,7 +282,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Retrieves related data counts used before removing an unattached monitor.
     public async Task<ActionResult<MonitorRemovalImpactResponse>> GetRemovalImpact(Guid id)
     {
-        MonitorRemovalImpactResponse? impact = await _monitorReads.GetRemovalImpactAsync(id, HttpContext.RequestAborted);
+        MonitorRemovalImpactResponse? impact = await monitorReads.GetRemovalImpactAsync(id, HttpContext.RequestAborted);
         return impact == null ? MonitorNotFound(id) : impact;
     }
 
@@ -297,7 +295,7 @@ public class MonitorsController : ControllerBase
     public async Task<ActionResult<MonitorRemovalResponse>> RemoveUnattached(Guid id, MonitorRemovalRequest request)
     {
         PortalUserContext actor = await CreateActorAsync();
-        MonitorRemovalWorkflowResult result = await _monitorWorkflows.RemoveUnattachedAsync(
+        MonitorRemovalWorkflowResult result = await monitorWorkflows.RemoveUnattachedAsync(
             id,
             request.Reason,
             actor.UserName ?? actor.UserId?.ToString(),
@@ -327,7 +325,7 @@ public class MonitorsController : ControllerBase
     // Function summary: Creates default monitor alert levels through the monitor workflow service.
     public async Task<ActionResult<DefaultMonitorsResponse>> DefaultMonitors()
     {
-        return await _monitorWorkflows.CreateDefaultAlertLevelsAsync(HttpContext.RequestAborted);
+        return await monitorWorkflows.CreateDefaultAlertLevelsAsync(HttpContext.RequestAborted);
     }
 
     // Function summary: Maps monitor detail workflow results to the existing API response shape.
@@ -362,17 +360,12 @@ public class MonitorsController : ControllerBase
     // Function summary: Builds the current portal user context for monitor read workflows.
     private Task<PortalUserContext> CreateActorAsync()
     {
-        return _currentUsers.CreateAsync(User, HttpContext.RequestAborted);
+        return currentUsers.CreateAsync(User, HttpContext.RequestAborted);
     }
 
     // Function summary: Builds the existing invalid-sort problem response for monitor endpoints.
-    private ObjectResult InvalidSort(string sort, IEnumerable<string> validSorts)
-    {
-        return Problem(
-            detail: $"Sort '{sort}' is not supported. Use one of: {string.Join(", ", validSorts)}.",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Invalid sort field");
-    }
+    private BadRequestObjectResult InvalidSort(string sort, IEnumerable<string> validSorts) =>
+        ApiProblems.InvalidSort(HttpContext, sort, validSorts, "monitors");
 
     // Function summary: Builds the existing not-found response for missing or unauthorized monitors.
     private NotFoundObjectResult MonitorNotFound(Guid id)

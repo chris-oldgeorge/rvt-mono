@@ -19,7 +19,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { SubmitEvent } from 'react';
+import type { FormEvent } from 'react';
 import {
   downloadMonitorDataCsv,
   downloadMonitorTraceCsv,
@@ -32,6 +32,8 @@ import {
   type DownloadedFile,
 } from '../api/client';
 import { Notice } from '../components/FormControls';
+import { formatDateTime, formatNumber } from '../format';
+import { normalizeSortDirection, parsePositiveInt } from '../gridQuery';
 import type {
   DashboardSummaryResponse,
   MonitorDataGridRequest,
@@ -44,7 +46,6 @@ import type {
   TraceDetailResponse,
   TraceListResponse,
 } from '../dtos';
-import { formatDateTime, fromDateToApi } from './dataViewDateTime';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
@@ -109,7 +110,9 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
   const [selectedTraceId, setSelectedTraceId] = useState('');
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sort, setSort] = useState(initialParams.get('sort') ?? defaultSort);
-  const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    normalizeSortDirection(initialParams.get('sortDir'), defaultSortDir),
+  );
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -282,7 +285,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
   }
 
   // Function summary: Handles the handle submit workflow for this module.
-  function handleSubmit(event: SubmitEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setPage(1);
   }
@@ -536,7 +539,7 @@ function GraphView({ graph }: Readonly<{ graph: MonitorGraphResponse }>) {
         <div className="threshold-list">
           {graph.thresholds.map((threshold) => (
             <span className="status-chip neutral" key={threshold.id}>
-              {threshold.field} {threshold.alertType} {formatNumber(threshold.limitOn)}
+              {threshold.field} {threshold.alertType} {formatNumber(threshold.limitOn, 4)}
             </span>
           ))}
         </div>
@@ -606,9 +609,9 @@ function TraceView({
                 {detail.samples.map((sample) => (
                   <tr key={sample.index}>
                     <td>{sample.index}</td>
-                    <td>{formatNumber(sample.x)}</td>
-                    <td>{formatNumber(sample.y)}</td>
-                    <td>{formatNumber(sample.z)}</td>
+                    <td>{formatNumber(sample.x, 4)}</td>
+                    <td>{formatNumber(sample.y, 4)}</td>
+                    <td>{formatNumber(sample.z, 4)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -796,7 +799,7 @@ function chartLabels(datasets: ReadonlyArray<MonitorGraphDataset>) {
     if (point.time) {
       return formatDateTime(point.time);
     }
-    return formatNumber(point.x);
+    return formatNumber(point.x, 4);
   });
 }
 
@@ -824,7 +827,7 @@ function dataCell(row: MonitorDataRow, key: string) {
     return formatDateTime(row.sampleTime);
   }
 
-  return formatNumber(row.values[key]);
+  return formatNumber(row.values[key], 4);
 }
 
 // Function summary: Handles the row key workflow for this module.
@@ -853,15 +856,6 @@ function normalizeMode(value: string | null): PanelMode {
   return 'grid';
 }
 
-// Function summary: Handles the normalize sort direction workflow for this module.
-function normalizeSortDirection(value: string | null): SortDirection {
-  if (value === 'Ascending' || value === 'Descending') {
-    return value;
-  }
-
-  return defaultSortDir;
-}
-
 // Function summary: Handles the next sort direction workflow for this module.
 function nextSortDirection(value: SortDirection): SortDirection {
   if (value === 'Ascending') {
@@ -880,16 +874,6 @@ function sortArrow(value: SortDirection) {
   return 'Desc';
 }
 
-// Function summary: Handles the parse positive int workflow for this module.
-function parsePositiveInt(value: string | null, fallback: number) {
-  const parsed = Number.parseInt(value ?? '', 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-
-  return parsed;
-}
-
 // Function summary: Maps date time input into the shape required by callers.
 function toDateTimeInput(value: string | null) {
   if (!value) {
@@ -899,6 +883,15 @@ function toDateTimeInput(value: string | null) {
   return value.slice(0, 16);
 }
 
+// Function summary: Handles the from date to API workflow for this module.
+export function fromDateToApi(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  return new Date(value).toISOString();
+}
+
 // Function summary: Handles the format duration workflow for this module.
 function formatDuration(seconds: number) {
   if (seconds < 60) {
@@ -906,13 +899,4 @@ function formatDuration(seconds: number) {
   }
   const minutes = Math.round(seconds / 60);
   return `${minutes}m`;
-}
-
-// Function summary: Handles the format number workflow for this module.
-function formatNumber(value?: number | null) {
-  if (typeof value !== 'number') {
-    return '';
-  }
-
-  return new Intl.NumberFormat('en-GB', { maximumFractionDigits: 4 }).format(value);
 }

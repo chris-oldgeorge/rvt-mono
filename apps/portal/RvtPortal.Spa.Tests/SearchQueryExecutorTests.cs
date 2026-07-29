@@ -8,11 +8,12 @@ using RVT.DataAccess.Context;
 using RVT.Entities;
 using RVT.Entities.Querying;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class SearchQueryExecutorTests
 {
-    private static readonly OrderByProperty[] byName =
+    private static readonly OrderByProperty[] _byName =
     [
         new() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "CompanyName" }
     ];
@@ -29,7 +30,7 @@ public sealed class SearchQueryExecutorTests
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
-            byName,
+            _byName,
             maximumRecords: 10,
             new Paging { Paged = false },
             CancellationToken.None);
@@ -53,7 +54,7 @@ public sealed class SearchQueryExecutorTests
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
-            byName,
+            _byName,
             maximumRecords,
             new Paging { Paged = false },
             CancellationToken.None);
@@ -75,7 +76,7 @@ public sealed class SearchQueryExecutorTests
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
-            byName,
+            _byName,
             maximumRecords: 0,
             new Paging { Paged = true, Page = 2, PageSize = pageSize },
             CancellationToken.None);
@@ -97,7 +98,7 @@ public sealed class SearchQueryExecutorTests
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [new SingleFilter { Operation = Op.Equals, PropertyName = "CompanyName", Value = "Company 2" }],
-            byName,
+            _byName,
             maximumRecords: 10,
             new Paging { Paged = false },
             CancellationToken.None);
@@ -118,9 +119,7 @@ public sealed class SearchQueryExecutorTests
     // Function summary: Creates an isolated in-memory domain context for read-path tests.
     private static RVTDbContext CreateContext()
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.InMemory<RVTDbContext>();
 
         return new RVTDbContext(options);
     }

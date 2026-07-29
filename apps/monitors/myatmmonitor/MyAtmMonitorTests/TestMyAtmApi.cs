@@ -35,7 +35,7 @@ public class TestMyAtmApi
         MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
-                                                 out Mock<IMessageService> messageClient);
+                                                 out Mock<INotificationDeliveryService> messageClient);
 
         int customerId = 656;
         httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken)).
@@ -85,7 +85,7 @@ public class TestMyAtmApi
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageClient = new();
+        Mock<INotificationDeliveryService> messageClient = new();
         MyAtmMonitorOptions options = new()
         {
             MeasurementPageSize = 2,
@@ -109,7 +109,7 @@ public class TestMyAtmApi
         dbClient.Setup(client => client.ReadRules(It.IsAny<string>(), It.IsAny<Period>()))
             .Returns([]);
         dbClient.Setup(client => client.CommitDustImportAsync(It.IsAny<MyAtmDustImportCommit>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DustImportCommitResult([]));
+            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
         dbClient.Setup(client => client.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
@@ -131,7 +131,7 @@ public class TestMyAtmApi
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageClient = new();
+        Mock<INotificationDeliveryService> messageClient = new();
         MyAtmMonitorOptions options = new()
         {
             OutboxBatchSize = 2
@@ -154,7 +154,7 @@ public class TestMyAtmApi
         dbClient.Setup(client => client.CommitDustImportAsync(
                 It.IsAny<MyAtmDustImportCommit>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DustImportCommitResult([]));
+            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
 
         await testObj.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1, TestContext.CancellationToken);
 
@@ -179,7 +179,7 @@ public class TestMyAtmApi
             out Mock<IHttpClient> httpClient,
             out Mock<IDBClient> dbClient,
             out Mock<IMqttClient> mqttClient,
-            out Mock<IMessageService> messageClient);
+            out Mock<INotificationDeliveryService> messageClient);
         httpClient.Setup(client => client.GetAsync(
                 It.IsRegex("/api/customers/656/devices/11111/measurements"),
                 It.IsAny<CancellationToken>()))
@@ -214,7 +214,7 @@ public class TestMyAtmApi
         MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
-                                                 out Mock<IMessageService> messageClient);
+                                                 out Mock<INotificationDeliveryService> messageClient);
         int customerId = 656;
         httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements"), TestContext.CancellationToken)).Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(period), TestContext.CancellationToken));
 
@@ -282,7 +282,7 @@ public class TestMyAtmApi
         MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
-                                                 out Mock<IMessageService> messageClient);
+                                                 out Mock<INotificationDeliveryService> messageClient);
 
         int customerId = 656;
         httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken)).
@@ -316,7 +316,7 @@ public class TestMyAtmApi
         MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                      out Mock<IDBClient> dbClient,
                                      out Mock<IMqttClient> mqttClient,
-                                     out Mock<IMessageService> messageClient);
+                                     out Mock<INotificationDeliveryService> messageClient);
 
         int customerId = 656;
         DateTime expectedDateTime = DateTime.UtcNow;
@@ -365,5 +365,5 @@ public class TestMyAtmApi
             Guid.NewGuid());
     }
 
-    public TestContext TestContext { get; set; } = null!;
+    public TestContext TestContext { get; set; }
 }

@@ -8,7 +8,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class DatabaseBackendMirrorTests
 {
-    private static readonly NaturalKeyIndex[] naturalKeyIndexes =
+    private static readonly NaturalKeyIndex[] _naturalKeyIndexes =
     [
         new("monitor", "ux_monitor_serial_id_type_of_monitor", ["serial_id", "type_of_monitor"]),
         new("air_q_monitor_status", "ux_air_q_monitor_status_serial_id", ["serial_id"]),
@@ -42,7 +42,7 @@ public sealed class DatabaseBackendMirrorTests
     {
         string postgresSql = NormalizeSql(ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql"));
 
-        foreach (NaturalKeyIndex index in naturalKeyIndexes)
+        foreach (NaturalKeyIndex index in _naturalKeyIndexes)
         {
             string postgresColumns = string.Join(", ", index.Columns);
 
@@ -67,7 +67,7 @@ public sealed class DatabaseBackendMirrorTests
     {
         string postgresSql = ReadRepositoryFile("database/postgres/monitor_natural_key_changes_20260618.sql");
 
-        foreach (NaturalKeyIndex index in naturalKeyIndexes)
+        foreach (NaturalKeyIndex index in _naturalKeyIndexes)
         {
             Assert.Contains(index.Table, postgresSql, StringComparison.Ordinal);
 

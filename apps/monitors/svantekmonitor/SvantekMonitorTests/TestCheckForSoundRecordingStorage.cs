@@ -46,7 +46,7 @@ public sealed class TestCheckForSoundRecordingStorage
                 It.IsAny<HttpContent>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(filesResponse);
-        httpClient.Setup(client => client.GetByteArrayAsync(
+        httpClient.Setup(client => client.PostForBytesAsync(
                 "projects-get-data.php",
                 It.IsAny<MultipartFormDataContent>(),
                 It.IsAny<CancellationToken>()))
@@ -60,7 +60,7 @@ public sealed class TestCheckForSoundRecordingStorage
 
         await handler.RunAsync(cancellation.Token);
 
-        httpClient.Verify(client => client.GetByteArrayAsync(
+        httpClient.Verify(client => client.PostForBytesAsync(
             "projects-get-data.php",
             It.IsAny<MultipartFormDataContent>(),
             cancellation.Token), Times.Once);
@@ -87,7 +87,7 @@ public sealed class TestCheckForSoundRecordingStorage
         Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         Mock<IDBClient> dbClient = new(MockBehavior.Strict);
         RecordingObjectStorageClient storage = new();
-        dbClient.Setup(client => client.ReadLatestNotificationAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
+        dbClient.Setup(client => client.ReadLatestNotificationAsync(TestContext.CancellationToken)).ReturnsAsync(
             [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
             ]);
@@ -97,7 +97,7 @@ public sealed class TestCheckForSoundRecordingStorage
         httpClient.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                It.IsAny<CancellationToken>()))
+                TestContext.CancellationToken))
             .ReturnsAsync(filesResponse);
         CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
@@ -136,7 +136,7 @@ public sealed class TestCheckForSoundRecordingStorage
         Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         Mock<IDBClient> dbClient = new(MockBehavior.Strict);
         RecordingObjectStorageClient storage = new();
-        dbClient.Setup(client => client.ReadLatestNotificationAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
+        dbClient.Setup(client => client.ReadLatestNotificationAsync(TestContext.CancellationToken)).ReturnsAsync(
             [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
             ]);
@@ -146,7 +146,7 @@ public sealed class TestCheckForSoundRecordingStorage
         httpClient.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                It.IsAny<CancellationToken>()))
+                TestContext.CancellationToken))
             .ReturnsAsync(filesResponse);
         CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
@@ -182,14 +182,14 @@ public sealed class TestCheckForSoundRecordingStorage
         Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         Mock<IDBClient> dbClient = new(MockBehavior.Strict);
         RecordingObjectStorageClient storage = new();
-        dbClient.Setup(client => client.ReadLatestNotificationAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
+        dbClient.Setup(client => client.ReadLatestNotificationAsync(TestContext.CancellationToken)).ReturnsAsync(
             [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
             ]);
         httpClient.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                It.IsAny<CancellationToken>()))
+                TestContext.CancellationToken))
             .ReturnsAsync(filesResponse);
         CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
@@ -204,7 +204,7 @@ public sealed class TestCheckForSoundRecordingStorage
         dbClient.VerifyAll();
     }
 
-    public TestContext TestContext { get; set; } = null!;
+    public TestContext TestContext { get; set; }
 }
 
 internal sealed class RecordingObjectStorageClient : IObjectStorageClient

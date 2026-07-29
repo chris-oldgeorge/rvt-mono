@@ -36,7 +36,7 @@ public sealed class TestUtil
     }
 
     public static MyAtmApi CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                             out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient,
+                                             out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient,
                                              bool testLocal = false)
     {
         httpClient = new Mock<IHttpClient>();
@@ -44,7 +44,7 @@ public sealed class TestUtil
         dbClient.Setup(client => client.CommitDustImportAsync(
                 It.IsAny<MyAtmDustImportCommit>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DustImportCommitResult([]));
+            .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
         dbClient.Setup(client => client.ClaimNextDueAsync(
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(),
@@ -54,9 +54,9 @@ public sealed class TestUtil
         dbClient.Setup(client => client.CommitAlertAsync(
                 It.IsAny<MyAtmAlertCommit>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MyAtmAlertCommitResult(true, []));
+            .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
         mqttClient = new Mock<IMqttClient>();
-        messageClient = new Mock<IMessageService>();
+        messageClient = new Mock<INotificationDeliveryService>();
         return new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, testLocal);
     }
 
@@ -179,8 +179,14 @@ public sealed class TestUtil
 
     //Had to create a new version of this as I couldn't think of a way to predict the notification time for the 8 houir Average.
     public static bool VerifyNotification8hourDto(NotificationDto dto, RvtAlertRuleDto rule, double alertLevel,
-                                     int averagingPeriod, double limitOn)
+                                     DateTime notificationTime, int averagingPeriod, double limitOn)
     {
+
+        //if (notificationTime != dto.NotificationTime)
+        //{
+        //    return false;
+        //}
+
         if (alertLevel != dto.Level)
         {
             return false;

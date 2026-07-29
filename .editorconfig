@@ -55,3 +55,9 @@ generated_code = true
 
 [**/Generated/**/*.cs]
 generated_code = true
+
+# Newer main introduced monitor implementations before these performance rules
+# were enforced. Keep the diagnostics visible while the inherited debt is retired.
+[apps/monitors/**/*.cs]
+dotnet_diagnostic.CA1859.severity = warning
+dotnet_diagnostic.CA1873.severity = warning

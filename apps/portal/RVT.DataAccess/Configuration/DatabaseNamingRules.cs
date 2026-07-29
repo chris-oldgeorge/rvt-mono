@@ -14,14 +14,14 @@ namespace RVT.DataAccess.Configuration;
 
 public static partial class DatabaseNamingRules
 {
-    private static readonly HashSet<string> bannedIdentifiers = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _bannedIdentifiers = new(StringComparer.Ordinal)
     {
         "lock",
         "table",
         "user"
     };
 
-    private static readonly HashSet<string> dataTypeLikeIdentifiers = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _dataTypeLikeIdentifiers = new(StringComparer.Ordinal)
     {
         "bool",
         "boolean",
@@ -48,7 +48,7 @@ public static partial class DatabaseNamingRules
             return false;
         }
 
-        return SnakeCaseIdentifierRegex().IsMatch(identifier) && !bannedIdentifiers.Contains(identifier);
+        return SnakeCaseIdentifierRegex().IsMatch(identifier) && !_bannedIdentifiers.Contains(identifier);
     }
 
     // Function summary: Evaluates whether a relation name follows lowercase snake_case, singular, noun-focused rules.
@@ -144,7 +144,7 @@ public static partial class DatabaseNamingRules
     /// row_count_sites view aliases), so they no longer need entries here - FleetNr, Nr and NrSites now fall
     /// through to plain snake_case.
     /// </remarks>
-    private static readonly Dictionary<string, string> columnNameOverrides = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> _columnNameOverrides = new(StringComparer.Ordinal)
     {
         // Deliberate renames.
         ["nr_users"] = "user_count",
@@ -178,7 +178,7 @@ public static partial class DatabaseNamingRules
         }
 
         string value = ToSnakeCase(identifier);
-        return columnNameOverrides.TryGetValue(value, out string? canonical) ? canonical : value;
+        return _columnNameOverrides.TryGetValue(value, out string? canonical) ? canonical : value;
     }
 
     // Function summary: Converts a legacy stored procedure/function identifier into a canonical routine name.
@@ -239,7 +239,7 @@ public static partial class DatabaseNamingRules
     // Function summary: Flags identifiers that are named after data types rather than domain concepts.
     private static bool IsDataTypeLikeIdentifier(string identifier)
     {
-        if (dataTypeLikeIdentifiers.Contains(identifier))
+        if (_dataTypeLikeIdentifiers.Contains(identifier))
         {
             return true;
         }

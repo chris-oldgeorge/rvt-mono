@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RvtPortal.Spa.Application.Monitors;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 /// <summary>
@@ -17,16 +18,14 @@ namespace RvtPortal.Spa.Tests;
 /// </summary>
 public sealed class MonitorOwnershipWindowSqlTests
 {
-    private static readonly DateTime timestamp = new(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _timestamp = new(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
 
     [Fact]
     // Function summary: Verifies the ownership predicate translates to PostgreSQL SQL.
     public void OwnsAt_TranslatesOnPostgres()
     {
         using RVTDbContext context = new(
-            new DbContextOptionsBuilder<RVTDbContext>()
-                .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-                .Options);
+            TestDbContexts.ModelOnlyNpgsql<RVTDbContext>());
 
         string sql = OwnershipQuerySql(context);
 
@@ -40,7 +39,7 @@ public sealed class MonitorOwnershipWindowSqlTests
     {
         // ToQueryString() throws InvalidOperationException if any part of the predicate cannot be translated.
         return context.Deployments
-            .Where(MonitorOwnershipWindowResolver.OwnsAt(timestamp))
+            .Where(MonitorOwnershipWindowResolver.OwnsAt(_timestamp))
             .ToQueryString();
     }
 }

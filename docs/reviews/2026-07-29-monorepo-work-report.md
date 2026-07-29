@@ -281,7 +281,7 @@ storage without direct Azure or AWS dependencies.
 ### 8. PostgreSQL and TimescaleDB consolidation
 
 - Declared PostgreSQL as the only supported application database.
-- Removed Portal SQL Server dialects, packages, migrations/assets, and runtime
+- Removed Portal retired-provider dialects, packages, migrations/assets, and runtime
   provider branches.
 - Converted shared monitor persistence and all vendor monitors to PostgreSQL.
 - Consolidated canonical PostgreSQL mapping, schema validation, and routine
@@ -454,7 +454,7 @@ tests, while the remaining quality-gate failures are visible and measurable.
   - unused runtime-default resolver registrations.
 - Removed stale package/release infrastructure no longer valid for an
   internal-source monorepo.
-- Removed SQL Server assets and provider branches.
+- Removed retired database-provider assets and branches.
 - Removed legacy synchronous communications and duplicate contact contracts.
 - Removed obsolete frontend exports, components, state, and CSS.
 - Archived historical plans and state rather than leaving them as current
@@ -514,7 +514,7 @@ toolchain and documented configuration model.
 
 ### 2026-07-26 — PostgreSQL cutover and analysis infrastructure
 
-- Removed Portal and monitor SQL Server dependencies.
+- Removed Portal and monitor retired-provider dependencies.
 - Canonicalized shared PostgreSQL persistence.
 - Converted AirQ, Svantek, MyAtm, Omnidots, and ReportingMonitor.
 - Defined the shared release train.

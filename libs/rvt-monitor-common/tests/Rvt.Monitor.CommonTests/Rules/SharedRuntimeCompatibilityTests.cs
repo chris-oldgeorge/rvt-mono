@@ -88,13 +88,10 @@ public sealed class SharedRuntimeCompatibilityTests
             sendStartTime: null,
             sendEndTime: null);
 
+        // The Notifications-namespace contact DTO and its converter were
+        // deleted by legacy-retirement step 5 (2026-07-29); the Rules DTO is
+        // the one contact surface.
         Assert.AreEqual(Rvt.Monitor.Common.Rules.ContactMethod.SMSAndEmail, contact.ContactMethod);
-        Assert.IsNotInstanceOfType<Rvt.Monitor.Common.Notifications.RvtContactDto>(contact);
-
-        Common.Notifications.RvtContactDto notificationContact = contact.ToNotificationDto();
-        Assert.AreEqual(Rvt.Monitor.Common.Notifications.ContactMethod.SMSAndEmail, notificationContact.ContactMethod);
-        Assert.AreEqual(contact.EmailAddress, notificationContact.EmailAddress);
-
     }
 
     [TestMethod]

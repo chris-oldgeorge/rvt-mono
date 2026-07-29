@@ -18,7 +18,6 @@ using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace Omnidots.Api.Db
 {
     // Summary: EF Core-backed Omnidots database client that preserves the IDBClient contract.
@@ -463,49 +462,6 @@ namespace Omnidots.Api.Db
             return [.. query
                 .AsEnumerable()
                 .Select(rule => ToRuleDto(rule, serialId))];
-        }
-
-        public List<RvtContactDto> ReadAlertContacts(Guid monitorId)
-        {
-            using OmnidotsMonitorContext context = CreateContext();
-
-            var contactRows = (from deployment in context.Deployments.AsNoTracking()
-                               join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
-                               join siteUser in context.SiteUsers.AsNoTracking() on contract.SiteId equals siteUser.SiteId
-                               join setting in context.NotificationSettings.AsNoTracking() on siteUser.Id equals setting.SiteUserId
-                               where deployment.MonitorId == monitorId &&
-                                     deployment.EndDate == null &&
-                                     (setting.Email || setting.SMS)
-                               select new
-                               {
-                                   siteUser.UserId,
-                                   setting.Email,
-                                   setting.SMS,
-                                   setting.StartTime,
-                                   setting.EndTime
-                               }).ToList();
-
-            HashSet<string> userIds = contactRows
-                .Select(row => row.UserId.ToString())
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, AspNetUserEntity> usersById = context.Users
-                .AsNoTracking()
-                .Where(user => userIds.Contains(user.Id))
-                .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
-
-            return [.. contactRows
-                .Where(row => usersById.ContainsKey(row.UserId.ToString()))
-                .Select(row =>
-                {
-                    AspNetUserEntity user = usersById[row.UserId.ToString()];
-                    return new RvtContactDto(
-                        useEmail: row.Email,
-                        useSms: row.SMS,
-                        emailAddress: user.Email,
-                        phoneNumber: user.PhoneNumber,
-                        sendStartTime: row.StartTime,
-                        sendEndTime: row.EndTime);
-                })];
         }
 
         public void WriteNotification(NotificationDto dto)

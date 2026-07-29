@@ -98,25 +98,6 @@ public class RvtContactDto
         return dateTime.TimeOfDay >= SendStartTime && dateTime.TimeOfDay <= SendEndTime;
     }
 
-    public Rvt.Monitor.Common.Notifications.RvtContactDto ToNotificationDto() =>
-        new(
-            ToNotificationContactMethod(ContactMethod),
-            EmailAddress,
-            PhoneNumber,
-            Email,
-            SMS,
-            SendStartTime,
-            SendEndTime);
-
-    private static Rvt.Monitor.Common.Notifications.ContactMethod ToNotificationContactMethod(ContactMethod contactMethod) =>
-        contactMethod switch
-        {
-            ContactMethod.Email => Rvt.Monitor.Common.Notifications.ContactMethod.Email,
-            ContactMethod.SMS => Rvt.Monitor.Common.Notifications.ContactMethod.SMS,
-            ContactMethod.SMSAndEmail => Rvt.Monitor.Common.Notifications.ContactMethod.SMSAndEmail,
-            _ => Rvt.Monitor.Common.Notifications.ContactMethod.None
-        };
-
     public override string ToString()
     {
         return string.Format(@"RvtContactDto ContactMethod={0} EmailAddress={1}, PhoneNumber={2}

@@ -12,9 +12,7 @@ using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using static Omnidots.Api.OmnidotsApi;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Notifications.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Notifications.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace OmnidotsAdapterTests
 {
 
@@ -230,14 +228,6 @@ namespace OmnidotsAdapterTests
 
             }
             return peakRecords;
-        }
-
-        public static List<RvtContactDto> AlertContacts(TimeSpan? sendStartTime = null, TimeSpan? sendEndTime = null)
-        {
-            return
-            [
-                new RvtContactDto(ContactMethod.Email, "baz@bob.org", (string?)null,true,false, sendStartTime, sendEndTime)
-            ];
         }
 
         public static List<NotificationDto> Notifications(Guid monitorId, DateTime notificationTime, AlertType alertType)

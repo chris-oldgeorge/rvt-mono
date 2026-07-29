@@ -343,6 +343,16 @@ caller sees a warning. Retirement order (each step unblocks the next):
 5. Then: delete `IMessageService`/`MessageService`, the namespace-squatting
    `RvtContactDto` + `LegacyMessageContracts`, consolidate on one contact DTO
    (~60 test files, mechanical).
+   **Done 2026-07-29: `IMessageService`, `MessageService`,
+   `LegacyMessageContracts`, `CommsException`, and the Abstractions-assembly
+   `RvtContactDto` that squatted `Rvt.Monitor.Common.Notifications` are
+   deleted, along with the Rules-side `ToNotificationDto` converter —
+   `Rules.RvtContactDto` is the one contact surface. Omnidots'
+   `ReadAlertContacts` query went with them (the durable stack plans contact
+   deliveries itself; only stale test setups still referenced it). The ~60-file
+   estimate was written before steps 3–4 migrated the monitor tests; the
+   residue was 15 files. Note `Rvt.Communication.Abstractions` now holds only
+   the delivery ports and notification contracts the durable stack composes.**
 6. Dispatcher unification around a shared claim/lease/terminal/audit core
    (align the error-truncation divergence immediately regardless).
 7. `RvtConfig` endgame: after the Omnidots token-seam decision and options

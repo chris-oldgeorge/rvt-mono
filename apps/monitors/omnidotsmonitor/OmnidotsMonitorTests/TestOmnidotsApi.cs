@@ -20,7 +20,6 @@ using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using static Omnidots.Api.OmnidotsApi;
-using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace OmnidotsAdapterTests
 {
 
@@ -314,8 +313,6 @@ namespace OmnidotsAdapterTests
                 .Returns([invalidMonitor, validMonitor]);
             dbClient.Setup(c => c.ReadSiteTimes(It.IsAny<Guid>()))
                 .Returns(OmnidotsFixture.AlwaysOpenSiteTimes());
-            dbClient.Setup(c => c.ReadAlertContacts(validMonitor.Id))
-                .Returns(OmnidotsFixture.AlertContacts());
 
             OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.CheckForOfflineMonitorsAsync());
 
@@ -373,8 +370,6 @@ namespace OmnidotsAdapterTests
             dbClient.Setup(c => c.ReadSiteTimes(invalidMonitor.Id)).Returns(invalidSchedule);
             dbClient.Setup(c => c.ReadSiteTimes(validMonitor.Id))
                 .Returns(OmnidotsFixture.AlwaysOpenSiteTimes());
-            dbClient.Setup(c => c.ReadAlertContacts(validMonitor.Id))
-                .Returns(OmnidotsFixture.AlertContacts());
             dbClient.Setup(c => c.HandleException(
                     $"CheckForOfflineMonitors serialId={invalidMonitor.SerialId}",
                     It.IsAny<Exception>()))
@@ -873,9 +868,6 @@ namespace OmnidotsAdapterTests
                                                         batteryLevel: batteryLevel,
                                                         batteryStatus: initialBatteryStatus);
             dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
-            List<RvtContactDto> contacts = OmnidotsFixture.AlertContacts();
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id)).
-                Returns(contacts);
             await testObj.NotifyBatteryLevelsAsync();
             httpClient.VerifyNoOtherCalls();
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));

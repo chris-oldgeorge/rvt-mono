@@ -32,16 +32,6 @@ namespace MyAtmMonitorTests
             RvtLogger.CreateLogger(factory, "TestMyAtmApiDevices");
         }
 
-        private static Rvt.Monitor.Common.Notifications.RvtContactDto ContactEquivalentTo(RvtContactDto expected) =>
-            It.Is<Rvt.Monitor.Common.Notifications.RvtContactDto>(actual =>
-                actual.ContactMethod == (Rvt.Monitor.Common.Notifications.ContactMethod)(int)expected.ContactMethod &&
-                actual.EmailAddress == expected.EmailAddress &&
-                actual.PhoneNumber == expected.PhoneNumber &&
-                actual.Email == expected.Email &&
-                actual.SMS == expected.SMS &&
-                actual.SendStartTime == expected.SendStartTime &&
-                actual.SendEndTime == expected.SendEndTime);
-
         [TestMethod]
         public async Task TestStoreMonitors_Success()
         {

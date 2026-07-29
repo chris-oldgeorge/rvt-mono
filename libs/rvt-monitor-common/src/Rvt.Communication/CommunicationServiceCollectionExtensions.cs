@@ -11,7 +11,6 @@ public static class CommunicationServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         services.TryAddSingleton<INotificationMessageComposer, NotificationMessageComposer>();
         services.TryAddSingleton<INotificationDeliveryService, NotificationDeliveryService>();
-        services.TryAddSingleton<IMessageService, MessageService>();
         return services;
     }
 }

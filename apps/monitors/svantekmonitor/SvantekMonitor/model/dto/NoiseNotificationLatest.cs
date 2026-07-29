@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static Svantek.Api.SvantekApi;
-
 namespace SvantekMonitor.model.dto
 {
     // Summary: Tracks the latest noise notification context used to prevent duplicate Svantek alerts.

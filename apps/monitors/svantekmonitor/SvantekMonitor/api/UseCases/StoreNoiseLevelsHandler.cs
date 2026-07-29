@@ -13,17 +13,17 @@ namespace Svantek.Api.UseCases;
 // Summary: Reads Svantek noise samples, persists them, updates latest timestamps, and evaluates alert rules.
 public sealed class StoreNoiseLevelsHandler
 {
-    private const string VendorDateFormat = "yyyy-MM-dd HH:mm:ss";
+    private const string _vendorDateFormat = "yyyy-MM-dd HH:mm:ss";
 
     private readonly ISvantekVendorGateway _gateway;
-    private readonly SvantekMonitorReader monitorReader;
-    private readonly ISvantekRuleQueries ruleQueries;
-    private readonly ISvantekMonitorCommands monitorCommands;
-    private readonly ISvantekMeasurementCommands measurementCommands;
-    private readonly ISvantekOperationalCommands operationalCommands;
-    private readonly SvantekRuleProcessor ruleProcessor;
-    private readonly NoiseRequestWindowCalculator windowCalculator;
-    private readonly TimeProvider timeProvider;
+    private readonly SvantekMonitorReader _monitorReader;
+    private readonly ISvantekRuleQueries _ruleQueries;
+    private readonly ISvantekMonitorCommands _monitorCommands;
+    private readonly ISvantekMeasurementCommands _measurementCommands;
+    private readonly ISvantekOperationalCommands _operationalCommands;
+    private readonly SvantekRuleProcessor _ruleProcessor;
+    private readonly NoiseRequestWindowCalculator _windowCalculator;
+    private readonly TimeProvider _timeProvider;
 
     public StoreNoiseLevelsHandler(
         ISvantekVendorGateway gateway,
@@ -37,25 +37,25 @@ public sealed class StoreNoiseLevelsHandler
         TimeProvider? timeProvider = null)
     {
         _gateway = gateway;
-        this.monitorReader = monitorReader;
-        this.ruleQueries = ruleQueries;
-        this.monitorCommands = monitorCommands;
-        this.measurementCommands = measurementCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleProcessor = ruleProcessor;
-        this.windowCalculator = windowCalculator;
-        this.timeProvider = timeProvider ?? TimeProvider.System;
+        _monitorReader = monitorReader;
+        _ruleQueries = ruleQueries;
+        _monitorCommands = monitorCommands;
+        _measurementCommands = measurementCommands;
+        _operationalCommands = operationalCommands;
+        _ruleProcessor = ruleProcessor;
+        _windowCalculator = windowCalculator;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         // Fleet reads are setup. Failure here means no independent project unit can be identified,
         // so it must fault immediately rather than be converted into an aggregate.
-        List<NoiseMonitorReadDto> monitors = await monitorReader.ReadMonitorsAsync(
+        List<NoiseMonitorReadDto> monitors = await _monitorReader.ReadMonitorsAsync(
             lastDataTime: null,
             cancellationToken).ConfigureAwait(false);
-        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        SvantekFailureCollector failures = new(operationalCommands);
+        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+        SvantekFailureCollector failures = new(_operationalCommands);
 
         foreach (IGrouping<int, NoiseMonitorReadDto> projectMonitors in monitors.GroupBy(monitor => monitor.ProjectId))
         {
@@ -84,10 +84,13 @@ public sealed class StoreNoiseLevelsHandler
         DateTime utcNow,
         CancellationToken cancellationToken)
     {
-        RvtLogger.Logger.LogDebug("StoreNoiseLevels reading for project {ProjectId}", projectId);
+        if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+        {
+            RvtLogger.Logger.LogDebug("StoreNoiseLevels reading for project {ProjectId}", projectId);
+        }
         Dictionary<int, IReadOnlyList<NoiseRequestWindow>> windowsByMonitor = monitors.ToDictionary(
             monitor => monitor.PointId,
-            monitor => windowCalculator.Calculate(
+            monitor => _windowCalculator.Calculate(
                 monitor.DeployedStart,
                 monitor.LastDataTime,
                 monitor.LastStatusTimestamp,
@@ -105,16 +108,19 @@ public sealed class StoreNoiseLevelsHandler
             List<MultiDataArgument> arguments = [.. requestedMonitors.Values.Select(monitor =>
             {
                 NoiseRequestWindow window = windowsByMonitor[monitor.PointId][requestIndex];
-                RvtLogger.Logger.LogDebug(
-                    "StoreNoiseLevels request monitor {SerialId} from {Start} to {End}",
-                    monitor.SerialId,
-                    window.Start,
-                    window.End);
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    RvtLogger.Logger.LogDebug(
+                        "StoreNoiseLevels request monitor {SerialId} from {Start} to {End}",
+                        monitor.SerialId,
+                        window.Start,
+                        window.End);
+                }
                 return new MultiDataArgument
                 {
                     point = monitor.PointId,
-                    time_from = window.Start.ToString(VendorDateFormat, CultureInfo.InvariantCulture),
-                    time_to = window.End.ToString(VendorDateFormat, CultureInfo.InvariantCulture)
+                    time_from = window.Start.ToString(_vendorDateFormat, CultureInfo.InvariantCulture),
+                    time_to = window.End.ToString(_vendorDateFormat, CultureInfo.InvariantCulture)
                 };
             })];
 
@@ -140,9 +146,12 @@ public sealed class StoreNoiseLevelsHandler
                 }
                 else if (monitorData.data.status == "no_data")
                 {
-                    RvtLogger.Logger.LogDebug(
-                        "StoreNoiseLevels no data for {SerialId}",
-                        monitor.SerialId);
+                    if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                    {
+                        RvtLogger.Logger.LogDebug(
+                            "StoreNoiseLevels no data for {SerialId}",
+                            monitor.SerialId);
+                    }
                 }
                 else
                 {
@@ -158,7 +167,10 @@ public sealed class StoreNoiseLevelsHandler
         MultiData monitorData,
         CancellationToken cancellationToken)
     {
-        RvtLogger.Logger.LogDebug("StoreNoiseLevels data received for {SerialId}", monitor.SerialId);
+        if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+        {
+            RvtLogger.Logger.LogDebug("StoreNoiseLevels data received for {SerialId}", monitor.SerialId);
+        }
         DataTable table = CreateResultsTable();
         DateTime? firstDataTime = null;
         DateTime? lastDataTime = null;
@@ -197,7 +209,7 @@ public sealed class StoreNoiseLevelsHandler
                 $"Noise sample timestamps were unavailable for monitor {monitor.SerialId}.");
         }
 
-        await measurementCommands.InsertNoiseRecordsTableAsync(table, cancellationToken).ConfigureAwait(false);
+        await _measurementCommands.InsertNoiseRecordsTableAsync(table, cancellationToken).ConfigureAwait(false);
         DateTime start = monitor.PeriodStartDate;
         DateTime end = lastDataTime.Value;
         int startHour = (start.Hour / 8) * 8;
@@ -209,27 +221,27 @@ public sealed class StoreNoiseLevelsHandler
 
         for (DateTime endPeriod = start.AddHours(8); endPeriod <= end; endPeriod = endPeriod.AddHours(8))
         {
-            await measurementCommands.Create8hourAverageAsync(
+            await _measurementCommands.Create8hourAverageAsync(
                 monitor.SerialId,
                 endPeriod,
                 cancellationToken).ConfigureAwait(false);
         }
 
-        await monitorCommands.WriteLatestTimestampAsync(
+        await _monitorCommands.WriteLatestTimestampAsync(
             monitor.SerialId,
             lastDataTime.Value,
             cancellationToken).ConfigureAwait(false);
-        if (monitor.Offline && lastDataTime > timeProvider.GetUtcNow().UtcDateTime.AddDays(-1))
+        if (monitor.Offline && lastDataTime > _timeProvider.GetUtcNow().UtcDateTime.AddDays(-1))
         {
-            await monitorCommands.SetMonitorOfflineAsync(
+            await _monitorCommands.SetMonitorOfflineAsync(
                 monitor.Id,
                 offline: false,
                 cancellationToken).ConfigureAwait(false);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId);
-        await ruleProcessor.ProcessRulesAsync(monitor, rules, monitor.PeriodStartDate, lastDataTime.Value, cancellationToken).ConfigureAwait(false);
+        List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId);
+        await _ruleProcessor.ProcessRulesAsync(monitor, rules, monitor.PeriodStartDate, lastDataTime.Value, cancellationToken).ConfigureAwait(false);
     }
 
     private static DataTable CreateResultsTable()

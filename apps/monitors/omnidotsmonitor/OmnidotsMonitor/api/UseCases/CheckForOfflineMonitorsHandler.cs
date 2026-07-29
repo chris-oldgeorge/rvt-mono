@@ -14,11 +14,11 @@ namespace Omnidots.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiMonitors).
     public class CheckForOfflineMonitorsHandler
     {
-        private readonly IOmnidotsRuleQueries ruleQueries;
-        private readonly OmnidotsMonitorReader monitorReader;
-        private readonly IOmnidotsMonitorQueries monitorQueries;
-        private readonly IOmnidotsMonitorCommands monitorCommands;
-        private readonly IOmnidotsOperationalCommands operationalCommands;
+        private readonly IOmnidotsRuleQueries _ruleQueries;
+        private readonly OmnidotsMonitorReader _monitorReader;
+        private readonly IOmnidotsMonitorQueries _monitorQueries;
+        private readonly IOmnidotsMonitorCommands _monitorCommands;
+        private readonly IOmnidotsOperationalCommands _operationalCommands;
         private readonly IAlertIngressPort _alertIngress;
 
         public CheckForOfflineMonitorsHandler(
@@ -29,18 +29,18 @@ namespace Omnidots.Api.UseCases
             IOmnidotsOperationalCommands operationalCommands,
             IAlertIngressPort alertIngress)
         {
-            this.ruleQueries = ruleQueries;
-            this.monitorReader = monitorReader;
-            this.monitorQueries = monitorQueries;
-            this.monitorCommands = monitorCommands;
-            this.operationalCommands = operationalCommands;
+            _ruleQueries = ruleQueries;
+            _monitorReader = monitorReader;
+            _monitorQueries = monitorQueries;
+            _monitorCommands = monitorCommands;
+            _operationalCommands = operationalCommands;
             _alertIngress = alertIngress;
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = ruleQueries.ReadRules(null);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _ruleQueries.ReadRules(null);
 
             DateTime utcNow = DateTime.UtcNow;
             List<OmnidotsMonitorFailure> failures = [];
@@ -50,7 +50,7 @@ namespace Omnidots.Api.UseCases
                 {
                     DateTime cutOff = utcNow.Subtract(new TimeSpan(hours: 0, minutes: 0, seconds: rule.AveragingPeriod));
                     DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
-                    List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors(offlineDateTime);
+                    List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors(offlineDateTime);
 
                     foreach (VibrationMonitorDto monitor in monitors!)
                     {
@@ -68,14 +68,14 @@ namespace Omnidots.Api.UseCases
                                 failures.Add(OmnidotsMonitorFailure.Record(
                                     monitor.SerialId,
                                     failure,
-                                    () => operationalCommands.HandleException(message, failure)));
+                                    () => _operationalCommands.HandleException(message, failure)));
                                 continue;
                             }
 
                             TimeSpan activeDuration;
                             try
                             {
-                                SiteTimes siteTimes = monitorQueries.ReadSiteTimes(monitor.Id);
+                                SiteTimes siteTimes = _monitorQueries.ReadSiteTimes(monitor.Id);
                                 activeDuration = SiteActiveDurationCalculator.Between(
                                     siteTimes,
                                     lastDataTime,
@@ -88,7 +88,7 @@ namespace Omnidots.Api.UseCases
                                 failures.Add(OmnidotsMonitorFailure.Record(
                                     monitor.SerialId,
                                     failure,
-                                    () => operationalCommands.HandleException(message, failure)));
+                                    () => _operationalCommands.HandleException(message, failure)));
                                 continue;
                             }
 
@@ -96,7 +96,10 @@ namespace Omnidots.Api.UseCases
                             {
                                 if (!monitor.Offline)
                                 {
-                                    RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
+                                    if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                                    {
+                                        RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
+                                    }
 
                                     // The durable stack writes the notification, plans
                                     // per-contact deliveries, and retries them; the
@@ -118,11 +121,14 @@ namespace Omnidots.Api.UseCases
                                         cancellationToken);
 
                                     monitor.Offline = true;
-                                    monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
+                                    _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                                 }
                                 else
                                 {
-                                    RvtLogger.Logger.LogInformation("Device serialId = {Value1} was already offline", monitor.SerialId);
+                                    if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                                    {
+                                        RvtLogger.Logger.LogInformation("Device serialId = {Value1} was already offline", monitor.SerialId);
+                                    }
                                 }
                             }
                             else
@@ -130,9 +136,12 @@ namespace Omnidots.Api.UseCases
                                 if (monitor.Offline)
                                 {
                                     monitor.Offline = false;
-                                    monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
+                                    _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                                 }
-                                RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data not offline (considering site hours) marking as online", monitor.SerialId);
+                                if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data not offline (considering site hours) marking as online", monitor.SerialId);
+                                }
                             }
                         }
                         else
@@ -140,9 +149,12 @@ namespace Omnidots.Api.UseCases
                             if (monitor.Offline)
                             {
                                 monitor.Offline = false;
-                                monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
+                                _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                             }
-                            RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data not offline (less than 24 hours)  marking as online", monitor.SerialId);
+                            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                            {
+                                RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data not offline (less than 24 hours)  marking as online", monitor.SerialId);
+                            }
                         }
                     }
                 }

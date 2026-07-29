@@ -431,3 +431,20 @@ caller sees a warning. Retirement order (each step unblocks the next):
 18. Batch ratchet paydown: repo-wide IDE0008 fix + `--update-baseline`
     (59% of debt, mechanical), CHARSET sweep, prettier one-shot, DOC-002
     header removal on touch.
+    **Done 2026-07-29 (recomputed first — this item's numbers were stale): the
+    IDE0008 debt was already paid by earlier merges, and main's baseline now
+    tolerates 534 violations, not 7,709. This slice ran the remaining
+    mechanical dotnet-format sweep (file-scoped namespaces, primary ctors,
+    collection expressions, blank-line/parenthesis prefs, unused usings,
+    target-typed new), the portal CHARSET/BOM pass, a prettier one-shot, and
+    renamed private fields to `_camelCase` in every file this remediation
+    stack touches. Three tooling limits recorded: (a) Roslyn's naming code fix
+    has no fix-all at any scope, so the repo-wide IDE1006 residue stays
+    tolerated; (b) the IDE0072/IDE0010 switch-populating fixers are unsafe —
+    their fix inserts throwing arms ahead of the default case (verified: it
+    would have broken AuthController's status mapping) — never batch-apply
+    them; (c) `--all --update-baseline` is currently blocked by main-side
+    drift: a fresh scan of an untouched tree exceeds main's checked-in
+    baseline (CA1067/CA1873 in portal command files this stack never touched),
+    so the official baseline shrink needs a main-side pass once this stack
+    lands.**

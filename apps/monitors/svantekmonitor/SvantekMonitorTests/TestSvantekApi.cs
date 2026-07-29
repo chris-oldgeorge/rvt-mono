@@ -9,7 +9,6 @@ using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
 using Svantek.Model.Dto;
-using SvantekMonitor.model.dto;
 namespace SvantekMonitorTests;
 
 // Summary: Facade-level tests for the scheduled Svantek jobs; handler-driven alerts are

@@ -21,12 +21,12 @@ public class SvantekApi
         BatteryCaution = 2
     }
 
-    private readonly StoreMonitorsHandler storeMonitors;
-    private readonly StoreNoiseLevelsHandler storeNoiseLevels;
-    private readonly NotifySiteAveragesHandler notifySiteAverages;
-    private readonly CheckForOfflineMonitorsHandler checkForOfflineMonitors;
-    private readonly NotifyBatteryLevelsHandler notifyBatteryLevels;
-    private readonly CheckForSoundRecordingsHandler checkForSoundRecordings;
+    private readonly StoreMonitorsHandler _storeMonitors;
+    private readonly StoreNoiseLevelsHandler _storeNoiseLevels;
+    private readonly NotifySiteAveragesHandler _notifySiteAverages;
+    private readonly CheckForOfflineMonitorsHandler _checkForOfflineMonitors;
+    private readonly NotifyBatteryLevelsHandler _notifyBatteryLevels;
+    private readonly CheckForSoundRecordingsHandler _checkForSoundRecordings;
 
     public SvantekApi(
         IHttpClient httpClient,
@@ -88,8 +88,8 @@ public class SvantekApi
         NoiseRequestWindowCalculator calculator = noiseRequestWindowCalculator ??
             new NoiseRequestWindowCalculator(new SvantekImportOptions());
 
-        storeMonitors = new StoreMonitorsHandler(gateway, dbClient, dbClient, testLocal);
-        storeNoiseLevels = new StoreNoiseLevelsHandler(
+        _storeMonitors = new StoreMonitorsHandler(gateway, dbClient, dbClient, testLocal);
+        _storeNoiseLevels = new StoreNoiseLevelsHandler(
             gateway,
             monitorReader,
             dbClient,
@@ -99,25 +99,25 @@ public class SvantekApi
             ruleProcessor,
             calculator,
             timeProvider);
-        notifySiteAverages = new NotifySiteAveragesHandler(
+        _notifySiteAverages = new NotifySiteAveragesHandler(
             dbClient,
             dbClient,
             dbClient,
             dbClient,
             ruleProcessor);
-        checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(
+        _checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(
             dbClient,
             monitorReader,
             dbClient,
             dbClient,
             ruleProcessor);
-        notifyBatteryLevels = new NotifyBatteryLevelsHandler(
+        _notifyBatteryLevels = new NotifyBatteryLevelsHandler(
             monitorReader,
             dbClient,
             dbClient,
             dbClient,
             ruleProcessor);
-        checkForSoundRecordings = new CheckForSoundRecordingsHandler(
+        _checkForSoundRecordings = new CheckForSoundRecordingsHandler(
             dbClient,
             dbClient,
             gateway,
@@ -125,24 +125,24 @@ public class SvantekApi
     }
 
     public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
-        storeMonitors.RunAsync(cancellationToken);
+        _storeMonitors.RunAsync(cancellationToken);
 
     public Task StoreNoiseLevelsAsync(CancellationToken cancellationToken = default) =>
-        storeNoiseLevels.RunAsync(cancellationToken);
+        _storeNoiseLevels.RunAsync(cancellationToken);
 
     public Task NotifySiteAveragesAsync(
         DateTime date,
         CancellationToken cancellationToken = default) =>
-        notifySiteAverages.RunAsync(date, cancellationToken);
+        _notifySiteAverages.RunAsync(date, cancellationToken);
 
     public Task CheckForOfflineMonitorsAsync(CancellationToken cancellationToken = default) =>
-        checkForOfflineMonitors.RunAsync(cancellationToken);
+        _checkForOfflineMonitors.RunAsync(cancellationToken);
 
     public Task NotifyBatteryLevelsAsync(CancellationToken cancellationToken = default) =>
-        notifyBatteryLevels.RunAsync(cancellationToken);
+        _notifyBatteryLevels.RunAsync(cancellationToken);
 
     public Task CheckForSoundRecordingsAsync(CancellationToken cancellationToken = default) =>
-        checkForSoundRecordings.RunAsync(cancellationToken);
+        _checkForSoundRecordings.RunAsync(cancellationToken);
 
     private sealed class MissingObjectStorageClientFactory : IObjectStorageClientFactory
     {

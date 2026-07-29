@@ -15,13 +15,13 @@ namespace AirQ.Api.UseCases
     public class StoreNoiseLevelsHandler
     {
         private readonly IAirQVendorGateway _gateway;
-        private readonly AirQMonitorReader monitorReader;
-        private readonly IAirQRuleQueries ruleQueries;
-        private readonly IAirQMonitorCommands monitorCommands;
-        private readonly IAirQMeasurementCommands measurementCommands;
-        private readonly IAirQOperationalCommands operationalCommands;
-        private readonly IMonitorEventPublisher eventPublisher;
-        private readonly AirQRuleProcessor ruleProcessor;
+        private readonly AirQMonitorReader _monitorReader;
+        private readonly IAirQRuleQueries _ruleQueries;
+        private readonly IAirQMonitorCommands _monitorCommands;
+        private readonly IAirQMeasurementCommands _measurementCommands;
+        private readonly IAirQOperationalCommands _operationalCommands;
+        private readonly IMonitorEventPublisher _eventPublisher;
+        private readonly AirQRuleProcessor _ruleProcessor;
 
         public StoreNoiseLevelsHandler(
             IAirQVendorGateway gateway,
@@ -34,20 +34,20 @@ namespace AirQ.Api.UseCases
             AirQRuleProcessor ruleProcessor)
         {
             _gateway = gateway;
-            this.monitorReader = monitorReader;
-            this.ruleQueries = ruleQueries;
-            this.monitorCommands = monitorCommands;
-            this.measurementCommands = measurementCommands;
-            this.operationalCommands = operationalCommands;
-            this.eventPublisher = eventPublisher;
-            this.ruleProcessor = ruleProcessor;
+            _monitorReader = monitorReader;
+            _ruleQueries = ruleQueries;
+            _monitorCommands = monitorCommands;
+            _measurementCommands = measurementCommands;
+            _operationalCommands = operationalCommands;
+            _eventPublisher = eventPublisher;
+            _ruleProcessor = ruleProcessor;
         }
 
         public async Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
         {
             try
             {
-                List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
+                List<NoiseMonitorDto> monitors = _monitorReader.ReadMonitors();
                 List<Exception> failures = [];
                 foreach (NoiseMonitorDto monitor in monitors)
                 {
@@ -68,7 +68,10 @@ namespace AirQ.Api.UseCases
                         LatestSamplesResult latest = await _gateway.GetLatestSamplesAsync(userId, userAuth, monitor.SerialId, lastDataTime, cancellationToken);
                         List<SampleResponse> samples = latest.Samples;
                         lastDataTime = latest.LatestDateTime;
-                        RvtLogger.Logger.LogInformation("GetLatestSamples SerialId={Value1} number of samples={Value2} lastDataTime={Value3}", monitor.SerialId, samples.Count, lastDataTime);
+                        if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation("GetLatestSamples SerialId={Value1} number of samples={Value2} lastDataTime={Value3}", monitor.SerialId, samples.Count, lastDataTime);
+                        }
                         List<NoiseDto> dtos = [];
                         foreach (SampleResponse sample in samples)
                         {
@@ -77,7 +80,7 @@ namespace AirQ.Api.UseCases
 
                         if (dtos.Count > 0)
                         {
-                            measurementCommands.InsertNoiseDtos(monitor.SerialId, dtos);
+                            _measurementCommands.InsertNoiseDtos(monitor.SerialId, dtos);
                             //process 8 hour averages.
                             DateTime start = preLastDate;
                             DateTime end = dtos.Last().SampleTime;
@@ -91,22 +94,25 @@ namespace AirQ.Api.UseCases
                             DateTime endperiod = start.AddHours(8); //end time for the averaging period.
                             while (endperiod <= end) // end of a period exist within the samples.
                             {
-                                RvtLogger.Logger.LogInformation("Create average SerialId={Value1} number of endperiod={Value2}", monitor.SerialId, endperiod);
-                                measurementCommands.Create8hourAverage(monitor.SerialId, endperiod);
+                                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                                {
+                                    RvtLogger.Logger.LogInformation("Create average SerialId={Value1} number of endperiod={Value2}", monitor.SerialId, endperiod);
+                                }
+                                _measurementCommands.Create8hourAverage(monitor.SerialId, endperiod);
                                 start = start.AddHours(8);
                                 endperiod = start.AddHours(8);
                             }
 
-                            monitorCommands.WriteLatestTimestamp(monitor.SerialId, lastDataTime);
+                            _monitorCommands.WriteLatestTimestamp(monitor.SerialId, lastDataTime);
                             if (monitor.Offline)
                             {
-                                monitorCommands.SetMonitorOffline(monitor.Id, false);
+                                _monitorCommands.SetMonitorOffline(monitor.Id, false);
                             }
 
-                            await eventPublisher.PublishDataInsertedAsync((DateTime)lastDataTime!, monitor.SerialId, cancellationToken: cancellationToken);
+                            await _eventPublisher.PublishDataInsertedAsync((DateTime)lastDataTime!, monitor.SerialId, cancellationToken: cancellationToken);
 
-                            List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId);
-                            await ruleProcessor.ProcessRulesV2Async(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos, cancellationToken);
+                            List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId);
+                            await _ruleProcessor.ProcessRulesV2Async(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos, cancellationToken);
                         }
 
                     }
@@ -117,8 +123,8 @@ namespace AirQ.Api.UseCases
                     catch (Exception e)
                     {
                         monitor.MonitorStatus.ErrorCount++;
-                        monitorCommands.UpdateMonitorStatus(monitor.SerialId, monitor.MonitorStatus);
-                        operationalCommands.HandleException(string.Format("StoreNoiseLevels SerialId={0}", monitor.SerialId), e);
+                        _monitorCommands.UpdateMonitorStatus(monitor.SerialId, monitor.MonitorStatus);
+                        _operationalCommands.HandleException(string.Format("StoreNoiseLevels SerialId={0}", monitor.SerialId), e);
                         failures.Add(e);
                     }
                 }
@@ -138,7 +144,7 @@ namespace AirQ.Api.UseCases
             }
             catch (Exception e)
             {
-                operationalCommands.HandleException("StoreNoiseLevels", e);
+                _operationalCommands.HandleException("StoreNoiseLevels", e);
                 throw;
             }
         }

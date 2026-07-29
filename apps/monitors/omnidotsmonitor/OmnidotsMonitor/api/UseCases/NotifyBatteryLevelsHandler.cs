@@ -13,12 +13,12 @@ namespace Omnidots.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiBattery).
     public class NotifyBatteryLevelsHandler
     {
-        private static readonly int BATTERY_LEVEL_PERCENT_CAUTION = 20;
-        private static readonly int BATTERY_LEVEL_PERCENT_ALERT = 10;
-        private static readonly string BATTERY_LEVEL = "Battery level";
+        private static readonly int _batteryLevelPercentCaution = 20;
+        private static readonly int _batteryLevelPercentAlert = 10;
+        private static readonly string _batteryLevel = "Battery level";
 
-        private readonly OmnidotsMonitorReader monitorReader;
-        private readonly IOmnidotsMonitorCommands monitorCommands;
+        private readonly OmnidotsMonitorReader _monitorReader;
+        private readonly IOmnidotsMonitorCommands _monitorCommands;
         private readonly IAlertIngressPort _alertIngress;
 
         public NotifyBatteryLevelsHandler(
@@ -26,82 +26,106 @@ namespace Omnidots.Api.UseCases
             IOmnidotsMonitorCommands monitorCommands,
             IAlertIngressPort alertIngress)
         {
-            this.monitorReader = monitorReader;
-            this.monitorCommands = monitorCommands;
+            _monitorReader = monitorReader;
+            _monitorCommands = monitorCommands;
             _alertIngress = alertIngress;
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
+            List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
 
             foreach (VibrationMonitorDto monitor in monitors)
             {
                 if (monitor.Sensor != null)
                 {
                     int batteryLevel = monitor.Sensor!.BatteryCharge;
-                    RvtLogger.Logger.LogDebug("NotifyBatteryLevels Battery level={Value1} for serialId={Value2} status={Value3}", batteryLevel, monitor.SerialId!, monitor.BatteryStatus!);
+                    if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                    {
+                        RvtLogger.Logger.LogDebug("NotifyBatteryLevels Battery level={Value1} for serialId={Value2} status={Value3}", batteryLevel, monitor.SerialId!, monitor.BatteryStatus!);
+                    }
 
                     if (batteryLevel < 0) // -1 means there is no valid value for battery level so ignore
                     {
-                        RvtLogger.Logger.LogInformation("NotifyBatteryLevels Battery data missing level={Value1} for serialId={Value2} ", batteryLevel, monitor.SerialId!);
+                        if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation("NotifyBatteryLevels Battery data missing level={Value1} for serialId={Value2} ", batteryLevel, monitor.SerialId!);
+                        }
                     }
-                    else if (batteryLevel <= BATTERY_LEVEL_PERCENT_ALERT)
+                    else if (batteryLevel <= _batteryLevelPercentAlert)
                     {
                         if (monitor.BatteryStatus == OmnidotsApi.BatteryAlertType.BatteryAlert)
                         {
-                            RvtLogger.Logger.LogInformation("NotifyBatteryLevels not notifing ALERT because monitor serialId={Value1} is already at BATTERY ALERT",
-                            monitor.SerialId!);
+                            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                            {
+                                RvtLogger.Logger.LogInformation("NotifyBatteryLevels not notifing ALERT because monitor serialId={Value1} is already at BATTERY ALERT",
+                                monitor.SerialId!);
+                            }
                             continue;
                         }
 
-                        RvtLogger.Logger.LogWarning("NotifyBatteryLevels Battery ALERT level={Value1} for serialId={Value2} below alert level={Value3}",
-                        batteryLevel, monitor.SerialId!, BATTERY_LEVEL_PERCENT_ALERT);
-                        await ProcessBatteryAlertAsync(batteryLevel, monitor, BATTERY_LEVEL_PERCENT_ALERT, AlertType.BatteryAlert, cancellationToken);
+                        if (RvtLogger.Logger.IsEnabled(LogLevel.Warning))
+                        {
+                            RvtLogger.Logger.LogWarning("NotifyBatteryLevels Battery ALERT level={Value1} for serialId={Value2} below alert level={Value3}",
+                            batteryLevel, monitor.SerialId!, _batteryLevelPercentAlert);
+                        }
+                        await ProcessBatteryAlertAsync(batteryLevel, monitor, _batteryLevelPercentAlert, AlertType.BatteryAlert, cancellationToken);
                     }
-                    else if (batteryLevel <= BATTERY_LEVEL_PERCENT_CAUTION)
+                    else if (batteryLevel <= _batteryLevelPercentCaution)
                     {
 
                         if (monitor.BatteryStatus == OmnidotsApi.BatteryAlertType.BatteryCaution)
                         {
-                            RvtLogger.Logger.LogInformation("NotifyBatteryLevels not notifing CAUTION because monitor serialId={Value1}  is already at BATTERY CAUTION",
-                            monitor.SerialId!);
+                            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                            {
+                                RvtLogger.Logger.LogInformation("NotifyBatteryLevels not notifing CAUTION because monitor serialId={Value1}  is already at BATTERY CAUTION",
+                                monitor.SerialId!);
+                            }
                             continue;
                         }
 
-                        RvtLogger.Logger.LogWarning("NotifyBatteryLevels Battery CAUTION level={Value1} for serialId={Value2} below alert level={Value3}",
-                        batteryLevel, monitor.SerialId!, BATTERY_LEVEL_PERCENT_CAUTION);
-                        await ProcessBatteryAlertAsync(batteryLevel, monitor, BATTERY_LEVEL_PERCENT_CAUTION, AlertType.BatteryCaution, cancellationToken);
+                        if (RvtLogger.Logger.IsEnabled(LogLevel.Warning))
+                        {
+                            RvtLogger.Logger.LogWarning("NotifyBatteryLevels Battery CAUTION level={Value1} for serialId={Value2} below alert level={Value3}",
+                            batteryLevel, monitor.SerialId!, _batteryLevelPercentCaution);
+                        }
+                        await ProcessBatteryAlertAsync(batteryLevel, monitor, _batteryLevelPercentCaution, AlertType.BatteryCaution, cancellationToken);
 
                     }
                     else
                     {
-                        RvtLogger.Logger.LogInformation("NotifyBatteryLevels Battery OK level={Value1} for serialId={Value2} is above caution level={Value3}",
-                        batteryLevel, monitor.SerialId!, BATTERY_LEVEL_PERCENT_CAUTION);
+                        if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation("NotifyBatteryLevels Battery OK level={Value1} for serialId={Value2} is above caution level={Value3}",
+                            batteryLevel, monitor.SerialId!, _batteryLevelPercentCaution);
+                        }
                         if (monitor.BatteryStatus != OmnidotsApi.BatteryAlertType.Off)
                         {
-                            monitorCommands.SetMonitorBatteryStatus(monitor.Id, 0);
+                            _monitorCommands.SetMonitorBatteryStatus(monitor.Id, 0);
                         }
                     }
                 }
                 else
                 {
-                    RvtLogger.Logger.LogDebug("No sensor attached to measuring point serialId={Value1}", monitor.SerialId);
+                    if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                    {
+                        RvtLogger.Logger.LogDebug("No sensor attached to measuring point serialId={Value1}", monitor.SerialId);
+                    }
                 }
 
             }
 
         }
 
-        private Task ProcessBatteryAlertAsync(
+        private Task<AlertIngressResult> ProcessBatteryAlertAsync(
             int batteryLevel,
             VibrationMonitorDto monitor,
             int alertLevel,
             AlertType alertType,
             CancellationToken cancellationToken)
         {
-            monitorCommands.SetMonitorBatteryStatus(monitor.Id, (byte)(alertType == AlertType.BatteryAlert ? 1 : 2));  //1 for alert and 2 for Caution
+            _monitorCommands.SetMonitorBatteryStatus(monitor.Id, (byte)(alertType == AlertType.BatteryAlert ? 1 : 2));  //1 for alert and 2 for Caution
             DateTime createdTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow);
 
             // The durable stack writes the notification, plans per-contact
@@ -114,7 +138,7 @@ namespace Omnidots.Api.UseCases
                     EventTime: createdTime,
                     SerialId: monitor.SerialId!,
                     AlertType: alertType,
-                    Field: BATTERY_LEVEL,
+                    Field: _batteryLevel,
                     Level: batteryLevel,
                     Limit: alertLevel,
                     AveragingPeriod: 0,

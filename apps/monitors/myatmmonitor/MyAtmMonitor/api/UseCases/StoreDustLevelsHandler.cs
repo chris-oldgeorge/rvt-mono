@@ -13,13 +13,13 @@ namespace MyAtm.Api.UseCases;
 public sealed class StoreDustLevelsHandler
 {
     private readonly IMyAtmVendorGateway _gateway;
-    private readonly MyAtmMonitorReader monitorReader;
-    private readonly IMyAtmRuleQueries ruleQueries;
-    private readonly IMyAtmDustImportCommands dustImportCommands;
-    private readonly IMyAtmOperationalCommands operationalCommands;
-    private readonly MyAtmRuleEvaluator ruleEvaluator;
-    private readonly TimeProvider timeProvider;
-    private readonly int maxPagesPerMonitorPerRun;
+    private readonly MyAtmMonitorReader _monitorReader;
+    private readonly IMyAtmRuleQueries _ruleQueries;
+    private readonly IMyAtmDustImportCommands _dustImportCommands;
+    private readonly IMyAtmOperationalCommands _operationalCommands;
+    private readonly MyAtmRuleEvaluator _ruleEvaluator;
+    private readonly TimeProvider _timeProvider;
+    private readonly int _maxPagesPerMonitorPerRun;
 
     public StoreDustLevelsHandler(
         IMyAtmVendorGateway gateway,
@@ -32,13 +32,13 @@ public sealed class StoreDustLevelsHandler
         int maxPagesPerMonitorPerRun)
     {
         _gateway = gateway;
-        this.monitorReader = monitorReader;
-        this.ruleQueries = ruleQueries;
-        this.dustImportCommands = dustImportCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleEvaluator = ruleEvaluator;
-        this.timeProvider = timeProvider;
-        this.maxPagesPerMonitorPerRun = maxPagesPerMonitorPerRun;
+        _monitorReader = monitorReader;
+        _ruleQueries = ruleQueries;
+        _dustImportCommands = dustImportCommands;
+        _operationalCommands = operationalCommands;
+        _ruleEvaluator = ruleEvaluator;
+        _timeProvider = timeProvider;
+        _maxPagesPerMonitorPerRun = maxPagesPerMonitorPerRun;
     }
 
     public async Task RunAsync<T>(
@@ -46,15 +46,15 @@ public sealed class StoreDustLevelsHandler
         Period period,
         CancellationToken cancellationToken = default) where T : BaseDeviceMeasurement
     {
-        List<DustMonitorDto> monitors = monitorReader.ReadMonitors(customerId) ?? [];
-        MyAtmFailureCollector failures = new(operationalCommands);
+        List<DustMonitorDto> monitors = _monitorReader.ReadMonitors(customerId) ?? [];
+        MyAtmFailureCollector failures = new(_operationalCommands);
         foreach (DustMonitorDto monitor in monitors)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 DateTime cursor = DateTimeUtil.AsUtc(monitor.GetLastDataTime(period) ?? MyAtmApi.JAN1_1970);
-                for (int pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
+                for (int pageNumber = 0; pageNumber < _maxPagesPerMonitorPerRun; pageNumber++)
                 {
                     MyAtmMeasurementPage<T> page = await _gateway.HttpGetDeviceMeasurementPageAsync<T>(
                         customerId,
@@ -63,25 +63,28 @@ public sealed class StoreDustLevelsHandler
                         period,
                         cancellationToken);
                     List<DustDto> dtos = [.. page.Measurements.Select(measurement => new DustDto(monitor.SerialId, measurement))];
-                    RvtLogger.Logger.LogInformation(
-                        "StoreDustLevels page={PageNumber} count={Count} serialId={SerialId} cursor={Cursor}",
-                        pageNumber + 1,
-                        dtos.Count,
-                        monitor.SerialId,
-                        cursor);
+                    if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                    {
+                        RvtLogger.Logger.LogInformation(
+                            "StoreDustLevels page={PageNumber} count={Count} serialId={SerialId} cursor={Cursor}",
+                            pageNumber + 1,
+                            dtos.Count,
+                            monitor.SerialId,
+                            cursor);
+                    }
 
                     if (dtos.Count > 0)
                     {
-                        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
+                        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
                         DateTime pageWatermark = DateTimeUtil.AsUtc(page.NextCursor!.Value);
-                        List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId, period) ?? [];
-                        MyAtmRuleEvaluation evaluation = ruleEvaluator.Evaluate(monitor, period, rules, dtos, utcNow);
+                        List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId, period) ?? [];
+                        MyAtmRuleEvaluation evaluation = _ruleEvaluator.Evaluate(monitor, period, rules, dtos, utcNow);
                         IReadOnlyList<Rvt.Monitor.Common.Rules.RvtContactDto> contacts =
                             evaluation.AlertOccurrences.Count == 0
                                 ? Array.Empty<Rvt.Monitor.Common.Rules.RvtContactDto>()
-                                : ruleQueries.ReadAlertContacts(monitor.Id);
+                                : _ruleQueries.ReadAlertContacts(monitor.Id);
                         List<AlertOccurrenceProposal> occurrences = [.. evaluation.AlertOccurrences.Select(proposal => proposal with { Contacts = contacts })];
-                        await dustImportCommands.CommitDustImportAsync(
+                        await _dustImportCommands.CommitDustImportAsync(
                             new MyAtmDustImportCommit(
                                 monitor,
                                 period,

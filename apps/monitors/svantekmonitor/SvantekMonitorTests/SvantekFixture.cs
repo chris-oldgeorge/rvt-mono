@@ -3,7 +3,6 @@ using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Svantek.Api;
 using Svantek.Model.Http;
-using SvantekMonitor.model.dto;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 namespace SvantekMonitorTests
 {

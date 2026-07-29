@@ -56,7 +56,7 @@ export function DataGrid<T>({
   sortDirection = 'Ascending',
   rowActions = [],
   onPageChange,
-  onSortChange
+  onSortChange,
 }: DataGridProps<T>) {
   const hasActions = rowActions.length > 0;
   const visibleTotalPages = Math.max(totalPages, total > 0 ? Math.ceil(total / pageSize) : 0);
@@ -122,35 +122,37 @@ export function DataGrid<T>({
                 <td colSpan={columns.length + (hasActions ? 1 : 0)}>{emptyMessage}</td>
               </tr>
             )}
-            {!isLoading && !error && rows.map((row) => (
-              <tr key={getRowKey(row)}>
-                {columns.map((column) => (
-                  <td className={column.align === 'end' ? 'align-end' : undefined} key={column.key}>
-                    {column.render(row)}
-                  </td>
-                ))}
-                {hasActions && (
-                  <td>
-                    <div className="row-actions">
-                      {rowActions.map((action) => (
-                        <button
-                          className="icon-button"
-                          type="button"
-                          key={action.label}
-                          onClick={() => action.onClick(row)}
-                          disabled={action.disabled?.(row) ?? false}
-                          title={action.label}
-                          aria-label={action.label}
-                        >
-                          {action.icon}
-                          <span className="sr-only">{action.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </td>
-                )}
-              </tr>
-            ))}
+            {!isLoading &&
+              !error &&
+              rows.map((row) => (
+                <tr key={getRowKey(row)}>
+                  {columns.map((column) => (
+                    <td className={column.align === 'end' ? 'align-end' : undefined} key={column.key}>
+                      {column.render(row)}
+                    </td>
+                  ))}
+                  {hasActions && (
+                    <td>
+                      <div className="row-actions">
+                        {rowActions.map((action) => (
+                          <button
+                            className="icon-button"
+                            type="button"
+                            key={action.label}
+                            onClick={() => action.onClick(row)}
+                            disabled={action.disabled?.(row) ?? false}
+                            title={action.label}
+                            aria-label={action.label}
+                          >
+                            {action.icon}
+                            <span className="sr-only">{action.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
@@ -159,10 +161,20 @@ export function DataGrid<T>({
           Page {visibleTotalPages === 0 ? 0 : page} of {visibleTotalPages} | {total} records
         </span>
         <div className="pager">
-          <button type="button" onClick={() => onPageChange?.(page - 1)} disabled={!canGoBack} aria-label="Previous page">
+          <button
+            type="button"
+            onClick={() => onPageChange?.(page - 1)}
+            disabled={!canGoBack}
+            aria-label="Previous page"
+          >
             <ChevronLeft size={18} aria-hidden="true" />
           </button>
-          <button type="button" onClick={() => onPageChange?.(page + 1)} disabled={!canGoForward} aria-label="Next page">
+          <button
+            type="button"
+            onClick={() => onPageChange?.(page + 1)}
+            disabled={!canGoForward}
+            aria-label="Next page"
+          >
             <ChevronRight size={18} aria-hidden="true" />
           </button>
         </div>

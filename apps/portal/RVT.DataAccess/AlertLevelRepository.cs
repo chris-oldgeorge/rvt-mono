@@ -28,6 +28,4 @@ public class AlertlevelRepository : GenericRepository<Alertlevel>, IAlertlevelRe
     {
         return ReadFilteredAsync(whereFilter, orderBy, maximumRecords, pagedata.Paged, pagedata.Page, pagedata.PageSize, cancellationToken);
     }
-
-
 }

@@ -11,11 +11,11 @@ namespace Svantek.Api.UseCases;
 // Summary: Marks monitors offline/online from rule cutoffs and alerts contacts on transitions.
 public sealed class CheckForOfflineMonitorsHandler
 {
-    private readonly ISvantekRuleQueries ruleQueries;
-    private readonly SvantekMonitorReader monitorReader;
-    private readonly ISvantekMonitorCommands monitorCommands;
-    private readonly ISvantekOperationalCommands operationalCommands;
-    private readonly SvantekRuleProcessor ruleProcessor;
+    private readonly ISvantekRuleQueries _ruleQueries;
+    private readonly SvantekMonitorReader _monitorReader;
+    private readonly ISvantekMonitorCommands _monitorCommands;
+    private readonly ISvantekOperationalCommands _operationalCommands;
+    private readonly SvantekRuleProcessor _ruleProcessor;
 
     public CheckForOfflineMonitorsHandler(
         ISvantekRuleQueries ruleQueries,
@@ -24,22 +24,22 @@ public sealed class CheckForOfflineMonitorsHandler
         ISvantekOperationalCommands operationalCommands,
         SvantekRuleProcessor ruleProcessor)
     {
-        this.ruleQueries = ruleQueries;
-        this.monitorReader = monitorReader;
-        this.monitorCommands = monitorCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleProcessor = ruleProcessor;
+        _ruleQueries = ruleQueries;
+        _monitorReader = monitorReader;
+        _monitorCommands = monitorCommands;
+        _operationalCommands = operationalCommands;
+        _ruleProcessor = ruleProcessor;
     }
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        List<RvtAlertRuleDto> rules = [.. ruleQueries.ReadRules(null).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
-        List<NoiseMonitorReadDto> monitors = await monitorReader.ReadMonitorsAsync(
+        List<RvtAlertRuleDto> rules = [.. _ruleQueries.ReadRules(null).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
+        List<NoiseMonitorReadDto> monitors = await _monitorReader.ReadMonitorsAsync(
             lastDataTime: null,
             cancellationToken).ConfigureAwait(false);
         DateTime utcNow = DateTime.UtcNow;
-        SvantekFailureCollector failures = new(operationalCommands);
+        SvantekFailureCollector failures = new(_operationalCommands);
 
         foreach (NoiseMonitorReadDto monitor in monitors)
         {
@@ -59,10 +59,13 @@ public sealed class CheckForOfflineMonitorsHandler
 
                     if (lastDataTime < cutOff && !monitor.Offline)
                     {
-                        RvtLogger.Logger.LogInformation(
-                            "Device serialId={SerialId} has not received data; marking offline",
-                            monitor.SerialId);
-                        await ruleProcessor.SignalAlertAsync(
+                        if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation(
+                                "Device serialId={SerialId} has not received data; marking offline",
+                                monitor.SerialId);
+                        }
+                        await _ruleProcessor.SignalAlertAsync(
                             monitor.SerialId,
                             utcNow,
                             0,
@@ -72,7 +75,7 @@ public sealed class CheckForOfflineMonitorsHandler
                             rule.Field,
                             cancellationToken).ConfigureAwait(false);
                         monitor.Offline = true;
-                        await monitorCommands.SetMonitorOfflineAsync(
+                        await _monitorCommands.SetMonitorOfflineAsync(
                             monitor.Id,
                             offline: true,
                             cancellationToken).ConfigureAwait(false);
@@ -80,7 +83,7 @@ public sealed class CheckForOfflineMonitorsHandler
                     else if (lastDataTime >= cutOff && monitor.Offline)
                     {
                         monitor.Offline = false;
-                        await monitorCommands.SetMonitorOfflineAsync(
+                        await _monitorCommands.SetMonitorOfflineAsync(
                             monitor.Id,
                             offline: false,
                             cancellationToken).ConfigureAwait(false);

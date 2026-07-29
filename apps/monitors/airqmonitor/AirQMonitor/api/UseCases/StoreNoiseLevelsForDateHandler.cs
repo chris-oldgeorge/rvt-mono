@@ -13,9 +13,9 @@ namespace AirQ.Api.UseCases
     public class StoreNoiseLevelsForDateHandler
     {
         private readonly IAirQVendorGateway _gateway;
-        private readonly AirQMonitorReader monitorReader;
-        private readonly IAirQMeasurementCommands measurementCommands;
-        private readonly IAirQOperationalCommands operationalCommands;
+        private readonly AirQMonitorReader _monitorReader;
+        private readonly IAirQMeasurementCommands _measurementCommands;
+        private readonly IAirQOperationalCommands _operationalCommands;
 
         public StoreNoiseLevelsForDateHandler(
             IAirQVendorGateway gateway,
@@ -24,16 +24,16 @@ namespace AirQ.Api.UseCases
             IAirQOperationalCommands operationalCommands)
         {
             _gateway = gateway;
-            this.monitorReader = monitorReader;
-            this.measurementCommands = measurementCommands;
-            this.operationalCommands = operationalCommands;
+            _monitorReader = monitorReader;
+            _measurementCommands = measurementCommands;
+            _operationalCommands = operationalCommands;
         }
 
         public async Task RunAsync(string userId, string userAuth, string dateStr, CancellationToken cancellationToken = default)
         {
             try
             {
-                List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors();
+                List<NoiseMonitorDto> monitors = _monitorReader.ReadMonitors();
                 List<Exception> failures = [];
                 foreach (NoiseMonitorDto monitor in monitors)
                 {
@@ -56,7 +56,7 @@ namespace AirQ.Api.UseCases
                         {
                             dtos.Add(new NoiseDto(sample));
                         }
-                        measurementCommands.InsertNoiseDtos(serialId, dtos);
+                        _measurementCommands.InsertNoiseDtos(serialId, dtos);
 
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -65,7 +65,7 @@ namespace AirQ.Api.UseCases
                     }
                     catch (Exception e)
                     {
-                        operationalCommands.HandleException(string.Format("StoreAllNoiseLevelsForDate SerialId={0}", monitor.SerialId), e);
+                        _operationalCommands.HandleException(string.Format("StoreAllNoiseLevelsForDate SerialId={0}", monitor.SerialId), e);
                         failures.Add(e);
                     }
                 }
@@ -85,7 +85,7 @@ namespace AirQ.Api.UseCases
             }
             catch (Exception e)
             {
-                operationalCommands.HandleException("StoreAllNoiseLevelsForDate", e);
+                _operationalCommands.HandleException("StoreAllNoiseLevelsForDate", e);
                 throw;
             }
         }

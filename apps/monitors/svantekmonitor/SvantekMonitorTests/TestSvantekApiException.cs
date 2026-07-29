@@ -8,7 +8,6 @@ using Rvt.Monitor.Common.Rules;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
-using SvantekMonitor.model.dto;
 namespace SvantekMonitorTests;
 
 // Summary: Facade-level failure-semantics tests: setup failures escape, per-unit failures

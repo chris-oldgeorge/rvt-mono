@@ -3,7 +3,7 @@ namespace Rvt.Monitor.CommonTests.Architecture;
 [TestClass]
 public sealed class CommunicationsBoundaryTests
 {
-    private static readonly string[] LegacyTransportFiles =
+    private static readonly string[] _legacyTransportFiles =
     [
         "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Communications/Email" + "Sender.cs",
         "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Communications/SmsSender.cs",
@@ -33,7 +33,7 @@ public sealed class CommunicationsBoundaryTests
     public void CommonContainsNoLegacyTransportOrProviderPackage()
     {
         string root = FindRepositoryRoot();
-        foreach (string relativePath in LegacyTransportFiles)
+        foreach (string relativePath in _legacyTransportFiles)
         {
             Assert.IsFalse(File.Exists(Path.Combine(root, relativePath)));
         }

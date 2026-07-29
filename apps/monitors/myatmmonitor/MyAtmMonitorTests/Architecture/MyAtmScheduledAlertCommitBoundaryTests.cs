@@ -27,10 +27,10 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
         Assert.Contains("IMyAtmAlertCommitCommands", source);
         CollectionAssert.AreEquivalent(
             _expected,
-            InvokedMethods(source, "alertCommitCommands"));
+            InvokedMethods(source, "_alertCommitCommands"));
         CollectionAssert.AreEquivalent(
             expectedCommitFactories.Split(',', StringSplitOptions.RemoveEmptyEntries),
-            InvokedMethods(source, "ruleProcessor"));
+            InvokedMethods(source, "_ruleProcessor"));
 
         AssertContainsNone(
             source,

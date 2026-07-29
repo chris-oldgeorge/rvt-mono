@@ -13,10 +13,10 @@ namespace AirQ.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitors).
     public class CheckForOfflineMonitorsHandler
     {
-        private readonly IAirQRuleQueries ruleQueries;
-        private readonly AirQMonitorReader monitorReader;
-        private readonly IAirQMonitorCommands monitorCommands;
-        private readonly AirQRuleProcessor ruleProcessor;
+        private readonly IAirQRuleQueries _ruleQueries;
+        private readonly AirQMonitorReader _monitorReader;
+        private readonly IAirQMonitorCommands _monitorCommands;
+        private readonly AirQRuleProcessor _ruleProcessor;
 
         public CheckForOfflineMonitorsHandler(
             IAirQRuleQueries ruleQueries,
@@ -24,16 +24,16 @@ namespace AirQ.Api.UseCases
             IAirQMonitorCommands monitorCommands,
             AirQRuleProcessor ruleProcessor)
         {
-            this.ruleQueries = ruleQueries;
-            this.monitorReader = monitorReader;
-            this.monitorCommands = monitorCommands;
-            this.ruleProcessor = ruleProcessor;
+            _ruleQueries = ruleQueries;
+            _monitorReader = monitorReader;
+            _monitorCommands = monitorCommands;
+            _ruleProcessor = ruleProcessor;
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(null);
+            List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(null);
 
             DateTime utcNow = DateTime.UtcNow;
             foreach (RvtAlertRuleDto rule in rules)
@@ -42,7 +42,7 @@ namespace AirQ.Api.UseCases
                 {
                     DateTime cutOff = utcNow.Subtract(new TimeSpan(hours: 0, minutes: 0, seconds: rule.AveragingPeriod));
                     DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
-                    List<NoiseMonitorDto> monitors = monitorReader.ReadMonitors(null);
+                    List<NoiseMonitorDto> monitors = _monitorReader.ReadMonitors(null);
 
                     foreach (NoiseMonitorDto monitor in monitors!)
                     {
@@ -53,8 +53,11 @@ namespace AirQ.Api.UseCases
 
                             if (lastDataTime < cutOff)
                             {
-                                RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
-                                await ruleProcessor.SignalAlertAsync(serialId: monitor.SerialId!,
+                                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                                {
+                                    RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
+                                }
+                                await _ruleProcessor.SignalAlertAsync(serialId: monitor.SerialId!,
                                                         alertTime: DateTime.UtcNow,
                                                         limitOn: 0,
                                                         averagingPeriod: rule.AveragingPeriod,
@@ -66,15 +69,21 @@ namespace AirQ.Api.UseCases
                             }
                             else
                             {
-                                RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data has been recieved marking as online", monitor.SerialId);
+                                if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data has been recieved marking as online", monitor.SerialId);
+                                }
                                 monitor.Offline = false;
                             }
-                            monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
+                            _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                         }
                         else
                         {
-                            RvtLogger.Logger.LogDebug("Monitor serialId = {Value1} is already offline lastDataTime={Value2}",
-                                monitor.SerialId, monitor.LastDataTime);
+                            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                            {
+                                RvtLogger.Logger.LogDebug("Monitor serialId = {Value1} is already offline lastDataTime={Value2}",
+                                    monitor.SerialId, monitor.LastDataTime);
+                            }
                         }
                     }
                 }

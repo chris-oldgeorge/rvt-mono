@@ -12,16 +12,16 @@ namespace MyAtm.Api;
 // deleted by legacy-retirement step 4 (2026-07-29) with no remaining callers.
 public sealed class MyAtmRuleProcessor
 {
-    private readonly IMyAtmRuleQueries ruleQueries;
-    private readonly MyAtmAlertTransitionEvaluator transitionEvaluator = new();
-    private readonly RuleAlertDeliveryPlanner deliveryPlanner;
+    private readonly IMyAtmRuleQueries _ruleQueries;
+    private readonly MyAtmAlertTransitionEvaluator _transitionEvaluator = new();
+    private readonly RuleAlertDeliveryPlanner _deliveryPlanner;
 
     public MyAtmRuleProcessor(
         IMyAtmRuleQueries ruleQueries,
         RuleAlertDeliveryPlanner? deliveryPlanner = null)
     {
-        this.ruleQueries = ruleQueries;
-        this.deliveryPlanner = deliveryPlanner ?? new RuleAlertDeliveryPlanner();
+        _ruleQueries = ruleQueries;
+        _deliveryPlanner = deliveryPlanner ?? new RuleAlertDeliveryPlanner();
     }
 
     public MyAtmAlertCommit CreateAggregateCommit(
@@ -33,7 +33,7 @@ public sealed class MyAtmRuleProcessor
         DateTime utcNow)
     {
         DustDto sample = AggregateSample(monitor.SerialId, end, rule.Field, level);
-        MyAtmAlertTransition transition = transitionEvaluator.Evaluate(rule, rule.IsActive, sample, alertForFieldIsActive);
+        MyAtmAlertTransition transition = _transitionEvaluator.Evaluate(rule, rule.IsActive, sample, alertForFieldIsActive);
         RuleStateMutation[] mutations =
         [
             new RuleStateMutation(rule.RuleId, rule.IsActive, rule.Accessed, transition.IsActive, end)
@@ -94,7 +94,7 @@ public sealed class MyAtmRuleProcessor
     {
         string key = occurrenceKey ?? $"{monitor.Id:N}:{rule.RuleId:N}:{DateTimeUtil.AsUtc(triggeredAt):O}:{alertType}";
         string normalizedField = MyAtmAlertTransitionEvaluator.NormalizeField(rule.Field);
-        RuleAlertDeliveryPlan deliveryPlan = deliveryPlanner.Plan(
+        RuleAlertDeliveryPlan deliveryPlan = _deliveryPlanner.Plan(
             new RuleNotificationRequest(
                 monitor.FleetNr ?? string.Empty,
                 monitor.SerialId,
@@ -105,7 +105,7 @@ public sealed class MyAtmRuleProcessor
                 alertType,
                 normalizedField,
                 monitor.Id),
-            ruleQueries.ReadAlertContacts(monitor.Id) ?? [],
+            _ruleQueries.ReadAlertContacts(monitor.Id) ?? [],
             MonitorDeliveryProducers.MyAtm,
             monitor.CustomerId,
             key,

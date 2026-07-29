@@ -29,8 +29,8 @@ namespace Omnidots.Api.Db
         IOmnidotsMeasurementImportCommands,
         IOmnidotsTraceQueries
     {
-        private readonly string ConnectionString;
-        private readonly Action<OmnidotsMeasurementSeries, int>? BeforeImportSave;
+        private readonly string _connectionString;
+        private readonly Action<OmnidotsMeasurementSeries, int>? _beforeImportSave;
 
         public DBClient(string connectionString)
             : this(connectionString, null)
@@ -44,8 +44,8 @@ namespace Omnidots.Api.Db
             MonitorDb.ValidateLegacyProvider(
                 Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
                 Environment.GetEnvironmentVariable("DatabaseProvider"));
-            ConnectionString = connectionString;
-            BeforeImportSave = beforeImportSave;
+            _connectionString = connectionString;
+            _beforeImportSave = beforeImportSave;
         }
 
         public void WriteMonitorList(List<VibrationMonitorDto> monitors)
@@ -163,21 +163,11 @@ namespace Omnidots.Api.Db
                 .AsNoTracking()
                 .FirstOrDefault(row =>
                     row.SerialId == serialId &&
-                    row.TypeOfMonitor == VibrationMonitorDto.MONITOR_TYPE_VIBRATION);
-
-            if (monitor == null)
-            {
-                throw AdapterException.Of($"No monitor with SerialId='{serialId}'");
-            }
+                    row.TypeOfMonitor == VibrationMonitorDto.MONITOR_TYPE_VIBRATION) ?? throw AdapterException.Of($"No monitor with SerialId='{serialId}'");
 
             OmnidotsMonitorStatusEntity? status = context.MonitorStatuses
                 .AsNoTracking()
-                .FirstOrDefault(row => row.SerialId == serialId);
-            if (status == null)
-            {
-                throw AdapterException.Of($"Missing VibrationMonitorStatus for serialId={serialId}");
-            }
-
+                .FirstOrDefault(row => row.SerialId == serialId) ?? throw AdapterException.Of($"Missing VibrationMonitorStatus for serialId={serialId}");
             OmnidotsSensorEntity? sensor = context.Sensors
                 .AsNoTracking()
                 .FirstOrDefault(row => row.SerialId == serialId);
@@ -198,18 +188,21 @@ namespace Omnidots.Api.Db
 
         public void HandleException(string message, Exception exception)
         {
-            RvtLogger.Logger.LogError("DBClient HandleException message={Value1} exception={Value2}", message, exception.Message);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Error))
+            {
+                RvtLogger.Logger.LogError("DBClient HandleException message={Value1} exception={Value2}", message, exception.Message);
+            }
 
             using OmnidotsMonitorContext context = CreateContext();
             string error = exception.ToString();
             if (error.Length > 1024)
             {
-                error = error.Substring(0, 1024);
+                error = error[..1024];
             }
 
             context.OmnidotsErrorMessages.Add(new OmnidotsErrorMessageEntity
             {
-                Tag = message.Length > 64 ? message.Substring(0, 64) : message,
+                Tag = message.Length > 64 ? message[..64] : message,
                 Error = error,
                 ErrorTime = DateTime.UtcNow
             });
@@ -218,7 +211,10 @@ namespace Omnidots.Api.Db
 
         public void WriteLatestTimestamp(string serialId, DateTime lastDataTime)
         {
-            RvtLogger.Logger.LogDebug("WriteLatestTimestamp for serialId={Value1} lastDataTime={Value2}", serialId, lastDataTime);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+            {
+                RvtLogger.Logger.LogDebug("WriteLatestTimestamp for serialId={Value1} lastDataTime={Value2}", serialId, lastDataTime);
+            }
 
             using OmnidotsMonitorContext context = CreateContext();
             MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
@@ -268,7 +264,10 @@ namespace Omnidots.Api.Db
 
         public void InsertVeffRecords(string serialId, List<VeffRecordDto> dtos)
         {
-            RvtLogger.Logger.LogDebug("Inserting VEFF Records serialId={Value1} number of records={Value2}", serialId, dtos.Count);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+            {
+                RvtLogger.Logger.LogDebug("Inserting VEFF Records serialId={Value1} number of records={Value2}", serialId, dtos.Count);
+            }
 
             if (dtos.Count == 0)
             {
@@ -280,7 +279,10 @@ namespace Omnidots.Api.Db
 
         public void InsertVdvRecords(string serialId, List<VdvRecordDto> dtos)
         {
-            RvtLogger.Logger.LogDebug("Inserting VDV Records serialId={Value1} number of records={Value2}", serialId, dtos.Count);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+            {
+                RvtLogger.Logger.LogDebug("Inserting VDV Records serialId={Value1} number of records={Value2}", serialId, dtos.Count);
+            }
 
             if (dtos.Count == 0)
             {
@@ -614,12 +616,7 @@ namespace Omnidots.Api.Db
                 return new SiteTimes();
             }
 
-            SiteEntity? site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId);
-            if (site == null)
-            {
-                throw AdapterException.Of($"ReadSiteActivityTimeBySiteId No site times for siteId = {siteId}");
-            }
-
+            SiteEntity? site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId) ?? throw AdapterException.Of($"ReadSiteActivityTimeBySiteId No site times for siteId = {siteId}");
             return new SiteTimes
             {
                 WeekdayStart = site.StartTime,
@@ -634,7 +631,7 @@ namespace Omnidots.Api.Db
         private OmnidotsMonitorContext CreateContext()
         {
             MonitorDbOptions monitorOptions = OmnidotsMonitorDbOptions.Current;
-            DbContextOptions<OmnidotsMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(ConnectionString);
+            DbContextOptions<OmnidotsMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(_connectionString);
             return new OmnidotsMonitorContext(options, monitorOptions);
         }
 
@@ -672,12 +669,7 @@ namespace Omnidots.Api.Db
 
         private static VibrationMonitorStatusDto ReadMonitorStatus(OmnidotsMonitorContext context, string serialId)
         {
-            OmnidotsMonitorStatusEntity? entity = context.MonitorStatuses.AsNoTracking().FirstOrDefault(row => row.SerialId == serialId);
-            if (entity == null)
-            {
-                throw AdapterException.Of($"Missing VibrationMonitorStatus for serialId={serialId}");
-            }
-
+            OmnidotsMonitorStatusEntity? entity = context.MonitorStatuses.AsNoTracking().FirstOrDefault(row => row.SerialId == serialId) ?? throw AdapterException.Of($"Missing VibrationMonitorStatus for serialId={serialId}");
             return OmnidotsDbMapper.ToStatusDto(entity);
         }
 
@@ -699,7 +691,7 @@ namespace Omnidots.Api.Db
                 try
                 {
                     stageAttempt(context);
-                    BeforeImportSave?.Invoke(series, attempt);
+                    _beforeImportSave?.Invoke(series, attempt);
                     context.SaveChanges();
                     transaction.Commit();
                     return;

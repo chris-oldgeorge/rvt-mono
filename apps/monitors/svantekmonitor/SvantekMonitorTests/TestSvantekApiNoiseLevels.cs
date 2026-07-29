@@ -11,7 +11,6 @@ using Rvt.Monitor.Common.Utilities;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
-using SvantekMonitor.model.dto;
 namespace SvantekMonitorTests;
 
 // Summary: Facade-level StoreNoiseLevels tests: samples are persisted and rule breaches

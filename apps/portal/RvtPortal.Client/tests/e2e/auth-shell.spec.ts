@@ -10,7 +10,7 @@ test('anonymous user can see the SPA login shell', async ({ page }) => {
     await route.fulfill({
       contentType: 'application/json',
       json: { isAuthenticated: false, user: null },
-      status: 200
+      status: 200,
     });
   });
 
@@ -33,8 +33,8 @@ test('RVT admin can see admin navigation and companies', async ({ page }) => {
             companyName: 'RVT Group',
             userCount: 2,
             sites: '1',
-            contracts: '1'
-          }
+            contracts: '1',
+          },
         ],
         total: 1,
         page: 1,
@@ -44,9 +44,9 @@ test('RVT admin can see admin navigation and companies', async ({ page }) => {
         hasNextPage: false,
         searchText: '',
         sort: 'companyName',
-        sortDir: 'Ascending'
+        sortDir: 'Ascending',
       },
-      status: 200
+      status: 200,
     });
   });
   await page.route('**/api/companies/company-id', async (route) => {
@@ -60,17 +60,17 @@ test('RVT admin can see admin navigation and companies', async ({ page }) => {
           siteCount: 1,
           contractCount: 1,
           sites: 'Athens Plant',
-          contracts: 'Monitoring'
-        }
+          contracts: 'Monitoring',
+        },
       },
-      status: 200
+      status: 200,
     });
   });
   await page.route('**/api/lookups/**', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
       json: { kind: 'companies', query: 'rvt', take: 8, results: ['RVT Group'] },
-      status: 200
+      status: 200,
     });
   });
 
@@ -110,8 +110,8 @@ test('RVT admin can see users and user details', async ({ page }) => {
             canDelete: true,
             canSendConfirmation: false,
             canSendPasswordReset: true,
-            canManageNotificationSettings: true
-          }
+            canManageNotificationSettings: true,
+          },
         ],
         total: 1,
         page: 1,
@@ -123,9 +123,9 @@ test('RVT admin can see users and user details', async ({ page }) => {
         sort: 'email',
         sortDir: 'Ascending',
         companyId: null,
-        companyName: null
+        companyName: null,
       },
-      status: 200
+      status: 200,
     });
   });
   await page.route('**/api/users/company-user-id', async (route) => {
@@ -153,10 +153,10 @@ test('RVT admin can see users and user details', async ({ page }) => {
           canSendPasswordReset: true,
           canManageNotificationSettings: true,
           availableRoles: [],
-          companies: []
-        }
+          companies: [],
+        },
       },
-      status: 200
+      status: 200,
     });
   });
 
@@ -195,17 +195,17 @@ async function mockSignedInShell(page: import('@playwright/test').Page, roles: s
           id: 'user-id',
           email: 'user@rvt.test',
           name: 'RVT User',
-          roles
-        }
+          roles,
+        },
       },
-      status: 200
+      status: 200,
     });
   });
   await page.route('**/api/health', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
       json: { status: 'Healthy', framework: 'Testing', serverTimeUtc: new Date(0).toISOString() },
-      status: 200
+      status: 200,
     });
   });
   await page.route('**/api/auth/profile', async (route) => {
@@ -217,9 +217,9 @@ async function mockSignedInShell(page: import('@playwright/test').Page, roles: s
         name: 'RVT User',
         role: roles[0] ?? null,
         companyRole: null,
-        companyName: null
+        companyName: null,
       },
-      status: 200
+      status: 200,
     });
   });
 }

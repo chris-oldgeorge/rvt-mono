@@ -14,7 +14,7 @@ public static class OmnidotsTestLocalMonitorFilter
             return monitors;
         }
 
-        return monitors.Where(IsTargetReadMonitor).ToList();
+        return [.. monitors.Where(IsTargetReadMonitor)];
     }
 
     public static List<VibrationMonitorDto> ApplyCatalog(List<VibrationMonitorDto> monitors, bool enabled)
@@ -24,7 +24,7 @@ public static class OmnidotsTestLocalMonitorFilter
             return monitors;
         }
 
-        return monitors.Where(monitor => string.Equals(monitor.SerialId, TargetSerialId, StringComparison.Ordinal)).ToList();
+        return [.. monitors.Where(monitor => string.Equals(monitor.SerialId, TargetSerialId, StringComparison.Ordinal))];
     }
 
     private static bool IsTargetReadMonitor(VibrationMonitorDto monitor) =>

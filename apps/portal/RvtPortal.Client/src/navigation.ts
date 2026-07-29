@@ -7,9 +7,8 @@ const returnToParameter = 'returnTo';
 
 // Function summary: Captures the live internal route path and query string for return navigation.
 export function currentRoutePath(locationPath: string) {
-  const browserPath = typeof globalThis.location === 'object'
-    ? `${globalThis.location.pathname}${globalThis.location.search}`
-    : '';
+  const browserPath =
+    typeof globalThis.location === 'object' ? `${globalThis.location.pathname}${globalThis.location.search}` : '';
   const url = new URL(browserPath || locationPath, fallbackOrigin);
   return `${url.pathname}${url.search}`;
 }

@@ -26,15 +26,15 @@ namespace Omnidots.Api
         }
 
         private readonly IOmnidotsVendorGateway _gateway;
-        private readonly StoreMonitorsHandler storeMonitors;
-        private readonly CheckForOfflineMonitorsHandler checkForOfflineMonitors;
-        private readonly StorePeakRecordsHandler storePeakRecords;
-        private readonly StoreVeffRecordsHandler storeVeffRecords;
-        private readonly StoreVdvRecordsHandler storeVdvRecords;
-        private readonly StoreTracesHandler storeTraces;
-        private readonly NotifyBatteryLevelsHandler notifyBatteryLevels;
-        private readonly ClearOlderErrorMessagesHandler clearOlderErrorMessages;
-        private readonly MonitoringHandler monitoring;
+        private readonly StoreMonitorsHandler _storeMonitors;
+        private readonly CheckForOfflineMonitorsHandler _checkForOfflineMonitors;
+        private readonly StorePeakRecordsHandler _storePeakRecords;
+        private readonly StoreVeffRecordsHandler _storeVeffRecords;
+        private readonly StoreVdvRecordsHandler _storeVdvRecords;
+        private readonly StoreTracesHandler _storeTraces;
+        private readonly NotifyBatteryLevelsHandler _notifyBatteryLevels;
+        private readonly ClearOlderErrorMessagesHandler _clearOlderErrorMessages;
+        private readonly MonitoringHandler _monitoring;
 
         public OmnidotsApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient mqttClient, IAlertIngressPort alertIngress)
             : this(httpClient, dbClient, mqttClient, alertIngress, RvtConfig.TESTLOCAL)
@@ -96,15 +96,15 @@ namespace Omnidots.Api
             _gateway = new OmnidotsHttpGateway(httpClient, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             OmnidotsMonitorReader monitorReader = new(dbClient, testLocal);
             MonitorEventPublisher eventPublisher = new(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
-            storeMonitors = new StoreMonitorsHandler(_gateway, dbClient, dbClient, testLocal);
-            checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(
+            _storeMonitors = new StoreMonitorsHandler(_gateway, dbClient, dbClient, testLocal);
+            _checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(
                 dbClient,
                 monitorReader,
                 dbClient,
                 dbClient,
                 dbClient,
                 alertIngress);
-            storePeakRecords = new StorePeakRecordsHandler(
+            _storePeakRecords = new StorePeakRecordsHandler(
                 _gateway,
                 monitorReader,
                 dbClient,
@@ -112,7 +112,7 @@ namespace Omnidots.Api
                 importCommands,
                 dbClient,
                 eventPublisher);
-            storeVeffRecords = new StoreVeffRecordsHandler(
+            _storeVeffRecords = new StoreVeffRecordsHandler(
                 _gateway,
                 monitorReader,
                 dbClient,
@@ -120,7 +120,7 @@ namespace Omnidots.Api
                 importCommands,
                 dbClient,
                 eventPublisher);
-            storeVdvRecords = new StoreVdvRecordsHandler(
+            _storeVdvRecords = new StoreVdvRecordsHandler(
                 _gateway,
                 monitorReader,
                 dbClient,
@@ -128,7 +128,7 @@ namespace Omnidots.Api
                 importCommands,
                 dbClient,
                 eventPublisher);
-            storeTraces = new StoreTracesHandler(
+            _storeTraces = new StoreTracesHandler(
                 _gateway,
                 monitorReader,
                 dbClient,
@@ -136,9 +136,9 @@ namespace Omnidots.Api
                 traceQueries,
                 traceCollectionOptions,
                 timeProvider);
-            notifyBatteryLevels = new NotifyBatteryLevelsHandler(monitorReader, dbClient, alertIngress);
-            clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
-            monitoring = new MonitoringHandler(
+            _notifyBatteryLevels = new NotifyBatteryLevelsHandler(monitorReader, dbClient, alertIngress);
+            _clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
+            _monitoring = new MonitoringHandler(
                 monitorReader,
                 monitoringOptions,
                 monitoringNotifier,
@@ -146,31 +146,31 @@ namespace Omnidots.Api
         }
 
         public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
-            storeMonitors.RunAsync(cancellationToken);
+            _storeMonitors.RunAsync(cancellationToken);
 
         public Task CheckForOfflineMonitorsAsync(CancellationToken cancellationToken = default) =>
-            checkForOfflineMonitors.RunAsync(cancellationToken);
+            _checkForOfflineMonitors.RunAsync(cancellationToken);
 
         public Task StorePeakRecordsLastDataTimeAsync(CancellationToken cancellationToken = default) =>
-            storePeakRecords.RunAsync(cancellationToken);
+            _storePeakRecords.RunAsync(cancellationToken);
 
         public Task StoreVeffRecordsAsync(TimeSpan lookback, CancellationToken cancellationToken = default) =>
-            storeVeffRecords.RunAsync(lookback, cancellationToken);
+            _storeVeffRecords.RunAsync(lookback, cancellationToken);
 
         public Task StoreVdvRecordsAsync(TimeSpan lookback, CancellationToken cancellationToken = default) =>
-            storeVdvRecords.RunAsync(lookback, cancellationToken);
+            _storeVdvRecords.RunAsync(lookback, cancellationToken);
 
         public Task StoreTracesAsync(DateTime last, CancellationToken cancellationToken = default) =>
-            storeTraces.RunAsync(last, cancellationToken);
+            _storeTraces.RunAsync(last, cancellationToken);
 
         public Task NotifyBatteryLevelsAsync(CancellationToken cancellationToken = default) =>
-            notifyBatteryLevels.RunAsync(cancellationToken);
+            _notifyBatteryLevels.RunAsync(cancellationToken);
 
         public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default) =>
-            clearOlderErrorMessages.RunAsync(cancellationToken);
+            _clearOlderErrorMessages.RunAsync(cancellationToken);
 
         internal Task MonitoringAsync(CancellationToken cancellationToken = default) =>
-            monitoring.RunAsync(cancellationToken);
+            _monitoring.RunAsync(cancellationToken);
 
         private sealed class UnavailableEmailDeliveryPort : IEmailDeliveryPort
         {

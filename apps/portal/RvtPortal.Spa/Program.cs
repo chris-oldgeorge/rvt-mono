@@ -130,6 +130,7 @@ static void ConfigureForwardedHeaders(WebApplicationBuilder builder)
         {
             options.KnownProxies.Add(proxy);
         }
+
         foreach (System.Net.IPNetwork network in parsedNetworks)
         {
             options.KnownIPNetworks.Add(network);
@@ -602,16 +603,19 @@ static bool IsDevelopmentSpaOrigin(string origin)
     {
         return false;
     }
+
     if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
     {
         return false;
     }
+
     if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(uri.Host, "::1", StringComparison.OrdinalIgnoreCase))
     {
         return true;
     }
+
     return uri.Host.StartsWith("10.", StringComparison.OrdinalIgnoreCase) ||
         uri.Host.StartsWith("192.168.", StringComparison.OrdinalIgnoreCase) ||
         uri.Host.StartsWith("172.16.", StringComparison.OrdinalIgnoreCase) ||
@@ -630,6 +634,7 @@ static bool ShouldApplyHttpsRedirection(HttpContext context)
     {
         return true;
     }
+
     return !context.Request.Path.StartsWithSegments("/api") &&
         !context.Request.Path.StartsWithSegments("/swagger");
 }

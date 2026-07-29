@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ReportingMonitor.Api;
-using ReportingMonitor.Api.UseCases;
 using Rvt.Reporting.Core.Models;
 using Rvt.Reporting.Core.Reports;
 
@@ -31,7 +30,12 @@ public sealed class TestReportingDispatcher
     public async Task RunAsync_GenerateScheduledReports_UsesCurrentUtcTimeAndReturnsZero()
     {
         RecordingReportGenerationService service = new();
-        ReportingMonitorJobDispatcher dispatcher = new(new GenerateScheduledReportsHandler(service));
+        using ServiceProvider provider = ReportingServiceProviderFactory.Create(services =>
+        {
+            services.RemoveAll<IReportGenerationService>();
+            services.AddScoped<IReportGenerationService>(_ => service);
+        });
+        ReportingMonitorJobDispatcher dispatcher = provider.GetRequiredService<ReportingMonitorJobDispatcher>();
 
         int result = await dispatcher.RunAsync("GenerateScheduledReports", CancellationToken.None);
 
@@ -42,12 +46,23 @@ public sealed class TestReportingDispatcher
     }
 
     [Fact]
-    public async Task RunAsync_UnknownJob_ReturnsTwoWithParameterlessDispatcher()
+    public async Task RunAsync_UnknownJob_ReturnsTwo()
     {
-        int result = await new ReportingMonitorJobDispatcher()
-            .RunAsync("GenerateAllReports", CancellationToken.None);
+        using ServiceProvider provider = ReportingServiceProviderFactory.Create();
+        ReportingMonitorJobDispatcher dispatcher = provider.GetRequiredService<ReportingMonitorJobDispatcher>();
+
+        int result = await dispatcher.RunAsync("GenerateAllReports", CancellationToken.None);
 
         Assert.Equal(2, result);
+    }
+
+    [Fact]
+    public void SupportedJobNames_ComeFromTheJobCatalog()
+    {
+        using ServiceProvider provider = ReportingServiceProviderFactory.Create();
+        ReportingMonitorJobDispatcher dispatcher = provider.GetRequiredService<ReportingMonitorJobDispatcher>();
+
+        Assert.Equal(["GenerateScheduledReports"], dispatcher.SupportedJobNames.Order(StringComparer.Ordinal));
     }
 
     private sealed class RecordingReportGenerationService : IReportGenerationService

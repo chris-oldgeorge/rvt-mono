@@ -114,9 +114,7 @@ public sealed class NotifyBatteryLevelsHandler
             status,
             cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
-        List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
-        ruleProcessor.ProcessAlertForContacts(
-            monitor.FleetNr,
+        await ruleProcessor.SignalAlertAsync(
             monitor.SerialId,
             DateTimeUtil.TruncateMillis(DateTime.UtcNow),
             alertLevel,
@@ -124,7 +122,6 @@ public sealed class NotifyBatteryLevelsHandler
             batteryLevel,
             alertType,
             BatteryLevel,
-            monitor.Id,
-            contacts);
+            cancellationToken).ConfigureAwait(false);
     }
 }

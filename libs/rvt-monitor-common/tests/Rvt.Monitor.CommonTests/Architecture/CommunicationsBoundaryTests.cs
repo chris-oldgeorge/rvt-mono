@@ -3,7 +3,7 @@ namespace Rvt.Monitor.CommonTests.Architecture;
 [TestClass]
 public sealed class CommunicationsBoundaryTests
 {
-    private static readonly string[] _legacyTransportFiles =
+    private static readonly string[] LegacyTransportFiles =
     [
         "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Communications/Email" + "Sender.cs",
         "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Communications/SmsSender.cs",
@@ -12,17 +12,18 @@ public sealed class CommunicationsBoundaryTests
         "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Sms/TransmitSmsClient.cs"
     ];
 
-    private static readonly string[] _synchronousCompatibilityCallers =
-    [
-        "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rules/RuleAlertNotificationDispatcher.cs"
-    ];
-    private static readonly string[] _activeSourceRoots =
+    // Emptied on 2026-07-29 when legacy-retirement step 4 deleted
+    // RuleAlertNotificationDispatcher, the last synchronous caller in Common.
+    private static readonly string[] _synchronousCompatibilityCallers = [];
+
+    private static readonly string[] _activeSourceDirectories =
     [
         "libs/rvt-monitor-common/src",
         "apps/monitors",
         "apps/portal"
     ];
-    private static readonly string[] _removedProjectReferenceFiles =
+
+    private static readonly string[] _solutionFiles =
     [
         "libs/rvt-monitor-common/rvt-common.sln",
         "Rvt.Mono.slnx"
@@ -32,7 +33,7 @@ public sealed class CommunicationsBoundaryTests
     public void CommonContainsNoLegacyTransportOrProviderPackage()
     {
         string root = FindRepositoryRoot();
-        foreach (string relativePath in _legacyTransportFiles)
+        foreach (string relativePath in LegacyTransportFiles)
         {
             Assert.IsFalse(File.Exists(Path.Combine(root, relativePath)));
         }
@@ -128,10 +129,11 @@ public sealed class CommunicationsBoundaryTests
 
         Assert.IsFalse(Directory.Exists(removedProject));
 
-        string[] activeReferences = [.. _activeSourceRoots.SelectMany(relative => ReadProductionSource(root, relative))
+        string[] activeReferences = [.. _activeSourceDirectories
+            .SelectMany(relative => ReadProductionSource(root, relative))
             .Where(file => file.Text.Contains(removedIdentity, StringComparison.Ordinal))
             .Select(file => file.RelativePath)
-            .Concat(_removedProjectReferenceFiles
+            .Concat(_solutionFiles
             .Where(relative => File.ReadAllText(Path.Combine(root, relative))
                 .Contains(removedIdentity, StringComparison.Ordinal)))
             .Order(StringComparer.Ordinal)];

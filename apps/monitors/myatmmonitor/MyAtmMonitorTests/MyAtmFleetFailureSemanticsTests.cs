@@ -113,7 +113,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
             ruleQueries.Object,
             commits.Object,
             operational.Object,
-            new MyAtmRuleProcessor(ruleQueries.Object, "https://portal.example/"),
+            new MyAtmRuleProcessor(ruleQueries.Object),
             new FixedTimeProvider(now),
             testLocal: false);
 
@@ -167,7 +167,7 @@ public sealed class MyAtmFleetFailureSemanticsTests
             ruleQueries.Object,
             commits.Object,
             operational.Object,
-            new MyAtmRuleProcessor(ruleQueries.Object, "https://portal.example/"),
+            new MyAtmRuleProcessor(ruleQueries.Object),
             TimeProvider.System,
             testLocal: false);
         using CancellationTokenSource cancellation = new();

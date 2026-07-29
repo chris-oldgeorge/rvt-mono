@@ -4,9 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Monitor.Common.Mqtt;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
@@ -85,6 +84,7 @@ public sealed class SvantekJobCancellationTests
         IConfigurationRoot configuration = new ConfigurationBuilder().Build();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSvantekMonitor(configuration);
+        TestUtil.UseTestMonitorContextFactory(services);
 
         using ServiceProvider provider = services.BuildServiceProvider();
         SvantekService concrete = provider.GetRequiredService<SvantekService>();
@@ -163,8 +163,7 @@ public sealed class SvantekJobCancellationTests
             new SvantekRuleProcessor(
                 Mock.Of<ISvantekRuleQueries>(),
                 Mock.Of<ISvantekOperationalCommands>(),
-                Mock.Of<IMessageService>(),
-                Mock.Of<IMonitorEventPublisher>()),
+                Mock.Of<IAlertIngressPort>()),
             new NoiseRequestWindowCalculator(new SvantekImportOptions()),
             new FixedTimeProvider(utcNow));
 

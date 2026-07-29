@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using MyAtm.Api;
 using MyAtm.Api.Db;
-using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -63,7 +62,6 @@ public sealed class MyAtmOperationalConfigurationTests
     {
         Mock<IDBClient> database = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
         using CancellationTokenSource cancellation = new();
         CancellationToken observedToken = default;
         database.Setup(query => query.ClaimNextDueAsync(
@@ -86,7 +84,6 @@ public sealed class MyAtmOperationalConfigurationTests
         services.AddMyAtmMonitor(configuration);
         services.AddSingleton(database.Object);
         services.AddSingleton(mqttClient.Object);
-        services.AddSingleton(messageService.Object);
         using ServiceProvider provider = services.BuildServiceProvider();
         IMyAtmMonitorJobs service = provider.GetRequiredService<IMyAtmMonitorJobs>();
 

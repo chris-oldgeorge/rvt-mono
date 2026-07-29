@@ -326,6 +326,20 @@ caller sees a warning. Retirement order (each step unblocks the next):
 4. AirQ + Svantek alerting → durable stack; retires
    `RuleAlertNotificationDispatcher`, sync `NoiseRuleEvaluator`, sync
    `PublishAlert`.
+   **Done 2026-07-29: `NoiseRuleEvaluator` is async and emits `AlertSignal`s
+   via `IAlertIngressPort` (shared `RuleAlertSignals` factory; MQTT alert
+   delivery rides the durable Mqtt channel, replacing the sync `PublishAlert`
+   call). `RuleAlertNotificationDispatcher` is deleted; AirQ and Svantek
+   register `AddDurableAlerts<TContext>` with their own context factories and
+   no longer consume `IMessageService`. MyAtm's compat-only direct-delivery
+   route (compat ctor, `ProcessRule`/`ProcessAlertForContacts`/
+   `ProcessRulesV2`) is deleted too, so no monitor calls the sync path — all
+   monitor RVT0001 NoWarns are gone. Ingress validation was also corrected to
+   accept zero suppression windows (source-latched signals; the P3.c Omnidots
+   handlers already passed `TimeSpan.Zero`, which the old positive-only check
+   would have rejected at runtime). Both messaging-boundary allowlists are now
+   empty. Step 5 is unblocked: the only remaining `IMessageService` surface is
+   the contract + `MessageService` implementation inside `Rvt.Communication`.**
 5. Then: delete `IMessageService`/`MessageService`, the namespace-squatting
    `RvtContactDto` + `LegacyMessageContracts`, consolidate on one contact DTO
    (~60 test files, mechanical).

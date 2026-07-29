@@ -83,7 +83,7 @@ namespace MyAtm.Api
                 options.MeasurementPageSize,
                 options.AccessoryPageSize);
             MyAtmMonitorReader monitorReader = new(dbClient, dbClient, testLocal);
-            MyAtmRuleProcessor ruleProcessor = new(dbClient, options.PortalBaseUrl);
+            MyAtmRuleProcessor ruleProcessor = new(dbClient);
 
             this.outboxDispatcher = outboxDispatcher ?? throw new ArgumentNullException(nameof(outboxDispatcher));
             storeMonitors = new StoreMonitorsHandler(

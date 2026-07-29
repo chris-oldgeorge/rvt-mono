@@ -1,34 +1,34 @@
-using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Mqtt;
+using System.Globalization;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Svantek.Api.Db;
 using SvantekMonitor.model.dto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 
 namespace Svantek.Api
 {
-    // Summary: Evaluates Svantek noise readings against alert rules and dispatches notifications.
+    // Summary: Evaluates Svantek noise readings against alert rules and emits durable alert signals.
     // Major updates:
     // - 2026-06-18: Added null guard for optional DTO batches during analyzer cleanup.
     // - 2026-07-12 God-class split: extracted from the SvantekApi partials (SvantekApiRuleProcessing).
+    // - 2026-07-29 Legacy retirement step 4: breaches signal IAlertIngressPort;
+    //   the inline RuleAlertNotificationDispatcher send loop is gone.
     public class SvantekRuleProcessor
     {
-        private readonly ISvantekRuleQueries ruleQueries;
-        private readonly ISvantekOperationalCommands operationalCommands;
-        private readonly IMessageService messageService;
-        private readonly IMonitorEventPublisher eventPublisher;
+        internal const string SignalSource = "svantek.rules";
+
+        private readonly ISvantekRuleQueries _ruleQueries;
+        private readonly ISvantekOperationalCommands _operationalCommands;
+        private readonly IAlertIngressPort _alertIngress;
 
         public SvantekRuleProcessor(
             ISvantekRuleQueries ruleQueries,
             ISvantekOperationalCommands operationalCommands,
-            IMessageService messageService,
-            IMonitorEventPublisher eventPublisher)
+            IAlertIngressPort alertIngress)
         {
-            this.ruleQueries = ruleQueries;
-            this.operationalCommands = operationalCommands;
-            this.messageService = messageService;
-            this.eventPublisher = eventPublisher;
+            _ruleQueries = ruleQueries;
+            _operationalCommands = operationalCommands;
+            _alertIngress = alertIngress;
         }
 
         private static bool CrossesOverIntervalExist(DateTime start, DateTime end, int average)
@@ -96,7 +96,7 @@ namespace Svantek.Api
         }
 
         //Using start and end here to determine the date range and if there is time in there for an average. Eg, if there is a 15 to check the 15 minute average.
-        public void ProcessRules(NoiseMonitorReadDto monitorDto, List<RvtAlertRuleDto> allrules, DateTime start, DateTime end)
+        public async Task ProcessRulesAsync(NoiseMonitorReadDto monitorDto, List<RvtAlertRuleDto> allrules, DateTime start, DateTime end, CancellationToken cancellationToken = default)
         {
             if (allrules != null && allrules.Count > 0)
             {
@@ -113,14 +113,14 @@ namespace Svantek.Api
                         foreach (string paramter in parameters)
                         {
                             List<RvtAlertRuleDto> rules = [.. allrules.Where(x => x.AveragingPeriod == averagePeriod && x.Field == paramter).OrderBy(x => x.AlertType)];
-                            ProcessRulesOneAverageOneParamter(monitorDto, rules, start, end, averagePeriod, paramter);
+                            await ProcessRulesOneAverageOneParamterAsync(monitorDto, rules, start, end, averagePeriod, cancellationToken);
                         }
                     }
                 }
             }
         }
 
-        private void ProcessRulesOneAverageOneParamter(NoiseMonitorReadDto monitorDto, List<RvtAlertRuleDto> rules, DateTime start, DateTime end, int averagingPeriod, string parameter)
+        private async Task ProcessRulesOneAverageOneParamterAsync(NoiseMonitorReadDto monitorDto, List<RvtAlertRuleDto> rules, DateTime start, DateTime end, int averagingPeriod, CancellationToken cancellationToken)
         {
             NoiseRuleEvaluator ruleEvaluator = CreateNoiseRuleEvaluator();
             // first get all the periods to check, every quarter every hour or every day...
@@ -131,8 +131,8 @@ namespace Svantek.Api
                 string serialId = monitorDto.SerialId!;
                 foreach (RvtAlertRuleDto rule in rules)
                 {
-                    double level = ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, StartTime, StartTime.AddSeconds(averagingPeriod));
-                    previousAlert = ruleEvaluator.Evaluate(
+                    double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, StartTime, StartTime.AddSeconds(averagingPeriod));
+                    previousAlert = await ruleEvaluator.EvaluateAsync(
                         NewRuleEvaluationRequest(
                             monitorDto,
                             activityTime: end,
@@ -141,14 +141,16 @@ namespace Svantek.Api
                             deactivateDeletedRules: false),
                         rule,
                         level,
-                        previousAlert);
+                        previousAlert,
+                        cancellationToken);
                 }
                 StartTime = StartTime.AddSeconds(averagingPeriod);
             }
         }
 
-        public void ProcessAlertForContacts(
-                         string fleetNr,
+        // Handler-driven alerts (offline, battery) carry no MQTT delivery,
+        // matching the retired direct-send path.
+        public Task SignalAlertAsync(
                          string serialId,
                          DateTime alertTime,
                          double limitOn,
@@ -156,45 +158,31 @@ namespace Svantek.Api
                          double level,
                          AlertType alertType,
                          string field,
-                         Guid monitorId,
-                         List<RvtContactDto> contacts
-        )
+                         CancellationToken cancellationToken = default)
         {
-            RuleAlertNotificationDispatcher dispatcher = new(
-                messageService,
-                operationalCommands.WriteNotification,
-                operationalCommands.WriteNotificationAudit);
-
-            dispatcher.ProcessAlertForContacts(
-                new RuleNotificationRequest(
-                    fleetNr,
+            string message = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{alertType} {field} level={level} limit={limitOn}");
+            return _alertIngress.AcceptAsync(
+                RuleAlertSignals.Create(
+                    SignalSource,
                     serialId,
                     alertTime,
-                    limitOn,
-                    averagingPeriod,
-                    level,
                     alertType,
                     field,
-                    monitorId),
-                contacts: contacts);
+                    level,
+                    limitOn,
+                    averagingPeriod,
+                    message,
+                    AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms),
+                cancellationToken);
         }
 
         private NoiseRuleEvaluator CreateNoiseRuleEvaluator() =>
             new(
-                operationalCommands.UpdateAlertRule,
-                monitorId => ruleQueries.ReadAlertContacts(monitorId, out Guid _),
-                (request, contacts) => ProcessAlertForContacts(
-                    fleetNr: request.FleetNr,
-                    serialId: request.SerialId,
-                    alertTime: request.AlertTime,
-                    limitOn: request.LimitOn,
-                    averagingPeriod: request.AveragingPeriod,
-                    level: request.Level,
-                    alertType: request.AlertType,
-                    field: request.Field,
-                    monitorId: request.MonitorId,
-                    contacts: contacts),
-                eventPublisher);
+                _operationalCommands.UpdateAlertRule,
+                _alertIngress,
+                SignalSource);
 
         private static RuleEvaluationRequest NewRuleEvaluationRequest(
             NoiseMonitorReadDto monitorDto,

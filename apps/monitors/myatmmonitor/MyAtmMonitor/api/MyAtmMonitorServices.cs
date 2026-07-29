@@ -99,8 +99,7 @@ public static class MyAtmMonitorServices
             RvtConfig.TESTLOCAL));
         services.AddSingleton<MyAtmRuleEvaluator>();
         services.AddSingleton(provider => new MyAtmRuleProcessor(
-            provider.GetRequiredService<IMyAtmRuleQueries>(),
-            provider.GetRequiredService<MyAtmMonitorOptions>().PortalBaseUrl));
+            provider.GetRequiredService<IMyAtmRuleQueries>()));
         services.AddSingleton(provider => new StoreMonitorsHandler(
             provider.GetRequiredService<IMyAtmVendorGateway>(),
             provider.GetRequiredService<IMyAtmMonitorCommands>(),

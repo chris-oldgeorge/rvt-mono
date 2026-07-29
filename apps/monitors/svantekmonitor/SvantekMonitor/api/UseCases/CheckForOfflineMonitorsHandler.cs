@@ -62,9 +62,7 @@ public sealed class CheckForOfflineMonitorsHandler
                         RvtLogger.Logger.LogInformation(
                             "Device serialId={SerialId} has not received data; marking offline",
                             monitor.SerialId);
-                        List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
-                        ruleProcessor.ProcessAlertForContacts(
-                            monitor.FleetNr,
+                        await ruleProcessor.SignalAlertAsync(
                             monitor.SerialId,
                             utcNow,
                             0,
@@ -72,8 +70,7 @@ public sealed class CheckForOfflineMonitorsHandler
                             diffInSeconds,
                             AlertType.Offline,
                             rule.Field,
-                            monitor.Id,
-                            contacts);
+                            cancellationToken).ConfigureAwait(false);
                         monitor.Offline = true;
                         await monitorCommands.SetMonitorOfflineAsync(
                             monitor.Id,

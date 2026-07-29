@@ -30,7 +30,7 @@ namespace AirQ.Api.UseCases
             this.ruleProcessor = ruleProcessor;
         }
 
-        public Task RunAsync(CancellationToken cancellationToken = default)
+        public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(null);
@@ -54,17 +54,14 @@ namespace AirQ.Api.UseCases
                             if (lastDataTime < cutOff)
                             {
                                 RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
-                                List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
-                                ruleProcessor.ProcessAlertForContactsV2(fleetNr: monitor.FleetNr,
-                                                        serialId: monitor.SerialId!,
+                                await ruleProcessor.SignalAlertAsync(serialId: monitor.SerialId!,
                                                         alertTime: DateTime.UtcNow,
                                                         limitOn: 0,
                                                         averagingPeriod: rule.AveragingPeriod,
                                                         level: diffInSeconds,
                                                         alertType: AlertType.Offline,
                                                         field: rule.Field,
-                                                        monitorId: monitor.Id,
-                                                        contacts: contacts);
+                                                        cancellationToken: cancellationToken);
                                 monitor.Offline = true;
                             }
                             else
@@ -83,7 +80,6 @@ namespace AirQ.Api.UseCases
                 }
             }
 
-            return Task.CompletedTask;
         }
     }
 }

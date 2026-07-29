@@ -60,7 +60,7 @@ public sealed class NotifySiteAveragesHandler
                     level,
                     date,
                     cancellationToken).ConfigureAwait(false);
-                ProcessRules(monitor, level, periodEnd, cancellationToken);
+                await ProcessRulesAsync(monitor, level, periodEnd, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception)
             {
@@ -71,7 +71,7 @@ public sealed class NotifySiteAveragesHandler
         failures.ThrowIfAny("NotifySiteAverages");
     }
 
-    private void ProcessRules(
+    private async Task ProcessRulesAsync(
         SvantekMonitor.model.dto.SiteMonitorsWithSiteHoursDto monitor,
         double level,
         DateTime periodEnd,
@@ -91,9 +91,7 @@ public sealed class NotifySiteAveragesHandler
                 if (rule.AlertType == AlertType.Alert ||
                     (previousAlert != AlertType.Alert && rule.AlertType == AlertType.Caution))
                 {
-                    List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
-                    ruleProcessor.ProcessAlertForContacts(
-                        monitor.FleetNr,
+                    await ruleProcessor.SignalAlertAsync(
                         monitor.SerialId,
                         periodEnd,
                         rule.LimitOn,
@@ -101,8 +99,7 @@ public sealed class NotifySiteAveragesHandler
                         level,
                         rule.AlertType,
                         rule.Field,
-                        monitor.Id,
-                        contacts);
+                        cancellationToken).ConfigureAwait(false);
                     rule.IsActive = true;
                     operationalCommands.UpdateAlertRule(rule);
                     previousAlert = rule.AlertType;

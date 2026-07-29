@@ -5,23 +5,22 @@ namespace MyAtmMonitorTests.Architecture;
 [TestClass]
 public sealed class ConsumerMessagingBoundaryTests
 {
-    private static readonly string[] _synchronousCompatibilityCallers =
+    // Emptied on 2026-07-29 when legacy-retirement step 4 deleted MyAtm's
+    // compat-only direct-delivery route, the last synchronous caller here.
+    private static readonly string[] _synchronousCompatibilityCallers = [];
+
+    private static readonly string[] _scannedProductionDirectories =
     [
-        // Omnidots left this list on 2026-07-29 when its offline/battery
-        // alerting moved to the durable stack (legacy-retirement step 3).
-        "apps/monitors/myatmmonitor/MyAtmMonitor/api/MyAtmRuleProcessor.cs"
+        "apps/monitors/myatmmonitor/MyAtmMonitor",
+        "apps/monitors/omnidotsmonitor/OmnidotsMonitor"
     ];
-    private static readonly string[] _sourceArray =
-            [
-                "apps/monitors/myatmmonitor/MyAtmMonitor",
-                "apps/monitors/omnidotsmonitor/OmnidotsMonitor"
-            ];
 
     [TestMethod]
     public void ObsoleteSynchronousMessageCallsAreLimitedToConsumerCompatibilityAllowlist()
     {
         string root = RepositoryLayout.Root;
-        string[] callers = [.. _sourceArray.SelectMany(relativeDirectory => ReadProductionSource(root, relativeDirectory))
+        string[] callers = [.. _scannedProductionDirectories
+            .SelectMany(relativeDirectory => ReadProductionSource(root, relativeDirectory))
             .Where(file => file.Text.Contains(".Sendmessage(", StringComparison.Ordinal) ||
                 file.Text.Contains(".SendMessage(", StringComparison.Ordinal))
             .Select(file => file.RelativePath)

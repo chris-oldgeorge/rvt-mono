@@ -3,15 +3,17 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Rvt.Communication;
-using Rvt.Communication.Abstractions;
 using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
 using Rvt.Communication.TransmitSms;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
+using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Storage;
 using Svantek.Api.Db;
+using Svantek.Api.Db.EntityFramework;
 using Svantek.Api.Http;
 using Svantek.Api.Storage;
 using Svantek.Model.Config;
@@ -45,11 +47,26 @@ public static class SvantekMonitorServices
         services.AddSingleton(provider =>
             provider.GetRequiredService<IOptions<SvantekImportOptions>>().Value);
         services.AddSingleton<NoiseRequestWindowCalculator>();
+        services.AddSingleton<IMonitorDbContextFactory<SvantekMonitorContext>>(
+            _ => new SvantekMonitorContextFactory(
+                RvtConfig.DB_CONNECTION_STRING,
+                SvantekMonitorDbOptions.Current));
+        services.AddSingleton<IMonitorEventPublisher>(provider => new MonitorEventPublisher(
+            provider.GetRequiredService<IMqttClient>(),
+            RvtConfig.INSERT_TOPIC,
+            RvtConfig.ALERT_TOPIC));
+        services.AddDurableAlerts<SvantekMonitorContext>();
+        services.PostConfigure<DurableAlertOptions>(options =>
+        {
+            if (!string.IsNullOrWhiteSpace(RvtConfig.PORTAL_BASE_URL))
+            {
+                options.PortalBaseUrl = RvtConfig.PORTAL_BASE_URL;
+            }
+        });
         services.AddSingleton(provider => new SvantekApi(
             provider.GetRequiredService<IHttpClient>(),
             provider.GetRequiredService<IDBClient>(),
-            provider.GetRequiredService<IMqttClient>(),
-            provider.GetRequiredService<IMessageService>(),
+            provider.GetRequiredService<IAlertIngressPort>(),
             RvtConfig.API_KEY,
             provider.GetRequiredService<IObjectStorageClientFactory>(),
             RvtConfig.TESTLOCAL,

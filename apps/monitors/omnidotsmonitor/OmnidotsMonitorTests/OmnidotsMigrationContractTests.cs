@@ -3,18 +3,18 @@ using System.Text.RegularExpressions;
 using Npgsql;
 using Rvt.Monitor.IntegrationTesting;
 
-namespace OmnidotsMonitorTests.EntityFramework;
+namespace OmnidotsAdapterTests;
 
 [TestClass]
-public sealed class OmnidotsMigrationContractTests
+public sealed partial class OmnidotsMigrationContractTests
 {
-    private const string ForwardScript = "2026-07-14-add-import-cursors-and-trace-order.sql";
-    private const string RollbackScript = "2026-07-14-rollback-import-cursors-and-trace-order.sql";
+    private const string _forwardScript = "2026-07-14-add-import-cursors-and-trace-order.sql";
+    private const string _rollbackScript = "2026-07-14-rollback-import-cursors-and-trace-order.sql";
 
-    private static readonly string[] SupportedMigrations =
+    private static readonly string[] _supportedMigrations =
     [
-        ForwardScript,
-        RollbackScript,
+        _forwardScript,
+        _rollbackScript,
         "2026-07-15-add-common-durable-alerts.sql",
         "2026-07-15-rollback-common-durable-alerts.sql"
     ];
@@ -27,7 +27,7 @@ public sealed class OmnidotsMigrationContractTests
             .Select(Path.GetFileName)
             .OrderBy(file => file, StringComparer.Ordinal)];
 
-        CollectionAssert.AreEqual(SupportedMigrations, migrationFiles);
+        CollectionAssert.AreEqual(_supportedMigrations, migrationFiles);
         Assert.IsFalse(
             Directory.Exists(Path.Combine(MonitorProjectDirectory(), "sql" + "server")),
             "The retired database-engine migration directory must not remain.");
@@ -36,7 +36,7 @@ public sealed class OmnidotsMigrationContractTests
     [TestMethod]
     public void PostgreSqlForward_IsTransactionalAndCreatesTheRequiredSchemaInOrder()
     {
-        string script = NormalizeSql(RemoveComments(ReadScript("postgres", ForwardScript)));
+        string script = NormalizeSql(RemoveComments(ReadScript("postgres", _forwardScript)));
 
         Assert.IsTrue(script.StartsWith("BEGIN;", StringComparison.Ordinal));
         Assert.IsTrue(script.EndsWith("COMMIT;", StringComparison.Ordinal));
@@ -57,7 +57,7 @@ public sealed class OmnidotsMigrationContractTests
     [TestMethod]
     public void PostgreSqlRollback_IsTransactionalAndWarnsBeforeDiscardingOrder()
     {
-        string rawScript = ReadScript("postgres", RollbackScript);
+        string rawScript = ReadScript("postgres", _rollbackScript);
         string script = NormalizeSql(RemoveComments(rawScript));
 
         Assert.IsTrue(script.StartsWith("BEGIN;", StringComparison.Ordinal));
@@ -69,11 +69,9 @@ public sealed class OmnidotsMigrationContractTests
             "DROP COLUMN IF EXISTS sample_index",
             "DROP TABLE IF EXISTS omnidots_import_cursor",
             "COMMIT;");
-        StringAssert.Matches(
-            rawScript,
-            new Regex(
-                @"-- WARNING: Dropping sample_index permanently discards trace sample ordering metadata\.\r?\nALTER TABLE IF EXISTS omnidots_trace\s+DROP COLUMN IF EXISTS sample_index;",
-                RegexOptions.CultureInvariant));
+        Assert.MatchesRegex(
+            RollbackWarningPattern(),
+            rawScript);
     }
 
     [TestMethod]
@@ -115,7 +113,7 @@ public sealed class OmnidotsMigrationContractTests
             "SELECT 1;",
             timeout.Token);
 
-        string forward = ReadScript("postgres", ForwardScript);
+        string forward = ReadScript("postgres", _forwardScript);
         await ExecutePostgreSqlAsync(database, forward, timeout.Token);
         await ExecutePostgreSqlAsync(database, forward, timeout.Token);
 
@@ -129,7 +127,7 @@ public sealed class OmnidotsMigrationContractTests
             "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'omnidots_import_cursor' AND column_default IS NOT NULL;",
             timeout.Token));
 
-        string rollback = ReadScript("postgres", RollbackScript);
+        string rollback = ReadScript("postgres", _rollbackScript);
         await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
         await AssertLegacyRowsPreservedAsync(database, timeout.Token);
         await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
@@ -157,23 +155,15 @@ public sealed class OmnidotsMigrationContractTests
 
     private static string RemoveComments(string script)
     {
-        string withoutBlockComments = Regex.Replace(
-            script,
-            @"/\*.*?\*/",
-            string.Empty,
-            RegexOptions.Singleline | RegexOptions.CultureInvariant);
-        return Regex.Replace(
-            withoutBlockComments,
-            @"--[^\r\n]*",
-            string.Empty,
-            RegexOptions.CultureInvariant);
+        string withoutBlockComments = BlockCommentPattern().Replace(script, string.Empty);
+        return LineCommentPattern().Replace(withoutBlockComments, string.Empty);
     }
 
     private static string NormalizeSql(string script)
     {
-        string normalized = Regex.Replace(script, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
-        normalized = Regex.Replace(normalized, @"\(\s+", "(", RegexOptions.CultureInvariant);
-        return Regex.Replace(normalized, @"\s+\)", ")", RegexOptions.CultureInvariant);
+        string normalized = WhitespacePattern().Replace(script, " ").Trim();
+        normalized = OpeningParenthesisWhitespacePattern().Replace(normalized, "(");
+        return ClosingParenthesisWhitespacePattern().Replace(normalized, ")");
     }
 
     private static void AssertCursorHasNoDefault(string script, string startMarker, string endMarker)
@@ -255,4 +245,24 @@ public sealed class OmnidotsMigrationContractTests
 
         throw new DirectoryNotFoundException("Could not find the repository root from the test output directory.");
     }
+
+    [GeneratedRegex(
+        @"-- WARNING: Dropping sample_index permanently discards trace sample ordering metadata\.\r?\nALTER TABLE IF EXISTS omnidots_trace\s+DROP COLUMN IF EXISTS sample_index;",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex RollbackWarningPattern();
+
+    [GeneratedRegex(@"/\*.*?\*/", RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+    private static partial Regex BlockCommentPattern();
+
+    [GeneratedRegex(@"--[^\r\n]*", RegexOptions.CultureInvariant)]
+    private static partial Regex LineCommentPattern();
+
+    [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)]
+    private static partial Regex WhitespacePattern();
+
+    [GeneratedRegex(@"\(\s+", RegexOptions.CultureInvariant)]
+    private static partial Regex OpeningParenthesisWhitespacePattern();
+
+    [GeneratedRegex(@"\s+\)", RegexOptions.CultureInvariant)]
+    private static partial Regex ClosingParenthesisWhitespacePattern();
 }

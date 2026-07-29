@@ -8,5 +8,4 @@ namespace Svantek.Model.Http
         [JsonRequired]
         public string? Response { get; set; }
     }
-
 }

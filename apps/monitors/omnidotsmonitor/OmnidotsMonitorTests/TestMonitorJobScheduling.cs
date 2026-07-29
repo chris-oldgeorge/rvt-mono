@@ -54,14 +54,14 @@ public sealed class TestMonitorJobScheduling
         using ServiceProvider provider = LegacyJobProvider(api);
         long earliestStartTime = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(2)).Subtract(TimeSpan.FromMinutes(5)).ToUnixTimeMilliseconds();
         long earliestEndTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        Task<int> task = InvokeJobRunner(jobName, provider);
+        Task<int> task = InvokeJobRunner(jobName, provider, TestContext.CancellationToken);
 
         Assert.AreEqual(0, await task);
         long latestStartTime = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(2)).Subtract(TimeSpan.FromMinutes(5)).ToUnixTimeMilliseconds();
         long latestEndTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
         Assert.IsNotNull(requestedUrl);
-        IReadOnlyDictionary<string, string> query = ParseQuery(requestedUrl);
+        Dictionary<string, string> query = ParseQuery(requestedUrl);
         long startTime = long.Parse(query["start_time"]);
         long endTime = long.Parse(query["end_time"]);
 
@@ -107,7 +107,7 @@ public sealed class TestMonitorJobScheduling
             new FixedTimeProvider(utcNow));
         using ServiceProvider provider = LegacyJobProvider(api);
 
-        Task<int> run = InvokeJobRunner("Monitoring", provider);
+        Task<int> run = InvokeJobRunner("Monitoring", provider, TestContext.CancellationToken);
 
         Assert.IsFalse(run.IsCompleted);
         delivery.SetResult();
@@ -149,7 +149,7 @@ public sealed class TestMonitorJobScheduling
 
         Assert.AreEqual(0, result);
         Assert.IsNotNull(requestedUrl);
-        IReadOnlyDictionary<string, string> query = ParseQuery(requestedUrl);
+        Dictionary<string, string> query = ParseQuery(requestedUrl);
         Assert.AreEqual(DateTimeUtil.GetMillis(cursor.AddMinutes(-5)), long.Parse(query["start_time"]));
         DateTime endTime = DateTimeUtil.JAN1_1970.AddMilliseconds(long.Parse(query["end_time"]));
         Assert.IsTrue(endTime >= before.AddSeconds(-1) && endTime <= after);
@@ -250,7 +250,7 @@ public sealed class TestMonitorJobScheduling
             .Returns(OmnidotsFixture.StringTask("invalid-json"));
 
         using ServiceProvider provider = LegacyJobProvider(api);
-        Task<int> task = InvokeJobRunner("StoreVeffRecords", provider);
+        Task<int> task = InvokeJobRunner("StoreVeffRecords", provider, TestContext.CancellationToken);
 
         OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => task);
         Assert.AreEqual("StoreVeffRecords", exception.Operation);
@@ -274,9 +274,14 @@ public sealed class TestMonitorJobScheduling
         Assert.IsTrue(jobs.Any(job => job.Name == "DispatchAlerts" && job.Cron == "0 0/1 * * * ?"));
         Assert.IsTrue(jobs.Any(job => job.Name == "CleanupAlerts" && job.Cron == "0 15 3 * * ?"));
         Assert.IsTrue(configuration.GetValue<bool>($"{OmnidotsTraceCollectionOptions.SectionName}:Enabled"));
+        Assert.IsTrue(string.IsNullOrWhiteSpace(
+            configuration[$"{OmnidotsMonitoringOptions.SectionName}:Recipient"]));
         CollectionAssert.AreEqual(
-            new[] { "23423" },
-            configuration.GetSection($"{OmnidotsTraceCollectionOptions.SectionName}:AllowedSerialIds").Get<string[]>());
+            Array.Empty<string>(),
+            configuration
+                .GetSection($"{OmnidotsTraceCollectionOptions.SectionName}:AllowedSerialIds")
+                .Get<string[]>()
+                ?? []);
         Assert.AreEqual(
             1,
             configuration.GetValue<int>($"{OmnidotsTraceCollectionOptions.SectionName}:MaxMonitorsPerRun"));
@@ -303,7 +308,7 @@ public sealed class TestMonitorJobScheduling
             throw new AssertFailedException("DispatchAlerts must not resolve the legacy OmnidotsService."));
         using ServiceProvider provider = services.BuildServiceProvider();
 
-        int result = await InvokeJobRunner("DispatchAlerts", provider);
+        int result = await InvokeJobRunner("DispatchAlerts", provider, TestContext.CancellationToken);
 
         Assert.AreEqual(0, result);
         store.VerifyAll();
@@ -321,7 +326,7 @@ public sealed class TestMonitorJobScheduling
         ServiceCollection services = AlertJobServices(store.Object, new FixedTimeProvider(now));
         using ServiceProvider provider = services.BuildServiceProvider();
 
-        int result = await InvokeJobRunner("CleanupAlerts", provider);
+        int result = await InvokeJobRunner("CleanupAlerts", provider, TestContext.CancellationToken);
 
         Assert.AreEqual(0, result);
         store.VerifyAll();
@@ -465,7 +470,7 @@ public sealed class TestMonitorJobScheduling
         "--hostBuilder:reloadConfigOnChange=false"
     ];
 
-    private static IReadOnlyDictionary<string, string> ParseQuery(string url)
+    private static Dictionary<string, string> ParseQuery(string url)
     {
         int queryStart = url.IndexOf('?');
         Assert.IsGreaterThanOrEqualTo(0, queryStart, $"URL '{url}' did not contain a query string.");
@@ -516,4 +521,6 @@ public sealed class TestMonitorJobScheduling
     {
         public override DateTimeOffset GetUtcNow() => new(utcNow);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

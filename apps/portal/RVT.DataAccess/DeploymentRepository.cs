@@ -6,14 +6,14 @@
 using RVT.DataAccess.Context;
 using RVT.Entities;
 
-namespace RVT.DataAccess
+namespace RVT.DataAccess;
+
+public class DeploymentRepository : GenericRepository<Deployment>, IDeploymentRepository
 {
-    public class DeploymentRepository : GenericRepository<Deployment>, IDeploymentRepository
+    // Function summary: Handles the deployment repository workflow for this module.
+    public DeploymentRepository(RVTDbContext contextDB)
+        : base(contextDB)
     {
-        // Function summary: Handles the deployment repository workflow for this module.
-        public DeploymentRepository(RVTDbContext ContextDB)
-            : base(ContextDB)
-        {
-        }
     }
+
 }

@@ -228,17 +228,17 @@ with the same severity as anything else:
 - **Vendor-port asymmetry (High):** AirQ and Omnidots now have driven ports;
   **Svantek and MyAtm use cases still bind concrete gateways** (no Ports
   folder, gateways implement no interface). Same pattern everywhere is the goal.
-- **One-shot cancellation is still severed (High):** `MonitorHost.RunAsync`'s
-  delegate carries no token, so all five `Program.cs` one-shot paths pass
-  `CancellationToken.None` — in AKS CronJob mode SIGTERM still cannot reach
-  the vendor request, despite the new code's comments claiming the guarantee.
-  One delegate-signature change away from closed.
-- **Omnidots cancellation semantics diverged within one refactor:** Peak
-  handler got `RunFleetAsync` with per-monitor token checks; Veff/Vdv/Traces
-  kept inline loops with no token check and a bare `catch (Exception)` that
-  records mid-loop cancellation as a monitor failure.
-- **[still open]** Portal: 31 host Application files import `RvtPortal.Spa.Api`
-  (unchanged count, still unguarded by any architecture test);
+- **[resolved 2026-07-29] One-shot cancellation was severed:** the P0 guardrail
+  change now threads `MonitorHost.RunAsync`'s shutdown token through all five
+  one-shot paths.
+- **[partially resolved 2026-07-29] Omnidots cancellation semantics diverged
+  within one refactor:** `StoreTracesHandler` now checks the caller token at
+  the monitor boundary and rethrows caller cancellation before recording
+  monitor failure. Reusing `RunFleetAsync` for Veff/Vdv remains future
+  convergence work.
+- **[still open, now guarded]** Portal: 31 host Application files import
+  `RvtPortal.Spa.Api`. PR #20 added a shrinking architecture baseline, so the
+  count cannot grow even though the existing boundary debt remains;
   `ReportGenerationClient` still consumes inbound API DTOs;
   ports-and-adapters catalog is stale (describes the now-dead MediatR detail
   query); InMemory-provider branching in two production classes.
@@ -275,23 +275,24 @@ with the same severity as anything else:
   switches begging for a strategy), `DashboardApplicationService.cs` 918,
   monitor `DBClient` facades 561–1,254 lines, `ContractSitePanels.tsx` 1,904,
   `App.tsx` 1,573 (~250 of it an inline static privacy page).
-- **[still open]** silent catches: `MonitorDetailSummaryService.cs:164`
-  (`catch { return null; }`, swallows cancellation too),
-  `SiteArchiveAdapter.cs:27,50` (failure discarded without logging).
+- **[resolved 2026-07-29]** `MonitorDetailSummaryService` now propagates
+  cancellation and emits a structured warning for genuine optional-summary
+  failures; `SiteArchiveAdapter` preserves its mapped fallback results but
+  emits structured error logs without signed URLs.
 - Magic numbers still inline in AirQ/Svantek rule processors (900/3600/86400);
   battery thresholds duplicated with clashing naming conventions;
   `"OmniDots guest"` ×3 — and *not* applied in `StoreTracesHandler`
   (guest traces still fetched: behavioral inconsistency, not just style).
-- AirQ still seeds from server-local `DateTime.Now.AddYears(-1)`
-  (`StoreNoiseLevelsHandler.cs:61`) — the timezone hazard survived the async
-  rewrite; no-op `catch (AggregateException) { throw; }` beside it.
-- Config hygiene: hard-coded personal email
-  (`haakan.eriksson@cellsoftware.co.uk`) and `AllowedSerialIds: ["23423"]`
-  committed in Omnidots `appsettings.json`; Svantek+MyAtm Dockerfiles carry an
-  unexplained Kerberos lib (likely SQL Server-era drift); airq is the only
-  compose service without a port mapping; frontend `openapi-typescript@latest`
-  unpinned; OpenAPI schema still stale (zero Help endpoints in 6,367 lines) so
-  the Help Admin filter bug (`toSearchParams` whitelist) **remains live**.
+- **[resolved 2026-07-29]** AirQ now seeds a missing watermark from injected
+  UTC `TimeProvider` time, and the behavior-neutral aggregate rethrow blocks
+  are gone without changing aggregate exception handling.
+- **[partially resolved 2026-07-29] Config hygiene:** Omnidots no longer commits
+  a personal alert recipient or a customer serial allow-list. Svantek+MyAtm
+  Dockerfiles still carry an unexplained Kerberos lib (likely SQL Server-era
+  drift); AirQ is the only compose service without a port mapping; frontend
+  `openapi-typescript@latest` is unpinned; OpenAPI schema is still stale (zero
+  Help endpoints in 6,367 lines), so the Help Admin filter bug
+  (`toSearchParams` whitelist) **remains live**.
 
 ## 8. Legacy-path retirement map (from the shared-libs review)
 
@@ -332,14 +333,14 @@ caller sees a warning. Retirement order (each step unblocks the next):
 
 ## Consolidated priority list
 
-**P0 — guardrails (cheap, prevents everything else regressing)**
-1. Add a PR test job (`dotnet test` + portal vitest) — today nothing runs.
-2. Wire the five root guard scripts into CI; schedule SonarQube.
-3. Add AirQ architecture tests and a portal `Application → Spa.Api` guard with
-   a shrinking baseline.
-4. Thread the shutdown token through `MonitorHost` one-shot (one delegate
-   change, five Program.cs one-liners) — realizes the July CT work.
-5. Give Svantek its missing HTTP timeout (single line, plus test).
+**P0 — guardrails (completed by PR #20)**
+1. The PR test job runs the .NET and Portal client gates.
+2. The five root guards run in CI. SonarQube remains intentionally manual;
+   scheduling it is a separate product decision.
+3. AirQ architecture tests and the shrinking Portal
+   `Application → Spa.Api` guard are active.
+4. `MonitorHost` threads the shutdown token through all one-shot paths.
+5. Svantek has a bounded HTTP timeout with regression coverage.
 
 **P1 — deletion sweep (zero-risk, large)**
 6. Portal dead chains (~800+ lines) + small dead types + stale package refs.

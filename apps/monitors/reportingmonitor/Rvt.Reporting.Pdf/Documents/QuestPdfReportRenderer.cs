@@ -9,6 +9,14 @@ namespace Rvt.Reporting.Pdf.Documents;
 
 public sealed record ReportChrome(string HeaderText, string BodyReportDateText, string FooterText);
 
+internal sealed record ReportGraphDefinition(
+    MonitorType MonitorType,
+    string Title,
+    string AveragePeriodLabel,
+    string Unit,
+    string GraphField,
+    int? AveragingPeriodSeconds);
+
 /// <summary>
 /// Renders RVT site reports with QuestPDF for the containerized reporting service.
 /// Major updates: 2026-06-24 initial renderer replacing Azure Function-local PDF generation; added optional customer logo in report header; 2026-06-25 added alert-rule triggered-count tables; 2026-06-25 simplified report header/footer chrome; 2026-06-25 added report-period graphs with alert limit lines; 2026-06-25 added executive summary, closed notes, and alert heatmaps.
@@ -105,12 +113,12 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
         ArgumentNullException.ThrowIfNull(site);
 
         List<ReportGraph> graphs = [];
-        AddGraph(graphs, site.Monitors, MonitorType.Dust, "Dust Hourly Averages", "Hourly", "ug/m3", "DustHourlyAverage", 3600, static monitor => monitor.DustHourlyAverage);
-        AddGraph(graphs, site.Monitors, MonitorType.Dust, "Dust Daily Averages", "Daily", "ug/m3", "DustDailyAverage", 86400, static monitor => monitor.DustDailyAverage);
-        AddGraph(graphs, site.Monitors, MonitorType.Noise, "Noise Hourly Averages", "Hourly", "dB", "NoiseHourlyAverage", 3600, static monitor => monitor.NoiseHourlyAverage);
-        AddGraph(graphs, site.Monitors, MonitorType.Noise, "Noise Daily Averages", "Daily", "dB", "NoiseDailyAverage", 86400, static monitor => monitor.NoiseDailyAverage);
-        AddGraph(graphs, site.Monitors, MonitorType.Noise, "Noise Site Averages", "Site", "dB", "NoiseSiteAverage", null, static monitor => monitor.NoiseSiteAverage);
-        AddGraph(graphs, site.Monitors, MonitorType.Vibration, "Vibration Daily Peaks", "Daily Peak", "mm/s", "VibrationDailyPeak", null, static monitor => monitor.VibrationDailyPeak);
+        AddGraph(graphs, site.Monitors, new ReportGraphDefinition(MonitorType.Dust, "Dust Hourly Averages", "Hourly", "ug/m3", "DustHourlyAverage", 3600), static monitor => monitor.DustHourlyAverage);
+        AddGraph(graphs, site.Monitors, new ReportGraphDefinition(MonitorType.Dust, "Dust Daily Averages", "Daily", "ug/m3", "DustDailyAverage", 86400), static monitor => monitor.DustDailyAverage);
+        AddGraph(graphs, site.Monitors, new ReportGraphDefinition(MonitorType.Noise, "Noise Hourly Averages", "Hourly", "dB", "NoiseHourlyAverage", 3600), static monitor => monitor.NoiseHourlyAverage);
+        AddGraph(graphs, site.Monitors, new ReportGraphDefinition(MonitorType.Noise, "Noise Daily Averages", "Daily", "dB", "NoiseDailyAverage", 86400), static monitor => monitor.NoiseDailyAverage);
+        AddGraph(graphs, site.Monitors, new ReportGraphDefinition(MonitorType.Noise, "Noise Site Averages", "Site", "dB", "NoiseSiteAverage", null), static monitor => monitor.NoiseSiteAverage);
+        AddGraph(graphs, site.Monitors, new ReportGraphDefinition(MonitorType.Vibration, "Vibration Daily Peaks", "Daily Peak", "mm/s", "VibrationDailyPeak", null), static monitor => monitor.VibrationDailyPeak);
         return graphs;
     }
 
@@ -145,15 +153,10 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
     private static void AddGraph(
         List<ReportGraph> graphs,
         IReadOnlyList<MonitorReportData> monitors,
-        MonitorType monitorType,
-        string title,
-        string averagePeriodLabel,
-        string unit,
-        string graphField,
-        int? averagingPeriodSeconds,
+        ReportGraphDefinition definition,
         Func<MonitorReportData, IReadOnlyList<MeasurementPoint>> selectPoints)
     {
-        MonitorReportData[] typeMonitors = [.. monitors.Where(monitor => monitor.TypeOfMonitor == monitorType)];
+        MonitorReportData[] typeMonitors = [.. monitors.Where(monitor => monitor.TypeOfMonitor == definition.MonitorType)];
         ReportGraphSeries[] series = [.. typeMonitors
             .Select(monitor => new ReportGraphSeries(MonitorLabel(monitor), [.. selectPoints(monitor).OrderBy(static point => point.MeasuredAt)]))
             .Where(static item => item.Points.Count > 0)];
@@ -165,8 +168,8 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
 
         ReportGraphLimit[] limits = [.. typeMonitors
             .SelectMany(monitor => monitor.AlertRules)
-            .Where(rule => RuleMatchesGraph(rule, graphField, averagingPeriodSeconds))
-            .GroupBy(rule => new { rule.AlertType, rule.Threshold, Unit = rule.Unit ?? unit })
+            .Where(rule => RuleMatchesGraph(rule, definition.GraphField, definition.AveragingPeriodSeconds))
+            .GroupBy(rule => new { rule.AlertType, rule.Threshold, Unit = rule.Unit ?? definition.Unit })
             .Select(group => new ReportGraphLimit(
                 group.Key.AlertType,
                 group.Key.Threshold,
@@ -175,7 +178,13 @@ public sealed class QuestPdfReportRenderer : IReportPdfRenderer
             .OrderBy(static limit => limit.AlertType)
             .ThenBy(static limit => limit.Value)];
 
-        graphs.Add(new ReportGraph(title, monitorType, averagePeriodLabel, unit, series, limits));
+        graphs.Add(new ReportGraph(
+            definition.Title,
+            definition.MonitorType,
+            definition.AveragePeriodLabel,
+            definition.Unit,
+            series,
+            limits));
     }
 
     private static bool RuleMatchesGraph(AlertRuleData rule, string graphField, int? averagingPeriodSeconds)

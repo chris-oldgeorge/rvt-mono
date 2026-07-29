@@ -25,7 +25,7 @@ namespace OmnidotsAdapterTests
 
             });
             Assert.AreEqual("Failed ! baz must be an Integer", exception.Message);
-            Assert.IsInstanceOfType(exception.InnerException, typeof(FormatException));
+            Assert.IsInstanceOfType<FormatException>(exception.InnerException);
         }
 
     }

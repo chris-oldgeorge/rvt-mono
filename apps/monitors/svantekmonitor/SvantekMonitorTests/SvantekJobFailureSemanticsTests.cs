@@ -12,7 +12,10 @@ namespace SvantekMonitorTests;
 [TestClass]
 public sealed class SvantekJobFailureSemanticsTests
 {
-    private const string ProjectsJson = """
+    private static readonly string[] _failureIdentifiers =
+        ["StoreMonitors project 1", "StoreMonitors project 3"];
+
+    private const string _projectsJson = """
         {
           "status": "ok",
           "projects": [
@@ -23,7 +26,7 @@ public sealed class SvantekJobFailureSemanticsTests
         }
         """;
 
-    private const string StationsJson = """
+    private const string _stationsJson = """
         {
           "status": "ok",
           "stations": [
@@ -50,8 +53,8 @@ public sealed class SvantekJobFailureSemanticsTests
                 It.IsAny<string>(),
                 It.IsAny<HttpContent>(),
                 token))
-            .ReturnsAsync(ProjectsJson)
-            .ReturnsAsync(StationsJson);
+            .ReturnsAsync(_projectsJson)
+            .ReturnsAsync(_stationsJson);
         Mock<ISvantekMonitorCommands> monitorCommands = new(MockBehavior.Strict);
         List<int> persistedProjects = [];
         monitorCommands.Setup(commands => commands.WriteMonitorListAsync(
@@ -86,9 +89,9 @@ public sealed class SvantekJobFailureSemanticsTests
         Assert.IsInstanceOfType<SvantekJobAggregateException>(observed, observed?.ToString());
         SvantekJobAggregateException aggregate = (SvantekJobAggregateException)observed;
 
-        CollectionAssert.AreEqual(new[] { 1, 2, 3 }, persistedProjects);
+        CollectionAssert.AreEqual(_expected, persistedProjects);
         CollectionAssert.AreEqual(
-            new[] { "StoreMonitors project 1", "StoreMonitors project 3" },
+            _failureIdentifiers,
             recordedIdentifiers);
         Assert.AreEqual("StoreMonitors", aggregate.JobName);
         Assert.HasCount(2, aggregate.Failures);
@@ -108,7 +111,7 @@ public sealed class SvantekJobFailureSemanticsTests
         http.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                It.IsAny<CancellationToken>()))
             .ThrowsAsync(authenticationFailure);
         Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
         StoreMonitorsHandler handler = new(
@@ -117,7 +120,7 @@ public sealed class SvantekJobFailureSemanticsTests
             operational.Object,
             testLocal: false);
 
-        AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => handler.RunAsync());
+        AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => handler.RunAsync(TestContext.CancellationToken));
 
         Assert.AreSame(authenticationFailure, exception.InnerException, exception.ToString());
         operational.Verify(
@@ -154,4 +157,8 @@ public sealed class SvantekJobFailureSemanticsTests
             commands => commands.HandleException("cancelled", It.IsAny<Exception>()),
             Times.Never);
     }
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly int[] _expected = [1, 2, 3];
 }

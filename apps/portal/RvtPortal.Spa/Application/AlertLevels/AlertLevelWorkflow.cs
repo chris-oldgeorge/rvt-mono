@@ -204,6 +204,8 @@ internal static class AlertLevelWorkflow
             MonitorTypeEnum.Noise => Enum.IsDefined(typeof(AveragingPeriodsNoiseEnum), level.AveragingPeriod)
                 ? EnumLabel(((AveragingPeriodsNoiseEnum)level.AveragingPeriod).ToString())
                 : level.AveragingPeriod.ToString(CultureInfo.InvariantCulture),
+            MonitorTypeEnum.Vibration => throw new NotImplementedException(),
+            null => throw new NotImplementedException(),
             _ => level.AveragingPeriod.ToString(CultureInfo.InvariantCulture)
         };
     }

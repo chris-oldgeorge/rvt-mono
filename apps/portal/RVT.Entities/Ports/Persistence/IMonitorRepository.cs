@@ -2,10 +2,9 @@
 // Major updates:
 // - 2026-07-10 pending Moved the monitor repository contract out of the EF adapter into the core ports.
 
-namespace RVT.Entities.Ports.Persistence
+namespace RVT.Entities.Ports.Persistence;
+
+public interface IMonitorRepository
 {
-    public interface IMonitorRepository
-    {
-        Task<Monitor?> GetByIdAsync(Guid Id);
-    }
+    Task<Monitor?> GetByIdAsync(Guid id);
 }

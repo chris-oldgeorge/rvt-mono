@@ -55,7 +55,7 @@ namespace AirQMonitorTests
                                                      out Mock<IMessageService> messageService);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
-                                Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
+                                Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson(), TestContext.CancellationToken));
             List<NoiseMonitorDto> monitors = AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE);
             dbClient.Setup(c => c.ReadMonitorList(null)).
                     Returns(monitors);
@@ -63,7 +63,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadRules("Device1")).
                 Returns(rules);
 
-            await testObj.StoreNoiseLevelsAsync("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken);
 
             httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device1", It.IsAny<CancellationToken>()), Times.Exactly(1));
             httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device2", It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -85,7 +85,7 @@ namespace AirQMonitorTests
             //dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, monitors[0].SerialId, "LAeq", true))), Times.Exactly(1));
             dbClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(3));
             mqttClient.VerifyNoOtherCalls();
 
             messageService.VerifyNoOtherCalls();
@@ -118,8 +118,8 @@ namespace AirQMonitorTests
 
 
             httpClient.SetupSequence(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
-                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements1))).
-                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements2)));
+                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements1), TestContext.CancellationToken)).
+                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements2), TestContext.CancellationToken));
 
             int durationSeconds = 15 * 60;
             RvtAlertRuleDto ruleOn = new(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
@@ -136,15 +136,15 @@ namespace AirQMonitorTests
                                 Returns(false);
 
             // first store noise levels should trigger an alert second should cancel it
-            await testObj.StoreNoiseLevelsAsync("foo", "bar");
-            await testObj.StoreNoiseLevelsAsync("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken);
+            await testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken);
 
             httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(2));
             httpClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(2));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(2));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(2));
@@ -212,23 +212,23 @@ namespace AirQMonitorTests
 
 
             httpClient.SetupSequence(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
-                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(alertingMeasurements))).
-                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(alertingMeasurements))).
-                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(nonAlertingMeasurements)));
+                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(alertingMeasurements), TestContext.CancellationToken)).
+                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(alertingMeasurements), TestContext.CancellationToken)).
+                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(nonAlertingMeasurements), TestContext.CancellationToken));
 
             dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType)).
                 Returns(false);
 
-            await testObj.StoreNoiseLevelsAsync("foo", "bar");
-            await testObj.StoreNoiseLevelsAsync("foo", "bar");
-            await testObj.StoreNoiseLevelsAsync("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken);
+            await testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken);
+            await testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken);
 
             httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(3));
             httpClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(2));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(3));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(3));
@@ -275,7 +275,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=blah&token=blahh&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
-                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
+                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements), TestContext.CancellationToken));
 
             AlertActivityTimeDto ruleActivity = AirQFixture.CreateActiveRuleActivity(null, null);
             int durationSeconds = 15 * 60;
@@ -296,16 +296,16 @@ namespace AirQMonitorTests
                    Returns(false);
 
             // first store noise levels should trigger an alert, second should not as it occurred before RULE_ALERT_DELAY_MINUTES but 3rd should as it's after RULE_ALERT_DELAY_MINUTES
-            await testObj.StoreNoiseLevelsAsync("blah", "blahh");
-            await testObj.StoreNoiseLevelsAsync("blah", "blahh");
-            await testObj.StoreNoiseLevelsAsync("blah", "blahh");
+            await testObj.StoreNoiseLevelsAsync("blah", "blahh", TestContext.CancellationToken);
+            await testObj.StoreNoiseLevelsAsync("blah", "blahh", TestContext.CancellationToken);
+            await testObj.StoreNoiseLevelsAsync("blah", "blahh", TestContext.CancellationToken);
 
             httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=blah&token=blahh&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(3));
             httpClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(3));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(3));
@@ -357,7 +357,7 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
-                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
+                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements), TestContext.CancellationToken));
 
             AlertActivityTimeDto ruleActivity = AirQFixture.CreateActiveRuleActivity(null, null);
             int durationSeconds = 15 * 60;
@@ -372,16 +372,16 @@ namespace AirQMonitorTests
                 Returns(false);
 
             // first store noise levels should trigger an alert, second should not as it occurred before RULE_ALERT_DELAY_MINUTES but 3rd should as it's after RULE_ALERT_DELAY_MINUTES
-            await testObj.StoreNoiseLevelsAsync("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken);
 
             httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1));
 
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -454,7 +454,7 @@ namespace AirQMonitorTests
                    Returns(monitors);
 
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
-                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
+                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements), TestContext.CancellationToken));
 
             Guid ruleId = Guid.NewGuid(); ;
             List<RvtContactDto> contacts = AirQFixture.AlertContacts();
@@ -472,14 +472,14 @@ namespace AirQMonitorTests
             messageService.Setup(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>())).
                 Throws(CommsException.Of("test-address", "test-message"));
 
-            await testObj.StoreNoiseLevelsAsync("foo", "bar");
+            await testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken);
 
             httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -543,7 +543,7 @@ namespace AirQMonitorTests
                    Returns(monitors);
 
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
-                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
+                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements), TestContext.CancellationToken));
 
             Guid ruleId = Guid.NewGuid();
             List<RvtContactDto> contacts = AirQFixture.AlertContacts(sendStartTime, sendEndTime);
@@ -558,14 +558,14 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, It.IsAny<string>(), It.IsAny<AlertType>())).
                     Returns(false);
 
-            await testObj.StoreNoiseLevelsAsync("foo", "bar"); //Runs the StoreNoiseLevels function so that we can verify that all required functions have been triggered
+            await testObj.StoreNoiseLevelsAsync("foo", "bar", TestContext.CancellationToken); //Runs the StoreNoiseLevels function so that we can verify that all required functions have been triggered
 
             httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
                 Times.Exactly(1)); //Checks that the GetAsync function has been ran with the correct parameters only 1 time (as shown above)
             httpClient.VerifyNoOtherCalls();// checks that no other calls have been made by the httpClient
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(1)); //Checks that the PublishAsync function has been ran with the RVTConfig.INSERT_TOPIC 1 time
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1)); //Checks that the PublishAsync function has been ran with the RVTConfig.INSERT_TOPIC 1 time
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -705,5 +705,7 @@ namespace AirQMonitorTests
                 }
             };
         }
+
+        public TestContext TestContext { get; set; } = null!;
     }
 }

@@ -5,7 +5,7 @@ using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Data.Entities;
 
-namespace OmnidotsMonitorTests.Mapping;
+namespace OmnidotsAdapterTests.Mapping;
 
 [TestClass]
 public sealed class OmnidotsDbMapperTests

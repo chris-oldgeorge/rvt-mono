@@ -21,13 +21,20 @@ namespace RvtPortal.Spa.Api;
 public interface IMonitorDetailSummaryService
 {
     // Function summary: Builds the latest reading summary, preferring live measurements and falling back to notification data.
-    Task<MonitorMetricSummary?> BuildLatestReadingAsync(Deployment? deployment, Notification? fallbackNotification);
+    Task<MonitorMetricSummary?> BuildLatestReadingAsync(
+        Deployment? deployment,
+        Notification? fallbackNotification,
+        CancellationToken cancellationToken = default);
 
     // Function summary: Builds the latest average summary from live measurement data where supported.
-    Task<MonitorMetricSummary?> BuildLatestAverageAsync(Deployment? deployment);
+    Task<MonitorMetricSummary?> BuildLatestAverageAsync(
+        Deployment? deployment,
+        CancellationToken cancellationToken = default);
 
     // Function summary: Builds the latest vendor battery summary where supported.
-    Task<MonitorMetricSummary?> BuildLatestBatteryAsync(MonitorEntity monitor);
+    Task<MonitorMetricSummary?> BuildLatestBatteryAsync(
+        MonitorEntity monitor,
+        CancellationToken cancellationToken = default);
 
     // Function summary: Builds deployment summary data for legacy monitor-detail parity.
     MonitorDeploymentSummary? BuildDeploymentSummary(Deployment? deployment);
@@ -35,34 +42,52 @@ public interface IMonitorDetailSummaryService
 
 public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
 {
+    private const string LatestReadingLabel = "Latest Reading";
+
     private readonly RVTSearchContext searchContext;
     private readonly IMonitorDataSource dataSource;
+    private readonly ILogger<MonitorDetailSummaryService> _logger;
 
     // Function summary: Initializes this type with search and measurement data sources.
-    public MonitorDetailSummaryService(RVTSearchContext searchContext, IMonitorDataSource dataSource)
+    public MonitorDetailSummaryService(
+        RVTSearchContext searchContext,
+        IMonitorDataSource dataSource,
+        ILogger<MonitorDetailSummaryService> logger)
     {
         this.searchContext = searchContext;
         this.dataSource = dataSource;
+        _logger = logger;
     }
 
-    public async Task<MonitorMetricSummary?> BuildLatestReadingAsync(Deployment? deployment, Notification? fallbackNotification)
+    public async Task<MonitorMetricSummary?> BuildLatestReadingAsync(
+        Deployment? deployment,
+        Notification? fallbackNotification,
+        CancellationToken cancellationToken = default)
     {
-        return await BuildLatestMeasurementAsync(deployment) ??
+        return await BuildLatestMeasurementAsync(deployment, cancellationToken) ??
             BuildLatestReadingFromNotification(fallbackNotification, deployment?.Monitor.TypeOfMonitor ?? MonitorTypeEnum.Dust);
     }
 
-    public Task<MonitorMetricSummary?> BuildLatestAverageAsync(Deployment? deployment)
+    public Task<MonitorMetricSummary?> BuildLatestAverageAsync(
+        Deployment? deployment,
+        CancellationToken cancellationToken = default)
     {
-        return BuildLatestDeploymentMetricAsync(deployment, LatestAverageFilter, averageMetric: true);
+        return BuildLatestDeploymentMetricAsync(
+            deployment,
+            LatestAverageFilter,
+            averageMetric: true,
+            cancellationToken);
     }
 
-    public async Task<MonitorMetricSummary?> BuildLatestBatteryAsync(MonitorEntity monitor)
+    public async Task<MonitorMetricSummary?> BuildLatestBatteryAsync(
+        MonitorEntity monitor,
+        CancellationToken cancellationToken = default)
     {
         OmnidotsSensor? omnidots = await searchContext.OmnidotsSensors
             .AsNoTracking()
             .Where(sensor => sensor.SerialId == monitor.SerialId)
             .OrderByDescending(sensor => sensor.Lastseen)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
         if (omnidots != null)
         {
             return BuildMetric("Battery Charge", "batteryCharge", omnidots.BatteryCharge, "%", omnidots.Lastseen, "Omnidots sensor status");
@@ -71,7 +96,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
         SvantekMonitorStatus? svantek = await searchContext.SvantekMonitorStatuses
             .AsNoTracking()
             .Where(status => status.SerialId == monitor.SerialId && status.Batterycharge.HasValue)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
         return svantek?.Batterycharge == null
             ? null
             : BuildMetric("Battery Charge", "batteryCharge", svantek.Batterycharge, "%", ParseStatusTime(svantek.Laststatustimestamp), "Svantek monitor status");
@@ -96,22 +121,30 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
         };
     }
 
-    private Task<MonitorMetricSummary?> BuildLatestMeasurementAsync(Deployment? deployment)
+    private Task<MonitorMetricSummary?> BuildLatestMeasurementAsync(
+        Deployment? deployment,
+        CancellationToken cancellationToken)
     {
-        return BuildLatestDeploymentMetricAsync(deployment, LatestReadingFilter, averageMetric: false);
+        return BuildLatestDeploymentMetricAsync(
+            deployment,
+            LatestReadingFilter,
+            averageMetric: false,
+            cancellationToken);
     }
 
     // Function summary: Builds the latest metric from deployment data using the requested filter semantics.
     private async Task<MonitorMetricSummary?> BuildLatestDeploymentMetricAsync(
         Deployment? deployment,
         Func<MonitorTypeEnum, string> filter,
-        bool averageMetric)
+        bool averageMetric,
+        CancellationToken cancellationToken)
     {
         if (deployment?.Monitor == null)
         {
             return null;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             MonitorTypeEnum monitorType = deployment.Monitor.TypeOfMonitor;
@@ -131,7 +164,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
             if (data.DustLevels?.Value.FirstOrDefault() is { } dust)
             {
                 return BuildMetric(
-                    averageMetric ? "Latest 15 Min Average" : "Latest Reading",
+                    averageMetric ? "Latest 15 Min Average" : LatestReadingLabel,
                     "pm10",
                     dust.Pm10,
                     "ug/m3",
@@ -142,7 +175,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
             if (data.NoiseLevels?.Value.FirstOrDefault() is { } noise)
             {
                 return BuildMetric(
-                    averageMetric ? "Latest 15 Min Average" : "Latest Reading",
+                    averageMetric ? "Latest 15 Min Average" : LatestReadingLabel,
                     "LAeq",
                     noise.Laeq,
                     "dB",
@@ -154,7 +187,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
             {
                 (string? field, double? value) = MaxAxis(vibration.Xvtop, vibration.Yvtop, vibration.Zvtop);
                 return BuildMetric(
-                    averageMetric ? "Latest Peak" : "Latest Reading",
+                    averageMetric ? "Latest Peak" : LatestReadingLabel,
                     field,
                     value,
                     "mm/s",
@@ -162,8 +195,16 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
                     "Vibration highest peak axis");
             }
         }
-        catch
+        catch (OperationCanceledException)
         {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to build the latest monitor metric for deployment {DeploymentId}.",
+                deployment.Id);
             return null;
         }
 
@@ -179,7 +220,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
 
         return new MonitorMetricSummary
         {
-            Label = notification.AlertType == AlertTypeEnum.Alert ? "Latest Breach" : "Latest Reading",
+            Label = notification.AlertType == AlertTypeEnum.Alert ? "Latest Breach" : LatestReadingLabel,
             Field = notification.AlertField,
             Value = notification.Level,
             Unit = UnitForMonitorType(monitorType),

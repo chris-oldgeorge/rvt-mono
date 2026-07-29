@@ -54,7 +54,7 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  
+
   <ItemGroup>
     <None Update="testdata\create.postgres.sql">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

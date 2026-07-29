@@ -11,7 +11,6 @@ using Rvt.Monitor.IntegrationTesting;
 using Svantek.Api.Db;
 using Svantek.Model.Dto;
 using Svantek.Model.Http;
-using SvantekMonitor.model.dto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
@@ -26,9 +25,9 @@ namespace SvantekMonitorTests
     public class TestDBClient
     {
 
-        private static PostgreSqlIntegrationDatabase? database;
+        private static PostgreSqlIntegrationDatabase? _database;
 
-        private static DBClient? testObj;
+        private static DBClient? _testObj;
 
         public TestDBClient()
         {
@@ -42,11 +41,11 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestScopedPostgresConnectionUsesFixtureSchema()
         {
-            using NpgsqlConnection connection = database!.OpenConnection();
+            using NpgsqlConnection connection = _database!.OpenConnection();
             connection.Open();
             using NpgsqlCommand command = new("SELECT current_schema();", connection);
 
-            Assert.AreEqual(database.SchemaName, command.ExecuteScalar());
+            Assert.AreEqual(_database.SchemaName, command.ExecuteScalar());
         }
 
         [ClassInitialize]
@@ -54,23 +53,25 @@ namespace SvantekMonitorTests
         {
             string setupSql = TestUtil.ReadTextFromFile("testdata/create.postgres.sql");
             string resetSql = TestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
-            database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql);
-            testObj = new DBClient(database.ConnectionString);
+            _database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql, context.CancellationToken);
+            _testObj = new DBClient(_database.ConnectionString);
         }
 
         [ClassCleanup]
         public static async Task TestFixtureCleanup()
         {
-            if (database is not null)
+            if (_database is not null)
             {
-                await database.DisposeAsync();
+                await _database.DisposeAsync();
             }
         }
 
         [TestInitialize]
         public async Task BeforeTest()
         {
-            await database!.ResetAsync(TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"));
+            await _database!.ResetAsync(
+                TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
+                TestContext.CancellationToken);
         }
 
         [DataRow("", "", 5, 5)]
@@ -88,29 +89,29 @@ namespace SvantekMonitorTests
             DateTime? queryLastdataTime = String.IsNullOrEmpty(queryDate) ? null : PostgreSqlFixtureDateTime.ParseUtc(queryDate);
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(numMonitors);
             Assert.HasCount(numMonitors, monitorsIn);
-            testObj!.WriteMonitorList(monitorsIn);
+            _testObj!.WriteMonitorList(monitorsIn);
 
             if (lastDataTime != null)
             {
                 for (int i = 0; i < monitorsIn.Count; i++)
                 {
                     DateTime dt = ((DateTime)lastDataTime!).AddHours(i);
-                    testObj.WriteLatestTimestamp(monitorsIn[i].SerialId, dt);
+                    _testObj.WriteLatestTimestamp(monitorsIn[i].SerialId, dt);
                 }
             }
 
-            List<NoiseMonitorReadDto> monitorsOut = testObj.ReadMonitorList(queryLastdataTime);
+            List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(queryLastdataTime);
             Assert.HasCount(numExpectedMonitors, monitorsOut);
         }
 
         [TestMethod]
         public void TestReadGlobalRules()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(null);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(null);
             Assert.HasCount(1, rules);
 
             RvtAlertRuleDto rule = rules[0];
@@ -137,13 +138,13 @@ namespace SvantekMonitorTests
             List<NoiseMonitorDto> monitors = CreateMonitorsList(1, "E123");
             Assert.HasCount(1, monitors);
 
-            testObj!.WriteMonitorList(monitors);
+            _testObj!.WriteMonitorList(monitors);
 
             DateTime lastDataTime = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T14:35:42Z");
             string serialId = "E1230";
-            testObj.WriteLatestTimestamp(serialId, lastDataTime);
+            _testObj.WriteLatestTimestamp(serialId, lastDataTime);
 
-            List<NoiseMonitorReadDto> monitorsOut = testObj.ReadMonitorList(null);
+            List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
 
             NoiseMonitorReadDto monitor = monitorsOut[0];
@@ -155,7 +156,7 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestHandleException()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
 
             string TAG = "MyTestError";
             string MESSAGE = "bang";
@@ -198,9 +199,9 @@ namespace SvantekMonitorTests
             DateTime actualDt = PostgreSqlFixtureDateTime.ParseUtc(actual);
             List<SampleResponse> samples = SvantekFixture.SamplesResponseObjects(actualDt);
             string serialId = "E1234";
-            testObj!.InsertNoiseDtos(serialId, [new NoiseDto(samples[0])]);
+            _testObj!.InsertNoiseDtos(serialId, [new NoiseDto(samples[0])]);
 
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<NoiseDto> dtos = ReadNoiseDtos(connection, out string lastSerialId);
@@ -229,15 +230,15 @@ namespace SvantekMonitorTests
             NoiseDto dto = new(sampleTime: sampleTime, lAeq: 44.75, lAmax: 61.28, lA90: 43.00,
                 lA10: 44.47, lCeq: 54.19, lCmax: 82.81, lC90: 47.56, lC10: 51.22);
 
-            testObj!.InsertNoiseDtos(serialId, [dto]);
+            _testObj!.InsertNoiseDtos(serialId, [dto]);
 
-            await using NpgsqlConnection connection = database!.OpenConnection();
-            await connection.OpenAsync();
+            await using NpgsqlConnection connection = _database!.OpenConnection();
+            await connection.OpenAsync(TestContext.CancellationToken);
             await using NpgsqlCommand command = new(
                 "SELECT serial_id, sample_time, laeq FROM svantek_noise_level ORDER BY sample_time;", connection);
-            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync(TestContext.CancellationToken);
 
-            Assert.IsTrue(await reader.ReadAsync());
+            Assert.IsTrue(await reader.ReadAsync(TestContext.CancellationToken));
             Assert.AreEqual(serialId, reader.GetString(0));
             DateTime persistedSampleTime = reader.GetDateTime(1);
             Assert.AreEqual(sampleTime, persistedSampleTime);
@@ -253,10 +254,10 @@ namespace SvantekMonitorTests
             NoiseDto dto = new(sampleTime: sampleTime, lAeq: 1, lAmax: 2, lA90: 3,
                 lA10: 4, lCeq: 5, lCmax: 6, lC90: 7, lC10: 8);
 
-            testObj!.InsertNoiseDtos(serialId, [dto, dto]);
-            testObj.InsertNoiseDtos(serialId, [dto]);
+            _testObj!.InsertNoiseDtos(serialId, [dto, dto]);
+            _testObj.InsertNoiseDtos(serialId, [dto]);
 
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<NoiseDto> dtos = ReadNoiseDtos(connection, out string lastSerialId);
@@ -270,14 +271,14 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestReadAlertRules()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E2345";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorReadDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
 
@@ -295,7 +296,7 @@ namespace SvantekMonitorTests
                 InsertAlertRule(connection, i, "99999", monitorId);
             }
 
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(NUM_RULES, rules);
 
             List<RvtAlertRuleDto> orderedRules = [.. rules.OrderBy(o => o.Field)];
@@ -324,20 +325,20 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestReadAlertContacts()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             int numMonitors = 2;
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(numMonitors);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorReadDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(numMonitors, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
             string serialId = monitorsOut[0].SerialId;
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 44, serialId, monitorId);
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
             string email = "mytestemail@bbb.com";
             string phoneNo = "01234567890";
@@ -366,7 +367,7 @@ namespace SvantekMonitorTests
             List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
             Assert.HasCount(2, contacts);
 
-            List<RvtContactDto> alertContacts = testObj.ReadAlertContacts(monitorId, out Guid siteId);
+            List<RvtContactDto> alertContacts = _testObj.ReadAlertContacts(monitorId, out Guid siteId);
             Assert.HasCount(1, alertContacts);
             Assert.AreNotEqual(Guid.Empty, siteId);
 
@@ -382,21 +383,21 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestWriteNotification()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E8271";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorReadDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId, AlertType.Caution);
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
             string email = "foobob@bbb.com";
             string phoneNo = "01238867890";
@@ -412,8 +413,8 @@ namespace SvantekMonitorTests
             Assert.HasCount(1, contacts);
 
 
-            Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
+            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
+            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             DateTime dt = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T11:19:00Z");
             NotificationDto notifyCaution = new(id: Guid.NewGuid(),
@@ -427,10 +428,10 @@ namespace SvantekMonitorTests
                                               alertField: rules[0].Field,
                                               monitorId: monitorId);
 
-            testObj.WriteNotification(notifyCaution);
+            _testObj.WriteNotification(notifyCaution);
 
-            Assert.IsTrue(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
+            Assert.IsTrue(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
+            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
 
             {
@@ -459,10 +460,10 @@ namespace SvantekMonitorTests
                                               alertField: rules[0].Field,
                                               monitorId: monitorId);
 
-            testObj.WriteNotification(notifyAlert);
+            _testObj.WriteNotification(notifyAlert);
 
-            Assert.IsTrue(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsTrue(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
+            Assert.IsTrue(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
+            Assert.IsTrue(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             Assert.HasCount(2, ReadNotifications(connection));
         }
@@ -474,15 +475,15 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestHasOpenNotification(AlertType existing, AlertType alertType, bool expectedResult)
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E8271";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
 
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorReadDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
 
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
@@ -490,7 +491,7 @@ namespace SvantekMonitorTests
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId, alertType);
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
             string email = "foobob@bbb.com";
             string phoneNo = "01238867890";
@@ -505,8 +506,8 @@ namespace SvantekMonitorTests
             List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
             Assert.HasCount(1, contacts);
 
-            Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
+            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
+            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             DateTime dt = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T11:19:00Z");
             NotificationDto existingNotification = new(id: Guid.NewGuid(),
@@ -520,27 +521,27 @@ namespace SvantekMonitorTests
                                               alertField: rules[0].Field,
                                               monitorId: monitorId);
 
-            testObj.WriteNotification(existingNotification);
+            _testObj.WriteNotification(existingNotification);
 
-            Assert.AreEqual(expectedResult, testObj.HasOpenNotification(monitorId, rules[0].Field, alertType));
+            Assert.AreEqual(expectedResult, _testObj.HasOpenNotification(monitorId, rules[0].Field, alertType));
         }
 
 
         [TestMethod]
         public void UpdateAlertRule()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorReadDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
             string serialId = monitorsOut[0].SerialId;
             InsertAlertRule(connection, 721, serialId, monitorId);
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
 
             RvtAlertRuleDto rule = rules[0];
@@ -548,9 +549,9 @@ namespace SvantekMonitorTests
             bool isActive = !rule.IsActive;
             rule.IsActive = isActive;
 
-            testObj.UpdateAlertRule(rules[0]);
+            _testObj.UpdateAlertRule(rules[0]);
 
-            List<RvtAlertRuleDto> updatedRules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> updatedRules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, updatedRules);
             Assert.AreEqual(isActive, updatedRules[0].IsActive);
 
@@ -559,18 +560,18 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestSetMonitorOffline()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
+            _testObj!.WriteMonitorList(monitorsIn);
 
             foreach (NoiseMonitorDto m in monitorsIn)
             {
                 Assert.IsFalse(m.Offline);
-                testObj.SetMonitorOffline(m.Id, true);
+                _testObj.SetMonitorOffline(m.Id, true);
             }
-            List<NoiseMonitorReadDto> monitorsOut = testObj.ReadMonitorList(null);
+            List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             foreach (NoiseMonitorReadDto m in monitorsOut)
             {
@@ -583,11 +584,11 @@ namespace SvantekMonitorTests
         public void TestCatalogueRefreshPreservesRuntimeOwnedMonitorAndDeploymentState()
         {
             NoiseMonitorDto monitor = CreateMonitorsList(1, "catalogue-refresh-")[0];
-            testObj!.WriteMonitorList([monitor]);
+            _testObj!.WriteMonitorList([monitor]);
 
             Guid ReadPersistedMonitorId()
             {
-                using NpgsqlConnection connection = database!.OpenConnection();
+                using NpgsqlConnection connection = _database!.OpenConnection();
                 connection.Open();
                 using NpgsqlCommand command = new(
                     "SELECT id FROM monitor WHERE serial_id = @SerialId;",
@@ -606,31 +607,31 @@ namespace SvantekMonitorTests
             DateTime deploymentStart = PostgreSqlFixtureDateTime.ParseUtc("2026-06-01T08:00:00Z");
             DateTime deploymentEnd = PostgreSqlFixtureDateTime.ParseUtc("2026-08-01T17:00:00Z");
 
-            using (NpgsqlConnection connection = database!.OpenConnection())
+            using (NpgsqlConnection connection = _database!.OpenConnection())
             {
                 connection.Open();
                 using NpgsqlCommand command = new(
                     """
-                    UPDATE monitor
-                    SET customer_id = @CustomerId,
-                        location_id = @LocationId,
-                        last_data_time_1_min = @LastDataTime1Min,
-                        last_data_time_15_min = @LastDataTime15Min,
-                        last_data_time_1_hour = @LastDataTime1Hour,
-                        last_data_time_24_hour = @LastDataTime24Hour,
-                        offline = TRUE,
-                        battery_status = @BatteryStatus
-                    WHERE serial_id = @SerialId;
+                UPDATE monitor
+                SET customer_id = @CustomerId,
+                    location_id = @LocationId,
+                    last_data_time_1_min = @LastDataTime1Min,
+                    last_data_time_15_min = @LastDataTime15Min,
+                    last_data_time_1_hour = @LastDataTime1Hour,
+                    last_data_time_24_hour = @LastDataTime24Hour,
+                    offline = TRUE,
+                    battery_status = @BatteryStatus
+                WHERE serial_id = @SerialId;
 
-                    UPDATE deployment
-                    SET start_date = @DeploymentStart,
-                        end_date = @DeploymentEnd,
-                        lng = @DeploymentLongitude,
-                        lat = @DeploymentLatitude,
-                        what_3_words = @What3Words,
-                        picture_link = @PictureLink
-                    WHERE monitor_id = @MonitorId;
-                    """,
+                UPDATE deployment
+                SET start_date = @DeploymentStart,
+                    end_date = @DeploymentEnd,
+                    lng = @DeploymentLongitude,
+                    lat = @DeploymentLatitude,
+                    what_3_words = @What3Words,
+                    picture_link = @PictureLink
+                WHERE monitor_id = @MonitorId;
+                """,
                     connection);
                 command.Parameters.AddWithValue("@CustomerId", 123);
                 command.Parameters.AddWithValue("@LocationId", 456);
@@ -662,46 +663,46 @@ namespace SvantekMonitorTests
             Guid firstRefreshMonitorId = Guid.NewGuid();
             Assert.AreNotEqual(initialMonitorId, firstRefreshMonitorId);
             monitor.Id = firstRefreshMonitorId;
-            testObj.WriteMonitorList([monitor]);
+            _testObj.WriteMonitorList([monitor]);
             Assert.AreEqual(initialMonitorId, ReadPersistedMonitorId());
 
             Guid secondRefreshMonitorId = Guid.NewGuid();
             Assert.AreNotEqual(initialMonitorId, secondRefreshMonitorId);
             Assert.AreNotEqual(firstRefreshMonitorId, secondRefreshMonitorId);
             monitor.Id = secondRefreshMonitorId;
-            testObj.WriteMonitorList([monitor]);
+            _testObj.WriteMonitorList([monitor]);
             Assert.AreEqual(initialMonitorId, ReadPersistedMonitorId());
 
-            using NpgsqlConnection verifyConnection = database!.OpenConnection();
+            using NpgsqlConnection verifyConnection = _database!.OpenConnection();
             verifyConnection.Open();
             using NpgsqlCommand verifyCommand = new(
                 """
-                SELECT m.customer_id,
-                       m.location_id,
-                       m.last_data_time_1_min,
-                       m.last_data_time_15_min,
-                       m.last_data_time_1_hour,
-                       m.last_data_time_24_hour,
-                       m.offline,
-                       m.battery_status,
-                       m.model,
-                       m.firmware_version,
-                       s.project_id,
-                       s.point_id,
-                       s.active,
-                       s.batterycharge,
-                       d.start_date,
-                       d.end_date,
-                       d.lng,
-                       d.lat,
-                       d.what_3_words,
-                       d.picture_link,
-                       m.id
-                FROM monitor m
-                JOIN svantek_monitor_status s ON s.serial_id = m.serial_id
-                JOIN deployment d ON d.monitor_id = m.id
-                WHERE m.serial_id = @SerialId;
-                """,
+            SELECT m.customer_id,
+                   m.location_id,
+                   m.last_data_time_1_min,
+                   m.last_data_time_15_min,
+                   m.last_data_time_1_hour,
+                   m.last_data_time_24_hour,
+                   m.offline,
+                   m.battery_status,
+                   m.model,
+                   m.firmware_version,
+                   s.project_id,
+                   s.point_id,
+                   s.active,
+                   s.batterycharge,
+                   d.start_date,
+                   d.end_date,
+                   d.lng,
+                   d.lat,
+                   d.what_3_words,
+                   d.picture_link,
+                   m.id
+            FROM monitor m
+            JOIN svantek_monitor_status s ON s.serial_id = m.serial_id
+            JOIN deployment d ON d.monitor_id = m.id
+            WHERE m.serial_id = @SerialId;
+            """,
                 verifyConnection);
             verifyCommand.Parameters.AddWithValue("@SerialId", monitor.SerialId);
             using NpgsqlDataReader reader = verifyCommand.ExecuteReader();
@@ -774,25 +775,25 @@ namespace SvantekMonitorTests
                 NoiseDto dto = new(sampleTime: startTime.AddMinutes(i).AddSeconds(1), lAeq: LAeq, lAmax: LAMax, lA90: LA90,
                             lA10: LA10, lCeq: LCeq, lCmax: LCMax, lC90: LC90, lC10: LC10);
 
-                testObj!.InsertNoiseDtos(serialId, [dto]);
+                _testObj!.InsertNoiseDtos(serialId, [dto]);
             }
 
-            double avgLAeq = testObj!.GetAverageNoiseLevel(serialId, "LAeq", startTime, startTime.AddMinutes(15));
+            double avgLAeq = _testObj!.GetAverageNoiseLevel(serialId, "LAeq", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LAeqTotal / numDtos, avgLAeq);
-            double avgLAMax = testObj!.GetAverageNoiseLevel(serialId, "LAMax", startTime, startTime.AddMinutes(15));
+            double avgLAMax = _testObj!.GetAverageNoiseLevel(serialId, "LAMax", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(expectedLAMax, avgLAMax);
-            double avgLA90 = testObj!.GetAverageNoiseLevel(serialId, "LA90", startTime, startTime.AddMinutes(15));
+            double avgLA90 = _testObj!.GetAverageNoiseLevel(serialId, "LA90", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LA90Total / numDtos, avgLA90);
-            double avgLA10 = testObj!.GetAverageNoiseLevel(serialId, "LA10", startTime, startTime.AddMinutes(15));
+            double avgLA10 = _testObj!.GetAverageNoiseLevel(serialId, "LA10", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LA10Total / numDtos, avgLA10);
 
-            double avgLCeq = testObj!.GetAverageNoiseLevel(serialId, "LCeq", startTime, startTime.AddMinutes(15));
+            double avgLCeq = _testObj!.GetAverageNoiseLevel(serialId, "LCeq", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LCeqTotal / numDtos, avgLCeq);
-            double avgLCMax = testObj!.GetAverageNoiseLevel(serialId, "LCMax", startTime, startTime.AddMinutes(15));
+            double avgLCMax = _testObj!.GetAverageNoiseLevel(serialId, "LCMax", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(expectedLCMax, avgLCMax);
-            double avgLC90 = testObj!.GetAverageNoiseLevel(serialId, "LC90", startTime, startTime.AddMinutes(15));
+            double avgLC90 = _testObj!.GetAverageNoiseLevel(serialId, "LC90", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LC90Total / numDtos, avgLC90);
-            double avgLC10 = testObj!.GetAverageNoiseLevel(serialId, "LC10", startTime, startTime.AddMinutes(15));
+            double avgLC10 = _testObj!.GetAverageNoiseLevel(serialId, "LC10", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LC10Total / numDtos, avgLC10);
 
         }
@@ -802,22 +803,22 @@ namespace SvantekMonitorTests
         {
             string serialId = "E8765";
             DateTime sampleTime = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T16:00:00Z");
-            testObj!.InsertNoiseDtos(serialId,
+            _testObj!.InsertNoiseDtos(serialId,
             [
                 new(sampleTime.AddHours(-7), 10, 20, 30, 40, 50, 60, 70, 80),
                 new(sampleTime, 30, 40, 50, 60, 70, 80, 90, 100)
             ]);
 
-            testObj.Create8hourAverage(serialId, sampleTime);
+            _testObj.Create8hourAverage(serialId, sampleTime);
 
-            await using NpgsqlConnection connection = database!.OpenConnection();
-            await connection.OpenAsync();
+            await using NpgsqlConnection connection = _database!.OpenConnection();
+            await connection.OpenAsync(TestContext.CancellationToken);
             await using NpgsqlCommand command = new(
                 @"SELECT serial_id, sample_time, laeq, number_of_samples
                   FROM svantek_noise_8_hour_average;", connection);
-            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync(TestContext.CancellationToken);
 
-            Assert.IsTrue(await reader.ReadAsync());
+            Assert.IsTrue(await reader.ReadAsync(TestContext.CancellationToken));
             Assert.AreEqual(serialId, reader.GetString(0));
             DateTime persistedSampleTime = reader.GetDateTime(1);
             Assert.AreEqual(sampleTime, persistedSampleTime);
@@ -837,7 +838,7 @@ namespace SvantekMonitorTests
                                      string? sunStart, string? sunEnd)
         {
 
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             Guid siteId = Guid.NewGuid();
@@ -858,7 +859,7 @@ namespace SvantekMonitorTests
                        sunStartTime: sunStartTime,
                        sunEndTime: sunEndTime);
 
-            SiteInfoDto siteInfo = testObj!.ReadSiteInfo(siteId);
+            SiteInfoDto siteInfo = _testObj!.ReadSiteInfo(siteId);
 
             Assert.AreEqual(siteId, siteInfo.SiteId);
             Assert.AreEqual(startTime, siteInfo.StartTime);
@@ -938,18 +939,18 @@ namespace SvantekMonitorTests
         [TestMethod]
         public void TestWriteNotificationAudit()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string serialId = "82731";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorReadDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId);
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
             string email = "bad-email";
             string phoneNo = "bad-phonenumber";
@@ -977,8 +978,8 @@ namespace SvantekMonitorTests
                                                    alertField: rules[0].Field,
                                                     monitorId: monitorId);
             // need to write a alert because NotificationsSent table has foreign key constraint
-            testObj.WriteNotification(notificationIn);
-            testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
+            _testObj.WriteNotification(notificationIn);
+            _testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
             List<NotificationDto> notifications = ReadNotifications(connection);
             Assert.HasCount(1, notifications);
             NotificationDto notificationOut = notifications[0];
@@ -994,15 +995,15 @@ namespace SvantekMonitorTests
             List<Dictionary<string, object>> audits = ReadNotificationsSent(connection);
             Assert.HasCount(1, audits);
             Dictionary<string, object> audit = audits[0];
-            Assert.IsInstanceOfType(audit["Id"], typeof(Guid));
-            Assert.IsInstanceOfType(audit["SendTime"], typeof(DateTime));
+            Assert.IsInstanceOfType<Guid>(audit["Id"]);
+            Assert.IsInstanceOfType<DateTime>(audit["SendTime"]);
             DateTime sendTime = (DateTime)audit["SendTime"];
             Assert.IsTrue(sendTime < DateTime.UtcNow.AddSeconds(10) && sendTime > DateTime.UtcNow.AddSeconds(-10));
-            Assert.IsInstanceOfType(audit["Address"], typeof(string));
+            Assert.IsInstanceOfType<string>(audit["Address"]);
             Assert.AreEqual("mytest@email.net", (string)audit["Address"]);
-            Assert.IsInstanceOfType(audit["ErrorMessage"], typeof(string));
+            Assert.IsInstanceOfType<string>(audit["ErrorMessage"]);
             Assert.AreEqual("some error message", (string)audit["ErrorMessage"]);
-            Assert.IsInstanceOfType(audit["NotificationId"], typeof(Guid));
+            Assert.IsInstanceOfType<Guid>(audit["NotificationId"]);
         }
 
 
@@ -1015,9 +1016,9 @@ namespace SvantekMonitorTests
             string field = "foo";
             double level = 99.43;
             DateTime timestamp = DateTime.UtcNow;
-            testObj!.WriteDailyAverage(siteId, monitorId, field, level, timestamp);
+            _testObj!.WriteDailyAverage(siteId, monitorId, field, level, timestamp);
 
-            List<SiteAverage> siteAverages = ReadSiteAverages(database!.ConnectionString);
+            List<SiteAverage> siteAverages = ReadSiteAverages(_database!.ConnectionString);
 
             Assert.HasCount(1, siteAverages);
             SiteAverage sa = siteAverages[0];
@@ -1315,7 +1316,7 @@ namespace SvantekMonitorTests
                 string emailAddress = reader.GetString(0);
                 string? phoneNumber = reader.IsDBNull(1) ? null : reader.GetString(1);
                 string id = reader.GetString(2);
-                ContactMethod contactMethod = ReadContactMethod(database!.ConnectionString, siteUserId);
+                ContactMethod contactMethod = ReadContactMethod(_database!.ConnectionString, siteUserId);
                 contacts.Add(new RvtContactDto(contactMethod: contactMethod,
                                                emailAddress: emailAddress,
                                                phoneNumber: phoneNumber,
@@ -1416,5 +1417,7 @@ namespace SvantekMonitorTests
 
             return dtos;
         }
+
+        public TestContext TestContext { get; set; } = null!;
     }
 }

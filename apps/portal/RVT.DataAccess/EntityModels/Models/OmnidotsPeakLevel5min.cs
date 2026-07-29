@@ -1,8 +1,8 @@
-using System;
-using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace RVT.DataAccess.EntityModels.Models;
 
+[SuppressMessage("Naming", "S101:Types should be named in PascalCase", Justification = "Legacy EF entity name mirrors the existing database view contract and is referenced by shared query mappings.")]
 public partial class OmnidotsPeakLevel5min
 {
     public string SerialId { get; set; } = null!;

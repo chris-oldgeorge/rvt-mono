@@ -2,13 +2,9 @@
 // Major updates:
 // - 2026-07-10 pending Moved the deployment repository contract out of the EF adapter into the core ports.
 
-using System;
-using System.Threading.Tasks;
+namespace RVT.Entities.Ports.Persistence;
 
-namespace RVT.Entities.Ports.Persistence
+public interface IDeploymentRepository
 {
-    public interface IDeploymentRepository
-    {
-        Task<Deployment?> GetByIdAsync(Guid Id);
-    }
+    Task<Deployment?> GetByIdAsync(Guid id);
 }

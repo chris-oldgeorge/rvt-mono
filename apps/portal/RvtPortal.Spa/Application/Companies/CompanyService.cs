@@ -13,51 +13,50 @@ using RVT.Entities;
 using RVT.Entities.Ports.Persistence;
 using RVT.Entities.Querying;
 
-namespace RvtPortal.Spa.Application.Companies
+namespace RvtPortal.Spa.Application.Companies;
+
+public interface ICompanyService
 {
-    public interface ICompanyService
+    Task<Company> ReadOneAsync(Guid id);
+    Task<SearchQueryResult<CompanySearch>> Search(string companyName, int? page, OrderByDirectionEnum sortdir, string sort, int pageSize, CancellationToken cancellationToken = default);
+}
+
+public class CompanyService : ICompanyService
+{
+    private readonly ICompanyRepository _companyRepository;
+    private readonly RVTSearchContext _searchContext;
+    // Function summary: Initializes this type with the dependencies required by its workflow.
+    public CompanyService(ICompanyRepository companyRepository, RVTSearchContext searchContext)
     {
-        Task<Company> ReadOneAsync(Guid Id);
-        Task<SearchQueryResult<CompanySearch>> Search(string CompanyName, int? page, OrderByDirectionEnum sortdir, string Sort, int PageSize, CancellationToken cancellationToken = default);
+        _companyRepository = companyRepository;
+        _searchContext = searchContext;
+    }
+    // Function summary: Retrieves one data for callers.
+    public async Task<Company> ReadOneAsync(Guid id)
+    {
+        return (await _companyRepository.GetByIdAsync(id))!;
     }
 
-    public class CompanyService : ICompanyService
+    // Function summary: Handles the search workflow for this module.
+    public async Task<SearchQueryResult<CompanySearch>> Search(string companyName, int? page, OrderByDirectionEnum sortdir, string sort, int pageSize, CancellationToken cancellationToken = default)
     {
-        private readonly ICompanyRepository companyRepository;
-        private readonly RVTSearchContext searchContext;
-        // Function summary: Initializes this type with the dependencies required by its workflow.
-        public CompanyService(ICompanyRepository companyRepository, RVTSearchContext searchContext)
+        IQueryable<CompanySearch> companies = _searchContext.CompanySearches.AsNoTracking();
+        if (!string.IsNullOrEmpty(companyName))
         {
-            this.companyRepository = companyRepository;
-            this.searchContext = searchContext;
-        }
-        // Function summary: Retrieves one data for callers.
-        public async Task<Company> ReadOneAsync(Guid Id)
-        {
-            return (await companyRepository.GetByIdAsync(Id))!;
+            companies = companies.Where(company => company.CompanyName.Contains(companyName));
         }
 
-        // Function summary: Handles the search workflow for this module.
-        public async Task<SearchQueryResult<CompanySearch>> Search(string CompanyName, int? page, OrderByDirectionEnum sortdir, string Sort, int PageSize, CancellationToken cancellationToken = default)
-        {
-            IQueryable<CompanySearch> companies = searchContext.CompanySearches.AsNoTracking();
-            if (!string.IsNullOrEmpty(CompanyName))
-            {
-                companies = companies.Where(company => company.CompanyName.Contains(CompanyName));
-            }
+        companies = sortdir == OrderByDirectionEnum.Descending
+            ? companies.OrderByDescending(company => company.CompanyName)
+            : companies.OrderBy(company => company.CompanyName);
 
-            companies = sortdir == OrderByDirectionEnum.Descending
-                ? companies.OrderByDescending(company => company.CompanyName)
-                : companies.OrderBy(company => company.CompanyName);
+        int recordCount = await companies.CountAsync(cancellationToken);
+        int pageNumber = page.GetValueOrDefault() < 1 ? 1 : page.GetValueOrDefault();
+        List<CompanySearch> results = await companies
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
-            int recordCount = await companies.CountAsync(cancellationToken);
-            int pageNumber = page.GetValueOrDefault() < 1 ? 1 : page.GetValueOrDefault();
-            List<CompanySearch> results = await companies
-                .Skip((pageNumber - 1) * PageSize)
-                .Take(PageSize)
-                .ToListAsync(cancellationToken);
-
-            return new SearchQueryResult<CompanySearch>(true, string.Empty, results, recordCount, string.Empty);
-        }
+        return new SearchQueryResult<CompanySearch>(true, string.Empty, results, recordCount, string.Empty);
     }
 }

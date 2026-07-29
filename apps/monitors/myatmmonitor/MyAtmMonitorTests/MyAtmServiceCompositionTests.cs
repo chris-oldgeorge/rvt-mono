@@ -48,16 +48,16 @@ public sealed class MyAtmServiceCompositionTests
             "api",
             "MyAtmService.cs"));
 
-        StringAssert.Contains(source, "storeMonitors.RunAsync(customerId, cancellationToken)");
-        StringAssert.Contains(source, "checkForOfflineMonitors.RunAsync(customerId, cancellationToken)");
-        StringAssert.Contains(source, "storeDustLevels.RunAsync<DeviceMeasurement>(customerId, Period.Minutes1, cancellationToken)");
-        StringAssert.Contains(source, "storeDustLevels.RunAsync<AvgDeviceMeasurement>(customerId, Period.Minutes15, cancellationToken)");
-        StringAssert.Contains(source, "storeDustLevels.RunAsync<AvgDeviceMeasurement>(customerId, Period.Hours1, cancellationToken)");
-        StringAssert.Contains(source, "storeDustLevels.RunAsync<AvgDeviceMeasurement>(customerId, Period.Hours24, cancellationToken)");
-        StringAssert.Contains(source, "processDustLevels.RunAsync<AvgDeviceMeasurement>(customerId, Period.Hours8, cancellationToken)");
-        StringAssert.Contains(source, "clearOlderErrorMessages.Run()");
-        StringAssert.Contains(source, "storeAccessoryInfo.RunAsync(customerId, cancellationToken)");
-        StringAssert.Contains(source, "outboxDispatcher.DispatchDueAsync(cancellationToken)");
+        Assert.Contains("storeMonitors.RunAsync(customerId, cancellationToken)", source);
+        Assert.Contains("checkForOfflineMonitors.RunAsync(customerId, cancellationToken)", source);
+        Assert.Contains("storeDustLevels.RunAsync<DeviceMeasurement>(customerId, Period.Minutes1, cancellationToken)", source);
+        Assert.Contains("storeDustLevels.RunAsync<AvgDeviceMeasurement>(customerId, Period.Minutes15, cancellationToken)", source);
+        Assert.Contains("storeDustLevels.RunAsync<AvgDeviceMeasurement>(customerId, Period.Hours1, cancellationToken)", source);
+        Assert.Contains("storeDustLevels.RunAsync<AvgDeviceMeasurement>(customerId, Period.Hours24, cancellationToken)", source);
+        Assert.Contains("processDustLevels.RunAsync<AvgDeviceMeasurement>(customerId, Period.Hours8, cancellationToken)", source);
+        Assert.Contains("clearOlderErrorMessages.Run()", source);
+        Assert.Contains("storeAccessoryInfo.RunAsync(customerId, cancellationToken)", source);
+        Assert.Contains("outboxDispatcher.DispatchDueAsync(cancellationToken)", source);
     }
 
 }

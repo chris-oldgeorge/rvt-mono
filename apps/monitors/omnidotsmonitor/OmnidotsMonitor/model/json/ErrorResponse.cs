@@ -23,7 +23,7 @@ namespace Omnidots.Model.Json
         public string? Message { get; set; }
 
         [JsonPropertyName("details")]
-        public Dictionary<string, List<string>> Details { get; set; } = new();
+        public Dictionary<string, List<string>> Details { get; set; } = [];
 
         [JsonPropertyName("help")]
         public string? Help { get; set; }

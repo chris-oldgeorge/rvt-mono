@@ -71,19 +71,19 @@ public sealed class AzureBlobObjectStorageClientTests
                 PublicAccessType.None,
                 null,
                 null,
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ReturnsAsync((Response<BlobContainerInfo>)null!);
         blob
             .Setup(client => client.UploadAsync(
                 content,
                 It.IsAny<BlobUploadOptions>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .Callback<Stream, BlobUploadOptions, CancellationToken>(
                 (_, options, _) => capturedOptions = options)
             .ReturnsAsync((Response<BlobContentInfo>)null!);
         AzureBlobObjectStorageClient client = CreateClient(container);
 
-        await client.WriteAsync(new StorageWriteRequest(key, content, " "));
+        await client.WriteAsync(new StorageWriteRequest(key, content, " "), TestContext.CancellationToken);
 
         Assert.IsNotNull(capturedOptions);
         Assert.IsNull(capturedOptions.HttpHeaders);
@@ -149,11 +149,11 @@ public sealed class AzureBlobObjectStorageClientTests
         blob
             .Setup(client => client.DownloadStreamingAsync(
                 It.IsAny<BlobDownloadOptions>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ReturnsAsync(response);
         AzureBlobObjectStorageClient client = CreateClient(container, "tenant-a");
 
-        StorageReadResult? result = await client.OpenReadAsync(key);
+        StorageReadResult? result = await client.OpenReadAsync(key, TestContext.CancellationToken);
 
         Assert.IsNotNull(result);
         Assert.AreSame(content, result.Content);
@@ -178,11 +178,11 @@ public sealed class AzureBlobObjectStorageClientTests
         blob
             .Setup(client => client.DownloadStreamingAsync(
                 It.IsAny<BlobDownloadOptions>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ThrowsAsync(new RequestFailedException(404, "provider-body"));
         AzureBlobObjectStorageClient client = CreateClient(container);
 
-        StorageReadResult? result = await client.OpenReadAsync(key);
+        StorageReadResult? result = await client.OpenReadAsync(key, TestContext.CancellationToken);
 
         Assert.IsNull(result);
         container.VerifyAll();
@@ -231,11 +231,11 @@ public sealed class AzureBlobObjectStorageClientTests
             .Setup(client => client.DeleteIfExistsAsync(
                 DeleteSnapshotsOption.None,
                 null,
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ReturnsAsync(response);
         AzureBlobObjectStorageClient client = CreateClient(container);
 
-        bool deleted = await client.DeleteIfExistsAsync(key);
+        bool deleted = await client.DeleteIfExistsAsync(key, TestContext.CancellationToken);
 
         Assert.IsTrue(deleted);
         container.VerifyAll();
@@ -294,7 +294,7 @@ public sealed class AzureBlobObjectStorageClientTests
             .Setup(client => client.DeleteIfExistsAsync(
                 DeleteSnapshotsOption.None,
                 null,
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ThrowsAsync(new RequestFailedException(
                 status,
                 providerBody,
@@ -303,7 +303,7 @@ public sealed class AzureBlobObjectStorageClientTests
         AzureBlobObjectStorageClient client = CreateClient(container);
 
         ObjectStorageException exception = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() =>
-            client.DeleteIfExistsAsync(key));
+            client.DeleteIfExistsAsync(key, TestContext.CancellationToken));
 
         Assert.AreEqual(expectedKind, exception.Kind);
         Assert.AreEqual("recordings", exception.ResourceName);
@@ -382,4 +382,6 @@ public sealed class AzureBlobObjectStorageClientTests
             exception.InnerException);
         Assert.DoesNotContain(providerMessage, exception.Message);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

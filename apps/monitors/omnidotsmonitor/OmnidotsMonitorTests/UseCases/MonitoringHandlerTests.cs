@@ -31,7 +31,7 @@ public sealed class MonitoringHandlerTests
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        await handler.RunAsync();
+        await handler.RunAsync(TestContext.CancellationToken);
 
         monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
         notifier.Verify(x => x.SendNoDataWarningAsync(
@@ -55,7 +55,7 @@ public sealed class MonitoringHandlerTests
             OmnidotsFixture.MonitorsList(1, freshPreviousDateData),
             options);
 
-        await handler.RunAsync();
+        await handler.RunAsync(TestContext.CancellationToken);
 
         monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
         monitorQueries.VerifyNoOtherCalls();
@@ -73,7 +73,7 @@ public sealed class MonitoringHandlerTests
             clockNow,
             OmnidotsFixture.MonitorsList(1, freshDatabaseTimestamp));
 
-        await handler.RunAsync();
+        await handler.RunAsync(TestContext.CancellationToken);
 
         monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
         monitorQueries.VerifyNoOtherCalls();
@@ -97,7 +97,7 @@ public sealed class MonitoringHandlerTests
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        await handler.RunAsync();
+        await handler.RunAsync(TestContext.CancellationToken);
 
         monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
         notifier.Verify(x => x.SendNoDataWarningAsync(
@@ -122,7 +122,7 @@ public sealed class MonitoringHandlerTests
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        await handler.RunAsync();
+        await handler.RunAsync(TestContext.CancellationToken);
 
         monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
         notifier.Verify(x => x.SendNoDataWarningAsync(
@@ -145,7 +145,7 @@ public sealed class MonitoringHandlerTests
             notifier.Object,
             new FixedTimeProvider(utcNow));
 
-        await handler.RunAsync();
+        await handler.RunAsync(TestContext.CancellationToken);
 
         monitorQueries.VerifyNoOtherCalls();
         notifier.VerifyNoOtherCalls();
@@ -168,7 +168,7 @@ public sealed class MonitoringHandlerTests
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        await handler.RunAsync();
+        await handler.RunAsync(TestContext.CancellationToken);
 
         monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
         notifier.Verify(x => x.SendNoDataWarningAsync(
@@ -185,7 +185,7 @@ public sealed class MonitoringHandlerTests
         DateTimeOffset utcNow = new(2026, 7, 14, 9, 30, 0, TimeSpan.Zero);
         (MonitoringHandler? handler, Mock<IOmnidotsMonitorQueries>? monitorQueries, Mock<IOmnidotsMonitoringNotifier>? notifier) = CreateHandler(utcNow, []);
 
-        await handler.RunAsync();
+        await handler.RunAsync(TestContext.CancellationToken);
 
         monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
         monitorQueries.VerifyNoOtherCalls();
@@ -317,7 +317,7 @@ public sealed class MonitoringHandlerTests
         using IHost host = CreateHost(invalidTimeZone);
 
         OptionsValidationException exception = await Assert.ThrowsExactlyAsync<OptionsValidationException>(
-            () => host.StartAsync());
+            () => host.StartAsync(TestContext.CancellationToken));
 
         Assert.IsFalse(exception.Message.Contains(Recipient, StringComparison.Ordinal));
         Assert.IsFalse(exception.Message.Contains(invalidTimeZone, StringComparison.Ordinal));
@@ -328,9 +328,11 @@ public sealed class MonitoringHandlerTests
     {
         using IHost host = CreateHost("Europe/London");
 
-        await host.StartAsync();
+        await host.StartAsync(TestContext.CancellationToken);
 
-        await host.StopAsync();
+        Assert.IsNotNull(host.Services.GetService<OmnidotsMonitoringOptions>());
+
+        await host.StopAsync(TestContext.CancellationToken);
     }
 
     private static (MonitoringHandler Handler, Mock<IOmnidotsMonitorQueries> MonitorQueries,
@@ -401,4 +403,6 @@ public sealed class MonitoringHandlerTests
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

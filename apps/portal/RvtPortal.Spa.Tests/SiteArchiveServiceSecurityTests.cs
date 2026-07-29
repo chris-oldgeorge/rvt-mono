@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using RVT.DataAccess.Context;
 using RvtPortal.Application.Sites.Ports;
@@ -25,21 +26,30 @@ public sealed class SiteArchiveServiceSecurityTests
     [Fact]
     public async Task SiteArchiveAdapter_MapsExportFailureWithoutSwallowingCancellation()
     {
+        IOException exportFailure = new("upload failed");
+        RecordingLogger<SiteArchiveAdapter> failureLogger = new();
         SiteArchiveAdapter failureAdapter = new(
-            new ThrowingSiteArchiveService(new IOException("upload failed")));
+            new ThrowingSiteArchiveService(exportFailure),
+            failureLogger);
+        Guid siteId = Guid.NewGuid();
 
         SiteArchiveExportResult failure = await failureAdapter.ExportAsync(
-            Guid.NewGuid(),
+            siteId,
             CancellationToken.None);
+        RecordedLogEntry entry = Assert.Single(failureLogger.Entries);
 
         Assert.False(failure.Succeeded);
         Assert.Null(failure.ArchiveUrl);
         Assert.Equal(
             "The site archive could not be created, so the site was not archived. Please try again.",
             failure.ErrorMessage);
+        Assert.Equal(LogLevel.Error, entry.Level);
+        Assert.Same(exportFailure, entry.Exception);
+        Assert.Contains(siteId.ToString(), entry.Message, StringComparison.Ordinal);
 
         SiteArchiveAdapter cancellationAdapter = new(
-            new ThrowingSiteArchiveService(new OperationCanceledException()));
+            new ThrowingSiteArchiveService(new OperationCanceledException()),
+            new RecordingLogger<SiteArchiveAdapter>());
         await Assert.ThrowsAsync<OperationCanceledException>(
             () => cancellationAdapter.ExportAsync(
                 Guid.NewGuid(),
@@ -126,8 +136,10 @@ public sealed class SiteArchiveServiceSecurityTests
     public async Task SiteArchiveAdapter_MapsUnverifiableDurableUrlToCleanupFailure(
         string durableArchiveUrl)
     {
+        RecordingLogger<SiteArchiveAdapter> logger = new();
         SiteArchiveAdapter adapter = new(
-            CreateArchiveService(BlobConnectionString()));
+            CreateArchiveService(BlobConnectionString()),
+            logger);
 
         SiteArchiveCleanupResult result = await adapter.CleanupSupersededAsync(
             Guid.NewGuid(),
@@ -136,6 +148,7 @@ public sealed class SiteArchiveServiceSecurityTests
 
         Assert.False(result.Succeeded);
         Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+        Assert.Single(logger.Entries);
     }
 
     [Theory]

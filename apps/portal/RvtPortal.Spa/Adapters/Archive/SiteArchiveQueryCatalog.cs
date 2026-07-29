@@ -1,4 +1,4 @@
-﻿// File summary: Provides canonical PostgreSQL SQL definitions for site archive CSV and report exports.
+// File summary: Provides canonical PostgreSQL SQL definitions for site archive CSV and report exports.
 // Major updates:
 // - 2026-07-25 pending Made public-schema PostgreSQL SQL canonical.
 // - 2026-07-09 pending Moved site archive SQL into a dedicated provider-aware query catalog.
@@ -44,6 +44,10 @@ internal sealed record ArchiveCsvExport<T>(string ExportFileName, string ExportS
 
 internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
 {
+    private const string ContractTable = "contract";
+    private const string DeploymentTable = "deployment";
+    private const string MonitorTable = "monitor";
+
     // Function summary: Initializes the canonical PostgreSQL archive SQL definitions.
     public SiteArchiveQueryCatalog()
     {
@@ -85,10 +89,10 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    c.contract_number as "ContractNumber",
                    c.on_hire_date as "OnHireDate",
                    c.off_hire_date as "OffHireDate"
-            FROM {Table("deployment")} d
-            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            FROM {Table(DeploymentTable)} d
+            LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
             LEFT JOIN {Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
             WHERE s.id = @SiteId
             """;
     }
@@ -109,10 +113,10 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    n.closed_time as "ClosedTime",
                    n.closed_by_user as "ClosedByUser",
                    n.closed_note as "ClosedNote"
-            FROM {Table("deployment")} d
-            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            FROM {Table(DeploymentTable)} d
+            LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
             LEFT JOIN {Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
             LEFT JOIN {Table("notification")} n ON n.monitor_id = d.monitor_id
                 AND n.notification_time >= {EffectiveStartExpression()}
                 AND n.notification_time < {EffectiveEndExpression()}
@@ -132,10 +136,10 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    l.pm_2_5 as "Pm2_5",
                    l.pm_10 as "Pm10",
                    l.pm_total as "PmTotal"
-            FROM {Table("deployment")} d
-            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            FROM {Table(DeploymentTable)} d
+            LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
             LEFT JOIN {Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
             RIGHT JOIN {Table("my_atm_dust_level")} l ON l.serial_id = m.serial_id
                 AND l.sample_time >= {EffectiveStartExpression()}
                 AND l.sample_time < {EffectiveEndExpression()}
@@ -159,10 +163,10 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    l.lcmax as "LCmax",
                    l.lc_90 as "LC90",
                    l.lc_10 as "LC10"
-            FROM {Table("deployment")} d
-            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            FROM {Table(DeploymentTable)} d
+            LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
             LEFT JOIN {Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
             RIGHT JOIN {Table(tableName)} l ON l.serial_id = m.serial_id
                 AND l.sample_time >= {EffectiveStartExpression()}
                 AND l.sample_time < {EffectiveEndExpression()}
@@ -187,10 +191,10 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    l.z_fdom as "ZFdom",
                    l.z_vtop as "ZVtop",
                    l.z_vtop_overflow as "ZVtopOverflow"
-            FROM {Table("deployment")} d
-            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            FROM {Table(DeploymentTable)} d
+            LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
             LEFT JOIN {Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
             RIGHT JOIN {Table("omnidots_peak_level")} l ON l.serial_id = m.serial_id
                 AND l.sample_time >= {EffectiveStartExpression()}
                 AND l.sample_time < {EffectiveEndExpression()}
@@ -208,10 +212,10 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                    l.id as "TraceId",
                    l.start_time as "StartTime",
                    l.end_time as "EndTime"
-            FROM {Table("deployment")} d
-            LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+            FROM {Table(DeploymentTable)} d
+            LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
             LEFT JOIN {Table("site")} s ON s.id = c.site_id
-            LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+            LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
             RIGHT JOIN {Table("omnidots_trace_index")} l ON l.serial_id = m.serial_id
                 AND l.start_time >= {EffectiveStartExpression()}
                 AND l.start_time < {EffectiveEndExpression()}
@@ -231,10 +235,10 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
             FROM {Table("omnidots_trace")} t
             WHERE t.omnidots_trace_index_id IN (
                 SELECT l.id
-                FROM {Table("deployment")} d
-                LEFT JOIN {Table("contract")} c ON c.id = d.contract_id
+                FROM {Table(DeploymentTable)} d
+                LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
                 LEFT JOIN {Table("site")} s ON s.id = c.site_id
-                LEFT JOIN {Table("monitor")} m ON m.id = d.monitor_id
+                LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
                 RIGHT JOIN {Table("omnidots_trace_index")} l ON l.serial_id = m.serial_id
                     AND l.start_time >= {EffectiveStartExpression()}
                     AND l.start_time < {EffectiveEndExpression()}

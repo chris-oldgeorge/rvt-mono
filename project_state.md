@@ -26,6 +26,19 @@ superseded narratives to the archive.
   test-only (production registration deleted, `JAN1_1970` moved to
   `DateTimeUtil`), and retiring it is a test-migration exercise, not a
   deletion.
+- `main` carries the bounded reliability cleanup (PR #23), recorded in
+  [docs/superpowers/plans/2026-07-29-reliability-cleanup.md](docs/superpowers/plans/2026-07-29-reliability-cleanup.md):
+  Omnidots trace imports propagate caller cancellation instead of recording it
+  as a monitor failure; portal optional monitor summaries and site archives keep
+  their fallback behavior but now log genuine failures and propagate
+  cancellation; AirQ seeds a missing watermark from the injected UTC
+  `TimeProvider` and no longer carries behavior-neutral aggregate rethrow
+  blocks; and the Omnidots checked-in defaults no longer contain a personal
+  alert recipient or a customer serial allow-list. That PR independently
+  resolved several 2026-07-29 review findings (P5, P9, P10, P16) — verified
+  against the merged tree. P8 (the `DateTime.Now` stopwatch idiom still used by
+  three Omnidots handlers while `StoreTracesHandler` uses `TimeProvider`) is
+  *not* resolved and remains open.
 - Pull requests are gated by two workflows. `Engineering standards` grades the
   changed surface; `Tests` (added by PR #20) runs the whole `Rvt.Mono.slnx`
   suite against a TimescaleDB service container, the Portal client type check
@@ -64,6 +77,22 @@ superseded narratives to the archive.
   1,994 entries / 7,709 diagnostics to 1,112 entries / 2,072 diagnostics:
   882 entries removed, 12 lowered, 5,637 diagnostic allowances retired, and
   zero increases.
+- `main` also carries the PR #22 monitor-hosting consolidation, including
+  per-monitor job catalogs and shared job-argument handling.
+- The Sonar remediation series retires the unreferenced `RVTUtilities`
+  project and its dedicated tests, removes the outdated package-validation
+  expectation from the common-source-boundary verifier, and documents the
+  repository guardrails added for repeated security and maintainability
+  findings.
+- Portal SendGrid registration now binds its enabled state through `IOptions`;
+  set `RVT__Email_ENABLED=false` in the `RvtPortal.Spa` startup environment to
+  disable outbound email. The variable is optional and email remains enabled
+  when no override is supplied.
+- Monitor projects follow main's lowercase `api`, `model`, `db`, `http`, and
+  `json` directory structure. Path-based architecture tests and tooling must
+  preserve that exact casing. Repo-wide CA1859 and CA1873 enforcement remains
+  enabled, with the inherited monitor-only debt kept visible as warnings
+  through the scoped `apps/monitors/**/*.cs` editorconfig section.
 
 ## Verification environment
 
@@ -73,9 +102,21 @@ superseded narratives to the archive.
   docker run -d --name rvt-integration-db -e POSTGRES_DB=rvt_integration -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 55432:5432 timescale/timescaledb:2.28.3-pg17
   ```
 
-  and `RVT__POSTGRES_INTEGRATION_CONNECTION="Host=localhost;Port=55432;Database=rvt_integration;Username=postgres;Password=postgres"`
-  (a non-secret local test credential). Without it, the PostgreSQL
-  integration tests fail by design rather than silently passing.
+  Monitor suites use
+  `RVT__POSTGRES_INTEGRATION_CONNECTION="Host=localhost;Port=55432;Database=rvt_integration;Username=postgres;Password=postgres"`.
+  Portal opt-in tests use the same disposable connection through
+  `RVT_TEST_POSTGRES_CONNECTION`, after applying its three EF migration chains
+  and `RVT.SchemaDeploy` as documented in
+  [docs/database/portal/ef-migrations.md](docs/database/portal/ef-migrations.md).
+  The example is a non-secret local test credential; never substitute a
+  production connection.
+- Verification on the merged PR tree passed with the disposable database
+  prepared: the full solution reported 2,379/2,379, including AirQ 140/140,
+  Omnidots 403/403, and Portal 560/560, with no skips. The five root repository
+  guards, all `tests/*.test.sh` contract scripts, and
+  `scripts/verify-engineering-standards.sh --working-tree` also passed. One
+  engineering-standards contract scenario needed an isolated retry after its
+  0.4-second process-ownership timing check flaked; the retry passed.
 - Repository guards run from the root: `verify-postgresql-only.sh .`,
   `verify-mono-layout.sh`, `verify-mono-solution.sh`,
   `verify-rvt-common-source-boundary.sh`, `verify-documentation-layout.sh`.
@@ -90,6 +131,9 @@ superseded narratives to the archive.
 
 ## Standing working-tree notes
 
+- Preserve the pre-existing untracked `.codex/`, root `AGENTS.md`, and
+  `docs/superpowers/plans/2026-07-28-sonar-security-remediation.md`; they are
+  not part of this branch.
 - `main` carries the Windows/Parallels SPA proxy repair:
   `RvtPortal.Spa.csproj` launches
   `RvtPortal.Client/scripts/start-vite-for-visual-studio.mjs`, and
@@ -103,3 +147,18 @@ superseded narratives to the archive.
 - The Windows ARM VM verification builds `RvtPortal.Spa` with zero warnings or
   errors, starts Vite 6.4.3 on port 5173, serves the HTML shell, and returns a
   transformed (non-error-overlay) `src/main.tsx` module.
+
+## Remaining deferred work
+
+- Continue the open remediation sequence in
+  [docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md](docs/reviews/2026-07-27-project-architecture-and-code-quality-review.md):
+  production Help Admin audit receipts, `RVT.BusinessLogic` dependency cleanup,
+  Portal vertical extraction, monitor narrow-port migration, synchronous
+  compatibility retirement, and selective Common infrastructure extraction.
+- Unify Portal blob client/service usage behind
+  `IObjectStorageClientFactory`; customer-logo and reporting storage adoption
+  remain explicit future decisions.
+- The current consistency review still owns Veff/Vdv fleet-runner convergence,
+  stale Portal OpenAPI generation and the Help Admin filter defect, container
+  hygiene, and the remaining deletion/consolidation items. Do not treat the
+  reliability slice as closing those broader workstreams.

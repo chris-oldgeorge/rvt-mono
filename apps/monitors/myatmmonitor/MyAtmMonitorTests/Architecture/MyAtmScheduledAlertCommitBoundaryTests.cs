@@ -6,6 +6,8 @@ namespace MyAtmMonitorTests.Architecture;
 [TestClass]
 public sealed class MyAtmScheduledAlertCommitBoundaryTests
 {
+    private static readonly string[] _expected = ["CommitAlertAsync"];
+
     [TestMethod]
     [DataRow("ProcessDustLevelsHandler.cs", "CreateAggregateCommit,CreateDeletedRuleDeactivationCommit")]
     [DataRow("CheckForOfflineMonitorsHandler.cs", "CreateOfflineCommit,CreateOnlineRecoveryCommit")]
@@ -22,9 +24,9 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
             "UseCases",
             fileName));
 
-        StringAssert.Contains(source, "IMyAtmAlertCommitCommands");
+        Assert.Contains("IMyAtmAlertCommitCommands", source);
         CollectionAssert.AreEquivalent(
-            new[] { "CommitAlertAsync" },
+            _expected,
             InvokedMethods(source, "alertCommitCommands"));
         CollectionAssert.AreEquivalent(
             expectedCommitFactories.Split(',', StringSplitOptions.RemoveEmptyEntries),
@@ -89,14 +91,14 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
             "UseCases",
             "StoreDustLevelsHandler.cs"));
 
-        StringAssert.Contains(source, "IMyAtmDustImportCommands");
+        Assert.Contains("IMyAtmDustImportCommands", source);
         Assert.IsFalse(source.Contains("MonitorDeliveryDispatcher", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("IMessageService", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("IMqttClient", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("IMonitorEventPublisher", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("WriteNotification", StringComparison.Ordinal));
 
-        StringAssert.Contains(source, "CommitDustImportAsync");
+        Assert.Contains("CommitDustImportAsync", source);
         Assert.IsFalse(source.Contains("DispatchDueAsync", StringComparison.Ordinal));
     }
 
@@ -114,8 +116,8 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
             "api",
             "MyAtmRuleProcessor.cs"));
 
-        StringAssert.Contains(source, "CreateAggregateCommit");
-        StringAssert.Contains(source, "CreateOfflineCommit");
+        Assert.Contains("CreateAggregateCommit", source);
+        Assert.Contains("CreateOfflineCommit", source);
         AssertContainsNone(source, "direct delivery and legacy rule processing",
         [
             "IMessageService",
@@ -145,12 +147,12 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
             "MyAtmService.cs"));
 
         AssertContainsNone(source, "compatibility facades", ["MyAtmApi", "IDBClient"]);
-        StringAssert.Contains(source, "StoreMonitorsHandler");
-        StringAssert.Contains(source, "CheckForOfflineMonitorsHandler");
-        StringAssert.Contains(source, "StoreDustLevelsHandler");
-        StringAssert.Contains(source, "ProcessDustLevelsHandler");
-        StringAssert.Contains(source, "StoreAccessoryInfoHandler");
-        StringAssert.Contains(source, "MonitorDeliveryDispatcher");
+        Assert.Contains("StoreMonitorsHandler", source);
+        Assert.Contains("CheckForOfflineMonitorsHandler", source);
+        Assert.Contains("StoreDustLevelsHandler", source);
+        Assert.Contains("ProcessDustLevelsHandler", source);
+        Assert.Contains("StoreAccessoryInfoHandler", source);
+        Assert.Contains("MonitorDeliveryDispatcher", source);
     }
 
     private static string[] InvokedMethods(string source, string receiver) =>

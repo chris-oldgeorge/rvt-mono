@@ -7,14 +7,23 @@
 // - 2026-06-09 pending Applied canonical EF mappings to search/report/measurement models after DBR cutover.
 // - 2026-06-25 pending Added monitor measurement removal-impact view mapping for consolidated count lookups.
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Configuration;
 using RVT.DataAccess.EntityModels.Models;
 
 namespace RVT.DataAccess.Context;
 
+[SuppressMessage("Naming", "S101:Types should be named in PascalCase", Justification = "Legacy EF context name is shared by migration tooling and repository consumers; renaming would create broad compatibility churn without changing database behavior.")]
 public partial class RVTSearchContext : DbContext
 {
+    private const string ContractsColumn = "contracts";
+    private const string LamaxColumn = "LAmax";
+    private const string LcmaxColumn = "LCmax";
+    private const string XvtopColumn = "XVtop";
+    private const string YvtopColumn = "YVtop";
+    private const string ZvtopColumn = "ZVtop";
+
     // Function summary: Initializes this type with the dependencies required by its workflow.
     public RVTSearchContext(DbContextOptions<RVTSearchContext> options)
         : base(options)
@@ -92,7 +101,7 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.CompanyName).HasMaxLength(50);
             entity.Property(e => e.Contracts)
                 .HasMaxLength(4000)
-                .HasColumnName("contracts");
+                .HasColumnName(ContractsColumn);
             entity.Property(e => e.NrUsers).HasColumnName("nrUsers");
             entity.Property(e => e.Sites).HasColumnName("sites");
         });
@@ -167,11 +176,11 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.La10).HasColumnName("LA10");
             entity.Property(e => e.La90).HasColumnName("LA90");
             entity.Property(e => e.Laeq).HasColumnName("LAeq");
-            entity.Property(e => e.Lamax).HasColumnName("LAmax");
+            entity.Property(e => e.Lamax).HasColumnName(LamaxColumn);
             entity.Property(e => e.Lc10).HasColumnName("LC10");
             entity.Property(e => e.Lc90).HasColumnName("LC90");
             entity.Property(e => e.Lceq).HasColumnName("LCeq");
-            entity.Property(e => e.Lcmax).HasColumnName("LCmax");
+            entity.Property(e => e.Lcmax).HasColumnName(LcmaxColumn);
             entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
             entity.Property(e => e.SerialId).HasMaxLength(255);
         });
@@ -185,11 +194,11 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.La10).HasColumnName("LA10");
             entity.Property(e => e.La90).HasColumnName("LA90");
             entity.Property(e => e.Laeq).HasColumnName("LAeq");
-            entity.Property(e => e.Lamax).HasColumnName("LAmax");
+            entity.Property(e => e.Lamax).HasColumnName(LamaxColumn);
             entity.Property(e => e.Lc10).HasColumnName("LC10");
             entity.Property(e => e.Lc90).HasColumnName("LC90");
             entity.Property(e => e.Lceq).HasColumnName("LCeq");
-            entity.Property(e => e.Lcmax).HasColumnName("LCmax");
+            entity.Property(e => e.Lcmax).HasColumnName(LcmaxColumn);
             entity.Property(e => e.SampleTime).HasColumnType("date");
             entity.Property(e => e.SerialId).HasMaxLength(255);
         });
@@ -203,11 +212,11 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.La10).HasColumnName("LA10");
             entity.Property(e => e.La90).HasColumnName("LA90");
             entity.Property(e => e.Laeq).HasColumnName("LAeq");
-            entity.Property(e => e.Lamax).HasColumnName("LAmax");
+            entity.Property(e => e.Lamax).HasColumnName(LamaxColumn);
             entity.Property(e => e.Lc10).HasColumnName("LC10");
             entity.Property(e => e.Lc90).HasColumnName("LC90");
             entity.Property(e => e.Lceq).HasColumnName("LCeq");
-            entity.Property(e => e.Lcmax).HasColumnName("LCmax");
+            entity.Property(e => e.Lcmax).HasColumnName(LcmaxColumn);
             entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
             entity.Property(e => e.SerialId).HasMaxLength(255);
         });
@@ -221,11 +230,11 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.La10).HasColumnName("LA10");
             entity.Property(e => e.La90).HasColumnName("LA90");
             entity.Property(e => e.Laeq).HasColumnName("LAeq");
-            entity.Property(e => e.Lamax).HasColumnName("LAmax");
+            entity.Property(e => e.Lamax).HasColumnName(LamaxColumn);
             entity.Property(e => e.Lc10).HasColumnName("LC10");
             entity.Property(e => e.Lc90).HasColumnName("LC90");
             entity.Property(e => e.Lceq).HasColumnName("LCeq");
-            entity.Property(e => e.Lcmax).HasColumnName("LCmax");
+            entity.Property(e => e.Lcmax).HasColumnName(LcmaxColumn);
             entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
             entity.Property(e => e.SerialId).HasMaxLength(32);
         });
@@ -253,13 +262,13 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
             entity.Property(e => e.SerialId).HasMaxLength(32);
             entity.Property(e => e.Xfdom).HasColumnName("XFdom");
-            entity.Property(e => e.Xvtop).HasColumnName("XVtop");
+            entity.Property(e => e.Xvtop).HasColumnName(XvtopColumn);
             entity.Property(e => e.XvtopOverflow).HasColumnName("XVtopOverflow");
             entity.Property(e => e.Yfdom).HasColumnName("YFdom");
-            entity.Property(e => e.Yvtop).HasColumnName("YVtop");
+            entity.Property(e => e.Yvtop).HasColumnName(YvtopColumn);
             entity.Property(e => e.YvtopOverflow).HasColumnName("YVtopOverflow");
             entity.Property(e => e.Zfdom).HasColumnName("ZFdom");
-            entity.Property(e => e.Zvtop).HasColumnName("ZVtop");
+            entity.Property(e => e.Zvtop).HasColumnName(ZvtopColumn);
             entity.Property(e => e.ZvtopOverflow).HasColumnName("ZVtopOverflow");
         });
 
@@ -271,9 +280,9 @@ public partial class RVTSearchContext : DbContext
 
             entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
             entity.Property(e => e.SerialId).HasMaxLength(32);
-            entity.Property(e => e.Xvtop).HasColumnName("XVtop");
-            entity.Property(e => e.Yvtop).HasColumnName("YVtop");
-            entity.Property(e => e.Zvtop).HasColumnName("ZVtop");
+            entity.Property(e => e.Xvtop).HasColumnName(XvtopColumn);
+            entity.Property(e => e.Yvtop).HasColumnName(YvtopColumn);
+            entity.Property(e => e.Zvtop).HasColumnName(ZvtopColumn);
         });
 
         modelBuilder.Entity<OmnidotsPeakLevel1dayPeak>(entity =>
@@ -284,9 +293,9 @@ public partial class RVTSearchContext : DbContext
 
             entity.Property(e => e.SampleTime).HasColumnType("date");
             entity.Property(e => e.SerialId).HasMaxLength(32);
-            entity.Property(e => e.Xvtop).HasColumnName("XVtop");
-            entity.Property(e => e.Yvtop).HasColumnName("YVtop");
-            entity.Property(e => e.Zvtop).HasColumnName("ZVtop");
+            entity.Property(e => e.Xvtop).HasColumnName(XvtopColumn);
+            entity.Property(e => e.Yvtop).HasColumnName(YvtopColumn);
+            entity.Property(e => e.Zvtop).HasColumnName(ZvtopColumn);
         });
 
         modelBuilder.Entity<OmnidotsPeakLevel1min>(entity =>
@@ -297,9 +306,9 @@ public partial class RVTSearchContext : DbContext
 
             entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
             entity.Property(e => e.SerialId).HasMaxLength(32);
-            entity.Property(e => e.Xvtop).HasColumnName("XVtop");
-            entity.Property(e => e.Yvtop).HasColumnName("YVtop");
-            entity.Property(e => e.Zvtop).HasColumnName("ZVtop");
+            entity.Property(e => e.Xvtop).HasColumnName(XvtopColumn);
+            entity.Property(e => e.Yvtop).HasColumnName(YvtopColumn);
+            entity.Property(e => e.Zvtop).HasColumnName(ZvtopColumn);
         });
 
         modelBuilder.Entity<OmnidotsPeakLevel20min>(entity =>
@@ -310,9 +319,9 @@ public partial class RVTSearchContext : DbContext
 
             entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
             entity.Property(e => e.SerialId).HasMaxLength(32);
-            entity.Property(e => e.Xvtop).HasColumnName("XVtop");
-            entity.Property(e => e.Yvtop).HasColumnName("YVtop");
-            entity.Property(e => e.Zvtop).HasColumnName("ZVtop");
+            entity.Property(e => e.Xvtop).HasColumnName(XvtopColumn);
+            entity.Property(e => e.Yvtop).HasColumnName(YvtopColumn);
+            entity.Property(e => e.Zvtop).HasColumnName(ZvtopColumn);
         });
 
         modelBuilder.Entity<OmnidotsPeakLevel5min>(entity =>
@@ -323,9 +332,9 @@ public partial class RVTSearchContext : DbContext
 
             entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
             entity.Property(e => e.SerialId).HasMaxLength(32);
-            entity.Property(e => e.Xvtop).HasColumnName("XVtop");
-            entity.Property(e => e.Yvtop).HasColumnName("YVtop");
-            entity.Property(e => e.Zvtop).HasColumnName("ZVtop");
+            entity.Property(e => e.Xvtop).HasColumnName(XvtopColumn);
+            entity.Property(e => e.Yvtop).HasColumnName(YvtopColumn);
+            entity.Property(e => e.Zvtop).HasColumnName(ZvtopColumn);
         });
 
         modelBuilder.Entity<OmnidotsSensor>(entity =>
@@ -387,7 +396,7 @@ public partial class RVTSearchContext : DbContext
 
             entity.Property(e => e.Contracts)
                 .HasMaxLength(4000)
-                .HasColumnName("contracts");
+                .HasColumnName(ContractsColumn);
             entity.Property(e => e.ReportLink).HasMaxLength(256);
             entity.Property(e => e.ReportName).HasMaxLength(128);
         });
@@ -409,7 +418,7 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.CompanyName).HasMaxLength(50);
             entity.Property(e => e.Contracts)
                 .HasMaxLength(4000)
-                .HasColumnName("contracts");
+                .HasColumnName(ContractsColumn);
             entity.Property(e => e.County).HasMaxLength(30);
             entity.Property(e => e.Postcode).HasMaxLength(10);
             entity.Property(e => e.SiteAddress)

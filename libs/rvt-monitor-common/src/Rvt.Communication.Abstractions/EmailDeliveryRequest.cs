@@ -9,8 +9,16 @@ public sealed record EmailDeliveryRequest
         ArgumentNullException.ThrowIfNull(plainTextBody);
         ArgumentNullException.ThrowIfNull(htmlBody);
         ArgumentNullException.ThrowIfNull(attachments);
-        if (string.IsNullOrWhiteSpace(plainTextBody) && string.IsNullOrWhiteSpace(htmlBody)) throw new ArgumentException("An email body is required.", nameof(plainTextBody));
-        if (attachments.Any(attachment => attachment is null)) throw new ArgumentException("Attachments must not contain null items.", nameof(attachments));
+        if (string.IsNullOrWhiteSpace(plainTextBody) && string.IsNullOrWhiteSpace(htmlBody))
+        {
+            throw new ArgumentException("An email body is required.", nameof(plainTextBody));
+        }
+
+        if (attachments.Any(attachment => attachment is null))
+        {
+            throw new ArgumentException("Attachments must not contain null items.", nameof(attachments));
+        }
+
         Recipient = recipient;
         Subject = subject;
         PlainTextBody = plainTextBody;

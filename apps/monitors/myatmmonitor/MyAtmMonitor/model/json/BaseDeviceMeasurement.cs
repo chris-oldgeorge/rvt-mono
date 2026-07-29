@@ -15,5 +15,4 @@ namespace MyAtm.Model.Json
         public DateTime Timestamp { get; set; }
 
     }
-
 }

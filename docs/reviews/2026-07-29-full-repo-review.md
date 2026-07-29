@@ -204,7 +204,7 @@ logging. Divergences that are *behavioral*, not just stylistic:
 |---|---------|----------|
 | P15 | **"OmniDots guest" filter still inconsistent**: guest skip present in Peak/Vdv/Veff (magic string ×3) but absent from `StoreTracesHandler` — guest traces are still fetched and stored. The `OmnidotsFleetImport` convergence was the natural moment to unify and didn't. Behavioral, not stylistic. | `StoreTracesHandler.cs:133` |
 | P16 | Personal email `haakan.eriksson@cellsoftware.co.uk` and `AllowedSerialIds: ["23423"]` + `MaxMonitorsPerRun: 1` still committed as Omnidots defaults. | `OmnidotsMonitor/appsettings.json:13,21-24` |
-| P17 | Unexplained `libgssapi-krb5-2` still in Svantek + MyAtm Dockerfiles (SQL Server-era drift; stack is PostgreSQL-only, guard-enforced). airq is still the only compose service without a port mapping (8081 absent). | both `Dockerfile:10`, `docker-compose.yml` |
+| P17 | Unexplained `libgssapi-krb5-2` still in Svantek + MyAtm Dockerfiles — a Kerberos dependency left over from the previous database engine, before the guard-enforced PostgreSQL-only cutover. airq is still the only compose service without a port mapping (8081 absent). | both `Dockerfile:10`, `docker-compose.yml` |
 | P18 | Monitor Dockerfiles use floating `sdk:10.0`/`aspnet:10.0` tags while the client and runner images are digest-pinned; two PR workflows use `dotnet-version: 10.0.x` while sonarqube pins via `global.json` (10.0.302) — CI can silently build with a different SDK than the repo pins. | five monitor Dockerfiles, `tests.yml`, `engineering-standards.yml` |
 | P19 | Averaging-period magic numbers (900/3600/86400) still inline ×6 in both rule processors; the same vocabulary is separately hand-encoded in the portal (`MonitorData.cs:387-448` + `MonitorDetailSummaryService.cs:191-199`) — two layers, three encodings of one protocol. | `AirQRuleProcessor.cs`, `SvantekRuleProcessor.cs` |
 | P20 | InMemory-provider branching in production code **grew** (2 → ≥5 sites, including an entire alternate non-transactional code path in `AuthApplicationService.ConfirmEmailChangeWithoutTransactionAsync`) — test infrastructure shaping production control flow. | `EfHelpReadAdapter.cs:103,205`, `AuthApplicationService.cs:375-400`, etc. |
@@ -290,9 +290,16 @@ Two notes for whoever runs this next:
   deletion-only diff blocks the gate; three files needed their BOM stripped
   (content untouched). Worth a repo-wide BOM sweep so this stops ambushing
   unrelated changes.
-- `tests/verify-engineering-standards.test.sh` failed once on a PID-reuse race in
-  its lock-ownership check and passed on re-run — a pre-existing flake unrelated
-  to this change, since the sweep touches no scripts.
+- **`tests/verify-engineering-standards.test.sh` is load-dependent, and the
+  failure message misdescribes it.** The "same numeric PID without the sentinel
+  token was treated as the owner" assertion is really a **0.4-second wall-clock
+  budget**: it backgrounds `verify --all --update-baseline`, sleeps 0.4 s, and
+  fails if that process is still alive. On an idle machine it passes; under load
+  it fails deterministically (measured 0/8 here, and **0/3 on unmodified
+  `origin/main`**, so it is pre-existing and independent of any change). Because
+  `tests/*.test.sh` runs as a glob in the `Tests` workflow, this makes CI
+  sensitive to runner speed. The fix is to assert lock *reclamation* rather than
+  elapsed time.
 
 **P2 — finish what the July PRs started**
 12. Frontend: adopt `useGridSortHandler` ×5, `useRequestLifecycle` in HelpAdmin/AdminPanels, delete ContractSitePanels' private formatters, `routeSearchParams`/`routePathname` helpers, shared `DetailItem` (C2–C4, C15).

@@ -4,11 +4,16 @@
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Omnidots.Api;
+using Omnidots.Api.Db;
 using Omnidots.Api.Http;
 using Omnidots.Api.Ports;
 using Omnidots.Api.UseCases;
+using Omnidots.Model.Config;
 using Omnidots.Model.Json;
+using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Diagnostics;
+using Rvt.Monitor.Common.Mqtt;
 
 namespace OmnidotsAdapterTests;
 
@@ -110,6 +115,53 @@ public class TestOmnidotsCancellation
         await gateway.ListMeasuringPointsAsync(cancellation.Token);
 
         httpClient.VerifyAll();
+    }
+
+    [TestMethod]
+    public async Task StoreTraces_WhenVendorReadIsCancelled_PropagatesWithoutRecordingFailure()
+    {
+        using CancellationTokenSource cancellation = new();
+        OmnidotsApi subject = TestUtil.CreateApiAndMocks(
+            out Mock<IHttpClient> httpClient,
+            out Mock<IDBClient> dbClient,
+            out Mock<IMqttClient> mqttClient,
+            out Mock<IMessageService> messageClient,
+            traceCollectionOptions: new OmnidotsTraceCollectionOptions
+            {
+                AllowedSerialIds = [],
+                MaxMonitorsPerRun = 1
+            });
+        dbClient
+            .Setup(client => client.ReadMonitorList(It.IsAny<DateTime?>()))
+            .Returns(OmnidotsFixture.MonitorsList(1));
+        httpClient
+            .Setup(client => client.PostAsync(
+                "/api/v1/user/authenticate",
+                It.IsAny<HttpContent>(),
+                cancellation.Token))
+            .Returns(OmnidotsFixture.AuthenticateTask("trace-token"));
+        httpClient
+            .Setup(client => client.GetAsync(
+                It.Is<string>(url => url.StartsWith(
+                    "/api/v1/get_traces_list",
+                    StringComparison.Ordinal)),
+                cancellation.Token))
+            .Returns(() =>
+            {
+                cancellation.Cancel();
+                return Task.FromCanceled<string>(cancellation.Token);
+            });
+
+        await Assert.ThrowsExactlyAsync<TaskCanceledException>(
+            () => subject.StoreTracesAsync(
+                DateTime.UtcNow.AddMinutes(-5),
+                cancellation.Token));
+
+        dbClient.Verify(
+            client => client.HandleException(It.IsAny<string>(), It.IsAny<Exception>()),
+            Times.Never);
+        mqttClient.VerifyNoOtherCalls();
+        messageClient.VerifyNoOtherCalls();
     }
 
     [TestMethod]

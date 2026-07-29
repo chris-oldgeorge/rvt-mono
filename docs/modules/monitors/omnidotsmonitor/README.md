@@ -33,7 +33,7 @@ Supply credentials and secrets through deployment secrets or environment variabl
 | `RVT__OMNIDOTS_WEBHOOK_SECRET` | HMAC secret shared with Omnidots for webhook signing. |
 | `RVT__OMNIDOTS_CONFIG_SECRET` | Adapter secret required in configuration requests. |
 | `RVT__OMNIDOTS_WEBHOOK_URL` | Public HTTPS URL registered with the measuring point. |
-| `RVT__OMNIDOTS_MONITORING_ALERT_TO` | Preferred fleet-watchdog email recipient; falls back to `Omnidots:Monitoring:Recipient`. |
+| `RVT__OMNIDOTS_MONITORING_ALERT_TO` | Required deployment-supplied fleet-watchdog email recipient; the equivalent `Omnidots:Monitoring:Recipient` configuration path remains supported. |
 | `ConnectionStrings__DefaultConnection` | Monitor database connection string. |
 
 `RVT__OMNIDOTS_WEBHOOK_URL`, `RVT__OMNIDOTS_WEBHOOK_SECRET`, and `RVT__OMNIDOTS_CONFIG_SECRET` are required only when `MonitorApi__Enabled=true`. Scheduler-only hosts and one-shot jobs that do not expose or call these endpoints may omit them. API startup and the endpoint handlers fail closed unless both secrets are nonblank, encode to at least 32 bytes under strict UTF-8, and have different byte values. The webhook URL must be an absolute HTTPS URL. Invalid startup diagnostics identify only the configuration contract and never include a configured value.
@@ -171,14 +171,14 @@ Trace collection binds and validates `Omnidots:TraceCollection`:
   "Omnidots": {
     "TraceCollection": {
       "Enabled": true,
-      "AllowedSerialIds": ["23423"],
+      "AllowedSerialIds": [],
       "MaxMonitorsPerRun": 1
     }
   }
 }
 ```
 
-The checked-in values preserve the former single-monitor rollout while moving eligibility into configuration. Set `Enabled=false` to suppress all trace vendor calls. A non-empty `AllowedSerialIds` list limits eligibility case-insensitively; an empty list makes the complete filtered fleet eligible. `MaxMonitorsPerRun` must be positive, serial values must be non-blank and unique, and invalid settings fail host startup. Environment overrides use `Omnidots__TraceCollection__Enabled`, `Omnidots__TraceCollection__AllowedSerialIds__0`, and `Omnidots__TraceCollection__MaxMonitorsPerRun`.
+The checked-in values make the filtered fleet eligible while limiting each run to one monitor. Set `Enabled=false` to suppress all trace vendor calls. For a staged rollout, supply a non-empty `AllowedSerialIds` list through deployment configuration; it limits eligibility case-insensitively without committing customer-specific serials. An empty list makes the complete filtered fleet eligible. `MaxMonitorsPerRun` must be positive, serial values must be non-blank and unique, and invalid settings fail host startup. Environment overrides use `Omnidots__TraceCollection__Enabled`, `Omnidots__TraceCollection__AllowedSerialIds__0`, and `Omnidots__TraceCollection__MaxMonitorsPerRun`.
 
 Selection prioritizes monitors that have never stored a trace, then the oldest latest-trace time. Equal-priority monitors rotate deterministically by five-minute UTC slot so an empty or repeatedly failing monitor cannot permanently starve the rest of the fleet. Only the configured maximum is queried per run. Selected monitors are attempted independently; all selected failures are recorded and reported by the aggregate job contract above.
 

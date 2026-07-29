@@ -13,7 +13,7 @@ namespace RvtPortal.Spa.Tests;
 /// <see cref="ApplicationBoundaryArchitectureTests"/>.
 /// </summary>
 /// <remarks>
-/// <see cref="apiDependentFiles"/> is a shrinking baseline, not an approved
+/// <see cref="_apiDependentFiles"/> is a shrinking baseline, not an approved
 /// list. Adding an entry is a regression; the test fails on any file that is
 /// not listed. Removing an entry after moving its API contract into the
 /// application layer is the intended direction, and the test also fails if a
@@ -23,7 +23,7 @@ public sealed class HostApplicationLayerBoundaryTests
 {
     private const string ApiLayerNamespace = "RvtPortal.Spa.Api";
 
-    private static readonly string[] apiDependentFiles =
+    private static readonly string[] _apiDependentFiles =
     [
         "AlertLevels/AlertLevelApplicationService.cs",
         "AlertLevels/AlertLevelCommands.cs",
@@ -74,8 +74,8 @@ public sealed class HostApplicationLayerBoundaryTests
                 .Replace('\\', '/'))
             .Order(StringComparer.Ordinal)];
 
-        string[] added = [.. observed.Except(apiDependentFiles, StringComparer.Ordinal)];
-        string[] resolved = [.. apiDependentFiles.Except(observed, StringComparer.Ordinal)];
+        string[] added = [.. observed.Except(_apiDependentFiles, StringComparer.Ordinal)];
+        string[] resolved = [.. _apiDependentFiles.Except(observed, StringComparer.Ordinal)];
 
         Assert.True(
             added.Length == 0,
@@ -84,7 +84,7 @@ public sealed class HostApplicationLayerBoundaryTests
         Assert.True(
             resolved.Length == 0,
             "These files no longer import the API layer. Delete them from "
-                + $"{nameof(apiDependentFiles)} so the baseline keeps ratcheting down: {string.Join(", ", resolved)}");
+                + $"{nameof(_apiDependentFiles)} so the baseline keeps ratcheting down: {string.Join(", ", resolved)}");
     }
 
     [Fact]

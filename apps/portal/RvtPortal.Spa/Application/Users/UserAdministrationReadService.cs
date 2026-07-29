@@ -56,7 +56,7 @@ public sealed class SiteUserAssignmentModel : UserListModel
 
 public sealed class UserAdministrationReadService : IUserAdministrationReadService
 {
-    private static readonly string[] RoleOrder =
+    private static readonly string[] _roleOrder =
     [
         RoleNames.RVTMasterAdmin,
         RoleNames.RVTAdmin,
@@ -253,7 +253,7 @@ public sealed class UserAdministrationReadService : IUserAdministrationReadServi
             .AsNoTracking()
             .Select(role => role.Name)
             .ToListAsync(cancellationToken);
-        return [.. RoleOrder
+        return [.. _roleOrder
             .Where(role => configuredRoles.Contains(role))
             .Where(role => CanAssignRole(role, actor))
             .Select(role => new UserOptionModel { Value = role, Label = role })];

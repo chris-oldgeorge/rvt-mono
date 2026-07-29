@@ -48,7 +48,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         "dayOfMonth"
     };
 
-    private static readonly ReportFrequencyType[] SupportedFrequencies =
+    private static readonly ReportFrequencyType[] _supportedFrequencies =
     [
         ReportFrequencyType.Daily,
         ReportFrequencyType.Weekly,
@@ -56,7 +56,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         ReportFrequencyType.WeeklyAndMonthly
     ];
 
-    private static readonly DayOfWeek[] SupportedDays =
+    private static readonly DayOfWeek[] _supportedDays =
     [
         DayOfWeek.Monday,
         DayOfWeek.Tuesday,
@@ -416,8 +416,8 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         return new ReportRuleOptionsModel
         {
             Sites = sites,
-            Frequencies = [.. SupportedFrequencies.Select(frequency => new ReportRuleOptionModel(((int)frequency).ToString(CultureInfo.InvariantCulture), FrequencyLabel(frequency)))],
-            DaysOfWeek = [.. SupportedDays.Select(day => new ReportRuleOptionModel(((int)day).ToString(CultureInfo.InvariantCulture), day.ToString()))],
+            Frequencies = [.. _supportedFrequencies.Select(frequency => new ReportRuleOptionModel(((int)frequency).ToString(CultureInfo.InvariantCulture), FrequencyLabel(frequency)))],
+            DaysOfWeek = [.. _supportedDays.Select(day => new ReportRuleOptionModel(((int)day).ToString(CultureInfo.InvariantCulture), day.ToString()))],
             AlertRuleGuidelines = await BuildAlertRuleGuidelinesAsync(cancellationToken)
         };
     }
@@ -444,7 +444,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     private async Task<List<ApplicationError>> ValidateRuleRequestAsync(ReportRuleMutation request, CancellationToken cancellationToken)
     {
         List<ApplicationError> errors = new();
-        if (!SupportedFrequencies.Contains(request.Frequency))
+        if (!_supportedFrequencies.Contains(request.Frequency))
         {
             errors.Add(new ApplicationError(nameof(ReportRuleMutation.Frequency), "Frequency is not valid for scheduled report rules."));
         }
@@ -467,7 +467,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         {
             errors.Add(new ApplicationError(nameof(ReportRuleMutation.DayOfWeek), "Day of week is required for weekly reports."));
         }
-        else if (request.DayOfWeek.HasValue && !SupportedDays.Contains(request.DayOfWeek.Value))
+        else if (request.DayOfWeek.HasValue && !_supportedDays.Contains(request.DayOfWeek.Value))
         {
             errors.Add(new ApplicationError(nameof(ReportRuleMutation.DayOfWeek), "Day of week is not valid."));
         }
@@ -758,7 +758,7 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     // Function summary: Matches report-rule frequency labels that participate in text search.
     private static IEnumerable<ReportFrequencyType> MatchingFrequencies(string search)
     {
-        return SupportedFrequencies
+        return _supportedFrequencies
             .Where(frequency => FrequencyLabel(frequency).Contains(search, StringComparison.OrdinalIgnoreCase));
     }
 

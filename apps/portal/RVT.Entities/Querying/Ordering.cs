@@ -22,7 +22,7 @@ public class OrderByProperty
 public static class QueryOrderingExtensions
 {
     // Resolved once instead of scanning every Queryable overload on each ordered column of every query.
-    private static readonly Dictionary<string, MethodInfo> OrderingMethods = new[]
+    private static readonly Dictionary<string, MethodInfo> _orderingMethods = new[]
         {
             nameof(Queryable.OrderBy),
             nameof(Queryable.OrderByDescending),
@@ -64,7 +64,7 @@ public static class QueryOrderingExtensions
                 _ => nameof(Queryable.ThenBy)
             };
 
-            ordered = (IOrderedQueryable<T>)OrderingMethods[methodName]
+            ordered = (IOrderedQueryable<T>)_orderingMethods[methodName]
                 .MakeGenericMethod(typeof(T), property.PropertyType)
                 .Invoke(null, [ordered ?? source, keySelector])!;
         }

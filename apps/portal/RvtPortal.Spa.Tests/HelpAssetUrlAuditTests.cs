@@ -19,7 +19,7 @@ public sealed class HelpAssetUrlAuditTests
         "Usage: RVT.ReleaseAudit help-asset-urls --environment <label> --revision <git-sha> --receipt <path>"
         + "\nSet RVT_RELEASE_AUDIT_CONNECTION in the process environment.\n";
 
-    private static readonly DateTimeOffset executedAtUtc =
+    private static readonly DateTimeOffset _executedAtUtc =
         new(2026, 7, 28, 12, 34, 56, TimeSpan.Zero);
 
     public static TheoryData<string, string?, string?> PersistedCases
@@ -586,7 +586,7 @@ public sealed class HelpAssetUrlAuditTests
             rows,
             environment: "production",
             database: "rvt_portal",
-            executedAtUtc: executedAtUtc,
+            executedAtUtc: _executedAtUtc,
             revision: "abc123",
             auditVersion: "1");
 
@@ -610,7 +610,7 @@ public sealed class HelpAssetUrlAuditTests
         int exitCode = await ReleaseAuditProgram.RunAsync(
             args ?? ValidArguments(),
             getEnvironmentVariable ?? (_ => "Host=database.test;Database=rvt;Password=not-real"),
-            () => executedAtUtc,
+            () => _executedAtUtc,
             () => "test-version",
             readRows ?? ((_, _) => Task.FromResult(
                 new HelpAssetUrlAuditReadResult("rvt_portal", []))),

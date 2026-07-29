@@ -22,7 +22,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class SearchTimestampPostgresTests
 {
-    private static readonly IReadOnlyDictionary<string, string> ApprovedSampleTimeStoreTypes =
+    private static readonly IReadOnlyDictionary<string, string> _approvedSampleTimeStoreTypes =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["MyAtmDustLevel"] = "timestamp without time zone",
@@ -56,7 +56,7 @@ public sealed class SearchTimestampPostgresTests
                 item => item.Property!.GetColumnType(),
                 StringComparer.Ordinal);
 
-        Assert.Equal(ApprovedSampleTimeStoreTypes, actual);
+        Assert.Equal(_approvedSampleTimeStoreTypes, actual);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed class SearchTimestampPostgresTests
             "Search",
             "RVTSearchContextModelSnapshot.cs"));
 
-        foreach ((string? entityName, string? storeType) in ApprovedSampleTimeStoreTypes)
+        foreach ((string? entityName, string? storeType) in _approvedSampleTimeStoreTypes)
         {
             string entityBlock = ExtractSnapshotEntityBlock(snapshot, entityName);
             Assert.Matches(

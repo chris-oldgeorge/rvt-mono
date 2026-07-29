@@ -6,9 +6,9 @@ namespace RvtPortal.Spa.Tests.Support;
 
 internal static class RepositoryLayout
 {
-    private static readonly Lazy<string> RepositoryRoot = new(FindRepositoryRoot);
+    private static readonly Lazy<string> _repositoryRoot = new(FindRepositoryRoot);
 
-    public static string Root => RepositoryRoot.Value;
+    public static string Root => _repositoryRoot.Value;
     public static string SolutionPath => Path.Combine(Root, "RvtPortal.Spa.sln");
     public static string ClientRoot => Path.Combine(Root, "RvtPortal.Client");
     public static string DataAccessRoot => Path.Combine(Root, "RVT.DataAccess");

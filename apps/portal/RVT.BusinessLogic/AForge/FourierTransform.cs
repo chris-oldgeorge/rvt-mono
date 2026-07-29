@@ -166,8 +166,8 @@ namespace AForge.Math
         private const int maxLength = 1048576;
         private const int minBits = 1;
         private const int maxBits = 20;
-        private static int[][] reversedBits = new int[maxBits][];
-        private static Complex[,][] complexRotation = new Complex[maxBits, 2][];
+        private static int[][] _reversedBits = new int[maxBits][];
+        private static Complex[,][] _complexRotation = new Complex[maxBits, 2][];
 
         // Get array, indicating which data members should be swapped before FFT
         // Function summary: Retrieves reversed bits data for callers.
@@ -177,7 +177,7 @@ namespace AForge.Math
                 throw new ArgumentOutOfRangeException(nameof(numberOfBits), numberOfBits, $"Value must be between {minBits} and {maxBits}.");
 
             // check if the array is already calculated
-            if (reversedBits[numberOfBits - 1] == null)
+            if (_reversedBits[numberOfBits - 1] == null)
             {
                 int n = Tools.Pow2(numberOfBits);
                 int[] rBits = new int[n];
@@ -195,9 +195,9 @@ namespace AForge.Math
                     }
                     rBits[i] = newBits;
                 }
-                reversedBits[numberOfBits - 1] = rBits;
+                _reversedBits[numberOfBits - 1] = rBits;
             }
-            return reversedBits[numberOfBits - 1];
+            return _reversedBits[numberOfBits - 1];
         }
 
         // Get rotation of complex number
@@ -207,7 +207,7 @@ namespace AForge.Math
             int directionIndex = (direction == Direction.Forward) ? 0 : 1;
 
             // check if the array is already calculated
-            if (complexRotation[numberOfBits - 1, directionIndex] == null)
+            if (_complexRotation[numberOfBits - 1, directionIndex] == null)
             {
                 int n = 1 << (numberOfBits - 1);
                 double uR = 1.0;
@@ -226,9 +226,9 @@ namespace AForge.Math
                     uI = t;
                 }
 
-                complexRotation[numberOfBits - 1, directionIndex] = rotation;
+                _complexRotation[numberOfBits - 1, directionIndex] = rotation;
             }
-            return complexRotation[numberOfBits - 1, directionIndex];
+            return _complexRotation[numberOfBits - 1, directionIndex];
         }
 
         // Reorder data for FFT using

@@ -149,7 +149,7 @@ public sealed class RvtCommonDependencyBoundaryTests
 
     private static class RepositoryDependencyScanner
     {
-        private static readonly HashSet<string> ScannedExtensions =
+        private static readonly HashSet<string> _scannedExtensions =
         [
             ".cs",
             ".csproj",
@@ -158,7 +158,7 @@ public sealed class RvtCommonDependencyBoundaryTests
             ".config"
         ];
 
-        private static readonly HashSet<string> ExcludedDirectories =
+        private static readonly HashSet<string> _excludedDirectories =
         [
             ".git",
             ".worktrees",
@@ -195,7 +195,7 @@ public sealed class RvtCommonDependencyBoundaryTests
             {
                 foreach (string directory in Directory.EnumerateDirectories(current))
                 {
-                    if (!ExcludedDirectories.Contains(Path.GetFileName(directory)))
+                    if (!_excludedDirectories.Contains(Path.GetFileName(directory)))
                     {
                         pending.Push(directory);
                     }
@@ -203,7 +203,7 @@ public sealed class RvtCommonDependencyBoundaryTests
 
                 foreach (string file in Directory.EnumerateFiles(current))
                 {
-                    if (ScannedExtensions.Contains(Path.GetExtension(file)))
+                    if (_scannedExtensions.Contains(Path.GetExtension(file)))
                     {
                         yield return file;
                     }

@@ -16,7 +16,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class MonitorPictureCommandTests
 {
-    private static readonly byte[] PngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
+    private static readonly byte[] _pngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
 
     [Fact]
     // Function summary: Verifies a saved picture is deleted when the deployment row cannot be updated.
@@ -35,7 +35,7 @@ public sealed class MonitorPictureCommandTests
         await Assert.ThrowsAsync<DbUpdateException>(() => handler.Handle(
             new UploadMonitorPictureCommand(
                 monitorId,
-                new MemoryUploadedContent("monitor.png", "image/png", PngBytes)),
+                new MemoryUploadedContent("monitor.png", "image/png", _pngBytes)),
             CancellationToken.None));
 
         Assert.Equal(storage.SavedLink, Assert.Single(storage.DeletedLinks));

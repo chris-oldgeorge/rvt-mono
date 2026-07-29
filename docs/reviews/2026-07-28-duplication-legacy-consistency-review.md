@@ -151,12 +151,23 @@ with the same severity as anything else:
   fake-auth seam survived the rewrite verbatim.
 - `ClearOlderErrorMessagesHandler` ×3 (same 7-day cutoff, now with sync/async
   signature drift, all reading the clock directly).
-- Test scaffolding: `TestDbClient.cs` ×4 (~6,400 lines; also 13% of ratchet
-  debt), `TestRuleActivity` ×4 (AirQ↔Svantek byte-identical after rename),
-  `CommunicationsCompositionTests` ×5 (4 diff lines), plus **new** duplication
-  from the July refactor: `TestAirQCancellation`/`TestOmnidotsCancellation`
-  twins with identical private handlers, timeout-test twins, and a copy-pasted
-  `#pragma warning disable IDE0130` block in both Ports files.
+- Test scaffolding: `TestDbClient.cs` ×4 (~6,400 lines; the "13% of ratchet
+  debt" figure was made stale by PR #21's baseline regeneration — it is now
+  1.4%), `TestRuleActivity` ×4, `CommunicationsCompositionTests` ×5 (4 diff
+  lines), plus **new** duplication from the July refactor: cancellation-test
+  twins, timeout-test twins, and a copy-pasted `#pragma warning disable
+  IDE0130` block in both Ports files.
+  **Resolved 2026-07-29 (partially):** `TestRuleActivity` ×4 deleted — the
+  copies tested only Common types, and their differences silently encoded each
+  monitor's ambient `RvtConfig.RulePolicy` (MyAtm asserting the opposite
+  result on the same window) plus unhardened timezone handling; one explicit
+  policy-parameterized copy now lives in `Rvt.Monitor.CommonTests`.
+  `CommunicationsCompositionTests` ×5 now delegate to the framework-neutral
+  `CommunicationsCompositionContract` in `Rvt.Monitor.IntegrationTesting`.
+  **`TestDbClient` unification is deferred**: its shared-looking members carry
+  2-4 real variants each (schema, DTO twins from `Rules` vs `Notifications`,
+  policy semantics); it unifies naturally after the §8 DTO retirement, and the
+  debt argument no longer applies.
 
 ### Portal backend
 - `InvalidSort` helper copy-pasted into **10 controllers in two diverged
@@ -320,6 +331,10 @@ caller sees a warning. Retirement order (each step unblocks the next):
 **P2 — consolidation (the biggest debt payoff)**
 10. Shared `Rvt.Monitor.TestKit`: one `TestDbClient` harness (+13% of all
     ratchet debt), shared `TestRuleActivity`/`TestUtil`/composition tests.
+    **Done for `TestRuleActivity` (moved to CommonTests, policy-explicit) and
+    the composition tests (shared contract driver). `TestDbClient` deferred to
+    the §8 DTO retirement; the 13% debt figure is stale (now 1.4%). `TestUtil`
+    stays per-monitor: its factory binds each monitor's own API/DB types.**
 11. One vendor HTTP client in rvt-monitor-common (MyAtm's as the superset);
     move the Omnidots token seam to composition (needs the product decision).
 12. ~~`AddRvtEmailProvider`~~ + `GetJobName` + job-map base into the library

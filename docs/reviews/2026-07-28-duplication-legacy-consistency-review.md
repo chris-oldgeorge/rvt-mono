@@ -355,6 +355,18 @@ caller sees a warning. Retirement order (each step unblocks the next):
    the delivery ports and notification contracts the durable stack composes.**
 6. Dispatcher unification around a shared claim/lease/terminal/audit core
    (align the error-truncation divergence immediately regardless).
+   **Done 2026-07-29 (scoped): `DeliveryDispatchPolicy` now owns the terminal
+   decision and safe-error shaping for both dispatchers, and the alert
+   dispatcher gained the 1024-character error truncation the monitor
+   dispatcher already had — the divergence this step ordered fixed. The retry
+   schedule was already shared (`DeliveryRetrySchedule`). A full merge of the
+   two dispatch loops is withdrawn: the loops encode different product
+   semantics (MyAtm's failure sink + configurable failure modes and
+   fleet-level aggregate exceptions vs. the alert stack's dead-letter
+   aggregation and adapter registry), each side is independently pinned by
+   tests, and merging them would couple those semantics for no deletion win —
+   the shared core (claim/lease fencing SQL, retry schedule, terminal/error
+   policy) is already single-sourced.**
 7. `RvtConfig` endgame: after the Omnidots token-seam decision and options
    binding for the remaining fields, delete the assembly-name sniffing.
 

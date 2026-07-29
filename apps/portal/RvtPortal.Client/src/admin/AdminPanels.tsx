@@ -23,7 +23,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import {
   createCompany,
   createUser,
@@ -475,7 +475,7 @@ function CompanyFormPanel({
       });
   }, [companyId, onRequestError]);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -918,7 +918,7 @@ function UserFormPanel({
     });
   }, [onRequestError, userId]);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setStatus(null);

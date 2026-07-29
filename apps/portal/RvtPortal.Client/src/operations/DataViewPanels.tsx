@@ -19,7 +19,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import {
   downloadMonitorDataCsv,
   downloadMonitorTraceCsv,
@@ -281,7 +281,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
   }
 
   // Function summary: Handles the handle submit workflow for this module.
-  function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     setPage(1);
   }

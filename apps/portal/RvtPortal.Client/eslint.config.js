@@ -41,6 +41,7 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'testing-library/prefer-find-by': 'error',
+      '@typescript-eslint/no-deprecated': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/naming-convention': [
         'warn',

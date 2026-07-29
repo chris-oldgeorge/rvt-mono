@@ -30,7 +30,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import {
   addDefaultMonitorAlertLevels,
   addMonitorToContract,
@@ -686,7 +686,7 @@ function MonitorEditPanel({
       });
   }, [monitorId, onRequestError]);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -836,7 +836,7 @@ function InstallerDeploymentPanel({
     }
   }
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     if (!monitor?.deploymentId) {
       setError('This monitor does not have a current deployment.');

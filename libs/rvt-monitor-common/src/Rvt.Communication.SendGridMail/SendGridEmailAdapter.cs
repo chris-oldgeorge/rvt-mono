@@ -7,6 +7,8 @@ namespace Rvt.Communication.SendGridMail;
 
 public sealed class SendGridEmailAdapter : IEmailDeliveryPort
 {
+    private const string _providerName = "SendGrid";
+
     private readonly Lazy<ISendGridClient> client;
     private readonly SendGridMailOptions options;
 
@@ -32,7 +34,7 @@ public sealed class SendGridEmailAdapter : IEmailDeliveryPort
             string.IsNullOrWhiteSpace(options.FromEmail))
         {
             throw new EmailDeliveryException(
-                "SendGrid",
+                _providerName,
                 DeliveryFailureKind.Configuration,
                 "Configuration");
         }
@@ -68,14 +70,14 @@ public sealed class SendGridEmailAdapter : IEmailDeliveryPort
         catch (HttpRequestException)
         {
             throw new EmailDeliveryException(
-                "SendGrid",
+                _providerName,
                 DeliveryFailureKind.Transient,
                 "Network");
         }
         catch (TaskCanceledException)
         {
             throw new EmailDeliveryException(
-                "SendGrid",
+                _providerName,
                 DeliveryFailureKind.Transient,
                 "Timeout");
         }
@@ -88,7 +90,7 @@ public sealed class SendGridEmailAdapter : IEmailDeliveryPort
             }
 
             throw new EmailDeliveryException(
-                "SendGrid",
+                _providerName,
                 Classify(response.StatusCode),
                 ((int)response.StatusCode).ToString(),
                 response.Headers.RetryAfter?.Delta);

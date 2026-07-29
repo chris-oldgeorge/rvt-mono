@@ -25,9 +25,9 @@ namespace OmnidotsAdapterTests
     public class TestDBClient
     {
 
-        private static PostgreSqlIntegrationDatabase? database;
+        private static PostgreSqlIntegrationDatabase? _database;
 
-        private static DBClient? testObj;
+        private static DBClient? _testObj;
 
         public TestDBClient()
         {
@@ -41,11 +41,11 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestScopedPostgresConnectionUsesFixtureSchema()
         {
-            using NpgsqlConnection connection = database!.OpenConnection();
+            using NpgsqlConnection connection = _database!.OpenConnection();
             connection.Open();
             using NpgsqlCommand command = new("SELECT current_schema();", connection);
 
-            Assert.AreEqual(database.SchemaName, command.ExecuteScalar());
+            Assert.AreEqual(_database.SchemaName, command.ExecuteScalar());
         }
 
         [ClassInitialize]
@@ -53,31 +53,33 @@ namespace OmnidotsAdapterTests
         {
             string setupSql = TestUtil.ReadTextFromFile("testdata/create.postgres.sql");
             string resetSql = TestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
-            database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql);
-            testObj = new DBClient(database.ConnectionString);
+            _database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql, context.CancellationToken);
+            _testObj = new DBClient(_database.ConnectionString);
         }
 
         [ClassCleanup]
         public static async Task TestFixtureCleanup()
         {
-            if (database is not null)
+            if (_database is not null)
             {
-                await database.DisposeAsync();
+                await _database.DisposeAsync();
             }
         }
 
         [TestInitialize]
         public async Task BeforeTest()
         {
-            await database!.ResetAsync(TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"));
+            await _database!.ResetAsync(
+                TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
+                TestContext.CancellationToken);
         }
 
         [TestMethod]
         public void ReadImportCursor_WhenNoCursorExists_ReturnsNullForEverySeries()
         {
-            Assert.IsNull(testObj!.ReadImportCursor("cursor-empty", OmnidotsMeasurementSeries.Peak));
-            Assert.IsNull(testObj.ReadImportCursor("cursor-empty", OmnidotsMeasurementSeries.Veff));
-            Assert.IsNull(testObj.ReadImportCursor("cursor-empty", OmnidotsMeasurementSeries.Vdv));
+            Assert.IsNull(_testObj!.ReadImportCursor("cursor-empty", OmnidotsMeasurementSeries.Peak));
+            Assert.IsNull(_testObj.ReadImportCursor("cursor-empty", OmnidotsMeasurementSeries.Veff));
+            Assert.IsNull(_testObj.ReadImportCursor("cursor-empty", OmnidotsMeasurementSeries.Vdv));
         }
 
         [TestMethod]
@@ -88,28 +90,28 @@ namespace OmnidotsAdapterTests
             DateTime veffTime = peakTime.AddMinutes(10);
             DateTime vdvTime = peakTime.AddMinutes(20);
 
-            testObj!.InsertPeakRecordsTable(PeakTable(serialId, peakTime.AddMinutes(-1), peakTime));
-            testObj.InsertVeffRecords(serialId,
+            _testObj!.InsertPeakRecordsTable(PeakTable(serialId, peakTime.AddMinutes(-1), peakTime));
+            _testObj.InsertVeffRecords(serialId,
             [
                 VeffRecord(veffTime.AddMinutes(-1)),
                 VeffRecord(veffTime)
             ]);
-            testObj.InsertVdvRecords(serialId,
+            _testObj.InsertVdvRecords(serialId,
             [
                 VdvRecord(vdvTime.AddMinutes(-1)),
                 VdvRecord(vdvTime)
             ]);
 
-            DateTime? latestPeak = testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Peak);
-            DateTime? latestVeff = testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Veff);
-            DateTime? latestVdv = testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Vdv);
+            DateTime? latestPeak = _testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Peak);
+            DateTime? latestVeff = _testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Veff);
+            DateTime? latestVdv = _testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Vdv);
             Assert.AreEqual(peakTime, latestPeak);
             Assert.AreEqual(veffTime, latestVeff);
             Assert.AreEqual(vdvTime, latestVdv);
             Assert.AreEqual(DateTimeKind.Utc, latestPeak!.Value.Kind);
             Assert.AreEqual(DateTimeKind.Utc, latestVeff!.Value.Kind);
             Assert.AreEqual(DateTimeKind.Utc, latestVdv!.Value.Kind);
-            Assert.IsNull(testObj.ReadLatestMeasurementTime("other-serial", OmnidotsMeasurementSeries.Peak));
+            Assert.IsNull(_testObj.ReadLatestMeasurementTime("other-serial", OmnidotsMeasurementSeries.Peak));
         }
 
         [TestMethod]
@@ -119,17 +121,17 @@ namespace OmnidotsAdapterTests
             DateTime veffTime = Utc(2026, 7, 14, 9, 0);
             DateTime vdvTime = veffTime.AddMinutes(5);
 
-            testObj!.ImportVeffRecords(serialId, [VeffRecord(veffTime)], veffTime);
+            _testObj!.ImportVeffRecords(serialId, [VeffRecord(veffTime)], veffTime);
 
-            Assert.AreEqual(veffTime, testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
-            Assert.IsNull(testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Peak));
-            Assert.IsNull(testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Vdv));
+            Assert.AreEqual(veffTime, _testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
+            Assert.IsNull(_testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Peak));
+            Assert.IsNull(_testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Vdv));
 
-            testObj.ImportVdvRecords(serialId, [VdvRecord(vdvTime)], vdvTime);
+            _testObj.ImportVdvRecords(serialId, [VdvRecord(vdvTime)], vdvTime);
 
-            Assert.AreEqual(veffTime, testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
-            Assert.AreEqual(vdvTime, testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Vdv));
-            Assert.IsNull(testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Peak));
+            Assert.AreEqual(veffTime, _testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
+            Assert.AreEqual(vdvTime, _testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Vdv));
+            Assert.IsNull(_testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Peak));
         }
 
         [TestMethod]
@@ -139,14 +141,14 @@ namespace OmnidotsAdapterTests
             DateTime older = Utc(2026, 7, 14, 10, 0);
             DateTime newer = older.AddMinutes(1);
 
-            testObj!.ImportVeffRecords(serialId, [VeffRecord(newer)], newer);
+            _testObj!.ImportVeffRecords(serialId, [VeffRecord(newer)], newer);
             DateTime updatedAt = ReadCursorUpdatedAt(serialId, "Veff");
 
-            testObj.ImportVeffRecords(serialId, [VeffRecord(older)], older);
+            _testObj.ImportVeffRecords(serialId, [VeffRecord(older)], older);
 
-            Assert.AreEqual(newer, testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
+            Assert.AreEqual(newer, _testObj.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
             Assert.AreEqual(updatedAt, ReadCursorUpdatedAt(serialId, "Veff"));
-            Assert.AreEqual(2, CountRows(database!.ConnectionString, "omnidots_veff_level"));
+            Assert.AreEqual(2, CountRows(_database!.ConnectionString, "omnidots_veff_level"));
         }
 
         [TestMethod]
@@ -154,14 +156,14 @@ namespace OmnidotsAdapterTests
         {
             VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
             DateTime newest = Utc(2026, 7, 14, 11, 0);
-            testObj!.WriteMonitorList([monitor]);
+            _testObj!.WriteMonitorList([monitor]);
 
-            testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId, newest), newest);
+            _testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId, newest), newest);
 
-            Assert.AreEqual(newest, testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Peak));
-            Assert.AreEqual(newest, testObj.ReadMonitor(monitor.SerialId).LastDataTime);
-            Assert.IsNull(testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Veff));
-            Assert.IsNull(testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Vdv));
+            Assert.AreEqual(newest, _testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Peak));
+            Assert.AreEqual(newest, _testObj.ReadMonitor(monitor.SerialId).LastDataTime);
+            Assert.IsNull(_testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Veff));
+            Assert.IsNull(_testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Vdv));
         }
 
         [TestMethod]
@@ -169,40 +171,40 @@ namespace OmnidotsAdapterTests
         {
             const string serialId = "rollback-veff";
             DateTime sampleTime = Utc(2026, 7, 14, 12, 0);
-            using NpgsqlConnection connection = database!.OpenConnection();
+            using NpgsqlConnection connection = _database!.OpenConnection();
             connection.Open();
 
             try
             {
                 using (NpgsqlCommand install = new(
                     """
-                    CREATE FUNCTION fail_omnidots_cursor_write() RETURNS trigger
-                    LANGUAGE plpgsql AS $$
-                    BEGIN
-                        RAISE EXCEPTION 'forced cursor failure';
-                    END;
-                    $$;
-                    CREATE TRIGGER fail_omnidots_cursor_write
-                    BEFORE INSERT OR UPDATE ON omnidots_import_cursor
-                    FOR EACH ROW EXECUTE FUNCTION fail_omnidots_cursor_write();
-                    """, connection))
+                CREATE FUNCTION fail_omnidots_cursor_write() RETURNS trigger
+                LANGUAGE plpgsql AS $$
+                BEGIN
+                    RAISE EXCEPTION 'forced cursor failure';
+                END;
+                $$;
+                CREATE TRIGGER fail_omnidots_cursor_write
+                BEFORE INSERT OR UPDATE ON omnidots_import_cursor
+                FOR EACH ROW EXECUTE FUNCTION fail_omnidots_cursor_write();
+                """, connection))
                 {
                     install.ExecuteNonQuery();
                 }
 
                 Assert.ThrowsExactly<Microsoft.EntityFrameworkCore.DbUpdateException>(() =>
-                    testObj!.ImportVeffRecords(serialId, [VeffRecord(sampleTime)], sampleTime));
+                    _testObj!.ImportVeffRecords(serialId, [VeffRecord(sampleTime)], sampleTime));
 
-                Assert.AreEqual(0, CountRows(database.ConnectionString, "omnidots_veff_level"));
-                Assert.IsNull(testObj!.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
+                Assert.AreEqual(0, CountRows(_database.ConnectionString, "omnidots_veff_level"));
+                Assert.IsNull(_testObj!.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
             }
             finally
             {
                 using NpgsqlCommand cleanup = new(
                     """
-                    DROP TRIGGER IF EXISTS fail_omnidots_cursor_write ON omnidots_import_cursor;
-                    DROP FUNCTION IF EXISTS fail_omnidots_cursor_write();
-                    """, connection);
+                DROP TRIGGER IF EXISTS fail_omnidots_cursor_write ON omnidots_import_cursor;
+                DROP FUNCTION IF EXISTS fail_omnidots_cursor_write();
+                """, connection);
                 cleanup.ExecuteNonQuery();
             }
         }
@@ -212,20 +214,20 @@ namespace OmnidotsAdapterTests
         {
             VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
             DateTime existingLastDataTime = Utc(2026, 7, 14, 13, 0);
-            testObj!.WriteMonitorList([monitor]);
-            testObj.WriteLatestTimestamp(monitor.SerialId, existingLastDataTime);
+            _testObj!.WriteMonitorList([monitor]);
+            _testObj.WriteLatestTimestamp(monitor.SerialId, existingLastDataTime);
 
-            testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId), default);
-            testObj.ImportVeffRecords(monitor.SerialId, Array.Empty<VeffRecordDto>(), default);
-            testObj.ImportVdvRecords(monitor.SerialId, Array.Empty<VdvRecordDto>(), default);
+            _testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId), default);
+            _testObj.ImportVeffRecords(monitor.SerialId, [], default);
+            _testObj.ImportVdvRecords(monitor.SerialId, [], default);
 
-            Assert.IsNull(testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Peak));
-            Assert.IsNull(testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Veff));
-            Assert.IsNull(testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Vdv));
-            Assert.AreEqual(existingLastDataTime, testObj.ReadMonitor(monitor.SerialId).LastDataTime);
-            Assert.AreEqual(0, CountRows(database!.ConnectionString, "omnidots_peak_level"));
-            Assert.AreEqual(0, CountRows(database.ConnectionString, "omnidots_veff_level"));
-            Assert.AreEqual(0, CountRows(database.ConnectionString, "omnidots_vdv_level"));
+            Assert.IsNull(_testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Peak));
+            Assert.IsNull(_testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Veff));
+            Assert.IsNull(_testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Vdv));
+            Assert.AreEqual(existingLastDataTime, _testObj.ReadMonitor(monitor.SerialId).LastDataTime);
+            Assert.AreEqual(0, CountRows(_database!.ConnectionString, "omnidots_peak_level"));
+            Assert.AreEqual(0, CountRows(_database.ConnectionString, "omnidots_veff_level"));
+            Assert.AreEqual(0, CountRows(_database.ConnectionString, "omnidots_vdv_level"));
         }
 
         [TestMethod]
@@ -236,15 +238,15 @@ namespace OmnidotsAdapterTests
             DateTime wrongNewest = sampleTime.AddMinutes(-1);
 
             Assert.ThrowsExactly<ArgumentException>(() =>
-                testObj!.ImportPeakRecords(serialId, PeakTable(serialId, sampleTime), wrongNewest));
+                _testObj!.ImportPeakRecords(serialId, PeakTable(serialId, sampleTime), wrongNewest));
             Assert.ThrowsExactly<ArgumentException>(() =>
-                testObj!.ImportVeffRecords(serialId, [VeffRecord(sampleTime)], wrongNewest));
+                _testObj!.ImportVeffRecords(serialId, [VeffRecord(sampleTime)], wrongNewest));
             Assert.ThrowsExactly<ArgumentException>(() =>
-                testObj!.ImportVdvRecords(serialId, [VdvRecord(sampleTime)], wrongNewest));
+                _testObj!.ImportVdvRecords(serialId, [VdvRecord(sampleTime)], wrongNewest));
 
-            Assert.AreEqual(0, CountRows(database!.ConnectionString, "omnidots_peak_level"));
-            Assert.AreEqual(0, CountRows(database.ConnectionString, "omnidots_veff_level"));
-            Assert.AreEqual(0, CountRows(database.ConnectionString, "omnidots_vdv_level"));
+            Assert.AreEqual(0, CountRows(_database!.ConnectionString, "omnidots_peak_level"));
+            Assert.AreEqual(0, CountRows(_database.ConnectionString, "omnidots_veff_level"));
+            Assert.AreEqual(0, CountRows(_database.ConnectionString, "omnidots_vdv_level"));
         }
 
         [TestMethod]
@@ -253,14 +255,14 @@ namespace OmnidotsAdapterTests
             VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
             DateTime older = Utc(2026, 7, 14, 15, 0);
             DateTime newer = older.AddMinutes(1);
-            testObj!.WriteMonitorList([monitor]);
-            testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId, newer), newer);
+            _testObj!.WriteMonitorList([monitor]);
+            _testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId, newer), newer);
 
-            testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId, older), older);
+            _testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId, older), older);
 
-            Assert.AreEqual(newer, testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Peak));
-            Assert.AreEqual(newer, testObj.ReadMonitor(monitor.SerialId).LastDataTime);
-            Assert.AreEqual(2, CountRows(database!.ConnectionString, "omnidots_peak_level"));
+            Assert.AreEqual(newer, _testObj.ReadImportCursor(monitor.SerialId, OmnidotsMeasurementSeries.Peak));
+            Assert.AreEqual(newer, _testObj.ReadMonitor(monitor.SerialId).LastDataTime);
+            Assert.AreEqual(2, CountRows(_database!.ConnectionString, "omnidots_peak_level"));
         }
 
         [TestMethod]
@@ -269,18 +271,18 @@ namespace OmnidotsAdapterTests
             VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
             DateTime importedSample = Utc(2026, 7, 14, 15, 30);
             DateTime existingLastDataTime = importedSample.AddMinutes(1);
-            testObj!.WriteMonitorList([monitor]);
-            testObj.WriteLatestTimestamp(monitor.SerialId, existingLastDataTime);
+            _testObj!.WriteMonitorList([monitor]);
+            _testObj.WriteLatestTimestamp(monitor.SerialId, existingLastDataTime);
 
-            testObj.ImportPeakRecords(
+            _testObj.ImportPeakRecords(
                 monitor.SerialId,
                 PeakTable(monitor.SerialId, importedSample),
                 importedSample);
 
-            Assert.AreEqual(importedSample, testObj.ReadImportCursor(
+            Assert.AreEqual(importedSample, _testObj.ReadImportCursor(
                 monitor.SerialId,
                 OmnidotsMeasurementSeries.Peak));
-            Assert.AreEqual(existingLastDataTime, testObj.ReadMonitor(monitor.SerialId).LastDataTime);
+            Assert.AreEqual(existingLastDataTime, _testObj.ReadMonitor(monitor.SerialId).LastDataTime);
         }
 
         [TestMethod]
@@ -293,12 +295,12 @@ namespace OmnidotsAdapterTests
             DataTable table = PeakTable(firstSerial, firstTime);
             AddPeakRow(table, secondSerial, secondTime);
 
-            testObj!.InsertPeakRecordsTable(table);
+            _testObj!.InsertPeakRecordsTable(table);
 
-            Assert.AreEqual(1, CountRows(database!.ConnectionString, "omnidots_peak_level", firstSerial));
-            Assert.AreEqual(1, CountRows(database.ConnectionString, "omnidots_peak_level", secondSerial));
-            Assert.AreEqual(firstTime, testObj.ReadImportCursor(firstSerial, OmnidotsMeasurementSeries.Peak));
-            Assert.AreEqual(secondTime, testObj.ReadImportCursor(secondSerial, OmnidotsMeasurementSeries.Peak));
+            Assert.AreEqual(1, CountRows(_database!.ConnectionString, "omnidots_peak_level", firstSerial));
+            Assert.AreEqual(1, CountRows(_database.ConnectionString, "omnidots_peak_level", secondSerial));
+            Assert.AreEqual(firstTime, _testObj.ReadImportCursor(firstSerial, OmnidotsMeasurementSeries.Peak));
+            Assert.AreEqual(secondTime, _testObj.ReadImportCursor(secondSerial, OmnidotsMeasurementSeries.Peak));
         }
 
         [TestMethod]
@@ -309,11 +311,11 @@ namespace OmnidotsAdapterTests
             DateTime sampleTime = Utc(2026, 7, 14, 17, 0);
 
             Assert.ThrowsExactly<ArgumentException>(() =>
-                testObj!.ImportPeakRecords(requestedSerial, PeakTable(rowSerial, sampleTime), sampleTime));
+                _testObj!.ImportPeakRecords(requestedSerial, PeakTable(rowSerial, sampleTime), sampleTime));
 
-            Assert.AreEqual(0, CountRows(database!.ConnectionString, "omnidots_peak_level"));
-            Assert.IsNull(testObj!.ReadImportCursor(requestedSerial, OmnidotsMeasurementSeries.Peak));
-            Assert.IsNull(testObj.ReadImportCursor(rowSerial, OmnidotsMeasurementSeries.Peak));
+            Assert.AreEqual(0, CountRows(_database!.ConnectionString, "omnidots_peak_level"));
+            Assert.IsNull(_testObj!.ReadImportCursor(requestedSerial, OmnidotsMeasurementSeries.Peak));
+            Assert.IsNull(_testObj.ReadImportCursor(rowSerial, OmnidotsMeasurementSeries.Peak));
         }
 
         [TestMethod]
@@ -342,23 +344,23 @@ namespace OmnidotsAdapterTests
             void BeforeSave(OmnidotsMeasurementSeries series, int attempt)
             {
                 if (series == OmnidotsMeasurementSeries.Veff && attempt == 1 &&
-                    !firstAttemptBarrier.SignalAndWait(TimeSpan.FromSeconds(10)))
+                    !firstAttemptBarrier.SignalAndWait(TimeSpan.FromSeconds(10), TestContext.CancellationToken))
                 {
                     throw new TimeoutException("Concurrent import attempts did not overlap before SaveChanges.");
                 }
             }
 
-            DBClient firstClient = new(database!.ConnectionString, BeforeSave);
-            DBClient secondClient = new(database.ConnectionString, BeforeSave);
+            DBClient firstClient = new(_database!.ConnectionString, BeforeSave);
+            DBClient secondClient = new(_database.ConnectionString, BeforeSave);
             Task firstImport = Task.Run(() =>
-                firstClient.ImportVeffRecords(serialId, [VeffRecord(first), VeffRecord(overlap)], overlap));
+                firstClient.ImportVeffRecords(serialId, [VeffRecord(first), VeffRecord(overlap)], overlap), TestContext.CancellationToken);
             Task secondImport = Task.Run(() =>
-                secondClient.ImportVeffRecords(serialId, [VeffRecord(overlap), VeffRecord(last)], last));
+                secondClient.ImportVeffRecords(serialId, [VeffRecord(overlap), VeffRecord(last)], last), TestContext.CancellationToken);
 
-            await Task.WhenAll(firstImport, secondImport).WaitAsync(TimeSpan.FromSeconds(20));
+            await Task.WhenAll(firstImport, secondImport).WaitAsync(TimeSpan.FromSeconds(20), TestContext.CancellationToken);
 
-            Assert.AreEqual(3, CountRows(database.ConnectionString, "omnidots_veff_level", serialId));
-            Assert.AreEqual(last, testObj!.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
+            Assert.AreEqual(3, CountRows(_database.ConnectionString, "omnidots_veff_level", serialId));
+            Assert.AreEqual(last, _testObj!.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
         }
 
         [TestMethod]
@@ -367,7 +369,7 @@ namespace OmnidotsAdapterTests
             const string serialId = "bounded-retry";
             DateTime sampleTime = Utc(2026, 7, 14, 20, 0);
             int attempts = 0;
-            DBClient client = new(database!.ConnectionString, (_, attempt) =>
+            DBClient client = new(_database!.ConnectionString, (_, attempt) =>
             {
                 attempts = attempt;
                 throw new PostgresException(
@@ -381,8 +383,8 @@ namespace OmnidotsAdapterTests
                 client.ImportVeffRecords(serialId, [VeffRecord(sampleTime)], sampleTime));
 
             Assert.AreEqual(3, attempts);
-            Assert.AreEqual(0, CountRows(database.ConnectionString, "omnidots_veff_level", serialId));
-            Assert.IsNull(testObj!.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
+            Assert.AreEqual(0, CountRows(_database.ConnectionString, "omnidots_veff_level", serialId));
+            Assert.IsNull(_testObj!.ReadImportCursor(serialId, OmnidotsMeasurementSeries.Veff));
         }
 
         [TestMethod]
@@ -390,13 +392,13 @@ namespace OmnidotsAdapterTests
         {
             int numMonitors = 5;
             List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(numMonitors, null, true);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<VibrationMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
 
             AssertMonitorsList(monitorsIn, monitorsOut);
 
             // write again - should  be same number of monitors
-            testObj!.WriteMonitorList(monitorsIn);
+            _testObj!.WriteMonitorList(monitorsIn);
             AssertMonitorsList(monitorsIn, monitorsOut);
         }
 
@@ -423,7 +425,7 @@ namespace OmnidotsAdapterTests
 
         private static DateTime ReadCursorUpdatedAt(string serialId, string series)
         {
-            using NpgsqlConnection connection = database!.OpenConnection();
+            using NpgsqlConnection connection = _database!.OpenConnection();
             connection.Open();
             using NpgsqlCommand command = new(
                 "SELECT updated_at FROM omnidots_import_cursor WHERE serial_id = $1 AND series = $2;",
@@ -494,7 +496,7 @@ namespace OmnidotsAdapterTests
 
         private void AssertMonitorsList(List<VibrationMonitorDto> expected, List<VibrationMonitorDto> actual)
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
 
             Assert.HasCount(expected.Count, actual);
             List<VibrationMonitorDto> orderedmonitorsOut = [.. actual.OrderBy(o => o.SerialId)];
@@ -502,7 +504,7 @@ namespace OmnidotsAdapterTests
 
             foreach (VibrationMonitorDto monitor in expected)
             {
-                VibrationMonitorDto m = testObj!.ReadMonitor(monitor.SerialId);
+                VibrationMonitorDto m = _testObj!.ReadMonitor(monitor.SerialId);
                 Assert.IsNotNull(m);
                 Assert.AreEqual(monitor.ListedAtTime, m.ListedAtTime);
                 Assert.AreEqual(monitor.SerialId, m.SerialId);
@@ -532,7 +534,7 @@ namespace OmnidotsAdapterTests
             AdapterException exception = Assert.ThrowsExactly<AdapterException>(() =>
             {
 
-                testObj!.ReadMonitor("bad-serial-id");
+                _testObj!.ReadMonitor("bad-serial-id");
             });
             Assert.AreEqual("No monitor with SerialId='bad-serial-id'", exception.Message);
         }
@@ -540,14 +542,14 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestReadAlertRules()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "12345";
             List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<VibrationMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
 
@@ -565,7 +567,7 @@ namespace OmnidotsAdapterTests
                 InsertAlertRule(connection, i, "99999", monitorId);
             }
 
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(NUM_RULES, rules);
 
             List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> orderedRules = [.. rules.OrderBy(o => o.Field)];
@@ -595,7 +597,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestWriteExceptionUsesPostgreSqlErrorLog()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
 
             string TAG = "MyTestError";
             string MESSAGE = "bang";
@@ -633,12 +635,12 @@ namespace OmnidotsAdapterTests
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(1);
             Assert.HasCount(1, monitors);
 
-            testObj!.WriteMonitorList(monitors);
+            _testObj!.WriteMonitorList(monitors);
 
             DateTime lastDataTime = DateTime.Parse("2023-10-18T14:35:42Z").ToUniversalTime();
-            testObj.WriteLatestTimestamp("1", lastDataTime);
+            _testObj.WriteLatestTimestamp("1", lastDataTime);
 
-            monitors = testObj.ReadMonitorList(null);
+            monitors = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitors);
 
             VibrationMonitorDto monitor = monitors[0];
@@ -648,22 +650,22 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestReadWriteNotification()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "1";
 
             List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<VibrationMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId);
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
             string email = "foobob@bbb.com";
             string phoneNo = "01238867890";
@@ -684,7 +686,7 @@ namespace OmnidotsAdapterTests
                                               alertField: rules[0].Field,
                                               monitorId: monitorId);
 
-            testObj.WriteNotification(alertIn);
+            _testObj.WriteNotification(alertIn);
 
             List<NotificationDto> alerts = ReadNotifications(connection);
             Assert.HasCount(1, alerts);
@@ -700,7 +702,7 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(alertIn.AlertType, alertOut.AlertType);
             Assert.AreEqual(alertIn.MonitorId, alertOut.MonitorId);
 
-            List<NotificationDto> notifictions = testObj.ReadNotifications(monitorId, dt.AddMinutes(-5));
+            List<NotificationDto> notifictions = _testObj.ReadNotifications(monitorId, dt.AddMinutes(-5));
             Assert.HasCount(1, notifictions);
             NotificationDto notifiction = notifictions[0];
             Assert.AreEqual(alertIn.Id, notifiction.Id);
@@ -716,18 +718,18 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestUpdateAlertRule()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string serialId = "1";
             List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<VibrationMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
 
             InsertAlertRule(connection, 721, serialId, monitorId);
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
 
             Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule = rules[0];
@@ -735,9 +737,9 @@ namespace OmnidotsAdapterTests
             bool isActive = !rule.IsActive;
             rule.IsActive = isActive;
 
-            testObj.UpdateAlertRule(rules[0]);
+            _testObj.UpdateAlertRule(rules[0]);
 
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> updatedRules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> updatedRules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, updatedRules);
         }
 
@@ -761,9 +763,9 @@ namespace OmnidotsAdapterTests
             ];
             peakRecords[0].SampleTime = sampleTime;
 
-            testObj!.InsertPeakRecords(serialId, peakRecords);
+            _testObj!.InsertPeakRecords(serialId, peakRecords);
 
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<PeakRecordDto> dtos = ReadPeakRecords(connection);
@@ -801,9 +803,9 @@ namespace OmnidotsAdapterTests
             {
                 SampleTime = sampleTime
             };
-            testObj!.InsertPeakRecords(serialId: serialId, dtos: [record]);
+            _testObj!.InsertPeakRecords(serialId: serialId, dtos: [record]);
 
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<PeakRecordDto> dtos = ReadPeakRecords(connection);
@@ -835,11 +837,11 @@ namespace OmnidotsAdapterTests
                                            epocMillis: epocMillis) ];
             records[0].SampleTime = sampleTime;
 
-            testObj!.InsertVeffRecords(serialId, records);
+            _testObj!.InsertVeffRecords(serialId, records);
             // insert same record twice, should only be 1 read
-            testObj!.InsertVeffRecords(serialId, records);
+            _testObj!.InsertVeffRecords(serialId, records);
 
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<VeffRecordDto> dtos = ReadVeffRecords(connection);
@@ -877,11 +879,11 @@ namespace OmnidotsAdapterTests
                                            vdvZ: vdvZ) ];
             records[0].SampleTime = sampleTime;
 
-            testObj!.InsertVdvRecords(serialId, records);
+            _testObj!.InsertVdvRecords(serialId, records);
             // insert same record twice, should only be 1 read
-            testObj!.InsertVdvRecords(serialId, records);
+            _testObj!.InsertVdvRecords(serialId, records);
 
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<VdvRecordDto> dtos = ReadVdvRecords(connection);
@@ -941,21 +943,21 @@ namespace OmnidotsAdapterTests
         public void TestWriteNotificationAudit()
         {
 
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "13";
             List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<VibrationMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId);
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
             string email = "bad-email";
             string phoneNo = "bad-phonenumber";
@@ -976,8 +978,8 @@ namespace OmnidotsAdapterTests
                                                          alertField: rules[0].Field,
                                                          monitorId: monitorId);
             // need to write a alert because NotificationsSent table has foreign key constraint
-            testObj.WriteNotification(notificationIn);
-            testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
+            _testObj.WriteNotification(notificationIn);
+            _testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
 
             List<NotificationDto> notifications = ReadNotifications(connection);
             Assert.HasCount(1, notifications);
@@ -997,15 +999,15 @@ namespace OmnidotsAdapterTests
             Assert.HasCount(1, audits);
             Dictionary<string, object> audit = audits[0];
 
-            Assert.IsInstanceOfType(audit["Id"], typeof(Guid));
-            Assert.IsInstanceOfType(audit["SendTime"], typeof(DateTime));
+            Assert.IsInstanceOfType<Guid>(audit["Id"]);
+            Assert.IsInstanceOfType<DateTime>(audit["SendTime"]);
             DateTime sendTime = (DateTime)audit["SendTime"];
             Assert.IsTrue(sendTime < DateTime.UtcNow.AddSeconds(10) && sendTime > DateTime.UtcNow.AddSeconds(-10));
-            Assert.IsInstanceOfType(audit["Address"], typeof(string));
+            Assert.IsInstanceOfType<string>(audit["Address"]);
             Assert.AreEqual("mytest@email.net", (string)audit["Address"]);
-            Assert.IsInstanceOfType(audit["ErrorMessage"], typeof(string));
+            Assert.IsInstanceOfType<string>(audit["ErrorMessage"]);
             Assert.AreEqual("some error message", (string)audit["ErrorMessage"]);
-            Assert.IsInstanceOfType(audit["NotificationId"], typeof(Guid));
+            Assert.IsInstanceOfType<Guid>(audit["NotificationId"]);
 
         }
 
@@ -1020,21 +1022,24 @@ namespace OmnidotsAdapterTests
             TracesReponse tracesResponse = JsonSerializer.Deserialize<TracesReponse>(json)!;
 
             DateTime t0 = DateTime.UtcNow;
-            testObj!.WriteTraces(serialId, tracesResponse.Traces!);
+            _testObj!.WriteTraces(serialId, tracesResponse.Traces!);
             TimeSpan tt = DateTime.UtcNow - t0;
-            RvtLogger.Logger.LogInformation("WriteTraces took={} seconds", tt.TotalSeconds);
-
-            await using (NpgsqlConnection connection = database!.OpenConnection())
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
             {
-                await connection.OpenAsync();
+                RvtLogger.Logger.LogInformation("WriteTraces took={} seconds", tt.TotalSeconds);
+            }
+
+            await using (NpgsqlConnection connection = _database!.OpenConnection())
+            {
+                await connection.OpenAsync(TestContext.CancellationToken);
                 await using NpgsqlCommand command = new(
                     "SELECT trace_id, sample_index, x, y, z FROM omnidots_trace ORDER BY trace_id, sample_index;", connection);
-                await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
-                Assert.IsTrue(await reader.ReadAsync());
+                await using NpgsqlDataReader reader = await command.ExecuteReaderAsync(TestContext.CancellationToken);
+                Assert.IsTrue(await reader.ReadAsync(TestContext.CancellationToken));
                 Assert.AreEqual(0, reader.GetInt32(1));
             }
 
-            List<TestTraceData> tds = ReadTraces(database!.ConnectionString, serialId);
+            List<TestTraceData> tds = ReadTraces(_database!.ConnectionString, serialId);
 
             Assert.HasCount(tracesResponse.Traces!.Count, tds);
 
@@ -1071,10 +1076,10 @@ namespace OmnidotsAdapterTests
                 Z = [6.0, 5.0, 6.0, 5.0]
             };
 
-            testObj!.WriteTraces(serialId, [trace]);
-            testObj.WriteTraces(serialId, [trace]);
+            _testObj!.WriteTraces(serialId, [trace]);
+            _testObj.WriteTraces(serialId, [trace]);
 
-            List<TestTraceData> storedTraces = ReadTraces(database!.ConnectionString, serialId);
+            List<TestTraceData> storedTraces = ReadTraces(_database!.ConnectionString, serialId);
             Assert.HasCount(2, storedTraces, "Trace replay retains the append-only compatibility behavior.");
             foreach (TestTraceData storedTrace in storedTraces)
             {
@@ -1082,27 +1087,27 @@ namespace OmnidotsAdapterTests
                 CollectionAssert.AreEqual(trace.Y, storedTrace.TraceData.Y);
                 CollectionAssert.AreEqual(trace.Z, storedTrace.TraceData.Z);
                 CollectionAssert.AreEqual(
-                    new[] { 0, 1, 2, 3 },
-                    ReadSampleIndexes(database.ConnectionString, storedTrace.Id));
+                    _expected,
+                    ReadSampleIndexes(_database.ConnectionString, storedTrace.Id));
             }
         }
 
         [TestMethod]
         public async Task ReadLatestTraceEndTimes_ReturnsMaximumForEachRequestedSerial()
         {
-            await using NpgsqlConnection connection = database!.OpenConnection();
-            await connection.OpenAsync();
+            await using NpgsqlConnection connection = _database!.OpenConnection();
+            await connection.OpenAsync(TestContext.CancellationToken);
             DateTime serialAOld = Utc(2026, 7, 10, 8, 0);
             DateTime serialANew = Utc(2026, 7, 12, 9, 0);
             DateTime serialB = Utc(2026, 7, 11, 10, 0);
             await using NpgsqlCommand insert = new(
                 """
-                INSERT INTO omnidots_trace_index (id, serial_id, start_time, end_time)
-                VALUES
-                    (@id1, 'trace-a', @start1, @end1),
-                    (@id2, 'trace-a', @start2, @end2),
-                    (@id3, 'trace-b', @start3, @end3);
-                """,
+            INSERT INTO omnidots_trace_index (id, serial_id, start_time, end_time)
+            VALUES
+                (@id1, 'trace-a', @start1, @end1),
+                (@id2, 'trace-a', @start2, @end2),
+                (@id3, 'trace-b', @start3, @end3);
+            """,
                 connection);
             insert.Parameters.AddWithValue("id1", Guid.NewGuid());
             insert.Parameters.AddWithValue("id2", Guid.NewGuid());
@@ -1113,9 +1118,9 @@ namespace OmnidotsAdapterTests
             insert.Parameters.AddWithValue("end2", serialANew);
             insert.Parameters.AddWithValue("start3", serialB.AddMinutes(-1));
             insert.Parameters.AddWithValue("end3", serialB);
-            await insert.ExecuteNonQueryAsync();
+            await insert.ExecuteNonQueryAsync(TestContext.CancellationToken);
 
-            IReadOnlyDictionary<string, DateTime> result = testObj!.ReadLatestTraceEndTimes(["trace-a", "trace-b", "missing"]);
+            IReadOnlyDictionary<string, DateTime> result = _testObj!.ReadLatestTraceEndTimes(["trace-a", "trace-b", "missing"]);
 
             Assert.HasCount(2, result);
             Assert.AreEqual(serialANew, result["trace-a"]);
@@ -1125,25 +1130,25 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public async Task WriteTraces_WhenSampleInsertFails_RollsBackTraceIndexAndSamples()
         {
-            await using NpgsqlConnection connection = database!.OpenConnection();
-            await connection.OpenAsync();
+            await using NpgsqlConnection connection = _database!.OpenConnection();
+            await connection.OpenAsync(TestContext.CancellationToken);
             await using NpgsqlCommand createTrigger = new(
                 """
-                CREATE OR REPLACE FUNCTION fail_second_trace_sample()
-                RETURNS trigger AS $$
-                BEGIN
-                    IF NEW.sample_index = 1 THEN
-                        RAISE EXCEPTION 'forced trace sample failure';
-                    END IF;
-                    RETURN NEW;
-                END;
-                $$ LANGUAGE plpgsql;
+            CREATE OR REPLACE FUNCTION fail_second_trace_sample()
+            RETURNS trigger AS $$
+            BEGIN
+                IF NEW.sample_index = 1 THEN
+                    RAISE EXCEPTION 'forced trace sample failure';
+                END IF;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
 
-                CREATE TRIGGER fail_second_trace_sample
-                BEFORE INSERT ON omnidots_trace
-                FOR EACH ROW EXECUTE FUNCTION fail_second_trace_sample();
-                """, connection);
-            await createTrigger.ExecuteNonQueryAsync();
+            CREATE TRIGGER fail_second_trace_sample
+            BEFORE INSERT ON omnidots_trace
+            FOR EACH ROW EXECUTE FUNCTION fail_second_trace_sample();
+            """, connection);
+            await createTrigger.ExecuteNonQueryAsync(TestContext.CancellationToken);
 
             try
             {
@@ -1157,18 +1162,18 @@ namespace OmnidotsAdapterTests
                 };
 
                 Assert.ThrowsExactly<Microsoft.EntityFrameworkCore.DbUpdateException>(
-                    () => testObj!.WriteTraces("atomic-trace", [trace]));
-                Assert.AreEqual(0, CountRows(database.ConnectionString, "omnidots_trace_index"));
-                Assert.AreEqual(0, CountRows(database.ConnectionString, "omnidots_trace"));
+                    () => _testObj!.WriteTraces("atomic-trace", [trace]));
+                Assert.AreEqual(0, CountRows(_database.ConnectionString, "omnidots_trace_index"));
+                Assert.AreEqual(0, CountRows(_database.ConnectionString, "omnidots_trace"));
             }
             finally
             {
                 await using NpgsqlCommand dropTrigger = new(
                     """
-                    DROP TRIGGER IF EXISTS fail_second_trace_sample ON omnidots_trace;
-                    DROP FUNCTION IF EXISTS fail_second_trace_sample();
-                    """, connection);
-                await dropTrigger.ExecuteNonQueryAsync();
+                DROP TRIGGER IF EXISTS fail_second_trace_sample ON omnidots_trace;
+                DROP FUNCTION IF EXISTS fail_second_trace_sample();
+                """, connection);
+                await dropTrigger.ExecuteNonQueryAsync(TestContext.CancellationToken);
             }
         }
 
@@ -1501,7 +1506,7 @@ namespace OmnidotsAdapterTests
                 string emailAddress = reader.GetString(0);
                 string? phoneNumber = reader.IsDBNull(1) ? null : reader.GetString(1);
                 string id = reader.GetString(2);
-                ContactMethod contactMethod = ReadContactMethod(database!.ConnectionString, siteUserId);
+                ContactMethod contactMethod = ReadContactMethod(_database!.ConnectionString, siteUserId);
                 contacts.Add(new RvtContactDto(contactMethod: contactMethod,
                                                emailAddress: emailAddress,
                                                phoneNumber: phoneNumber,
@@ -1676,6 +1681,9 @@ namespace OmnidotsAdapterTests
 
             return dtos;
         }
-    }
 
+        public TestContext TestContext { get; set; } = null!;
+
+        private static readonly int[] _expected = [0, 1, 2, 3];
+    }
 }

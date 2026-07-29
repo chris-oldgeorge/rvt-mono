@@ -28,7 +28,7 @@ public sealed class HttpWebClientTests
 
         AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => subject.PostAsync(
             "/api/v1/configure_measuring_point?token=vendor-token&measuring_point_id=23423",
-            new StringContent("{}")));
+            new StringContent("{}"), TestContext.CancellationToken));
 
         Assert.AreEqual("Omnidots API request failed.", exception.Message);
         Assert.IsNull(exception.InnerException);
@@ -55,7 +55,7 @@ public sealed class HttpWebClientTests
 
         string response = await subject.PostAsync(
             "/api/v1/configure_measuring_point?token=vendor-token&measuring_point_id=23423",
-            new StringContent("{}"));
+            new StringContent("{}"), TestContext.CancellationToken);
 
         Assert.AreEqual("successful-vendor-body", response);
         Assert.IsTrue(responseContent.WasConsumed);
@@ -119,4 +119,6 @@ public sealed class HttpWebClientTests
         {
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

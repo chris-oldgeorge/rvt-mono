@@ -16,6 +16,19 @@ public sealed class CommunicationsBoundaryTests
     // RuleAlertNotificationDispatcher, the last synchronous caller in Common.
     private static readonly string[] _synchronousCompatibilityCallers = [];
 
+    private static readonly string[] _activeSourceDirectories =
+    [
+        "libs/rvt-monitor-common/src",
+        "apps/monitors",
+        "apps/portal"
+    ];
+
+    private static readonly string[] _solutionFiles =
+    [
+        "libs/rvt-monitor-common/rvt-common.sln",
+        "Rvt.Mono.slnx"
+    ];
+
     [TestMethod]
     public void CommonContainsNoLegacyTransportOrProviderPackage()
     {
@@ -116,20 +129,11 @@ public sealed class CommunicationsBoundaryTests
 
         Assert.IsFalse(Directory.Exists(removedProject));
 
-        string[] activeReferences = [.. new[]
-            {
-                "libs/rvt-monitor-common/src",
-                "apps/monitors",
-                "apps/portal"
-            }
+        string[] activeReferences = [.. _activeSourceDirectories
             .SelectMany(relative => ReadProductionSource(root, relative))
             .Where(file => file.Text.Contains(removedIdentity, StringComparison.Ordinal))
             .Select(file => file.RelativePath)
-            .Concat(new[]
-            {
-                "libs/rvt-monitor-common/rvt-common.sln",
-                "Rvt.Mono.slnx"
-            }
+            .Concat(_solutionFiles
             .Where(relative => File.ReadAllText(Path.Combine(root, relative))
                 .Contains(removedIdentity, StringComparison.Ordinal)))
             .Order(StringComparer.Ordinal)];

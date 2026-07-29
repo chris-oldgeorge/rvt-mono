@@ -371,6 +371,8 @@ public sealed class OmnidotsApiSecurityOptionsTests
         options.ConfigureConcurrencyLimit = 0;
 
         OmnidotsApiSecurityGuard.EnsureWebhookReady(options);
+
+        Assert.AreEqual(0, options.ConfigureConcurrencyLimit);
     }
 
     [TestMethod]
@@ -380,6 +382,8 @@ public sealed class OmnidotsApiSecurityOptionsTests
         options.WebhookConcurrencyLimit = 0;
 
         OmnidotsApiSecurityGuard.EnsureConfigurationReady(options);
+
+        Assert.AreEqual(0, options.WebhookConcurrencyLimit);
     }
 
     [TestMethod]
@@ -389,6 +393,8 @@ public sealed class OmnidotsApiSecurityOptionsTests
 
         OmnidotsApiSecurityGuard.EnsureWebhookReady(options);
         OmnidotsApiSecurityGuard.EnsureConfigurationReady(options);
+
+        Assert.AreEqual(WebhookUrl, options.WebhookUrl);
     }
 
     private static OmnidotsApiSecurityOptionsValidator CreateValidator(

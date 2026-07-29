@@ -19,16 +19,16 @@ public sealed class LocalObjectStorageClientTests
             new StorageWriteRequest(
                 StorageObjectKey.Parse(" clips\\sample.wav "),
                 content,
-                "audio/wav"));
+                "audio/wav"), TestContext.CancellationToken);
 
         Assert.AreEqual("clips/sample.wav", result.Key.Value);
-        await using StorageReadResult? read = await client.OpenReadAsync(result.Key);
+        await using StorageReadResult? read = await client.OpenReadAsync(result.Key, TestContext.CancellationToken);
         Assert.IsNotNull(read);
         Assert.AreEqual("audio/wav", read.ContentType);
         Assert.AreEqual(content.Length, read.Length);
 
         using MemoryStream copiedContent = new();
-        await read.Content.CopyToAsync(copiedContent);
+        await read.Content.CopyToAsync(copiedContent, TestContext.CancellationToken);
         CollectionAssert.AreEqual(
             Encoding.UTF8.GetBytes("recording-data"),
             copiedContent.ToArray());
@@ -49,7 +49,7 @@ public sealed class LocalObjectStorageClientTests
         using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", "tenant-a");
 
-        await client.WriteAsync(CreateRequest("nested/levels/sample.wav", [1, 2, 3]));
+        await client.WriteAsync(CreateRequest("nested/levels/sample.wav", [1, 2, 3]), TestContext.CancellationToken);
 
         Assert.IsTrue(Directory.Exists(Path.Combine(
             temporaryDirectory.Path,
@@ -68,17 +68,17 @@ public sealed class LocalObjectStorageClientTests
         await client.WriteAsync(new StorageWriteRequest(
             key,
             new MemoryStream(Encoding.UTF8.GetBytes("first"), writable: false),
-            "audio/wav"));
+            "audio/wav"), TestContext.CancellationToken);
 
         await client.WriteAsync(new StorageWriteRequest(
             key,
-            new MemoryStream(Encoding.UTF8.GetBytes("replacement"), writable: false)));
+            new MemoryStream(Encoding.UTF8.GetBytes("replacement"), writable: false)), TestContext.CancellationToken);
 
-        await using StorageReadResult? read = await client.OpenReadAsync(key);
+        await using StorageReadResult? read = await client.OpenReadAsync(key, TestContext.CancellationToken);
         Assert.IsNotNull(read);
         Assert.IsNull(read.ContentType);
         using MemoryStream copiedContent = new();
-        await read.Content.CopyToAsync(copiedContent);
+        await read.Content.CopyToAsync(copiedContent, TestContext.CancellationToken);
         CollectionAssert.AreEqual(
             Encoding.UTF8.GetBytes("replacement"),
             copiedContent.ToArray());
@@ -97,7 +97,7 @@ public sealed class LocalObjectStorageClientTests
         await client.WriteAsync(new StorageWriteRequest(
             key,
             new MemoryStream(Encoding.UTF8.GetBytes("original"), writable: false),
-            "audio/wav"));
+            "audio/wav"), TestContext.CancellationToken);
 
         // A filesystem fault is an operational failure and must reach callers
         // through the port contract, with the original cause preserved.
@@ -105,15 +105,15 @@ public sealed class LocalObjectStorageClientTests
             client.WriteAsync(new StorageWriteRequest(
                 key,
                 new ThrowingReadStream(Encoding.UTF8.GetBytes("replacement")),
-                "audio/mpeg")));
+                "audio/mpeg"), TestContext.CancellationToken));
         Assert.AreEqual(StorageFailureKind.Unavailable, failure.Kind);
         Assert.IsInstanceOfType<IOException>(failure.InnerException);
 
-        await using StorageReadResult? read = await client.OpenReadAsync(key);
+        await using StorageReadResult? read = await client.OpenReadAsync(key, TestContext.CancellationToken);
         Assert.IsNotNull(read);
         Assert.AreEqual("audio/wav", read.ContentType);
         using MemoryStream copiedContent = new();
-        await read.Content.CopyToAsync(copiedContent);
+        await read.Content.CopyToAsync(copiedContent, TestContext.CancellationToken);
         CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("original"), copiedContent.ToArray());
 
         string targetDirectory = Path.Combine(temporaryDirectory.Path, "recordings");
@@ -126,7 +126,7 @@ public sealed class LocalObjectStorageClientTests
         using TemporaryDirectory temporaryDirectory = new();
         LocalObjectStorageClient client = CreateClient(temporaryDirectory.Path, "recordings", string.Empty);
 
-        StorageReadResult? result = await client.OpenReadAsync(StorageObjectKey.Parse("missing.wav"));
+        StorageReadResult? result = await client.OpenReadAsync(StorageObjectKey.Parse("missing.wav"), TestContext.CancellationToken);
 
         Assert.IsNull(result);
     }
@@ -140,10 +140,10 @@ public sealed class LocalObjectStorageClientTests
         await client.WriteAsync(new StorageWriteRequest(
             key,
             new MemoryStream([1], writable: false),
-            "audio/wav"));
+            "audio/wav"), TestContext.CancellationToken);
 
-        bool firstResult = await client.DeleteIfExistsAsync(key);
-        bool secondResult = await client.DeleteIfExistsAsync(key);
+        bool firstResult = await client.DeleteIfExistsAsync(key, TestContext.CancellationToken);
+        bool secondResult = await client.DeleteIfExistsAsync(key, TestContext.CancellationToken);
 
         Assert.IsTrue(firstResult);
         Assert.IsFalse(secondResult);
@@ -165,9 +165,9 @@ public sealed class LocalObjectStorageClientTests
         StorageObjectKey key = StorageObjectKey.Parse("escape.wav");
 
         await Assert.ThrowsExactlyAsync<ArgumentException>(() =>
-            client.WriteAsync(CreateRequest(key.Value, [1])));
-        await Assert.ThrowsExactlyAsync<ArgumentException>(() => client.OpenReadAsync(key));
-        await Assert.ThrowsExactlyAsync<ArgumentException>(() => client.DeleteIfExistsAsync(key));
+            client.WriteAsync(CreateRequest(key.Value, [1]), TestContext.CancellationToken));
+        await Assert.ThrowsExactlyAsync<ArgumentException>(() => client.OpenReadAsync(key, TestContext.CancellationToken));
+        await Assert.ThrowsExactlyAsync<ArgumentException>(() => client.DeleteIfExistsAsync(key, TestContext.CancellationToken));
     }
 
     [TestMethod]
@@ -182,9 +182,9 @@ public sealed class LocalObjectStorageClientTests
         StorageObjectKey key = StorageObjectKey.Parse("escape.wav");
 
         await Assert.ThrowsExactlyAsync<ArgumentException>(() =>
-            client.WriteAsync(CreateRequest(key.Value, [1])));
-        await Assert.ThrowsExactlyAsync<ArgumentException>(() => client.OpenReadAsync(key));
-        await Assert.ThrowsExactlyAsync<ArgumentException>(() => client.DeleteIfExistsAsync(key));
+            client.WriteAsync(CreateRequest(key.Value, [1]), TestContext.CancellationToken));
+        await Assert.ThrowsExactlyAsync<ArgumentException>(() => client.OpenReadAsync(key, TestContext.CancellationToken));
+        await Assert.ThrowsExactlyAsync<ArgumentException>(() => client.DeleteIfExistsAsync(key, TestContext.CancellationToken));
     }
 
     [TestMethod]
@@ -228,9 +228,9 @@ public sealed class LocalObjectStorageClientTests
         // classified as such rather than crossing the port as a raw IOException.
         foreach (Func<Task> operation in new Func<Task>[]
                  {
-                     () => client.WriteAsync(CreateRequest(key.Value, [1])),
-                     () => client.OpenReadAsync(key),
-                     () => client.DeleteIfExistsAsync(key),
+                     () => client.WriteAsync(CreateRequest(key.Value, [1]), TestContext.CancellationToken),
+                     () => client.OpenReadAsync(key, TestContext.CancellationToken),
+                     () => client.DeleteIfExistsAsync(key, TestContext.CancellationToken),
                  })
         {
             ObjectStorageException rejected = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() => operation());
@@ -247,7 +247,7 @@ public sealed class LocalObjectStorageClientTests
         Directory.CreateDirectory(Path.Combine(localRoot.Path, "recordings"));
         Directory.CreateDirectory(outsideDirectory.Path);
         string outsideTargetPath = Path.Combine(outsideDirectory.Path, "escape.wav");
-        await File.WriteAllBytesAsync(outsideTargetPath, [9]);
+        await File.WriteAllBytesAsync(outsideTargetPath, [9], TestContext.CancellationToken);
 
         try
         {
@@ -271,15 +271,15 @@ public sealed class LocalObjectStorageClientTests
         // classified as such rather than crossing the port as a raw IOException.
         foreach (Func<Task> operation in new Func<Task>[]
                  {
-                     () => client.WriteAsync(CreateRequest(key.Value, [1])),
-                     () => client.OpenReadAsync(key),
-                     () => client.DeleteIfExistsAsync(key),
+                     () => client.WriteAsync(CreateRequest(key.Value, [1]), TestContext.CancellationToken),
+                     () => client.OpenReadAsync(key, TestContext.CancellationToken),
+                     () => client.DeleteIfExistsAsync(key, TestContext.CancellationToken),
                  })
         {
             ObjectStorageException rejected = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() => operation());
             Assert.AreEqual(StorageFailureKind.InvalidRequest, rejected.Kind);
         }
-        CollectionAssert.AreEqual(new byte[] { 9 }, await File.ReadAllBytesAsync(outsideTargetPath));
+        CollectionAssert.AreEqual("\t"u8.ToArray(), await File.ReadAllBytesAsync(outsideTargetPath, TestContext.CancellationToken));
     }
 
     [TestMethod]
@@ -298,11 +298,11 @@ public sealed class LocalObjectStorageClientTests
         string targetDirectory = Path.Combine(temporaryDirectory.Path, "recordings");
         Directory.CreateDirectory(targetDirectory);
         string targetPath = Path.Combine(targetDirectory, "sample.wav");
-        await File.WriteAllBytesAsync(targetPath, [9]);
+        await File.WriteAllBytesAsync(targetPath, [9], TestContext.CancellationToken);
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             client.DeleteIfExistsAsync(key, cancellation.Token));
-        CollectionAssert.AreEqual(new byte[] { 9 }, await File.ReadAllBytesAsync(targetPath));
+        CollectionAssert.AreEqual("\t"u8.ToArray(), await File.ReadAllBytesAsync(targetPath, TestContext.CancellationToken));
     }
 
     private static LocalObjectStorageClient CreateClient(
@@ -351,4 +351,6 @@ public sealed class LocalObjectStorageClientTests
             CancellationToken cancellationToken) =>
             Task.FromException(new IOException("Simulated content read failure."));
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

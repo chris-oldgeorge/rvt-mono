@@ -34,7 +34,7 @@ public sealed class DeliveryContractTests
     public void EmailAttachment_EmptyContent_Throws()
     {
         Assert.ThrowsExactly<ArgumentException>(() =>
-            new EmailAttachment("report.pdf", "application/pdf", ReadOnlySpan<byte>.Empty));
+            new EmailAttachment("report.pdf", "application/pdf", []));
     }
 
     [TestMethod]

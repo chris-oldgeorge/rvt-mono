@@ -10,7 +10,7 @@ namespace Rvt.Reporting.Core.Tests.Reports;
 /// Verifies report-period graph grouping and alert-limit overlays for generated PDFs.
 /// Major updates: 2026-06-25 added ID12/ID13 graph coverage; added invariant SVG coordinate coverage for rendered graphs.
 /// </summary>
-public sealed class ReportGraphTests
+public sealed partial class ReportGraphTests
 {
     [Fact]
     public void BuildReportGraphs_GroupsNoiseDailyAveragesAcrossMonitors()
@@ -96,9 +96,9 @@ public sealed class ReportGraphTests
                 []);
 
             string svg = InvokeBuildGraphSvg(graph);
-            string points = Regex.Match(svg, "points=\"([^\"]+)\"").Groups[1].Value;
+            string points = PolylinePointsPattern().Match(svg).Groups[1].Value;
 
-            Assert.DoesNotMatch(new Regex("""points="[^"]*\d+,\d+,\d+"""), svg);
+            Assert.DoesNotMatch(CommaDecimalCoordinatePattern(), svg);
             Assert.Contains(".", points);
         }
         finally
@@ -114,4 +114,10 @@ public sealed class ReportGraphTests
         Assert.NotNull(method);
         return Assert.IsType<string>(method.Invoke(null, [graph]));
     }
+
+    [GeneratedRegex("points=\"([^\"]+)\"", RegexOptions.CultureInvariant)]
+    private static partial Regex PolylinePointsPattern();
+
+    [GeneratedRegex("""points="[^"]*\d+,\d+,\d+""", RegexOptions.CultureInvariant)]
+    private static partial Regex CommaDecimalCoordinatePattern();
 }

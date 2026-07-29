@@ -51,5 +51,5 @@ namespace Omnidots.Model.Config
             return timeSpan != null ? ((TimeSpan)timeSpan!).ToString(@"hh\:mm\:ss") : defaultValue;
         }
     }
-}
 
+}

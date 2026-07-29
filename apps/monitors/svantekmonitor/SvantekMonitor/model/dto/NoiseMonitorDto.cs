@@ -1,4 +1,3 @@
-using Svantek.Model.Http;
 using SvantekMonitor.model.dto;
 
 namespace Svantek.Model.Dto
@@ -103,6 +102,7 @@ namespace Svantek.Model.Dto
             SerialId = serialId;
             Model = model;
             FirmwareVersion = firmwareVersion;
+            Manufacturer = manufacturer;
             FleetNr = fleetNr;
             Latitude = latitude;
             Longitude = longitude;
@@ -116,5 +116,4 @@ namespace Svantek.Model.Dto
         }
 
     }
-
 }

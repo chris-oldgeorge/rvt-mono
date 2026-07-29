@@ -9,7 +9,7 @@ namespace Rvt.Monitor.Common.Alerts;
 public sealed class DurableAlertDispatcher
 {
     private readonly IAlertOutboxStore store;
-    private readonly IReadOnlyDictionary<string, IAlertDeliveryAdapter> adapters;
+    private readonly Dictionary<string, IAlertDeliveryAdapter> _adapters;
     private readonly DurableAlertOptions options;
     private readonly TimeProvider timeProvider;
     private readonly ILogger<DurableAlertDispatcher> logger;
@@ -28,7 +28,7 @@ public sealed class DurableAlertDispatcher
         ArgumentNullException.ThrowIfNull(logger);
 
         this.store = store;
-        this.adapters = adapters.ToDictionary(adapter => adapter.Kind, StringComparer.Ordinal);
+        _adapters = adapters.ToDictionary(adapter => adapter.Kind, StringComparer.Ordinal);
         this.options = options.Value;
         this.timeProvider = timeProvider;
         this.logger = logger;
@@ -52,7 +52,7 @@ public sealed class DurableAlertDispatcher
 
             try
             {
-                if (!adapters.TryGetValue(message.Kind, out IAlertDeliveryAdapter? adapter))
+                if (!_adapters.TryGetValue(message.Kind, out IAlertDeliveryAdapter? adapter))
                 {
                     throw new InvalidOperationException("No alert delivery adapter is registered for the message kind.");
                 }

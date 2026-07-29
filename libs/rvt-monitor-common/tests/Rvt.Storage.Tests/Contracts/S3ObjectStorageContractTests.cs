@@ -21,9 +21,9 @@ public sealed class S3ObjectStorageContractTests : ObjectStorageClientContractTe
         await fixture.Client.WriteAsync(
             new StorageWriteRequest(
                 key,
-                new MemoryStream([1, 2, 3], writable: false)));
+                new MemoryStream([1, 2, 3], writable: false)), TestContext.CancellationToken);
 
-        StorageReadResult? result = await fixture.Client.OpenReadAsync(key);
+        StorageReadResult? result = await fixture.Client.OpenReadAsync(key, TestContext.CancellationToken);
         Assert.IsNotNull(result);
         await result.DisposeAsync();
 

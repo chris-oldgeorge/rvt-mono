@@ -6,6 +6,8 @@ namespace Rvt.Monitor.CommonTests.Scheduling;
 [TestClass]
 public sealed class MonitorSchedulerOptionsTests
 {
+    private static readonly string[] _expected = ["StoreMonitors"];
+
     [TestMethod]
     public void Bind_ReturnsEnabledJobsOnly()
     {
@@ -30,7 +32,7 @@ public sealed class MonitorSchedulerOptionsTests
         Assert.IsTrue(options.Enabled);
         Assert.AreEqual("UTC", options.TimeZoneId);
         CollectionAssert.AreEqual(
-            new[] { "StoreMonitors" },
+            _expected,
             options.GetEnabledJobs().Select(job => job.Name).ToArray());
     }
 }

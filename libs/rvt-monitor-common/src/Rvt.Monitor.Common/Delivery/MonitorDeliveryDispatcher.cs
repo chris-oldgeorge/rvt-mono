@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Rvt.Communication.Abstractions;
@@ -230,6 +231,10 @@ public sealed class MonitorDeliveryDispatcher
         }
     }
 
+    [SuppressMessage(
+        "Major Code Smell",
+        "S6667:Exception information should be passed to the logger",
+        Justification = "Failure-sink exceptions can include sensitive delivery data; the log records only the affected message identity.")]
     private async Task RecordFailureBestEffortAsync(
         MonitorDeliveryMessage message,
         string error,

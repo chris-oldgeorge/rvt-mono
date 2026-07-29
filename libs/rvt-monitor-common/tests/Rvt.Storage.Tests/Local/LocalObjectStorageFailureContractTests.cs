@@ -17,7 +17,7 @@ public sealed class LocalObjectStorageFailureContractTests
     {
         using TemporaryDirectory temporary = new();
         string rootAsFile = Path.Combine(temporary.Path, "not-a-directory");
-        await File.WriteAllTextAsync(rootAsFile, "occupied");
+        await File.WriteAllTextAsync(rootAsFile, "occupied", TestContext.CancellationToken);
         LocalObjectStorageClient client = new(
             "recordings",
             new LocalStorageOptions { RootPath = rootAsFile, Container = "container" });
@@ -26,7 +26,7 @@ public sealed class LocalObjectStorageFailureContractTests
             client.WriteAsync(new StorageWriteRequest(
                 StorageObjectKey.Parse("sample.bin"),
                 new MemoryStream([1, 2, 3], writable: false),
-                "application/octet-stream")));
+                "application/octet-stream"), TestContext.CancellationToken));
 
         Assert.AreEqual("recordings", failure.ResourceName);
         Assert.IsNotNull(failure.InnerException);
@@ -58,7 +58,7 @@ public sealed class LocalObjectStorageFailureContractTests
             new LocalStorageOptions { RootPath = string.Empty, Container = "container" });
 
         await Assert.ThrowsExactlyAsync<ArgumentException>(() =>
-            client.OpenReadAsync(StorageObjectKey.Parse("sample.bin")));
+            client.OpenReadAsync(StorageObjectKey.Parse("sample.bin"), TestContext.CancellationToken));
     }
 
     [TestMethod]
@@ -95,4 +95,6 @@ public sealed class LocalObjectStorageFailureContractTests
             }
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

@@ -12,18 +12,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
-retired_engine="Sql""Server"
-retired_engine_upper="SQL ""Server"
-retired_engine_lower="sql""server"
-retired_engine_hyphen="SQL-""Server"
-retired_engine_underscore="SQL_""Server"
-retired_engine_double_space="SQL  ""Server"
+retired_engine_suffix="Server"
+retired_engine_suffix_lower="server"
+retired_engine="Sql${retired_engine_suffix}"
+retired_engine_upper="SQL ${retired_engine_suffix}"
+retired_engine_lower="sql${retired_engine_suffix_lower}"
+retired_engine_hyphen="SQL-${retired_engine_suffix}"
+retired_engine_underscore="SQL_${retired_engine_suffix}"
+retired_engine_double_space="SQL  ${retired_engine_suffix}"
 retired_client="Sql""Client"
 retired_connection="Sql""Connection"
 retired_bulk_copy="Sql""BulkCopy"
 ef_provider_package="Microsoft.EntityFrameworkCore.${retired_engine}"
 data_client_package="Microsoft.Data.${retired_client}"
 use_provider="Use${retired_engine}"
+provider_migration_rule="provider-conditional EF migration"
 
 create_fixture() {
   local fixture="$1"
@@ -116,27 +119,27 @@ assert_rejected \
   provider-conditional-migration-contains \
   apps/portal/RVT.DataAccess/Migrations/LegacyMigration.cs \
   "if (ActiveProvider.Contains(\"Npgsql\")) { }" \
-  "provider-conditional EF migration"
+  "${provider_migration_rule}"
 assert_rejected \
   provider-conditional-migration-starts-with \
   apps/portal/RVT.DataAccess/Migrations/StartsWithMigration.cs \
   "if (ActiveProvider.StartsWith(\"Npgsql\")) { }" \
-  "provider-conditional EF migration"
+  "${provider_migration_rule}"
 assert_rejected \
   provider-conditional-migration-equality \
   apps/portal/RVT.DataAccess/Migrations/EqualityMigration.cs \
   "if (ActiveProvider == \"Npgsql\") { }" \
-  "provider-conditional EF migration"
+  "${provider_migration_rule}"
 assert_rejected \
   provider-conditional-identity-migration \
   apps/portal/RvtPortal.Spa/Data/Migrations/IdentityMigration.cs \
   "if (ActiveProvider.Contains(\"Npgsql\")) { }" \
-  "provider-conditional EF migration"
+  "${provider_migration_rule}"
 assert_rejected \
   provider-name-migration-access \
   apps/portal/RVT.DataAccess/Migrations/ProviderNameMigration.cs \
   "var provider = database.ProviderName;" \
-  "provider-conditional EF migration"
+  "${provider_migration_rule}"
 assert_rejected \
   prose \
   docs/legacy.md \

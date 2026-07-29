@@ -73,7 +73,7 @@ public class TestRules
         ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime)).
             Returns(20.0);
 
-        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), rules, _periodStart, _rangeEnd);
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), rules, _periodStart, _rangeEnd, TestContext.CancellationToken);
 
         ruleQueries.Verify(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime), Times.Exactly(1));
         ruleQueries.VerifyNoOtherCalls();
@@ -91,7 +91,7 @@ public class TestRules
         ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime)).
             Returns(11.0);
 
-        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], _periodStart, _rangeEnd);
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], _periodStart, _rangeEnd, TestContext.CancellationToken);
 
         alertIngress.Verify(c => c.AcceptAsync(
             It.Is<AlertSignal>(signal =>
@@ -127,8 +127,8 @@ public class TestRules
             Returns(0.5);
 
         // The first run breaches and latches; the second drops below limit-off and unlatches.
-        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [ruleOn], _periodStart, _rangeEnd);
-        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [ruleActive], _periodStart, _rangeEnd);
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [ruleOn], _periodStart, _rangeEnd, TestContext.CancellationToken);
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [ruleActive], _periodStart, _rangeEnd, TestContext.CancellationToken);
 
         alertIngress.Verify(c => c.AcceptAsync(
             It.Is<AlertSignal>(signal => signal.SerialId == _serialId && signal.AlertType == AlertType.Alert),
@@ -154,7 +154,7 @@ public class TestRules
         ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime)).
             Returns(11.0);
 
-        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], _periodStart, _rangeEnd);
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], _periodStart, _rangeEnd, TestContext.CancellationToken);
 
         alertIngress.Verify(c => c.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()),
             Times.Exactly(1));
@@ -184,7 +184,7 @@ public class TestRules
         ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime)).
             Returns(11.0);
 
-        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], _periodStart, _rangeEnd);
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], _periodStart, _rangeEnd, TestContext.CancellationToken);
 
         alertIngress.Verify(c => c.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()),
             Times.Exactly(1));
@@ -210,7 +210,7 @@ public class TestRules
         ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", periodStart, periodStart.AddSeconds(_durationSeconds))).
             Returns(11.0);
 
-        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], periodStart, periodStart.AddMinutes(16));
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], periodStart, periodStart.AddMinutes(16), TestContext.CancellationToken);
 
         alertIngress.Verify(c => c.AcceptAsync(
             It.Is<AlertSignal>(signal => signal.SerialId == _serialId && signal.AlertType == AlertType.Alert),
@@ -229,7 +229,7 @@ public class TestRules
                                                          out Mock<IAlertIngressPort> alertIngress);
         DateTime alertTime = new(2023, 10, 3, 13, 15, 0, DateTimeKind.Utc);
 
-        await processor.SignalAlertAsync(_serialId, alertTime, 20.0, 0, 15.0, AlertType.BatteryCaution, "Battery level");
+        await processor.SignalAlertAsync(_serialId, alertTime, 20.0, 0, 15.0, AlertType.BatteryCaution, "Battery level", TestContext.CancellationToken);
 
         alertIngress.Verify(c => c.AcceptAsync(
             It.Is<AlertSignal>(signal =>
@@ -281,4 +281,6 @@ public class TestRules
             }
         };
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

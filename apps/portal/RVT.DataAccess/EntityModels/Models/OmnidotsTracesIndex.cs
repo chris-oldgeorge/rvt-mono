@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace RVT.DataAccess.EntityModels.Models;
 
 public partial class OmnidotsTracesIndex

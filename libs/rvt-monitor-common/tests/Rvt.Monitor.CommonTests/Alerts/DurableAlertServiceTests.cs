@@ -30,7 +30,7 @@ public sealed class DurableAlertServiceTests
         DurableAlertService service = new(store.Object, timeProvider.Object);
         AlertSignal signal = ValidSignal();
 
-        AlertIngressResult result = await service.AcceptAsync(signal);
+        AlertIngressResult result = await service.AcceptAsync(signal, TestContext.CancellationToken);
 
         Assert.IsNotNull(captured);
         Assert.AreSame(signal, captured.Signal);
@@ -75,7 +75,7 @@ public sealed class DurableAlertServiceTests
         DurableAlertService service = new(store.Object, TimeProvider.System);
 
         InvalidOperationException actual = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
-            () => service.AcceptAsync(ValidSignal()));
+            () => service.AcceptAsync(ValidSignal(), TestContext.CancellationToken));
 
         Assert.AreSame(expected, actual);
     }
@@ -128,7 +128,7 @@ public sealed class DurableAlertServiceTests
             .ReturnsAsync(CommitResult());
         DurableAlertService service = new(store.Object, TimeProvider.System);
 
-        await service.AcceptAsync(signal);
+        await service.AcceptAsync(signal, TestContext.CancellationToken);
 
         store.Verify(
             x => x.CommitAsync(It.IsAny<AlertCommitRequest>(), It.IsAny<CancellationToken>()),
@@ -151,7 +151,7 @@ public sealed class DurableAlertServiceTests
             .ReturnsAsync(CommitResult());
         DurableAlertService service = new(store.Object, TimeProvider.System);
 
-        await service.AcceptAsync(signal);
+        await service.AcceptAsync(signal, TestContext.CancellationToken);
 
         store.Verify(
             x => x.CommitAsync(It.IsAny<AlertCommitRequest>(), It.IsAny<CancellationToken>()),
@@ -344,4 +344,6 @@ public sealed class DurableAlertServiceTests
             "Vibration Alert vtop x level=12 limit=10",
             AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms,
             TimeSpan.FromMinutes(5));
+
+    public TestContext TestContext { get; set; } = null!;
 }

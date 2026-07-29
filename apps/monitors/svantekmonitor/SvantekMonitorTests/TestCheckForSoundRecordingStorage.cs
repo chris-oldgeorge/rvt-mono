@@ -46,7 +46,7 @@ public sealed class TestCheckForSoundRecordingStorage
                 It.IsAny<HttpContent>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(filesResponse);
-        httpClient.Setup(client => client.GetByteArrayAsync(
+        httpClient.Setup(client => client.PostForBytesAsync(
                 "projects-get-data.php",
                 It.IsAny<MultipartFormDataContent>(),
                 It.IsAny<CancellationToken>()))
@@ -60,7 +60,7 @@ public sealed class TestCheckForSoundRecordingStorage
 
         await handler.RunAsync(cancellation.Token);
 
-        httpClient.Verify(client => client.GetByteArrayAsync(
+        httpClient.Verify(client => client.PostForBytesAsync(
             "projects-get-data.php",
             It.IsAny<MultipartFormDataContent>(),
             cancellation.Token), Times.Once);

@@ -27,7 +27,7 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
         string result = await subject.PostAsync("stations-get-list.php", requestContent, cancellation.Token);
 
@@ -37,7 +37,7 @@ public sealed class HttpWebClientCancellationTests
     }
 
     [TestMethod]
-    public async Task GetByteArrayAsync_DisposesRequestAndResponse()
+    public async Task PostForBytesAsync_DisposesRequestAndResponse()
     {
         using CancellationTokenSource cancellation = new();
         TrackingMultipartFormDataContent requestContent = new();
@@ -46,9 +46,9 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
-        byte[] result = await subject.GetByteArrayAsync(
+        byte[] result = await subject.PostForBytesAsync(
             "projects-get-data.php",
             requestContent,
             cancellation.Token);
@@ -67,7 +67,7 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
         Task<string> operation = subject.GetAsync("projects-get-data.php", cancellation.Token);
         await responseContent.ReadStarted.Task;
@@ -88,7 +88,7 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
         Task<string> operation = subject.GetAsync("projects-get-data.php", cancellation.Token);
         await handler.RequestStarted.Task;

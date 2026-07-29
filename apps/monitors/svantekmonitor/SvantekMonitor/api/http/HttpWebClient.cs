@@ -1,11 +1,11 @@
-using System.Net;
 using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Diagnostics;
+using Rvt.Monitor.Common.Http;
 
 namespace Svantek.Api.Http
 {
 
-    public class HttpWebClient<T> : IHttpClient
+    public class HttpWebClient : IHttpClient
     {
         /// <summary>
         /// Bounds every vendor call. Without an explicit value the 100 second
@@ -14,7 +14,7 @@ namespace Svantek.Api.Http
         /// </summary>
         internal static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
-        private readonly HttpClient httpClient;
+        private readonly VendorHttpTransport _transport;
 
         public HttpWebClient(string baseUrl)
             : this(baseUrl, new HttpClient())
@@ -23,22 +23,21 @@ namespace Svantek.Api.Http
 
         public HttpWebClient(string baseUrl, HttpClient httpClient)
         {
-            this.httpClient = httpClient;
-            this.httpClient.BaseAddress ??= new Uri(baseUrl);
-            if (!this.httpClient.DefaultRequestHeaders.Contains("accept"))
+            httpClient.BaseAddress ??= new Uri(baseUrl);
+            if (!httpClient.DefaultRequestHeaders.Contains("accept"))
             {
-                this.httpClient.DefaultRequestHeaders.Add("accept", "application/json");
+                httpClient.DefaultRequestHeaders.Add("accept", "application/json");
             }
-            this.httpClient.Timeout = RequestTimeout;
+            httpClient.Timeout = RequestTimeout;
+            _transport = new VendorHttpTransport(httpClient);
         }
 
         public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
-            using HttpRequestMessage request = new(HttpMethod.Get, path);
-            using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            string reply = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (response.StatusCode != HttpStatusCode.OK)
+            using VendorHttpResponse response = await _transport.SendAsync(HttpMethod.Get, path, null, cancellationToken);
+            string reply = await response.ReadStringAsync(cancellationToken);
+            if (!response.IsOk)
             {
                 throw AdapterException.Of("HTTP ERROR response=", SensitiveLogRedactor.RedactJson(reply));
             }
@@ -52,12 +51,9 @@ namespace Svantek.Api.Http
         {
             RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
 
-            using HttpRequestMessage request = new(HttpMethod.Post, path);
-            request.Content = content;
-
-            using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            string reply = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (response.StatusCode != HttpStatusCode.OK)
+            using VendorHttpResponse response = await _transport.SendAsync(HttpMethod.Post, path, content, cancellationToken);
+            string reply = await response.ReadStringAsync(cancellationToken);
+            if (!response.IsOk)
             {
                 RvtLogger.Logger.LogError("Config request failed with error={Value1}", SensitiveLogRedactor.RedactJson(reply));
                 throw AdapterException.Of("HTTP ERROR response=", SensitiveLogRedactor.RedactJson(reply));
@@ -65,22 +61,22 @@ namespace Svantek.Api.Http
             return reply;
         }
 
-        public async Task<byte[]> GetByteArrayAsync(
+        /// <summary>
+        /// Sends the multipart request as a POST and returns the raw bytes.
+        /// Previously misnamed <c>GetByteArrayAsync</c> despite always posting.
+        /// </summary>
+        public async Task<byte[]> PostForBytesAsync(
             string path,
             MultipartFormDataContent content,
             CancellationToken cancellationToken = default)
         {
-            using HttpRequestMessage request = new(HttpMethod.Post, path);
-            request.Content = content;
-
-            using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            byte[] reply = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
-            if (response.StatusCode != HttpStatusCode.OK)
+            using VendorHttpResponse response = await _transport.SendAsync(HttpMethod.Post, path, content, cancellationToken);
+            if (!response.IsOk)
             {
                 RvtLogger.Logger.LogError("File request failed with error={Value1}", response.StatusCode);
                 throw AdapterException.Of("HTTP ERROR response=" + response.StatusCode);
             }
-            return reply;
+            return await response.ReadBytesAsync(cancellationToken);
         }
     }
 }

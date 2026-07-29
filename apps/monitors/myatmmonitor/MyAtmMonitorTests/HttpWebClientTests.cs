@@ -36,7 +36,7 @@ public class HttpWebClientTests
             CreateResponse(HttpStatusCode.OK, "12345", null)
         ]);
         using HttpClient client = new(new QueueHttpMessageHandler(responses));
-        HttpWebClient<object> subject = new(
+        HttpWebClient subject = new(
             "https://vendor.example/",
             "test-key",
             client,
@@ -58,7 +58,7 @@ public class HttpWebClientTests
             new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = content }
         ]);
         using HttpClient client = new(new QueueHttpMessageHandler(responses));
-        HttpWebClient<object> subject = new(
+        HttpWebClient subject = new(
             "https://vendor.example/",
             "test-key",
             client,
@@ -87,7 +87,7 @@ public class HttpWebClientTests
                 return Task.CompletedTask;
             });
         using HttpClient client = new(handler);
-        HttpWebClient<object> subject = new("https://vendor.example/", "test-key", client, policy);
+        HttpWebClient subject = new("https://vendor.example/", "test-key", client, policy);
 
         string result = await subject.GetAsync("devices");
 
@@ -116,7 +116,7 @@ public class HttpWebClientTests
             return Task.CompletedTask;
         });
         using HttpClient client = new(new QueueHttpMessageHandler(responses));
-        HttpWebClient<object> subject = new("https://vendor.example/", "test-key", client, policy);
+        HttpWebClient subject = new("https://vendor.example/", "test-key", client, policy);
 
         string result = await subject.GetAsync("devices");
 
@@ -131,7 +131,7 @@ public class HttpWebClientTests
         cancellation.Cancel();
         MyAtmRequestPolicy policy = new();
         using HttpClient client = new(new QueueHttpMessageHandler(new Queue<HttpResponseMessage>()));
-        HttpWebClient<object> subject = new("https://vendor.example/", "test-key", client, policy);
+        HttpWebClient subject = new("https://vendor.example/", "test-key", client, policy);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => subject.GetAsync("devices", cancellation.Token));
     }

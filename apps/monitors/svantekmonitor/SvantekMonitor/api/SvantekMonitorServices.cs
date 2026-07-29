@@ -28,7 +28,7 @@ public static class SvantekMonitorServices
         IConfiguration configuration)
     {
         services.AddSvantekStorage(configuration);
-        services.AddSingleton<IHttpClient>(_ => new HttpWebClient<SvantekService>(RvtConfig.BASE_URL));
+        services.AddSingleton<IHttpClient>(_ => new HttpWebClient(RvtConfig.BASE_URL));
         services.AddSingleton<IDBClient>(_ => new DBClient(RvtConfig.DB_CONNECTION_STRING));
         // Broker settings are supplied explicitly rather than read from
         // static configuration inside the client.

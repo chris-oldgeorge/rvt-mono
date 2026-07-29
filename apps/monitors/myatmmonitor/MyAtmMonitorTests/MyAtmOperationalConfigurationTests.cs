@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,18 +31,12 @@ public sealed class MyAtmOperationalConfigurationTests
     }
 
     [TestMethod]
-    public void MonitorJobDispatcher_SupportsAccessoryImport()
+    public void JobCatalog_SupportsAccessoryImport()
     {
-        Type? dispatcherType = typeof(MyAtmApi).Assembly.GetType("MyAtm.Api.MyAtmMonitorJobDispatcher");
-        Assert.IsNotNull(dispatcherType);
+        List<string> supportedJobs = [.. MyAtmMonitorJobs.Catalog.JobNames];
 
-        object? dispatcher = Activator.CreateInstance(dispatcherType!);
-        Assert.IsNotNull(dispatcher);
-
-        IEnumerable<string>? supportedJobs = dispatcherType!.GetProperty("SupportedJobNames")!.GetValue(dispatcher) as IEnumerable<string>;
-        Assert.IsNotNull(supportedJobs);
-        CollectionAssert.Contains(supportedJobs!.ToList(), "StoreAccessoryInfo");
-        CollectionAssert.Contains(supportedJobs.ToList(), "DispatchOutbox");
+        CollectionAssert.Contains(supportedJobs, "StoreAccessoryInfo");
+        CollectionAssert.Contains(supportedJobs, "DispatchOutbox");
     }
 
     [TestMethod]
@@ -66,7 +59,7 @@ public sealed class MyAtmOperationalConfigurationTests
     }
 
     [TestMethod]
-    public async Task MonitorJobRunner_DispatchOutboxPropagatesCancellationTokenToSharedDispatcher()
+    public async Task JobCatalog_DispatchOutboxPropagatesCancellationTokenToSharedDispatcher()
     {
         Mock<IDBClient> database = new();
         Mock<IMqttClient> mqttClient = new();
@@ -97,28 +90,10 @@ public sealed class MyAtmOperationalConfigurationTests
         using ServiceProvider provider = services.BuildServiceProvider();
         IMyAtmMonitorJobs service = provider.GetRequiredService<IMyAtmMonitorJobs>();
 
-        int result = await InvokeMonitorJobRunnerAsync("DispatchOutbox", service, cancellation.Token);
+        int result = await MyAtmMonitorJobs.Catalog.RunAsync("DispatchOutbox", service, cancellation.Token);
 
         Assert.AreEqual(0, result);
         Assert.AreEqual(cancellation.Token, observedToken);
     }
 
-    private static async Task<int> InvokeMonitorJobRunnerAsync(
-        string jobName,
-        IMyAtmMonitorJobs service,
-        CancellationToken cancellationToken)
-    {
-        Type? runnerType = typeof(MyAtmApi).Assembly.GetType("MyAtm.Api.MonitorJobRunner");
-        Assert.IsNotNull(runnerType);
-        MethodInfo? runMethod = runnerType.GetMethod(
-            "RunAsync",
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
-            binder: null,
-            types: [typeof(string), typeof(IMyAtmMonitorJobs), typeof(CancellationToken)],
-            modifiers: null);
-        Assert.IsNotNull(runMethod);
-        Task<int>? task = runMethod.Invoke(null, [jobName, service, cancellationToken]) as Task<int>;
-        Assert.IsNotNull(task);
-        return await task;
-    }
 }

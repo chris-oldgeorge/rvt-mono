@@ -11,6 +11,13 @@ not retained as a facade or meta-package.
 The monorepo now uses this graph directly. Internal RVT projects are not
 packable, and package validation/release assets have been removed.
 
+2026-07-29 update: the legacy synchronous messaging surface is fully retired.
+`IMessageService`, `MessageService`, `LegacyMessageKind`/`LegacyMessageChannel`,
+`CommsException`, and the Abstractions-assembly `RvtContactDto` are deleted;
+`Rvt.Communication.Abstractions` now holds only the delivery ports, requests,
+results, failures, and notification contracts that the durable alert stack
+composes (see `durable-alerts.md`).
+
 ## Verified source graph
 
 | Project or host | Direct RVT communication references | Responsibility |
@@ -115,8 +122,10 @@ gate.
 
 ## Future pending work
 
-- Remove legacy synchronous `IMessageService.Sendmessage` and `SendMessage`
-  only after its remaining callers receive a separate compatibility plan.
+- ~~Remove legacy synchronous `IMessageService.Sendmessage` and `SendMessage`
+  only after its remaining callers receive a separate compatibility plan.~~
+  Done 2026-07-29: all monitors emit through `IAlertIngressPort` and the
+  interface, implementation, and legacy contracts are deleted.
 - Change notification templates, recipients, delivery business rules, or retry
   policy only under a separate product specification.
 - Add dynamic provider discovery or runtime assembly loading only if

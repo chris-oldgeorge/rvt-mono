@@ -7,18 +7,15 @@
 // - 2026-06-09 pending Documented PostgreSQL canonical routine-name mapping for monitor status calls.
 
 using RVT.DataAccess.Context;
-using RVT.Entities;
 using Monitor = RVT.Entities.Monitor;
 
 namespace RVT.DataAccess;
 
 public class MonitorRepository : GenericRepository<Monitor>, IMonitorRepository
 {
-
     // Function summary: Handles the monitor repository workflow for this module.
     public MonitorRepository(RVTDbContext contextDb)
         : base(contextDb)
     {
     }
-
 }

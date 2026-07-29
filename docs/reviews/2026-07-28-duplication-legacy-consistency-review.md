@@ -212,6 +212,11 @@ with the same severity as anything else:
   contract for nothing.
 - Six near-identical startup-validation hosted services (two naming
   conventions); three options classes re-implementing the same config helpers;
+  **(Validator consolidation withdrawn 2026-07-29: each service is ~15 trivial
+  lines, the six type names are pinned by four test layers, and the only shared
+  home — `Rvt.Communication.Abstractions` — is guarded to stay
+  dependency-free. A generic base plus six name-preserving stubs would not be
+  smaller than the six files.)**
   registration naming drift across three conventions; the retired
   `Rvt.Monitor.Common.Infrastructure` facade's `AddMonitorCommunications` was
   deliberately dissolved into per-host composition (not "never built" as this
@@ -300,9 +305,16 @@ caller sees a warning. Retirement order (each step unblocks the next):
    interface; generic startup-validation service. (A library-level
    `AddMonitorCommunications` is withdrawn — it contradicts the guard-enforced
    provider split; see §4.)
+   **Done 2026-07-29: `IMessageService` carries `[Obsolete]` with diagnostic
+   `RVT0001`; the eight still-consuming monitor projects hold documented
+   NoWarns that steps 4-5 delete. The generic validation service is withdrawn
+   (see §4).**
 2. One-file compat kills: retarget Omnidots' `AlertActivityTimeDto` alias;
    retarget AirQ/Svantek `NotificationDto` aliases; replace MyAtm's inverted
    adapter with the DI-registered service.
+   **Done 2026-07-29: all three aliases retarget the base types; MyAtm's
+   `LegacyNotificationDeliveryService` round-trip is deleted — the facade
+   constructors take `INotificationDeliveryService` directly.**
 3. Omnidots offline/battery → durable alerts (cheapest retirement — the
    durable stack already runs in-process); delete the inline loop.
 4. AirQ + Svantek alerting → durable stack; retires

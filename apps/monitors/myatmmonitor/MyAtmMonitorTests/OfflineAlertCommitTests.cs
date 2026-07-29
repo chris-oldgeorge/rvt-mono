@@ -29,7 +29,7 @@ public sealed class OfflineAlertCommitTests
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         int customerId = 765;
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow.AddHours(-25), singleItem: true).Single();
         Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule = MyAtmFixture.OfflineRules().Single();
@@ -101,7 +101,7 @@ public sealed class OfflineAlertCommitTests
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         int customerId = 765;
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow, singleItem: true).Single();
         monitor.Offline = true;

@@ -24,7 +24,7 @@ public sealed class TestRules2
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         RvtAlertRuleDto rule = new(
             Guid.NewGuid(), "11111", "Pm10", 19, 15, 8 * 60 * 60,
             new AlertActivityTimeDto { Weekdays = true, Saturdays = true, Sundays = true },
@@ -55,7 +55,7 @@ public sealed class TestRules2
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         RvtAlertRuleDto rule = new(
             Guid.NewGuid(), "11111", "Pm10", 19, 15, 8 * 60 * 60,
             new AlertActivityTimeDto { Weekdays = true, Saturdays = true, Sundays = true },

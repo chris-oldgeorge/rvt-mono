@@ -36,7 +36,7 @@ namespace MyAtmMonitorTests
         }
 
         public static MyAtmApi CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                 out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient,
+                                                 out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient,
                                                  bool testLocal = false)
         {
             httpClient = new Mock<IHttpClient>();
@@ -56,7 +56,7 @@ namespace MyAtmMonitorTests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
             mqttClient = new Mock<IMqttClient>();
-            messageClient = new Mock<IMessageService>();
+            messageClient = new Mock<INotificationDeliveryService>();
             return new MyAtmApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, testLocal);
         }
 

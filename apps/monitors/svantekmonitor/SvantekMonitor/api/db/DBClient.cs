@@ -13,7 +13,7 @@ using Svantek.Api.Db.Mapping;
 using Svantek.Model.Dto;
 using SvantekMonitor.model.dto;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
+using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace Svantek.Api.Db
 {

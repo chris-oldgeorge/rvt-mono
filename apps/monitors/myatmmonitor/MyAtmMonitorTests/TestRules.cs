@@ -23,7 +23,7 @@ public sealed class TestRules
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         DateTime sampleTime = new(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(sampleTime.AddMinutes(-1), singleItem: true).Single();
         RvtAlertRuleDto rule = CreateRule(monitor, isActive: false);
@@ -77,7 +77,7 @@ public sealed class TestRules
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         DateTime sampleTime = new(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(sampleTime.AddMinutes(-1), singleItem: true).Single();
         RvtAlertRuleDto rule = CreateRule(monitor, isActive: true, isDeleted: true);

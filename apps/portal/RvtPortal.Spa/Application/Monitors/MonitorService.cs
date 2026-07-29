@@ -29,7 +29,6 @@ namespace RvtPortal.Spa.Application.Monitors
 
 
 
-        Task<IList<Monitor>> ReadAllAsync();
         Task<Monitor?> ReadOneAsync(Guid Id);
 
 
@@ -37,9 +36,6 @@ namespace RvtPortal.Spa.Application.Monitors
 
         //Deployments
         Task<Deployment?> DeploymentReadOneAsync(Guid DeploymentId);
-
-        //AlertLevels
-
 
         //Dust data
         Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels(string SerialId, DateTime FromDate, DateTime ToDate, int AvrgDuration, int? Page = null, int? PageSize = null, string? Sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
@@ -56,17 +52,6 @@ namespace RvtPortal.Spa.Application.Monitors
         Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string SerialId);
         Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid TraceId, CancellationToken cancellationToken = default);
         Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid Id);
-
-        //  Data services
-    }
-
-    public class MonitorDataSearchFilters
-    {
-        public Guid? MonitorId { get; set; }
-        public Guid DeploymentId { get; set; }
-        public string? FilterOption { get; set; }
-        public DateTime? FromDate { get; set; }
-        public DateTime? ToDate { get; set; }
     }
 
     public class MonitorService : IMonitorService
@@ -95,18 +80,6 @@ namespace RvtPortal.Spa.Application.Monitors
         {
             return monitorRepository.GetByIdAsync(Id);
         }
-
-        // Function summary: Retrieves all data for callers.
-        public Task<IList<Monitor>> ReadAllAsync()
-        {
-            return monitorRepository.ReadAllAsync();
-        }
-
-        #region AlertLevel 
-        //Return active alert levels for a monitor
-
-
-        #endregion
 
         #region Deployment
         //Returns current  Deployment if any

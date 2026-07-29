@@ -11,6 +11,11 @@ namespace MyAtm.Api.Http
     // Summary: Vendor HTTP gateway for the MyAtmosphere API - request building, calls, and response parsing.
     // Major updates:
     // - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiMonitors, MyAtmApiDustLevels, MyAtmApiAccessoryInfo).
+    //
+    // Vendor context: the "RVT Case Study" AQ Network currently has no assigned devices, so the
+    // per-customer measurements endpoint returns nothing for it. Device 18129 was once assigned
+    // there, was moved to another AQ Network, and its data is still reachable via the per-device
+    // endpoint (GET /api/customers/146/devices/18129/measurements). 18129 was added to the DB manually.
     public class MyAtmHttpGateway : IMyAtmVendorGateway
     {
         private readonly IHttpClient httpClient;
@@ -80,7 +85,7 @@ namespace MyAtm.Api.Http
             MyAtmMeasurementPage<T> page = await HttpGetDeviceMeasurementPageAsync<T>(
                 customerId,
                 serialNumber,
-                lastDataTime ?? MyAtmApi.JAN1_1970,
+                lastDataTime ?? DateTimeUtil.JAN1_1970,
                 period,
                 cancellationToken);
             return [.. page.Measurements];
@@ -140,7 +145,7 @@ namespace MyAtm.Api.Http
                 MyAtmMeasurementPage<AccessoryInfo> page = await HttpGetAccessoryInfoPageAsync(
                     customerId,
                     serialNumber,
-                    lastDataTime ?? MyAtmApi.JAN1_1970,
+                    lastDataTime ?? DateTimeUtil.JAN1_1970,
                     cancellationToken);
                 return [.. page.Measurements];
             }

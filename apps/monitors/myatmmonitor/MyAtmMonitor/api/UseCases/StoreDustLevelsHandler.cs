@@ -53,7 +53,7 @@ public sealed class StoreDustLevelsHandler
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                DateTime cursor = DateTimeUtil.AsUtc(monitor.GetLastDataTime(period) ?? MyAtmApi.JAN1_1970);
+                DateTime cursor = DateTimeUtil.AsUtc(monitor.GetLastDataTime(period) ?? DateTimeUtil.JAN1_1970);
                 for (int pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
                 {
                     MyAtmMeasurementPage<T> page = await _gateway.HttpGetDeviceMeasurementPageAsync<T>(

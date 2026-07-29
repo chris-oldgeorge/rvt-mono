@@ -21,21 +21,11 @@ public partial class RVTSearchContext : DbContext
     {
     }
 
-    public virtual DbSet<AdminDashboardDatum> AdminDashboardData { get; set; } = null!;
-
     public virtual DbSet<CompanySearch> CompanySearches { get; set; } = null!;
 
     public virtual DbSet<ContractSearch> ContractSearches { get; set; } = null!;
 
-    public virtual DbSet<CustomerDashboardMonitorDatum> CustomerDashboardMonitorData { get; set; } = null!;
-
-    public virtual DbSet<CustomerDashboardNotificationDatum> CustomerDashboardNotificationData { get; set; } = null!;
-
-    public virtual DbSet<MonitorCurrentSearch> MonitorCurrentSearches { get; set; } = null!;
-
     public virtual DbSet<MonitorSearch> MonitorSearches { get; set; } = null!;
-
-    public virtual DbSet<MonitorUserSearch> MonitorUserSearches { get; set; } = null!;
 
     public virtual DbSet<MonitorMeasurementRemovalImpact> MonitorMeasurementRemovalImpacts { get; set; } = null!;
 
@@ -50,10 +40,6 @@ public partial class RVTSearchContext : DbContext
     public virtual DbSet<NoiseLevel1hourAvg> NoiseLevel1hourAvgs { get; set; } = null!;
 
     public virtual DbSet<NoiseLevelSiteAvg> NoiseLevelSiteAvgs { get; set; } = null!;
-
-    public virtual DbSet<NotificationSearch> NotificationSearches { get; set; } = null!;
-
-    public virtual DbSet<NotificationUserSearch> NotificationUserSearches { get; set; } = null!;
 
     public virtual DbSet<OmnidotsMonitorStatus> OmnidotsMonitorStatuses { get; set; } = null!;
 
@@ -79,25 +65,15 @@ public partial class RVTSearchContext : DbContext
 
     public virtual DbSet<ReportRuleSearch> ReportRuleSearches { get; set; } = null!;
 
-    public virtual DbSet<ReportRuleUserSearch> ReportRuleUserSearches { get; set; } = null!;
-
     public virtual DbSet<ReportSearch> ReportSearches { get; set; } = null!;
 
     public virtual DbSet<ReportUser> ReportUsers { get; set; } = null!;
 
-    public virtual DbSet<ReportUserSearch> ReportUserSearches { get; set; } = null!;
-
     public virtual DbSet<SiteSearch> SiteSearches { get; set; } = null!;
-
-    public virtual DbSet<SiteUserSearch> SiteUserSearches { get; set; } = null!;
 
     public virtual DbSet<SvantekMonitorStatus> SvantekMonitorStatuses { get; set; } = null!;
 
     public virtual DbSet<UserSearch> UserSearches { get; set; } = null!;
-
-    public virtual DbSet<UsersForReportSearch> UsersForReportSearches { get; set; } = null!;
-
-    public virtual DbSet<UsersForSiteSearch> UsersForSiteSearches { get; set; } = null!;
 
     // Function summary: Handles the on configuring workflow for this module.
     // The parameterless constructor and its OnConfiguring fallback are gone; see RVTDbContext for why.
@@ -106,18 +82,6 @@ public partial class RVTSearchContext : DbContext
     {
         string dateTimeColumnType = IsPostgres() ? "timestamp without time zone" : "datetime";
         string guidDefaultSql = IsPostgres() ? "gen_random_uuid()" : "(newid())";
-
-        modelBuilder.Entity<AdminDashboardDatum>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("AdminDashboardData");
-
-            entity.Property(e => e.MonitorState)
-                .HasMaxLength(7)
-                .IsUnicode(false);
-            entity.Property(e => e.Nr).HasColumnName("nr");
-        });
 
         modelBuilder.Entity<CompanySearch>(entity =>
         {
@@ -144,41 +108,6 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.SiteAddress).HasColumnName("siteAddress");
         });
 
-        modelBuilder.Entity<CustomerDashboardMonitorDatum>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("CustomerDashboardMonitorData");
-
-            entity.Property(e => e.MonitorState)
-                .HasMaxLength(7)
-                .IsUnicode(false);
-            entity.Property(e => e.Nr).HasColumnName("nr");
-        });
-
-        modelBuilder.Entity<CustomerDashboardNotificationDatum>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("CustomerDashboardNotificationData");
-
-            entity.Property(e => e.AlertState)
-                .HasMaxLength(6)
-                .IsUnicode(false);
-            entity.Property(e => e.Nr).HasColumnName("nr");
-        });
-
-        modelBuilder.Entity<MonitorCurrentSearch>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("MonitorCurrentSearch");
-
-            entity.Property(e => e.ContractNumber).HasMaxLength(20);
-            entity.Property(e => e.FleetNr).HasMaxLength(32);
-            entity.Property(e => e.SerialId).HasMaxLength(32);
-        });
-
         modelBuilder.Entity<MonitorSearch>(entity =>
         {
             entity
@@ -188,17 +117,6 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.ContractNumber).HasMaxLength(20);
             entity.Property(e => e.FleetNr).HasMaxLength(32);
             entity.Property(e => e.MonitorName).HasMaxLength(48);
-            entity.Property(e => e.SerialId).HasMaxLength(32);
-        });
-
-        modelBuilder.Entity<MonitorUserSearch>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("MonitorUserSearch");
-
-            entity.Property(e => e.ContractNumber).HasMaxLength(20);
-            entity.Property(e => e.FleetNr).HasMaxLength(32);
             entity.Property(e => e.SerialId).HasMaxLength(32);
         });
 
@@ -309,30 +227,6 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.Lceq).HasColumnName("LCeq");
             entity.Property(e => e.Lcmax).HasColumnName("LCmax");
             entity.Property(e => e.SampleTime).HasColumnType(dateTimeColumnType);
-            entity.Property(e => e.SerialId).HasMaxLength(32);
-        });
-
-        modelBuilder.Entity<NotificationSearch>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("NotificationSearch");
-
-            entity.Property(e => e.AlertField).HasMaxLength(32);
-            entity.Property(e => e.ContractNumber).HasMaxLength(20);
-            entity.Property(e => e.FleetNr).HasMaxLength(32);
-            entity.Property(e => e.SerialId).HasMaxLength(32);
-        });
-
-        modelBuilder.Entity<NotificationUserSearch>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("NotificationUserSearch");
-
-            entity.Property(e => e.AlertField).HasMaxLength(32);
-            entity.Property(e => e.ContractNumber).HasMaxLength(20);
-            entity.Property(e => e.FleetNr).HasMaxLength(32);
             entity.Property(e => e.SerialId).HasMaxLength(32);
         });
 
@@ -485,15 +379,6 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.ReportName).HasMaxLength(128);
         });
 
-        modelBuilder.Entity<ReportRuleUserSearch>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("ReportRuleUserSearch");
-
-            entity.Property(e => e.ReportName).HasMaxLength(128);
-        });
-
         modelBuilder.Entity<ReportSearch>(entity =>
         {
             entity
@@ -512,42 +397,11 @@ public partial class RVTSearchContext : DbContext
             entity.Property(e => e.Id).ValueGeneratedNever();
         });
 
-        modelBuilder.Entity<ReportUserSearch>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("ReportUserSearch");
-
-            entity.Property(e => e.ReportLink).HasMaxLength(256);
-            entity.Property(e => e.ReportName).HasMaxLength(128);
-        });
-
         modelBuilder.Entity<SiteSearch>(entity =>
         {
             entity
                 .HasNoKey()
                 .ToView("SiteSearch");
-
-            entity.Property(e => e.AddressLine1).HasMaxLength(100);
-            entity.Property(e => e.AddressLine2).HasMaxLength(100);
-            entity.Property(e => e.City).HasMaxLength(30);
-            entity.Property(e => e.CompanyName).HasMaxLength(50);
-            entity.Property(e => e.Contracts)
-                .HasMaxLength(4000)
-                .HasColumnName("contracts");
-            entity.Property(e => e.County).HasMaxLength(30);
-            entity.Property(e => e.Postcode).HasMaxLength(10);
-            entity.Property(e => e.SiteAddress)
-                .HasMaxLength(274)
-                .HasColumnName("siteAddress");
-            entity.Property(e => e.SiteContact).HasMaxLength(256);
-        });
-
-        modelBuilder.Entity<SiteUserSearch>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("SiteUserSearch");
 
             entity.Property(e => e.AddressLine1).HasMaxLength(100);
             entity.Property(e => e.AddressLine2).HasMaxLength(100);
@@ -622,34 +476,6 @@ public partial class RVTSearchContext : DbContext
             entity
                 .HasNoKey()
                 .ToView("UserSearch");
-
-            entity.Property(e => e.CompanyName).HasMaxLength(50);
-            entity.Property(e => e.Email).HasMaxLength(256);
-            entity.Property(e => e.Id).HasMaxLength(450);
-            entity.Property(e => e.NormalizedUserName).HasMaxLength(256);
-            entity.Property(e => e.Role).HasMaxLength(256);
-            entity.Property(e => e.UserName).HasMaxLength(256);
-        });
-
-        modelBuilder.Entity<UsersForReportSearch>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("UsersForReportSearch");
-
-            entity.Property(e => e.CompanyName).HasMaxLength(50);
-            entity.Property(e => e.Email).HasMaxLength(256);
-            entity.Property(e => e.Id).HasMaxLength(450);
-            entity.Property(e => e.NormalizedUserName).HasMaxLength(256);
-            entity.Property(e => e.Role).HasMaxLength(256);
-            entity.Property(e => e.UserName).HasMaxLength(256);
-        });
-
-        modelBuilder.Entity<UsersForSiteSearch>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("UsersForSiteSearch");
 
             entity.Property(e => e.CompanyName).HasMaxLength(50);
             entity.Property(e => e.Email).HasMaxLength(256);

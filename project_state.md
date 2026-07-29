@@ -10,6 +10,22 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
+- The authoritative open-findings list is now
+  [docs/reviews/2026-07-29-full-repo-review.md](docs/reviews/2026-07-29-full-repo-review.md)
+  (third full review, superseding the 2026-07-28 one for anything still open).
+  Its P1 deletion sweep has been executed; the P0 bug list at the top of that
+  document is the next work.
+- The second dead-code sweep removed ~1,600 lines: 13 never-queried EF view
+  entities plus their DbSets, fluent config, model-snapshot blocks and
+  canonical-name approvals; the dead `IAlertlevelRepository` port/adapter pair
+  and its registration; ~12 dead service/port members (with their cascades);
+  MyAtm's compat-dead direct-delivery route (removing that monitor's last
+  production `GetAwaiter().GetResult()` and its `RVT0001` NoWarn); the three
+  dead `IMonitorRuntimeDefaultsResolver` DI registrations; and three dead
+  `LegacyMessageKind` members. `MyAtmApi` survives deliberately — it is now
+  test-only (production registration deleted, `JAN1_1970` moved to
+  `DateTimeUtil`), and retiring it is a test-migration exercise, not a
+  deletion.
 - Pull requests are gated by two workflows. `Engineering standards` grades the
   changed surface; `Tests` (added by PR #20) runs the whole `Rvt.Mono.slnx`
   suite against a TimescaleDB service container, the Portal client type check

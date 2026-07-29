@@ -54,7 +54,7 @@ public sealed class CheckForOfflineMonitorsHandler
                     DateTime offlineDateTime = DateTimeUtil.TruncateMillis(cutoff);
                     DateTime lastDataTime = monitor.LastDataTime1Min.HasValue
                         ? DateTimeUtil.AsUtc(DateTimeUtil.TruncateMillis(monitor.LastDataTime1Min.Value))
-                        : MyAtmApi.JAN1_1970;
+                        : DateTimeUtil.JAN1_1970;
 
                     if (lastDataTime >= cutoff)
                     {

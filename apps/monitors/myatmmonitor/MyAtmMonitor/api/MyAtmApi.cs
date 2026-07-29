@@ -18,12 +18,6 @@ namespace MyAtm.Api
     public class MyAtmApi
     {
 
-        // Vendor context: the "RVT Case Study" AQ Network currently has no assigned devices, so the
-        // per-customer measurements endpoint returns nothing for it. Device 18129 was once assigned
-        // there, was moved to another AQ Network, and its data is still reachable via the per-device
-        // endpoint (GET /api/customers/146/devices/18129/measurements). 18129 was added to the DB manually.
-        public static readonly DateTime JAN1_1970 = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
         private readonly StoreMonitorsHandler storeMonitors;
         private readonly CheckForOfflineMonitorsHandler checkForOfflineMonitors;
         private readonly ClearMonitorsOfflineFlagHandler clearMonitorsOfflineFlag;
@@ -83,7 +77,7 @@ namespace MyAtm.Api
                 options.MeasurementPageSize,
                 options.AccessoryPageSize);
             MyAtmMonitorReader monitorReader = new(dbClient, dbClient, testLocal);
-            MyAtmRuleProcessor ruleProcessor = new(dbClient, options.PortalBaseUrl);
+            MyAtmRuleProcessor ruleProcessor = new(dbClient);
 
             this.outboxDispatcher = outboxDispatcher ?? throw new ArgumentNullException(nameof(outboxDispatcher));
             storeMonitors = new StoreMonitorsHandler(

@@ -192,7 +192,7 @@ The MyAtm dust monitor also honors `testlocal=true`. When enabled, the app inten
 Implementation notes:
 
 - `RvtConfig.TESTLOCAL` reads the `testlocal` environment variable.
-- `MyAtmApi` captures that flag at construction time.
+- `MyAtmMonitorServices` reads that flag once and passes it to the registered monitor reader and handlers.
 - `MyAtmTestLocalMonitorFilter` filters MyAtmosphere catalog results by serial `21972`.
 - The same filter narrows database monitor reads by serial `21972` and fleet `R6025V`.
 - StoreDust, StoreAccessoryInfo, offline checks, clear-offline, and serial-specific ProcessDustLevels rules are constrained to the demo monitor when `testlocal=true`.

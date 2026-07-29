@@ -17,10 +17,7 @@ namespace RvtPortal.Spa.Application.Companies
 {
     public interface ICompanyService
     {
-        Task<bool> CompanyExist(string CompanyName, CancellationToken cancellationToken = default);
-        Task<IList<Company>> ReadAllAsync();
         Task<Company> ReadOneAsync(Guid Id);
-        Task<Company> ReadOneWithContractsAsync(Guid Id);
         Task<SearchQueryResult<CompanySearch>> Search(string CompanyName, int? page, OrderByDirectionEnum sortdir, string Sort, int PageSize, CancellationToken cancellationToken = default);
     }
 
@@ -38,31 +35,6 @@ namespace RvtPortal.Spa.Application.Companies
         public async Task<Company> ReadOneAsync(Guid Id)
         {
             return (await companyRepository.GetByIdAsync(Id))!;
-        }
-
-        // Function summary: Retrieves one with contracts data for callers.
-        public Task<Company> ReadOneWithContractsAsync(Guid Id)
-        {
-            return companyRepository.GetByIdWithContractsAsync(Id);
-        }
-        // Function summary: Retrieves all data for callers.
-        public Task<IList<Company>> ReadAllAsync()
-        {
-            return companyRepository.ReadAllAsync();
-        }
-
-        // Function summary: Handles the company exist workflow for this module.
-        public async Task<bool> CompanyExist(string CompanyName, CancellationToken cancellationToken = default)
-        {
-            List<OrderByProperty> orderBy = new();
-            orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "CompanyName" });
-
-            List<Filter> query = new()
-            {
-                new SingleFilter{ Operation = Op.Equals, PropertyName = "CompanyName", Value = CompanyName }
-        };
-            SearchQueryResult<Company> res = await companyRepository.ReadFilteredAsync(query, [.. orderBy], 100, new Paging { paged = true, page = 1, pageSize = 200 }, cancellationToken);
-            return res.RecordCount > 0;
         }
 
         // Function summary: Handles the search workflow for this module.

@@ -49,7 +49,6 @@ public sealed class CompanyQueryResult
 {
     public string? InvalidSort { get; init; }
     public IReadOnlyCollection<string> AllowedSortFields { get; init; } = CompanyApplicationService.AllowedSortFields;
-    public string? ErrorMessage { get; init; }
     public QueryCompaniesResponse? Response { get; init; }
 }
 
@@ -137,11 +136,6 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
             serviceSort,
             request.PageSize,
             cancellationToken);
-        if (!result.WasSuccessful)
-        {
-            return new CompanyQueryResult { ErrorMessage = result.ErrorMessage };
-        }
-
         int totalPages = result.RecordCount == 0 ? 0 : (int)Math.Ceiling(result.RecordCount / (double)request.PageSize);
         return new CompanyQueryResult
         {

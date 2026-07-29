@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Scheduling;
 
@@ -98,7 +97,6 @@ public static class MonitorHost
             configureLogging?.Invoke(apiBuilder.Logging);
             MonitorOpenTelemetry.ConfigureLogging(apiBuilder.Logging, apiBuilder.Configuration, monitorName);
             MonitorOpenTelemetry.ConfigureServices(apiBuilder.Services, apiBuilder.Configuration, monitorName);
-            apiBuilder.Services.AddSingleton<IMonitorRuntimeDefaultsResolver>(new MonitorRuntimeDefaultsResolver(monitorName));
             apiBuilder.Services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.Api));
             configureServices?.Invoke(apiBuilder.Services, apiBuilder.Configuration);
 
@@ -120,7 +118,6 @@ public static class MonitorHost
                 .ConfigureServices((context, services) =>
                 {
                     MonitorOpenTelemetry.ConfigureServices(services, context.Configuration, monitorName);
-                    services.AddSingleton<IMonitorRuntimeDefaultsResolver>(new MonitorRuntimeDefaultsResolver(monitorName));
                     services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.QuartzScheduler));
                     configureServices?.Invoke(services, context.Configuration);
                     services.AddMonitorQuartzScheduler<TDispatcher>(context.Configuration, monitorName, supportedJobNames);
@@ -152,7 +149,6 @@ public static class MonitorHost
             .ConfigureServices((context, services) =>
             {
                 MonitorOpenTelemetry.ConfigureServices(services, context.Configuration, monitorName);
-                services.AddSingleton<IMonitorRuntimeDefaultsResolver>(new MonitorRuntimeDefaultsResolver(monitorName));
                 services.AddSingleton(new MonitorExecutionModeContext(MonitorExecutionMode.OneShot));
                 configureServices?.Invoke(services, context.Configuration);
             })

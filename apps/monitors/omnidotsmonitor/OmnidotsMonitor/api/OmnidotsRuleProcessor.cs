@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
 using Omnidots.Model.Dto;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 
@@ -60,7 +59,7 @@ namespace Omnidots.Api
                 string notificationUrl = "";
                 if (notification.AlertType == AlertType.Alert || notification.AlertType == AlertType.Caution)
                 {
-                    notificationUrl = $"{RvtConfig.PORTAL_BASE_URL}Notification/View/{notification.Id}";
+                    notificationUrl = $"{portalBaseUrl}Notification/View/{notification.Id}";
                 }
 
                 foreach (RvtContactDto? contact in contacts.Where(x => x.Email))

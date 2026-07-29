@@ -66,16 +66,10 @@ public sealed class ReportNarrativeProviderTests
         return new ReportNarrativeContext("North Site", summary, []);
     }
 
-    private sealed class StubHandler : HttpMessageHandler
+    private sealed class StubHandler(string content, HttpStatusCode statusCode) : HttpMessageHandler
     {
-        private readonly string _content;
-        private readonly HttpStatusCode _statusCode;
-
-        public StubHandler(string content, HttpStatusCode statusCode)
-        {
-            _content = content;
-            _statusCode = statusCode;
-        }
+        private readonly string _content = content;
+        private readonly HttpStatusCode _statusCode = statusCode;
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {

@@ -70,18 +70,12 @@ namespace MyAtmMonitorTests
         public static string MeasurementsResponseJson(Period period)
         {
 
-            switch (period)
+            return period switch
             {
-                case Period.Minutes1:
-                    return TestUtil.ReadTextFromFile("testdata/measurements.json");
-                case Period.Minutes15:
-                case Period.Hours1:
-                case Period.Hours8:
-                case Period.Hours24:
-                    return TestUtil.ReadTextFromFile("testdata/measurements_avg.json");
-                default:
-                    throw AdapterException.Of("MeasurementsResponseJson Unknown Period " + period);
-            }
+                Period.Minutes1 => TestUtil.ReadTextFromFile("testdata/measurements.json"),
+                Period.Minutes15 or Period.Hours1 or Period.Hours8 or Period.Hours24 => TestUtil.ReadTextFromFile("testdata/measurements_avg.json"),
+                _ => throw AdapterException.Of("MeasurementsResponseJson Unknown Period " + period),
+            };
             ;
         }
 

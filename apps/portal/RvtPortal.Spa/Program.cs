@@ -33,6 +33,8 @@ using RvtPortal.Spa;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Auth;
 using RvtPortal.Spa.Data;
+const string readinessTag = "ready";
+const string testingEnvironment = "Testing";
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 ConfigureServices(builder);
 WebApplication app = builder.Build();
@@ -52,9 +54,9 @@ static void ConfigureServices(WebApplicationBuilder builder)
     ConfigureCors(builder);
     ConfigureSwagger(builder.Services);
     RvtDatabaseOptions databaseOptions = builder.Services.AddRvtDatabaseProvider(builder.Configuration);
-    if (builder.Environment.IsEnvironment("Testing") && string.IsNullOrWhiteSpace(databaseOptions.ConnectionString))
+    if (builder.Environment.IsEnvironment(testingEnvironment) && string.IsNullOrWhiteSpace(databaseOptions.ConnectionString))
     {
-        databaseOptions.ConnectionString = "Testing";
+        databaseOptions.ConnectionString = testingEnvironment;
     }
 
     ConfigureDatabases(builder.Services, databaseOptions);
@@ -71,10 +73,10 @@ static void ConfigureServices(WebApplicationBuilder builder)
 static void ConfigureHealthChecks(IServiceCollection services)
 {
     services.AddHealthChecks()
-        .AddDbContextCheck<ApplicationDbContext>("identity database", tags: ["ready"])
-        .AddDbContextCheck<RVTDbContext>("domain database", tags: ["ready"])
-        .AddDbContextCheck<RVTSearchContext>("search database", tags: ["ready"])
-        .AddCheck<PortalSchemaReadinessHealthCheck>("schema", tags: ["ready"]);
+        .AddDbContextCheck<ApplicationDbContext>("identity database", tags: [readinessTag])
+        .AddDbContextCheck<RVTDbContext>("domain database", tags: [readinessTag])
+        .AddDbContextCheck<RVTSearchContext>("search database", tags: [readinessTag])
+        .AddCheck<PortalSchemaReadinessHealthCheck>("schema", tags: [readinessTag]);
 }
 
 // Function summary: Binds the public SPA origin and rejects unsafe production host configuration before startup.
@@ -350,7 +352,7 @@ static void ConfigureDataProtection(WebApplicationBuilder builder)
 // Function summary: Evaluates whether the host runs in a non-local, production-style environment.
 static bool IsProductionStyleEnvironment(IHostEnvironment environment)
 {
-    return !environment.IsDevelopment() && !environment.IsEnvironment("Testing");
+    return !environment.IsDevelopment() && !environment.IsEnvironment(testingEnvironment);
 }
 
 // Function summary: Configures application cookie during application startup.
@@ -421,7 +423,7 @@ static Task RedirectApiOrBrowserAsync(RedirectContext<CookieAuthenticationOption
 // Function summary: Initializes seed data state required by the application.
 static async Task InitializeSeedDataAsync(WebApplication app)
 {
-    if (app.Environment.IsEnvironment("Testing"))
+    if (app.Environment.IsEnvironment(testingEnvironment))
     {
         return;
     }
@@ -455,7 +457,7 @@ static void ConfigurePipeline(WebApplication app)
 // Function summary: Configures environment pipeline during application startup.
 static void ConfigureEnvironmentPipeline(WebApplication app)
 {
-    if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
+    if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment(testingEnvironment))
     {
         if (app.Environment.IsDevelopment())
         {
@@ -484,7 +486,7 @@ static void MapEndpoints(WebApplication app)
     }).AllowAnonymous();
     app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
     {
-        Predicate = registration => registration.Tags.Contains("ready"),
+        Predicate = registration => registration.Tags.Contains(readinessTag),
         ResponseWriter = WriteHealthResponseAsync
     }).AllowAnonymous();
     app.MapControllers();

@@ -39,7 +39,7 @@ public sealed class DurableAlertOptionsValidator : IValidateOptions<DurableAlert
             : ValidateOptionsResult.Fail(failures);
     }
 
-    private static void RequirePositive(int value, string propertyName, ICollection<string> failures)
+    private static void RequirePositive(int value, string propertyName, List<string> failures)
     {
         if (value <= 0)
         {

@@ -35,9 +35,9 @@ public static class MonitorApiMapper
     {
         return new MonitorOptionsResponse
         {
-            MonitorTypes = model.MonitorTypes.Select(ToOptionItem).ToList(),
-            Contracts = model.Contracts.Select(ToOptionItem).ToList(),
-            Sites = model.Sites.Select(ToOptionItem).ToList()
+            MonitorTypes = [.. model.MonitorTypes.Select(ToOptionItem)],
+            Contracts = [.. model.Contracts.Select(ToOptionItem)],
+            Sites = [.. model.Sites.Select(ToOptionItem)]
         };
     }
 
@@ -50,7 +50,7 @@ public static class MonitorApiMapper
             SiteName = model.SiteName,
             ContractId = model.ContractId,
             ContractNumber = model.ContractNumber,
-            Contracts = model.Contracts.Select(ToOptionItem).ToList(),
+            Contracts = [.. model.Contracts.Select(ToOptionItem)],
             AvailableMonitors = model.AvailableMonitors,
             AssignedMonitors = model.AssignedMonitors
         };

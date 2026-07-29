@@ -260,5 +260,5 @@ namespace MyAtm.Model.Json
         [JsonPropertyName("infos_sensor_status_co")]
         public string? InfosSensorStatusCO { get; set; }
     }
-}
 
+}

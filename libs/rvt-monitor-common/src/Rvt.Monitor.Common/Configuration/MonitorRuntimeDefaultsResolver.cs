@@ -7,13 +7,8 @@ public interface IMonitorRuntimeDefaultsResolver
     MonitorRuntimeDefaults Defaults { get; }
 }
 
-public sealed class MonitorRuntimeDefaultsResolver : IMonitorRuntimeDefaultsResolver
+public sealed class MonitorRuntimeDefaultsResolver(string monitorKind) : IMonitorRuntimeDefaultsResolver
 {
-    public MonitorRuntimeDefaultsResolver(string monitorKind)
-    {
-        Defaults = RvtConfig.ResolveMonitorDefaults(monitorKind, AppContext.BaseDirectory,
+    public MonitorRuntimeDefaults Defaults { get; } = RvtConfig.ResolveMonitorDefaults(monitorKind, AppContext.BaseDirectory,
             Assembly.GetEntryAssembly()?.GetName().Name ?? string.Empty);
-    }
-
-    public MonitorRuntimeDefaults Defaults { get; }
 }

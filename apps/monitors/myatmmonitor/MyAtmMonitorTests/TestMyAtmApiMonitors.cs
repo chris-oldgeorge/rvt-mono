@@ -50,20 +50,20 @@ namespace MyAtmMonitorTests
                                                 out Mock<IMqttClient> mqttClient,
                                                 out Mock<INotificationDeliveryService> messageClient);
 
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100")).
-                    Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DevicesResponseJson()));
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100", TestContext.CancellationToken)).
+                    Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DevicesResponseJson(), TestContext.CancellationToken));
 
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/11111")).
-                Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DeviceInfoResponseJson("11111")));
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/11111", TestContext.CancellationToken)).
+                Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DeviceInfoResponseJson("11111"), TestContext.CancellationToken));
 
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/22222")).
-                Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DeviceInfoResponseJson("22222")));
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/22222", TestContext.CancellationToken)).
+                Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DeviceInfoResponseJson("22222"), TestContext.CancellationToken));
 
-            await testObj.StoreMonitorsAsync(123);
+            await testObj.StoreMonitorsAsync(123, TestContext.CancellationToken);
 
-            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices/11111"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices/22222"), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100", TestContext.CancellationToken), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices/11111", TestContext.CancellationToken), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices/22222", TestContext.CancellationToken), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.WriteMonitorList(
@@ -90,48 +90,48 @@ namespace MyAtmMonitorTests
             };
             MyAtmApi testObj = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object, false, options);
 
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=2"))
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=2", TestContext.CancellationToken))
                 .ReturnsAsync(MyAtmFixture.DevicesResponseJson());
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=2&$top=2"))
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=2&$top=2", TestContext.CancellationToken))
                 .ReturnsAsync("""
-                    [
-                      {
-                        "serialNumber": "33333",
-                        "model": "AQ Guard",
-                        "displayName": "Dust - Test - 33333",
-                        "sharedPublicly": false,
-                        "includeInMonitoring": true,
-                        "currentLocation": {
-                          "id": 3,
-                          "deviceSerialNumber": "33333",
-                          "customerId": 123,
-                          "latitude": 12.345678,
-                          "longitude": 87.654321,
-                          "address": "3 The Street",
-                          "timeZone": "Europe/London",
-                          "effectiveSince": "2023-09-06T12:19:44.682+00:00",
-                          "effectiveTill": null,
-                          "current": true
-                        },
-                        "currentCustomerAssignment": {
-                          "customerDisplayName": "RVT-Test",
-                          "customerId": 123,
-                          "effectiveSince": "2023-09-06T12:19:30.496431+00:00"
-                        }
-                      }
-                    ]
-                    """);
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/11111"))
+                [
+                  {
+                    "serialNumber": "33333",
+                    "model": "AQ Guard",
+                    "displayName": "Dust - Test - 33333",
+                    "sharedPublicly": false,
+                    "includeInMonitoring": true,
+                    "currentLocation": {
+                      "id": 3,
+                      "deviceSerialNumber": "33333",
+                      "customerId": 123,
+                      "latitude": 12.345678,
+                      "longitude": 87.654321,
+                      "address": "3 The Street",
+                      "timeZone": "Europe/London",
+                      "effectiveSince": "2023-09-06T12:19:44.682+00:00",
+                      "effectiveTill": null,
+                      "current": true
+                    },
+                    "currentCustomerAssignment": {
+                      "customerDisplayName": "RVT-Test",
+                      "customerId": 123,
+                      "effectiveSince": "2023-09-06T12:19:30.496431+00:00"
+                    }
+                  }
+                ]
+                """);
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/11111", TestContext.CancellationToken))
                 .ReturnsAsync(MyAtmFixture.DeviceInfoResponseJson("11111"));
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/22222"))
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/22222", TestContext.CancellationToken))
                 .ReturnsAsync(MyAtmFixture.DeviceInfoResponseJson("22222"));
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/33333"))
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/33333", TestContext.CancellationToken))
                 .ReturnsAsync(MyAtmFixture.DeviceInfoResponseJson("33333"));
 
-            await testObj.StoreMonitorsAsync(123);
+            await testObj.StoreMonitorsAsync(123, TestContext.CancellationToken);
 
-            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=2"), Times.Once);
-            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=2&$top=2"), Times.Once);
+            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=2", TestContext.CancellationToken), Times.Once);
+            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=2&$top=2", TestContext.CancellationToken), Times.Once);
             dbClient.Verify(c => c.WriteMonitorList(It.IsAny<List<DustMonitorDto>>()), Times.Exactly(2));
         }
 
@@ -144,24 +144,24 @@ namespace MyAtmMonitorTests
                                                 out Mock<INotificationDeliveryService> messageClient,
                                                 testLocal: true);
 
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100")).
-                    Returns(Task<string>.Factory.StartNew(() => TestLocalDevicesJson()));
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100", TestContext.CancellationToken)).
+                    Returns(Task<string>.Factory.StartNew(() => TestLocalDevicesJson(), TestContext.CancellationToken));
 
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/21972")).
-                Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DeviceInfoResponseJson("21972")));
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/21972", TestContext.CancellationToken)).
+                Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DeviceInfoResponseJson("21972"), TestContext.CancellationToken));
 
-            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/99999")).
-                Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DeviceInfoResponseJson("99999")));
+            httpClient.Setup(c => c.GetAsync("/api/customers/123/devices/99999", TestContext.CancellationToken)).
+                Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DeviceInfoResponseJson("99999"), TestContext.CancellationToken));
 
-            await testObj.StoreMonitorsAsync(123);
+            await testObj.StoreMonitorsAsync(123, TestContext.CancellationToken);
 
             dbClient.Verify(c => c.WriteMonitorList(It.Is<List<DustMonitorDto>>(
                 monitors => monitors.Count == 1 && monitors[0].SerialId == "21972")), Times.Exactly(1));
             dbClient.VerifyNoOtherCalls();
 
-            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices/21972"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices/99999"), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100", TestContext.CancellationToken), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices/21972", TestContext.CancellationToken), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/api/customers/123/devices/99999", TestContext.CancellationToken), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.VerifyNoOtherCalls();
@@ -170,57 +170,57 @@ namespace MyAtmMonitorTests
 
         private static string TestLocalDevicesJson() =>
             """
-            [
-              {
-                "serialNumber": "99999",
-                "model": "AQ Guard",
-                "displayName": "Dust - Other - 99999",
-                "sharedPublicly": false,
-                "includeInMonitoring": false,
-                "currentLocation": {
-                  "id": 1,
-                  "deviceSerialNumber": "99999",
-                  "customerId": 123,
-                  "latitude": 12.345678,
-                  "longitude": 87.654321,
-                  "address": "1 The Street",
-                  "timeZone": "Europe/London",
-                  "effectiveSince": "2023-09-06T12:19:44.682+00:00",
-                  "effectiveTill": null,
-                  "current": true
-                },
-                "currentCustomerAssignment": {
-                  "customerDisplayName": "RVT-Test",
-                  "customerId": 123,
-                  "effectiveSince": "2023-09-06T12:19:30.496431+00:00"
-                }
-              },
-              {
-                "serialNumber": "21972",
-                "model": "AQ Guard",
-                "displayName": "Dust - R6025V - 21972",
-                "sharedPublicly": false,
-                "includeInMonitoring": true,
-                "currentLocation": {
-                  "id": 2,
-                  "deviceSerialNumber": "21972",
-                  "customerId": 123,
-                  "latitude": 12.345678,
-                  "longitude": 87.654321,
-                  "address": "2 The Street",
-                  "timeZone": "Europe/London",
-                  "effectiveSince": "2023-09-06T12:19:44.682+00:00",
-                  "effectiveTill": null,
-                  "current": true
-                },
-                "currentCustomerAssignment": {
-                  "customerDisplayName": "RVT-Test",
-                  "customerId": 123,
-                  "effectiveSince": "2023-09-06T12:19:30.496431+00:00"
-                }
-              }
-            ]
-            """;
+        [
+          {
+            "serialNumber": "99999",
+            "model": "AQ Guard",
+            "displayName": "Dust - Other - 99999",
+            "sharedPublicly": false,
+            "includeInMonitoring": false,
+            "currentLocation": {
+              "id": 1,
+              "deviceSerialNumber": "99999",
+              "customerId": 123,
+              "latitude": 12.345678,
+              "longitude": 87.654321,
+              "address": "1 The Street",
+              "timeZone": "Europe/London",
+              "effectiveSince": "2023-09-06T12:19:44.682+00:00",
+              "effectiveTill": null,
+              "current": true
+            },
+            "currentCustomerAssignment": {
+              "customerDisplayName": "RVT-Test",
+              "customerId": 123,
+              "effectiveSince": "2023-09-06T12:19:30.496431+00:00"
+            }
+          },
+          {
+            "serialNumber": "21972",
+            "model": "AQ Guard",
+            "displayName": "Dust - R6025V - 21972",
+            "sharedPublicly": false,
+            "includeInMonitoring": true,
+            "currentLocation": {
+              "id": 2,
+              "deviceSerialNumber": "21972",
+              "customerId": 123,
+              "latitude": 12.345678,
+              "longitude": 87.654321,
+              "address": "2 The Street",
+              "timeZone": "Europe/London",
+              "effectiveSince": "2023-09-06T12:19:44.682+00:00",
+              "effectiveTill": null,
+              "current": true
+            },
+            "currentCustomerAssignment": {
+              "customerDisplayName": "RVT-Test",
+              "customerId": 123,
+              "effectiveSince": "2023-09-06T12:19:30.496431+00:00"
+            }
+          }
+        ]
+        """;
 
         [TestMethod]
         public async Task TestStoreAccessoryInfo_Success()
@@ -229,8 +229,8 @@ namespace MyAtmMonitorTests
                          out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 656;
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements/accessory"))).
-                                 Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.AccessoryResponseJson()));
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements/accessory"), TestContext.CancellationToken)).
+                                 Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.AccessoryResponseJson(), TestContext.CancellationToken));
 
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(MyAtmFixture.CustomerDeviceDtos(null));
@@ -240,10 +240,10 @@ namespace MyAtmMonitorTests
                     It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
 
-            await testObj.StoreAccessoryInfoAsync(customerId);
+            await testObj.StoreAccessoryInfoAsync(customerId, TestContext.CancellationToken);
 
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.AccessoryPageRequestPattern(656, "11111"))), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.AccessoryPageRequestPattern(656, "22222"))), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.AccessoryPageRequestPattern(656, "11111")), TestContext.CancellationToken), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.AccessoryPageRequestPattern(656, "22222")), TestContext.CancellationToken), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.VerifyNoOtherCalls();
@@ -269,7 +269,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), It.IsAny<DateTime?>())).
                 Returns([]);
 
-            await testObj.CheckForOfflineMonitorsAsync(customerId);
+            await testObj.CheckForOfflineMonitorsAsync(customerId, TestContext.CancellationToken);
 
             httpClient.VerifyNoOtherCalls();
 
@@ -306,7 +306,7 @@ namespace MyAtmMonitorTests
                 .Callback<MyAtmAlertCommit, CancellationToken>((commit, _) => commits.Add(commit))
                 .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
 
-            await testObj.CheckForOfflineMonitorsAsync(customerId);
+            await testObj.CheckForOfflineMonitorsAsync(customerId, TestContext.CancellationToken);
 
             httpClient.VerifyNoOtherCalls();
 
@@ -360,7 +360,7 @@ namespace MyAtmMonitorTests
             }
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), It.IsAny<DateTime?>())).Returns(monitors);
 
-            await testObj.CheckForOfflineMonitorsAsync(customerId);
+            await testObj.CheckForOfflineMonitorsAsync(customerId, TestContext.CancellationToken);
 
             httpClient.VerifyNoOtherCalls();
 
@@ -387,5 +387,7 @@ namespace MyAtmMonitorTests
             mqttClient.VerifyNoOtherCalls();
             messageClient.VerifyNoOtherCalls();
         }
+
+        public TestContext TestContext { get; set; } = null!;
     }
 }

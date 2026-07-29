@@ -220,7 +220,7 @@ public sealed class TestReportingApiEndpoints
         return (context.Response.StatusCode, await JsonDocument.ParseAsync(context.Response.Body));
     }
 
-    private static EndpointFilterInvocationContext CreateInvocationContext(string? suppliedKey = null)
+    private static TestEndpointFilterInvocationContext CreateInvocationContext(string? suppliedKey = null)
     {
         DefaultHttpContext context = new();
         if (suppliedKey is not null)

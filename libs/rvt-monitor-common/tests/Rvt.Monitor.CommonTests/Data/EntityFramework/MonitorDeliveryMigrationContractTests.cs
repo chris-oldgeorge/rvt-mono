@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Rvt.Monitor.CommonTests.Data.EntityFramework;
 
 [TestClass]
-public sealed class MonitorDeliveryMigrationContractTests
+public sealed partial class MonitorDeliveryMigrationContractTests
 {
     private const string PostgreSqlMigration = "2026-07-15-add-monitor-delivery-outbox.postgres.sql";
 
@@ -12,15 +12,15 @@ public sealed class MonitorDeliveryMigrationContractTests
     {
         string sql = ReadMigration(PostgreSqlMigration);
 
-        StringAssert.Contains(sql, "CREATE TABLE IF NOT EXISTS monitor_delivery_outbox");
-        StringAssert.Contains(sql, "UNIQUE (producer, delivery_key)");
-        StringAssert.Contains(sql, "CHECK (status IN ('Pending', 'InProgress', 'Completed', 'DeadLetter'))");
-        StringAssert.Contains(sql, "REFERENCES notification (id) ON DELETE SET NULL");
-        StringAssert.Contains(sql, "dead_lettered_at timestamp with time zone NULL");
-        StringAssert.Contains(sql, "CREATE INDEX IF NOT EXISTS ix_monitor_delivery_outbox_due");
-        StringAssert.Contains(sql, "ON monitor_delivery_outbox (producer, status, next_attempt_at)");
-        StringAssert.Contains(sql, "DO $$");
-        Assert.HasCount(1, Regex.Matches(sql, @"\bCREATE\s+TABLE\b", RegexOptions.IgnoreCase));
+        Assert.Contains("CREATE TABLE IF NOT EXISTS monitor_delivery_outbox", sql);
+        Assert.Contains("UNIQUE (producer, delivery_key)", sql);
+        Assert.Contains("CHECK (status IN ('Pending', 'InProgress', 'Completed', 'DeadLetter'))", sql);
+        Assert.Contains("REFERENCES notification (id) ON DELETE SET NULL", sql);
+        Assert.Contains("dead_lettered_at timestamp with time zone NULL", sql);
+        Assert.Contains("CREATE INDEX IF NOT EXISTS ix_monitor_delivery_outbox_due", sql);
+        Assert.Contains("ON monitor_delivery_outbox (producer, status, next_attempt_at)", sql);
+        Assert.Contains("DO $$", sql);
+        Assert.HasCount(1, CreateTablePattern().Matches(sql));
         Assert.DoesNotContain("ALTER TABLE notification ", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ALTER TABLE notification_sent", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("CREATE TABLE notification ", sql, StringComparison.OrdinalIgnoreCase);
@@ -53,4 +53,7 @@ public sealed class MonitorDeliveryMigrationContractTests
         Assert.Fail("Could not find repository root from test output directory.");
         return string.Empty;
     }
+
+    [GeneratedRegex(@"\bCREATE\s+TABLE\b", RegexOptions.IgnoreCase)]
+    private static partial Regex CreateTablePattern();
 }

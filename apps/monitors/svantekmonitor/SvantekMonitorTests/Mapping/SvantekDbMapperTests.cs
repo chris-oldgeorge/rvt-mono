@@ -3,7 +3,6 @@ using Svantek.Api;
 using Svantek.Api.Db.EntityFramework;
 using Svantek.Api.Db.Mapping;
 using Svantek.Model.Dto;
-using SvantekMonitor.model.dto;
 
 namespace SvantekMonitorTests.Mapping;
 

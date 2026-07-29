@@ -6,7 +6,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { ConfirmDialog, FormField, Notice, SubmitButton } from './FormControls';
 
@@ -79,7 +79,7 @@ describe('FormControls', () => {
 function SubmitHarness({ onSubmit }: Readonly<{ onSubmit: () => Promise<void> }>) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     if (isSubmitting) {
       return;

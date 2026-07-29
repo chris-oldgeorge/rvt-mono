@@ -6,7 +6,7 @@ namespace Svantek.Model.Http
     public class MultiDataResponse
     {
         public string status { get; set; } = string.Empty;
-        public List<MultiData> data { get; set; } = new();
+        public List<MultiData> data { get; set; } = [];
     }
 
     public class MultiData
@@ -18,13 +18,13 @@ namespace Svantek.Model.Http
     public class DataResponse
     {
         public string status { get; set; } = string.Empty;
-        public List<DataPoints> results { get; set; } = new();
+        public List<DataPoints> results { get; set; } = [];
     }
 
     public class DataPoints
     {
-        public List<Key> keys { get; set; } = new();
-        public List<DataPoint> data { get; set; } = new();
+        public List<Key> keys { get; set; } = [];
+        public List<DataPoint> data { get; set; } = [];
     }
 
     public class Key
@@ -35,7 +35,7 @@ namespace Svantek.Model.Http
     public class DataPoint
     {
         public string timestamp { get; set; } = string.Empty;
-        public List<string> values { get; set; } = new();
+        public List<string> values { get; set; } = [];
     }
 
     public class MultiDataArgument

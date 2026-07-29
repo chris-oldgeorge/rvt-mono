@@ -41,7 +41,7 @@ public sealed class StoreMonitorsHandlerTests
         StoreMonitorsHandler handler = CreateHandler(http, monitorCommands, operational, maxPages: 5);
 
         MyAtmJobAggregateException exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
-            handler.RunAsync(123));
+            handler.RunAsync(123, TestContext.CancellationToken));
 
         Assert.HasCount(1, exception.Failures);
         Assert.AreEqual("StoreMonitors serialId=11111", exception.Failures[0].Identifier);
@@ -82,7 +82,7 @@ public sealed class StoreMonitorsHandlerTests
         StoreMonitorsHandler handler = CreateHandler(http, monitorCommands, operational, maxPages: 5);
 
         MyAtmJobAggregateException exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
-            handler.RunAsync(123));
+            handler.RunAsync(123, TestContext.CancellationToken));
 
         Assert.HasCount(1, exception.Failures);
         http.Verify(client => client.GetAsync(
@@ -122,7 +122,7 @@ public sealed class StoreMonitorsHandlerTests
         StoreMonitorsHandler handler = CreateHandler(http, monitorCommands, operational, maxPages: 1);
 
         MyAtmJobAggregateException exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
-            handler.RunAsync(123));
+            handler.RunAsync(123, TestContext.CancellationToken));
 
         Assert.HasCount(1, exception.Failures);
         http.VerifyAll();
@@ -149,4 +149,6 @@ public sealed class StoreMonitorsHandlerTests
             devicePageSize: 2,
             maxDevicePagesPerRun: maxPages);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

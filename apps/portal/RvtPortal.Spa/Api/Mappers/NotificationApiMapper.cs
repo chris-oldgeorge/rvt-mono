@@ -13,7 +13,7 @@ public static class NotificationApiMapper
     {
         return new QueryNotificationsResponse
         {
-            Results = result.Results.Select(ToListItem).ToList(),
+            Results = [.. result.Results.Select(ToListItem)],
             Total = result.Total,
             Page = result.Page,
             PageSize = result.PageSize,
@@ -68,8 +68,8 @@ public static class NotificationApiMapper
             RecordingLink = model.RecordingLink,
             GraphFromUtc = model.GraphFromUtc,
             GraphToUtc = model.GraphToUtc,
-            RelatedNotifications = model.RelatedNotifications.Select(ToListItem).ToList(),
-            AlertLevels = model.AlertLevels.Select(ToAlertLevelItem).ToList()
+            RelatedNotifications = [.. model.RelatedNotifications.Select(ToListItem)],
+            AlertLevels = [.. model.AlertLevels.Select(ToAlertLevelItem)]
         };
     }
 

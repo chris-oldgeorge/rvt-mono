@@ -15,7 +15,8 @@ namespace RvtPortal.Spa.Adapters.Storage;
 
 public sealed class MonitorPictureStorage : IMonitorPictureStorage
 {
-    private const string LocalPrefix = "monitor-pictures/";
+    private const string MonitorPicturesDirectory = "monitor-pictures";
+    private const string LocalPrefix = MonitorPicturesDirectory + "/";
     private const string BlobPrefix = "blob://";
     private readonly IConfiguration configuration;
     private readonly IBlobStorageClientFactory blobStorageClientFactory;
@@ -47,7 +48,7 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
             return $"{BlobPrefix}{ContainerName()}/{fileName}";
         }
 
-        string directory = Path.Combine(ContentRoot(), "App_Data", "monitor-pictures");
+        string directory = Path.Combine(ContentRoot(), "App_Data", MonitorPicturesDirectory);
         Directory.CreateDirectory(directory);
         string path = Path.Combine(directory, fileName);
         await using FileStream stream = File.Create(path);
@@ -84,7 +85,7 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
             return;
         }
 
-        string protectedPath = Path.Combine(ContentRoot(), "App_Data", "monitor-pictures", fileName);
+        string protectedPath = Path.Combine(ContentRoot(), "App_Data", MonitorPicturesDirectory, fileName);
         if (File.Exists(protectedPath))
         {
             File.Delete(protectedPath);
@@ -124,7 +125,7 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
             return null;
         }
 
-        string protectedPath = Path.Combine(ContentRoot(), "App_Data", "monitor-pictures", fileName);
+        string protectedPath = Path.Combine(ContentRoot(), "App_Data", MonitorPicturesDirectory, fileName);
         string? path = File.Exists(protectedPath)
             ? protectedPath
             : LegacyStaticPath(fileName);
@@ -155,7 +156,7 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
 
     private string ContainerName()
     {
-        return configuration["BlobStorage:MonitorImagesContainer"] ?? "monitor-pictures";
+        return configuration["BlobStorage:MonitorImagesContainer"] ?? MonitorPicturesDirectory;
     }
 
     private string ContentRoot()
@@ -170,7 +171,7 @@ public sealed class MonitorPictureStorage : IMonitorPictureStorage
         string webRoot = string.IsNullOrWhiteSpace(environment.WebRootPath)
             ? Path.Combine(AppContext.BaseDirectory, "wwwroot")
             : environment.WebRootPath;
-        string legacyPath = Path.Combine(webRoot, "monitor-pictures", fileName);
+        string legacyPath = Path.Combine(webRoot, MonitorPicturesDirectory, fileName);
         return File.Exists(legacyPath) ? legacyPath : null;
     }
 

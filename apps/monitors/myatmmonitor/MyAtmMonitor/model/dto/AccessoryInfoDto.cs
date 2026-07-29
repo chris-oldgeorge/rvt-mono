@@ -102,5 +102,5 @@ namespace MyAtm.Model.Dto
             DigitalEvaporationHeating = a.DigitalEvaporationHeating;
         }
     }
-}
 
+}

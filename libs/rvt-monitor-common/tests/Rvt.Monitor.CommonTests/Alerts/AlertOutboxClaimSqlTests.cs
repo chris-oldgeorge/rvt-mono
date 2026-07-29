@@ -11,21 +11,21 @@ public sealed class AlertOutboxClaimSqlTests
     {
         string sql = AlertOutboxClaimSql.Statement;
 
-        StringAssert.Contains(sql, "WITH candidate AS", StringComparison.OrdinalIgnoreCase);
-        StringAssert.Contains(sql, "FOR UPDATE SKIP LOCKED", StringComparison.OrdinalIgnoreCase);
-        StringAssert.Contains(sql, "LIMIT 1", StringComparison.OrdinalIgnoreCase);
-        StringAssert.Contains(
-            sql,
+        Assert.Contains("WITH candidate AS", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("FOR UPDATE SKIP LOCKED", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("LIMIT 1", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
             "UPDATE alert_delivery_outbox AS target",
-            StringComparison.OrdinalIgnoreCase);
-        StringAssert.Contains(
             sql,
-            "attempt_count = attempt_count + 1",
             StringComparison.OrdinalIgnoreCase);
-        StringAssert.Contains(sql, "RETURNING target.*", StringComparison.OrdinalIgnoreCase);
-        StringAssert.Contains(sql, "@now", StringComparison.Ordinal);
-        StringAssert.Contains(sql, "@leaseId", StringComparison.Ordinal);
-        StringAssert.Contains(sql, "@leaseUntil", StringComparison.Ordinal);
+        Assert.Contains(
+            "attempt_count = attempt_count + 1",
+            sql,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("RETURNING target.*", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("@now", sql, StringComparison.Ordinal);
+        Assert.Contains("@leaseId", sql, StringComparison.Ordinal);
+        Assert.Contains("@leaseUntil", sql, StringComparison.Ordinal);
     }
 
     [TestMethod]

@@ -2,7 +2,7 @@ namespace Rvt.Storage;
 
 public sealed class ObjectStorageClientFactory : IObjectStorageClientFactory
 {
-    private readonly IReadOnlyDictionary<string, IObjectStorageClient> clients;
+    private readonly Dictionary<string, IObjectStorageClient> _clients;
 
     public ObjectStorageClientFactory(
         IEnumerable<ObjectStorageClientRegistration> registrations)
@@ -26,7 +26,7 @@ public sealed class ObjectStorageClientFactory : IObjectStorageClientFactory
             }
         }
 
-        clients = registeredClients;
+        _clients = registeredClients;
     }
 
     public IObjectStorageClient GetRequiredClient(string resourceName)
@@ -36,7 +36,7 @@ public sealed class ObjectStorageClientFactory : IObjectStorageClientFactory
             throw new ArgumentException("Object storage resource name cannot be blank.", nameof(resourceName));
         }
 
-        return clients.TryGetValue(resourceName, out IObjectStorageClient? client)
+        return _clients.TryGetValue(resourceName, out IObjectStorageClient? client)
             ? client
             : throw new InvalidOperationException(
                 $"Object storage resource '{resourceName}' is not registered.");

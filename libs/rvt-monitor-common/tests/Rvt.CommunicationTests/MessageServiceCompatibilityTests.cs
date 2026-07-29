@@ -51,7 +51,7 @@ public sealed class MessageServiceCompatibilityTests
                     request.Kind == NotificationMessageKind.Alert &&
                     request.Channel == NotificationChannel.Sms &&
                     request.Destination == "+441234567890"),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .Returns(Task.CompletedTask);
         MessageService service = new(delivery.Object);
 
@@ -59,7 +59,7 @@ public sealed class MessageServiceCompatibilityTests
             LegacyMessageKind.Alert,
             LegacyMessageChannel.SMS,
             new RvtContactDto(false, true, string.Empty, "+441234567890", null, null),
-            "fleet-1");
+            "fleet-1", cancellationToken: TestContext.CancellationToken);
 
         delivery.VerifyAll();
     }
@@ -70,7 +70,7 @@ public sealed class MessageServiceCompatibilityTests
         Mock<INotificationDeliveryService> delivery = new(MockBehavior.Strict);
         delivery.Setup(x => x.SendAsync(
                 It.IsAny<NotificationDeliveryRequest>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ThrowsAsync(new EmailDeliveryException(
                 "SendGrid",
                 DeliveryFailureKind.Permanent,
@@ -82,7 +82,7 @@ public sealed class MessageServiceCompatibilityTests
                 LegacyMessageKind.Alert,
                 LegacyMessageChannel.Email,
                 new RvtContactDto(true, false, "ops@example.test", null, null, null),
-                "fleet-1"));
+                "fleet-1", cancellationToken: TestContext.CancellationToken));
 
         Assert.AreEqual("ops@example.test", exception.Address);
         Assert.AreEqual("SendGrid email delivery failed (Permanent, code 400).", exception.Message);
@@ -99,7 +99,7 @@ public sealed class MessageServiceCompatibilityTests
                 LegacyMessageKind.Alert,
                 LegacyMessageChannel.Both,
                 new RvtContactDto(true, true, "ops@example.test", "+441234567890", null, null),
-                "fleet-1"));
+                "fleet-1", cancellationToken: TestContext.CancellationToken));
 
         delivery.VerifyNoOtherCalls();
     }
@@ -115,7 +115,7 @@ public sealed class MessageServiceCompatibilityTests
                 LegacyMessageKind.Password_Set,
                 LegacyMessageChannel.Email,
                 new RvtContactDto(true, false, "ops@example.test", null, null, null),
-                "fleet-1"));
+                "fleet-1", cancellationToken: TestContext.CancellationToken));
 
         delivery.VerifyNoOtherCalls();
     }
@@ -142,4 +142,6 @@ public sealed class MessageServiceCompatibilityTests
 
         Assert.IsTrue(delivered);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

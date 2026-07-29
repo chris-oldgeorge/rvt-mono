@@ -7,7 +7,7 @@
     <UserSecretsId>rvtportal-spa-alpha-dev</UserSecretsId>
     <SpaRoot>..\RvtPortal.Client\</SpaRoot>
     <SpaProxyServerUrl>http://localhost:5173</SpaProxyServerUrl>
-    <SpaProxyLaunchCommand>node.exe node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort</SpaProxyLaunchCommand>
+    <SpaProxyLaunchCommand>node.exe scripts/start-vite-for-visual-studio.mjs</SpaProxyLaunchCommand>
   </PropertyGroup>
 
   <ItemGroup>
@@ -42,7 +42,7 @@
     <ProjectReference Include="..\RVT.Entities\RVT.Entities.csproj" />
   </ItemGroup>
 
-  <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">
+  <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And '$(OS)' != 'Windows_NT' And !Exists('$(SpaRoot)node_modules') ">
     <Exec Command="node --version" ContinueOnError="true">
       <Output TaskParameter="ExitCode" PropertyName="ErrorCode" />
     </Exec>

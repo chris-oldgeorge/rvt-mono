@@ -74,8 +74,16 @@ superseded narratives to the archive.
 
 ## Standing working-tree notes
 
-- A developer-local `apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj` variant
-  (Visual Studio `npm run dev:vs` proxy + a reference to the deleted
-  `RVT.Utilities`) was retired from the working tree on 2026-07-29; a backup
-  copy sits in the session scratchpad. The committed proxy command from PR #8
-  is the supported configuration and is pinned by `SpaProxyConfigurationTests`.
+- `main` carries the Windows/Parallels SPA proxy repair:
+  `RvtPortal.Spa.csproj` launches
+  `RvtPortal.Client/scripts/start-vite-for-visual-studio.mjs`, and
+  `SpaProxyConfigurationTests` pins that boundary. The launcher installs the
+  lockfile-specific Windows npm tree below
+  `%LOCALAPPDATA%\RvtPortal\spa-dependencies`, mirrors the shared client source
+  into a Windows-local workspace with `robocopy /MIR`, and runs Vite entirely
+  from NTFS. The mirror repeats every second so edits in the shared checkout
+  still trigger Vite/HMR. It uses the standard Windows `LOCALAPPDATA` and
+  `ComSpec` variables; no new repository or user variable is required.
+- The Windows ARM VM verification builds `RvtPortal.Spa` with zero warnings or
+  errors, starts Vite 6.4.3 on port 5173, serves the HTML shell, and returns a
+  transformed (non-error-overlay) `src/main.tsx` module.

@@ -3,18 +3,18 @@ using System.Text.RegularExpressions;
 using Npgsql;
 using Rvt.Monitor.IntegrationTesting;
 
-namespace OmnidotsMonitorTests.EntityFramework;
+namespace OmnidotsAdapterTests;
 
 [TestClass]
 public sealed class OmnidotsAlertMigrationContractTests
 {
-    private const string ForwardScript = "2026-07-15-add-common-durable-alerts.sql";
-    private const string RollbackScript = "2026-07-15-rollback-common-durable-alerts.sql";
+    private const string _forwardScript = "2026-07-15-add-common-durable-alerts.sql";
+    private const string _rollbackScript = "2026-07-15-rollback-common-durable-alerts.sql";
 
     [TestMethod]
     public void PostgreSqlForward_IsTransactionalIdempotentAndDefinesDurableAlertConstraints()
     {
-        string script = NormalizeSql(RemoveComments(ReadScript("postgres", ForwardScript)));
+        string script = NormalizeSql(RemoveComments(ReadScript("postgres", _forwardScript)));
 
         Assert.IsTrue(script.StartsWith("BEGIN;", StringComparison.Ordinal));
         Assert.IsTrue(script.EndsWith("COMMIT;", StringComparison.Ordinal));
@@ -38,7 +38,7 @@ public sealed class OmnidotsAlertMigrationContractTests
     [TestMethod]
     public void PostgreSqlRollback_IsTransactionalIdempotentAndDropsDependentsFirst()
     {
-        string rawScript = ReadScript("postgres", RollbackScript);
+        string rawScript = ReadScript("postgres", _rollbackScript);
         string script = NormalizeSql(RemoveComments(rawScript));
 
         Assert.IsTrue(script.StartsWith("BEGIN;", StringComparison.Ordinal));
@@ -67,7 +67,7 @@ public sealed class OmnidotsAlertMigrationContractTests
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
         await using PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(prerequisiteSchema, "SELECT 1;", timeout.Token);
 
-        string forward = ReadScript("postgres", ForwardScript);
+        string forward = ReadScript("postgres", _forwardScript);
         await ExecutePostgreSqlAsync(database, forward, timeout.Token);
         await ExecutePostgreSqlAsync(database, forward, timeout.Token);
 
@@ -76,7 +76,7 @@ public sealed class OmnidotsAlertMigrationContractTests
         Assert.AreEqual(1L, await QueryScalarAsync<long>(database, "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'alert_delivery_outbox' AND indexname = 'uq_alert_delivery_outbox_delivery_key';", timeout.Token));
         Assert.AreEqual(1L, await QueryScalarAsync<long>(database, "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'alert_delivery_outbox' AND indexname = 'ix_alert_delivery_outbox_due';", timeout.Token));
 
-        string rollback = ReadScript("postgres", RollbackScript);
+        string rollback = ReadScript("postgres", _rollbackScript);
         await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
         await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
         Assert.AreEqual(0L, await QueryScalarAsync<long>(database, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name IN ('alert_occurrence', 'alert_delivery_outbox');", timeout.Token));

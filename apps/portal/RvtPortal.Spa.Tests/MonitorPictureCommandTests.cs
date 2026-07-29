@@ -16,7 +16,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class MonitorPictureCommandTests
 {
-    private static readonly byte[] PngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
+    private static readonly byte[] pngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
 
     [Fact]
     // Function summary: Verifies a saved picture is deleted when the deployment row cannot be updated.
@@ -35,7 +35,7 @@ public sealed class MonitorPictureCommandTests
         await Assert.ThrowsAsync<DbUpdateException>(() => handler.Handle(
             new UploadMonitorPictureCommand(
                 monitorId,
-                new MemoryUploadedContent("monitor.png", "image/png", PngBytes)),
+                new MemoryUploadedContent("monitor.png", "image/png", pngBytes)),
             CancellationToken.None));
 
         Assert.Equal(storage.SavedLink, Assert.Single(storage.DeletedLinks));
@@ -152,29 +152,29 @@ public sealed class MonitorPictureCommandTests
 
     private sealed class MemoryUploadedContent : IUploadedContent
     {
-        private readonly byte[] bytes;
+        private readonly byte[] _bytes;
 
         public MemoryUploadedContent(string fileName, string contentType, byte[] bytes)
         {
             FileName = fileName;
             ContentType = contentType;
-            this.bytes = bytes;
+            _bytes = bytes;
         }
 
         public string FileName { get; }
         public string ContentType { get; }
-        public long Length => bytes.Length;
+        public long Length => _bytes.Length;
 
         // Function summary: Opens the in-memory picture payload for command validation.
         public Stream OpenReadStream()
         {
-            return new MemoryStream(bytes, writable: false);
+            return new MemoryStream(_bytes, writable: false);
         }
 
         // Function summary: Copies the in-memory picture payload to storage.
         public Task CopyToAsync(Stream target, CancellationToken cancellationToken)
         {
-            return target.WriteAsync(bytes, cancellationToken).AsTask();
+            return target.WriteAsync(_bytes, cancellationToken).AsTask();
         }
     }
 }

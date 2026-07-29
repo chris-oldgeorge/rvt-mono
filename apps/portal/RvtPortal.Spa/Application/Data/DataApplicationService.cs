@@ -191,7 +191,7 @@ public sealed class DataApplicationService : IDataApplicationService
     private const string CsvContentType = "text/csv";
 
     // Function summary: Maps API sort keys to monitor-data source sort fields.
-    private static readonly IReadOnlyDictionary<string, string> SortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, string> sortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         [SampleTimeKey] = SampleTimeSort,
         [Pm1Key] = Pm1CsvLabel,
@@ -211,14 +211,14 @@ public sealed class DataApplicationService : IDataApplicationService
         [ZvtopKey] = ZvtopLabel
     };
 
-    private readonly RVTDbContext domainContext;
-    private readonly IMonitorDataSource dataSource;
+    private readonly RVTDbContext _domainContext;
+    private readonly IMonitorDataSource _dataSource;
 
     // Function summary: Initializes data workflows with the domain context and monitor time-series source.
     public DataApplicationService(RVTDbContext domainContext, IMonitorDataSource dataSource)
     {
-        this.domainContext = domainContext;
-        this.dataSource = dataSource;
+        _domainContext = domainContext;
+        _dataSource = dataSource;
     }
 
     // Function summary: Builds paged grid data for a visible deployment.
@@ -240,9 +240,9 @@ public sealed class DataApplicationService : IDataApplicationService
         }
 
         string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? SampleTimeKey : request.Sort.Trim();
-        if (!SortFields.TryGetValue(requestedSort, out string? serviceSort))
+        if (!sortFields.TryGetValue(requestedSort, out string? serviceSort))
         {
-            return DataWorkflowResult<MonitorDataGridResponse>.Failed(DataWorkflowFailure.InvalidSort(requestedSort, SortFields.Keys));
+            return DataWorkflowResult<MonitorDataGridResponse>.Failed(DataWorkflowFailure.InvalidSort(requestedSort, sortFields.Keys));
         }
 
         int page = request.GetNormalizedPage();
@@ -253,7 +253,7 @@ public sealed class DataApplicationService : IDataApplicationService
         (DateTime From, DateTime To)? clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
         MonitorData monitorData = clampedWindow is null
             ? BuildEmptyMonitorData(deployment, fromDate, toDate, request.FilterOption)
-            : await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
+            : await _dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
                 DeploymentId: deploymentId,
                 TraceId: null,
                 FilterOption: request.FilterOption,
@@ -291,7 +291,7 @@ public sealed class DataApplicationService : IDataApplicationService
         (DateTime From, DateTime To)? clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
         MonitorData monitorData = clampedWindow is null
             ? BuildEmptyMonitorData(deployment, fromDate, toDate, request.FilterOption)
-            : await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
+            : await _dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
                 DeploymentId: deploymentId,
                 TraceId: null,
                 FilterOption: request.FilterOption,
@@ -337,7 +337,7 @@ public sealed class DataApplicationService : IDataApplicationService
         (DateTime From, DateTime To)? clampedWindow = ClampRequestToOwnershipWindow(deployment, fromDate, toDate);
         MonitorData monitorData = clampedWindow is null
             ? BuildEmptyMonitorData(deployment, fromDate, toDate, request.FilterOption)
-            : await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
+            : await _dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
                 DeploymentId: deploymentId,
                 TraceId: null,
                 FilterOption: request.FilterOption,
@@ -380,7 +380,7 @@ public sealed class DataApplicationService : IDataApplicationService
         (DateTime From, DateTime To)? clampedWindow = ClampRequestToOwnershipWindow(deployment, request.FromDate, request.ToDate);
         IReadOnlyList<OmnidotsTracesIndex> traceIndexes = clampedWindow is null
             ? []
-            : await dataSource.GetTraceIndexesAsync(deployment.Monitor.SerialId, clampedWindow.Value.From, clampedWindow.Value.To);
+            : await _dataSource.GetTraceIndexesAsync(deployment.Monitor.SerialId, clampedWindow.Value.From, clampedWindow.Value.To);
         return DataWorkflowResult<TraceListResponse>.Success(new TraceListResponse
         {
             DeploymentId = deployment.Id,
@@ -412,7 +412,7 @@ public sealed class DataApplicationService : IDataApplicationService
             return DataWorkflowResult<TraceDetailResponse>.Failed(DataWorkflowFailure.DeploymentNotFound(deploymentId));
         }
 
-        OmnidotsTracesIndex? traceIndex = await dataSource.GetTraceIndexAsync(traceId);
+        OmnidotsTracesIndex? traceIndex = await _dataSource.GetTraceIndexAsync(traceId);
         if (traceIndex is null || !string.Equals(traceIndex.SerialId, deployment.Monitor.SerialId, StringComparison.OrdinalIgnoreCase))
         {
             return DataWorkflowResult<TraceDetailResponse>.Failed(DataWorkflowFailure.TraceNotFound(traceId));
@@ -424,7 +424,7 @@ public sealed class DataApplicationService : IDataApplicationService
             return DataWorkflowResult<TraceDetailResponse>.Failed(DataWorkflowFailure.TraceNotFound(traceId));
         }
 
-        MonitorData monitorData = await dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
+        MonitorData monitorData = await _dataSource.GetDeploymentDataAsync(new DeploymentDataQuery(
             DeploymentId: deploymentId,
             TraceId: traceId,
             FilterOption: null,
@@ -464,7 +464,7 @@ public sealed class DataApplicationService : IDataApplicationService
         DataViewActor actor,
         CancellationToken cancellationToken)
     {
-        Deployment? deployment = await domainContext.Deployments
+        Deployment? deployment = await _domainContext.Deployments
             .AsNoTracking()
             .Include(item => item.Monitor)
             .Include(item => item.Contract)
@@ -487,7 +487,7 @@ public sealed class DataApplicationService : IDataApplicationService
         }
 
         DateTime now = DateTime.UtcNow;
-        bool canRead = await domainContext.SiteUsers
+        bool canRead = await _domainContext.SiteUsers
             .AsNoTracking()
             .AnyAsync(siteUser =>
                 siteUser.UserId == actor.UserId &&
@@ -575,7 +575,7 @@ public sealed class DataApplicationService : IDataApplicationService
         }
 
         response.Datasets = GraphDatasets(deployment.Monitor.TypeOfMonitor, monitorData, traceId is not null);
-        response.Thresholds = await domainContext.RvtAlertRules
+        response.Thresholds = await _domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(rule => rule.MonitorId == deployment.MonitorId && rule.IsActive)
             .OrderBy(rule => rule.AlertField)

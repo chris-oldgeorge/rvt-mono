@@ -18,7 +18,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
     // Site detail shows only the newest open alerts; the limit is applied in SQL.
     private const int SiteDetailNotificationLimit = 20;
 
-    private static readonly string[] DayNames =
+    private static readonly string[] dayNames =
         ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     public Task<bool> ExistsAsync(
@@ -733,7 +733,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
                 {
                     return new SiteOperatingHoursModel(
                         day,
-                        DayNames[day - 1],
+                        dayNames[day - 1],
                         FormatTime(hours.StartTime),
                         FormatTime(hours.EndTime),
                         hours.IsClosed
@@ -743,7 +743,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
                 (TimeSpan? startTime, TimeSpan? endTime) = LegacyOperatingHoursForDay(site, day);
                 return new SiteOperatingHoursModel(
                     day,
-                    DayNames[day - 1],
+                    dayNames[day - 1],
                     FormatTime(startTime),
                     FormatTime(endTime),
                     !startTime.HasValue && !endTime.HasValue);

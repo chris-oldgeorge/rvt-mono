@@ -3,18 +3,18 @@ using System.Text.RegularExpressions;
 using Npgsql;
 using Rvt.Monitor.IntegrationTesting;
 
-namespace OmnidotsMonitorTests.EntityFramework;
+namespace OmnidotsAdapterTests;
 
 [TestClass]
 public sealed class OmnidotsMigrationContractTests
 {
-    private const string ForwardScript = "2026-07-14-add-import-cursors-and-trace-order.sql";
-    private const string RollbackScript = "2026-07-14-rollback-import-cursors-and-trace-order.sql";
+    private const string _forwardScript = "2026-07-14-add-import-cursors-and-trace-order.sql";
+    private const string _rollbackScript = "2026-07-14-rollback-import-cursors-and-trace-order.sql";
 
-    private static readonly string[] SupportedMigrations =
+    private static readonly string[] _supportedMigrations =
     [
-        ForwardScript,
-        RollbackScript,
+        _forwardScript,
+        _rollbackScript,
         "2026-07-15-add-common-durable-alerts.sql",
         "2026-07-15-rollback-common-durable-alerts.sql"
     ];
@@ -27,7 +27,7 @@ public sealed class OmnidotsMigrationContractTests
             .Select(Path.GetFileName)
             .OrderBy(file => file, StringComparer.Ordinal)];
 
-        CollectionAssert.AreEqual(SupportedMigrations, migrationFiles);
+        CollectionAssert.AreEqual(_supportedMigrations, migrationFiles);
         Assert.IsFalse(
             Directory.Exists(Path.Combine(MonitorProjectDirectory(), "sql" + "server")),
             "The retired database-engine migration directory must not remain.");
@@ -36,7 +36,7 @@ public sealed class OmnidotsMigrationContractTests
     [TestMethod]
     public void PostgreSqlForward_IsTransactionalAndCreatesTheRequiredSchemaInOrder()
     {
-        string script = NormalizeSql(RemoveComments(ReadScript("postgres", ForwardScript)));
+        string script = NormalizeSql(RemoveComments(ReadScript("postgres", _forwardScript)));
 
         Assert.IsTrue(script.StartsWith("BEGIN;", StringComparison.Ordinal));
         Assert.IsTrue(script.EndsWith("COMMIT;", StringComparison.Ordinal));
@@ -57,7 +57,7 @@ public sealed class OmnidotsMigrationContractTests
     [TestMethod]
     public void PostgreSqlRollback_IsTransactionalAndWarnsBeforeDiscardingOrder()
     {
-        string rawScript = ReadScript("postgres", RollbackScript);
+        string rawScript = ReadScript("postgres", _rollbackScript);
         string script = NormalizeSql(RemoveComments(rawScript));
 
         Assert.IsTrue(script.StartsWith("BEGIN;", StringComparison.Ordinal));
@@ -115,7 +115,7 @@ public sealed class OmnidotsMigrationContractTests
             "SELECT 1;",
             timeout.Token);
 
-        string forward = ReadScript("postgres", ForwardScript);
+        string forward = ReadScript("postgres", _forwardScript);
         await ExecutePostgreSqlAsync(database, forward, timeout.Token);
         await ExecutePostgreSqlAsync(database, forward, timeout.Token);
 
@@ -129,7 +129,7 @@ public sealed class OmnidotsMigrationContractTests
             "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'omnidots_import_cursor' AND column_default IS NOT NULL;",
             timeout.Token));
 
-        string rollback = ReadScript("postgres", RollbackScript);
+        string rollback = ReadScript("postgres", _rollbackScript);
         await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
         await AssertLegacyRowsPreservedAsync(database, timeout.Token);
         await ExecutePostgreSqlAsync(database, rollback, timeout.Token);

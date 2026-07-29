@@ -79,7 +79,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
 {
     private const string CompanyNameSort = "CompanyName";
 
-    private static readonly IReadOnlyDictionary<string, string> SortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, string> sortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["companyName"] = CompanyNameSort,
         [CompanyNameSort] = CompanyNameSort,
@@ -91,15 +91,15 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         ["Contracts"] = "Contracts"
     };
 
-    internal static readonly IReadOnlyCollection<string> AllowedSortFields = [.. SortFields.Keys
+    internal static readonly IReadOnlyCollection<string> AllowedSortFields = [.. sortFields.Keys
         .Where(key => key[0] == char.ToLowerInvariant(key[0]))
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)];
 
-    private readonly ICompanyService companyService;
-    private readonly UserManager<ApplicationUser> userManager;
-    private readonly RVTDbContext domainContext;
-    private readonly IMediator mediator;
+    private readonly ICompanyService _companyService;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly RVTDbContext _domainContext;
+    private readonly IMediator _mediator;
 
     // Function summary: Initializes company workflows with search, identity, domain data, and transactional command dispatch dependencies.
     public CompanyApplicationService(
@@ -108,17 +108,17 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         RVTDbContext domainContext,
         IMediator mediator)
     {
-        this.companyService = companyService;
-        this.userManager = userManager;
-        this.domainContext = domainContext;
-        this.mediator = mediator;
+        _companyService = companyService;
+        _userManager = userManager;
+        _domainContext = domainContext;
+        _mediator = mediator;
     }
 
     // Function summary: Returns a paged company list using the existing company search contract.
     public async Task<CompanyQueryResult> Query(CompanyQuery request, CancellationToken cancellationToken = default)
     {
         string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? CompanyNameSort : request.Sort.Trim();
-        if (!SortFields.TryGetValue(requestedSort, out string? serviceSort))
+        if (!sortFields.TryGetValue(requestedSort, out string? serviceSort))
         {
             return new CompanyQueryResult
             {
@@ -130,7 +130,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         OrderByDirectionEnum sortDir = request.SortDir.Equals(SortDirections.Descending, StringComparison.OrdinalIgnoreCase)
             ? OrderByDirectionEnum.Descending
             : OrderByDirectionEnum.Ascending;
-        SearchQueryResult<CompanySearch> result = await companyService.Search(
+        SearchQueryResult<CompanySearch> result = await _companyService.Search(
             request.SearchText ?? "",
             request.Page,
             sortDir,
@@ -171,7 +171,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
     // Function summary: Returns company detail by id, or null when absent.
     public async Task<CompanyDetailResponse?> GetAsync(Guid companyId, CancellationToken cancellationToken)
     {
-        Company company = await companyService.ReadOneAsync(companyId);
+        Company company = await _companyService.ReadOneAsync(companyId);
         return company == null ? null : await BuildDetailAsync(company, cancellationToken);
     }
 
@@ -180,7 +180,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         CompanyMutationRequest request,
         CancellationToken cancellationToken)
     {
-        CompanyCommandResult result = await mediator.Send(new CreateCompanyCommand(request), cancellationToken);
+        CompanyCommandResult result = await _mediator.Send(new CreateCompanyCommand(request), cancellationToken);
         CompanyDetailResponse? company = result.CompanyId.HasValue && result.Errors.Count == 0
             ? await GetAsync(result.CompanyId.Value, cancellationToken)
             : null;
@@ -193,7 +193,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         CompanyMutationRequest request,
         CancellationToken cancellationToken)
     {
-        CompanyCommandResult result = await mediator.Send(new UpdateCompanyCommand(companyId, request), cancellationToken);
+        CompanyCommandResult result = await _mediator.Send(new UpdateCompanyCommand(companyId, request), cancellationToken);
         CompanyDetailResponse? company = !result.NotFound && result.Errors.Count == 0
             ? await GetAsync(companyId, cancellationToken)
             : null;
@@ -203,14 +203,14 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
     // Function summary: Deletes a company through the transactional command pipeline.
     public async Task<CompanyMutationWorkflowResult> DeleteAsync(Guid companyId, CancellationToken cancellationToken)
     {
-        CompanyCommandResult result = await mediator.Send(new DeleteCompanyCommand(companyId), cancellationToken);
+        CompanyCommandResult result = await _mediator.Send(new DeleteCompanyCommand(companyId), cancellationToken);
         return CompanyMutationWorkflowResult.FromCommand(result);
     }
 
     // Function summary: Builds the company detail counters and compact contract/site summaries.
     private async Task<CompanyDetailResponse> BuildDetailAsync(Company company, CancellationToken cancellationToken)
     {
-        List<Contract> contracts = await domainContext.Contracts
+        List<Contract> contracts = await _domainContext.Contracts
             .AsNoTracking()
             .Where(contract => contract.CompanyId == company.Id)
             .ToListAsync(cancellationToken);
@@ -220,13 +220,13 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
             .Distinct()];
         List<string> sites = siteIds.Count == 0
             ? []
-            : await domainContext.Sites
+            : await _domainContext.Sites
                 .AsNoTracking()
                 .Where(site => siteIds.Contains(site.Id))
                 .OrderBy(site => site.SiteName)
                 .Select(site => site.SiteName)
                 .ToListAsync(cancellationToken);
-        int userCount = await userManager.Users.CountAsync(user => user.CompanyId == company.Id, cancellationToken);
+        int userCount = await _userManager.Users.CountAsync(user => user.CompanyId == company.Id, cancellationToken);
 
         return new CompanyDetailResponse
         {

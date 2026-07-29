@@ -55,7 +55,7 @@ namespace RvtPortal.Spa.Tests;
 
 public class CqrsArchitectureTests
 {
-    private static readonly string[] AllowedNonTransactionalCommands =
+    private static readonly string[] allowedNonTransactionalCommands =
     [
         // Uploading stores a file and deliberately manages persistence inside its handler.
         "UploadMonitorPictureCommand"
@@ -77,7 +77,7 @@ public class CqrsArchitectureTests
     // Function summary: Verifies mutating commands opt into the unit-of-work transaction pipeline.
     public void MutatingApplicationCommands_AreTransactional()
     {
-        HashSet<string> allowed = new(AllowedNonTransactionalCommands, StringComparer.Ordinal);
+        HashSet<string> allowed = new(allowedNonTransactionalCommands, StringComparer.Ordinal);
         string?[] violations = [.. ApplicationCommandTypes()
             .Where(type => !allowed.Contains(type.Name))
             .Where(type => !typeof(ITransactionalRequest).IsAssignableFrom(type))

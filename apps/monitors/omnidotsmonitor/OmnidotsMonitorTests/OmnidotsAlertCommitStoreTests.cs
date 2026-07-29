@@ -8,7 +8,7 @@ using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.IntegrationTesting;
 
-namespace OmnidotsMonitorTests.EntityFramework;
+namespace OmnidotsAdapterTests;
 
 [TestClass]
 [TestCategory("PostgreSqlIntegration")]

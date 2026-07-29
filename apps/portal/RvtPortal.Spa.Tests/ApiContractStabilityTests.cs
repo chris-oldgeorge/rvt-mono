@@ -13,7 +13,7 @@ namespace RvtPortal.Spa.Tests;
 
 public class ApiContractStabilityTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web);
 
     [Fact]
     // Function summary: Verifies monitor routes consumed by the SPA remain stable while controller logic is refactored.
@@ -168,7 +168,7 @@ public class ApiContractStabilityTests
             State = MonitorListStates.All
         };
 
-        using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(response, JsonOptions));
+        using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(response, jsonOptions));
         JsonElement root = document.RootElement;
 
         AssertJsonProperties(root, "results", "total", "page", "pageSize", "totalPages", "hasPreviousPage", "hasNextPage", "searchText", "sort", "sortDir", "state", "isScopedToCurrentUser", "canManage", "canUseInstallerTools");
@@ -192,7 +192,7 @@ public class ApiContractStabilityTests
             }
         };
 
-        using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(response, JsonOptions));
+        using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(response, jsonOptions));
         JsonElement item = document.RootElement.GetProperty("item");
 
         AssertJsonProperties(item, "id", "siteName", "customerLogoUrl", "startTime", "endTime", "satStartTime", "satEndTime", "sunStartTime", "sunEndTime", "operatingHours", "contractList", "monitors", "openNotifications", "archive", "companies", "availableContracts", "canManage");
@@ -220,7 +220,7 @@ public class ApiContractStabilityTests
             }
         };
 
-        using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(response, JsonOptions));
+        using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(response, jsonOptions));
         JsonElement item = document.RootElement.GetProperty("item");
 
         AssertJsonProperties(item, "id", "siteId", "siteName", "frequency", "frequencyLabel", "dayOfWeek", "dayOfMonth", "reportName", "lastGenerated", "canManage", "sites", "frequencies", "daysOfWeek", "alertRuleGuidelines", "assignedUserCount");

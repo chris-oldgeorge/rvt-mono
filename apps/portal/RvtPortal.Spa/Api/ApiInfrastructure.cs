@@ -96,12 +96,12 @@ public static class ApiProblems
 
 public sealed class ApiCorrelationMiddleware
 {
-    private readonly RequestDelegate next;
+    private readonly RequestDelegate _next;
 
     // Function summary: Initializes correlation middleware with the next request delegate.
     public ApiCorrelationMiddleware(RequestDelegate next)
     {
-        this.next = next;
+        _next = next;
     }
 
     // Function summary: Sanitizes or creates the request correlation id and exposes it on API responses.
@@ -126,20 +126,20 @@ public sealed class ApiCorrelationMiddleware
             });
         }
 
-        await next(context);
+        await _next(context);
     }
 }
 
 public sealed class ApiExceptionMiddleware
 {
-    private readonly RequestDelegate next;
-    private readonly ILogger<ApiExceptionMiddleware> logger;
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ApiExceptionMiddleware> _logger;
 
     // Function summary: Initializes exception middleware with logging and the next request delegate.
     public ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExceptionMiddleware> logger)
     {
-        this.next = next;
-        this.logger = logger;
+        _next = next;
+        _logger = logger;
     }
 
     // Function summary: Converts unhandled API exceptions into safe problem-details responses.
@@ -147,11 +147,11 @@ public sealed class ApiExceptionMiddleware
     {
         try
         {
-            await next(context);
+            await _next(context);
         }
         catch (Exception exception) when (context.Request.Path.StartsWithSegments("/api") && !context.Response.HasStarted)
         {
-            logger.LogError(exception, "Unhandled API exception. CorrelationId: {CorrelationId}", context.GetCorrelationId());
+            _logger.LogError(exception, "Unhandled API exception. CorrelationId: {CorrelationId}", context.GetCorrelationId());
             context.Response.Clear();
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/problem+json";
@@ -176,12 +176,12 @@ public sealed class SecurityHeadersMiddleware
     // a nonce/hash pass and a browser smoke test before it can be enforced safely.
     private const string ContentSecurityPolicy = "frame-ancestors 'none'; object-src 'none'; base-uri 'self'";
 
-    private readonly RequestDelegate next;
+    private readonly RequestDelegate _next;
 
     // Function summary: Initializes security-header middleware with the next request delegate.
     public SecurityHeadersMiddleware(RequestDelegate next)
     {
-        this.next = next;
+        _next = next;
     }
 
     // Function summary: Adds defensive browser security headers before the response starts.
@@ -205,14 +205,14 @@ public sealed class SecurityHeadersMiddleware
             return Task.CompletedTask;
         });
 
-        return next(context);
+        return _next(context);
     }
 }
 
 public sealed class ApiCsrfProtectionMiddleware
 {
     // Function summary: Lists HTTP methods that can mutate server state and require CSRF checks.
-    private static readonly HashSet<string> UnsafeMethods = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> unsafeMethods = new(StringComparer.OrdinalIgnoreCase)
     {
         HttpMethods.Post,
         HttpMethods.Put,
@@ -220,10 +220,10 @@ public sealed class ApiCsrfProtectionMiddleware
         HttpMethods.Delete
     };
 
-    private readonly RequestDelegate next;
-    private readonly IConfiguration configuration;
-    private readonly IHostEnvironment environment;
-    private readonly ILogger<ApiCsrfProtectionMiddleware> logger;
+    private readonly RequestDelegate _next;
+    private readonly IConfiguration _configuration;
+    private readonly IHostEnvironment _environment;
+    private readonly ILogger<ApiCsrfProtectionMiddleware> _logger;
 
     // Function summary: Initializes CSRF middleware with configuration, environment, logging, and the next delegate.
     public ApiCsrfProtectionMiddleware(
@@ -232,18 +232,18 @@ public sealed class ApiCsrfProtectionMiddleware
         IHostEnvironment environment,
         ILogger<ApiCsrfProtectionMiddleware> logger)
     {
-        this.next = next;
-        this.configuration = configuration;
-        this.environment = environment;
-        this.logger = logger;
+        _next = next;
+        _configuration = configuration;
+        _environment = environment;
+        _logger = logger;
     }
 
     // Function summary: Blocks unsafe cross-origin API mutations before they reach controllers.
     public async Task Invoke(HttpContext context)
     {
-        if (!context.Request.Path.StartsWithSegments("/api") || !UnsafeMethods.Contains(context.Request.Method))
+        if (!context.Request.Path.StartsWithSegments("/api") || !unsafeMethods.Contains(context.Request.Method))
         {
-            await next(context);
+            await _next(context);
             return;
         }
 
@@ -251,7 +251,7 @@ public sealed class ApiCsrfProtectionMiddleware
         string? suppliedOrigin = GetSuppliedOrigin(context);
         if (suppliedOrigin is not null && !IsAllowedOrigin(suppliedOrigin, requestOrigin))
         {
-            logger.LogWarning(
+            _logger.LogWarning(
                 "Blocked cross-site API mutation {Method} {Path}. Origin: {Origin}; CorrelationId: {CorrelationId}",
                 context.Request.Method,
                 context.Request.Path.Value,
@@ -265,7 +265,7 @@ public sealed class ApiCsrfProtectionMiddleware
             return;
         }
 
-        await next(context);
+        await _next(context);
     }
 
     // Function summary: Reads the strongest available browser origin signal for CSRF validation.
@@ -318,7 +318,7 @@ public sealed class ApiCsrfProtectionMiddleware
             return true;
         }
 
-        foreach (string configuredOrigin in configuration.GetSection("Spa:AllowedOrigins").Get<string[]>() ?? [])
+        foreach (string configuredOrigin in _configuration.GetSection("Spa:AllowedOrigins").Get<string[]>() ?? [])
         {
             if (Uri.TryCreate(configuredOrigin, UriKind.Absolute, out Uri? configuredUri) &&
                 string.Equals(normalizedOrigin, configuredUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
@@ -327,7 +327,7 @@ public sealed class ApiCsrfProtectionMiddleware
             }
         }
 
-        return (environment.IsDevelopment() || environment.IsEnvironment("Testing")) &&
+        return (_environment.IsDevelopment() || _environment.IsEnvironment("Testing")) &&
             IsDevelopmentOrigin(originUri);
     }
 
@@ -363,7 +363,7 @@ public sealed class ApiCsrfProtectionMiddleware
 public sealed class ApiObservabilityMiddleware
 {
     // Function summary: Lists HTTP methods that should be logged as API mutations.
-    private static readonly HashSet<string> UnsafeMethods = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> unsafeMethods = new(StringComparer.OrdinalIgnoreCase)
     {
         HttpMethods.Post,
         HttpMethods.Put,
@@ -371,14 +371,14 @@ public sealed class ApiObservabilityMiddleware
         HttpMethods.Delete
     };
 
-    private readonly RequestDelegate next;
-    private readonly ILogger<ApiObservabilityMiddleware> logger;
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ApiObservabilityMiddleware> _logger;
 
     // Function summary: Initializes observability middleware with logging and the next request delegate.
     public ApiObservabilityMiddleware(RequestDelegate next, ILogger<ApiObservabilityMiddleware> logger)
     {
-        this.next = next;
-        this.logger = logger;
+        _next = next;
+        _logger = logger;
     }
 
     // Function summary: Adds server timing and structured API request logging.
@@ -386,7 +386,7 @@ public sealed class ApiObservabilityMiddleware
     {
         if (!context.Request.Path.StartsWithSegments("/api"))
         {
-            await next(context);
+            await _next(context);
             return;
         }
 
@@ -402,12 +402,12 @@ public sealed class ApiObservabilityMiddleware
             return Task.CompletedTask;
         });
 
-        await next(context);
+        await _next(context);
         stopwatch.Stop();
 
-        if (UnsafeMethods.Contains(context.Request.Method) && logger.IsEnabled(LogLevel.Information))
+        if (unsafeMethods.Contains(context.Request.Method) && _logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation(
+            _logger.LogInformation(
                 "API mutation {Method} {Path} completed with {StatusCode} in {ElapsedMilliseconds} ms. CorrelationId: {CorrelationId}; User: {UserName}",
                 context.Request.Method,
                 context.Request.Path.Value,
@@ -418,9 +418,9 @@ public sealed class ApiObservabilityMiddleware
             return;
         }
 
-        if (context.Response.StatusCode >= StatusCodes.Status500InternalServerError && logger.IsEnabled(LogLevel.Warning))
+        if (context.Response.StatusCode >= StatusCodes.Status500InternalServerError && _logger.IsEnabled(LogLevel.Warning))
         {
-            logger.LogWarning(
+            _logger.LogWarning(
                 "API request {Method} {Path} completed with {StatusCode} in {ElapsedMilliseconds} ms. CorrelationId: {CorrelationId}",
                 context.Request.Method,
                 context.Request.Path.Value,

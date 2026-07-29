@@ -15,7 +15,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class StorageAdapterTests
 {
-    private static readonly byte[] PngHeader = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    private static readonly byte[] pngHeader = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     [Theory]
     [InlineData("BlobStorage:blobConnectionString", "UseDevelopmentStorage=true")]
@@ -104,56 +104,56 @@ public sealed class StorageAdapterTests
     // Function summary: Builds a valid PNG payload with caller-supplied body bytes.
     private static byte[] PngPayload(params byte[] body)
     {
-        return [.. PngHeader, .. body];
+        return [.. pngHeader, .. body];
     }
 
     private sealed class MemoryUploadedContent : IUploadedContent
     {
-        private readonly byte[] bytes;
+        private readonly byte[] _bytes;
 
         public MemoryUploadedContent(string fileName, string contentType, byte[] bytes)
         {
             FileName = fileName;
             ContentType = contentType;
-            this.bytes = bytes;
+            _bytes = bytes;
         }
 
         public string FileName { get; }
         public string ContentType { get; }
-        public long Length => bytes.Length;
+        public long Length => _bytes.Length;
 
         // Function summary: Opens the in-memory upload payload for storage validation.
         public Stream OpenReadStream()
         {
-            return new MemoryStream(bytes, writable: false);
+            return new MemoryStream(_bytes, writable: false);
         }
 
         // Function summary: Copies the in-memory upload payload to adapter-owned storage.
         public Task CopyToAsync(Stream target, CancellationToken cancellationToken)
         {
-            return target.WriteAsync(bytes, cancellationToken).AsTask();
+            return target.WriteAsync(_bytes, cancellationToken).AsTask();
         }
     }
 
     private sealed class ThrowingUploadedContent : IUploadedContent
     {
-        private readonly byte[] bytes;
+        private readonly byte[] _bytes;
 
         public ThrowingUploadedContent(string fileName, string contentType, byte[] bytes)
         {
             FileName = fileName;
             ContentType = contentType;
-            this.bytes = bytes;
+            _bytes = bytes;
         }
 
         public string FileName { get; }
         public string ContentType { get; }
-        public long Length => bytes.Length;
+        public long Length => _bytes.Length;
 
         // Function summary: Opens a valid image header so the test reaches the copy failure boundary.
         public Stream OpenReadStream()
         {
-            return new MemoryStream(bytes, writable: false);
+            return new MemoryStream(_bytes, writable: false);
         }
 
         // Function summary: Simulates a storage write failure after validation succeeds.
@@ -184,7 +184,7 @@ public sealed class StorageAdapterTests
     private sealed class RecordingCustomerLogoStorage : ICustomerLogoStorage
     {
         public Stream? UploadStream { get; private set; }
-        public Stream StoredStream { get; } = new MemoryStream(PngHeader);
+        public Stream StoredStream { get; } = new MemoryStream(pngHeader);
 
         public Task SaveAsync(
             Guid siteId,

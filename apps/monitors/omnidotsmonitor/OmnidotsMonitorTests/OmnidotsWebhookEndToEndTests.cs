@@ -18,7 +18,7 @@ using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Hosting;
 using Rvt.Monitor.IntegrationTesting;
 
-namespace OmnidotsMonitorTests.EntityFramework;
+namespace OmnidotsAdapterTests;
 
 [TestClass]
 [TestCategory("PostgreSqlIntegration")]

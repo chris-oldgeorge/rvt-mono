@@ -17,7 +17,7 @@ namespace RvtPortal.Spa.Tests;
 /// </summary>
 public sealed class MonitorOwnershipWindowSqlTests
 {
-    private static readonly DateTime Timestamp = new(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime timestamp = new(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
 
     [Fact]
     // Function summary: Verifies the ownership predicate translates to PostgreSQL SQL.
@@ -40,7 +40,7 @@ public sealed class MonitorOwnershipWindowSqlTests
     {
         // ToQueryString() throws InvalidOperationException if any part of the predicate cannot be translated.
         return context.Deployments
-            .Where(MonitorOwnershipWindowResolver.OwnsAt(Timestamp))
+            .Where(MonitorOwnershipWindowResolver.OwnsAt(timestamp))
             .ToQueryString();
     }
 }

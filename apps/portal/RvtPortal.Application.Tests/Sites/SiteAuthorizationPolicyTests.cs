@@ -5,7 +5,7 @@ namespace RvtPortal.Application.Tests.Sites;
 
 public sealed class SiteAuthorizationPolicyTests
 {
-    private static readonly DateTime NowUtc =
+    private static readonly DateTime nowUtc =
         new(2026, 7, 23, 12, 0, 0, DateTimeKind.Utc);
 
     [Fact]
@@ -13,7 +13,7 @@ public sealed class SiteAuthorizationPolicyTests
     {
         PortalUserContext user = new(Guid.NewGuid(), "admin", null, true, false, false);
 
-        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(user, NowUtc);
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(user, nowUtc);
 
         Assert.Equal(SiteAccessScopeKind.All, scope.Kind);
     }
@@ -24,24 +24,24 @@ public sealed class SiteAuthorizationPolicyTests
         Guid userId = Guid.NewGuid();
         PortalUserContext user = new(userId, "user", Guid.NewGuid(), false, false, true);
 
-        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(user, NowUtc);
+        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(user, nowUtc);
 
         Assert.Equal(SiteAccessScopeKind.Assigned, scope.Kind);
         Assert.Equal(userId, scope.UserId);
-        Assert.Equal(NowUtc, scope.NowUtc);
+        Assert.Equal(nowUtc, scope.NowUtc);
     }
 
     [Fact]
     public void AssignmentWindow_IsInclusiveAtBothBounds()
     {
         Guid userId = Guid.NewGuid();
-        SiteAssignmentWindow assignment = new(userId, NowUtc, NowUtc);
+        SiteAssignmentWindow assignment = new(userId, nowUtc, nowUtc);
 
-        Assert.True(ActiveSiteAssignment.IsActive(assignment, userId, NowUtc));
+        Assert.True(ActiveSiteAssignment.IsActive(assignment, userId, nowUtc));
         Assert.False(ActiveSiteAssignment.IsActive(
             assignment,
             userId,
-            NowUtc.AddTicks(1)));
+            nowUtc.AddTicks(1)));
     }
 
     [Fact]
@@ -52,6 +52,6 @@ public sealed class SiteAuthorizationPolicyTests
         Assert.Throws<ArgumentException>(() =>
             SiteAuthorizationPolicy.ReadScope(
                 user,
-                DateTime.SpecifyKind(NowUtc, DateTimeKind.Unspecified)));
+                DateTime.SpecifyKind(nowUtc, DateTimeKind.Unspecified)));
     }
 }

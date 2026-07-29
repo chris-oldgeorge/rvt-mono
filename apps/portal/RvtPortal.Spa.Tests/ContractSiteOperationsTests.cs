@@ -36,7 +36,7 @@ public class ContractSiteOperationsTests
     // carry no times, and DayName is derived server-side from DayOfWeek (1 = Monday .. 7 = Sunday).
     private sealed record DaySchedule(int DayOfWeek, string DayName, string? StartTime, string? EndTime, bool IsClosed);
 
-    private static readonly DaySchedule[] SiteWeeklyHours =
+    private static readonly DaySchedule[] siteWeeklyHours =
     [
         new(DayOfWeek: 1, DayName: "Monday",    StartTime: "07:00", EndTime: "17:00", IsClosed: false),
         new(DayOfWeek: 2, DayName: "Tuesday",   StartTime: "08:00", EndTime: "18:00", IsClosed: false),
@@ -271,7 +271,7 @@ public class ContractSiteOperationsTests
             ContractId = contractId,
             AddressLine1 = "Unit 1",
             City = "Athens",
-            OperatingHours = [.. SiteWeeklyHours
+            OperatingHours = [.. siteWeeklyHours
                 .Select(day => new SiteOperatingHoursMutationRequest
                 {
                     DayOfWeek = day.DayOfWeek,
@@ -301,7 +301,7 @@ public class ContractSiteOperationsTests
         Assert.Contains(created.Item.ContractList, contract => contract.Id == contractId);
         // The submitted schedule round-trips verbatim, including named days and closed days.
         Assert.Equal(
-            SiteWeeklyHours,
+            siteWeeklyHours,
             created.Item.OperatingHours
                 .OrderBy(hours => hours.DayOfWeek)
                 .Select(hours => new DaySchedule(hours.DayOfWeek, hours.DayName, hours.StartTime, hours.EndTime, hours.IsClosed)));

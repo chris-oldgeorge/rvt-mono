@@ -16,7 +16,7 @@ using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Hosting;
 using Rvt.Monitor.Common.Mqtt;
 
-namespace OmnidotsMonitorTests.Architecture;
+namespace OmnidotsAdapterTests;
 
 [TestClass]
 [DoNotParallelize]

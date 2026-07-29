@@ -13,19 +13,19 @@ namespace RvtPortal.Spa.Adapters.Storage;
 public sealed class CustomerLogoStorage : ICustomerLogoStorage
 {
     private const long MaximumLogoBytes = 2 * 1024 * 1024;
-    private static readonly Dictionary<string, string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> allowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         ["image/png"] = ".png",
         ["image/jpeg"] = ".jpg",
         ["image/webp"] = ".webp"
     };
-    private static readonly string[] KnownExtensions = [".png", ".jpg", ".jpeg", ".webp"];
-    private readonly IWebHostEnvironment environment;
+    private static readonly string[] knownExtensions = [".png", ".jpg", ".jpeg", ".webp"];
+    private readonly IWebHostEnvironment _environment;
 
     // Function summary: Initializes this type with the host paths needed for application-content storage.
     public CustomerLogoStorage(IWebHostEnvironment environment)
     {
-        this.environment = environment;
+        _environment = environment;
     }
 
     public async Task SaveAsync(Guid siteId, IUploadedContent logo, CancellationToken cancellationToken)
@@ -40,12 +40,12 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
             throw new StorageValidationException("Customer logo images must be 2 MB or smaller.");
         }
 
-        if (!AllowedContentTypes.TryGetValue(logo.ContentType, out string? extension))
+        if (!allowedContentTypes.TryGetValue(logo.ContentType, out string? extension))
         {
             extension = ExtensionForFileName(logo.FileName);
         }
 
-        if (!KnownExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        if (!knownExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
         {
             throw new StorageValidationException("Customer logos must be PNG, JPEG, or WebP images.");
         }
@@ -112,9 +112,9 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
 
     private string ContentRoot()
     {
-        return string.IsNullOrWhiteSpace(environment.ContentRootPath)
+        return string.IsNullOrWhiteSpace(_environment.ContentRootPath)
             ? AppContext.BaseDirectory
-            : environment.ContentRootPath;
+            : _environment.ContentRootPath;
     }
 
     private string? FindExistingPath(Guid siteId)
@@ -125,7 +125,7 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
             return null;
         }
 
-        return KnownExtensions
+        return knownExtensions
             .Select(extension => Path.Combine(directory, $"{siteId:N}{extension}"))
             .FirstOrDefault(File.Exists);
     }
@@ -137,7 +137,7 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
 
     private void DeleteExistingExcept(Guid siteId, string? keepExtension)
     {
-        foreach (string extension in KnownExtensions)
+        foreach (string extension in knownExtensions)
         {
             if (extension.Equals(keepExtension, StringComparison.OrdinalIgnoreCase))
             {

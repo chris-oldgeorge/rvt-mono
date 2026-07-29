@@ -12,7 +12,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class QueryValidationTests
 {
-    private static readonly OrderByProperty[] ByName =
+    private static readonly OrderByProperty[] byName =
     [
         new() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "CompanyName" }
     ];
@@ -26,7 +26,7 @@ public sealed class QueryValidationTests
 
         QueryValidationException error = await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
             [new SingleFilter { Operation = Op.Equals, PropertyName = "NotAField", Value = "x" }],
-            ByName,
+            byName,
             maximumRecords: 10,
             new Paging { Paged = false },
             CancellationToken.None));
@@ -47,7 +47,7 @@ public sealed class QueryValidationTests
         // The whole point: an entirely invalid filter used to build "WHERE true" and hand back the table.
         await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
             [new SingleFilter { Operation = Op.Equals, PropertyName = "Nonsense", Value = "x" }],
-            ByName,
+            byName,
             maximumRecords: 10,
             new Paging { Paged = false },
             CancellationToken.None));
@@ -82,7 +82,7 @@ public sealed class QueryValidationTests
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
-            ByName,
+            byName,
             maximumRecords: 10,
             new Paging { Paged = false },
             CancellationToken.None);

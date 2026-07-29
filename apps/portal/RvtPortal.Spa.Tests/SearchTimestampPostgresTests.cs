@@ -22,7 +22,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class SearchTimestampPostgresTests
 {
-    private static readonly IReadOnlyDictionary<string, string> ApprovedSampleTimeStoreTypes =
+    private static readonly IReadOnlyDictionary<string, string> approvedSampleTimeStoreTypes =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["MyAtmDustLevel"] = "timestamp without time zone",
@@ -56,7 +56,7 @@ public sealed class SearchTimestampPostgresTests
                 item => item.Property!.GetColumnType(),
                 StringComparer.Ordinal);
 
-        Assert.Equal(ApprovedSampleTimeStoreTypes, actual);
+        Assert.Equal(approvedSampleTimeStoreTypes, actual);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed class SearchTimestampPostgresTests
             "Search",
             "RVTSearchContextModelSnapshot.cs"));
 
-        foreach ((string? entityName, string? storeType) in ApprovedSampleTimeStoreTypes)
+        foreach ((string entityName, string storeType) in approvedSampleTimeStoreTypes)
         {
             string entityBlock = ExtractSnapshotEntityBlock(snapshot, entityName);
             Assert.Matches(
@@ -448,19 +448,19 @@ public sealed class SearchTimestampPostgresTests
 
     private sealed class PostgresDustDataSource : IMonitorDataSource
     {
-        private readonly IMonitorService monitorService;
-        private readonly RVT.Entities.Monitor monitor;
+        private readonly IMonitorService _monitorService;
+        private readonly RVT.Entities.Monitor _monitor;
 
         public PostgresDustDataSource(IMonitorService monitorService, RVT.Entities.Monitor monitor)
         {
-            this.monitorService = monitorService;
-            this.monitor = monitor;
+            _monitorService = monitorService;
+            _monitor = monitor;
         }
 
         public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request)
         {
-            SearchQueryResult<MyAtmDustLevel> levels = await monitorService.GetMyAtmDustLevels(
-                monitor.SerialId,
+            SearchQueryResult<MyAtmDustLevel> levels = await _monitorService.GetMyAtmDustLevels(
+                _monitor.SerialId,
                 request.FromDate!.Value,
                 request.ToDate!.Value,
                 60,
@@ -470,7 +470,7 @@ public sealed class SearchTimestampPostgresTests
                 request.SortDir);
             return new MonitorData
             {
-                Monitor = monitor,
+                Monitor = _monitor,
                 MinDate = request.FromDate.Value,
                 MaxDate = request.ToDate.Value,
                 FromDate = request.FromDate.Value,
@@ -496,22 +496,22 @@ public sealed class SearchTimestampPostgresTests
 
     private sealed class PostgresTraceDataSource : IMonitorDataSource
     {
-        private readonly MonitorDataSource inner;
-        private readonly RVT.Entities.Monitor monitor;
+        private readonly MonitorDataSource _inner;
+        private readonly RVT.Entities.Monitor _monitor;
 
         public PostgresTraceDataSource(MonitorDataSource inner, RVT.Entities.Monitor monitor)
         {
-            this.inner = inner;
-            this.monitor = monitor;
+            _inner = inner;
+            _monitor = monitor;
         }
 
         public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request)
         {
-            OmnidotsTracesIndex? index = await inner.GetTraceIndexAsync(request.TraceId!.Value);
+            OmnidotsTracesIndex? index = await _inner.GetTraceIndexAsync(request.TraceId!.Value);
             Assert.NotNull(index);
             return new MonitorData
             {
-                Monitor = monitor,
+                Monitor = _monitor,
                 FromDate = index.StartTime,
                 ToDate = index.EndTime,
                 VibrationTraces = new SearchQueryResult<OmnidotsTrace>(true, string.Empty, [], 0, string.Empty)
@@ -523,12 +523,12 @@ public sealed class SearchTimestampPostgresTests
             DateTime fromDate,
             DateTime toDate)
         {
-            return inner.GetTraceIndexesAsync(serialId, fromDate, toDate);
+            return _inner.GetTraceIndexesAsync(serialId, fromDate, toDate);
         }
 
         public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
         {
-            return inner.GetTraceIndexAsync(traceId);
+            return _inner.GetTraceIndexAsync(traceId);
         }
     }
 }

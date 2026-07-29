@@ -11,29 +11,29 @@ using Rvt.Monitor.Common.Alerts.Persistence;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.IntegrationTesting;
 
-namespace OmnidotsMonitorTests.EntityFramework;
+namespace OmnidotsAdapterTests;
 
 [TestClass]
 [TestCategory("PostgreSqlIntegration")]
 public sealed class OmnidotsAlertOutboxStoreTests
 {
-    private static readonly DateTime UtcNow =
+    private static readonly DateTime _utcNow =
         new(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
-    private static readonly Guid MonitorId =
+    private static readonly Guid _monitorId =
         Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    private static readonly Guid NotificationId =
+    private static readonly Guid _notificationId =
         Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
-    private static readonly Guid OccurrenceId =
+    private static readonly Guid _occurrenceId =
         Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
 
-    private static PostgreSqlIntegrationDatabase? database;
-    private IAlertOutboxStore store = null!;
+    private static PostgreSqlIntegrationDatabase? _database;
+    private IAlertOutboxStore _store = null!;
 
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext _)
     {
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
-        database = await PostgreSqlIntegrationDatabase.CreateAsync(
+        _database = await PostgreSqlIntegrationDatabase.CreateAsync(
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/create.postgres.sql"),
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
             timeout.Token);
@@ -42,24 +42,24 @@ public sealed class OmnidotsAlertOutboxStoreTests
     [ClassCleanup]
     public static async Task ClassCleanup()
     {
-        if (database is not null)
+        if (_database is not null)
         {
-            await database.DisposeAsync();
+            await _database.DisposeAsync();
         }
     }
 
     [TestInitialize]
     public async Task TestInitialize()
     {
-        await database!.ResetAsync(
+        await _database!.ResetAsync(
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
             TestContext.CancellationToken);
         await SeedAlertGraphAsync();
 
         MonitorDbOptions monitorOptions = new(
             new Dictionary<string, string>());
-        store = new EfAlertOutboxStore<OmnidotsMonitorContext>(
-            new OmnidotsMonitorContextFactory(database.ConnectionString, monitorOptions));
+        _store = new EfAlertOutboxStore<OmnidotsMonitorContext>(
+            new OmnidotsMonitorContextFactory(_database.ConnectionString, monitorOptions));
     }
 
     [TestMethod]
@@ -73,36 +73,36 @@ public sealed class OmnidotsAlertOutboxStoreTests
             "ops@example.test",
             "{\"version\":1}",
             "Pending",
-            UtcNow.AddMinutes(-10),
+            _utcNow.AddMinutes(-10),
             attemptCount: 2,
-            createdAt: UtcNow.AddMinutes(-20));
+            createdAt: _utcNow.AddMinutes(-20));
         await InsertOutboxAsync(
             newerId,
             "Sms",
             "+15550001111",
             "{\"version\":1}",
             "Pending",
-            UtcNow.AddMinutes(-5),
-            createdAt: UtcNow.AddMinutes(-15));
+            _utcNow.AddMinutes(-5),
+            createdAt: _utcNow.AddMinutes(-15));
 
-        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
+        ClaimedAlertDelivery? claim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
 
         Assert.IsNotNull(claim);
         Assert.AreEqual(oldestId, claim.Id);
-        Assert.AreEqual(OccurrenceId, claim.OccurrenceId);
-        Assert.AreEqual(NotificationId, claim.NotificationId);
+        Assert.AreEqual(_occurrenceId, claim.OccurrenceId);
+        Assert.AreEqual(_notificationId, claim.NotificationId);
         Assert.AreEqual($"delivery:{oldestId:N}", claim.DeliveryKey);
         Assert.AreEqual("Email", claim.Kind);
         Assert.AreEqual("ops@example.test", claim.Destination);
         Assert.AreEqual("{\"version\":1}", claim.Payload);
         Assert.AreEqual("Leased", claim.Status);
         Assert.AreEqual(3, claim.AttemptCount);
-        Assert.AreEqual(UtcNow.AddMinutes(-10), claim.NextAttemptAt);
+        Assert.AreEqual(_utcNow.AddMinutes(-10), claim.NextAttemptAt);
         Assert.AreNotEqual(Guid.Empty, claim.LeaseId);
-        Assert.AreEqual(UtcNow.AddMinutes(2), claim.LeaseUntil);
+        Assert.AreEqual(_utcNow.AddMinutes(2), claim.LeaseUntil);
         Assert.IsNull(claim.CompletedAt);
         Assert.IsNull(claim.LastError);
-        Assert.AreEqual(UtcNow.AddMinutes(-20), claim.CreatedAt);
+        Assert.AreEqual(_utcNow.AddMinutes(-20), claim.CreatedAt);
         Assert.AreEqual(
             "Pending",
             await ReadStringAsync("SELECT status FROM alert_delivery_outbox WHERE id = @id;", newerId));
@@ -113,10 +113,10 @@ public sealed class OmnidotsAlertOutboxStoreTests
     {
         Guid firstId = Guid.NewGuid();
         Guid secondId = Guid.NewGuid();
-        await InsertOutboxAsync(firstId, nextAttemptAt: UtcNow.AddMinutes(-2));
-        await InsertOutboxAsync(secondId, nextAttemptAt: UtcNow.AddMinutes(-1));
+        await InsertOutboxAsync(firstId, nextAttemptAt: _utcNow.AddMinutes(-2));
+        await InsertOutboxAsync(secondId, nextAttemptAt: _utcNow.AddMinutes(-1));
 
-        await using NpgsqlConnection blockingConnection = database!.OpenConnection();
+        await using NpgsqlConnection blockingConnection = _database!.OpenConnection();
         await blockingConnection.OpenAsync(TestContext.CancellationToken);
         await using NpgsqlTransaction blockingTransaction = await blockingConnection.BeginTransactionAsync(TestContext.CancellationToken);
         await using (NpgsqlCommand lockCommand = new(
@@ -128,13 +128,13 @@ public sealed class OmnidotsAlertOutboxStoreTests
             Assert.AreEqual(firstId, await lockCommand.ExecuteScalarAsync(TestContext.CancellationToken));
         }
 
-        ClaimedAlertDelivery? skippedClaim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
+        ClaimedAlertDelivery? skippedClaim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
 
         Assert.IsNotNull(skippedClaim);
         Assert.AreEqual(secondId, skippedClaim.Id);
 
         await blockingTransaction.RollbackAsync(TestContext.CancellationToken);
-        ClaimedAlertDelivery? unlockedClaim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
+        ClaimedAlertDelivery? unlockedClaim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
 
         Assert.IsNotNull(unlockedClaim);
         Assert.AreEqual(firstId, unlockedClaim.Id);
@@ -150,43 +150,43 @@ public sealed class OmnidotsAlertOutboxStoreTests
         await InsertOutboxAsync(
             id,
             status: "Leased",
-            nextAttemptAt: UtcNow.AddMinutes(-5),
+            nextAttemptAt: _utcNow.AddMinutes(-5),
             attemptCount: 4,
             leaseId: expiredLeaseId,
-            leaseUntil: UtcNow.AddSeconds(-1));
+            leaseUntil: _utcNow.AddSeconds(-1));
 
-        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
+        ClaimedAlertDelivery? claim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
 
         Assert.IsNotNull(claim);
         Assert.AreEqual(id, claim.Id);
         Assert.AreEqual(5, claim.AttemptCount);
         Assert.AreNotEqual(expiredLeaseId, claim.LeaseId);
-        Assert.AreEqual(UtcNow.AddMinutes(2), claim.LeaseUntil);
+        Assert.AreEqual(_utcNow.AddMinutes(2), claim.LeaseUntil);
     }
 
     [TestMethod]
     public async Task FencedOutcomes_RejectStaleLeaseWithoutChangingRowOrWritingAudit()
     {
         Guid id = Guid.NewGuid();
-        await InsertOutboxAsync(id, kind: "Email", nextAttemptAt: UtcNow);
-        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
+        await InsertOutboxAsync(id, kind: "Email", nextAttemptAt: _utcNow);
+        ClaimedAlertDelivery? claim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
         Assert.IsNotNull(claim);
         Guid staleLeaseId = Guid.NewGuid();
         AlertDeliveryAudit audit = new(
-            NotificationId,
+            _notificationId,
             "ops@example.test",
             "Sent ok",
-            UtcNow.AddSeconds(1));
+            _utcNow.AddSeconds(1));
 
-        bool completed = await store.CompleteAsync(
+        bool completed = await _store.CompleteAsync(
             id,
             staleLeaseId,
-            UtcNow.AddSeconds(1),
+            _utcNow.AddSeconds(1),
             audit, TestContext.CancellationToken);
-        bool retried = await store.RetryAsync(
+        bool retried = await _store.RetryAsync(
             id,
             staleLeaseId,
-            UtcNow.AddMinutes(1),
+            _utcNow.AddMinutes(1),
             "Alert delivery failed (HttpRequestException).",
             deadLetter: true,
             audit, TestContext.CancellationToken);
@@ -202,16 +202,16 @@ public sealed class OmnidotsAlertOutboxStoreTests
     public async Task CompleteAsync_CommitsCompletionAndSuccessAuditTogether()
     {
         Guid id = Guid.NewGuid();
-        await InsertOutboxAsync(id, kind: "Email", destination: "ops@example.test", nextAttemptAt: UtcNow);
-        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
+        await InsertOutboxAsync(id, kind: "Email", destination: "ops@example.test", nextAttemptAt: _utcNow);
+        ClaimedAlertDelivery? claim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
         Assert.IsNotNull(claim);
-        DateTime completedAt = UtcNow.AddSeconds(1);
+        DateTime completedAt = _utcNow.AddSeconds(1);
 
-        bool completed = await store.CompleteAsync(
+        bool completed = await _store.CompleteAsync(
             id,
             claim.LeaseId,
             completedAt,
-            new AlertDeliveryAudit(NotificationId, claim.Destination, "Sent ok", completedAt), TestContext.CancellationToken);
+            new AlertDeliveryAudit(_notificationId, claim.Destination, "Sent ok", completedAt), TestContext.CancellationToken);
 
         Assert.IsTrue(completed);
         Assert.AreEqual("Completed", await ReadStringAsync("SELECT status FROM alert_delivery_outbox WHERE id = @id;", id));
@@ -222,23 +222,23 @@ public sealed class OmnidotsAlertOutboxStoreTests
         Assert.AreEqual(1, await CountAsync("SELECT COUNT(*) FROM notification_sent;"));
         Assert.AreEqual("Sent ok", await ReadStringAsync(
             "SELECT error_message FROM notification_sent WHERE notification_id = @id;",
-            NotificationId));
+            _notificationId));
     }
 
     [TestMethod]
     public async Task CompleteAsync_AuditInsertFailureRollsBackCompletionAndPreservesFence()
     {
         Guid id = Guid.NewGuid();
-        await InsertOutboxAsync(id, kind: "Email", destination: "ops@example.test", nextAttemptAt: UtcNow);
-        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
+        await InsertOutboxAsync(id, kind: "Email", destination: "ops@example.test", nextAttemptAt: _utcNow);
+        ClaimedAlertDelivery? claim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
         Assert.IsNotNull(claim);
 
         await Assert.ThrowsExactlyAsync<DbUpdateException>(() =>
-            store.CompleteAsync(
+            _store.CompleteAsync(
                 id,
                 claim.LeaseId,
-                UtcNow.AddSeconds(1),
-                new AlertDeliveryAudit(Guid.NewGuid(), claim.Destination, "Sent ok", UtcNow.AddSeconds(1)), TestContext.CancellationToken));
+                _utcNow.AddSeconds(1),
+                new AlertDeliveryAudit(Guid.NewGuid(), claim.Destination, "Sent ok", _utcNow.AddSeconds(1)), TestContext.CancellationToken));
 
         Assert.AreEqual("Leased", await ReadStringAsync("SELECT status FROM alert_delivery_outbox WHERE id = @id;", id));
         Assert.AreEqual(claim.LeaseId, await ReadNullableGuidAsync(id));
@@ -250,19 +250,19 @@ public sealed class OmnidotsAlertOutboxStoreTests
     public async Task RetryAsync_FinalFailureCommitsDeadLetterAndFailureAuditTogether()
     {
         Guid id = Guid.NewGuid();
-        await InsertOutboxAsync(id, kind: "Sms", destination: "+15550001111", nextAttemptAt: UtcNow);
-        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
+        await InsertOutboxAsync(id, kind: "Sms", destination: "+15550001111", nextAttemptAt: _utcNow);
+        ClaimedAlertDelivery? claim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
         Assert.IsNotNull(claim);
-        DateTime failedAt = UtcNow.AddSeconds(2);
+        DateTime failedAt = _utcNow.AddSeconds(2);
         const string safeError = "Alert delivery failed (HttpRequestException).";
 
-        bool deadLettered = await store.RetryAsync(
+        bool deadLettered = await _store.RetryAsync(
             id,
             claim.LeaseId,
             failedAt,
             safeError,
             deadLetter: true,
-            new AlertDeliveryAudit(NotificationId, claim.Destination, safeError, failedAt), TestContext.CancellationToken);
+            new AlertDeliveryAudit(_notificationId, claim.Destination, safeError, failedAt), TestContext.CancellationToken);
 
         Assert.IsTrue(deadLettered);
         Assert.AreEqual("DeadLetter", await ReadStringAsync("SELECT status FROM alert_delivery_outbox WHERE id = @id;", id));
@@ -285,13 +285,13 @@ public sealed class OmnidotsAlertOutboxStoreTests
         const string rawPayload = "{raw-payload-secret";
         const string destination = "ops@example.test";
         Guid id = Guid.NewGuid();
-        DateTime failedAt = UtcNow.AddSeconds(2);
+        DateTime failedAt = _utcNow.AddSeconds(2);
         await InsertOutboxAsync(
             id,
             kind: "Email",
             destination,
             payload: rawPayload,
-            nextAttemptAt: UtcNow,
+            nextAttemptAt: _utcNow,
             attemptCount: 7);
         Mock<IAlertDeliveryAdapter> adapter = new();
         adapter.SetupGet(candidate => candidate.Kind).Returns("Email");
@@ -300,7 +300,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new JsonException(rawPayload));
         DurableAlertDispatcher dispatcher = new(
-            store,
+            _store,
             [adapter.Object],
             Options.Create(new DurableAlertOptions { BatchSize = 1, MaxAttempts = 8 }),
             new FixedTimeProvider(failedAt),
@@ -318,7 +318,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
         Assert.AreEqual(failedAt, await ReadDateTimeAsync(
             "SELECT completed_at FROM alert_delivery_outbox WHERE id = @id;",
             id));
-        Assert.AreEqual(NotificationId, await ReadGuidAsync(
+        Assert.AreEqual(_notificationId, await ReadGuidAsync(
             "SELECT notification_id FROM notification_sent WHERE address = @address;",
             destination));
         string safeError = await ReadStringAsync(
@@ -333,19 +333,19 @@ public sealed class OmnidotsAlertOutboxStoreTests
     public async Task RetryAsync_FinalAuditInsertFailureRollsBackDeadLetterAndPreservesFence()
     {
         Guid id = Guid.NewGuid();
-        await InsertOutboxAsync(id, kind: "Sms", destination: "+15550001111", nextAttemptAt: UtcNow);
-        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
+        await InsertOutboxAsync(id, kind: "Sms", destination: "+15550001111", nextAttemptAt: _utcNow);
+        ClaimedAlertDelivery? claim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
         Assert.IsNotNull(claim);
         const string safeError = "Alert delivery failed (HttpRequestException).";
 
         await Assert.ThrowsExactlyAsync<DbUpdateException>(() =>
-            store.RetryAsync(
+            _store.RetryAsync(
                 id,
                 claim.LeaseId,
-                UtcNow.AddSeconds(2),
+                _utcNow.AddSeconds(2),
                 safeError,
                 deadLetter: true,
-                new AlertDeliveryAudit(Guid.NewGuid(), claim.Destination, safeError, UtcNow.AddSeconds(2)), TestContext.CancellationToken));
+                new AlertDeliveryAudit(Guid.NewGuid(), claim.Destination, safeError, _utcNow.AddSeconds(2)), TestContext.CancellationToken));
 
         Assert.AreEqual("Leased", await ReadStringAsync("SELECT status FROM alert_delivery_outbox WHERE id = @id;", id));
         Assert.AreEqual(claim.LeaseId, await ReadNullableGuidAsync(id));
@@ -358,19 +358,19 @@ public sealed class OmnidotsAlertOutboxStoreTests
     public async Task RetryAsync_RetryClearsLeaseAndBoundsPersistedError()
     {
         Guid id = Guid.NewGuid();
-        await InsertOutboxAsync(id, kind: "Email", nextAttemptAt: UtcNow);
-        ClaimedAlertDelivery? claim = await store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
+        await InsertOutboxAsync(id, kind: "Email", nextAttemptAt: _utcNow);
+        ClaimedAlertDelivery? claim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
         Assert.IsNotNull(claim);
-        DateTime nextAttemptAt = UtcNow.AddMinutes(1);
+        DateTime nextAttemptAt = _utcNow.AddMinutes(1);
         string oversizedSafeError = new('x', 300);
 
-        bool retried = await store.RetryAsync(
+        bool retried = await _store.RetryAsync(
             id,
             claim.LeaseId,
             nextAttemptAt,
             oversizedSafeError,
             deadLetter: false,
-            new AlertDeliveryAudit(NotificationId, claim.Destination, "not final", UtcNow), TestContext.CancellationToken);
+            new AlertDeliveryAudit(_notificationId, claim.Destination, "not final", _utcNow), TestContext.CancellationToken);
 
         Assert.IsTrue(retried);
         Assert.AreEqual("Pending", await ReadStringAsync("SELECT status FROM alert_delivery_outbox WHERE id = @id;", id));
@@ -392,33 +392,33 @@ public sealed class OmnidotsAlertOutboxStoreTests
         Guid newCompleted = Guid.NewGuid();
         Guid oldDeadLetter = Guid.NewGuid();
         Guid oldPending = Guid.NewGuid();
-        DateTime cutoff = UtcNow;
+        DateTime cutoff = _utcNow;
         await InsertOutboxAsync(
             oldCompleted,
             status: "Completed",
-            nextAttemptAt: UtcNow.AddDays(-3),
-            completedAt: UtcNow.AddDays(-2));
+            nextAttemptAt: _utcNow.AddDays(-3),
+            completedAt: _utcNow.AddDays(-2));
         await InsertOutboxAsync(
             boundaryCompleted,
             status: "Completed",
-            nextAttemptAt: UtcNow.AddDays(-2),
+            nextAttemptAt: _utcNow.AddDays(-2),
             completedAt: cutoff);
         await InsertOutboxAsync(
             newCompleted,
             status: "Completed",
-            nextAttemptAt: UtcNow.AddDays(-1),
-            completedAt: UtcNow.AddMinutes(1));
+            nextAttemptAt: _utcNow.AddDays(-1),
+            completedAt: _utcNow.AddMinutes(1));
         await InsertOutboxAsync(
             oldDeadLetter,
             status: "DeadLetter",
-            nextAttemptAt: UtcNow.AddDays(-3),
-            completedAt: UtcNow.AddDays(-2));
+            nextAttemptAt: _utcNow.AddDays(-3),
+            completedAt: _utcNow.AddDays(-2));
         await InsertOutboxAsync(
             oldPending,
             status: "Pending",
-            nextAttemptAt: UtcNow.AddDays(-3));
+            nextAttemptAt: _utcNow.AddDays(-3));
 
-        int deleted = await store.DeleteCompletedBeforeAsync(cutoff, TestContext.CancellationToken);
+        int deleted = await _store.DeleteCompletedBeforeAsync(cutoff, TestContext.CancellationToken);
 
         Assert.AreEqual(1, deleted);
         CollectionAssert.AreEquivalent(
@@ -430,12 +430,12 @@ public sealed class OmnidotsAlertOutboxStoreTests
     public async Task ClaimNextDueAsync_PreCanceled_DoesNotClaimRow()
     {
         Guid id = Guid.NewGuid();
-        await InsertOutboxAsync(id, nextAttemptAt: UtcNow);
+        await InsertOutboxAsync(id, nextAttemptAt: _utcNow);
         using CancellationTokenSource cancellation = new();
         await cancellation.CancelAsync();
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
-            store.ClaimNextDueAsync(UtcNow, TimeSpan.FromMinutes(2), cancellation.Token));
+            _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), cancellation.Token));
 
         Assert.AreEqual("Pending", await ReadStringAsync("SELECT status FROM alert_delivery_outbox WHERE id = @id;", id));
         Assert.AreEqual(0, await ReadIntAsync(
@@ -467,10 +467,10 @@ public sealed class OmnidotsAlertOutboxStoreTests
             """,
             command =>
             {
-                command.Parameters.AddWithValue("monitor_id", MonitorId);
-                command.Parameters.AddWithValue("notification_id", NotificationId);
-                command.Parameters.AddWithValue("occurrence_id", OccurrenceId);
-                command.Parameters.AddWithValue("created_at", UtcNow.AddHours(-1));
+                command.Parameters.AddWithValue("monitor_id", _monitorId);
+                command.Parameters.AddWithValue("notification_id", _notificationId);
+                command.Parameters.AddWithValue("occurrence_id", _occurrenceId);
+                command.Parameters.AddWithValue("created_at", _utcNow.AddHours(-1));
                 command.Parameters.AddWithValue("source_hash", NpgsqlDbType.Bytea, Enumerable.Repeat((byte)5, 32).ToArray());
             });
 
@@ -501,24 +501,24 @@ public sealed class OmnidotsAlertOutboxStoreTests
             command =>
             {
                 command.Parameters.AddWithValue("id", id);
-                command.Parameters.AddWithValue("occurrence_id", OccurrenceId);
+                command.Parameters.AddWithValue("occurrence_id", _occurrenceId);
                 command.Parameters.AddWithValue("delivery_key", $"delivery:{id:N}");
                 command.Parameters.AddWithValue("kind", kind);
                 command.Parameters.AddWithValue("destination", destination);
                 command.Parameters.AddWithValue("payload", payload);
                 command.Parameters.AddWithValue("status", status);
                 command.Parameters.AddWithValue("attempt_count", attemptCount);
-                command.Parameters.AddWithValue("next_attempt_at", nextAttemptAt ?? UtcNow);
+                command.Parameters.AddWithValue("next_attempt_at", nextAttemptAt ?? _utcNow);
                 command.Parameters.AddWithValue("lease_id", (object?)leaseId ?? DBNull.Value);
                 command.Parameters.AddWithValue("lease_until", (object?)leaseUntil ?? DBNull.Value);
                 command.Parameters.AddWithValue("completed_at", (object?)completedAt ?? DBNull.Value);
                 command.Parameters.AddWithValue("last_error", (object?)lastError ?? DBNull.Value);
-                command.Parameters.AddWithValue("created_at", createdAt ?? (nextAttemptAt ?? UtcNow).AddMinutes(-1));
+                command.Parameters.AddWithValue("created_at", createdAt ?? (nextAttemptAt ?? _utcNow).AddMinutes(-1));
             });
 
     private static async Task ExecuteAsync(string sql, Action<NpgsqlCommand> configure)
     {
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(sql, connection);
         configure(command);
@@ -534,7 +534,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             _ => throw new ArgumentOutOfRangeException(nameof(query))
         };
 
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(sql, connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
@@ -550,7 +550,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             _ => throw new ArgumentOutOfRangeException(nameof(query))
         };
 
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
@@ -564,7 +564,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             throw new ArgumentOutOfRangeException(nameof(query));
         }
 
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(query, connection);
         command.Parameters.AddWithValue("id", id);
@@ -573,7 +573,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
 
     private static async Task<Guid?> ReadNullableGuidAsync(Guid id)
     {
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(
             "SELECT lease_id FROM alert_delivery_outbox WHERE id = @id;",
@@ -592,7 +592,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             _ => throw new ArgumentOutOfRangeException(nameof(query))
         };
 
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
@@ -606,7 +606,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             throw new ArgumentOutOfRangeException(nameof(query));
         }
 
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(query, connection);
         command.Parameters.AddWithValue("address", address);
@@ -621,7 +621,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             _ => throw new ArgumentOutOfRangeException(nameof(column))
         };
 
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
@@ -637,7 +637,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             _ => throw new ArgumentOutOfRangeException(nameof(column))
         };
 
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("id", id);
@@ -648,7 +648,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
     private static async Task<Guid[]> ReadIdsAsync()
     {
         List<Guid> ids = [];
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new("SELECT id FROM alert_delivery_outbox;", connection);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();

@@ -542,8 +542,8 @@ namespace AForge.Math
             return System.Math.Abs(value) <= ZeroTolerance;
         }
 
-        private static readonly TimeSpan ParseRegexTimeout = TimeSpan.FromMilliseconds(250);
-        private static readonly Regex ParseRegex = new Regex(@"\((?<real>.*),(?<imaginary>.*)\)", RegexOptions.CultureInvariant, ParseRegexTimeout);
+        private static readonly TimeSpan parseRegexTimeout = TimeSpan.FromMilliseconds(250);
+        private static readonly Regex parseRegex = new Regex(@"\((?<real>.*),(?<imaginary>.*)\)", RegexOptions.CultureInvariant, parseRegexTimeout);
 
         #region Public Static Parse Methods
         /// <summary>
@@ -559,7 +559,7 @@ namespace AForge.Math
         ///
         public static Complex Parse(string s)
         {
-            Match m = ParseRegex.Match(s);
+            Match m = parseRegex.Match(s);
 
             if (m.Success)
             {

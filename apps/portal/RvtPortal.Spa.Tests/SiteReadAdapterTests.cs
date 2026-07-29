@@ -11,7 +11,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class SiteReadAdapterTests
 {
-    private static readonly DateTimeOffset Now =
+    private static readonly DateTimeOffset now =
         new(2026, 7, 23, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
@@ -26,7 +26,7 @@ public sealed class SiteReadAdapterTests
                 Id = siteId,
                 SiteName = "Archived Site",
                 Archived = true,
-                CreateDate = Now.UtcDateTime,
+                CreateDate = now.UtcDateTime,
                 Contracts = []
             },
             new SiteArchived
@@ -35,7 +35,7 @@ public sealed class SiteReadAdapterTests
                 SiteId = siteId,
                 PictureLink = archiveUrl,
                 CreatedBy = "admin",
-                CreateDate = Now.UtcDateTime
+                CreateDate = now.UtcDateTime
             });
         using IServiceScope scope = factory.Services.CreateScope();
         ISiteReadPort reads = scope.ServiceProvider.GetRequiredService<ISiteReadPort>();
@@ -57,7 +57,7 @@ public sealed class SiteReadAdapterTests
             Id = siteId,
             SiteName = "Archived Without Metadata",
             Archived = true,
-            CreateDate = Now.UtcDateTime,
+            CreateDate = now.UtcDateTime,
             Contracts = []
         });
         using IServiceScope scope = factory.Services.CreateScope();
@@ -99,14 +99,14 @@ public sealed class SiteReadAdapterTests
             {
                 Id = activeSiteId,
                 SiteName = "Active Site",
-                CreateDate = Now.UtcDateTime.AddDays(-2),
+                CreateDate = now.UtcDateTime.AddDays(-2),
                 Contracts = []
             },
             new Site
             {
                 Id = expiredSiteId,
                 SiteName = "Expired Site",
-                CreateDate = Now.UtcDateTime.AddDays(-3),
+                CreateDate = now.UtcDateTime.AddDays(-3),
                 Contracts = []
             },
             new SiteUsers
@@ -114,16 +114,16 @@ public sealed class SiteReadAdapterTests
                 Id = Guid.NewGuid(),
                 SiteId = activeSiteId,
                 UserId = userId,
-                StartDate = Now.UtcDateTime,
-                EndDate = Now.UtcDateTime
+                StartDate = now.UtcDateTime,
+                EndDate = now.UtcDateTime
             },
             new SiteUsers
             {
                 Id = Guid.NewGuid(),
                 SiteId = expiredSiteId,
                 UserId = userId,
-                StartDate = Now.UtcDateTime.AddDays(-10),
-                EndDate = Now.UtcDateTime.AddTicks(-1)
+                StartDate = now.UtcDateTime.AddDays(-10),
+                EndDate = now.UtcDateTime.AddTicks(-1)
             });
 
         using WebApplicationFactory<Program> fixedTimeFactory = factory.WithWebHostBuilder(builder =>
@@ -131,7 +131,7 @@ public sealed class SiteReadAdapterTests
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<TimeProvider>();
-                services.AddSingleton<TimeProvider>(new FixedTimeProvider(Now));
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
             });
         });
         using IServiceScope scope = fixedTimeFactory.Services.CreateScope();

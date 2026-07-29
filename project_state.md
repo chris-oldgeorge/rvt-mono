@@ -10,6 +10,55 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
+### Reviewable full-monorepo client release
+
+- Active implementation branch:
+  `chore/full-monorepo-client-release-v2`.
+- Isolated worktree:
+  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/full-monorepo-client-release`.
+- Approved design:
+  `docs/superpowers/specs/2026-07-29-full-monorepo-client-release-design.md`.
+- Implementation plan:
+  `docs/superpowers/plans/2026-07-29-full-monorepo-client-release.md`.
+- Client remote:
+  `https://github.com/RVT-Group-LTD/rvt-monitors.git`.
+- Client branch: `release-candidate`.
+- The payload is the complete committed monorepo, preserving `.github`,
+  `apps`, `libs`, `eng`, `scripts`, `tests`, operational/client-facing `docs`,
+  and root build files. It excludes agent/session state, internal development
+  history and reviews, private release mechanics, generated output, local
+  settings, and saved secrets.
+- The private control-plane files are:
+  - `docs/release/client-release-exclusions.txt`
+  - `scripts/verify-client-release.sh`
+  - `scripts/export-client-release.sh`
+  - `scripts/publish-client-release.sh`
+  - `tests/verify-client-release.test.sh`
+  - `tests/export-client-release.test.sh`
+  - `tests/publish-client-release.test.sh`
+- Exporter interface:
+  `scripts/export-client-release.sh --source-ref REF --export-dir DIR`.
+  It reads `REF` through Git objects and emits `RELEASE_SOURCE.json` plus
+  `RELEASE_MANIFEST.txt`; working-tree and untracked contents are never copied.
+- Publisher interface:
+  `scripts/publish-client-release.sh --target-repo URL --branch NAME
+  --source-ref REF --export-dir DIR --work-dir DIR --verify-dir DIR
+  [--prepare-only]`.
+- Publisher defaults:
+  - target repository:
+    `https://github.com/RVT-Group-LTD/rvt-monitors.git`
+  - branch: `release-candidate`
+  - export: `/private/tmp/rvt-monorepo-client-release`
+  - work: `/private/tmp/rvt-monorepo-client-publish`
+  - verification: `/private/tmp/rvt-monorepo-client-verify`
+- `RVT_CLIENT_RELEASE_POLICY` can point the verifier at an alternate policy
+  during isolated contract tests. `RVT_CLIENT_RELEASE_BEFORE_PUSH_HOOK` is a
+  test-only race-injection hook; do not set it during a real publication.
+- The exporter, verifier, and publisher contract suites pass. The next
+  checkpoint is full repository/export validation, followed by source-tooling
+  integration and lease-protected publication. No client remote update has
+  been made by this branch yet.
+
 - The consolidated report of work since the monorepo source import is
   [docs/reviews/2026-07-29-monorepo-work-report.md](docs/reviews/2026-07-29-monorepo-work-report.md).
   It covers the `31d168fd..d1fe8282` range, current structure, delivery

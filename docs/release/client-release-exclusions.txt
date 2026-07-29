@@ -1,0 +1,91 @@
+# Repository-relative shell patterns withheld from the reviewable client
+# monorepo. Product source, tests, CI, deployment, database, and operational
+# documentation are included by default.
+
+# Agent instructions and local/session state
+AGENTS.md
+**/AGENTS.md
+project_state.md
+**/project_state.md
+.agents/**
+**/.agents/**
+.codex/**
+**/.codex/**
+.codegraph/**
+**/.codegraph/**
+
+# Internal development plans, evidence, reviews, and release mechanics
+docs/superpowers/**
+**/docs/superpowers/**
+docs/history/**
+**/docs/history/**
+docs/reviews/**
+**/docs/reviews/**
+docs/release/**
+**/docs/release/**
+scripts/export-client-release.sh
+scripts/publish-client-release.sh
+scripts/verify-client-release.sh
+tests/export-client-release.test.sh
+tests/publish-client-release.test.sh
+tests/verify-client-release.test.sh
+apps/monitors/scripts/export-client-release.sh
+apps/monitors/scripts/publish-client-release.sh
+apps/monitors/docs/release/**
+
+# Local environment and settings
+.env
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+**/appsettings.Development.json
+**/appsettings.development.json
+**/appsettings.Local.json
+**/appsettings.local.json
+**/local.settings.json
+**/Local.settings.json
+
+# Secret-bearing key and certificate material
+*.key
+**/*.key
+*.pem
+**/*.pem
+*.p12
+**/*.p12
+*.pfx
+**/*.pfx
+*.jks
+**/*.jks
+*.keystore
+**/*.keystore
+
+# Generated build, dependency, coverage, and analysis output
+bin/**
+**/bin/**
+obj/**
+**/obj/**
+TestResults/**
+**/TestResults/**
+coverage/**
+**/coverage/**
+.sonarqube/**
+**/.sonarqube/**
+node_modules/**
+**/node_modules/**
+.nuget-packages/**
+**/.nuget-packages/**
+artifacts/**
+**/artifacts/**
+
+# IDE and operating-system state
+.DS_Store
+**/.DS_Store
+.vs/**
+**/.vs/**
+.idea/**
+**/.idea/**
+*.user
+**/*.user
+*.suo
+**/*.suo

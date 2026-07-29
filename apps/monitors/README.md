@@ -20,7 +20,7 @@ Detailed monitor documentation is centralized in the
 | `docker-compose.yml` | Monitor API runtime composition using the monorepo root as its source build context. |
 | `rvt-monitors.sln` | Root .NET solution for the monitor applications, shared-source references, and tests. |
 
-This release package intentionally excludes agent memory, internal planning notes, and local development state files such as `AGENTS.md`, `project_state.md`, `docs/superpowers/**`, `docs/database/monitors/monitor-data-access-migration.md`, `docs/release/**`, `.codegraph/**`, and release-export tooling.
+The reviewable client release publishes the complete monorepo while excluding agent/session state, internal development history and reviews, release mechanics, generated output, local settings, and saved secrets.
 
 The active mono-repository graph source-references `Rvt.Monitor.Common`,
 `Rvt.Monitor.IntegrationTesting`, `Rvt.Communication.Abstractions`,
@@ -203,11 +203,9 @@ dotnet build rvt-monitors.sln
 ```
 
 The solution projects use their checked-in per-project `packages.lock.json`
-files. To run the full monorepo build, including the separate package artifact
-contract, run `scripts/build-mono.sh` from the repository root. It packs
-`Rvt.Monitor.Common`, `Rvt.Monitor.Common.Infrastructure`, and
-`Rvt.Monitor.IntegrationTesting` at `0.2.0-rc.1`, then generates isolated
-artifact-validation locks as described above.
+files. All RVT dependencies are direct project references. To validate the
+complete source graph, run `scripts/build-mono.sh` from the monorepo root; it
+restores, checks engineering standards, builds, and tests `Rvt.Mono.slnx`.
 
 PostgreSQL integration tests can read local settings from the ignored
 `.rvt/rvt-integration.appsettings.Development.json` file at the repository root. Create
@@ -320,4 +318,4 @@ The provisioned Grafana dashboards cover monitor overview, monitor jobs, and ser
 
 ## Release Package Notes
 
-This repository can be exported as a curated client/audit package using the release process documented in the source repository. The curated package contains source code, tests, Docker and observability configuration, operational documentation, and this README. It excludes internal agent instructions, planning notes, local memory files, generated build output, local secrets, and release-export tooling.
+The source repository's private release tooling exports a revision-pinned, reviewable snapshot of the entire monorepo. The payload retains application and library source, tests, CI, Docker and observability configuration, database assets, build tooling, and operational documentation. It omits internal development/session files, release tooling, generated artifacts, local settings, and saved secrets.

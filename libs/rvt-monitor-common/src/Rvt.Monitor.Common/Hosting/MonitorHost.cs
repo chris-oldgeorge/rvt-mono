@@ -38,7 +38,7 @@ public static class MonitorHost
         string[] args,
         string monitorName,
         Func<string[], string?> getJobName,
-        Func<string, IServiceProvider, Task<int>> runJobAsync,
+        Func<string, IServiceProvider, CancellationToken, Task<int>> runJobAsync,
         Action<WebApplication> mapApi,
         Action<ILoggingBuilder>? configureLogging = null,
         Action<IServiceCollection, IConfiguration>? configureServices = null)
@@ -52,6 +52,11 @@ public static class MonitorHost
             await oneShotHost.StartAsync();
             ILoggerFactory loggerFactory = oneShotHost.Services.GetRequiredService<ILoggerFactory>();
             ILogger logger = loggerFactory.CreateLogger("Rvt.Monitor.Job");
+
+            // SIGTERM reaches the job through this token: the console lifetime trips
+            // ApplicationStopping, which cancels the in-flight vendor calls instead of
+            // leaving them running until the container is killed.
+            IHostApplicationLifetime lifetime = oneShotHost.Services.GetRequiredService<IHostApplicationLifetime>();
             try
             {
                 return await MonitorJobTelemetry.ExecuteAsync(
@@ -59,7 +64,14 @@ public static class MonitorHost
                     jobName,
                     "one-shot",
                     logger,
-                    () => runJobAsync(jobName, oneShotHost.Services));
+                    () => runJobAsync(jobName, oneShotHost.Services, lifetime.ApplicationStopping));
+            }
+            catch (OperationCanceledException) when (lifetime.ApplicationStopping.IsCancellationRequested)
+            {
+                logger.LogWarning(
+                    "Monitor job {JobName} was stopped by host shutdown before it completed.",
+                    jobName);
+                return 1;
             }
             catch (Exception exception)
             {

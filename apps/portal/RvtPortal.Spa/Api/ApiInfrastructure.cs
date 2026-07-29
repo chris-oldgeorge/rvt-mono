@@ -212,7 +212,7 @@ public sealed class SecurityHeadersMiddleware
 public sealed class ApiCsrfProtectionMiddleware
 {
     // Function summary: Lists HTTP methods that can mutate server state and require CSRF checks.
-    private static readonly HashSet<string> UnsafeMethods = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> _unsafeMethods = new(StringComparer.OrdinalIgnoreCase)
     {
         HttpMethods.Post,
         HttpMethods.Put,
@@ -241,7 +241,7 @@ public sealed class ApiCsrfProtectionMiddleware
     // Function summary: Blocks unsafe cross-origin API mutations before they reach controllers.
     public async Task Invoke(HttpContext context)
     {
-        if (!context.Request.Path.StartsWithSegments("/api") || !UnsafeMethods.Contains(context.Request.Method))
+        if (!context.Request.Path.StartsWithSegments("/api") || !_unsafeMethods.Contains(context.Request.Method))
         {
             await next(context);
             return;
@@ -363,7 +363,7 @@ public sealed class ApiCsrfProtectionMiddleware
 public sealed class ApiObservabilityMiddleware
 {
     // Function summary: Lists HTTP methods that should be logged as API mutations.
-    private static readonly HashSet<string> UnsafeMethods = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> _unsafeMethods = new(StringComparer.OrdinalIgnoreCase)
     {
         HttpMethods.Post,
         HttpMethods.Put,
@@ -405,7 +405,7 @@ public sealed class ApiObservabilityMiddleware
         await next(context);
         stopwatch.Stop();
 
-        if (UnsafeMethods.Contains(context.Request.Method) && logger.IsEnabled(LogLevel.Information))
+        if (_unsafeMethods.Contains(context.Request.Method) && logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
                 "API mutation {Method} {Path} completed with {StatusCode} in {ElapsedMilliseconds} ms. CorrelationId: {CorrelationId}; User: {UserName}",

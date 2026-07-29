@@ -15,7 +15,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class StorageAdapterTests
 {
-    private static readonly byte[] PngHeader = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    private static readonly byte[] _pngHeader = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     [Theory]
     [InlineData("BlobStorage:blobConnectionString", "UseDevelopmentStorage=true")]
@@ -104,7 +104,7 @@ public sealed class StorageAdapterTests
     // Function summary: Builds a valid PNG payload with caller-supplied body bytes.
     private static byte[] PngPayload(params byte[] body)
     {
-        return [.. PngHeader, .. body];
+        return [.. _pngHeader, .. body];
     }
 
     private sealed class MemoryUploadedContent : IUploadedContent
@@ -184,7 +184,7 @@ public sealed class StorageAdapterTests
     private sealed class RecordingCustomerLogoStorage : ICustomerLogoStorage
     {
         public Stream? UploadStream { get; private set; }
-        public Stream StoredStream { get; } = new MemoryStream(PngHeader);
+        public Stream StoredStream { get; } = new MemoryStream(_pngHeader);
 
         public Task SaveAsync(
             Guid siteId,

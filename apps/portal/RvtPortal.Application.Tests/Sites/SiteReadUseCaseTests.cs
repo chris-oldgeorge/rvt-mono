@@ -7,7 +7,7 @@ namespace RvtPortal.Application.Tests.Sites;
 
 public sealed class SiteReadUseCaseTests
 {
-    private static readonly DateTimeOffset Now =
+    private static readonly DateTimeOffset _now =
         new(2026, 7, 23, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
@@ -24,7 +24,7 @@ public sealed class SiteReadUseCaseTests
         Assert.Equal(UseCaseResultKind.NotFound, result.Kind);
         Assert.Equal(SiteAccessScopeKind.Assigned, reads.LastScope?.Kind);
         Assert.Equal(userId, reads.LastScope?.UserId);
-        Assert.Equal(Now.UtcDateTime, reads.LastScope?.NowUtc);
+        Assert.Equal(_now.UtcDateTime, reads.LastScope?.NowUtc);
     }
 
     [Fact]
@@ -71,5 +71,5 @@ public sealed class SiteReadUseCaseTests
             new EmptyPortalUserDirectory(),
             new NoOpSiteArchivePort(),
             new NoOpSiteLogoPort(),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(_now));
 }

@@ -39,7 +39,7 @@ namespace RvtPortal.Spa.Api;
 public class MonitorsController : ControllerBase
 {
     // Function summary: Defines the public monitor sort aliases accepted by list endpoints.
-    private static readonly IReadOnlyDictionary<string, string> SortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, string> _sortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["fleetNumber"] = "fleetNumber",
         ["serialId"] = "serialId",
@@ -74,9 +74,9 @@ public class MonitorsController : ControllerBase
     public async Task<ActionResult<QueryMonitorsResponse>> Query([FromQuery] QueryMonitorsRequest request)
     {
         string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "fleetNumber" : request.Sort.Trim();
-        if (!SortFields.ContainsKey(requestedSort))
+        if (!_sortFields.ContainsKey(requestedSort))
         {
-            return InvalidSort(requestedSort, SortFields.Keys);
+            return InvalidSort(requestedSort, _sortFields.Keys);
         }
 
         int page = request.GetNormalizedPage();
@@ -256,9 +256,9 @@ public class MonitorsController : ControllerBase
     public async Task<ActionResult<QueryUnattachedMonitorsResponse>> QueryUnattached([FromQuery] QueryMonitorsRequest request)
     {
         string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? "fleetNumber" : request.Sort.Trim();
-        if (!SortFields.ContainsKey(requestedSort))
+        if (!_sortFields.ContainsKey(requestedSort))
         {
-            return InvalidSort(requestedSort, SortFields.Keys);
+            return InvalidSort(requestedSort, _sortFields.Keys);
         }
 
         int page = request.GetNormalizedPage();

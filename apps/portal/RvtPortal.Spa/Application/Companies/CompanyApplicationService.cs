@@ -79,7 +79,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
 {
     private const string CompanyNameSort = "CompanyName";
 
-    private static readonly IReadOnlyDictionary<string, string> SortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, string> _sortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["companyName"] = CompanyNameSort,
         [CompanyNameSort] = CompanyNameSort,
@@ -91,7 +91,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
         ["Contracts"] = "Contracts"
     };
 
-    internal static readonly IReadOnlyCollection<string> AllowedSortFields = [.. SortFields.Keys
+    internal static readonly IReadOnlyCollection<string> AllowedSortFields = [.. _sortFields.Keys
         .Where(key => key[0] == char.ToLowerInvariant(key[0]))
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)];
@@ -118,7 +118,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
     public async Task<CompanyQueryResult> Query(CompanyQuery request, CancellationToken cancellationToken = default)
     {
         string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? CompanyNameSort : request.Sort.Trim();
-        if (!SortFields.TryGetValue(requestedSort, out string? serviceSort))
+        if (!_sortFields.TryGetValue(requestedSort, out string? serviceSort))
         {
             return new CompanyQueryResult
             {

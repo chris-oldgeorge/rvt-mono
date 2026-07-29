@@ -12,7 +12,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class SearchQueryExecutorTests
 {
-    private static readonly OrderByProperty[] ByName =
+    private static readonly OrderByProperty[] _byName =
     [
         new() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "CompanyName" }
     ];
@@ -29,7 +29,7 @@ public sealed class SearchQueryExecutorTests
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
-            ByName,
+            _byName,
             maximumRecords: 10,
             new Paging { paged = false },
             CancellationToken.None);
@@ -53,7 +53,7 @@ public sealed class SearchQueryExecutorTests
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
-            ByName,
+            _byName,
             maximumRecords,
             new Paging { paged = false },
             CancellationToken.None);
@@ -75,7 +75,7 @@ public sealed class SearchQueryExecutorTests
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [],
-            ByName,
+            _byName,
             maximumRecords: 0,
             new Paging { paged = true, page = 2, pageSize = pageSize },
             CancellationToken.None);
@@ -97,7 +97,7 @@ public sealed class SearchQueryExecutorTests
 
         SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
             [new SingleFilter { Operation = Op.Equals, PropertyName = "CompanyName", Value = "Company 2" }],
-            ByName,
+            _byName,
             maximumRecords: 10,
             new Paging { paged = false },
             CancellationToken.None);

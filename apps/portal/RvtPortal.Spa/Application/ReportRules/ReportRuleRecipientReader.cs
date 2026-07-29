@@ -28,7 +28,7 @@ public interface IReportRuleRecipientReader
 
 public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
 {
-    private static readonly string[] AdminRoleNames = [RoleNames.RVTMasterAdmin, RoleNames.RVTAdmin];
+    private static readonly string[] _adminRoleNames = [RoleNames.RVTMasterAdmin, RoleNames.RVTAdmin];
 
     private readonly RVTSearchContext searchContext;
     private readonly RVTDbContext domainContext;
@@ -351,7 +351,7 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
         List<string> adminUserIds = await applicationContext.UserRoles
             .AsNoTracking()
             .Join(
-                applicationContext.Roles.AsNoTracking().Where(role => AdminRoleNames.Contains(role.Name)),
+                applicationContext.Roles.AsNoTracking().Where(role => _adminRoleNames.Contains(role.Name)),
                 userRole => userRole.RoleId,
                 role => role.Id,
                 (userRole, _) => userRole.UserId)

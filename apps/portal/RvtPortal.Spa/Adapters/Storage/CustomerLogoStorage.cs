@@ -13,13 +13,13 @@ namespace RvtPortal.Spa.Adapters.Storage;
 public sealed class CustomerLogoStorage : ICustomerLogoStorage
 {
     private const long MaximumLogoBytes = 2 * 1024 * 1024;
-    private static readonly Dictionary<string, string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> _allowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         ["image/png"] = ".png",
         ["image/jpeg"] = ".jpg",
         ["image/webp"] = ".webp"
     };
-    private static readonly string[] KnownExtensions = [".png", ".jpg", ".jpeg", ".webp"];
+    private static readonly string[] _knownExtensions = [".png", ".jpg", ".jpeg", ".webp"];
     private readonly IWebHostEnvironment environment;
 
     // Function summary: Initializes this type with the host paths needed for application-content storage.
@@ -40,12 +40,12 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
             throw new StorageValidationException("Customer logo images must be 2 MB or smaller.");
         }
 
-        if (!AllowedContentTypes.TryGetValue(logo.ContentType, out string? extension))
+        if (!_allowedContentTypes.TryGetValue(logo.ContentType, out string? extension))
         {
             extension = ExtensionForFileName(logo.FileName);
         }
 
-        if (!KnownExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        if (!_knownExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
         {
             throw new StorageValidationException("Customer logos must be PNG, JPEG, or WebP images.");
         }
@@ -125,7 +125,7 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
             return null;
         }
 
-        return KnownExtensions
+        return _knownExtensions
             .Select(extension => Path.Combine(directory, $"{siteId:N}{extension}"))
             .FirstOrDefault(File.Exists);
     }
@@ -137,7 +137,7 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
 
     private void DeleteExistingExcept(Guid siteId, string? keepExtension)
     {
-        foreach (string extension in KnownExtensions)
+        foreach (string extension in _knownExtensions)
         {
             if (extension.Equals(keepExtension, StringComparison.OrdinalIgnoreCase))
             {

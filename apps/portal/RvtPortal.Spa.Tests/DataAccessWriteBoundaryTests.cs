@@ -10,7 +10,7 @@ namespace RvtPortal.Spa.Tests;
 
 public sealed class DataAccessWriteBoundaryTests
 {
-    private static readonly string[] WriteMethodNames = ["AddAsync", "UpdateAsync", "DeleteAsync"];
+    private static readonly string[] _writeMethodNames = ["AddAsync", "UpdateAsync", "DeleteAsync"];
 
     [Fact]
     // Function summary: Verifies no data-access type commits on its own, so writes stay inside one Unit of Work boundary.
@@ -76,7 +76,7 @@ public sealed class DataAccessWriteBoundaryTests
 
         string[] writeMembers = [.. ports
             .SelectMany(port => port.GetMethods())
-            .Where(method => WriteMethodNames.Contains(method.Name))
+            .Where(method => _writeMethodNames.Contains(method.Name))
             .Select(method => $"{method.DeclaringType?.Name}.{method.Name}")];
 
         Assert.Empty(writeMembers);
@@ -88,7 +88,7 @@ public sealed class DataAccessWriteBoundaryTests
     {
         string[] writeMembers = [.. typeof(GenericRepository<>)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Where(method => WriteMethodNames.Contains(method.Name))
+            .Where(method => _writeMethodNames.Contains(method.Name))
             .Select(method => method.Name)];
 
         Assert.Empty(writeMembers);

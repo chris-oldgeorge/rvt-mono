@@ -20,15 +20,15 @@ namespace RvtPortal.Spa.Tests;
 /// </summary>
 internal static class TestData
 {
-    private static int sequence;
+    private static int _sequence;
 
     // Function summary: Returns a process-unique, monotonically increasing counter for unique names/serials/ids.
-    private static int Next() => Interlocked.Increment(ref sequence);
+    private static int Next() => Interlocked.Increment(ref _sequence);
 
     // Function summary: Rotates deterministically through a set of realistic sample values.
     private static T Pick<T>(IReadOnlyList<T> options) => options[Next() % options.Count];
 
-    private static readonly string[] CompanyNames =
+    private static readonly string[] _companyNames =
     [
         "Alpine Demolition",
         "J Browne Construction Company Limited",
@@ -38,7 +38,7 @@ internal static class TestData
     ];
 
     // site_name in the dev DB is "<postcode> - <location>"; these mirror real rows.
-    private static readonly (string Postcode, string City, string Location)[] SitePlaces =
+    private static readonly (string Postcode, string City, string Location)[] _sitePlaces =
     [
         ("UB4 0SL", "Hayes", "Trinity Data Centre"),
         ("M30 7DR", "Manchester", "Peel Green Road"),
@@ -47,7 +47,7 @@ internal static class TestData
         ("MK6 5LD", "Eaglestone", "Milton Keynes University Hospital")
     ];
 
-    private static readonly (string Manufacturer, string Model, string Firmware)[] MonitorHardware =
+    private static readonly (string Manufacturer, string Model, string Firmware)[] _monitorHardware =
     [
         ("Palas GmbH", "AQGuardSmart1000", "1.0.13"),
         ("Svantek", "SV307", "2.1.0"),
@@ -60,7 +60,7 @@ internal static class TestData
         return new Company
         {
             Id = id ?? Guid.NewGuid(),
-            CompanyName = companyName ?? Pick(CompanyNames),
+            CompanyName = companyName ?? Pick(_companyNames),
             Contracts = []
         };
     }
@@ -92,7 +92,7 @@ internal static class TestData
         DateTime? createDate = null,
         bool archived = false)
     {
-        (string postcode, string city, string location) = Pick(SitePlaces);
+        (string postcode, string city, string location) = Pick(_sitePlaces);
         return new Site
         {
             Id = id ?? Guid.NewGuid(),
@@ -120,7 +120,7 @@ internal static class TestData
         DateTime? listedAtTime = null,
         DateTime? lastDataTime15Min = null)
     {
-        (string manufacturerName, string modelName, string firmware) = Pick(MonitorHardware);
+        (string manufacturerName, string modelName, string firmware) = Pick(_monitorHardware);
         int index = Next();
         return new MonitorEntity
         {

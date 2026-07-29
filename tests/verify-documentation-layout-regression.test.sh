@@ -12,7 +12,7 @@ cp "$repo_root/docs/index.md" "$test_root/docs/"
 cp "$repo_root/scripts/verify-documentation-layout.sh" "$test_root/scripts/"
 cp -R "$fixture_root/." "$test_root/"
 
-expected_moves=86
+expected_moves=85
 manifest_moves="$(
   awk -F '`' '/^\| `/ { count++ } END { print count + 0 }' \
     "$test_root/docs/documentation-move-manifest.md"

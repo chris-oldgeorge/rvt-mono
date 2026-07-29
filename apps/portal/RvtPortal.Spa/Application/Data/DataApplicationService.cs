@@ -191,7 +191,7 @@ public sealed class DataApplicationService : IDataApplicationService
     private const string CsvContentType = "text/csv";
 
     // Function summary: Maps API sort keys to monitor-data source sort fields.
-    private static readonly IReadOnlyDictionary<string, string> SortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, string> _sortFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         [SampleTimeKey] = SampleTimeSort,
         [Pm1Key] = Pm1CsvLabel,
@@ -240,9 +240,9 @@ public sealed class DataApplicationService : IDataApplicationService
         }
 
         string requestedSort = string.IsNullOrWhiteSpace(request.Sort) ? SampleTimeKey : request.Sort.Trim();
-        if (!SortFields.TryGetValue(requestedSort, out string? serviceSort))
+        if (!_sortFields.TryGetValue(requestedSort, out string? serviceSort))
         {
-            return DataWorkflowResult<MonitorDataGridResponse>.Failed(DataWorkflowFailure.InvalidSort(requestedSort, SortFields.Keys));
+            return DataWorkflowResult<MonitorDataGridResponse>.Failed(DataWorkflowFailure.InvalidSort(requestedSort, _sortFields.Keys));
         }
 
         int page = request.GetNormalizedPage();

@@ -54,10 +54,10 @@ namespace RvtPortal.Spa.Application.Monitors
 
     public class MonitorData
     {
-        private static readonly string DUST_MONITOR_NAME = "Air Quality Levels at Dust Monitor {0}";
-        private static readonly string NOISE_MONITOR_NAME = "Sound Levels at Noise Monitor {0}";
-        private static readonly string VIBRATION_MONITOR_NAME = "Vibration Levels at Vibration Monitor {0}";
-        private static readonly string VIBRATION_TRACES_MONITOR_NAME = "Traces at Vibration Monitor {0}";
+        private static readonly string _dustMonitorName = "Air Quality Levels at Dust Monitor {0}";
+        private static readonly string _noiseMonitorName = "Sound Levels at Noise Monitor {0}";
+        private static readonly string _vibrationMonitorName = "Vibration Levels at Vibration Monitor {0}";
+        private static readonly string _vibrationTracesMonitorName = "Traces at Vibration Monitor {0}";
 
         public RVT.Entities.Monitor? Monitor { get; set; }
         public DateTime MinDate { get; set; }
@@ -83,11 +83,11 @@ namespace RvtPortal.Spa.Application.Monitors
                 switch ((MonitorTypeEnum)typeOfMonitor)
                 {
                     case MonitorTypeEnum.Dust:
-                        return String.Format(CultureInfo.InvariantCulture, DUST_MONITOR_NAME, fleetNr ?? String.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
+                        return string.Format(CultureInfo.InvariantCulture, _dustMonitorName, fleetNr ?? string.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
                     case MonitorTypeEnum.Noise:
-                        return String.Format(CultureInfo.InvariantCulture, NOISE_MONITOR_NAME, fleetNr ?? String.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
+                        return string.Format(CultureInfo.InvariantCulture, _noiseMonitorName, fleetNr ?? string.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
                     case MonitorTypeEnum.Vibration:
-                        return String.Format(CultureInfo.InvariantCulture, traces ? VIBRATION_TRACES_MONITOR_NAME : VIBRATION_MONITOR_NAME, fleetNr ?? String.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
+                        return string.Format(CultureInfo.InvariantCulture, traces ? _vibrationTracesMonitorName : _vibrationMonitorName, fleetNr ?? string.Format(CultureInfo.InvariantCulture, "SN {0}", serialId));
                 }
             }
             return fleetNr ?? "";

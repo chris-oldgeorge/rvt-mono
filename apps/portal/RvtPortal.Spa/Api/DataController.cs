@@ -22,7 +22,7 @@ public class DataController : ControllerBase
 {
     /// <summary>Set to "true" when a CSV export stopped at the reader's row bound and is therefore partial.</summary>
     public const string TruncatedHeader = "X-RVT-Truncated";
-    private static readonly string[] TimestampQueryFields = ["fromDate", "toDate"];
+    private static readonly string[] _timestampQueryFields = ["fromDate", "toDate"];
 
     private readonly IDataApplicationService dataApplication;
 
@@ -197,7 +197,7 @@ public class DataController : ControllerBase
     // Function summary: Preserves the wire-format distinction that DateTime model binding loses for offset timestamps.
     private ProblemDetails? ValidateUtcQueryTimestamps()
     {
-        string[] invalidFields = [.. TimestampQueryFields
+        string[] invalidFields = [.. _timestampQueryFields
             .Where(field =>
             {
                 string value = Request.Query[field].ToString();

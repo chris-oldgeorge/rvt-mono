@@ -13,7 +13,7 @@ return await MonitorHost.RunAsync<OmnidotsMonitorJobDispatcher>(
     args,
     "OmnidotsMonitor",
     MonitorJobRunner.GetJobName,
-    (jobName, services) => MonitorJobRunner.RunAsync(jobName, services),
+    (jobName, services, cancellationToken) => MonitorJobRunner.RunAsync(jobName, services, cancellationToken),
     app => app.MapOmnidotsMonitorApi(),
     configureServices: (services, configuration) =>
         services.AddOmnidotsMonitor(configuration));

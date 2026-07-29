@@ -136,7 +136,7 @@ public interface IUserAccountNotificationService
 
 public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
 {
-    private static readonly string[] RoleOrder =
+    private static readonly string[] _roleOrder =
     [
         RoleNames.RVTMasterAdmin,
         RoleNames.RVTAdmin,
@@ -433,7 +433,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
 
         if (!string.IsNullOrWhiteSpace(request.Role))
         {
-            if (!RoleOrder.Contains(request.Role, StringComparer.Ordinal))
+            if (!_roleOrder.Contains(request.Role, StringComparer.Ordinal))
             {
                 AddError(errors, nameof(UserMutationRequest.Role), "Role is not valid.");
             }

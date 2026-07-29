@@ -59,6 +59,10 @@ Local configuration and secrets:
 
 - Put local database settings in user secrets, environment variables, or an uncommitted local override. Do not commit real values.
 - Use `docs/deploy/set-dev-secrets.ps1` to configure the Development user-secrets store for the API host.
+- Portal SendGrid delivery is controlled by `RVT__Email_ENABLED`. It defaults
+  to `true` when absent, while the checked-in Visual Studio `https` profile
+  sets the case-insensitive equivalent `RVT__EMAIL_ENABLED=false` so local
+  debugging does not send mail.
 - `RvtPortal.Spa/appsettings.json` documents required keys with blank placeholders, including `ConnectionStrings:DefaultConnection`, `ReportGenerationService:BaseUrl`, `ReportGenerationService:InternalApiKey`, `ExternalUrls:OmnidotsAdapterUrl`, `ExternalUrls:OmnidotsAdapterSecret`, `EmailConfiguration:*`, `SmtpServer:*`, `What3Words:ApiKey`, blob storage, Redis, and data-protection settings.
 - `RvtPortal.Spa/appsettings.Development.json` is intentionally gitignored and must stay local-only. It may contain sample placeholders, but real connection strings, local passwords, and API keys belong in user secrets, environment variables, or another untracked local override.
 - Client API targeting can be overridden with `VITE_RVT_PORTAL_API_URL`; allowed client-side API origins can be extended with `VITE_RVT_PORTAL_ALLOWED_API_HOSTS`.
@@ -69,6 +73,12 @@ Local configuration and secrets:
 Open `RvtPortal.Spa.sln` in Visual Studio. Set `RvtPortal.Spa` as the startup project, select the `https` launch profile, and start debugging.
 
 The project is configured with `SpaProxyServerUrl` `http://localhost:5173` and `SpaProxyLaunchCommand` `npm run dev:vs`. If `RvtPortal.Client/node_modules` is missing in Debug builds, the project runs `npm ci` before launch.
+
+The `https` profile disables outbound email by default. To enable it for a
+debug session, change `RVT__EMAIL_ENABLED` to `true` in
+`RvtPortal.Spa/Properties/launchSettings.json` (or set
+`RVT__Email_ENABLED=true` in the Visual Studio debug profile), configure the
+SendGrid credential, and restart the startup project.
 
 ## Test And Build Gates
 

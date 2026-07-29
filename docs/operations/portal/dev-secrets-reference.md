@@ -13,6 +13,12 @@ credentials belong in this file or in any tracked file.**
 - **Production:** the sensitive values come from the deployment secret store
   (environment variables / Azure Key Vault), never from the script.
 
+ASP.NET Core environment-variable names use `__` in place of `:`. For example,
+the configuration key `RVT:EMAIL_ENABLED` is supplied as
+`RVT__Email_ENABLED`. Configuration keys are case-insensitive, so the
+all-uppercase `RVT__EMAIL_ENABLED` spelling in the checked-in Visual Studio
+launch profile controls the same setting.
+
 Run the core set:
 
 ```powershell
@@ -92,12 +98,21 @@ Choose one mode with `-BlobStorageMode` (default `ConnectionString`).
 
 ### Outbound email (SendGrid) — `-ConfigureOutboundEmail`
 
-Enabling this also sets `Auth:SkipPasswordResetEmail` to `false` so real mail is
-sent.
+This switch stores the SendGrid credential and sets
+`Auth:SkipPasswordResetEmail` to `false`. SendGrid delivery is controlled
+separately by `RVT__Email_ENABLED`.
 
 | Key | Purpose | Sensitive |
 | --- | --- | --- |
 | `EmailConfiguration:SENDGRID_API_KEY` | SendGrid API key used to send real outbound email. | **Yes** |
+
+The application defaults email delivery to enabled when
+`RVT__Email_ENABLED` is absent. The checked-in `https` Visual Studio launch
+profile explicitly sets the equivalent `RVT__EMAIL_ENABLED=false`, keeping
+local email disabled. To send email while debugging, set that profile variable
+to `true` (or define `RVT__Email_ENABLED=true` in the startup environment) and
+restart `RvtPortal.Spa`. Setting it to `false` disables the SendGrid adapter
+even when an API key is configured.
 
 ### SMTP — `-ConfigureSmtp`
 
@@ -132,6 +147,9 @@ restarts and instances (otherwise cookies/tokens break on redeploy).
 These are read from configuration but are environment/topology settings, not
 secrets, and the script does not set them:
 
+- `RVT:EMAIL_ENABLED` / `RVT__Email_ENABLED` — enables or disables Portal
+  SendGrid delivery. It defaults to `true` when absent; the checked-in Visual
+  Studio `https` launch profile overrides it to `false` for local safety.
 - `Spa:AllowedOrigins` — CORS origins allowed to call the API.
 - `Spa:PublicBaseUrl` — the portal's public base URL, used to build absolute
   links (e.g. password-reset and account-activation links) in outgoing email.

@@ -84,10 +84,13 @@ superseded narratives to the archive.
   expectation from the common-source-boundary verifier, and documents the
   repository guardrails added for repeated security and maintainability
   findings.
-- Portal SendGrid registration now binds its enabled state through `IOptions`;
-  set `RVT__Email_ENABLED=false` in the `RvtPortal.Spa` startup environment to
-  disable outbound email. The variable is optional and email remains enabled
-  when no override is supplied.
+- Portal SendGrid registration now binds its enabled state through `IOptions`
+  from `RVT:EMAIL_ENABLED`; the environment-variable form is
+  `RVT__Email_ENABLED` (`RVT__EMAIL_ENABLED` is equivalent because ASP.NET Core
+  configuration keys are case-insensitive). The setting is optional and
+  defaults to `true`, but the checked-in Visual Studio `https` launch profile
+  sets it to `false` so local debugging does not send mail. Setting it to
+  `false` disables the adapter even when a SendGrid API key is configured.
 - Monitor projects follow main's lowercase `api`, `model`, `db`, `http`, and
   `json` directory structure. Path-based architecture tests and tooling must
   preserve that exact casing. Repo-wide CA1859 and CA1873 enforcement remains
